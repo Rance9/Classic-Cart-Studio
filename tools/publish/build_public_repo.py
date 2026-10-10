@@ -67,8 +67,7 @@ def copytree_reg(src: str, dst: str):
         for f in fs: _reg(os.path.join(r, f))
 
 def build_site(site: str):
-    if os.path.isdir(site): rmtree_retry(site)
-    os.makedirs(site)
+    os.makedirs(site, exist_ok=True)   # built in place: every file is rewritten; folder deletion of freshly written image folders fails intermittently on this PC
     for sub in ("oem", "web"): shutil.copytree(os.path.join(PROJECT, "reports", "brand", sub), os.path.join(site, "brand", sub), dirs_exist_ok=True)   # approved sprite sets, as they are
     shutil.copytree(os.path.join(PROJECT, "reports", "art"), os.path.join(site, "art"), dirs_exist_ok=True)   # approved box art, as it is
     os.makedirs(os.path.join(site, "brand", "public"), exist_ok=True); shutil.copy2(os.path.join(PROJECT, "tools", "publish", "assets", "app.ico"), os.path.join(site, "brand", "public", "app.ico"))   # the companion's window/installer icon (project asset), at the path the installer expects

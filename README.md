@@ -70,6 +70,12 @@ Packaging (what the release workflow does): `pyinstaller tools/companion/compani
 
 Layout: `tools/rom-pipeline/` (data model, page generator, Studio front-end in `studio/`), `tools/companion/` (loopback server, Hakchi bridge, inspector, import, desktop app, installer script), `tools/publish/` (public build, content scanner, sprites, release helpers), `site-data/` (public identification data: titles, publishers, hashes; no files), `.github/workflows/` (website deploy, companion release).
 
+## Support
+
+NES Classic Collection Studio is free and open source. If you've found it useful, optional contributions through [GitHub Sponsors](https://github.com/sponsors/Rance9) are always appreciated and help support continued independent development. Nothing in the Studio depends on it: no paid features, no gates, no prompts.
+
+The console the creator used was bought from an eBay seller recommended in the guide's "Getting an NES Classic" chapter. That is a personal recommendation, not a sponsored listing or affiliate relationship: no commission or referral compensation is received, and it is independent of GitHub Sponsors.
+
 ## Credits and licences
 
 - This project's code: MIT (see `LICENSE`).
