@@ -8,6 +8,7 @@ and a sprite. A companion must be running on --port with the default allow list.
 from __future__ import annotations
 import os, sys, json, subprocess, tempfile, time, re, html, urllib.request, urllib.error, urllib.parse, shutil, argparse
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
+GRANTS: list = []; LNA_BYPASS = os.environ.get("NES_LIVE_LNA_BYPASS", "1") != "0"
 EDGE = next(x for x in [r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"] if os.path.exists(x))
 JS = r"""(async()=>{ const out={}; const wait=ms=>new Promise(r=>setTimeout(r,ms)); const step=STEP; try{ await wait(600); await companionStatus(); out.step=step; out.origin=location.origin; out.path=location.pathname; out.hosted=COMPANION.hosted; out.state=COMPANION.state; out.pill=$('connPill').textContent.trim(); out.version=COMPANION.version; out.games=DATA.games.length; out.sprites=[...document.querySelectorAll('img.px')].filter(i=>i.complete&&i.naturalWidth>0).length; out.heroText=($('heroGames')||{}).textContent;
  if(step==='fresh'){ await openConnect(); await wait(1500); out.modal=$('collTitle').textContent; out.hasConnect=!!$('connGo'); out.dl=(($('dl')||{}).textContent||'').replace(/\s+/g,' ').slice(0,300); out.hasHash=!!$('dlHash'); out.hash=($('dlHash')||{}).textContent; closeColl(); }
@@ -19,7 +20,11 @@ def cdp_run(url, profile, script, timeout=120):
     """Drive headless Edge over the DevTools protocol: open the real page, evaluate the script, poll the title for the result."""
     import socket, http.client, threading
     port = 9333
-    p = subprocess.Popen([EDGE, "--headless=new", "--disable-gpu", "--disable-popup-blocking", f"--user-data-dir={profile}", f"--remote-debugging-port={port}", "--window-size=1600,1000", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Headless Edge cannot show the Local Network Access prompt and reports LocalNetworkAccessPermissionDenied even after a DevTools grant
+    # (verified 2026-10-10 with Network.loadingFailed). A real user answers the prompt once with Allow. The harness therefore disables the
+    # check (LNA_BYPASS) to verify everything else over the real origin; the prompt itself is confirmed interactively by a person.
+    flags = ["--disable-features=LocalNetworkAccessChecks,PrivateNetworkAccessChecks,PrivateNetworkAccessSendPreflights"] if LNA_BYPASS else []
+    p = subprocess.Popen([EDGE, "--headless=new", "--disable-gpu", "--disable-popup-blocking", *flags, f"--user-data-dir={profile}", f"--remote-debugging-port={port}", "--window-size=1600,1000", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         for _ in range(80):
             try: tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json", timeout=1)); break
@@ -33,7 +38,11 @@ def cdp_run(url, profile, script, timeout=120):
             while True:
                 m = json.loads(ws.recv())
                 if m.get("id") == i[0]: return m
-        call("Page.enable"); call("Page.navigate", {"url": url})
+        call("Page.enable")
+        # a public https page reaching 127.0.0.1 needs Edge's Local Network Access permission; a real user answers the prompt (Allow), headless
+        # auto-denies it, so the test grants it for this origin exactly as the user would (the page's "blocked" state is covered by test_hosted)
+        origin = "/".join(url.split("/", 3)[:3]); g = call("Browser.grantPermissions", {"origin": origin, "permissions": ["localNetworkAccess"]}); GRANTS.append(g.get("error") or "granted")
+        call("Page.navigate", {"url": url})
         t0 = time.time()
         while time.time() - t0 < 60:
             r = call("Runtime.evaluate", {"expression": "typeof companionStatus==='function' && document.readyState==='complete'", "returnByValue": True})
@@ -76,6 +85,7 @@ def main():
     o = cdp_run(a.url, prof, JS.replace("STEP", "'claim'").replace("CODE", "'" + t["code"] + "'")); print("claim:", json.dumps(o)[:600])
     ok("live_claim_connects", o.get("state") == "ok" and o.get("libOk") is True and o.get("statusOk") is True, f"{o.get('state')} {o.get('err')}")
     o = cdp_run(a.url, prof, JS.replace("STEP", "'reload'").replace("CODE", "''")); ok("live_reload_keeps_pairing", o.get("state") == "ok" and o.get("hasToken") is True and o.get("libOk") is True, f"{o.get('state')} {o.get('err')}")
+    print("local-network-access permission grants:", GRANTS[:3], "| LNA checks bypassed in headless:", LNA_BYPASS, "(the real prompt is confirmed interactively)")
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
 
 if __name__ == "__main__":
