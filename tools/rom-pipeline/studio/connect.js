@@ -12,14 +12,16 @@ function artUrl(p){ return p?(CO.base?CO.base+'/'+p:p):''; }
 function lnaInit(init){ if(CO.hosted) init.targetAddressSpace='loopback'; return init; }
 async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.method||'GET',headers:hdrs(opts.body?{'Content-Type':'application/json'}:{}),cache:'no-store'}); if(opts.body) init.body=JSON.stringify(opts.body);
  const ac=('AbortController' in window)?new AbortController():null; if(ac){ init.signal=ac.signal; setTimeout(()=>ac.abort(),opts.timeout||12000); }
- let r; try{ r=await fetch(CO.base+path,init); }catch(e){ if(e&&e.name==='AbortError') return {ok:false,error:'The companion did not answer in time.',timeout:true}; CO.ok=false; CO.info=null; CO.state=CO.file?'file':'off'; connPill(); return {ok:false,error:'The companion on this computer is not reachable.',unreachable:true}; }
+ const used=CO.bearer; let r; try{ r=await fetch(CO.base+path,init); }catch(e){ if(e&&e.name==='AbortError') return {ok:false,error:'The companion did not answer in time.',timeout:true}; CO.ok=false; CO.info=null; CO.state=CO.file?'file':'off'; connPill(); return {ok:false,error:'The companion on this computer is not reachable.',unreachable:true}; }
  const j=await r.json().catch(()=>({ok:false,error:'unexpected response (HTTP '+r.status+')'}));
- if(r.status===401&&!CO.served){ savePair(null,0); CO.ok=false; CO.state='unpaired'; connPill(); }
+ if(r.status===401&&!CO.served&&used===CO.bearer){ savePair(null,0); CO.ok=false; CO.state='unpaired'; connPill(); }
  if(r.status===426){ CO.ok=false; CO.state='old'; CO.version=j.version||CO.version; CO.protocol=j.protocol||CO.protocol; connPill(); }
  if(!r.ok&&!j.error) j.error='HTTP '+r.status; j.status=r.status; return j; }
 async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}}); }
 async function lnaDenied(){ try{ if(navigator.permissions&&navigator.permissions.query){ const p=await navigator.permissions.query({name:'local-network-access'}); return p.state==='denied'; } }catch(e){} return false; }
-async function companionStatus(){ CO.ok=false; CO.info=null; CO.error=''; if(CO.state==='unknown'){ CO.state='checking'; connPill(); }
+let STATUS_P=null;
+async function companionStatus(){ if(STATUS_P) return STATUS_P; STATUS_P=companionStatusOnce(); try{ return await STATUS_P; } finally{ STATUS_P=null; } }
+async function companionStatusOnce(){ CO.ok=false; CO.info=null; CO.error=''; if(CO.state==='unknown'){ CO.state='checking'; connPill(); }
  if(CO.file){ CO.state='file'; try{ await fetch('http://127.0.0.1:'+CO.PORT+'/api/ping',{mode:'no-cors',cache:'no-store',targetAddressSpace:'loopback'}); CO.reachable=true; }catch(e){ CO.reachable=false; } connPill(); return; }
  if(CO.hosted){ loadPair(); let v; try{ const r=await fetch(CO.base+'/api/version',lnaInit({headers:hdrs(),cache:'no-store'})); v=await r.json(); }catch(e){ CO.state=(await lnaDenied())?'denied':'off'; connPill(); return; }
   CO.version=v.version||null; CO.protocol=v.protocol||0; CO.frozen=!!v.frozen; if(!(CO.protocol>=CO.REQ_PROTOCOL)){ CO.state='old'; connPill(); return; } if(!v.paired){ savePair(null,0); CO.state='unpaired'; connPill(); return; } }
