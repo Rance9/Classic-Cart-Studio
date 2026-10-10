@@ -6,7 +6,7 @@ Website: **https://rance9.github.io/NES-Classic-Collection-Studio/** · Releases
 
 The Studio is a website for choosing, organising and checking a collection of NES games for an NES Classic Edition, and a small Windows **companion** program that does the work that a website cannot do by itself: read the games already set up on your computer, keep the game files you import, prepare your collection and open the console-management software (Hakchi2 CE). The website works on its own for browsing and planning; the companion adds everything that touches your files.
 
-> NES Classic Collection Studio is an independent project. It is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles and publisher names are used only to identify games. **No game files, box art or console software are distributed by this project.**
+> NES Classic Collection Studio is an independent project. It is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles, publisher names, artwork and box art are used to identify and present games; all rights remain with their owners. **No game files or console software are distributed by this project.**
 
 ## What you can do
 
@@ -59,7 +59,7 @@ The website stores your collection, favourites and settings in your browser only
 
 ```
 python -m pip install pillow
-python tools/publish/build_site_ci.py build/site          # static website from site-data/ + original sprites
+python tools/publish/build_site_ci.py build/site          # static website from site-data/ (data, artwork, fonts)
 python tools/rom-pipeline/test_public_site.py build/site  # page checks
 python tools/companion/nes_companion.py --port 8765       # the companion from source (serves the site you built: set NES_STUDIO_SITE)
 ```
@@ -73,7 +73,7 @@ Layout: `tools/rom-pipeline/` (data model, page generator, Studio front-end in `
 ## Credits and licences
 
 - This project's code: MIT (see `LICENSE`).
-- Pixel characters and icons on the site: original drawings for this project.
+- Pixel artwork and interface icons: Nintendo's renderings from the NES Classic Edition system software and documented community sprite rips (origins in the site footer); box art from community thumbnail collections. Shown to identify and present the games; all rights remain with their owners; not covered by the MIT licence.
 - [Hakchi2 CE](https://github.com/TeamShinkansen/Hakchi2-CE) by TeamShinkansen and contributors (GPL v3) does the console side; it is not bundled.
 - "Press Start 2P" font: SIL Open Font License.
 - Game identification data compiled from No-Intro, NesCartDB and Mesen database releases.

@@ -33,4 +33,9 @@ Third-party components (not covered by the licence above):
 * Game metadata is factual identification data (titles, publishers, years, hashes)
   compiled from No-Intro, NesCartDB and Mesen database releases.
 
-No game files, box art, console software or Nintendo assets are included.
+* Artwork under site-data/brand/oem (renderings from the NES Classic Edition system
+  software), site-data/brand/web (community sprite rips; origins in provenance.json)
+  and site-data/art (community box-art scans) is shown to identify and present the
+  games; all rights remain with their owners. It is NOT covered by the MIT licence.
+
+No game files or console software are included.

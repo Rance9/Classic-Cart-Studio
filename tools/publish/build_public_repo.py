@@ -41,7 +41,7 @@ def sanitize(obj):
     if isinstance(obj, dict):
         out = {}
         for k, v in obj.items():
-            if k in ("art", "art_source", "stored", "source_path", "archive", "archives", "archive_dir", "archive_path"): continue
+            if k in ("stored", "source_path", "archive", "archives", "archive_dir", "archive_path"): continue   # local paths and private-archive names only; artwork references are part of the approved presentation
             out[k] = sanitize(v)
         return out
     if isinstance(obj, list): return [sanitize(x) for x in obj]
@@ -57,13 +57,21 @@ def rmtree_retry(path: str, tries: int = 8):
         time.sleep(1.5)
     shutil.rmtree(path)   # final attempt raises the real error
 
+WRITTEN: set = set()   # every file the current build placed in the public tree; anything else there is removed afterwards (sync in place, no folder deletion)
+def _reg(path: str): WRITTEN.add(os.path.normcase(os.path.abspath(path)))
 def copy_file(rel: str, dst_root: str):
-    src = os.path.join(PROJECT, rel); dst = os.path.join(dst_root, rel); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copy2(src, dst)
+    src = os.path.join(PROJECT, rel); dst = os.path.join(dst_root, rel); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copy2(src, dst); _reg(dst)
+def copytree_reg(src: str, dst: str):
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+    for r, _, fs in os.walk(dst):
+        for f in fs: _reg(os.path.join(r, f))
 
 def build_site(site: str):
     if os.path.isdir(site): rmtree_retry(site)
     os.makedirs(site)
-    subprocess.run([sys.executable, os.path.join(HERE, "make_public_sprites.py"), site], check=True)
+    for sub in ("oem", "web"): shutil.copytree(os.path.join(PROJECT, "reports", "brand", sub), os.path.join(site, "brand", sub), dirs_exist_ok=True)   # approved sprite sets, as they are
+    shutil.copytree(os.path.join(PROJECT, "reports", "art"), os.path.join(site, "art"), dirs_exist_ok=True)   # approved box art, as it is
+    os.makedirs(os.path.join(site, "brand", "public"), exist_ok=True); shutil.copy2(os.path.join(PROJECT, "tools", "publish", "assets", "app.ico"), os.path.join(site, "brand", "public", "app.ico"))   # the companion's window/installer icon (project asset), at the path the installer expects
     os.makedirs(os.path.join(site, "brand", "fonts"), exist_ok=True); shutil.copy2(os.path.join(PROJECT, "reports", "brand", "fonts", "PressStart2P-Regular.ttf"), os.path.join(site, "brand", "fonts"))
     for lic in ("OFL-PressStart2P.txt",):
         p = os.path.join(PROJECT, "reports", "brand", "fonts", lic)
@@ -81,11 +89,8 @@ def build_site(site: str):
     if not os.path.exists(os.path.join(site, "release.json")): json.dump({"version": None, "note": "no companion release published yet"}, open(os.path.join(site, "release.json"), "w"))
 
 def build_repo(repo: str, site: str):
-    if os.path.isdir(repo):
-        for n in os.listdir(repo):
-            if n == ".git": continue
-            p = os.path.join(repo, n); rmtree_retry(p) if os.path.isdir(p) else os.remove(p)
-    os.makedirs(repo, exist_ok=True)
+    os.makedirs(repo, exist_ok=True); WRITTEN.clear()   # files are copied over the existing tree and stale files removed at the end; folders stay in place
+                                                        # (removing freshly written image folders on this machine intermittently fails with "access is denied")
     for rel in ALLOW_FILES:
         if os.path.exists(os.path.join(PROJECT, rel)): copy_file(rel, repo)
         else: print("  (allow-listed file missing, skipped)", rel)
@@ -102,14 +107,25 @@ def build_repo(repo: str, site: str):
     if os.path.isdir(rf):
         for root, dirs, files in os.walk(rf):
             for f in files:
-                src = os.path.join(root, f); rel = os.path.relpath(src, rf); dst = os.path.join(repo, rel); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copy2(src, dst)
-        shutil.rmtree(rf)
+                src = os.path.join(root, f); rel = os.path.relpath(src, rf); dst = os.path.join(repo, rel); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copy2(src, dst); _reg(dst)
+        for root, dirs, files in os.walk(rf):
+            for f in files: WRITTEN.discard(os.path.normcase(os.path.abspath(os.path.join(root, f))))   # the staging copy is not part of the tree: removed below
     # the public site's data + sprites (not the page: CI rebuilds it from source, and the data lets tests/companion builds run without the private workspace)
     sd = os.path.join(repo, "site-data"); os.makedirs(sd, exist_ok=True)
     for n in SITE_DATA:
-        if os.path.exists(os.path.join(site, n)): shutil.copy2(os.path.join(site, n), sd)
-    shutil.copytree(os.path.join(site, "brand", "fonts"), os.path.join(sd, "brand", "fonts"), dirs_exist_ok=True)
-    open(os.path.join(repo, "VERSION"), "w").write(VERSION + "\n")
+        if os.path.exists(os.path.join(site, n)): shutil.copy2(os.path.join(site, n), sd); _reg(os.path.join(sd, n))
+    for sub in ("oem", "web", "fonts"): copytree_reg(os.path.join(site, "brand", sub), os.path.join(sd, "brand", sub))
+    copytree_reg(os.path.join(site, "art"), os.path.join(sd, "art"))   # box art is part of the approved presentation
+    open(os.path.join(repo, "VERSION"), "w").write(VERSION + "\n"); _reg(os.path.join(repo, "VERSION"))
+    # remove stale files (anything this build did not write), then drop folders that became empty; a folder that cannot be removed is harmless to git
+    for r, ds, fs in os.walk(repo, topdown=False):
+        if ".git" in os.path.relpath(r, repo).replace("/", os.sep).split(os.sep): continue
+        for f in fs:
+            fp = os.path.join(r, f)
+            if os.path.normcase(os.path.abspath(fp)) not in WRITTEN: os.remove(fp)
+        if r != repo and not os.listdir(r):
+            try: os.rmdir(r)
+            except OSError: pass
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--repo", default=os.path.join(PROJECT, "publish", "repo")); ap.add_argument("--site", default=os.path.join(PROJECT, "build", "site")); ap.add_argument("--no-site", action="store_true"); a = ap.parse_args()

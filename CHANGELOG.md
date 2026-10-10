@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-10-10
+
+- Restored the approved visual presentation on the website and in the companion's bundled site: the Nintendo hero and 27-character parade, the footer character roster with origins, the firmware interface icons and wordmark, and the game box art in grid, list, details and the Collection Tray (745 of 773 curated games). The public build no longer substitutes generic artwork or strips art references; ROM, console-image, secret and private-path exclusions are unchanged.
+- Install button keeps its glow in every state; hover lift, glow and sheen on all buttons.
+
 ## 0.1.2 — 2026-10-10
 
 - How It Works guide: content pass across all 24 chapters (shorter, direct wording that names Hakchi2 CE, FEL mode, mappers and hmods; stale artwork note removed), step boxes no longer stretch to the tallest step, verification command shown as a code block.

@@ -8,8 +8,10 @@ def main(out: str):
     out = os.path.abspath(out)
     if os.path.isdir(out): shutil.rmtree(out)
     os.makedirs(out)
-    subprocess.run([sys.executable, os.path.join(HERE, "make_public_sprites.py"), out], check=True)
     sd = os.path.join(REPO, "site-data")
+    for sub in ("oem", "web"): shutil.copytree(os.path.join(sd, "brand", sub), os.path.join(out, "brand", sub), dirs_exist_ok=True)
+    shutil.copytree(os.path.join(sd, "art"), os.path.join(out, "art"), dirs_exist_ok=True)
+    os.makedirs(os.path.join(out, "brand", "public"), exist_ok=True); shutil.copy2(os.path.join(REPO, "tools", "publish", "assets", "app.ico"), os.path.join(out, "brand", "public", "app.ico"))   # companion icon at the path the installer expects
     for n in ("catalog.json", "builtin.json", "library.json", "rankings.json"):
         if os.path.exists(os.path.join(sd, n)): shutil.copy2(os.path.join(sd, n), out)
     shutil.copytree(os.path.join(sd, "brand", "fonts"), os.path.join(out, "brand", "fonts"), dirs_exist_ok=True)

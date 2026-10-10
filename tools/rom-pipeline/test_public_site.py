@@ -12,12 +12,21 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.jo
 
 def main(site: str):
     checks = []; ok = lambda k, v, n="": checks.append(f"{k}={'true' if v else 'false'}{(' ('+n+')') if n and not v else ''}")
-    need = ["index.html", "nes-catalog.html", "catalog.json", "builtin.json", "library.json", ".nojekyll", "robots.txt", "release.json", "brand/public/index.json", "brand/public/provenance.json", "brand/public/byte.png", "brand/fonts/PressStart2P-Regular.ttf"]
+    need = ["index.html", "nes-catalog.html", "catalog.json", "builtin.json", "library.json", ".nojekyll", "robots.txt", "release.json", "brand/oem/index.json", "brand/oem/nes-wordmark.png", "brand/web/provenance.json", "brand/fonts/PressStart2P-Regular.ttf", "art"]
     missing = [n for n in need if not os.path.exists(os.path.join(site, n))]; ok("required_files", not missing, str(missing))
     page = open(os.path.join(site, "nes-catalog.html"), encoding="utf-8").read(); idx = open(os.path.join(site, "index.html"), encoding="utf-8").read()
     ok("index_is_the_page", page == idx)
     ok("title_and_disclaimer", "<title>NES Classic Collection Studio</title>" in page and "independent project" in page and "not produced, licensed, sponsored, approved or endorsed by Nintendo" in page)
-    ok("no_private_assets", "brand/oem/" not in page and "brand/web/" not in page and 'src="art/' not in page and "nes-wordmark" not in page)
+    # ---- approved visual presentation (owner directive 2026-10-10): the public page must carry the same artwork as the accepted build ----
+    sys.path.insert(0, HERE); import build_html as BH
+    pi = page.index('<div class="parade"'); parade = page[pi:page.index('<div class="ground">', pi)]
+    hero_imgs = re.findall(r'src="(brand/(?:oem|web)/[^"]+\.png)"', parade); expected = [f"brand/{d}/{st}.png" for d, st, sc, cls in BH.HERO]
+    ok("hero_parade_27_original_characters_in_order", hero_imgs == expected and len(expected) == 27, f"{len(hero_imgs)} of {len(expected)}")
+    ok("hero_sprites_exist", all(os.path.exists(os.path.join(site, p)) for p in expected))
+    ok("wordmark_present", 'src="brand/oem/nes-wordmark.png"' in page and os.path.exists(os.path.join(site, "brand", "oem", "nes-wordmark.png")))
+    ok("interface_icons_from_firmware", page.count("brand/oem/icon-") >= 8 and all(os.path.exists(os.path.join(site, "brand", "oem", n)) for n in ("icon-a.png", "icon-b.png", "icon-cartridge.png", "icon-disk.png", "icon-warning.png", "icon-start.png")))
+    ok("footer_roster_present", page.count('src="brand/oem/px-') >= 40 and page.count('src="brand/web/') >= 15, f"oem={page.count(chr(34)+'brand/oem/px-')} web={page.count('src='+chr(34)+'brand/web/')}")
+    ok("no_generic_substitutes", "brand/public/" not in page and "original pixel art drawn" not in page and "original drawings" not in page)
     refs = set(re.findall(r'(?:src|href)="([^"]+)"', page)) | set(re.findall(r'url\("([^"]+)"\)', page))
     refs = {r for r in refs if not r.startswith(("data:", "#", "blob:", "mailto:")) and "${" not in r}
     ext = sorted(r for r in refs if re.match(r"^[a-z]+:", r)); allowed_ext = ("https://github.com/", "https://rance9.github.io/", "https://api.github.com/", "http://127.0.0.1:", "https://www.nintendo.com/")
@@ -30,11 +39,15 @@ def main(site: str):
         hits = [m.group(0)[:40] for m in S.PRIVATE_PATH.finditer(page)]; ok("no_private_paths_in_page", not hits, str(hits)[:120])
         ok("no_secret_patterns_in_page", not S.SECRET.search(page))
         for n in ("catalog.json", "library.json", "builtin.json"):
-            t = open(os.path.join(site, n), encoding="utf-8").read(); ok(f"no_private_paths_in_{n}", not S.PRIVATE_PATH.search(t) and '"art"' not in t)
+            t = open(os.path.join(site, n), encoding="utf-8").read(); ok(f"no_private_paths_in_{n}", not S.PRIVATE_PATH.search(t))
     except ImportError: ok("scanner_available", False)
-    cat = json.load(open(os.path.join(site, "catalog.json"), encoding="utf-8")); ok("catalog_has_games_without_art", len(cat["games"]) > 700 and all(not g.get("art") for g in cat["games"]))
-    prov = json.load(open(os.path.join(site, "brand", "public", "provenance.json"), encoding="utf-8")); ok("sprites_are_original", all("Original pixel art" in p["origin"] for p in prov) and len(prov) >= 20)
-    sprites = set(re.findall(r'src="(brand/public/[^"]+\.png)"', page)); ok("page_uses_public_sprites", len(sprites) >= 20 and all(os.path.exists(os.path.join(site, s)) for s in sprites), str(len(sprites)))
+    cat = json.load(open(os.path.join(site, "catalog.json"), encoding="utf-8")); with_art = [g for g in cat["games"] if g.get("art")]
+    ok("curated_cover_art_coverage_restored", len(cat["games"]) > 700 and len(with_art) >= 745, f"{len(with_art)} of {len(cat['games'])}")
+    ok("cover_art_files_exist", all(os.path.exists(os.path.join(site, g["art"])) for g in with_art) and len(os.listdir(os.path.join(site, "art"))) >= 800)
+    lib = json.load(open(os.path.join(site, "library.json"), encoding="utf-8")); ok("library_art_mappings_kept", sum(1 for t in lib["titles"] if t.get("art")) >= 750 and sum(1 for v in lib["versions"] if v.get("art")) >= 800)
+    sprites = set(re.findall(r'src="(brand/(?:oem|web)/[^"]+\.png)"', page)); ok("every_sprite_reference_exists", len(sprites) >= 60 and all(os.path.exists(os.path.join(site, s)) for s in sprites), str(len(sprites)))
+    prov = {p["slug"] for p in json.load(open(os.path.join(site, "brand", "web", "provenance.json"), encoding="utf-8"))}
+    used = {s.split("/")[-1][:-4] for s in sprites if s.startswith("brand/web/")}; ok("web_characters_have_provenance", bool(used) and used <= prov, str(sorted(used - prov)))
     node = shutil.which("node")
     if node:
         sc = re.findall(r"<script>(.*?)</script>", page, re.S); p = os.path.join(site, "_script_check.js"); open(p, "w", encoding="utf-8").write(sc[0] if sc else "")

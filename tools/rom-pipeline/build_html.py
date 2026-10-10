@@ -19,23 +19,16 @@ from common import REPORTS
 
 BRAND = os.path.join(REPORTS, "brand", "oem")
 WEB = os.path.join(REPORTS, "brand", "web")      # characters obtained online (provenance.json records every source)
-# ---- PUBLIC build (--public --out <site>): original pixel art only (tools/publish/make_public_sprites.py), no box art, no wordmark,
-#      data read from the sanitised copies in <site>; the private build keeps the firmware crops that never leave this computer ----
+# ---- PUBLIC build (--public --out <site>): the SAME approved visual presentation as the private build (owner directive 2026-10-10:
+#      hero, 27-character parade, interface icons, wordmark, box art). Only the data source (sanitised copies in <site>), the page
+#      title/meta and the legal paragraph differ. tools/publish/build_public_repo.py copies brand/oem, brand/web, fonts and art into <site>. ----
 PUBLIC = "--public" in sys.argv
 OUT = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else REPORTS
 SRC = OUT if PUBLIC else REPORTS
+if PUBLIC: BRAND = os.path.join(OUT, "brand", "oem"); WEB = os.path.join(OUT, "brand", "web")
 APP_NAME = "NES Classic Collection Studio"
 TAGLINE = "An independent game collection manager for the Nintendo NES Classic Edition."
 DISCLAIMER = "NES Classic Collection Studio is an independent project. It is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles and publisher names are used only to identify games. Console-side technology by the Hakchi2 CE project."
-HERO_PUBLIC = [("public", "question-crate", 2, "float f1"), ("public", "byte", 2, ""), ("public", "pip", 2, ""), ("public", "kat", 2, ""), ("public", "sir-pixel", 2, ""), ("public", "nova", 2, ""),
-    ("public", "shade", 2, "lg"), ("public", "dot", 2, ""), ("public", "rex", 2, "lg"), ("public", "petal", 2, ""), ("public", "gizmo", 2, "lg"), ("public", "hopper", 2, ""),
-    ("public", "pixie", 2, ""), ("public", "finn", 2, "float f3"), ("public", "bolt", 2, "float f1"), ("public", "star", 2, "float f1"), ("public", "heart", 2, ""), ("public", "gem", 2, ""),
-    ("public", "cartridge", 2, "lg"), ("public", "controller", 2, "lg")]
-EMPTY_PUBLIC = [("public", "byte", 3), ("public", "pip", 3), ("public", "kat", 3), ("public", "sir-pixel", 3), ("public", "dot", 3)]
-HOWTO_PUBLIC = [("public", "gizmo", 1), ("public", "hopper", 1), ("public", "pixie", 1)]
-FILTERS_PUBLIC = [("public", "byte", 2), ("public", "dot", 2)]
-WELCOME_PUBLIC = [("public", "byte", 2), ("public", "pip", 2), ("public", "kat", 2), ("public", "sir-pixel", 2), ("public", "nova", 2), ("public", "dot", 2)]
-GSTART_PUBLIC = [("public", "byte", 2), ("public", "question-crate", 2), ("public", "dot", 2)]
 
 # Hero ensemble: Nintendo characters only (file stem in reports/brand/oem, pixel scale, css class). Order = left to right.
 HERO = [   # (folder, file stem, pixel scale, css class) — compact hero, NES-era sprites only, 2x (Little Mac 1x)
@@ -625,7 +618,7 @@ render();
 
 LEGAL_PRIVATE = TEMPLATE[TEMPLATE.index('<p class="legal">'):TEMPLATE.index("</p></div></footer>") + len("</p></div></footer>")]
 LEGAL_PUBLIC = ('<p class="legal">' + DISCLAIMER + ' Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3, a separate download; this Studio prepares collections for it and does not bundle or reimplement it). '
-    'The pixel characters shown here are original drawings made for this project. No game files, box art or console software are distributed with this website. '
+    'The pixel artwork and interface icons are Nintendo\'s own renderings from the NES Classic Edition system software and documented community sprite rips (origins in the parade above), and the box art comes from community thumbnail collections; they are shown to identify and present the games, and all rights remain with their owners. No game files or console software are distributed with this website. '
     'Source code, releases and how to verify a download: <a href="https://github.com/Rance9/NES-Classic-Collection-Studio" rel="noopener">github.com/Rance9/NES-Classic-Collection-Studio</a>. Catalog <span id="gen"></span>.</p></div></footer>')
 
 def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title: str = "") -> str:
@@ -643,22 +636,16 @@ def main():
         data["rankings"] = rk["games"]; data["ranking_sources"] = rk["sources"]; data["ranking_method"] = rk.get("method_summary", "")
     index = {}
     ip = os.path.join(BRAND, "index.json")
-    if os.path.exists(ip) and not PUBLIC:
+    if PUBLIC: assert os.path.exists(ip), "public site is missing brand/oem: run tools/publish/build_public_repo.py (it copies the approved artwork into the site)"
+    if os.path.exists(ip):
         for f in json.load(open(ip, encoding="utf-8"))["files"]: index[("oem", f["file"])] = f
-    pub_prov = []
-    pp = os.path.join(OUT, "brand", "public", "index.json")
-    if PUBLIC:
-        assert os.path.exists(pp), "public sprites missing: run tools/publish/make_public_sprites.py <site> first"
-        for f in json.load(open(pp, encoding="utf-8"))["files"]: index[("public", f["file"])] = f
-        pub_prov = [f for f in json.load(open(pp, encoding="utf-8"))["files"] if f["kind"] in ("character", "item")]
-        for g in data["games"]: g["art"] = ""; g["art_source"] = ""
     web_prov = {}
     wp = os.path.join(WEB, "provenance.json")
-    if os.path.exists(wp) and not PUBLIC:
+    if os.path.exists(wp):
         for f in json.load(open(wp, encoding="utf-8")):
             if os.path.exists(os.path.join(WEB, f["slug"] + ".png")):
                 index[("web", f["slug"] + ".png")] = {"w": f["width"], "h": f["height"]}; web_prov[f["slug"]] = f
-    hero = "".join(sprite(d, st, sc, index, cls) for d, st, sc, cls in (HERO_PUBLIC if PUBLIC else HERO))
+    hero = "".join(sprite(d, st, sc, index, cls) for d, st, sc, cls in HERO)
     # ---- Studio partials + compact library index (titles + non-curated versions; curated rows already carry full data) ----
     sdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studio")
     part = lambda n: open(os.path.join(sdir, n), encoding="utf-8").read()
@@ -667,30 +654,24 @@ def main():
     vkeep = ("id", "sha256", "name", "title_id", "regions", "rev", "kind", "identity", "size", "emulator", "core", "input_level", "input_accessory", "input_support", "input_requirement", "input_modes", "builtin_code", "builtin_status", "year", "genre", "art", "header_ok", "licensed", "publisher")
     LIBC = {"generated": lib.get("generated", ""), "counts": lib.get("counts", {}), "titles": [{k: t[k] for k in tkeep if t.get(k) not in ("", None, [])} for t in lib["titles"]], "versions": [{k: v[k] for k in vkeep if v.get(k) not in ("", None, [], False)} for v in lib["versions"] if not v["curated"]]}
     for t in LIBC["titles"]: t.setdefault("curated", False)
-    if PUBLIC:
-        for t in LIBC["titles"]: t.pop("art", None)
-        for v in LIBC["versions"]: v.pop("art", None)
     data["lib_counts"] = {"titles": len(lib["titles"]), "versions": len(lib["versions"]), "curated": sum(1 for t in lib["titles"] if t["curated"])}
-    welcome_cast = "".join(sprite(d, st, sc, index) for d, st, sc in (WELCOME_PUBLIC if PUBLIC else [("oem", "px-mario-walk-1", 2), ("oem", "px-link", 2), ("oem", "px-samus", 2), ("oem", "px-kirby", 2), ("oem", "px-pit", 2), ("web", "toad", 2)]))
-    g_start = "".join(sprite(d, st, sc, index) for d, st, sc in (GSTART_PUBLIC if PUBLIC else [("oem", "px-mario-walk-1", 2), ("oem", "px-question-block-0", 2), ("web", "goomba", 2)]))
+    welcome_cast = "".join(sprite(d, st, sc, index) for d, st, sc in [("oem", "px-mario-walk-1", 2), ("oem", "px-link", 2), ("oem", "px-samus", 2), ("oem", "px-kirby", 2), ("oem", "px-pit", 2), ("web", "toad", 2)])
+    g_start = "".join(sprite(d, st, sc, index) for d, st, sc in [("oem", "px-mario-walk-1", 2), ("oem", "px-question-block-0", 2), ("web", "goomba", 2)])
     studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", part("guide.html").replace("__G_START__", g_start))
-    if PUBLIC: foot = "".join(sprite("public", f["file"][:-4], 2, index, "", f"{f['label']} — original pixel art drawn for this project") for f in pub_prov)
-    else:
-        foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}") for st, n, g in ROSTER)
-        foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}") for st, n in WEB_ROSTER)
-    empty = "".join(sprite(d, st, sc, index) for d, st, sc in (EMPTY_PUBLIC if PUBLIC else EMPTY_CAST))
-    howto = "".join(sprite(d, st, sc, index) for d, st, sc in (HOWTO_PUBLIC if PUBLIC else HOWTO_CAST))
-    filt = "".join(sprite(d, st, sc, index) for d, st, sc in (FILTERS_PUBLIC if PUBLIC else FILTERS_CAST))
+    foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}") for st, n, g in ROSTER)
+    foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}") for st, n in WEB_ROSTER)
+    empty = "".join(sprite(d, st, sc, index) for d, st, sc in EMPTY_CAST)
+    howto = "".join(sprite(d, st, sc, index) for d, st, sc in HOWTO_CAST)
+    filt = "".join(sprite(d, st, sc, index) for d, st, sc in FILTERS_CAST)
     html = (TEMPLATE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__HERO_CAST__", hero).replace("__FOOTER_CAST__", foot)
             .replace("__EMPTY_CAST__", empty).replace("__HOWTO_CAST__", howto).replace("__FILTERS_CAST__", filt)
             .replace("__STUDIO_CSS__", part("studio.css")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
     if PUBLIC:
-        html = (html.replace("brand/oem/", "brand/public/")
-                .replace('<img class="wordmark px" src="brand/public/nes-wordmark.png" alt="Nintendo Entertainment System" width="137" height="15" onerror="this.style.display=\'none\'">', "")
-                .replace("<title>NES Classic Collection — Game Selection Catalog</title>", f"<title>{APP_NAME}</title><meta name=\"description\" content=\"{TAGLINE}\"><meta name=\"robots\" content=\"index,follow\"><meta property=\"og:title\" content=\"{APP_NAME}\"><meta property=\"og:description\" content=\"{TAGLINE}\">")
+        html = (html.replace("<title>NES Classic Collection — Game Selection Catalog</title>", f"<title>{APP_NAME}</title><meta name=\"description\" content=\"{TAGLINE}\"><meta name=\"robots\" content=\"index,follow\"><meta property=\"og:title\" content=\"{APP_NAME}\"><meta property=\"og:description\" content=\"{TAGLINE}\">")
                 .replace(LEGAL_PRIVATE, LEGAL_PUBLIC))
-        assert LEGAL_PUBLIC in html and "brand/oem/" not in html and "nes-wordmark" not in html, "public build substitution failed"
+        # regression guard (owner directive 2026-10-10): the public page must carry the approved visuals — 27-sprite hero, wordmark, box art
+        assert LEGAL_PUBLIC in html and hero.count("<img") == len(HERO) == 27 and "brand/oem/nes-wordmark.png" in html and sum(1 for g in data["games"] if g.get("art")) >= 745, "public build lost the approved visuals"
     out = os.path.join(OUT, "nes-catalog.html")
     open(out, "w", encoding="utf-8").write(html)
     print("wrote", out, "games:", len(data["games"]), "bytes:", len(html), "hero sprites:", hero.count("<img"), "footer sprites:", foot.count("<img"), "web sprites:", len(web_prov), "rankings:", len(data.get("rankings", {})))

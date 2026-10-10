@@ -73,3 +73,22 @@
 #guideArt code,#guideArt pre{overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}
 #guideArt table{max-width:100%}
 #guideArt pre{margin:8px 0 12px;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r2);background:#0a0a0c;font-size:12.5px}#guideArt h4{margin:16px 0 6px}
+/* ---- buttons: the Install button keeps its red glow in every state; every button lifts, brightens and sweeps a sheen on hover ---- */
+.btn{position:relative;isolation:isolate;transition:transform .16s var(--ease),border-color .16s,background .16s,box-shadow .22s,filter .16s,color .16s}
+.btn::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.30) 50%,transparent 60%) no-repeat;background-size:300% 100%;background-position:200% 0;transition:background-position .6s var(--ease);pointer-events:none;z-index:1}
+.btn:hover::after,.btn:focus-visible::after{background-position:-100% 0}
+.btn:hover{transform:translateY(-1.5px);border-color:rgba(255,255,255,.48);box-shadow:0 8px 20px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.1) inset,0 0 14px rgba(255,255,255,.08);filter:brightness(1.1)}
+.btn:active{transform:translateY(1px) scale(.985);filter:brightness(.96);transition-duration:.06s}
+.btn.active:hover{box-shadow:0 8px 20px rgba(0,0,0,.5),0 0 14px rgba(201,201,206,.3)}
+.btn.secondary:hover,.btn.ghost:hover,.btn.ghosty:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.38);color:#fff}
+.seg .btn:hover{transform:none;box-shadow:none;filter:brightness(1.18)}
+.btn.hk,.btn.hk.off{background:linear-gradient(180deg,#ff2a36,var(--red2));border-color:#ff5a63;color:#fff;box-shadow:0 2px 12px var(--glow),0 0 22px rgba(228,0,15,.38);animation:hkglow 2.8s ease-in-out infinite}
+@keyframes hkglow{0%,100%{box-shadow:0 2px 12px var(--glow),0 0 18px rgba(228,0,15,.32)}50%{box-shadow:0 3px 16px var(--glow),0 0 36px rgba(255,59,69,.62)}}
+.btn.hk:hover,.btn.primary:hover{transform:translateY(-1.5px) scale(1.035);border-color:#ffb8bc;box-shadow:0 8px 24px var(--glow),0 0 48px rgba(255,59,69,.8),0 0 0 2px rgba(255,255,255,.2) inset;filter:brightness(1.12) saturate(1.1);animation-play-state:paused}
+.btn.hk:active,.btn.primary:active{transform:translateY(1px) scale(1)}
+.conn{transition:transform .16s var(--ease),border-color .16s,box-shadow .22s,background .16s}.conn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.7);background:rgba(255,255,255,.09);box-shadow:0 0 16px rgba(255,255,255,.16)}
+.conn.ok:hover{box-shadow:0 0 18px rgba(57,211,122,.5)}.conn.warn:hover{box-shadow:0 0 18px rgba(240,160,48,.5)}.conn.bad:hover{box-shadow:0 0 18px rgba(255,90,90,.5)}
+.letters a{transition:transform .12s,background .12s,border-color .12s,color .12s}.letters a:hover{transform:translateY(-1px) scale(1.12);background:rgba(255,255,255,.12);box-shadow:0 4px 10px rgba(0,0,0,.4)}
+.menu .mi{transition:background .12s,transform .12s}.menu .mi:hover{transform:translateX(3px)}
+#welcome .ch{transition:transform .18s var(--ease),border-color .18s,box-shadow .22s}#welcome .ch:hover,#welcome .ch:focus-visible{transform:translateY(-3px);box-shadow:0 0 0 2px rgba(255,59,69,.4),0 14px 34px rgba(228,0,15,.28)}
+.sbox .opt{transition:transform .18s var(--ease),border-color .18s,box-shadow .22s,background .18s}.sbox .opt:hover,.sbox .opt:focus-visible{transform:translateY(-2px);background:rgba(255,255,255,.06);box-shadow:0 0 0 2px rgba(255,59,69,.3),0 10px 26px rgba(0,0,0,.45)}
