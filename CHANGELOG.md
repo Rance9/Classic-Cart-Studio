@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4 — 2026-10-10
+
+- Website: compact hero (about 140 px) that stays on screen together with the toolbar; the duplicate brand block in the toolbar is gone; "How It Works" is now **Help & User Guide** (book icon, chapter count); one **Filter & Sort** dialog holds every filter, the sort order and the Extended Library switch, with Apply / Cancel / Reset, staged changes, an active-filter badge and chips; the toolbar is grouped by task; the search icon no longer overlaps typed text; no page-level horizontal scroll from 360 px to 3440 px wide (also at 125 % zoom).
+- Connection: the website reports **Connected** as soon as the companion answers the version handshake (about 10 ms on a warm companion instead of 4 s); the console-setup check (Hakchi2 CE, driver, console) runs in the background with bounded timeouts and shows "Checking console setup…" / "Setup needs attention"; states shown: Checking for companion…, Companion not running, Permission needed, Waiting for approval, Connected.
+- Companion 0.1.4: `/api/status` answers from a cached snapshot immediately and refreshes diagnostics in a background thread (`?wait=` for callers that need a fresh result); every probe is time-limited (process list 10 s, device enumeration 12 s, driver query 25 s); file hashes and version lookups are cached by size and modification time; the status payload carries the measured timings. Protocol stays 1: the 0.1.3 companion still works with this website (its status call is slower and shows no timings); updating is recommended.
+- Storage: the header chip reads "NES Classic · estimated game space ~261 MB" and names its source (a reference estimate for a stock 2018 console, a read-only measurement, or unknown); the collection tray and footer stats use the same wording; no visitor free space is ever claimed and no private path is published.
+- Legal: new guide chapter **Legal, Privacy & Disclaimers**, `PRIVACY.md`, `THIRD_PARTY_NOTICES.md`, a **Legal & Privacy** link in the footer and links from the README.
+
 ## 0.1.3 — 2026-10-10
 
 - Restored the approved visual presentation on the website and in the companion's bundled site: the Nintendo hero and 27-character parade, the footer character roster with origins, the firmware interface icons and wordmark, and the game box art in grid, list, details and the Collection Tray (745 of 773 curated games). The public build no longer substitutes generic artwork or strips art references; ROM, console-image, secret and private-path exclusions are unchanged.

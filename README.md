@@ -84,6 +84,13 @@ The console the creator used was bought from an eBay seller recommended in the g
 - "Press Start 2P" font: SIL Open Font License.
 - Game identification data compiled from No-Intro, NesCartDB and Mesen database releases.
 
+## Legal, privacy and third-party notices
+
+- [LICENSE](LICENSE): MIT for this project's own code.
+- [PRIVACY.md](PRIVACY.md): what the website and the companion store and transmit (nothing leaves your computer except requests to GitHub for the site and release information).
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): Hakchi2 CE, fonts, identification databases, artwork and build tools, with what is bundled and what is downloaded separately.
+- The same information, in plain words, is in the Studio's Help & User Guide → Legal, Privacy & Disclaimers.
+
 ## Security
 
 See `SECURITY.md` for what the companion does, how to verify downloads and how to report a problem.

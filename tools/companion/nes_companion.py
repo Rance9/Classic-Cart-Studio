@@ -171,7 +171,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if path.startswith("/api/"):
             if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "this companion is older than the website expects; please update it", "protocol": PROTOCOL, "version": VERSION})
             if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "not connected: this website must be paired with the companion first", "pair_required": True})
-        if path == "/api/status": return self._json(200, {"ok": True, **hb.env_status(CFG), "version": VERSION, "protocol": PROTOCOL, "dev_store": os.path.exists(hb.DB_PATH)})
+        if path == "/api/status":
+            q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); wait = min(float(q.get("wait", "0") or 0), 30.0)
+            return self._json(200, {"ok": True, **status_payload(wait), "version": VERSION, "protocol": PROTOCOL, "dev_store": os.path.exists(hb.DB_PATH)})
         if path == "/api/import/status":
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); j = ps.job_status(q.get("job", ""))
             return self._json(200 if j else 404, {"ok": bool(j), "job": j, "error": None if j else "unknown job"})
@@ -260,7 +262,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 if hb.console_connected(): return self._json(409, {"ok": False, "error": "the console is connected over USB; disconnect it first"})
             try:
                 fn = hb.install_hakchi if path == "/api/install-hakchi" else hb.install_driver
-                res = fn(CFG, dry_run=bool(body.get("dry_run"))); res["env"] = hb.env_status(CFG); res["env"]["rehearsal"] = bool(CFG.get("rehearsal_tree"))
+                res = fn(CFG, dry_run=bool(body.get("dry_run"))); diag_refresh(force=True); res["env"] = status_payload(wait=20)
                 return self._json(200 if res.get("ok") else 409, {"ok": bool(res.get("ok")), "error": None if res.get("ok") else res.get("message"), "result": res})
             except Exception as e: return self._json(500, {"ok": False, "error": f"{path[5:]} failed: {e}"})
         if path.startswith("/api/personal/") or path == "/api/library/adopt":
@@ -313,7 +315,7 @@ class H(http.server.BaseHTTPRequestHandler):
                     pv_out["summary"]["reused"] = sum(1 for it in pv["custom"] if any(e["marker"] and e["marker"].get("game_id") == it["game"]["game_id"] for e in ex.values()))
                     pv_out["summary"]["to_prepare"] = pv_out["summary"]["to_prepare_total"] - pv_out["summary"]["reused"]
                 except Exception: pass
-                env = hb.env_status(CFG); env["rehearsal"] = bool(CFG.get("rehearsal_tree"))
+                env = status_payload(wait=20)
                 return self._json(200, {"ok": True, "manifest_file": os.path.basename(mf), "preview": pv_out, "env": env, "conflict": conflict})
             except Exception as e: return self._json(500, {"ok": False, "error": f"preview failed: {e}"})
         if path == "/api/apply":
@@ -351,12 +353,52 @@ def ui_verify(res: dict) -> str:
 
 PORT = int(CFG.get("port", 8765))
 
+# ---- diagnostics cache: the slow checks (process list, USB devices, driver store) run in ONE background thread, never on the request path.
+#      /api/status answers at once with cheap facts + the last snapshot (with its age); a refresh is started when the snapshot is stale. ----
+DIAG = {"snapshot": None, "at": 0.0, "running": False, "started": 0.0, "error": None, "timings": {}}
+DIAG_TTL = 20.0
+def diag_refresh(force: bool = False):
+    now = time.time()
+    with LOCK:
+        if DIAG["running"] and now - DIAG["started"] < 120: return
+        if not force and DIAG["snapshot"] and now - DIAG["at"] < DIAG_TTL: return
+        DIAG["running"] = True; DIAG["started"] = now
+    def run():
+        try:
+            full = hb.env_status(CFG); snap = {"hakchi_running": full["hakchi_running"], "console_connected": full["console_connected"], "driver": full["driver"]}
+            with LOCK: DIAG["snapshot"] = snap; DIAG["at"] = time.time(); DIAG["timings"] = full.get("timings", {}); DIAG["error"] = None
+        except Exception as e:
+            with LOCK: DIAG["error"] = str(e)[:200]; DIAG["at"] = time.time()
+        finally:
+            with LOCK: DIAG["running"] = False
+    threading.Thread(target=run, daemon=True).start()
+def status_payload(wait: float = 0.0) -> dict:
+    """Cheap status now; the diagnostics snapshot when one exists (or after waiting up to `wait` seconds for a fresh one)."""
+    st = hb.env_status(CFG, quick=True); diag_refresh()
+    if wait > 0:
+        t0 = time.time()
+        while time.time() - t0 < wait:
+            with LOCK: fresh = DIAG["snapshot"] is not None and not DIAG["running"] and time.time() - DIAG["at"] < DIAG_TTL + 1
+            if fresh: break
+            time.sleep(0.2)
+    with LOCK: snap = dict(DIAG["snapshot"] or {}); age = round(time.time() - DIAG["at"], 1) if DIAG["snapshot"] else None; running = DIAG["running"]; err = DIAG["error"]; tm = dict(DIAG["timings"])
+    st.update({"hakchi_running": snap.get("hakchi_running"), "console_connected": snap.get("console_connected"), "driver": snap.get("driver"), "diag": {"state": "checking" if (running or not snap) else "ok", "age_s": age, "running": running, "error": err, "timings": tm}, "rehearsal": bool(CFG.get("rehearsal_tree"))})
+    return st
+
+class QuietServer(socketserver.ThreadingTCPServer):
+    """A client that drops its connection (tab closed, browser timeout) is not an error worth a traceback in the log."""
+    def handle_error(self, request, client_address):
+        import sys as _s
+        e = _s.exc_info()[1]
+        if isinstance(e, (ConnectionError, TimeoutError)): return
+        super().handle_error(request, client_address)
+
 def make_server(port: int):
     """Bind the loopback server (raises OSError when the port is taken) and freeze the origin allow list for this port."""
     global PORT, ALLOWED
     PORT = port; ALLOWED = allowed_origins(port)
     socketserver.TCPServer.allow_reuse_address = True
-    return socketserver.ThreadingTCPServer(("127.0.0.1", port), H)
+    return QuietServer(("127.0.0.1", port), H)
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--port", type=int, default=PORT); ap.add_argument("--no-browser", action="store_true"); a = ap.parse_args()

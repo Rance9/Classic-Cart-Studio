@@ -27,6 +27,7 @@ ALLOW_FILES = [
     "tools/companion/nes_companion.py", "tools/companion/hakchi_bridge.py", "tools/companion/hakchi_inspect.py", "tools/companion/personal.py", "tools/companion/version.py",
     "tools/companion/companion_app.py", "tools/companion/companion.spec", "tools/companion/installer.iss", "tools/companion/Read-HakchiSelection.ps1", "tools/companion/Get-ProcessWindows.ps1", "tools/companion/Close-Hakchi.ps1",
     "tools/companion/test_hosted_public.py", "tools/companion/test_frozen_smoke.py", "tools/companion/test_live_site.py", "tools/companion/websocket_min.py",
+    "tools/companion/test_connection_states.py",
     "tools/publish/build_site_ci.py", "tools/publish/write_version_info.py",
     "tools/publish/make_public_sprites.py", "tools/publish/scan_prohibited.py", "tools/publish/build_public_repo.py", "tools/publish/publish_repo.py", "tools/publish/release_notes.py",
     "tools/publish/fixtures/make_fixtures.py",

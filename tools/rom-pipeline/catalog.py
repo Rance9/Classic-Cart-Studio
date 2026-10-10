@@ -254,7 +254,7 @@ def main():
             sb_total_mib = struct.unpack_from("<I", sb, 0x04)[0] * bs / 1048576; sb_free_mib = struct.unpack_from("<I", sb, 0x0C)[0] * bs / 1048576; sb_rsv_mib = struct.unpack_from("<I", sb, 0x08)[0] * bs / 1048576
         f.close()
     except Exception as e: log(f"storage: fallback constants ({e})", LOGFILE)
-    storage = {"measured_partition_mib": round(sb_total_mib, 1), "measured_free_mib_before_mod": round(sb_free_mib, 1), "root_reserved_mib": round(sb_rsv_mib, 1), "source": "ext4 superblock of the data partition inside backups\\primary\\2026-10-09_stage2\\nand-full.bin (pre-modification)",
+    storage = {"measured_partition_mib": round(sb_total_mib, 1), "measured_free_mib_before_mod": round(sb_free_mib, 1), "root_reserved_mib": round(sb_rsv_mib, 1), "model": "reference-estimate", "source": "reference model: ext4 superblock of the data partition of a stock 2018 NES Classic Edition (CLV-101), read before any modification; not a measurement of any visitor's console",
                "overhead_estimates_mib": {"hakchi_install": 25, "retroarch_plus_cores": 60, "saves_and_states_reserve": 10, "per_game_metadata_art_kib": 80, "filesystem_slack_pct": 5},
                "note": "Free space is measured; overhead figures are conservative estimates (hakchi/RetroArch module sizes are confirmed only at install). Hakchi's own free-space indicator is authoritative before a sync."}
     base = sb_free_mib - sb_rsv_mib - storage["overhead_estimates_mib"]["hakchi_install"] - storage["overhead_estimates_mib"]["retroarch_plus_cores"] - storage["overhead_estimates_mib"]["saves_and_states_reserve"]

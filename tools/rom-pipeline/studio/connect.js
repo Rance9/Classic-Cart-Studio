@@ -11,28 +11,37 @@ function artUrl(p){ return p?(CO.base?CO.base+'/'+p:p):''; }
 /* a secure (https) page may reach http://127.0.0.1 only when it declares the target address space (Chrome/Edge Local Network Access); older browsers ignore the option */
 function lnaInit(init){ if(CO.hosted) init.targetAddressSpace='loopback'; return init; }
 async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.method||'GET',headers:hdrs(opts.body?{'Content-Type':'application/json'}:{}),cache:'no-store'}); if(opts.body) init.body=JSON.stringify(opts.body);
- let r; try{ r=await fetch(CO.base+path,init); }catch(e){ CO.ok=false; CO.info=null; CO.state=CO.file?'file':'off'; connPill(); return {ok:false,error:'The companion on this computer is not reachable.',unreachable:true}; }
+ const ac=('AbortController' in window)?new AbortController():null; if(ac){ init.signal=ac.signal; setTimeout(()=>ac.abort(),opts.timeout||12000); }
+ let r; try{ r=await fetch(CO.base+path,init); }catch(e){ if(e&&e.name==='AbortError') return {ok:false,error:'The companion did not answer in time.',timeout:true}; CO.ok=false; CO.info=null; CO.state=CO.file?'file':'off'; connPill(); return {ok:false,error:'The companion on this computer is not reachable.',unreachable:true}; }
  const j=await r.json().catch(()=>({ok:false,error:'unexpected response (HTTP '+r.status+')'}));
  if(r.status===401&&!CO.served){ savePair(null,0); CO.ok=false; CO.state='unpaired'; connPill(); }
  if(r.status===426){ CO.ok=false; CO.state='old'; CO.version=j.version||CO.version; CO.protocol=j.protocol||CO.protocol; connPill(); }
  if(!r.ok&&!j.error) j.error='HTTP '+r.status; j.status=r.status; return j; }
 async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}}); }
 async function lnaDenied(){ try{ if(navigator.permissions&&navigator.permissions.query){ const p=await navigator.permissions.query({name:'local-network-access'}); return p.state==='denied'; } }catch(e){} return false; }
-async function companionStatus(){ CO.ok=false; CO.info=null; CO.error='';
+async function companionStatus(){ CO.ok=false; CO.info=null; CO.error=''; if(CO.state==='unknown'){ CO.state='checking'; connPill(); }
  if(CO.file){ CO.state='file'; try{ await fetch('http://127.0.0.1:'+CO.PORT+'/api/ping',{mode:'no-cors',cache:'no-store',targetAddressSpace:'loopback'}); CO.reachable=true; }catch(e){ CO.reachable=false; } connPill(); return; }
  if(CO.hosted){ loadPair(); let v; try{ const r=await fetch(CO.base+'/api/version',lnaInit({headers:hdrs(),cache:'no-store'})); v=await r.json(); }catch(e){ CO.state=(await lnaDenied())?'denied':'off'; connPill(); return; }
   CO.version=v.version||null; CO.protocol=v.protocol||0; CO.frozen=!!v.frozen; if(!(CO.protocol>=CO.REQ_PROTOCOL)){ CO.state='old'; connPill(); return; } if(!v.paired){ savePair(null,0); CO.state='unpaired'; connPill(); return; } }
- const s=await capi('/api/status'); if(!s.ok){ if(!s.unreachable&&s.status!==401&&s.status!==426){ CO.state='error'; CO.error=s.error||''; } connPill(); return; }
- CO.info=s; CO.ok=true; CO.state='ok'; CO.version=s.version||CO.version; CO.protocol=s.protocol||CO.protocol; CO.devStore=!!s.dev_store;
- try{ const st=await capi('/api/library/store'); CO.store=st.ok?(st.store||{}):{}; }catch(e){ CO.store={}; }
- if(CO.hosted&&CO.expires&&CO.expires*1000-Date.now()<3600e3){ const r=await capi('/api/pair/refresh',{method:'POST',body:{}}); if(r.ok&&r.token) savePair(r.token,r.expires); }
- connPill(); }
+ // Stage 3: the handshake above is the connection. Readiness (Hakchi, driver, console, library copies) loads afterwards and never blocks this.
+ if(CO.hosted){ CO.ok=true; CO.state='ok'; connPill(); }
+ const s=await capi('/api/status',{timeout:8000}); if(!s.ok){ if(s.timeout){ CO.ok=CO.hosted; CO.state=CO.hosted?'ok':'error'; CO.error='status timed out'; CO.diag={state:'delayed'}; } else if(!s.unreachable&&s.status!==401&&s.status!==426){ CO.state='error'; CO.error=s.error||''; CO.ok=false; } connPill(); return; }
+ CO.info=s; CO.ok=true; CO.state='ok'; CO.version=s.version||CO.version; CO.protocol=s.protocol||CO.protocol; CO.devStore=!!s.dev_store; CO.diag=s.diag||{state:'ok'}; connPill();
+ capi('/api/library/store',{timeout:8000}).then(st=>{ CO.store=st.ok?(st.store||{}):{}; }).catch(()=>{ CO.store={}; });
+ if(CO.hosted&&CO.expires&&CO.expires*1000-Date.now()<3600e3){ capi('/api/pair/refresh',{method:'POST',body:{}}).then(r=>{ if(r.ok&&r.token) savePair(r.token,r.expires); }); }
+ if(CO.diag&&CO.diag.state==='checking'){ diagFollow(); } }
+// Stage 4: background readiness — poll the cached diagnostics for a bounded time; the connection stays green either way
+let DIAGT=null;
+function diagFollow(){ clearTimeout(DIAGT); let tries=0; const tick=async()=>{ if(!CO.ok) return; const s=await capi('/api/status',{timeout:8000}); if(s.ok){ CO.info=s; CO.diag=s.diag||{state:'ok'}; hkLabelUpdate(); if(typeof onDiagUpdate==='function') onDiagUpdate(s); } if(s.ok&&CO.diag.state==='checking'&&tries++<20){ DIAGT=setTimeout(tick,1500); } else if(!s.ok||tries>=20){ CO.diag={state:'delayed'}; if(typeof onDiagUpdate==='function') onDiagUpdate(null); } }; DIAGT=setTimeout(tick,1200); }
+function diagText(){ const d=CO.diag||{}; if(!CO.ok) return ''; if(d.state==='checking') return 'Checking console setup…'; if(d.state==='delayed') return 'Setup check delayed (still connected)'; const i=(CO.info||{}).install||{}; const dr=(CO.info||{}).driver||{}; if(i.state&&i.state!=='ok') return 'Setup needs attention: Hakchi2 CE not set up'; if(dr&&dr.state==='missing') return 'Setup needs attention: console driver'; return 'Console setup ready'; }
 function fileAvailable(id){ const g=byId[id]; if(!g) return false; if(g.source==='personal') return !!(g.personal&&g.personal.file_present!==false); if(CO.devStore) return true; const s=CO.store[id]; return !!(s&&s.present); }
-const CONN_TXT={unknown:['','Checking the connection…'],ok:['ok','Connected to this computer'],off:['off','Connect to Your Computer'],unpaired:['warn','Connect to Your Computer'],denied:['bad','Local network access blocked'],old:['warn','Companion needs an update'],file:['off','Opened as a file'],error:['bad','Companion problem']};
+const CONN_TXT={unknown:['','Checking for companion…'],checking:['','Checking for companion…'],ok:['ok','Connected'],off:['off','Connect to Your Computer'],unpaired:['warn','Connect to Your Computer'],pairing:['warn','Waiting for approval'],denied:['bad','Permission needed'],old:['warn','Companion needs an update'],file:['off','Opened as a file'],error:['bad','Companion problem']};
 function connPill(){ const b=$('connPill'); if(!b) return; const [c,t]=CONN_TXT[CO.state]||CONN_TXT.unknown; b.className='conn '+c; b.innerHTML='<span class="dot"></span>'+esc(CO.served&&CO.state==='ok'?'Studio on this computer':t)+(CO.state==='ok'&&CO.version?' <span class="mut">v'+esc(CO.version)+'</span>':'');
- b.title=CO.state==='ok'?'The companion on this computer is connected; click for details':'Click to connect this website to the companion on your computer'; try{ hkLabelUpdate(); }catch(e){} }
+ b.title=CO.state==='ok'?('Connected to the companion on this computer. '+diagText()):CO.state==='denied'?'Edge blocked local network access for this site; click for how to allow it':CO.state==='pairing'?'The companion opened an approval window on this computer; choose Allow there':'Click to connect this website to the companion on your computer'; try{ hkLabelUpdate(); }catch(e){} }
 function connSummary(){ switch(CO.state){
- case 'ok': return CO.served?'This Studio is served by the companion on this computer.':`Connected to the companion on this computer (version ${esc(CO.version||'?')}).`;
+ case 'ok': return (CO.served?'This Studio is served by the companion on this computer. ':`Connected to the companion on this computer (version ${esc(CO.version||'?')}). `)+esc(diagText())+'.';
+ case 'checking': return 'Looking for the companion on this computer…';
+ case 'pairing': return 'The companion opened a small approval window on this computer. Choose Allow there to let this website work with the games and collections on your computer; your game files stay on your PC.';
  case 'off': return CO.hosted?'The companion could not be reached. Either it is not running on this computer (install it or start it from the Start menu), or your browser asked whether this website may access devices on your local network and it was not allowed — in Microsoft Edge, choose Allow when asked, or enable "Local network access" for this site in the permissions behind the lock icon. Then check again.':'No companion is running on this computer. Install it (free, a few MB) or start it from the Start menu, then check again.';
  case 'unpaired': return 'The companion is running on this computer, but this website has not been allowed to use it yet. Click Connect and choose Allow in the window the companion opens.';
  case 'denied': return 'Your browser blocked this website from talking to programs on your computer (local network access). Allow it for this site and reload.';
@@ -55,9 +64,9 @@ function renderConnect(reason){ const st=CO.state; const dlWanted=CO.hosted||CO.
  if(dlWanted) renderDownload($('dl')); }
 let PAIRWIN=null;
 window.addEventListener('message',e=>{ if(!CO.hosted||e.origin!==CO.base) return; const d=e.data||{}; if(d.type!=='nes-studio-pair') return;
- if(d.denied){ CO.state='unpaired'; connPill(); if($('connMsg')) $('connMsg').textContent='The companion did not allow this website.'; return; }
+ if(d.denied){ CO.state='unpaired'; connPill(); if($('collm').classList.contains('open')&&$('collTitle').textContent==='Connect to Your Computer') renderConnect(); if($('connMsg')) $('connMsg').textContent='The companion did not allow this website.'; return; }
  if(d.token){ savePair(d.token,d.expires); companionStatus().then(()=>{ if($('collm').classList.contains('open')&&$('collTitle').textContent==='Connect to Your Computer') renderConnect(); if(CO.ok) toast('Connected to this computer'); }); } });
-function connectCompanion(){ const url=CO.base+'/pair?origin='+encodeURIComponent(location.origin); try{ PAIRWIN=window.open(url,'nes-pair','popup,width=600,height=560'); }catch(e){ PAIRWIN=null; }
+function connectCompanion(){ const url=CO.base+'/pair?origin='+encodeURIComponent(location.origin); try{ PAIRWIN=window.open(url,'nes-pair','popup,width=600,height=560'); }catch(e){ PAIRWIN=null; } if(PAIRWIN){ CO.state='pairing'; connPill(); setTimeout(()=>{ if(CO.state==='pairing') companionStatus(); },90000); }
  if(!PAIRWIN){ $('connMsg').innerHTML=`Your browser blocked the window. <a href="${url}" target="_blank" rel="noopener">Open the pairing page</a>, click Allow and enter the code it shows below.`; } else $('connMsg').textContent='Choose Allow in the companion window…'; }
 async function claimCode(code){ code=String(code||'').replace(/\D/g,''); if(code.length!==6){ $('connMsg').textContent='Enter the 6-digit code shown by the companion.'; return; }
  const r=await capi('/api/pair/claim',{method:'POST',body:{code}}); if(r.ok&&r.token){ savePair(r.token,r.expires); await companionStatus(); renderConnect(); if(CO.ok) toast('Connected to this computer'); } else if($('connMsg')) $('connMsg').textContent=r.error||'That code was not accepted.'; }
@@ -115,3 +124,6 @@ $('sdFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().the
 
 Your current collection is kept as a snapshot first.`)){ snapshotNow('before importing Studio data'); sel=new Set(d.selection.filter(id=>byId[id])); decisions=Object.assign({},d.decisions||{}); Object.assign(COLL,d.collection,{personalCache:COLL.personalCache}); saveColl(); coll=true; }
  persist(); render(); e.target.value=''; toast(`Studio data imported: ${fav.size-before} new favorites, ${ns} new snapshots${coll?', collection replaced':''}`); }); };
+// ---- startup connection check: runs here, after every declaration above is initialised (an earlier placement in the main script ran before
+//      CONN_TXT existed, threw, and left the pill on "Checking for companion…" until the user clicked) ----
+companionStatus().then(()=>{ try{ hkLabelUpdate(); }catch(e){} connPill(); }).catch(e=>{ CO.state='error'; CO.error=String(e&&e.message||e); connPill(); });

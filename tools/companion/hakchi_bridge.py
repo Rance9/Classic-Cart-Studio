@@ -54,7 +54,7 @@ def sha256_file(p: str) -> str:
 def hakchi_exe_ok(path: str) -> tuple[bool, str]:
     if not path or os.path.basename(path).lower() != "hakchi.exe": return False, "path must point to a file named hakchi.exe"
     if not os.path.isfile(path): return False, "file not found"
-    h = sha256_file(path)
+    h = sha256_file_cached(path)
     if h != HAKCHI_SHA256: return False, f"SHA-256 {h[:16]}… does not match the recorded Hakchi2 CE 3.9.3 build"
     return True, "ok"
 
@@ -64,9 +64,23 @@ def pwsh() -> str:
         if os.path.exists(c) or c == "pwsh.exe": return c
     return "powershell.exe"
 
+# ---- timing + caches: status calls must stay cheap (the website shows "Connected" before any of this runs) ----
+LAST_TIMINGS: dict = {}
+def _timed(name: str, fn):
+    t0 = time.time()
+    try: return fn()
+    finally: LAST_TIMINGS[name] = round(time.time() - t0, 3)
+_hash_cache: dict = {}
+def sha256_file_cached(path: str) -> str:
+    """SHA-256 keyed by (size, mtime): an unchanged hakchi.exe is hashed once, not on every status request."""
+    try: key = (os.path.normcase(path), os.path.getsize(path), int(os.path.getmtime(path)))
+    except OSError: return ""
+    if key not in _hash_cache: _hash_cache[key] = sha256_file(path)
+    return _hash_cache[key]
+_ver_cache: dict = {}
 def hakchi_running() -> list[dict]:
     try:
-        out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", "Get-Process hakchi -ErrorAction SilentlyContinue | Select-Object Id, Path | ConvertTo-Json"], capture_output=True, text=True, timeout=30).stdout.strip()
+        out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", "Get-Process hakchi -ErrorAction SilentlyContinue | Select-Object Id, Path | ConvertTo-Json"], capture_output=True, text=True, timeout=10).stdout.strip()
         if not out: return []
         j = json.loads(out); return j if isinstance(j, list) else [j]
     except Exception: return []
@@ -74,19 +88,28 @@ def hakchi_running() -> list[dict]:
 def console_connected() -> list[str]:
     """NES Classic over USB: FEL (1F3A:EFE8) or the RNDIS/clovershell gadget (04E8:6863, also 'Samsung' composite)."""
     try:
-        out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", "Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -match 'VID_1F3A|VID_04E8&PID_6863' } | Select-Object -ExpandProperty InstanceId"], capture_output=True, text=True, timeout=30).stdout.strip()
+        out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", "Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -match 'VID_1F3A|VID_04E8&PID_6863' } | Select-Object -ExpandProperty InstanceId"], capture_output=True, text=True, timeout=12).stdout.strip()
         return [l.strip() for l in out.splitlines() if l.strip()]
     except Exception: return []
 
-def env_status(cfg: dict) -> dict:
-    ok, why = hakchi_exe_ok(cfg["hakchi_exe"]); root = os.path.dirname(cfg["hakchi_exe"])
-    return {"hakchi_path": cfg["hakchi_exe"], "hakchi_found": ok, "hakchi_check": why, "hakchi_root": root, "config_exists": os.path.exists(os.path.join(root, "config", "config.json")),
-            "hakchi_running": bool(hakchi_running()), "console_connected": bool(console_connected()), "exports_dir": cfg["exports_dir"], "staging_dir": cfg["staging_dir"],
-            "install": hakchi_install_status(cfg), "driver": driver_status(cfg)}
+def env_status(cfg: dict, quick: bool = False) -> dict:
+    """quick=True: only cheap, cached facts (path, cached hash check, config presence, install state) — no process, USB or driver enumeration.
+    quick=False: the full picture; each slow check is timed into LAST_TIMINGS and has a bounded timeout."""
+    ok, why = _timed("hakchi_exe_check", lambda: hakchi_exe_ok(cfg["hakchi_exe"])); root = os.path.dirname(cfg["hakchi_exe"])
+    st = {"hakchi_path": cfg["hakchi_exe"], "hakchi_found": ok, "hakchi_check": why, "hakchi_root": root, "config_exists": os.path.exists(os.path.join(root, "config", "config.json")),
+          "exports_dir": cfg["exports_dir"], "staging_dir": cfg["staging_dir"], "install": _timed("install_status", lambda: hakchi_install_status(cfg))}
+    if quick: st.update({"hakchi_running": None, "console_connected": None, "driver": None, "quick": True}); return st
+    st.update({"hakchi_running": bool(_timed("hakchi_running", hakchi_running)), "console_connected": bool(_timed("console_connected", console_connected)), "driver": _timed("driver_status", lambda: driver_status(cfg)), "quick": False, "timings": dict(LAST_TIMINGS)})
+    return st
 
 def file_version(path: str) -> str:
-    try: return subprocess.run(["powershell.exe", "-NoProfile", "-Command", f"(Get-Item -LiteralPath '{path}').VersionInfo.FileVersion"], capture_output=True, text=True, timeout=30).stdout.strip()
-    except Exception: return ""
+    try: key = (os.path.normcase(path), os.path.getsize(path), int(os.path.getmtime(path)))
+    except OSError: return ""
+    if key in _ver_cache: return _ver_cache[key]
+    try: v = subprocess.run(["powershell.exe", "-NoProfile", "-Command", f"(Get-Item -LiteralPath '{path}').VersionInfo.FileVersion"], capture_output=True, text=True, timeout=15).stdout.strip()
+    except Exception: v = ""
+    if v: _ver_cache[key] = v
+    return v
 
 def packages_dir(cfg: dict) -> str: return cfg.get("packages_dir") or (data_path("packages") if FROZEN else os.path.join(PROJECT, "packages"))
 
@@ -105,7 +128,7 @@ def hakchi_install_status(cfg: dict) -> dict:
     st = {"path": exe, "root": root, "pinned_version": HAKCHI_VERSION, "expected_sha256": HAKCHI_SHA256, "package_name": HAKCHI_PACKAGE["name"], "package_size": HAKCHI_PACKAGE["size"], "package_sha256": HAKCHI_PACKAGE["sha256"],
           "package_url": cfg.get("hakchi_package_url") or HAKCHI_PACKAGE["url"], "package_local": os.path.isfile(pk), "package_local_verified": package_verified(pk) if os.path.isfile(pk) else None, "version": "", "sha256": "", "root_nonempty": False}
     if os.path.isfile(exe):
-        st["sha256"] = sha256_file(exe); st["version"] = file_version(exe); st["state"] = "ok" if st["sha256"] == HAKCHI_SHA256 else "different-version"
+        st["sha256"] = sha256_file_cached(exe); st["version"] = file_version(exe); st["state"] = "ok" if st["sha256"] == HAKCHI_SHA256 else "different-version"
     else:
         st["state"] = "missing"; st["root_nonempty"] = os.path.isdir(root) and bool(os.listdir(root))
     st["config_exists"] = os.path.exists(os.path.join(root, "config", "config.json"))
@@ -131,7 +154,7 @@ def driver_status(cfg: dict | None = None, pnputil_text: str | None = None) -> d
     st = {"hwid": DRIVER_HWID, "installed": False, "inf": None, "original_name": None, "provider": None, "version": None, "installer": inst, "installer_present": os.path.isfile(inst), "installer_verified": None, "simulated": False}
     if st["installer_present"]: st["installer_verified"] = sha256_file(inst) == DRIVER_EXE_SHA256
     if pnputil_text is None:
-        try: pnputil_text = subprocess.run(["pnputil.exe", "/enum-drivers"], capture_output=True, text=True, timeout=90, errors="replace").stdout
+        try: pnputil_text = subprocess.run(["pnputil.exe", "/enum-drivers"], capture_output=True, text=True, timeout=25, errors="replace").stdout
         except Exception as e: st["error"] = f"pnputil unavailable: {e}"; pnputil_text = ""
     for b in parse_pnputil(pnputil_text):
         blob = " ".join(b.values()).lower()
