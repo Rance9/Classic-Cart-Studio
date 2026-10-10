@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-10-10
+
+- How It Works guide: content pass across all 24 chapters (shorter, direct wording that names Hakchi2 CE, FEL mode, mappers and hmods; stale artwork note removed), step boxes no longer stretch to the tallest step, verification command shown as a code block.
+
 ## 0.1.1 — 2026-10-10
 
 - Installer: the post-uninstall note is no longer shown during a silent uninstall (`/VERYSILENT`), which blocked scripted removal in 0.1.0.
