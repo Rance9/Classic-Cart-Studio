@@ -17,9 +17,10 @@ def run(args, cwd=None, check=True, capture=True):
     return r
 
 def main():
+    global TREE
     ap = argparse.ArgumentParser(); ap.add_argument("--account", required=True); ap.add_argument("--repo", required=True); ap.add_argument("--message", required=True)
     ap.add_argument("--tree", default=TREE); ap.add_argument("--create", action="store_true"); ap.add_argument("--push", action="store_true"); ap.add_argument("--description", default="An independent game collection manager for the Nintendo NES Classic Edition."); a = ap.parse_args()
-    global TREE; TREE = os.path.abspath(a.tree)
+    TREE = os.path.abspath(a.tree)
     if not os.path.isdir(TREE) or not os.path.exists(os.path.join(TREE, "README.md")): raise SystemExit(f"public tree not found at {TREE}: run build_public_repo.py first")
     login = run(["gh", "api", "user", "--jq", ".login"], cwd=PROJECT).stdout.strip()
     if login != a.account: raise SystemExit(f"gh is authenticated as '{login}', expected '{a.account}': refusing")
