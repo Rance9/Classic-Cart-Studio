@@ -78,6 +78,6 @@ Type: filesandordirs; Name: "{app}\_internal"
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usPostUninstall then
+  if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
     MsgBox('The companion was removed. Your imported games, personal games and collections were kept in ' + ExpandConstant('{localappdata}') + '\NESClassicCollectionStudio. Delete that folder yourself if you no longer want them.', mbInformation, MB_OK);
 end;

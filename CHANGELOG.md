@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 — 2026-10-10
+
+- Installer: the post-uninstall note is no longer shown during a silent uninstall (`/VERYSILENT`), which blocked scripted removal in 0.1.0.
+- Website: requests to the companion declare the loopback target address space (Microsoft Edge / Chrome Local Network Access); the connection dialog explains the browser's local-network permission when the companion cannot be reached.
+
 ## 0.1.0 — 2026-10-10
 
 First public release.
