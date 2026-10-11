@@ -78,7 +78,7 @@ async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step
    +`<div class="msg"><b>Meanwhile</b><ul><li>Keep refining the collection; the plan and the Preview on TV follow it.</li><li>Prepare on this computer (step 2) stays available for Hakchi2 CE.</li><li>Save the collection (Save / Load) to keep it portable.</li></ul></div>`+nav('verify',null,'',false);
   wire('verify',null); return; }
 }
-(function(){ const _r=renderInstall; renderInstall=async function(){ if(consoleCapable()&&['inspect','review','install','verify','ready'].includes(INST.step)) return renderConsoleStep(); if(['inspect','install','verify','ready'].includes(INST.step)) return renderConsoleStep(); return _r.apply(this,arguments); };
+(function(){ const _r=renderInstall; window.renderInstallBase=_r; renderInstall=async function(){ if(consoleCapable()&&['inspect','review','install','verify','ready'].includes(INST.step)) return renderConsoleStep(); if(['inspect','install','verify','ready'].includes(INST.step)) return renderConsoleStep(); return _r.apply(this,arguments); };
  try{ const lab={inspect:'Console State', ready:'Complete'}; STEPS.forEach(s=>{ if(lab[s[0]]) s[1]=lab[s[0]]; }); }catch(e){}
  const _s=stepperHtml; stepperHtml=function(){ const h=_s(); if(!consoleCapable()) return h; return h.replace(/ na"/g,'"').replace(/<br><span class="small">not in this version<\/span>/g,'<br><span class="small">simulated</span>'); };
  // the Connect Console step hands over to Console State instead of jumping straight to the review
