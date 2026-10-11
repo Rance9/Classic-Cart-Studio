@@ -118,7 +118,7 @@ input[type=search]{min-width:0;flex:1 1 260px;max-width:520px;padding:7px 10px 7
 input[type=search]::-webkit-search-decoration{-webkit-appearance:none}
 @media (max-width:1400px){.toolbar input[type=search]{min-width:0;padding:6px 8px 6px 32px!important}.row.bar{flex-wrap:wrap}.actions{width:auto;justify-content:flex-end;margin-left:auto}}
 /* ---- sub row: alphabet strip + compact storage chip, one row ---- */
-.row.sub{flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap}.row.sub .letters{flex:1 1 auto;min-width:0;width:auto;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.row.sub .letters::-webkit-scrollbar{display:none}
+.row.sub{flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap}.row.sub .letters{flex:1 1 auto;min-width:0;width:auto;flex-wrap:wrap;overflow:visible;row-gap:4px}.row.sub .letters::-webkit-scrollbar{display:none}
 .notice{flex:none;white-space:nowrap;font:inherit;font-size:12px;color:var(--ink2);background:rgba(255,255,255,.04);border:1px solid var(--line2);border-radius:999px;padding:3px 10px 3px 8px;cursor:pointer;max-width:48vw;overflow:hidden;text-overflow:ellipsis}
 .notice:hover{border-color:var(--ink2)}.notice .meter{width:70px;height:6px}.notice .mut{color:var(--muted)}
 @media (max-width:900px){.row.sub{flex-wrap:wrap}.notice{max-width:100%}}
@@ -150,12 +150,12 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
  .toolbar{position:static;box-shadow:none}.toolbar .in{padding:8px 10px;gap:8px}
  .row.bar{display:grid;grid-template-columns:1fr 1fr;gap:6px}.row.bar>span{display:none}.howbtn{grid-column:1/-1;justify-content:center}.howbtn .chc{display:none}
  .actions{display:contents}.actions .menuwrap{width:100%}.actions .btn{width:100%;justify-content:center;padding:9px 8px;font-size:13px}.menuwrap.right .menu,.menuwrap .menu{left:0;right:0;min-width:0;max-width:none}
- .row.tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.row.tools>span{display:none}
+ .row.tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.row.tools>span[style]{display:none}
  .toolbar input[type=search]{grid-column:1/-1;max-width:none;width:100%;padding:9px 10px 9px 34px!important;font-size:14px}
  .row.tools .menuwrap{width:100%}.row.tools .btn,.row.tools .seg{width:100%;justify-content:center}.row.tools .seg .btn{flex:1}
  .row.tools .stats{grid-column:1/-1;white-space:normal;text-align:center;font-size:11.5px;color:var(--muted);padding:0}
  .row.tools .conn{grid-column:1/-1;justify-content:center}
- .row.chips{gap:5px}.row.sub{flex-direction:column;align-items:stretch;gap:6px}.row.sub .letters{width:100%;flex-wrap:nowrap;overflow-x:auto}.notice{max-width:100%;text-align:center;justify-content:center}
+ .row.chips{gap:5px}.row.sub{flex-direction:column;align-items:stretch;gap:6px}.row.sub .letters{width:100%;flex-wrap:wrap;overflow:visible;justify-content:center;row-gap:4px}.notice{max-width:100%;text-align:center;justify-content:center}
  main{padding:8px}.tablewrap{overflow:visible}.tablewrap::after{content:none}
  #t,#t tbody{display:block;width:100%}#t thead{display:none}
  #t tr.pick{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0 8px;padding:8px 6px;border-bottom:1px solid var(--line)}
@@ -331,3 +331,18 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 /* the Extended Library info button inside the Filter & Sort dialog */
 .ext .info{display:inline-grid;place-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--muted);font-family:inherit;font-size:11px;font-weight:700;line-height:1;cursor:help;padding:0;margin-left:4px;vertical-align:middle}
 .ext .info:hover{color:#fff;border-color:#fff}
+/* the storage pill on its own row (measured: only when it would touch the letter strip) */
+.row.store{display:flex;justify-content:center;align-items:center;gap:8px;min-width:0}
+.row.store .notice{max-width:100%;white-space:normal;text-align:center;justify-content:center}
+.row.store[hidden]{display:none}
+.toolsfold.stack:not(.measuring) .row.sub .letters{flex-wrap:wrap}
+/* the letter strip wraps instead of clipping or scrolling sideways, at every width */
+.letters,.row.sub .letters{flex-wrap:wrap;overflow:visible;max-width:100%}
+.letters a,.letters .lbl{flex:none}
+.row.store .notice,.row.store .notice *{white-space:normal;overflow:visible;text-overflow:clip}
+.row.store .notice{height:auto;line-height:1.35;flex-wrap:wrap;row-gap:2px}
+/* phones: the character parade wraps into rows inside the screen instead of being clipped at the edges; the floor band stays below */
+@media (max-width:640px){
+ .parade{height:auto;min-height:64px;padding-bottom:22px;box-sizing:border-box}
+ .parade .cast{position:static;flex-wrap:wrap;justify-content:center;align-items:flex-end;row-gap:4px;column-gap:6px;overflow:visible;animation:none!important;transform:none!important;padding:4px 10px 0;max-width:100%;box-sizing:border-box}
+}

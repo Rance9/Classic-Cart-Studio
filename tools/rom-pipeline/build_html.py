@@ -314,6 +314,7 @@ __STUDIO_CSS__
  <span class="stats" id="stats"></span>
  <button class="conn" id="connPill" title="Connection to the companion on your computer"><span class="dot"></span>Checking the connection…</button>
 </div>
+<div class="row store" id="storeRow" hidden></div>
 <div class="row chips" id="chips" hidden></div>
 <div class="row sub"><div class="letters" id="letters"></div><button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button></div>
 <button class="foldhide" id="foldHide" type="button" aria-controls="toolsFold">▲ Hide Search &amp; Tools</button>
@@ -687,7 +688,13 @@ function foldBadge(n){ const b=$('foldBadge'); if(!b) return; b.textContent=n; b
 // is "cramped": it collapses at once, and when opened it uses the stacked grid (search / three controls / stats + connection) so
 // nothing is ever left scattered across two half-filled lines.
 function foldFits(){ const f=$('toolsFold'), r=f.querySelector('.row.tools'); const was=f.className; f.className='toolsfold measuring';
-  const fits=r.scrollWidth<=r.clientWidth+1; f.className=was; return fits; }
+  const fits=r.scrollWidth<=r.clientWidth+1; const split=!storageFits(); f.className=was; storageSplit(split); return fits; }
+// The storage pill never shares a line with the letter strip when the two would touch: it then gets its own row below the tools row.
+function storageFits(){ const sub=$('toolsFold').querySelector('.row.sub'), L=$('letters'), st=$('storage'); if(!st||st.hidden||!st.textContent) return true;
+  const cs=getComputedStyle(L); const gap=parseFloat(cs.columnGap)||0; const kids=[...L.children]; const need=kids.reduce((a,c)=>a+c.offsetWidth,0)+gap*Math.max(0,kids.length-1);
+  const rowGap=parseFloat(getComputedStyle(sub).columnGap)||0; return need+rowGap+st.offsetWidth<=sub.clientWidth-1; }
+function storageSplit(split){ const st=$('storage'), row=$('storeRow'), sub=$('toolsFold').querySelector('.row.sub'); if(!st||!row) return; const now=st.parentElement===row; if(now===split) return;
+  if(split){ row.appendChild(st); row.hidden=false; } else { sub.appendChild(st); row.hidden=true; } setTb(); }
 function foldMeasure(){ const cramped=!foldFits(); if(cramped===FOLD.cramped) return; FOLD.cramped=cramped; $('toolsFold').classList.toggle('stack',cramped);
   FOLD.auto=true; if(cramped) setFold(false); else foldAuto(); }
 $('foldBtn').onclick=()=>{ FOLD.auto=false; setFold(!foldOpen()); if(foldOpen()&&!FOLD.narrow()){ const q=$('q'); if(q&&scrollY<=120) q.focus({preventScroll:true}); } };
@@ -701,6 +708,7 @@ addEventListener('resize',foldOnResize); if(window.ResizeObserver) new ResizeObs
 let rzT=0; addEventListener('resize',()=>{ document.documentElement.classList.add('resizing'); clearTimeout(rzT); rzT=setTimeout(()=>{ document.documentElement.classList.remove('resizing'); if(VL.items.length) vlReflow(false); },140); });
 $('foldHide').onclick=()=>{ FOLD.auto=false; setFold(false); $('foldBtn').focus({preventScroll:true}); };
 if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('toolsFold').querySelector('.row.tools'),{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
+if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('storage'),{childList:true,characterData:true,subtree:true});
 barMeasure(); FOLD.cramped=!foldFits(); $('toolsFold').classList.toggle('stack',FOLD.cramped); foldAuto();
 __STUDIO_JS__
 render();
