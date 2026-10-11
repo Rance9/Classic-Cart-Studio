@@ -27,7 +27,7 @@ Classic Cart Studio is one Studio in two places. The **website** lets you browse
 | Prepare a collection for Hakchi2 CE, open Hakchi | no | yes |
 | Anything sent to the console by this software | never | never |
 
-The Windows application starts a small backend that listens only on your own computer (`127.0.0.1`). The application window talks to it over a session that exists only while the application runs; there is no pairing step inside the application. The public website can also talk to that backend from Microsoft Edge after you allow it once (Edge asks whether the website may access apps on your device; see the guide chapter *Continuing in the Desktop App*).
+The Windows application starts a small backend that listens only on your own computer (`127.0.0.1`). The application window talks to it over a session that exists only while the application runs; there is no pairing step inside the application. The public website never connects to that backend on its own: when you choose something that needs your computer, it hands your collection to the application (Edge asks once whether the website may access apps on your device; see the guide chapter *Continuing in the Desktop App*), or sends you to [ClassicCartStudio.com/app](https://ClassicCartStudio.com/app) to install it.
 
 ## Installation (Windows 10/11)
 

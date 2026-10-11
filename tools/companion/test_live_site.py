@@ -11,9 +11,9 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 GRANTS: list = []; LNA_BYPASS = os.environ.get("NES_LIVE_LNA_BYPASS", "1") != "0"
 EDGE = next(x for x in [r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"] if os.path.exists(x))
 JS = r"""(async()=>{ const out={}; const wait=ms=>new Promise(r=>setTimeout(r,ms)); const step=STEP; try{ await wait(600); await companionStatus(); out.step=step; out.origin=location.origin; out.path=location.pathname; out.hosted=COMPANION.hosted; out.state=COMPANION.state; out.pill=$('connPill').textContent.trim(); out.version=COMPANION.version; out.games=DATA.games.length; out.sprites=[...document.querySelectorAll('img.px')].filter(i=>i.complete&&i.naturalWidth>0).length; out.heroText=($('heroGames')||{}).textContent;
- if(step==='fresh'){ await openConnect(); await wait(1500); out.modal=$('collTitle').textContent; out.hasConnect=!!$('connGo'); out.dl=(($('dl')||{}).textContent||'').replace(/\s+/g,' ').slice(0,300); out.hasHash=!!$('dlHash'); out.hash=($('dlHash')||{}).textContent; closeColl(); }
- if(step==='claim'){ await openConnect(); await wait(500); $('connCode').value=CODE; $('connClaim').click(); for(let i=0;i<40&&COMPANION.state!=='ok';i++) await wait(250); out.state=COMPANION.state; out.pill=$('connPill').textContent.trim(); closeColl(); const L=await capi('/api/library/local'); out.libOk=!!L.ok; const st=await capi('/api/status'); out.statusOk=!!st.ok; }
- if(step==='reload'){ const L=await capi('/api/library/local'); out.libOk=!!L.ok; out.hasToken=!!COMPANION.bearer; }
+ if(step==='fresh'){ out.pillHidden=$('connPill').hidden; $('hkBtn').click(); await wait(800); out.modal=$('collTitle').textContent; out.hasGo=!!$('dvGo'); closeColl(); openColl('dl','','<div id="dl"></div>'); renderDownload($('dl')); await wait(1500); out.dl=(($('dl')||{}).textContent||'').replace(/\s+/g,' ').slice(0,300); out.hasHash=!!$('dlHash'); out.hash=($('dlHash')||{}).textContent; closeColl(); }
+ if(step==='offer'){ sel.clear(); sel.add(DATA.games[0].game_id); persist(); render(); const r=await offerCollection({id:'live-test-'+Date.now(), name:'Live test', collection:buildManifest()}); out.offerOk=!!r.ok; out.offerStatus=r.status; out.offerErr=r.error||(r.unreachable?'unreachable':''); }
+
  }catch(e){ out.err=e.message+' '+(e.stack||'').slice(0,120); } document.title='T '+JSON.stringify(out); })();"""
 
 def cdp_run(url, profile, script, timeout=120):
@@ -78,14 +78,11 @@ def main():
     o = cdp_run(a.url, prof, JS.replace("STEP", "'fresh'").replace("CODE", "''")); print("fresh:", json.dumps(o)[:800])
     ok("real_origin_and_subpath", o.get("origin") == origin and (o.get("path") or "").startswith("/Classic-Cart-Studio/" if "github.io" in origin else "/"), str(o)[:200])
     ok("page_runs_with_sprites", (o.get("games") or 0) > 700 and (o.get("sprites") or 0) >= 10, f"games={o.get('games')} sprites={o.get('sprites')}")
-    ok("fresh_unpaired_state", o.get("state") == "unpaired" and o.get("hasConnect") is True, f"{o.get('state')} {o.get('err')}")
+    ok("website_never_pairs", o.get("state") == "web" and o.get("pillHidden") is True and "Classic Cart Studio for Windows" in (o.get("modal") or "") and o.get("hasGo") is True, f"{o.get('state')} {o.get('modal')} {o.get('err')}")
     if rel.get("version"): ok("download_section_shows_release", (rel["version"] in (o.get("dl") or "")) and o.get("hasHash") and (o.get("hash") or "").lower() == (rel.get("sha256") or "").lower(), (o.get("dl") or "")[:200])
     else: ok("download_section_honest_without_release", "could not be loaded" in (o.get("dl") or "") or "releases page" in (o.get("dl") or "") or "no Windows installer" in (o.get("dl") or ""), (o.get("dl") or "")[:200])
-    page = urllib.request.urlopen(B + "/pair").read().decode("utf-8"); tok = re.search(r'nes-companion-token" content="([^"]+)"', page).group(1)
-    r = urllib.request.Request(B + "/api/pair/approve", data=json.dumps({"origin": origin}).encode(), headers={"Content-Type": "application/json", "Origin": B, "X-NES-Token": tok}, method="POST"); t = json.load(urllib.request.urlopen(r))
-    o = cdp_run(a.url, prof, JS.replace("STEP", "'claim'").replace("CODE", "'" + t["code"] + "'")); print("claim:", json.dumps(o)[:600])
-    ok("live_claim_connects", o.get("state") == "ok" and o.get("libOk") is True and o.get("statusOk") is True, f"{o.get('state')} {o.get('err')}")
-    o = cdp_run(a.url, prof, JS.replace("STEP", "'reload'").replace("CODE", "''")); ok("live_reload_keeps_pairing", o.get("state") == "ok" and o.get("hasToken") is True and o.get("libOk") is True, f"{o.get('state')} {o.get('err')}")
+    o = cdp_run(a.url, prof, JS.replace("STEP", "'offer'").replace("CODE", "''")); print("offer:", json.dumps(o)[:400])
+    ok("live_handoff_offer_accepted", o.get("offerOk") is True, f"{o.get('offerStatus')} {o.get('offerErr')} {o.get('err')}")
     print("local-network-access permission grants:", GRANTS[:3], "| LNA checks bypassed in headless:", LNA_BYPASS, "(the real prompt is confirmed interactively)")
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
 

@@ -114,55 +114,27 @@ def main():
     ORIGIN = f"http://localhost:{SITE_PORT}"; URL = f"{ORIGIN}/index.html?companion={PORT}"
     tmp = tempfile.mkdtemp(prefix="nes-conn-"); br = Browser(tmp); proc = None
     try:
-        # 1. companion absent
+        # the website never connects: no probe on load, state 'web' at once, pill hidden, every computer-dependent action invites the desktop app
         t1 = br.tab(URL); ok("page_loads_hosted_mode", t1.ready() and t1.js("CO.hosted") is True)
-        st, ms = t1.wait_state(("off", "denied", "unpaired", "ok", "old", "error")); timings["absent_to_state_ms"] = ms
-        ok("absent_companion_shows_connect", st == "off", st); ok("absent_decided_quickly", ms < 5000, str(ms))
-        ok("absent_pill_text", t1.js("$('connPill').textContent.trim()") == "Connect to Your Computer")
-        ok("labels_match_directive", t1.js("CONN_TXT.checking[1]==='Checking for companion…' && CONN_TXT.pairing[1]==='Waiting for approval' && CONN_TXT.denied[1]==='Permission needed' && CONN_TXT.ok[1]==='Connected'") is True)
-        # 2. running, unpaired
+        st, ms = t1.wait_state(("web", "off", "denied", "unpaired", "ok", "old", "error")); timings["web_state_ms"] = ms
+        ok("website_state_is_web", st == "web", st); ok("decided_quickly", ms < 2000, str(ms))
+        ok("pill_hidden_on_website", t1.js("$('connPill').hidden") is True)
+        ok("no_backend_probe_on_load", t1.js("performance.getEntriesByType('resource').some(e=>e.name.includes('127.0.0.1:'))") is False)
+        ok("install_button_not_dimmed", t1.js("$('hkBtn').classList.contains('off')") is False)
+        ok("install_invites_desktop_app", t1.js("(()=>{ $('hkBtn').click(); const t=$('collTitle').textContent; closeColl(); return t; })()") == "Continue in Classic Cart Studio for Windows")
+        ok("own_games_invites_desktop_app", t1.js("(async()=>{ $('mOwn').click(); await new Promise(r=>setTimeout(r,300)); const t=$('collTitle').textContent; closeColl(); return t; })()") == "Continue in Classic Cart Studio for Windows")
+        ok("local_library_invites_desktop_app", t1.js("(async()=>{ $('mLoadLocal').click(); await new Promise(r=>setTimeout(r,300)); const t=$('collTitle').textContent; closeColl(); return t; })()") == "Continue in Classic Cart Studio for Windows")
+        ok("no_pairing_token_stored", t1.js("localStorage.getItem('studio-companion-v1')") in (None, ""))
+        # with the backend running the website still does not connect; the handoff offer is the only request it may send
         proc, boot = start_companion(work, site, cfgp); timings["companion_boot_s"] = round(boot or -1, 2); ok("companion_started", boot is not None)
-        t0 = time.time(); t1.js("companionStatus()"); st, ms = t1.wait_state(("unpaired", "ok", "off", "error")); timings["unpaired_decided_ms"] = ms
-        ok("running_unpaired_state", st == "unpaired", st)
-        ok("unpaired_summary_mentions_allow", "Allow" in (t1.js("connSummary()") or ""))
-        # 3. pair through the companion's own page, then claim the one-time code from the website (the popup path needs a visible window)
-        pair = urllib.request.urlopen(B + "/pair?origin=" + urllib.parse.quote(ORIGIN)).read().decode("utf-8"); tok = re.search(r'nes-companion-token" content="([^"]+)"', pair).group(1)
-        s, h, t = req("POST", "/api/pair/approve", {"origin": ORIGIN}, headers={"Origin": B, "X-NES-Token": tok}); ok("approve_issues_code", s == 200 and re.match(r"^\d{6}$", t.get("code", "")))
-        t1.js("openConnect()"); time.sleep(0.5)
-        t0 = time.time(); t1.js(f"claimCode('{t['code']}')"); st, ms = t1.wait_state(("ok", "error")); timings["claim_to_connected_ms"] = ms
-        ok("paired_connected", st == "ok", st); ok("connected_within_3s", ms < 3000, str(ms))
-        ok("connected_pill_shows_version", bool(re.search(r"Connected\s+v\d", t1.js("$('connPill').textContent") or "")))
-        d0 = time.time(); last = None
-        for _ in range(300):
-            last = t1.js("(CO.diag||{}).state")
-            if last not in ("checking", None): break
-            time.sleep(0.1)
-        timings["diag_settled_ms"] = round((time.time() - d0) * 1000); ok("diag_settles", last in ("ok", "attention", "ready", "delayed") and last != "delayed", str(last))
-        txt = t1.js("diagText()") or ""; ok("diag_text_needs_attention_without_hakchi", txt.startswith("Setup needs attention"), txt)
-        ok("still_connected_after_diag", t1.js("CO.state") == "ok")
-        s, h, j = req("GET", "/api/status"); ok("status_has_timings", isinstance(j.get("diag", {}).get("timings"), dict) or isinstance(j.get("timings"), dict), json.dumps(j.get("diag", {}))[:120])
-        a = time.time(); req("GET", "/api/status"); timings["status_cached_ms"] = round((time.time() - a) * 1000); ok("status_cached_fast", timings["status_cached_ms"] < 500, str(timings["status_cached_ms"]))
-        # 4. a second tab of the same origin reuses the pairing without a new approval
-        t2 = br.tab(URL); ok("second_tab_loads", t2.ready()); st2, ms2 = t2.wait_state(("ok", "unpaired", "off", "error")); timings["second_tab_connected_ms"] = ms2
-        ok("second_tab_reuses_pairing", st2 == "ok", st2)
-        # 5. companion stopped while paired
-        stop(proc); proc = None; t1.js("companionStatus()"); st, ms = t1.wait_state(("off", "error", "unpaired")); timings["stopped_detected_ms"] = ms
-        ok("stopped_shows_not_running", st == "off", st); ok("stopped_detected_quickly", ms < 5000, str(ms))
-        ok("stopped_no_green", "ok" not in (t1.js("$('connPill').className") or "").split())
-        # 6. companion restarted: tokens live in memory, so the website must ask for approval again (no stale "Connected")
-        proc, boot = start_companion(work, site, cfgp); t1.js("companionStatus()"); st, ms = t1.wait_state(("unpaired", "ok", "off", "error")); timings["restart_decided_ms"] = ms
-        ok("restart_requires_new_approval", st == "unpaired", st)
-        ok("restart_cleared_stale_token", t1.js("localStorage.getItem('studio-companion-v1')") in (None, ""))
-        # 7. companion too old (protocol 0)
-        t3 = br.tab(f"{ORIGIN}/index.html?companion={FAKE_PORT}"); ok("old_tab_loads", t3.ready()); st3, ms3 = t3.wait_state(("old", "off", "ok", "unpaired", "error")); timings["old_decided_ms"] = ms3
-        ok("too_old_state", st3 == "old", st3); ok("too_old_text", "older than this website expects" in (t3.js("connSummary()") or ""))
-        # 8. untrusted origin: the companion refuses CORS, the page shows the not-reachable path and nothing is paired
-        t4 = br.tab(f"http://localhost:{BAD_PORT}/index.html?companion={PORT}"); ok("untrusted_tab_loads", t4.ready()); st4, ms4 = t4.wait_state(("off", "denied", "ok", "unpaired", "error")); timings["untrusted_decided_ms"] = ms4
-        ok("untrusted_origin_not_connected", st4 in ("off", "denied"), st4)
-        ok("untrusted_origin_preflight_refused", req("OPTIONS", "/api/status", headers={"Origin": f"http://localhost:{BAD_PORT}", "Access-Control-Request-Method": "GET"})[0] == 403)
-        # 9. the permission-denied state cannot be produced headlessly; its wording must at least exist and tell the user what to do
-        ok("denied_text_explains", "local network access" in (t4.js("(()=>{ const s=CO.state; CO.state='denied'; const t=connSummary(); CO.state=s; return t; })()") or "").lower())
-        log = open(os.path.join(work, "companion.log"), encoding="utf-8").read(); ok("no_token_in_companion_log", t["token"] not in log and t["code"] not in log)
+        t1.js("companionStatus()"); st, ms = t1.wait_state(("web", "off", "unpaired", "ok", "error")); ok("still_web_with_backend_running", st == "web", st)
+        ok("still_no_probe", t1.js("performance.getEntriesByType('resource').some(e=>e.name.includes('127.0.0.1:'))") is False)
+        r = t1.js("(async()=>{ sel.clear(); sel.add(DATA.games[0].game_id); persist(); render(); const r=await offerCollection({id:'conn-test-1', name:'Conn test', collection:buildManifest()}); return r; })()") or {}
+        ok("handoff_offer_accepted_from_site_origin", r.get("ok") is True, json.dumps(r)[:200])
+        s_, h_, j_ = req("POST", "/api/handoff/offer", {"id": "conn-test-2", "name": "x", "collection": {"schema": "nes-classic-collection/4", "selections": []}}, headers={"Origin": f"http://localhost:{BAD_PORT}", "Content-Type": "application/json"})
+        ok("handoff_offer_refused_from_untrusted_origin", s_ == 403, str(s_))
+        log = open(os.path.join(work, "companion.log"), encoding="utf-8").read(); ok("no_version_or_status_request_from_website", "/api/version" not in log and "/api/status" not in log, log[-300:])
+        ok("status_cross_origin_still_needs_privilege", req("GET", "/api/status", headers={"Origin": ORIGIN})[0] == 401)
     finally:
         stop(proc); br.close(); srv.shutdown(); srv2.shutdown(); fake.shutdown(); shutil.rmtree(tmp, ignore_errors=True)
     for c in checks: print(c)

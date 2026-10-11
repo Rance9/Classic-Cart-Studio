@@ -8,7 +8,7 @@ Classic Cart Studio consists of a website (static files served by GitHub Pages a
 
 - your collection (selected games, version decisions, name, status, import baseline), automatic draft and snapshots (`studio-collection-v1`, `studio-snapshots-v1`, legacy `nes-classic-selection-v1`, `nes-classic-decisions-v1`);
 - favorites, list/grid view, Extended Library switch, first-run flag (`nes-classic-favorites-v1`, `nes-classic-view-v1`, `studio-ext-v1`, `studio-welcomed-v1`);
-- the pairing token for the backend on your computer (`studio-companion-v1`), bound to the website's origin and expiring after 12 hours, and the id of the last collection handed to the desktop application (`studio-handoff-v1`, an identifier only).
+- the id of the last collection handed to the desktop application (`studio-handoff-v1`, an identifier only). The website holds no token for the backend on your computer: it never connects to it directly.
 
 You can remove all of it by clearing the site's data in your browser. "Export Studio Data" writes the same information to a file you keep; "Import Studio Data" reads such a file. A browser profile and the Windows application's window have separate storage; the handoff below exists so you do not have to start over.
 
@@ -33,16 +33,16 @@ When you choose **Continue in Desktop App**, the website sends your current coll
 - `webview2\`: the application window's own browser profile (its localStorage, cache and cookies for the website).
 - `handoff-inbox.json`: collections offered by the website that you have not yet opened or discarded (expire after 20 minutes).
 - `exports\`: collection files saved during preparation. `hakchi-staging\`: a backup, a journal and a ledger for every preparation run, so a run can be undone.
-- `logs\desktop.log`, `logs\companion.log`, `logs\server.log`: operational logs (startup, requests by path, pairing events by origin, errors). They never contain tokens.
+- `logs\desktop.log`, `logs\companion.log`, `logs\server.log`: operational logs (startup, requests by path, handoff events by origin, errors). They never contain tokens.
 - `companion.json` (settings: port, paths, optional loopback development origins) and `desktop.json` (window size and position).
 
 The backend reads the Hakchi2 CE folder you configured (games and config) when you ask it to (Load Existing Collection, Check, Prepare). It does not scan other folders or your whole disk; imports examine only the files or folder you pick.
 
 **Network:** the backend listens only on `127.0.0.1` (your own computer); it never opens a network port and never contacts the console. The application window loads the website from `https://classiccartstudio.com` and the release information like any browser would. The only other outbound download happens on your explicit request: the pinned Hakchi2 CE 3.9.3 release package from the Hakchi2 CE GitHub releases page, verified by size and SHA-256 before use. The application does not check for or install updates by itself; the Studio menu's "Check for updates" opens the public releases page in your browser.
 
-**Authorization:** the application window talks to its backend with a session created when the application starts and discarded when it closes (no pairing step, nothing stored). A website in your normal browser may use the backend only after you click Allow in the pairing window; that grant is bound to the website's exact origin, lasts 12 hours, lives only in memory, and is revoked by "Disconnect this website" on the site or by closing the application. Only `https://classiccartstudio.com` (and `https://rance9.github.io`, which redirects there) and loopback development origins you list in `companion.json` are accepted.
+**Authorization:** the application window talks to its backend with a session created when the application starts and discarded when it closes (no pairing step, nothing stored). The website in your normal browser never uses the backend's privileged requests; the only thing it may send is a collection handoff (see above), and only from `https://classiccartstudio.com` (and `www`, and the older `https://rance9.github.io` address).
 
-**Browser permission:** Microsoft Edge and Chrome ask once whether the website may reach programs on your local network. Declining it only prevents that connection; the website keeps working on its own.
+**Browser permission:** when you choose Continue in Desktop App, Microsoft Edge and Chrome ask once whether the website may reach programs on your local network (the handoff goes to 127.0.0.1). Declining it only prevents the direct handoff; Download Collection & Open in App works without it, and the website keeps working on its own.
 
 ## Downloads and updates
 
