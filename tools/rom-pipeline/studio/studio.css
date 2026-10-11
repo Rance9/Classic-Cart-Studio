@@ -96,7 +96,7 @@
 .stickyhead{position:sticky;top:0;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .toolbar{position:static;box-shadow:none}
 .hero-inner{padding:6px 20px 0;gap:14px;grid-template-columns:minmax(0,1fr) auto;align-items:center}
-.hero .wordmark{height:12px}.hero h1{font-size:clamp(20px,1.5vw,26px);margin:2px 0 2px}.hero h1 span{letter-spacing:2px;margin-left:6px}
+.hero .wordmark{height:15px;width:137px}   /* the pixel-art wordmark at its natural 1x size: any other scale blurs it */.hero h1{font-size:clamp(20px,1.5vw,26px);margin:2px 0 2px}.hero h1 span{letter-spacing:2px;margin-left:6px}
 .hero .lede{font-size:12px;line-height:1.3;margin:0 0 4px;max-width:none}
 .hero .pills{gap:5px;margin-bottom:4px}.pill{padding:2px 8px;font-size:11px}.pill b{font-size:12px}
 .hero .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -105,7 +105,7 @@
 .parade .cast img{height:auto;width:auto;max-height:34px;max-width:48px}.parade .cast img.lg{max-height:36px}.parade .cast img.float{margin-bottom:8px}.parade .cast img.f2{margin-bottom:12px}.parade .cast img.f3{margin-bottom:5px}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media (max-width:1400px){.hardware svg{max-width:120px}.hardware .pad{max-width:62px}}
-@media (max-width:1100px){.hero-inner{grid-template-columns:1fr}.hardware{display:none}.hero h1{white-space:nowrap}
+@media (max-width:1100px){.hero h1{white-space:nowrap}
  .parade .cast{justify-content:flex-start;overflow:visible;width:max-content;animation:paradeWalk 48s ease-in-out infinite alternate}.parade{overflow:hidden}
  @keyframes paradeWalk{from{transform:translateX(0)}to{transform:translateX(calc(100vw - 100% - 24px))}}}
 @media (prefers-reduced-motion:reduce){.parade .cast{animation:none!important}.parade{overflow-x:auto;scrollbar-width:thin}}
@@ -139,7 +139,7 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
 /* ---- owner feedback 2026-10-10 (late): button colors, faint table pills, real mobile layout ---- */
 .btn.tray{background:linear-gradient(180deg,#3d8dff,#1d5fd4);border-color:#6fb0ff;color:#fff;font-weight:700;box-shadow:0 2px 12px rgba(61,141,255,.35)}
 .btn.tray:hover{border-color:#b9d8ff;box-shadow:0 8px 24px rgba(61,141,255,.45),0 0 28px rgba(61,141,255,.5),0 0 0 2px rgba(255,255,255,.18) inset;filter:brightness(1.1)}
-.btn.tray .badge{background:var(--red)}
+.btn.tray .badge,.btn.tray .badge.zero{background:rgba(255,255,255,.14);color:rgba(255,255,255,.9);font-weight:600;font-size:10.5px;min-width:16px;height:16px;line-height:16px;padding:0 4px;margin-left:4px;box-shadow:none}
 .btn.hk,.btn.hk.off{background:linear-gradient(180deg,#34d16e,#168f44);border-color:#62e894;color:#fff;box-shadow:0 2px 12px rgba(52,209,110,.35),0 0 22px rgba(52,209,110,.32);animation:hkglow 2.8s ease-in-out infinite}
 @keyframes hkglow{0%,100%{box-shadow:0 2px 12px rgba(52,209,110,.35),0 0 18px rgba(52,209,110,.3)}50%{box-shadow:0 3px 16px rgba(52,209,110,.5),0 0 36px rgba(84,230,140,.6)}}
 .btn.hk:hover{border-color:#c6f5d6;box-shadow:0 8px 24px rgba(52,209,110,.5),0 0 48px rgba(84,230,140,.75),0 0 0 2px rgba(255,255,255,.2) inset;filter:brightness(1.1) saturate(1.05)}
@@ -260,7 +260,7 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
 @media (max-width:640px){#guide .ghd h2 span{display:none}#guide .ghd h2{font-size:11px;line-height:1.5}#guide .ghd{gap:10px}}
 /* ---- owner feedback: uniform button heights in the top bar; centered rows when the bar wraps; the list never scrolls sideways or bleeds ---- */
 .row.bar .btn{height:36px;padding-top:0;padding-bottom:0;align-items:center;box-sizing:border-box}
-.row.bar .btn .badge{height:18px;line-height:18px}
+.row.bar .btn .badge{height:18px;line-height:18px}.row.bar .btn.tray .badge{height:16px;line-height:16px}
 .row.bar .btn.hk{padding:0 14px}
 @media (max-width:1060px){.row.bar{justify-content:center;gap:8px}.row.bar>span{display:none}.actions{display:contents}.row.bar .menuwrap{display:inline-flex}}
 .tablewrap{overflow-x:clip}main{overflow-x:clip}#listView{overflow-x:clip}   /* clip, never hidden/auto: those would make main a scroll container and detach the sticky table header */
@@ -346,3 +346,18 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
  .parade{height:auto;min-height:64px;padding-bottom:22px;box-sizing:border-box}
  .parade .cast{position:static;flex-wrap:wrap;justify-content:center;align-items:flex-end;row-gap:4px;column-gap:6px;overflow:visible;animation:none!important;transform:none!important;padding:4px 10px 0;max-width:100%;box-sizing:border-box}
 }
+/* the NES Classic storage estimate lives in the tray only (owner decision): a full-width line under the tray header */
+#tray > .notice{display:flex;width:auto;margin:10px 14px 0;max-width:none;white-space:normal;justify-content:center;flex-wrap:wrap;row-gap:2px;line-height:1.35;height:auto;text-align:center}
+#tray > .notice .meter{width:90px}
+/* letters + active filters on one line (letters left, Active right) when both fit; otherwise Active below the letters, both centered */
+.row.sub{flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:14px;min-width:0}
+.row.sub .letters{flex:1 1 auto;min-width:0;flex-wrap:wrap;justify-content:flex-start}
+.row.sub .chips{display:flex;flex-wrap:wrap;align-items:center;gap:5px;flex:0 0 auto;justify-content:flex-end;max-width:100%}
+.row.sub .chips[hidden]{display:none}
+.row.sub.split{flex-wrap:wrap;justify-content:center;row-gap:6px}
+.row.sub.split .letters{flex:0 0 100%;justify-content:center}
+.row.sub.split .chips{flex:0 0 100%;justify-content:center}
+.toolsfold.stack:not(.measuring) .row.sub .letters{flex:1 1 auto}
+.toolsfold.stack:not(.measuring) .row.sub:not(.split) .letters{justify-content:flex-start}
+.toolsfold.stack:not(.measuring) .row.sub:not(.split):has(.chips[hidden]) .letters{justify-content:center}
+@media (max-width:640px){.row.sub{flex-direction:column;align-items:stretch}.row.sub .letters,.row.sub .chips{flex:0 0 auto;width:100%;justify-content:center}}

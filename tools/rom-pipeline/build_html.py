@@ -231,7 +231,9 @@ footer .support{font-size:12.5px;color:var(--muted);max-width:1100px;margin:14px
 footer .legal{font-size:12px;color:var(--dim);max-width:1100px;margin:14px auto 0;text-align:center;line-height:1.6}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media (max-width:1400px){.row.sub{flex-direction:column;align-items:flex-start;gap:4px}.row.sub .letters{flex:none;width:100%}.notice{white-space:normal}.toolbar .in{padding:6px 12px 6px;gap:5px}.toolbar input[type=search]{min-width:180px}.toolbar .btn{padding:5px 8px;font-size:12.5px}.toolbar select,.toolbar input[type=search]{padding:5px 8px;font-size:13px}.brand .nm{font-size:14px}.stats{font-size:12.5px}.letters a{min-width:20px;padding:1px 3px;font-size:12px}.notice{font-size:11.5px}.notice>span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.notice .meter{width:110px}}
-@media (max-width:1100px){.hero-inner{grid-template-columns:1fr}.hardware{display:none}.hero h1{font-size:clamp(24px,5vw,36px);white-space:normal}}
+@media (max-width:1100px){.hero h1{font-size:clamp(24px,5vw,36px);white-space:normal}}
+@media (max-width:900px){.hardware svg{max-width:120px}.hardware .pad{max-width:60px}}
+@media (max-width:640px){.hero-inner{grid-template-columns:1fr}.hardware{display:none}}
 @media (max-width:900px){th:nth-child(6),td:nth-child(6),th:nth-child(8),td:nth-child(8),th:nth-child(11),td:nth-child(11){display:none}#details .box{grid-template-columns:1fr}.brand .nm small{display:none}.parade{height:64px}.parade .cast{gap:6px}}
 @media (max-width:640px){th:nth-child(7),td:nth-child(7),th:nth-child(10),td:nth-child(10),th:nth-child(13),td:nth-child(13){display:none}.hero-inner{padding:22px 16px 6px}.toolbar .in{padding:8px 12px}main{padding:12px}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.howto,footer{padding-left:12px;padding-right:12px}}
 __STUDIO_CSS__
@@ -314,9 +316,7 @@ __STUDIO_CSS__
  <span class="stats" id="stats"></span>
  <button class="conn" id="connPill" title="Connection to the companion on your computer"><span class="dot"></span>Checking the connection…</button>
 </div>
-<div class="row store" id="storeRow" hidden></div>
-<div class="row chips" id="chips" hidden></div>
-<div class="row sub"><div class="letters" id="letters"></div><button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button></div>
+<div class="row sub" id="subRow"><div class="letters" id="letters"></div><div class="chips" id="chips" hidden></div></div>
 <button class="foldhide" id="foldHide" type="button" aria-controls="toolsFold">▲ Hide Search &amp; Tools</button>
 </div>
 </div></div>
@@ -362,6 +362,7 @@ __STUDIO_CSS__
 <div class="acts facts"><button class="btn sm ghost" id="filtersReset" title="Back to the defaults: no filters, Title A–Z, curated library">Reset filters &amp; sort</button><span class="small">Filtering and sorting change only what is shown, never what is selected. All 30 built-in games are shown by default.</span><span class="sp"></span><button class="btn sm secondary" id="filtersCancel">Cancel</button><button class="btn primary sm" id="filtersDone">Apply</button></div>
 </div></div>
 <aside id="tray" aria-label="Selection tray"><div class="hd"><span class="ttl"><img class="px" src="brand/oem/icon-cartridge.png" alt="" width="20" height="20" onerror="this.remove()"> My Collection</span><span id="trayCount" class="small"></span><button id="trayClose" class="btn sm">Close</button></div>
+<button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button>
 <div class="sub" id="traySub"></div><ul id="trayList"></ul><div class="ft"><span class="small">Stars are a shortlist only. <a href="#" data-guide="choose">How choosing works</a></span><button class="btn hk sm" id="trayHk">Install on NES Classic</button> <button class="btn secondary sm" id="trayExport">Save to File</button></div></aside>
 <div id="details" role="dialog" aria-modal="true"><div class="box" id="detailsBox"></div></div>
 __STUDIO_HTML__
@@ -564,7 +565,7 @@ $('filtersCancel').onclick=fcancel;
 $('filtersReset').onclick=()=>{ FILTERS.forEach(([id])=>$(id).value=FDEF[id]||''); $('sortSel').value='display_title'; $('sortDir').value='asc'; $('extToggle').checked=false; updateFilterCount(); };
 $('filters').onclick=e=>{ if(e.target.id==='filters') fcancel(); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('filters').classList.contains('open')){ e.preventDefault(); fcancel(); } });
-$('chips').addEventListener('click',e=>{ const t=e.target; if(t.dataset.cf==='sort'){ sortK='display_title'; sortDir=1; render(); } else if(t.dataset.cf==='ext'){ setExt(false); } else if(t.dataset.cf){ $(t.dataset.cf).value=FDEF[t.dataset.cf]||''; render(); } else if(t.id==='chipsClear'){ FILTERS.forEach(([id])=>$(id).value=FDEF[id]||''); sortK='display_title'; sortDir=1; render(); } });
+$('chips').addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('[data-cf],#chipsClear'); if(!t) return; if(t.dataset.cf==='sort'){ sortK='display_title'; sortDir=1; render(); } else if(t.dataset.cf==='ext'){ setExt(false); } else if(t.dataset.cf){ $(t.dataset.cf).value=FDEF[t.dataset.cf]||''; render(); } else if(t.id==='chipsClear'){ FILTERS.forEach(([id])=>$(id).value=FDEF[id]||''); sortK='display_title'; sortDir=1; if(extOn) setExt(false); else render(); } });   /* Clear all clears every active chip, the Extended Library switch included; clicks on a chip's inner text or icon count as the chip */
 $('selectBtn').onclick=e=>{ e.stopPropagation(); $('selectMenu').hidden=!$('selectMenu').hidden; };
 document.addEventListener('click',e=>{ if(!e.target.closest('.menuwrap')) $('selectMenu').hidden=true; });
 $('selectMenu').addEventListener('click',()=>{ $('selectMenu').hidden=true; });
@@ -688,13 +689,10 @@ function foldBadge(n){ const b=$('foldBadge'); if(!b) return; b.textContent=n; b
 // is "cramped": it collapses at once, and when opened it uses the stacked grid (search / three controls / stats + connection) so
 // nothing is ever left scattered across two half-filled lines.
 function foldFits(){ const f=$('toolsFold'), r=f.querySelector('.row.tools'); const was=f.className; f.className='toolsfold measuring';
-  const fits=r.scrollWidth<=r.clientWidth+1; const split=!storageFits(); f.className=was; storageSplit(split); return fits; }
-// The storage pill never shares a line with the letter strip when the two would touch: it then gets its own row below the tools row.
-function storageFits(){ const sub=$('toolsFold').querySelector('.row.sub'), L=$('letters'), st=$('storage'); if(!st||st.hidden||!st.textContent) return true;
-  const cs=getComputedStyle(L); const gap=parseFloat(cs.columnGap)||0; const kids=[...L.children]; const need=kids.reduce((a,c)=>a+c.offsetWidth,0)+gap*Math.max(0,kids.length-1);
-  const rowGap=parseFloat(getComputedStyle(sub).columnGap)||0; return need+rowGap+st.offsetWidth<=sub.clientWidth-1; }
-function storageSplit(split){ const st=$('storage'), row=$('storeRow'), sub=$('toolsFold').querySelector('.row.sub'); if(!st||!row) return; const now=st.parentElement===row; if(now===split) return;
-  if(split){ row.appendChild(st); row.hidden=false; } else { sub.appendChild(st); row.hidden=true; } setTb(); }
+  const fits=r.scrollWidth<=r.clientWidth+1; const split=!chipsFit(); f.className=was; $('subRow').classList.toggle('split',split); return fits; }
+// Active-filter chips and the letter strip share one line only when both fit at their natural widths (measured in the same invisible pass).
+function chipsFit(){ const sub=$('subRow'), L=$('letters'), C=$('chips'); if(!C||C.hidden) return true; const nat=el=>{ const g=parseFloat(getComputedStyle(el).columnGap)||0; const k=[...el.children]; return k.reduce((a,c)=>a+c.offsetWidth,0)+g*Math.max(0,k.length-1); };
+  const gap=parseFloat(getComputedStyle(sub).columnGap)||0; return nat(L)+gap+nat(C)<=sub.clientWidth-1; }
 function foldMeasure(){ const cramped=!foldFits(); if(cramped===FOLD.cramped) return; FOLD.cramped=cramped; $('toolsFold').classList.toggle('stack',cramped);
   FOLD.auto=true; if(cramped) setFold(false); else foldAuto(); }
 $('foldBtn').onclick=()=>{ FOLD.auto=false; setFold(!foldOpen()); if(foldOpen()&&!FOLD.narrow()){ const q=$('q'); if(q&&scrollY<=120) q.focus({preventScroll:true}); } };
@@ -708,7 +706,7 @@ addEventListener('resize',foldOnResize); if(window.ResizeObserver) new ResizeObs
 let rzT=0; addEventListener('resize',()=>{ document.documentElement.classList.add('resizing'); clearTimeout(rzT); rzT=setTimeout(()=>{ document.documentElement.classList.remove('resizing'); if(VL.items.length) vlReflow(false); },140); });
 $('foldHide').onclick=()=>{ FOLD.auto=false; setFold(false); $('foldBtn').focus({preventScroll:true}); };
 if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('toolsFold').querySelector('.row.tools'),{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
-if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('storage'),{childList:true,characterData:true,subtree:true});
+if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('chips'),{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
 barMeasure(); FOLD.cramped=!foldFits(); $('toolsFold').classList.toggle('stack',FOLD.cramped); foldAuto();
 __STUDIO_JS__
 render();
