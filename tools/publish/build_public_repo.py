@@ -38,6 +38,18 @@ SITE_DATA = ["catalog.json", "builtin.json", "library.json", "rankings.json"]
 # strings naming local paths are dropped from the public data; private markers (user/machine names) come only from the environment (NES_PRIVATE_MARKERS)
 PRIVATE_RE = re.compile("|".join([r"[A-Za-z]:\\", "One" + "Drive", "/Users/"] + [re.escape(m.strip()) for m in os.environ.get("NES_PRIVATE_MARKERS", "").split(",") if m.strip()]), re.I)
 
+def align_factory_hash(folder: str):
+    """catalog.json records factory_inventory.sha256 of reports/builtin.json; after sanitizing, the published builtin.json has other
+    bytes, and the backend (which bundles the published files) validates manifests against them. Record the published hash."""
+    import hashlib
+    bp, cp = os.path.join(folder, "builtin.json"), os.path.join(folder, "catalog.json")
+    if not (os.path.exists(bp) and os.path.exists(cp)): return
+    h = hashlib.sha256(open(bp, "rb").read()).hexdigest(); c = json.load(open(cp, encoding="utf-8"))
+    fi = c.get("factory_inventory") or {}
+    if fi.get("sha256") != h:
+        fi["sha256"] = h; fi["size"] = os.path.getsize(bp); c["factory_inventory"] = fi
+        json.dump(c, open(cp, "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False); print(f"factory inventory hash aligned to the published builtin.json ({h[:16]})")
+
 def sanitize(obj):
     """Drop art references and anything that names a local path or an archive member of the private ROM collection."""
     if isinstance(obj, dict):
@@ -81,12 +93,14 @@ def build_site(site: str):
         p = os.path.join(PROJECT, "reports", n)
         if not os.path.exists(p): continue
         d = sanitize(json.load(open(p, encoding="utf-8"))); json.dump(d, open(os.path.join(site, n), "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
+    align_factory_hash(site)
     env = dict(os.environ, NES_STUDIO_SITE=site, NES_PUBLIC_BUILD="1")
     subprocess.run([sys.executable, os.path.join(PROJECT, "tools", "rom-pipeline", "build_html.py"), "--public", "--out", site], check=True, env=env)
     shutil.copy2(os.path.join(site, "nes-catalog.html"), os.path.join(site, "index.html"))
     shutil.copytree(os.path.join(PROJECT, "tools", "publish", "site-static"), site, dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
     for n in ("favicon.ico", "icon-32.png", "apple-touch-icon.png", "icon-192.png"): shutil.copy2(os.path.join(os.path.join(PROJECT, "tools", "publish", "assets"), "app-32.png" if n == "icon-32.png" else n), os.path.join(site, n))   # browser tab / home-screen icons
-    shutil.copy2(os.path.join(os.path.join(PROJECT, "tools", "publish", "assets"), "as-seen-on-tv.png"), os.path.join(site, "brand", "public", "as-seen-on-tv.png"))   # the Preview on TV badge (Wikimedia Commons PNG, public domain, see THIRD_PARTY_NOTICES)
+    shutil.copy2(os.path.join(os.path.join(PROJECT, "tools", "publish", "assets"), "as-seen-on-tv.png"), os.path.join(site, "brand", "public", "as-seen-on-tv.png"))
+    if os.path.isdir(os.path.join(PROJECT, "tools", "publish", "assets", "help")): shutil.copytree(os.path.join(PROJECT, "tools", "publish", "assets", "help"), os.path.join(site, "brand", "help"), dirs_exist_ok=True)   # Help & User Guide figures (screenshots of this Studio, project illustrations)   # the Preview on TV badge (Wikimedia Commons PNG, public domain, see THIRD_PARTY_NOTICES)
     open(os.path.join(site, ".nojekyll"), "w").close()
     open(os.path.join(site, "robots.txt"), "w").write("User-agent: *\nAllow: /\n")
     # release.json is written by the release workflow after a companion release exists; a placeholder keeps the page's lookup honest

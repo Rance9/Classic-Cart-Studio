@@ -1,0 +1,250 @@
+[
+ {
+  "name": "welcome",
+  "size": [
+   1400,
+   619
+  ],
+  "bytes": 97820
+ },
+ {
+  "name": "hero",
+  "size": [
+   1400,
+   149
+  ],
+  "bytes": 55704
+ },
+ {
+  "name": "toolbar",
+  "size": [
+   1400,
+   124
+  ],
+  "bytes": 31379
+ },
+ {
+  "name": "tools-row",
+  "size": [
+   1400,
+   80
+  ],
+  "bytes": 20909
+ },
+ {
+  "name": "search-dr-mario",
+  "size": [
+   1400,
+   307
+  ],
+  "bytes": 50239
+ },
+ {
+  "name": "list-rows",
+  "size": [
+   1400,
+   651
+  ],
+  "bytes": 99258
+ },
+ {
+  "name": "grid-cards",
+  "size": [
+   1400,
+   651
+  ],
+  "bytes": 297773
+ },
+ {
+  "name": "version-chip",
+  "size": [
+   1400,
+   1131
+  ],
+  "bytes": 194956
+ },
+ {
+  "name": "filters",
+  "size": [
+   1400,
+   1076
+  ],
+  "bytes": 157561
+ },
+ {
+  "name": "select-menu",
+  "size": [
+   1272,
+   816
+  ],
+  "bytes": 37427
+ },
+ {
+  "name": "selected-rows",
+  "size": [
+   1400,
+   430
+  ],
+  "bytes": 72062
+ },
+ {
+  "name": "tray",
+  "size": [
+   1400,
+   2864
+  ],
+  "bytes": 490612
+ },
+ {
+  "name": "details",
+  "size": [
+   1400,
+   1123
+  ],
+  "bytes": 252363
+ },
+ {
+  "name": "my-collection-menu",
+  "size": [
+   1312,
+   2460
+  ],
+  "bytes": 143830
+ },
+ {
+  "name": "save-load-menu",
+  "size": [
+   1312,
+   1316
+  ],
+  "bytes": 79944
+ },
+ {
+  "name": "extended-toggle",
+  "size": [
+   80,
+   80
+  ],
+  "bytes": 1456
+ },
+ {
+  "name": "tv-preview",
+  "size": [
+   1800,
+   1173
+  ],
+  "bytes": 293509
+ },
+ {
+  "name": "tv-details",
+  "size": [
+   1400,
+   786
+  ],
+  "bytes": 148978
+ },
+ {
+  "name": "tv-retro",
+  "size": [
+   1400,
+   786
+  ],
+  "bytes": 189132
+ },
+ {
+  "name": "tv-side-panel",
+  "size": [
+   1360,
+   2988
+  ],
+  "bytes": 229278
+ },
+ {
+  "name": "tv-pad",
+  "size": [
+   1400,
+   237
+  ],
+  "bytes": 43270
+ },
+ {
+  "name": "tv-sample",
+  "size": [
+   1400,
+   786
+  ],
+  "bytes": 193527
+ },
+ {
+  "name": "install-check",
+  "size": [
+   1400,
+   760
+  ],
+  "bytes": 139396
+ },
+ {
+  "name": "install-connect",
+  "size": [
+   1400,
+   780
+  ],
+  "bytes": 126405
+ },
+ {
+  "name": "install-console-state",
+  "size": [
+   1400,
+   869
+  ],
+  "bytes": 159078
+ },
+ {
+  "name": "install-review",
+  "size": [
+   1400,
+   775
+  ],
+  "bytes": 132338
+ },
+ {
+  "name": "install-authorize",
+  "size": [
+   1400,
+   511
+  ],
+  "bytes": 87013
+ },
+ {
+  "name": "install-verify",
+  "size": [
+   1400,
+   559
+  ],
+  "bytes": 90490
+ },
+ {
+  "name": "desktop-invitation",
+  "size": [
+   1400,
+   485
+  ],
+  "bytes": 126890
+ },
+ {
+  "name": "guide-window",
+  "size": [
+   1400,
+   923
+  ],
+  "bytes": 222856
+ },
+ {
+  "name": "phone-toolbar",
+  "size": [
+   824,
+   724
+  ],
+  "bytes": 71724
+ }
+]

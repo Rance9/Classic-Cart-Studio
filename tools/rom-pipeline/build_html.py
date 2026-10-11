@@ -279,7 +279,7 @@ __STUDIO_CSS__
 </header>
 <div class="toolbar" id="toolbar"><div class="in">
 <div class="row bar">
- <button class="btn howbtn" id="howBtn" title="Complete step-by-step guide to using Classic Cart Studio."><svg class="ico book" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H8v12H3.5A1.5 1.5 0 0 1 2 12.5zM14 3.5A1.5 1.5 0 0 0 12.5 2H8v12h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>Help &amp; User Guide<span class="chc" id="howCount"></span></button>
+ <button class="btn howbtn" id="howBtn" title="Complete step-by-step guide to using Classic Cart Studio."><svg class="ico book" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H8v12H3.5A1.5 1.5 0 0 1 2 12.5zM14 3.5A1.5 1.5 0 0 0 12.5 2H8v12h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>Help &amp; User Guide</button>
  <button class="btn foldbtn" id="foldBtn" aria-expanded="true" aria-controls="toolsFold" title="Show or hide the tools: search, Filter &amp; Sort, Select, List or Grid, the alphabet jump, the storage figure and the connection status"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg><span class="fl">Search &amp; Tools</span><span class="badge" id="foldBadge" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
  <span style="flex:1"></span>
  <div class="actions">
@@ -845,6 +845,9 @@ def main():
         assert LEGAL_PUBLIC in html and hero.count("<img") == len(HERO) == 27 and "brand/oem/nes-wordmark.png" in html and sum(1 for g in data["games"] if g.get("art")) >= 745, "public build lost the approved visuals"
     out = os.path.join(OUT, "nes-catalog.html")
     open(out, "w", encoding="utf-8").write(html)
+    help_src = os.path.join(SRC_TOOLS, "publish", "assets", "help") if "SRC_TOOLS" in globals() else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "help")
+    if os.path.isdir(help_src):   # Help & User Guide figures (screenshots and project illustrations) travel with the page: brand/help
+        import shutil as _sh; _sh.copytree(help_src, os.path.join(os.path.dirname(out), "brand", "help"), dirs_exist_ok=True)
     print("wrote", out, "games:", len(data["games"]), "bytes:", len(html), "hero sprites:", hero.count("<img"), "footer sprites:", foot.count("<img"), "web sprites:", len(web_prov), "rankings:", len(data.get("rankings", {})))
 
 if __name__ == "__main__":

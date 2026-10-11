@@ -185,7 +185,7 @@ wireMenu('collBtn','collMenu'); wireMenu('ioBtn','ioMenu');
 document.addEventListener('click',e=>{ if(!e.target.closest('.menuwrap')) document.querySelectorAll('.menu').forEach(x=>x.hidden=true); });
 $('collMenu').addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; if(b.classList.contains('sub')){ e.stopPropagation(); subToggle(b); return; } $('collMenu').hidden=true; subCloseAll(); ({mNew:newCollection,mLoadLocal:loadLocalLibrary,mLoadFile:()=>$('import').click(),mOwn:addOwnGame,mRestore:restoreMenu,mInfo:renameCollection,mWelcome:()=>maybeWelcome(true)})[b.id]&&({mNew:newCollection,mLoadLocal:loadLocalLibrary,mLoadFile:()=>$('import').click(),mOwn:addOwnGame,mRestore:restoreMenu,mInfo:renameCollection,mWelcome:()=>maybeWelcome(true)})[b.id](); });
 $('ioMenu').addEventListener('click',()=>{ $('ioMenu').hidden=true; });
-$('howBtn').onclick=()=>openGuide('start'); if($('howCount')) $('howCount').textContent=GUIDE_CH.length+' chapters';
+$('howBtn').onclick=()=>openGuide('start');
 $('extToggle').onchange=()=>{ if(typeof updateFilterCount==='function') updateFilterCount(); }; $('extInfo').onclick=e=>{ e.preventDefault(); e.stopPropagation(); openGuide('extended'); };
 // ---- Save / Load (schema 4) ----
 function buildManifest(){ const chosen=selectedGames().sort((a,b)=>a.game_id<b.game_id?-1:1); const visibleCodes=new Set(chosen.filter(factoryVisible).map(g=>g.builtin_code)); const codes=[...FACTORY_CODES].sort(); const hidden=codes.filter(cd=>!visibleCodes.has(cd)).map(cd=>({code:cd,title:FACTORY_TITLES[cd]||cd})); const hw=chosen.filter(needsHardware); const now=new Date().toISOString();
