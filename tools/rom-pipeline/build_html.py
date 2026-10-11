@@ -319,8 +319,8 @@ __STUDIO_CSS__
  <button id="filtersBtn" class="btn" aria-haspopup="dialog"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h12M4 8h8M6 13h4"/></svg>Filter &amp; Sort<span class="badge" id="filtersBadge" hidden></span></button>
  <div class="menuwrap"><button id="selectBtn" class="btn" aria-haspopup="menu">Select<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
   <div class="menu" id="selectMenu" role="menu" hidden><button id="selVis" class="mi" role="menuitem">Select all visible</button><button id="unselVis" class="mi" role="menuitem">Unselect visible</button><button id="selKachi" class="mi" role="menuitem">Select visible kachikachi + verified</button><div class="sep"></div><button id="clear" class="mi danger" role="menuitem"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Clear selection</button></div></div>
- <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
  <div class="seg" role="group" aria-label="View"><button id="vList" class="btn active">List</button><button id="vGrid" class="btn">Grid</button></div>
+ <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
  <span style="flex:1"></span>
  <span class="stats" id="stats"></span>
  <button class="conn" id="connPill" title="Connection to the companion on your computer"><span class="dot"></span>Checking the connection…</button>
