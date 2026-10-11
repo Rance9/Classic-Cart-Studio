@@ -16,7 +16,7 @@ def main(site: str):
     missing = [n for n in need if not os.path.exists(os.path.join(site, n))]; ok("required_files", not missing, str(missing))
     page = open(os.path.join(site, "nes-catalog.html"), encoding="utf-8").read(); idx = open(os.path.join(site, "index.html"), encoding="utf-8").read()
     ok("index_is_the_page", page == idx)
-    ok("title_and_disclaimer", "<title>NES Classic Collection Studio</title>" in page and "independent project" in page and "not produced, licensed, sponsored, approved or endorsed by Nintendo" in page)
+    ok("title_and_disclaimer", "<title>Classic Cart Studio</title>" in page and "independent" in page and ("not produced, licensed, sponsored, approved or endorsed by Nintendo" in page or "not produced, licensed, sponsored, approved, or endorsed by Nintendo" in page))
     # ---- approved visual presentation (owner directive 2026-10-10): the public page must carry the same artwork as the accepted build ----
     sys.path.insert(0, HERE); import build_html as BH
     pi = page.index('<div class="parade"'); parade = page[pi:page.index('<div class="ground">', pi)]

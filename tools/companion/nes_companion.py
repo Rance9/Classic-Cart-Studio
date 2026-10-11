@@ -43,7 +43,7 @@ import hakchi_bridge as hb
 import hakchi_inspect as hi
 import personal as ps
 from version import VERSION, PROTOCOL, APP_ID, PUBLIC_ORIGIN, SITE_ORIGINS, SITE_URL
-from common import SITE_ROOT, DATA_ROOT, FROZEN
+from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path
 
 CFG = hb.load_cfg(); TOKEN = secrets.token_urlsafe(24); ROOT = SITE_ROOT
 mimetypes.add_type("application/json", ".json")
@@ -68,6 +68,82 @@ def issue_token(origin: str) -> dict:
 
 def revoke_all():
     with LOCK: PAIRED.clear(); CODES.clear()
+
+# ---- desktop host channel: Classic Cart Studio for Windows starts this backend headless and hands it a per-run token through the
+#      environment. Requests carrying that token (Authorization: Bearer) from the website's origin are the "desktop" principal: no
+#      pairing ritual, but still an exact-origin, authenticated caller. The token never appears in URLs, logs or pages of other origins.
+HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
+HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
+CAPABILITIES = ["pairing", "library", "personal", "import", "locate", "prepare", "handoff", "desktop-state", "shutdown"]
+SERVER_REF: dict = {"srv": None}
+def _desktop_principal(auth: str, origin: str) -> dict | None:
+    if not HOST_TOKEN or not auth.startswith("Bearer "): return None
+    tok = auth[7:].strip()
+    if len(tok) != len(HOST_TOKEN) or not secrets.compare_digest(tok, HOST_TOKEN): return None
+    if origin not in ALLOWED: return None
+    return {"origin": origin, "expires": 2 ** 31, "desktop": True, "token": "desktop"}
+
+# ---- website -> desktop collection handoff: a bounded inbox of offered collections (the website may only ADD; only the desktop
+#      principal can list, take or discard). Non-destructive, idempotent by offer id, expires, capped. ----
+HANDOFF: dict = {}
+HANDOFF_MAX, HANDOFF_TTL, HANDOFF_MAX_BYTES, HANDOFF_RATE = 8, 20 * 60, 1_000_000, 30
+_handoff_times: list = []
+OFFER_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+def handoff_path(): return data_path("handoff-inbox.json")
+def handoff_load():
+    try:
+        j = json.load(open(handoff_path(), encoding="utf-8"))
+        if isinstance(j, dict): HANDOFF.update({k: v for k, v in j.items() if isinstance(v, dict)})
+    except Exception: pass
+def handoff_save():
+    try:
+        os.makedirs(DATA_ROOT, exist_ok=True); tmp = handoff_path() + ".tmp"
+        json.dump(HANDOFF, open(tmp, "w", encoding="utf-8")); os.replace(tmp, handoff_path())
+    except Exception: pass
+def handoff_prune():
+    now = time.time()
+    for k in [k for k, v in HANDOFF.items() if now - v.get("received", 0) > HANDOFF_TTL]: HANDOFF.pop(k, None)
+    while len(HANDOFF) > HANDOFF_MAX: HANDOFF.pop(min(HANDOFF, key=lambda k: HANDOFF[k].get("received", 0)), None)
+def handoff_validate(body: dict) -> tuple[dict | None, str]:
+    oid = str(body.get("id") or "")
+    if not OFFER_ID.match(oid): return None, "offer id must be 8-64 letters, digits or dashes"
+    man = body.get("collection")
+    if not isinstance(man, dict): return None, "collection must be an object"
+    if not isinstance(man.get("schema"), str) or not man["schema"].startswith("nes-classic-collection/"): return None, "unknown collection schema"
+    games = man.get("selections") if isinstance(man.get("selections"), list) else man.get("games")   # schema 4 uses "selections"; older files "games"
+    if not isinstance(games, list) or len(games) > 2000: return None, "selections must be a list of at most 2000 entries"
+    for g in games:
+        gid = (g.get("version_id") or g.get("game_id")) if isinstance(g, dict) else None
+        if not isinstance(gid, str) or not gid or len(gid) > 128: return None, "every selection needs a version_id or game_id"
+    name = str(man.get("name") or body.get("name") or "Collection")[:120]
+    return {"id": oid, "name": name, "count": len(games), "schema": man["schema"], "collection": man, "fingerprint": hashlib.sha256(json.dumps(man, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}, ""
+
+def desktop_state_path(): return data_path("desktop-state.json")
+def desktop_state_load() -> dict:
+    try:
+        j = json.load(open(desktop_state_path(), encoding="utf-8")); return j if isinstance(j, dict) else {}
+    except Exception: return {}
+def desktop_state_save(state: dict) -> dict:
+    os.makedirs(DATA_ROOT, exist_ok=True); p = desktop_state_path(); tmp = p + ".tmp"
+    state = dict(state); state["saved_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    json.dump(state, open(tmp, "w", encoding="utf-8"));
+    if os.path.exists(p):
+        try: os.replace(p, p + ".bak")
+        except Exception: pass
+    os.replace(tmp, p); return state
+
+def host_watchdog():
+    """When the desktop host that started us goes away, stop too (no orphaned backend holding the port)."""
+    if not HOST_PID: return
+    import ctypes
+    k32 = ctypes.windll.kernel32; SYNCHRONIZE = 0x00100000
+    h = k32.OpenProcess(SYNCHRONIZE, False, HOST_PID)
+    if not h: return
+    def run():
+        k32.WaitForSingleObject(h, 0xFFFFFFFF)   # INFINITE: returns when the host process ends
+        srv = SERVER_REF.get("srv")
+        if srv: threading.Thread(target=srv.shutdown, daemon=True).start()
+    threading.Thread(target=run, daemon=True, name="host-watchdog").start()
 
 PAIR_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect to this computer</title>
 <meta name="nes-companion-token" content="__TOKEN__"><style>:root{color-scheme:dark}body{margin:0;background:#15161a;color:#f2f2f2;font:15px/1.5 Segoe UI,system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center}
@@ -98,6 +174,8 @@ def save_manifest(man: dict) -> str:
 
 class H(http.server.BaseHTTPRequestHandler):
     server_version = "nes-companion/1.0"
+    protocol_version = "HTTP/1.1"   # keep-alive: Chromium reuses the connection it opened for a CORS preflight for the actual request; an
+                                    # HTTP/1.0 server closing after the preflight left those requests waiting until the page's timeout
     def log_message(self, fmt, *a):
         if "/api/" in (a[0] if a else "") and sys.stderr is not None:   # a windowed (frozen) build may have no stderr
             try: sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % a))
@@ -109,6 +187,9 @@ class H(http.server.BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", o); self.send_header("Vary", "Origin"); self.send_header("Access-Control-Expose-Headers", "X-NES-Protocol, X-NES-Version")
         self.send_header("X-NES-Protocol", str(PROTOCOL)); self.send_header("X-NES-Version", VERSION)
     def _json(self, code: int, obj: dict):
+        try:   # an unread request body must not leak into the next request on a kept-alive connection
+            if int(self.headers.get("Content-Length", "0") or 0) > 0 and not getattr(self, "_body_read", False): self.close_connection = True
+        except ValueError: self.close_connection = True
         b = json.dumps(obj).encode("utf-8"); self.send_response(code); self.send_header("Content-Type", "application/json; charset=utf-8"); self.send_header("Content-Length", str(len(b)))
         self.send_header("Cache-Control", "no-store"); self.send_header("X-Content-Type-Options", "nosniff"); self._cors(); self.end_headers(); self.wfile.write(b)
     def _host_ok(self) -> bool:
@@ -130,6 +211,8 @@ class H(http.server.BaseHTTPRequestHandler):
         """The paired website's token: must exist, be unexpired and be bound to exactly the requesting Origin."""
         a = self.headers.get("Authorization", ""); o = self._origin()
         if not a.startswith("Bearer ") or not o or o not in ALLOWED: return None
+        d = _desktop_principal(a, o)
+        if d: return d
         tok = a[7:].strip()
         with LOCK:
             v = PAIRED.get(tok)
@@ -158,13 +241,14 @@ class H(http.server.BaseHTTPRequestHandler):
     def _body(self) -> dict:
         n = int(self.headers.get("Content-Length", "0") or 0)
         if n > 20_000_000: raise ValueError("body too large")
+        self._body_read = True
         return json.loads(self.rfile.read(n).decode("utf-8") or "{}")
     def do_GET(self):
         path, _, qs = self.path.partition("?")
         if not self._host_ok(): return self._json(403, {"ok": False, "error": "forbidden host"})
         if path == "/api/ping": return self._json(200, {"ok": True})
         if path == "/api/version":   # public discovery endpoint: no local paths, no secrets
-            b = self._bearer(); return self._json(200, {"ok": True, "app": APP_ID, "version": VERSION, "protocol": PROTOCOL, "paired": b is not None, "expires": int(b["expires"]) if b else None, "pair_required": self._cross_site(), "frozen": FROZEN})
+            b = self._bearer(); return self._json(200, {"ok": True, "app": APP_ID, "version": VERSION, "protocol": PROTOCOL, "paired": b is not None, "desktop": bool(b and b.get("desktop")), "expires": int(b["expires"]) if b else None, "pair_required": self._cross_site(), "frozen": FROZEN, "capabilities": CAPABILITIES, "handoff_pending": len(HANDOFF) if (b and b.get("desktop")) else None})
         if path == "/pair":
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); origin = urllib.parse.unquote(q.get("origin", "")).rstrip("/")
             return self._html(200, PAIR_HTML.replace("__TOKEN__", TOKEN).replace("__ALLOWED__", json.dumps(sorted(ALLOWED))).replace("__PUBLIC__", json.dumps(PUBLIC_ORIGIN)))
@@ -183,6 +267,15 @@ class H(http.server.BaseHTTPRequestHandler):
             try: return self._json(200, {"ok": True, "library": ps.read_local_library(os.path.dirname(CFG["hakchi_exe"]))})
             except Exception as e: return self._json(500, {"ok": False, "error": f"library read failed: {e}"})
         if path == "/api/personal": return self._json(200, {"ok": True, "entries": [ps.public(e) for e in ps.load_index()["entries"].values()]})
+        if path == "/api/handoff/pending":
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            with LOCK: handoff_prune(); items = sorted(HANDOFF.values(), key=lambda v: v.get("received", 0), reverse=True)
+            return self._json(200, {"ok": True, "pending": [{k: v[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at") if k in v} for v in items]})
+        if path == "/api/desktop/state":
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            return self._json(200, {"ok": True, "state": desktop_state_load()})
         if path.startswith("/api/"): return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path == "/": path = "/nes-catalog.html"
         rel = os.path.normpath(path.lstrip("/")).replace("\\", "/")
@@ -195,11 +288,34 @@ class H(http.server.BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(fp)[0] or "application/octet-stream"
         with open(fp, "rb") as f: data = f.read()
         self.send_response(200); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(data))); self.send_header("Cache-Control", "max-age=3600"); self.end_headers(); self.wfile.write(data)
+    def _handoff_offer(self):
+            o = self._origin()
+            if o not in ALLOWED or o in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"): return self._json(403, {"ok": False, "error": "origin not allowed"})   # the website's origin (or a listed dev origin), never this backend's own page
+            n = int(self.headers.get("Content-Length", "0") or 0)
+            if n > HANDOFF_MAX_BYTES: return self._json(413, {"ok": False, "error": "collection too large"})
+            now = time.time(); _handoff_times[:] = [t for t in _handoff_times if now - t < 60]
+            if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "too many offers; wait a minute"})
+            _handoff_times.append(now)
+            self._body_read = True
+            try: body = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+            except Exception: return self._json(400, {"ok": False, "error": "invalid JSON"})
+            item, err = handoff_validate(body if isinstance(body, dict) else {})
+            if not item: return self._json(400, {"ok": False, "error": err})
+            with LOCK:
+                handoff_prune(); prev = HANDOFF.get(item["id"])
+                if prev and prev.get("fingerprint") == item["fingerprint"]: return self._json(200, {"ok": True, "id": item["id"], "duplicate": True, "pending": len(HANDOFF)})
+                dup = next((v for v in HANDOFF.values() if v.get("fingerprint") == item["fingerprint"] and not v.get("taken_at")), None)
+                if dup: return self._json(200, {"ok": True, "id": dup["id"], "duplicate": True, "pending": len(HANDOFF)})
+                item["received"] = now; item["origin"] = o; HANDOFF[item["id"]] = item; handoff_save()
+            try: sys.stderr.write(f"handoff offer {item['id']} {item['count']} games from {o}\n")
+            except Exception: pass
+            return self._json(200, {"ok": True, "id": item["id"], "duplicate": False, "pending": len(HANDOFF)})
     def do_POST(self):
         path = self.path.split("?", 1)[0]
         if not path.startswith("/api/"): return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if not self._host_ok(): return self._json(403, {"ok": False, "error": "forbidden host"})
         if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "this companion is older than the website expects; please update it", "protocol": PROTOCOL, "version": VERSION})
+        if path == "/api/handoff/offer": return self._handoff_offer()
         if path == "/api/pair/claim":   # allow-listed origin, no auth: exchange the one-time code shown by the pairing page for the token bound to that origin
             o = self._origin()
             if o not in ALLOWED or not self._cross_site(): return self._json(403, {"ok": False, "error": "origin not allowed"})
@@ -218,6 +334,28 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "not connected: this website must be paired with the companion first" if self._cross_site() else "request not authorized (token/origin)", "pair_required": self._cross_site()})
         try: body = self._body()
         except Exception as e: return self._json(400, {"ok": False, "error": f"bad request: {e}"})
+        if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown"):
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if path == "/api/shutdown":
+                self._json(200, {"ok": True, "stopping": True}); srv = SERVER_REF.get("srv")
+                if srv: threading.Thread(target=srv.shutdown, daemon=True).start()
+                return
+            if path == "/api/desktop/state":   # body was parsed above (bounded by _body)
+                st = body.get("state") if isinstance(body, dict) else None
+                if isinstance(st, dict) and len(json.dumps(st)) > 4_000_000: return self._json(413, {"ok": False, "error": "state too large"})
+                if not isinstance(st, dict): return self._json(400, {"ok": False, "error": "state must be an object"})
+                try: saved = desktop_state_save(st)
+                except Exception as e: return self._json(500, {"ok": False, "error": f"could not save: {e}"})
+                return self._json(200, {"ok": True, "saved_at": saved.get("saved_at")})
+            oid = str(body.get("id") or "")
+            with LOCK: item = HANDOFF.get(oid)
+            if not item: return self._json(404, {"ok": False, "error": "no such offer (it may have expired)"})
+            if path == "/api/handoff/discard":
+                with LOCK: HANDOFF.pop(oid, None); handoff_save()
+                return self._json(200, {"ok": True})
+            with LOCK: item["taken_at"] = item.get("taken_at") or time.strftime("%Y-%m-%dT%H:%M:%S"); handoff_save()
+            return self._json(200, {"ok": True, "offer": {k: item[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at", "collection")}})
         if path.startswith("/api/pair/"):
             if path == "/api/pair/approve":   # only the pairing page served by this companion (same origin + per-process token) may mint tokens
                 if not (self._same_origin() and secrets.compare_digest(self.headers.get("X-NES-Token", ""), TOKEN)): return self._json(403, {"ok": False, "error": "pairing is approved only from the companion's own pairing page"})
@@ -386,6 +524,8 @@ def status_payload(wait: float = 0.0) -> dict:
     return st
 
 class QuietServer(socketserver.ThreadingTCPServer):
+    daemon_threads = True; block_on_close = False   # kept-alive connections must not hold the process open at shutdown
+    request_queue_size = 64   # a page load opens many loopback connections at once (preflights, status, store, state, inbox); the default backlog of 5 made Chromium retry SYNs with a 30 s back-off
     """A client that drops its connection (tab closed, browser timeout) is not an error worth a traceback in the log."""
     def handle_error(self, request, client_address):
         import sys as _s
@@ -398,7 +538,7 @@ def make_server(port: int):
     global PORT, ALLOWED
     PORT = port; ALLOWED = allowed_origins(port)
     socketserver.TCPServer.allow_reuse_address = True
-    return QuietServer(("127.0.0.1", port), H)
+    srv = QuietServer(("127.0.0.1", port), H); SERVER_REF["srv"] = srv; handoff_load(); host_watchdog(); return srv
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--port", type=int, default=PORT); ap.add_argument("--no-browser", action="store_true"); a = ap.parse_args()

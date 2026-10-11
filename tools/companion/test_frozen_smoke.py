@@ -23,7 +23,7 @@ def main():
             except Exception: time.sleep(0.25)
         ok("starts_and_listens", up)
         s, h, b = get(B + "/api/version"); j = json.loads(b or b"{}"); ok("version_endpoint", s == 200 and j.get("app") == "nes-classic-collection-studio-companion" and j.get("frozen") is True and j.get("protocol") >= 1, b[:200].decode(errors="replace"))
-        s, h, b = get(B + "/nes-catalog.html"); ok("serves_bundled_site_with_approved_visuals", s == 200 and b"NES Classic Collection Studio" in b and b"brand/oem/nes-wordmark.png" in b and b.count(b'src="brand/oem/px-') >= 40 and b"brand/public/" not in b, str(s))
+        s, h, b = get(B + "/nes-catalog.html"); ok("serves_bundled_site_with_approved_visuals", s == 200 and b"Classic Cart Studio" in b and b"brand/oem/nes-wordmark.png" in b and b.count(b'src="brand/oem/px-') >= 40 and b"brand/public/" not in b, str(s))
         s, h, b = get(B + "/brand/oem/px-mario-walk-1.png"); ok("serves_hero_sprites", s == 200 and b[:4] == b"\x89PNG")
         s, h, b = get(B + "/brand/web/toad.png"); ok("serves_community_sprites", s == 200 and b[:4] == b"\x89PNG")
         s, h, b = get(B + "/art/002bb62441c16250.jpg"); ok("serves_box_art", s == 200 and b[:3] == b"\xff\xd8\xff")

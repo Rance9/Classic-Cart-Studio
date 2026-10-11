@@ -16,7 +16,7 @@ from common import DATA_ROOT, SITE_ROOT, FROZEN
 import nes_companion as nc
 from version import VERSION, PROTOCOL, APP_ID, PUBLIC_ORIGIN, DEFAULT_PORT, SITE_URL
 
-APP_NAME = "NES Classic Collection Studio Companion"
+APP_NAME = "Classic Cart Studio backend"
 SITE_URL = SITE_URL
 LOG = logging.getLogger("companion")
 
@@ -84,9 +84,31 @@ class App:
         LOG.info("stopped"); self.root.destroy()
     def run(self): self.root.after(50, self.start_server); self.root.mainloop()
 
+def run_headless(port: int) -> int:
+    """Classic Cart Studio for Windows starts the backend this way: no window, the host supervises the process (CCS_HOST_PID) and
+    stops it through /api/shutdown; the host's per-run token (CCS_HOST_TOKEN) is the desktop principal."""
+    if not FROZEN:   # under the host there is no console either: request lines and tracebacks go to logs\server.log
+        try: sys.stderr = sys.stdout = open(os.path.join(DATA_ROOT, "logs", "server.log"), "a", encoding="utf-8", buffering=1)
+        except Exception: pass
+    try: srv = nc.make_server(port)
+    except OSError as e: LOG.error("headless: port %s busy: %s", port, e); return 2
+    LOG.info("headless backend listening on 127.0.0.1:%s version %s protocol %s data=%s site=%s host_pid=%s", port, VERSION, PROTOCOL, DATA_ROOT, SITE_ROOT, nc.HOST_PID or "-")
+    try: srv.serve_forever()
+    except KeyboardInterrupt: pass
+    finally:
+        try: srv.server_close()
+        except Exception: pass
+        LOG.info("headless backend stopped")
+    return 0
+
 def main():
     os.makedirs(DATA_ROOT, exist_ok=True); setup_logging()
     port = int(nc.CFG.get("port", DEFAULT_PORT)); link = handle_protocol_arg(sys.argv[1:])
+    if "--headless" in sys.argv[1:]:
+        if "--port" in sys.argv[1:]:
+            try: port = int(sys.argv[sys.argv.index("--port") + 1])
+            except Exception: pass
+        sys.exit(run_headless(port))
     other = other_instance(port)
     if other and other["ours"]:   # already running: hand over the link (or just show the website) and exit
         LOG.info("another instance is running (version %s); handing over", other["version"]); webbrowser.open(link or SITE_URL); return

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Classic Cart Studio</title>
+<style>
+:root{color-scheme:dark}body{margin:0;background:#101014;color:#f2f2f2;font:15px/1.5 "Segoe UI",system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}
+.box{max-width:560px;padding:28px 30px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:linear-gradient(180deg,#1b1b22,#121216);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+h1{font-size:19px;margin:0 0 6px}p{color:#c8c8d0;margin:6px 0}.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+button{font:inherit;padding:8px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.2);background:linear-gradient(180deg,#2a2a33,#1b1b22);color:#fff;cursor:pointer}
+button.p{background:linear-gradient(180deg,#ff2a36,#b1000c);border-color:#ff5a63;font-weight:600}
+pre{display:none;white-space:pre-wrap;font-size:12px;color:#9a9ba3;background:#0a0a0c;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px;margin-top:12px}
+pre.on{display:block}.tag{display:inline-block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#ff5a63;margin-bottom:8px}
+</style></head><body>
+<div class="box"><span class="tag">Classic Cart Studio</span>
+<h1 id="h">The Studio website couldn't be reached.</h1>
+<p id="m">Classic Cart Studio shows the live Studio website inside this window, so it needs an internet connection to load. Your collections, imported game files and settings on this computer are kept.</p>
+<div class="acts"><button class="p" onclick="send('retry')">Try Again</button><button onclick="send('network')">Check Connection</button><button onclick="toggle()">View Details</button><button onclick="send('exit')">Exit</button></div>
+<pre id="d"></pre></div>
+<script>
+function send(cmd){ if(window.chrome&&chrome.webview) chrome.webview.postMessage({cmd:cmd}); }
+function toggle(){ document.getElementById('d').classList.toggle('on'); }
+window.__ccsRecovery=function(info){ try{ var i=JSON.parse(info); if(i.title) document.getElementById('h').textContent=i.title; if(i.message) document.getElementById('m').textContent=i.message; document.getElementById('d').textContent=i.details||''; }catch(e){} };
+</script></body></html>

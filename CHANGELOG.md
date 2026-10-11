@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — 2026-10-11
+
+- **Classic Cart Studio** is the product's name (website, application window, Start menu, installer, Installed Apps, guide, README). The data folder `%LOCALAPPDATA%\NESClassicCollectionStudio`, the installer identity, the backend executable name and the `nesstudio://` link stay as they were, so this release upgrades the earlier companion in place and keeps everything you imported or saved.
+- **Classic Cart Studio for Windows**: one application window (Microsoft Edge WebView2) that shows the live website and starts, supervises and stops the backend itself. No companion status window, no pairing step inside the application; the backend accepts the application's own session for the website origin only. Window size and position are remembered, one instance at a time (a second launch brings the window forward), high-DPI aware, a recovery screen when the website cannot be reached, a Studio menu with Diagnostics, the data folder, the releases page and About.
+- **Continue in Desktop App** on the website (My Collection menu, Install on NES Classic, and when a local file operation needs the computer): the current collection is handed to the application on this computer through the backend (exact origin, bounded, idempotent), the application is opened through the `nesstudio://` link, and it asks before opening the collection; an open collection is kept as a snapshot. Exact ROM versions and factory-game choices are preserved. Fallbacks: install instructions when the application is not installed, and Download Collection & Open in App (the existing collection file).
+- **Your Collection Is Ready** after a handoff: Find My Game Files (folder, files or ZIP archives through the existing importer), Review Collection, Do This Later.
+- Durable desktop state: the application's collection, favorites, snapshots and settings are mirrored into `desktop-state.json` through the backend, so they survive a WebView2 profile reset and application upgrades.
+- Backend: `/api/version` lists capabilities so the website can tell a compatible, outdated or missing backend apart; new desktop-only endpoints (handoff inbox, desktop state, shutdown); `--headless` mode for the application host. The legacy status window remains available when the backend is started on its own.
+- Website: product name in the hero, title and metadata; Help & User Guide chapters Website vs Desktop App, Installing Classic Cart Studio and the new Continuing in the Desktop App; PRIVACY.md and THIRD_PARTY_NOTICES.md updated for WebView2 and the handoff. Installer file name is now `ClassicCartStudio-Setup-<version>.exe`.
+
 ## 0.1.6 — 2026-10-10
 
 - Website now lives at **https://classiccartstudio.com/** (GitHub Pages custom domain; the old github.io address redirects there). The companion allows the new origin (and www) in addition to the github.io origin, so pairing works on the new address; links in the companion window, the installer and the README point at the new domain.

@@ -1,6 +1,6 @@
 # Third-party notices
 
-The project's own code (Python tools, the companion, the website's HTML/CSS/JavaScript) is under the MIT license in `LICENSE`. That license does **not** cover the third-party material below, which remains under its owners' rights and licenses. This file records what is bundled, what is downloaded separately, and where each item comes from.
+The project's own code (Python tools, the backend, the Windows application host in C#, the website's HTML/CSS/JavaScript) is under the MIT license in `LICENSE`. That license does **not** cover the third-party material below, which remains under its owners' rights and licenses. This file records what is bundled, what is downloaded separately, and where each item comes from.
 
 | Item | What it is | Bundled? | License / status | Source |
 |---|---|---|---|---|
@@ -13,6 +13,8 @@ The project's own code (Python tools, the companion, the website's HTML/CSS/Java
 | No-Intro database | Names and hashes used to identify verified releases | Identification data only (`site-data/*.json`) | No-Intro DAT files are provided for identification; see their site for terms | https://datomatic.no-intro.org |
 | NesCartDB / Mesen database | Cartridge board, mapper and header data | Identification data only | community databases; see their sites | NesCartDB (bootgod); Mesen (SourMesen) |
 | Ranking sources | Third-party "best NES games" lists cited by name and link in each game's details | Links and positions only | each list belongs to its publisher | linked in the Studio |
+| Microsoft Edge WebView2 | Runtime that displays the website inside Classic Cart Studio for Windows; the SDK (`Microsoft.Web.WebView2` NuGet package: `Microsoft.Web.WebView2.Core.dll`, `Microsoft.Web.WebView2.WinForms.dll`, `WebView2Loader.dll`) is bundled with the application | SDK yes (in the installer); runtime no (part of Windows 10/11 with Microsoft Edge) | Microsoft Software License Terms for the WebView2 SDK; runtime under the Microsoft Edge license | https://developer.microsoft.com/microsoft-edge/webview2/ |
+| .NET Framework 4.8 | Runs the Windows application host (`ClassicCartStudio.exe`) | No (part of Windows 10 1903+ and Windows 11) | Microsoft | https://dotnet.microsoft.com |
 | Python 3 and the standard library | Companion runtime (frozen with PyInstaller) | Yes, in the installer | PSF license | https://www.python.org |
 | PyInstaller bootloader | Starts the frozen companion | Yes, in the installer | GPL with the bootloader exception that permits distributing frozen programs under their own license | https://pyinstaller.org |
 | Inno Setup | Builds the installer | No (build tool only) | Inno Setup license | https://jrsoftware.org/isinfo.php |

@@ -36,6 +36,19 @@ jobs:
         env:
           NES_SITE_DIR: ${{ github.workspace }}\build\site
         run: python tools/publish/write_version_info.py tools/companion/version_info.txt; pyinstaller tools/companion/companion.spec --distpath build/dist --workpath build/work --noconfirm
+      - name: Build Classic Cart Studio for Windows (WebView2 host, .NET Framework 4.8)
+        shell: pwsh
+        run: |
+          dotnet build tools/desktop/ClassicCartStudio/ClassicCartStudio.csproj -c Release -nologo "-p:Version=$env:APP_VERSION"
+          $out = "tools/desktop/ClassicCartStudio/bin/Release/net48"
+          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.WinForms.dll", "$out/WebView2Loader.dll" build/dist/NESClassicCollectionStudioCompanion/ -ErrorAction Stop
+          Get-ChildItem build/dist/NESClassicCollectionStudioCompanion/*.exe | ForEach-Object { "$($_.Name) $($_.Length)" }
+      - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
+        shell: pwsh
+        run: |
+          $env:NES_STUDIO_DATA = "$env:RUNNER_TEMPs-selftest"
+          & build/dist/NESClassicCollectionStudioCompanion/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
+          if ($LASTEXITCODE -ne 0) { throw "desktop self-test failed" }
       - name: Build the installer (Inno Setup, per-user)
         shell: pwsh
         run: |
@@ -43,7 +56,7 @@ jobs:
           & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\NESClassicCollectionStudioCompanion" "/DOutDir=$PWD\build\release" tools\companion\installer.iss
       - name: Scan the release folder and the frozen tree (no game files, images or secrets may ship)
         run: |
-          python tools/publish/scan_prohibited.py build/dist --allow "**/*.pyd" --allow "**/*.dll" --allow "**/*.exe" --allow "**/base_library.zip"
+          python tools/publish/scan_prohibited.py build/dist --allow "**/*.pyd" --allow "**/*.dll" --allow "**/*.exe" --allow "**/base_library.zip" --allow "**/*.exe.config"
           python tools/publish/scan_prohibited.py build/release --allow "*.exe"
       - name: Checksums and build information
         shell: pwsh
@@ -75,4 +88,4 @@ jobs:
         shell: pwsh
         run: |
           python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --out build/release/NOTES.md
-          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/SHA256SUMS.txt build/release/build-info.json --title "Companion $env:APP_VERSION" --notes-file build/release/NOTES.md
+          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/SHA256SUMS.txt build/release/build-info.json --title "Classic Cart Studio $env:APP_VERSION" --notes-file build/release/NOTES.md

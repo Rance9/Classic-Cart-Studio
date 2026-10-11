@@ -26,9 +26,9 @@ PUBLIC = "--public" in sys.argv
 OUT = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else REPORTS
 SRC = OUT if PUBLIC else REPORTS
 if PUBLIC: BRAND = os.path.join(OUT, "brand", "oem"); WEB = os.path.join(OUT, "brand", "web")
-APP_NAME = "NES Classic Collection Studio"
+APP_NAME = "Classic Cart Studio"
 TAGLINE = "An independent game collection manager for the Nintendo NES Classic Edition."
-DISCLAIMER = "NES Classic Collection Studio is an independent project. It is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles and publisher names are used only to identify games. Console-side technology by the Hakchi2 CE project."
+DISCLAIMER = "Classic Cart Studio is an independent project. It is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles and publisher names are used only to identify games. Console-side technology by the Hakchi2 CE project."
 
 # Hero ensemble: Nintendo characters only (file stem in reports/brand/oem, pixel scale, css class). Order = left to right.
 HERO = [   # (folder, file stem, pixel scale, css class) — compact hero, NES-era sprites only, 2x (Little Mac 1x)
@@ -242,7 +242,7 @@ __STUDIO_CSS__
  <div class="hero-inner">
   <div>
    <img class="wordmark px" src="brand/oem/nes-wordmark.png" alt="Nintendo Entertainment System" width="137" height="15" onerror="this.style.display='none'">
-   <h1>NES Classic<span>Collection Studio</span></h1>
+   <h1>Classic Cart<span>Studio</span></h1>
    <p class="lede">Browse NES games, build <b>My Collection</b>, and prepare it for your NES Classic.</p>
    <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games</span><span class="pill"><b id="heroSel">0</b> selected</span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
   </div>
@@ -276,7 +276,7 @@ __STUDIO_CSS__
 </header>
 <div class="toolbar" id="toolbar"><div class="in">
 <div class="row bar">
- <button class="btn howbtn" id="howBtn" title="Complete step-by-step guide to using NES Classic Collection Studio."><svg class="ico book" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H8v12H3.5A1.5 1.5 0 0 1 2 12.5zM14 3.5A1.5 1.5 0 0 0 12.5 2H8v12h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>Help &amp; User Guide<span class="chc" id="howCount"></span></button>
+ <button class="btn howbtn" id="howBtn" title="Complete step-by-step guide to using Classic Cart Studio."><svg class="ico book" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H8v12H3.5A1.5 1.5 0 0 1 2 12.5zM14 3.5A1.5 1.5 0 0 0 12.5 2H8v12h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>Help &amp; User Guide<span class="chc" id="howCount"></span></button>
  <button class="btn foldbtn" id="foldBtn" aria-expanded="true" aria-controls="toolsFold" title="Show or hide the tools: search, Filter &amp; Sort, Select, List or Grid, the alphabet jump, the storage figure and the connection status"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg><span class="fl">Search &amp; Tools</span><span class="badge" id="foldBadge" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
  <span style="flex:1"></span>
  <div class="actions">
@@ -288,7 +288,9 @@ __STUDIO_CSS__
    <div class="sep"></div>
    <button id="mOwn" class="mi" role="menuitem"><b>Add Your Own Game</b><span class="d">Bring in a game file you own that is not in the Game Library.</span></button>
    <button id="mRestore" class="mi" role="menuitem"><b>Restore a Previous Collection</b><span class="d">Automatic snapshots kept in this browser.</span></button>
-   <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button></div></div>
+   <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button>
+   <div class="sep" id="mDesktopSep"></div>
+   <button id="mDesktop" class="mi" role="menuitem" hidden><b>Continue in Desktop App</b><span class="d">Take this collection into Classic Cart Studio for Windows to find your game files and prepare it for your NES Classic.</span></button></div></div>
  <div class="menuwrap right"><button id="ioBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-disk.png" alt="" onerror="this.remove()">Save / Load<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
   <div class="menu wide" id="ioMenu" role="menu" hidden>
    <button id="export" class="mi" role="menuitem"><b>Save Collection to File</b><span class="d">Keep a copy of your game choices to restore or share later.</span></button>
@@ -328,7 +330,7 @@ __STUDIO_CSS__
 <div class="step"><span class="n">4</span><div><b>Install on NES Classic</b> checks and prepares the collection on this computer and shows, honestly, what the console steps are. <button class="btn sm secondary" type="button" data-guide="start">Open the full guide</button></div></div>
 </div><p class="small" style="margin:12px 0 0">Nothing here downloads games or changes your console. Hakchi2 CE provides the console-side technology — see <a href="#" data-guide="tech">About the Technology</a>.</p></div></section>
 <footer><div class="in"><div class="cast" aria-label="Character parade">__FOOTER_CAST__</div>
-<p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · NES Classic Collection Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
+<p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · Classic Cart Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
 <p class="legal">Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; see hakchi/LICENSE) — this Studio prepares collections for it and does not reimplement it. Personal, non-commercial fan project for one privately owned NES Classic Edition. Not affiliated with, sponsored or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and all character names and artwork are trademarks and copyrights of Nintendo or their respective owners; the pixel artwork, console lockup and interface icons shown here are Nintendo's own renderings read from this console's system backup and the box art is cached locally from community scans — none of it is redistributed with this file. Catalog <span id="gen"></span>.</p></div></footer>
 <div id="hkpanel" class="modal" role="dialog" aria-modal="true" aria-labelledby="hkTitle"><div class="mbox"><div class="mhd"><h2 id="hkTitle">Install on NES Classic</h2><span class="small" id="hkSub"></span><button class="btn sm" id="hkClose">Close</button></div><div id="hkBody"></div></div></div>
 <div id="filters" class="modal" role="dialog" aria-modal="true" aria-labelledby="filtersTitle"><div class="mbox">
@@ -703,7 +705,7 @@ def main():
     welcome_cast = "".join(sprite(d, st, sc, index) for d, st, sc in [("oem", "px-mario-walk-1", 2), ("oem", "px-link", 2), ("oem", "px-samus", 2), ("oem", "px-kirby", 2), ("oem", "px-pit", 2), ("web", "toad", 2)])
     GUIDE_CAST = {"start": [("oem", "px-mario-walk-1"), ("oem", "px-question-block-0"), ("web", "goomba")], "buy": [("oem", "px-super-mushroom"), ("oem", "px-fire-flower"), ("oem", "px-banana")],
         "app": [("oem", "px-dr-mario-pills"), ("oem", "px-pac-man"), ("oem", "px-galaga-fighter")], "website": [("web", "rob"), ("oem", "px-mike-jones"), ("oem", "px-vic-viper")],
-        "getapp": [("oem", "px-dr-mario-viruses"), ("oem", "px-mega-man"), ("oem", "px-metroid")], "choose": [("oem", "px-kirby"), ("oem", "px-pit"), ("web", "toad")],
+        "getapp": [("oem", "px-dr-mario-viruses"), ("oem", "px-mega-man"), ("oem", "px-metroid")], "desktop": [("oem", "px-mario-walk-2"), ("oem", "px-luigi-walk-2"), ("web", "rob")], "choose": [("oem", "px-kirby"), ("oem", "px-pit"), ("web", "toad")],
         "versions": [("oem", "px-mario-walk-0"), ("oem", "px-raccoon-mario"), ("oem", "px-jumpman-mario-hammer")], "extended": [("oem", "px-link"), ("oem", "px-link-zelda2"), ("web", "zelda")],
         "loading": [("oem", "px-luigi-walk-1"), ("oem", "px-shy-guy"), ("web", "yoshi")], "own": [("oem", "px-balloon-fighter"), ("oem", "px-balloon-bird"), ("oem", "px-parasol-waddle-dee")],
         "import": [("oem", "px-excitebike-rider-red"), ("oem", "px-excitebike-rider-purple"), ("oem", "px-tecmo-bowl-player")], "missing": [("oem", "px-zelda-old-man"), ("web", "octorok"), ("oem", "px-kid-icarus-monoeye")],
@@ -718,7 +720,7 @@ def main():
         cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
         return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
-    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js")
+    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
     foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}") for st, n, g in ROSTER)
     foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}") for st, n in WEB_ROSTER)
