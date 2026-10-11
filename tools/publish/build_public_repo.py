@@ -8,7 +8,7 @@ Outputs
   publish/repo/        the public source tree (git-managed separately; see publish_repo.py)
   build/site/          the static website exactly as deployed to GitHub Pages (also shipped inside the companion as site/)
 
-Public site data: catalog.json, builtin.json, library.json, rankings.json are copied after sanitising (no local paths, no archive
+Public site data: catalog.json, builtin.json, library.json, rankings.json are copied after sanitizing (no local paths, no archive
 member/directory names from the private ROM archive, no art references). Box art is never copied; the page shows its placeholder.
 """
 from __future__ import annotations

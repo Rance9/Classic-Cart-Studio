@@ -4,7 +4,7 @@
 
 Website: **https://rance9.github.io/NES-Classic-Collection-Studio/** · Releases (Windows companion): **https://github.com/Rance9/NES-Classic-Collection-Studio/releases**
 
-The Studio is a website for choosing, organising and checking a collection of NES games for an NES Classic Edition, and a small Windows **companion** program that does the work that a website cannot do by itself: read the games already set up on your computer, keep the game files you import, prepare your collection and open the console-management software (Hakchi2 CE). The website works on its own for browsing and planning; the companion adds everything that touches your files.
+The Studio is a website for choosing, organizing and checking a collection of NES games for an NES Classic Edition, and a small Windows **companion** program that does the work that a website cannot do by itself: read the games already set up on your computer, keep the game files you import, prepare your collection and open the console-management software (Hakchi2 CE). The website works on its own for browsing and planning; the companion adds everything that touches your files.
 
 > NES Classic Collection Studio is an independent project. It is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles, publisher names, artwork and box art are used to identify and present games; all rights remain with their owners. **No game files or console software are distributed by this project.**
 
@@ -53,7 +53,7 @@ The Studio never downloads games and never ships them. It works with files **you
 
 ## Privacy
 
-The website stores your collection, favourites and settings in your browser only. The companion keeps its data in `%LOCALAPPDATA%\NESClassicCollectionStudio` on your PC. Nothing is sent to any server by this project; the website fetches only its own files and the public GitHub releases information for the download section.
+The website stores your collection, favorites and settings in your browser only. The companion keeps its data in `%LOCALAPPDATA%\NESClassicCollectionStudio` on your PC. Nothing is sent to any server by this project; the website fetches only its own files and the public GitHub releases information for the download section.
 
 ## Development
 
@@ -76,10 +76,10 @@ NES Classic Collection Studio is free and open source. If you've found it useful
 
 The console the creator used was bought from an eBay seller recommended in the guide's "Getting an NES Classic" chapter. That is a personal recommendation, not a sponsored listing or affiliate relationship: no commission or referral compensation is received, and it is independent of GitHub Sponsors.
 
-## Credits and licences
+## Credits and licenses
 
 - This project's code: MIT (see `LICENSE`).
-- Pixel artwork and interface icons: Nintendo's renderings from the NES Classic Edition system software and documented community sprite rips (origins in the site footer); box art from community thumbnail collections. Shown to identify and present the games; all rights remain with their owners; not covered by the MIT licence.
+- Pixel artwork and interface icons: Nintendo's renderings from the NES Classic Edition system software and documented community sprite rips (origins in the site footer); box art from community thumbnail collections. Shown to identify and present the games; all rights remain with their owners; not covered by the MIT license.
 - [Hakchi2 CE](https://github.com/TeamShinkansen/Hakchi2-CE) by TeamShinkansen and contributors (GPL v3) does the console side; it is not bundled.
 - "Press Start 2P" font: SIL Open Font License.
 - Game identification data compiled from No-Intro, NesCartDB and Mesen database releases.

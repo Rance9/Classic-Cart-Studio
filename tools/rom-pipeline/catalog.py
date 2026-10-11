@@ -68,7 +68,7 @@ def compat(row: dict) -> dict:
         if m not in (0, 1, 2, 3, 4, 7): notes.append(f"mapper {m} is on hakchi's kachikachi list but rarely exercised")
         if m == 5 and "castlevania iii" not in t: emu, conf = "RetroArch", "medium"; notes.append("MMC5: kachikachi support is 'only good enough for Castlevania III' (community) — RetroArch")
         if pref: emu = pref[0]; notes.append(pref[1]); conf = "medium"
-        if row.get("licensed") == "unlicensed" and emu == "kachikachi": conf = "low"; notes.append("unlicensed cartridge hardware; kachikachi behaviour undocumented")
+        if row.get("licensed") == "unlicensed" and emu == "kachikachi": conf = "low"; notes.append("unlicensed cartridge hardware; kachikachi behavior undocumented")
         if m == 4 and row.get("mesen_mapper") in (118, 119) or row.get("cart_board", "").endswith(("TKSROM", "TLSROM", "TQROM")): notes.append(f"board {row.get('cart_board')} (MMC3 variant, iNES {row.get('mesen_mapper') or m}); the factory Kirby's Adventure uses TKSROM, so kachikachi handles that variant, but other variants are untested"); conf = "low" if conf != "low" else conf
     elif m == 71:
         emu, conf = "kachikachi", "low"; notes.append("mapper 71 (Camerica): hakchi auto-patches to mapper 2 on import (changelog 2.08); verify on console")

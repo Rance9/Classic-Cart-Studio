@@ -99,7 +99,7 @@ def _lib():
     return _LIB
 
 def probable_relatives(name: str) -> list:
-    """Titles whose normalised name equals the file's name stem — reported separately, never used as an exact match."""
+    """Titles whose normalized name equals the file's name stem — reported separately, never used as an exact match."""
     stem = re.sub(r"\s*\(.*?\)|\s*\[.*?\]", "", os.path.splitext(name)[0]); key = re.sub(r"[^a-z0-9]+", " ", stem.lower()).strip()
     lib = _lib(); return [{"title_id": tid, "title": lib["titles"][tid]["title"], "curated": lib["titles"][tid]["curated"]} for tid in lib["by_norm"].get(key, [])][:5]
 
@@ -267,15 +267,15 @@ def collect_paths(items: list[str]) -> list[str]:
 
 def start_import(items: list[str], origin: str = "file") -> str:
     paths = collect_paths(items); jid = "imp_" + hashlib.sha256((str(time.time()) + "|".join(paths[:5])).encode()).hexdigest()[:12]
-    job = {"id": jid, "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "total": len(paths), "done": 0, "cancelled": False, "finished": False, "current": "", "known": 0, "known_new_copies": 0, "personal": 0, "personal_new": 0, "duplicates": 0, "errors": [], "items": [], "seen_contents": set()}
+    job = {"id": jid, "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "total": len(paths), "done": 0, "canceled": False, "finished": False, "current": "", "known": 0, "known_new_copies": 0, "personal": 0, "personal_new": 0, "duplicates": 0, "errors": [], "items": [], "seen_contents": set()}
     JOBS[jid] = job
     def run():
         for p in paths:
-            if job["cancelled"]: break
+            if job["canceled"]: break
             job["current"] = os.path.basename(p)
             try:
                 for data, fname, note in _members(p):
-                    if job["cancelled"]: break
+                    if job["canceled"]: break
                     ident_sha = hashlib.sha256(data[16:] if data[:4] == NES_MAGIC else data).hexdigest()
                     if ident_sha in job["seen_contents"]: job["duplicates"] += 1; job["items"].append({"file": os.path.basename(p), "member": fname, "result": "duplicate (same bytes already imported in this run)"}); continue
                     job["seen_contents"].add(ident_sha)
@@ -300,7 +300,7 @@ def job_status(jid: str) -> dict | None:
 def cancel_job(jid: str) -> bool:
     j = JOBS.get(jid)
     if not j: return False
-    j["cancelled"] = True; return True
+    j["canceled"] = True; return True
 
 def pick_files(title: str, patterns) -> list[str]:
     import tkinter as tk

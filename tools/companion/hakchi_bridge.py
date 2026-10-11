@@ -444,7 +444,7 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
         if set(desired_originals) - set(pv["factory_ref"]["codes"]): raise RuntimeError("internal: desired originals contain unknown codes")
         if len(desired_originals) + len(pv["hidden_codes"]) != pv["factory_ref"]["count"]: raise RuntimeError("internal: visible + hidden != 30")
         if dry_run: res.update(ok=True, message="dry run: staged only, hakchi tree untouched", staged_dir=stage_dir); res["verification"] = {"match": None}; return res
-        # no-op detection by MEANING, not bytes: hakchi re-serialises config.json on every exit, so an equivalent file is left untouched
+        # no-op detection by MEANING, not bytes: hakchi re-serializes config.json on every exit, so an equivalent file is left untouched
         same = (sorted(coll.get("OriginalGames", [])) == desired_originals and sorted(coll.get("SelectedGames", [])) == desired_selected
                 and cfg_json.get("EnableHakchiUpdate") is False and cfg_json.get("EnableCeUpdate") is False and not os.listdir(stage_dir) and not fresh)
         res["noop"] = bool(same)

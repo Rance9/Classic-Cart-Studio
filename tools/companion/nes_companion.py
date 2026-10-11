@@ -112,7 +112,7 @@ class H(http.server.BaseHTTPRequestHandler):
         b = json.dumps(obj).encode("utf-8"); self.send_response(code); self.send_header("Content-Type", "application/json; charset=utf-8"); self.send_header("Content-Length", str(len(b)))
         self.send_header("Cache-Control", "no-store"); self.send_header("X-Content-Type-Options", "nosniff"); self._cors(); self.end_headers(); self.wfile.write(b)
     def _host_ok(self) -> bool:
-        """Defence in depth against DNS rebinding: the server answers only when addressed as 127.0.0.1 or localhost (any other Host header is refused outright)."""
+        """Defense in depth against DNS rebinding: the server answers only when addressed as 127.0.0.1 or localhost (any other Host header is refused outright)."""
         return bool(re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", self.headers.get("Host", "")))
     def _origin(self) -> str:
         o = self.headers.get("Origin") or ""
@@ -215,7 +215,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 CODES.pop(code, None); tok = v["token"]; exp = PAIRED.get(tok, {}).get("expires")
             return self._json(200, {"ok": True, "token": tok, "expires": int(exp or 0), "version": VERSION, "protocol": PROTOCOL})
         if not self._authed():
-            return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "not connected: this website must be paired with the companion first" if self._cross_site() else "request not authorised (token/origin)", "pair_required": self._cross_site()})
+            return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "not connected: this website must be paired with the companion first" if self._cross_site() else "request not authorized (token/origin)", "pair_required": self._cross_site()})
         try: body = self._body()
         except Exception as e: return self._json(400, {"ok": False, "error": f"bad request: {e}"})
         if path.startswith("/api/pair/"):
@@ -239,7 +239,7 @@ class H(http.server.BaseHTTPRequestHandler):
                     mode = str(body.get("mode") or "files")
                     if mode == "folder": f = ps.pick_folder("Add games from a folder (ROM files and ZIP archives inside it)"); items = [f] if f else []
                     else: items = ps.pick_files("Add games from files (ROM files or ZIP archives)", [("NES ROMs and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")])
-                    if not items: return self._json(200, {"ok": False, "cancelled": True})
+                    if not items: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, "job": ps.start_import(items), "items": len(items)})
                 if path == "/api/import/start":
                     if not CFG.get("rehearsal_tree"): return self._json(403, {"ok": False, "error": "path import without a dialog is available only in rehearsal configurations"})
@@ -250,7 +250,7 @@ class H(http.server.BaseHTTPRequestHandler):
                     vid = re.sub(r"[^0-9a-f]", "", str(body.get("version_id") or ""))[:16]
                     if not ps.version_known(vid): return self._json(409, {"ok": False, "error": "unknown version"})
                     f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else (ps.pick_files("Locate the game file for this version", [("NES ROMs and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")]) or [""])[0]
-                    if not f: return self._json(200, {"ok": False, "cancelled": True})
+                    if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.locate_version(vid, f)})
             except ValueError as e: return self._json(409, {"ok": False, "error": str(e)})
             except Exception as e: return self._json(500, {"ok": False, "error": f"{path[5:]} failed: {e}"})
@@ -270,19 +270,19 @@ class H(http.server.BaseHTTPRequestHandler):
                 root = os.path.dirname(CFG["hakchi_exe"]); eid = str(body.get("id") or "")
                 if path == "/api/personal/pick":
                     f = ps.pick_file("Add Your Own Game — choose a ROM file or ZIP", [("NES ROMs and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
-                    if not f: return self._json(200, {"ok": False, "cancelled": True})
+                    if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.ingest(f)})
                 if path == "/api/personal/ingest-path":
                     if not CFG.get("rehearsal_tree"): return self._json(403, {"ok": False, "error": "path ingestion is available only in rehearsal configurations"})
                     return self._json(200, {"ok": True, **ps.ingest(str(body.get("path") or ""), origin=str(body.get("origin") or "file"), local_code=str(body.get("local_code") or ""), local_name=str(body.get("local_name") or ""))})
                 if path == "/api/personal/relink":
                     f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Locate the game file", [("NES ROMs and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
-                    if not f: return self._json(200, {"ok": False, "cancelled": True})
+                    if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.relink(eid, f)})
                 if path == "/api/personal/update": return self._json(200, {"ok": True, **ps.update_user(eid, body.get("user") or {})})
                 if path == "/api/personal/art":
                     f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Choose artwork", [("Images", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")])
-                    if not f: return self._json(200, {"ok": False, "cancelled": True})
+                    if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.set_art(eid, f)})
                 if path == "/api/personal/remove": return self._json(200, {"ok": True, **ps.remove(eid, bool(body.get("delete_copy")))})
                 if path == "/api/library/adopt": lib = ps.read_local_library(root); return self._json(200, {"ok": True, "adopted": ps.adopt_unmatched(root, lib), "library": lib})

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5 — 2026-10-10
+
+- Website: toolbar buttons recolored (Save / Load matches My Collection; Tray is blue with the red B; Install on NES Classic is green with the red A); identity and emulator pills in the list are faint so the titles and art lead; a collapsible **Search & Filters** section holds search, Filter & Sort, Select, List/Grid, stats, the connection pill, the alphabet strip and the storage chip (collapsed on narrow screens until opened; on wide screens it folds away when you scroll into the list and returns at the top); a real phone layout (stacked task buttons, the list becomes a card list, no sideways scrolling anywhere, dialogs fit the screen).
+- Help & User Guide: new showcase layout with a sprite band and chapter number on every chapter, grouped chapter list, reading progress bar, equal-height step cards on a dashed path (a timeline on phones), styled callouts, disclosures and tables, previous/next chapter cards, and ← / → keys to move between chapters.
+- US English throughout the website, the guide, the companion and the repository text.
+- Companion 0.1.5: file-picker replies use the `canceled` key (the website accepts both spellings, so a 0.1.4 companion keeps working); dropped client connections no longer print tracebacks in the companion log.
+
 ## 0.1.4 — 2026-10-10
 
 - Website: compact hero (about 140 px) that stays on screen together with the toolbar; the duplicate brand block in the toolbar is gone; "How It Works" is now **Help & User Guide** (book icon, chapter count); one **Filter & Sort** dialog holds every filter, the sort order and the Extended Library switch, with Apply / Cancel / Reset, staged changes, an active-filter badge and chips; the toolbar is grouped by task; the search icon no longer overlaps typed text; no page-level horizontal scroll from 360 px to 3440 px wide (also at 125 % zoom).

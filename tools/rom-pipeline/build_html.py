@@ -13,14 +13,14 @@ console backup (reports/brand/oem/, git-ignored, not redistributed) and the OFL-
 (reports/brand/fonts/). No CDN, no runtime network access. Rollback snapshot: reports/rollback/2026-10-09_catalog-v1/.
 """
 from __future__ import annotations
-import os, sys, json
+import os, sys, json, re
 sys.path.insert(0, os.path.dirname(__file__))
 from common import REPORTS
 
 BRAND = os.path.join(REPORTS, "brand", "oem")
 WEB = os.path.join(REPORTS, "brand", "web")      # characters obtained online (provenance.json records every source)
 # ---- PUBLIC build (--public --out <site>): the SAME approved visual presentation as the private build (owner directive 2026-10-10:
-#      hero, 27-character parade, interface icons, wordmark, box art). Only the data source (sanitised copies in <site>), the page
+#      hero, 27-character parade, interface icons, wordmark, box art). Only the data source (sanitized copies in <site>), the page
 #      title/meta and the legal paragraph differ. tools/publish/build_public_repo.py copies brand/oem, brand/web, fonts and art into <site>. ----
 PUBLIC = "--public" in sys.argv
 OUT = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else REPORTS
@@ -277,6 +277,7 @@ __STUDIO_CSS__
 <div class="toolbar" id="toolbar"><div class="in">
 <div class="row bar">
  <button class="btn howbtn" id="howBtn" title="Complete step-by-step guide to using NES Classic Collection Studio."><svg class="ico book" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H8v12H3.5A1.5 1.5 0 0 1 2 12.5zM14 3.5A1.5 1.5 0 0 0 12.5 2H8v12h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>Help &amp; User Guide<span class="chc" id="howCount"></span></button>
+ <button class="btn foldbtn" id="foldBtn" aria-expanded="true" aria-controls="toolsFold" title="Show or hide search, filters, view and connection controls"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg><span class="fl">Search &amp; Filters</span><span class="badge" id="foldBadge" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
  <span style="flex:1"></span>
  <div class="actions">
  <div class="menuwrap right"><button id="collBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span id="collName">My Collection</span><svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
@@ -288,18 +289,19 @@ __STUDIO_CSS__
    <button id="mOwn" class="mi" role="menuitem"><b>Add Your Own Game</b><span class="d">Bring in a game file you own that is not in the Game Library.</span></button>
    <button id="mRestore" class="mi" role="menuitem"><b>Restore a Previous Collection</b><span class="d">Automatic snapshots kept in this browser.</span></button>
    <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button></div></div>
- <div class="menuwrap right"><button id="ioBtn" class="btn secondary" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-disk.png" alt="" onerror="this.remove()">Save / Load<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
+ <div class="menuwrap right"><button id="ioBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-disk.png" alt="" onerror="this.remove()">Save / Load<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
   <div class="menu wide" id="ioMenu" role="menu" hidden>
    <button id="export" class="mi" role="menuitem"><b>Save Collection to File</b><span class="d">Keep a copy of your game choices to restore or share later.</span></button>
    <button id="importBtn" class="mi" role="menuitem"><b>Load Collection from File</b><span class="d">Open a collection you saved previously.</span></button>
    <button id="sdExport" class="mi" role="menuitem"><b>Export Studio Data</b><span class="d">Favorites, snapshots, settings and the current collection in one file — to move to another browser or to the website.</span></button>
    <button id="sdImport" class="mi" role="menuitem"><b>Import Studio Data</b><span class="d">Bring favorites, snapshots and settings back from a Studio data file.</span></button></div></div>
  <input type="file" id="sdFile" accept="application/json,.json" hidden>
- <button id="trayBtn" class="btn"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
+ <button id="trayBtn" class="btn tray"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
  <button class="btn hk" id="hkBtn" title="Check and prepare your collection; console installation is shown honestly"><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button>
  </div>
  <input type="file" id="import" accept="application/json" hidden>
 </div>
+<div class="toolsfold" id="toolsFold">
 <div class="row tools">
  <input id="q" type="search" placeholder="Search title or No-Intro name…" aria-label="Search">
  <button id="filtersBtn" class="btn" aria-haspopup="dialog"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h12M4 8h8M6 13h4"/></svg>Filter &amp; Sort<span class="badge" id="filtersBadge" hidden></span></button>
@@ -312,6 +314,7 @@ __STUDIO_CSS__
 </div>
 <div class="row chips" id="chips" hidden></div>
 <div class="row sub"><div class="letters" id="letters"></div><button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button></div>
+</div>
 </div></div>
 </div>
 <main id="main">
@@ -415,7 +418,7 @@ fill('fGenre',[...new Set(DATA.games.flatMap(g=>(g.genre||'').split(',').map(x=>
 const letters=[...new Set(games.map(g=>{const c=(g.display_title||'')[0].toUpperCase();return /[A-Z]/.test(c)?c:'#'}))].sort();
 $('letters').innerHTML='<span class="lbl">Jump</span>'+letters.map(l=>`<a data-l="${l}" href="#" role="button" title="jump to ${l}">${l}</a>`).join('');
 function stickyH(){ const h=$('stickyHead'); return getComputedStyle(h).position==='sticky'?h.offsetHeight:$('toolbar').offsetHeight; }
-function jumpTo(letter){ if(sortK!=='display_title'){ sortK='display_title'; sortDir=1; render(); toast('Sorted by title so the letter jump lands correctly'); } const r=document.querySelector(`#${view==='list'?'tb':'gridView'} [data-l="${letter}"]`); if(!r){ toast(`No titles starting with "${letter}" in the current view`); return false; } const y=r.getBoundingClientRect().top+scrollY-stickyH()-(view==='list'?44:10); scrollTo({top:Math.max(0,y)}); return true; }
+function jumpTo(letter){ if(sortK!=='display_title'){ sortK='display_title'; sortDir=1; render(); toast('Sorted by title so the letter jump lands correctly'); } if(typeof foldForJump==='function') foldForJump(); const r=document.querySelector(`#${view==='list'?'tb':'gridView'} [data-l="${letter}"]`); if(!r){ toast(`No titles starting with "${letter}" in the current view`); return false; } const y=r.getBoundingClientRect().top+scrollY-stickyH()-(view==='list'?44:10); scrollTo({top:Math.max(0,y)}); return true; }
 $('letters').onclick=e=>{ const a=e.target.closest('a[data-l]'); if(a){ e.preventDefault(); jumpTo(a.dataset.l); } };
 const mibToMb=x=>Number(x)*1048576/1e6; const fmtMb=x=>mibToMb(x).toLocaleString('en-US',{maximumFractionDigits:1})+' MB';
 // ---- NES Classic storage: source-aware. 'reference-estimate' = a documented stock-console model (never a visitor's measurement);
@@ -496,7 +499,7 @@ document.body.addEventListener('click',e=>{ const t=e.target;
 document.body.addEventListener('keydown',e=>{ const t=e.target; if((e.key==='Enter'||e.key===' ')&&t.matches&&t.matches('[data-g]')){ e.preventDefault(); toggleSel(t.dataset.g, !sel.has(t.dataset.g)); const n=document.querySelector(`[data-g="${t.dataset.g}"]`); if(n) n.focus(); } else if((e.key==='Enter'||e.key===' ')&&t.dataset&&t.dataset.rm){ e.preventDefault(); sel.delete(t.dataset.rm); persist(); render(); } });
 function openDetails(id){ const g=byId[id]; if(!g) return; const w=warnings(g);
  $('detailsBox').innerHTML=`<span class="close" id="dClose" role="button" aria-label="close">✕</span><div class="side">${g.art?`<img src="${esc(g.art)}" alt="">`:'<div class="ph" style="aspect-ratio:3/4.3"><span>NES</span></div>'}<div class="small">${g.art_source==='libretro-thumbnails'?'Box art: libretro-thumbnails (community scans), cached locally':g.art_source==='oem-backup'?'Box art: Nintendo cover image from the console backup':'No reliable box art found'}</div><label><input type="checkbox" data-id="${g.game_id}" ${sel.has(g.game_id)?'checked':''}> Selected for my collection</label><div>${starBtn(g)} <span class="small">favorite / shortlist</span></div><div>${instTag(g,true)}</div><div>${emuTag(g)}${g.licensed==='unlicensed'?'<span class="tag r">unlicensed</span>':''}</div>${(installClass(g)==='revision'||installClass(g)==='review')?`<div class="small">Revision decision<br><select class="dec" data-dec="${g.game_id}" style="margin-top:4px;font-size:12px"><option value="factory" ${decisionOf(g)==='factory'?'selected':''}>Keep factory version (default)</option><option value="alternate" ${decisionOf(g)==='alternate'?'selected':''}>Prepare this catalog version (needs approval)</option></select></div>`:''}</div>
- <div><h2>${esc(g.display_title)}</h2><div class="small mono">${esc(g.nointro_name)}</div><div style="margin-top:8px">${idTag(g)}${hdrTag(g)}</div>${(()=>{ const r=rankOf(g); if(!SRC.length) return ''; return `<div class="sec"><h3>Rankings</h3>${r&&r.consensus?`<div class="ranks"><div class="rb ${r.consensus<=10?'top':''}"><b>#${r.consensus}</b><span>consensus of ${r.count} verified list${r.count===1?'':'s'}</span></div>${SRC.map(sc=>`<div class="rb"><b>${(r.sources||{})[sc.key]?'#'+(r.sources||{})[sc.key]:'—'}</b><span><a href="${esc(sc.url)}" rel="noopener">${esc(sc.name)}</a>${sc.date?' · '+esc(sc.date):''}</span></div>`).join('')}</div>`:`<div class="small">Not ranked on any of the ${SRC.length} verified Top 100 lists (${SRC.map(sc=>esc(sc.name)).join(', ')}). Absence from a list is not a judgement of quality.</div>`}<div class="small">${esc(DATA.ranking_method||'')}</div></div>`; })()}
+ <div><h2>${esc(g.display_title)}</h2><div class="small mono">${esc(g.nointro_name)}</div><div style="margin-top:8px">${idTag(g)}${hdrTag(g)}</div>${(()=>{ const r=rankOf(g); if(!SRC.length) return ''; return `<div class="sec"><h3>Rankings</h3>${r&&r.consensus?`<div class="ranks"><div class="rb ${r.consensus<=10?'top':''}"><b>#${r.consensus}</b><span>consensus of ${r.count} verified list${r.count===1?'':'s'}</span></div>${SRC.map(sc=>`<div class="rb"><b>${(r.sources||{})[sc.key]?'#'+(r.sources||{})[sc.key]:'—'}</b><span><a href="${esc(sc.url)}" rel="noopener">${esc(sc.name)}</a>${sc.date?' · '+esc(sc.date):''}</span></div>`).join('')}</div>`:`<div class="small">Not ranked on any of the ${SRC.length} verified Top 100 lists (${SRC.map(sc=>esc(sc.name)).join(', ')}). Absence from a list is not a judgment of quality.</div>`}<div class="small">${esc(DATA.ranking_method||'')}</div></div>`; })()}
  <div class="sec"><h3>Overview</h3><dl><dt>Year</dt><dd>${esc(g.year||'unknown')}${g.year_source?` <span class="small">(${esc(g.year_source)})</span>`:''}</dd><dt>Publisher</dt><dd>${esc(g.publisher||'unknown')}</dd><dt>Genre</dt><dd>${esc(g.genre||'unknown')}${g.genre_source?` <span class="small">(${esc(g.genre_source)})</span>`:''}</dd><dt>Players</dt><dd>${esc(g.players||'unknown')}${g.simultaneous?' — '+esc(g.simultaneous):(g.players==='2'?' — simultaneous/alternating not recorded':'')}</dd><dt>Description</dt><dd class="small">not available (no reliable local source)</dd><dt>Licensed</dt><dd>${esc(g.licensed)}</dd><dt>Built-in</dt><dd>${esc(g.builtin_status)}${g.builtin_code?` (${esc(g.builtin_code)} "${esc(g.builtin_title)}")`:''}${g.builtin_factory_version?`<br><span class="small">factory version: ${esc(g.builtin_factory_version)}</span>`:''}</dd><dt>Installation</dt><dd>${INST_LABEL[installClass(g)][1]}${installClass(g)==='revision'||installClass(g)==='review'?` — decision: ${decisionOf(g)}`:''}</dd><dt>TV collection</dt><dd>${esc(visibilityText(g))}</dd></dl></div>
  <div class="sec"><h3>Controllers &amp; accessories</h3>${(()=>{ const c=inputInfo(g); return `<dl><dt>Status</dt><dd>${c.level==='none'?'Standard NES Classic controller(s); no special accessory recorded.':`<span class="ci ${c.level==='required'||c.level==='partial'?'ci-input':c.level==='optional'?'ci-input-opt':'ci-input-unk'}" style="cursor:default">${INPUT_ICON[c.level]}</span> ${esc(c.title)}`}${(c.lines||[]).map(l=>'<br>'+esc(l)).join('')}</dd><dt>Primary input</dt><dd>${esc(g.input_primary||'standard-controller')}${g.input_modes&&g.input_modes.length>1?' (modes: '+esc(g.input_modes.join(', '))+')':''}</dd><dt>Controllers needed</dt><dd>${esc(String(g.input_min_controllers||1))}${g.players?` (supports ${esc(g.players)} player${g.players==='1'?'':'s'})`:''}</dd><dt>Accessory</dt><dd>${esc(g.input_special_accessory||'none')}${g.input_accessory_requirement&&g.input_accessory_requirement!=='none'?' — '+esc(g.input_accessory_requirement):''}</dd><dt>Standard controller</dt><dd>${esc(g.input_standard_controller_playable||'unknown')}</dd><dt>NES Classic support</dt><dd>${esc(g.input_nes_classic_support||'unknown')}</dd><dt>Evidence</dt><dd class="small">${(g.input_evidence||[]).map(e=>e.url?`<a href="${esc(e.url)}" rel="noopener">${esc(e.source)}${e.device?': '+esc(e.device):''}</a>`:esc(e.source)).join('<br>')||'none'}${g.input_notes?'<br>'+esc(g.input_notes):''}</dd></dl>`; })()}</div>
  <div class="sec"><h3>Cartridge &amp; verification</h3><dl><dt>ROM identity</dt><dd>${esc(g.identity_verification)}</dd><dt>Header</dt><dd>${esc(g.header_validation||'none')} — ${esc(g.header_status||'')}</dd><dt>Cartridge</dt><dd>mapper ${g.mapper??'?'}${g.submapper?'.'+g.submapper:''}, PRG ${g.prg?fmt(g.prg):'?'}, CHR ${g.chr!=null?fmt(g.chr):'?'}, ${g.four_screen?'four-screen':(g.vertical?'vertical':'horizontal')} mirroring${g.battery?', battery':''}; board ${esc(g.cart_board||g.mesen_board||'unknown')}</dd></dl></div>
@@ -644,6 +647,16 @@ $('gen').textContent=`generated ${DATA.generated} · ${DATA.games.length} curate
 $('heroGames').textContent=DATA.games.length;
 // keep the sticky table header just below the sticky toolbar
 const tb=$('stickyHead'); const setTb=()=>document.documentElement.style.setProperty('--tb-h',(getComputedStyle(tb).position==='sticky'?tb.offsetHeight:$('toolbar').offsetHeight)+'px'); if(window.ResizeObserver) new ResizeObserver(setTb).observe(tb); setTb(); addEventListener('resize',setTb);
+// ---- collapsible tools section: search, filters, view, stats, connection, alphabet strip and storage fold away; Help, My Collection, Save / Load, Tray and Install stay.
+//      Narrow screens: collapsed until opened. Wide screens: open at the top of the page, collapsed automatically once the reader scrolls into the list; a click pins the choice until the page is scrolled back to the top.
+const FOLD={auto:true,narrow:()=>matchMedia('(max-width:900px)').matches};
+function foldOpen(){ return !$('toolsFold').classList.contains('collapsed'); }
+function setFold(open){ $('toolsFold').classList.toggle('collapsed',!open); $('foldBtn').setAttribute('aria-expanded',String(open)); $('foldBtn').classList.toggle('on',open); setTb(); }
+function foldAuto(){ if(!FOLD.auto) return; setFold(FOLD.narrow()?false:scrollY<=120); }
+function foldForJump(){ if(FOLD.auto&&!FOLD.narrow()) setFold(false); }
+function foldBadge(n){ const b=$('foldBadge'); if(!b) return; b.textContent=n; b.hidden=!n; }
+$('foldBtn').onclick=()=>{ FOLD.auto=false; setFold(!foldOpen()); if(foldOpen()&&!FOLD.narrow()){ const q=$('q'); if(q&&scrollY<=120) q.focus({preventScroll:true}); } };
+addEventListener('scroll',()=>{ if(!FOLD.auto&&scrollY<=10) FOLD.auto=true; foldAuto(); },{passive:true}); addEventListener('resize',foldAuto); foldAuto();
 __STUDIO_JS__
 render();
 </script></body></html>"""
@@ -688,9 +701,25 @@ def main():
     for t in LIBC["titles"]: t.setdefault("curated", False)
     data["lib_counts"] = {"titles": len(lib["titles"]), "versions": len(lib["versions"]), "curated": sum(1 for t in lib["titles"] if t["curated"])}
     welcome_cast = "".join(sprite(d, st, sc, index) for d, st, sc in [("oem", "px-mario-walk-1", 2), ("oem", "px-link", 2), ("oem", "px-samus", 2), ("oem", "px-kirby", 2), ("oem", "px-pit", 2), ("web", "toad", 2)])
-    g_start = "".join(sprite(d, st, sc, index) for d, st, sc in [("oem", "px-mario-walk-1", 2), ("oem", "px-question-block-0", 2), ("web", "goomba", 2)])
+    GUIDE_CAST = {"start": [("oem", "px-mario-walk-1"), ("oem", "px-question-block-0"), ("web", "goomba")], "buy": [("oem", "px-super-mushroom"), ("oem", "px-fire-flower"), ("oem", "px-banana")],
+        "app": [("oem", "px-dr-mario-pills"), ("oem", "px-pac-man"), ("oem", "px-galaga-fighter")], "website": [("web", "rob"), ("oem", "px-mike-jones"), ("oem", "px-vic-viper")],
+        "getapp": [("oem", "px-dr-mario-viruses"), ("oem", "px-mega-man"), ("oem", "px-metroid")], "choose": [("oem", "px-kirby"), ("oem", "px-pit"), ("web", "toad")],
+        "versions": [("oem", "px-mario-walk-0"), ("oem", "px-raccoon-mario"), ("oem", "px-jumpman-mario-hammer")], "extended": [("oem", "px-link"), ("oem", "px-link-zelda2"), ("web", "zelda")],
+        "loading": [("oem", "px-luigi-walk-1"), ("oem", "px-shy-guy"), ("web", "yoshi")], "own": [("oem", "px-balloon-fighter"), ("oem", "px-balloon-bird"), ("oem", "px-parasol-waddle-dee")],
+        "import": [("oem", "px-excitebike-rider-red"), ("oem", "px-excitebike-rider-purple"), ("oem", "px-tecmo-bowl-player")], "missing": [("oem", "px-zelda-old-man"), ("web", "octorok"), ("oem", "px-kid-icarus-monoeye")],
+        "rights": [("oem", "px-simon-belmont"), ("oem", "px-ryu-hayabusa"), ("oem", "px-double-dragon-lee")], "saveload": [("oem", "px-samus"), ("oem", "px-metroid"), ("web", "ridley")],
+        "connect": [("web", "rob"), ("oem", "px-little-mac"), ("web", "king-hippo")], "prep": [("oem", "px-mario-bros-mario"), ("oem", "px-shellcreeper"), ("oem", "px-mario-kuribo-shoe")],
+        "install": [("oem", "px-donkey-kong-jr"), ("web", "donkey-kong"), ("oem", "px-pauline")], "update": [("oem", "px-popo"), ("oem", "px-nana"), ("oem", "px-startropics-enemy")],
+        "sync": [("oem", "px-ff-fighter"), ("oem", "px-super-c-soldier"), ("oem", "px-arthur")], "emu": [("oem", "px-bub"), ("oem", "px-pac-man"), ("oem", "px-galaga-fighter")],
+        "controllers": [("web", "duck-hunt-dog"), ("oem", "px-boxing-glove"), ("web", "rob-alt-kdl3")], "backup": [("oem", "px-zelda2-knight"), ("web", "ganon"), ("oem", "px-link")],
+        "tech": [("oem", "px-vic-viper"), ("oem", "px-mega-man"), ("oem", "px-dr-mario-viruses")], "legal": [("oem", "px-zelda-old-man"), ("oem", "px-simon-belmont-2"), ("web", "eggplant-wizard")],
+        "credits": [("web", "mr-game-and-watch"), ("web", "king-dedede"), ("oem", "px-kirby")], "trouble": [("oem", "px-dr-mario-viruses"), ("web", "piranha-plant"), ("web", "bowser")]}
+    def guide_band(m):
+        cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
+        return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
+    guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
     studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js")
-    studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", part("guide.html").replace("__G_START__", g_start))
+    studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
     foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}") for st, n, g in ROSTER)
     foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}") for st, n in WEB_ROSTER)
     empty = "".join(sprite(d, st, sc, index) for d, st, sc in EMPTY_CAST)

@@ -478,7 +478,7 @@ def draw(map_: str) -> Image.Image:
     return im
 
 def console_face(w=320, h=120) -> Image.Image:
-    """A generic grey top-loading console drawn from rectangles (no logos)."""
+    """A generic gray top-loading console drawn from rectangles (no logos)."""
     im = Image.new("RGBA", (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
     d.rectangle([4, 20, w - 5, h - 8], fill=(201, 201, 206)); d.rectangle([4, 20, w - 5, 44], fill=(222, 222, 226)); d.rectangle([4, h - 30, w - 5, h - 8], fill=(120, 120, 128))
     d.rectangle([30, 48, w - 110, 64], fill=(60, 60, 70)); d.rectangle([w - 90, 50, w - 60, 62], fill=(228, 0, 15)); d.rectangle([w - 50, 50, w - 20, 62], fill=(60, 60, 70))
@@ -498,7 +498,7 @@ def main(out: str):
     for group, label in ((CHARS, "character"), (ITEMS, "item"), (ICONS, "icon")):
         for stem, (name, m) in group.items():
             im = draw(m); im.save(os.path.join(bd, stem + ".png")); index.append({"file": stem + ".png", "label": name, "w": im.width, "h": im.height, "kind": label})
-            prov.append({"slug": stem, "name": name, "kind": label, "origin": "Original pixel art drawn for NES Classic Collection Studio (this repository, tools/publish/make_public_sprites.py)", "license": "MIT (project licence)"})
+            prov.append({"slug": stem, "name": name, "kind": label, "origin": "Original pixel art drawn for NES Classic Collection Studio (this repository, tools/publish/make_public_sprites.py)", "license": "MIT (project license)"})
     cf = console_face(); cf.save(os.path.join(bd, "nes-console-face.png")); index.append({"file": "nes-console-face.png", "label": "Generic console drawing", "w": cf.width, "h": cf.height, "kind": "hardware"})
     cf.crop((0, 60, cf.width, cf.height)).save(os.path.join(bd, "nes-console-face-lower.png"))
     app_icon(bd)

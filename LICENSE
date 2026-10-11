@@ -22,7 +22,7 @@ SOFTWARE.
 
 ---
 
-Third-party components (not covered by the licence above):
+Third-party components (not covered by the license above):
 
 * "Press Start 2P" font — Copyright 2012 The Press Start 2P Project Authors
   (cody@zone38.net), SIL Open Font License 1.1 (site-data/brand/fonts/OFL-PressStart2P.txt).
@@ -36,6 +36,6 @@ Third-party components (not covered by the licence above):
 * Artwork under site-data/brand/oem (renderings from the NES Classic Edition system
   software), site-data/brand/web (community sprite rips; origins in provenance.json)
   and site-data/art (community box-art scans) is shown to identify and present the
-  games; all rights remain with their owners. It is NOT covered by the MIT licence.
+  games; all rights remain with their owners. It is NOT covered by the MIT license.
 
 No game files or console software are included.

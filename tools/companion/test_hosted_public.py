@@ -88,7 +88,7 @@ def main():
             s, h, st3 = req("GET", f"/api/import/status?job={job3}", headers=bearer); st3 = st3.get("job") or {}
             if st3.get("finished"): break
             time.sleep(0.1)
-        ok("cancel_stops_early", st3.get("cancelled") is True and st3.get("done", 80) < 80, str(st3.get("done")))
+        ok("cancel_stops_early", st3.get("canceled") is True and st3.get("done", 80) < 80, str(st3.get("done")))
         ok("locate_unknown_version_refused", req("POST", "/api/library/locate", {"version_id": "zz", "path": os.path.join(fx, "alpha.nes")}, headers=bearer)[0] == 409)
         ok("revoke", req("POST", "/api/pair/revoke", {}, headers=bearer)[0] == 200 and req("GET", "/api/status", headers=bearer)[0] == 401)
         logf.flush(); log = open(os.path.join(work, "companion.log"), encoding="utf-8", errors="replace").read(); ok("no_token_in_log", t["token"] not in log and r2["token"] not in log)
