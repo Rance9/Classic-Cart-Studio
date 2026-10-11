@@ -87,3 +87,10 @@ if(CO.desktop){ if(CO.ok) onDesktopConnected(); else setTimeout(()=>{ if(CO.ok) 
 if($('mDesktop')) $('mDesktop').onclick=()=>{ document.querySelectorAll('.menu').forEach(x=>x.hidden=true); desktopInvite(); };
 function desktopMenuVisibility(){ if($('mDesktop')) $('mDesktop').hidden=!desktopAvailable(); }
 desktopMenuVisibility(); document.addEventListener('visibilitychange',desktopMenuVisibility);
+// Inside Classic Cart Studio for Windows the site's short links (/source, /app) must not be followed inside the window: the host
+// only shows approved origins, and the short page's forwarding to GitHub would be cancelled mid-load and leave the window on its
+// recovery screen. In the app the links resolve to their final targets and open as a new window, which the host hands to the
+// user's ordinary browser. In a normal browser the short links stay exactly as published.
+const SHORT_LINKS={source:'https://github.com/Rance9/Classic-Cart-Studio', app:'https://github.com/Rance9/Classic-Cart-Studio/releases/latest'};
+function shortLinkTarget(href){ const m=/^https?:\/\/(?:www\.)?classiccartstudio\.com\/(source|app)\/?(?:[?#].*)?$/i.exec(String(href||'')); return m?SHORT_LINKS[m[1].toLowerCase()]:null; }
+document.addEventListener('click',e=>{ if(!CO.desktop) return; const a=e.target.closest&&e.target.closest('a[href]'); if(!a) return; const t=shortLinkTarget(a.href); if(!t) return; e.preventDefault(); try{ hoLog('short link in app -> '+t); }catch(x){} window.open(t,'_blank','noopener'); },true);

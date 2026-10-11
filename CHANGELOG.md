@@ -10,6 +10,7 @@
 
 ## Website — 2026-10-11 (after 0.2.1; no new installer)
 
+- Inside Classic Cart Studio for Windows the site's short links (ClassicCartStudio.com/source and /app) open in your ordinary browser instead of being followed inside the app window.
 - **ClassicCartStudio.com/source** opens the source code repository (the same static forwarding page as /app, with a meta refresh and a visible link for browsers without JavaScript); the footer links to it instead of showing the raw GitHub address.
 - The footer's character credits strip pauses where it is while the pointer (or keyboard focus) is over it, so the game and origin tooltips can be read, and resumes from the same spot afterwards.
 - Search is no longer literal: words match in any order; punctuation, case and accents do not matter (“dr mario” finds Dr. Mario); roman numerals and digits are interchangeable (“zelda 2”); common abbreviations expand both ways (dr/doctor, bros/brothers, &/and); run-together queries match the joined words (“megaman”) or the initials (“smb3”); one typo is tolerated in longer words; publisher, year and genre are searched too; with the default title order the best matches come first.

@@ -232,11 +232,21 @@ namespace ClassicCartStudio
             try { web.CoreWebView2.Navigate(App.StartUrl); } catch (Exception e) { App.Log("navigate failed: " + e.Message); }
         }
 
+        DateTime lastBlocked = DateTime.MinValue;
+        // The website's short links forward to GitHub (/source, /app). Followed inside the window they would start loading on the
+        // approved origin and then be cancelled mid-load by the policy below, which used to surface the recovery screen. They are
+        // external links in substance, so the host hands them to the user's browser without navigating the window.
+        static bool IsShortLink(string url)
+        {
+            try { var u = new Uri(url); var p = u.AbsolutePath.TrimEnd('/').ToLowerInvariant(); return p == "/source" || p == "/app"; } catch { return false; }
+        }
+
         void OnNavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
         {
             var url = e.Uri ?? ""; var origin = App.OriginOf(url);
-            if (url.StartsWith("about:") || url.StartsWith("data:") || App.IsApprovedOrigin(origin)) return;
-            e.Cancel = true; App.Log("blocked navigation to " + origin + " (opened externally)"); App.OpenExternal(url);
+            if (url.StartsWith("about:") || url.StartsWith("data:")) return;
+            if (App.IsApprovedOrigin(origin) && !IsShortLink(url)) return;
+            e.Cancel = true; lastBlocked = DateTime.Now; App.Log("blocked navigation to " + (App.IsApprovedOrigin(origin) ? url : origin) + " (opened externally)"); App.OpenExternal(url);
         }
 
         void OnNewWindow(object sender, CoreWebView2NewWindowRequestedEventArgs e)
@@ -256,6 +266,10 @@ namespace ClassicCartStudio
                 DeliverPendingLink(); return;
             }
             if (src.StartsWith("about:") || src.StartsWith("data:")) return;
+            if (e.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled && (DateTime.Now - lastBlocked).TotalSeconds < 5)
+            {   // a load the policy itself cut short (the external link was handed to the browser): the window keeps its page
+                App.Log("navigation cancelled by policy for " + src + " (no recovery screen)"); return;
+            }
             LastNavigation = "failed: " + e.WebErrorStatus + " at " + DateTime.Now.ToString("HH:mm:ss");
             App.Log("navigation failed: " + e.WebErrorStatus + " for " + src);
             ShowRecovery("The Studio website couldn't be reached.", null, e.WebErrorStatus + " — " + src);
