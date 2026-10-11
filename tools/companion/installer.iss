@@ -12,7 +12,7 @@
 #define AppName "NES Classic Collection Studio Companion"
 #define AppExe "NESClassicCollectionStudioCompanion.exe"
 #define AppPublisher "NES Classic Collection Studio project (independent; not affiliated with Nintendo)"
-#define AppURL "https://rance9.github.io/NES-Classic-Collection-Studio/"
+#define AppURL "https://classiccartstudio.com/"
 #define RepoURL "https://github.com/Rance9/NES-Classic-Collection-Studio"
 
 [Setup]

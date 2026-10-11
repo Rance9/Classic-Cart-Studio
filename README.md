@@ -2,7 +2,7 @@
 
 **An independent game collection manager for the Nintendo NES Classic Edition.**
 
-Website: **https://rance9.github.io/NES-Classic-Collection-Studio/** · Releases (Windows companion): **https://github.com/Rance9/NES-Classic-Collection-Studio/releases**
+Website: **https://classiccartstudio.com/** (also reachable as https://rance9.github.io/NES-Classic-Collection-Studio/) · Releases (Windows companion): **https://github.com/Rance9/NES-Classic-Collection-Studio/releases**
 
 The Studio is a website for choosing, organizing and checking a collection of NES games for an NES Classic Edition, and a small Windows **companion** program that does the work that a website cannot do by itself: read the games already set up on your computer, keep the game files you import, prepare your collection and open the console-management software (Hakchi2 CE). The website works on its own for browsing and planning; the companion adds everything that touches your files.
 

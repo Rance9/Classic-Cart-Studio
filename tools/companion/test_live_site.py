@@ -62,7 +62,7 @@ def cdp_run(url, profile, script, timeout=120):
         except Exception: p.terminate(); p.kill()
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--url", default="https://rance9.github.io/NES-Classic-Collection-Studio/"); ap.add_argument("--port", type=int, default=8765); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument("--url", default="https://classiccartstudio.com/"); ap.add_argument("--port", type=int, default=8765); a = ap.parse_args()
     B = f"http://127.0.0.1:{a.port}"; checks = []; ok = lambda k, v, n="": checks.append(f"{k}={'true' if v else 'false'}{(' ('+n+')') if n and not v else ''}")
     origin = "/".join(a.url.split("/", 3)[:3]); work = os.path.join(tempfile.gettempdir(), "nes-live"); shutil.rmtree(work, ignore_errors=True); os.makedirs(work)
     def get(u):
@@ -76,7 +76,7 @@ def main():
     except Exception as e: ok("companion_running", False, str(e)[:80]); print("\n".join(checks)); print("RESULT: FAIL (companion not running)"); sys.exit(1)
     prof = os.path.join(work, "p1")
     o = cdp_run(a.url, prof, JS.replace("STEP", "'fresh'").replace("CODE", "''")); print("fresh:", json.dumps(o)[:800])
-    ok("real_origin_and_subpath", o.get("origin") == origin and (o.get("path") or "").startswith("/NES-Classic-Collection-Studio/"), str(o)[:200])
+    ok("real_origin_and_subpath", o.get("origin") == origin and (o.get("path") or "").startswith("/NES-Classic-Collection-Studio/" if "github.io" in origin else "/"), str(o)[:200])
     ok("page_runs_with_sprites", (o.get("games") or 0) > 700 and (o.get("sprites") or 0) >= 10, f"games={o.get('games')} sprites={o.get('sprites')}")
     ok("fresh_unpaired_state", o.get("state") == "unpaired" and o.get("hasConnect") is True, f"{o.get('state')} {o.get('err')}")
     if rel.get("version"): ok("download_section_shows_release", (rel["version"] in (o.get("dl") or "")) and o.get("hasHash") and (o.get("hash") or "").lower() == (rel.get("sha256") or "").lower(), (o.get("dl") or "")[:200])

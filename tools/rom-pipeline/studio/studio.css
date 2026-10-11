@@ -258,3 +258,15 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
  #guide .step{display:grid;grid-template-columns:32px 1fr;column-gap:12px;row-gap:2px;padding:12px}#guide .step .n{grid-row:1/3;margin:0}#guide .step b{grid-column:2}#guide .step>span:not(.n){grid-column:2}#guide .step .btn{grid-column:2}
  #guide .gft{grid-template-columns:1fr}#guide .gft .btn[data-prev],#guide .gft .btn[data-next]{grid-column:1}#guide h3{font-size:13.5px}}
 @media (max-width:640px){#guide .ghd h2 span{display:none}#guide .ghd h2{font-size:11px;line-height:1.5}#guide .ghd{gap:10px}}
+/* ---- owner feedback: uniform button heights in the top bar; centered rows when the bar wraps; the list never scrolls sideways or bleeds ---- */
+.row.bar .btn{height:36px;padding-top:0;padding-bottom:0;align-items:center;box-sizing:border-box}
+.row.bar .btn .badge{height:18px;line-height:18px}
+.row.bar .btn.hk{padding:0 14px}
+@media (max-width:1060px){.row.bar{justify-content:center;gap:8px}.row.bar>span{display:none}.actions{display:contents}.row.bar .menuwrap{display:inline-flex}}
+.tablewrap{overflow-x:clip}main{overflow-x:clip}#listView{overflow-x:clip}   /* clip, never hidden/auto: those would make main a scroll container and detach the sticky table header */
+@media (max-width:1000px) and (min-width:641px){
+ th:nth-child(12),td:nth-child(12),th:nth-child(6),td:nth-child(6){display:none}
+ #t{table-layout:fixed;width:calc(100% - 2px)}th{white-space:normal;line-height:1.2}
+ th:nth-child(1),td:nth-child(1){width:30px}th:nth-child(2),td:nth-child(2){width:58px}th:nth-child(5),td:nth-child(5){width:48px}th:nth-child(9),td:nth-child(9){width:72px}th:nth-child(13),td:nth-child(13){width:64px}th:nth-child(14),td:nth-child(14){width:26px}
+ td:nth-child(3){overflow-wrap:anywhere}td:nth-child(13){white-space:normal}
+ .tablewrap{overflow:visible;overflow-x:clip}.tablewrap::after{content:none}.tablewrap th{position:sticky}}

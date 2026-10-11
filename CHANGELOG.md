@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 — 2026-10-10
+
+- Website now lives at **https://classiccartstudio.com/** (GitHub Pages custom domain; the old github.io address redirects there). The companion allows the new origin (and www) in addition to the github.io origin, so pairing works on the new address; links in the companion window, the installer and the README point at the new domain.
+- Top bar: every button has the same height; when the bar wraps on narrower windows the buttons are centered on every row; the title list never scrolls sideways or bleeds past the right edge at any width (fixed column layout between 641 and 1000 px).
+
 ## 0.1.5 — 2026-10-10
 
 - Website: toolbar buttons recolored (Save / Load matches My Collection; Tray is blue with the red B; Install on NES Classic is green with the red A); identity and emulator pills in the list are faint so the titles and art lead; a collapsible **Search & Filters** section holds search, Filter & Sort, Select, List/Grid, stats, the connection pill, the alphabet strip and the storage chip (collapsed on narrow screens until opened; on wide screens it folds away when you scroll into the list and returns at the top); a real phone layout (stacked task buttons, the list becomes a card list, no sideways scrolling anywhere, dialogs fit the screen).
