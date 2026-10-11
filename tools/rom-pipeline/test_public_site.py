@@ -59,7 +59,7 @@ def main(site: str):
     ok("app_shortlink_page_exists", bool(app), app_p)
     src = open(os.path.join(site, "source", "index.html"), encoding="utf-8").read() if os.path.exists(os.path.join(site, "source", "index.html")) else ""
     ok("source_shortlink_redirects_to_repo", src.count("https://github.com/Rance9/Classic-Cart-Studio") >= 3 and 'location.replace("https://github.com/Rance9/Classic-Cart-Studio")' in src and 'http-equiv="refresh" content="0; url=https://github.com/Rance9/Classic-Cart-Studio"' in src and "<title>Classic Cart Studio | Source Code</title>" in src and "releases/latest" not in src, len(src))
-    ok("footer_links_branded_source", 'href="https://ClassicCartStudio.com/source"' in page and ">ClassicCartStudio.com/source<" in page and "github.com/Rance9/Classic-Cart-Studio</a>" not in page)
+    ok("footer_links_branded_source", 'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>' in page and "download: <a href=\"https://github.com/Rance9/Classic-Cart-Studio\"" not in page)
     ok("footer_cast_pauses_on_hover", "footer .castwrap:hover .cast,footer .castwrap:focus-within .cast{animation-play-state:paused}" in page)
     ok("app_shortlink_redirects_to_latest_release", app.count("https://github.com/Rance9/Classic-Cart-Studio/releases/latest") >= 3 and "location.replace(" in app and 'http-equiv="refresh"' in app and "<title>Classic Cart Studio | Windows App</title>" in app and "NES-Classic-Collection-Studio" not in app)
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
