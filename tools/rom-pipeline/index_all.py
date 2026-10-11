@@ -81,7 +81,7 @@ def main():
         kind = version_kind(flags, name); lic = licensed_class(flags, i.get("cart_class") or "")
         conf = "verified" if i.get("nointro_match") else ("cartridge-db" if (i.get("cart_match") or i.get("mesen_match")) else "filename")
         row = {"title": i.get("title") or name, "cart_system": i.get("cart_system") or "", "mesen_system": i.get("mesen_system") or "", "mapper": i.get("mapper"), "four_screen": i.get("four_screen"), "licensed": lic, "mesen_mapper": i.get("mesen_mapper"), "cart_board": i.get("cart_board") or ""}
-        cp = compat(row) if i.get("header_hex") else {"recommended_emulator": "unknown", "core": "", "launch_command": "", "compat_confidence": "none", "compat_notes": "header/mapper not established", "compat_warning": 0, "compat_evidence": "documentation/community only — not tested on this console"}
+        cp = compat(row) if i.get("header_hex") else {"recommended_emulator": "unknown", "core": "", "launch_command": "", "compat_confidence": "none", "compat_notes": "header/mapper not established", "compat_warning": 0, "compat_evidence": "documentation and community reports"}
         inp = classify_input({"display_title": i.get("title") or name, "players": "", "nointro_name": name}, mesen_ctrl.get((p["crc32"] or "").upper()), overrides)
         c = curated.get(sha); b = by_builtin_sha.get(sha)
         gi = genre.get(name, {}); yi = years.get(name, {})

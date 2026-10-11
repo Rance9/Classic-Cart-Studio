@@ -36,12 +36,12 @@ jobs:
         env:
           NES_SITE_DIR: ${{ github.workspace }}\build\site
         run: python tools/publish/write_version_info.py tools/companion/version_info.txt; pyinstaller tools/companion/companion.spec --distpath build/dist --workpath build/work --noconfirm
-      - name: Build Classic Cart Studio for Windows (WebView2 host, .NET Framework 4.8)
+      - name: Build Classic Cart Studio for Windows (WPF + WebView2 host, .NET Framework 4.8)
         shell: pwsh
         run: |
           dotnet build tools/desktop/ClassicCartStudio/ClassicCartStudio.csproj -c Release -nologo "-p:Version=$env:APP_VERSION"
           $out = "tools/desktop/ClassicCartStudio/bin/Release/net48"
-          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.WinForms.dll", "$out/WebView2Loader.dll" build/dist/NESClassicCollectionStudioCompanion/ -ErrorAction Stop
+          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.Wpf.dll", "$out/WebView2Loader.dll" build/dist/NESClassicCollectionStudioCompanion/ -ErrorAction Stop
           Get-ChildItem build/dist/NESClassicCollectionStudioCompanion/*.exe | ForEach-Object { "$($_.Name) $($_.Length)" }
       - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
         shell: pwsh
@@ -49,6 +49,9 @@ jobs:
           $env:NES_STUDIO_DATA = Join-Path $env:RUNNER_TEMP "ccs-selftest"
           & build/dist/NESClassicCollectionStudioCompanion/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
           if ($LASTEXITCODE -ne 0) { throw "desktop self-test failed" }
+      - name: Copy the installer wizard images
+        shell: pwsh
+        run: Copy-Item tools/publish/assets/wizard-*.bmp build/dist/NESClassicCollectionStudioCompanion/_internal/site/brand/public/
       - name: Build the installer (Inno Setup, per-user)
         shell: pwsh
         run: |

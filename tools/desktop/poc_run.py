@@ -82,6 +82,9 @@ def main():
         t_ok = time.time() - t0
         ok("backend_connected_without_pairing", st == "ok", st)
         ok("pill_says_studio_for_windows", "Studio for Windows" in (d.js("$('connPill').textContent") or ""), d.js("$('connPill').textContent"))
+        for _ in range(32):   # lazy-loaded art needs a visible viewport and a moment
+            if (d.js("[...document.querySelectorAll('.parade img')].filter(i=>i.naturalWidth>0).length") or 0) >= 27 and (d.js("[...document.querySelectorAll('#tb .thumb')].filter(i=>i.complete&&i.naturalWidth>0).length") or 0) >= 5: break
+            time.sleep(0.25)
         ok("artwork_rendered", (d.js("[...document.querySelectorAll('.parade img')].filter(i=>i.naturalWidth>0).length") or 0) >= 27, d.js("[...document.querySelectorAll('.parade img')].filter(i=>i.naturalWidth>0).length"))
         ok("covers_rendered", (d.js("[...document.querySelectorAll('#tb .thumb')].filter(i=>i.complete&&i.naturalWidth>0).length") or 0) >= 5)
         ok("version_handshake_is_desktop", d.js("(async()=>{ const r=await capi('/api/version'); return r.desktop===true && Array.isArray(r.capabilities); })()") is True)

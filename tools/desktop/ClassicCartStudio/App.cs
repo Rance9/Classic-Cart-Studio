@@ -26,6 +26,8 @@ namespace ClassicCartStudio
         public const string CanonicalOrigin = "https://classiccartstudio.com";
         public const string SiteUrl = CanonicalOrigin + "/";
         public static readonly string[] SiteOrigins = { CanonicalOrigin, "https://www.classiccartstudio.com" };
+        public const string RepoUrl = "https://github.com/Rance9/Classic-Cart-Studio";
+        public const string UpdateUrl = "https://ClassicCartStudio.com/app";
 
         // Data folder is the same as the companion's (compatibility): %LOCALAPPDATA%\NESClassicCollectionStudio
         public static string DataRoot

@@ -1,11 +1,10 @@
 // Classic Cart Studio for Windows — entry point: single instance, command line (nesstudio:// links, --version, --selftest), then the
-// main window. The window shows the live website; the Python backend is started and supervised by Backend.cs.
+// WPF application with the one main window. The window shows the live website; the Python backend is started and supervised by Backend.cs.
 using System;
-using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Threading;
-using System.Windows.Forms;
+using System.Windows;
 
 namespace ClassicCartStudio
 {
@@ -33,12 +32,13 @@ namespace ClassicCartStudio
                     ForwardToRunningInstance(string.Join("\n", args));
                     return 0;
                 }
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                // DPI awareness (PerMonitorV2) comes from app.manifest on .NET Framework 4.8
-                var form = new MainForm(args);
-                StartPipeServer(form);
-                Application.Run(form);
+                var app = new StudioApp();
+                app.InitializeComponent();
+                var window = new MainWindow(args);
+                app.MainWindow = window;
+                StartPipeServer(window);
+                window.Show();
+                app.Run();
                 GC.KeepAlive(mutex);
             }
             return 0;
@@ -61,7 +61,7 @@ namespace ClassicCartStudio
             catch (Exception e) { App.Log("forward to the running instance failed after " + sw.ElapsedMilliseconds + " ms: " + e.Message); }
         }
 
-        static void StartPipeServer(MainForm form)
+        static void StartPipeServer(MainWindow window)
         {
             var t = new Thread(() =>
             {
@@ -76,7 +76,7 @@ namespace ClassicCartStudio
                             var buf = new byte[8192]; var sb = new StringBuilder(); int n;
                             do { n = server.Read(buf, 0, buf.Length); if (n > 0) sb.Append(Encoding.UTF8.GetString(buf, 0, n)); } while (n > 0 && !server.IsMessageComplete && sb.Length < 16384);
                             var text = sb.ToString();
-                            if (text.Length > 0) { try { form.BeginInvoke(new Action(() => form.OnActivatedFromAnotherInstance(text))); } catch { } }
+                            if (text.Length > 0) { try { window.Dispatcher.BeginInvoke(new Action(() => window.OnActivatedFromAnotherInstance(text))); } catch { } }
                         }
                     }
                     catch { Thread.Sleep(500); }

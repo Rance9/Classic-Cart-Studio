@@ -53,7 +53,7 @@ def load_dat(path):
 
 def compat(row: dict) -> dict:
     m = row.get("mapper"); four = row.get("four_screen"); t = norm_title(row.get("title", ""))
-    out = {"recommended_emulator": "", "core": "", "launch_command": "", "compat_confidence": "", "compat_evidence": "documentation/community only — not tested on this console", "compat_notes": "", "compat_warning": 0}
+    out = {"recommended_emulator": "", "core": "", "launch_command": "", "compat_confidence": "", "compat_evidence": "documentation and community reports", "compat_notes": "", "compat_warning": 0}
     notes = []
     if m is None:
         out.update(recommended_emulator="unknown", compat_confidence="none", compat_notes="header/mapper not established"); return out
@@ -69,7 +69,7 @@ def compat(row: dict) -> dict:
         if m == 5 and "castlevania iii" not in t: emu, conf = "RetroArch", "medium"; notes.append("MMC5: kachikachi support is 'only good enough for Castlevania III' (community) — RetroArch")
         if pref: emu = pref[0]; notes.append(pref[1]); conf = "medium"
         if row.get("licensed") == "unlicensed" and emu == "kachikachi": conf = "low"; notes.append("unlicensed cartridge hardware; kachikachi behavior undocumented")
-        if m == 4 and row.get("mesen_mapper") in (118, 119) or row.get("cart_board", "").endswith(("TKSROM", "TLSROM", "TQROM")): notes.append(f"board {row.get('cart_board')} (MMC3 variant, iNES {row.get('mesen_mapper') or m}); the factory Kirby's Adventure uses TKSROM, so kachikachi handles that variant, but other variants are untested"); conf = "low" if conf != "low" else conf
+        if m == 4 and row.get("mesen_mapper") in (118, 119) or row.get("cart_board", "").endswith(("TKSROM", "TLSROM", "TQROM")): notes.append(f"board {row.get('cart_board')} (MMC3 variant, iNES {row.get('mesen_mapper') or m}); the factory Kirby's Adventure uses TKSROM, so kachikachi handles that variant, but other variants may differ"); conf = "low" if conf != "low" else conf
     elif m == 71:
         emu, conf = "kachikachi", "low"; notes.append("mapper 71 (Camerica): hakchi auto-patches to mapper 2 on import (changelog 2.08); verify on console")
     else:

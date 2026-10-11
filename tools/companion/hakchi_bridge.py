@@ -320,7 +320,7 @@ def plan(man: dict, approve_alternates: bool = False) -> dict:
          "install_bytes": sum(os.path.getsize(p["payload_path"]) + 16 for p in plan_custom)}
     S["install_size"] = fmt_size(S["install_bytes"])
     if S["retroarch"]: warnings.append(f"{S['retroarch']} selected game(s) are routed to RetroArch, which is not installed on the console; they can be staged in Hakchi but the deployment stays incomplete until the module is approved and installed (post-G1).")
-    if S["controller_warnings"]: warnings.append(f"{S['controller_warnings']} selected game(s) need input hardware that has not been verified with this console.")
+    if S["controller_warnings"]: warnings.append(f"{S['controller_warnings']} selected game(s) need special input hardware (see the controller notes).")
     return {"can_apply": not problems, "problems": problems, "warnings": warnings, "summary": S, "games": rows, "visible_codes": sorted(visible), "hidden_codes": hidden, "custom": plan_custom, "factory_ref": factory_ref, "factory": factory}
 
 # ------------------------------------------------------------------ hakchi tree access

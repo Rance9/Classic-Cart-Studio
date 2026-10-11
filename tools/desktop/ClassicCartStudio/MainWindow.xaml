@@ -1,0 +1,76 @@
+<Window x:Class="ClassicCartStudio.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Classic Cart Studio" MinWidth="720" MinHeight="480" Width="1440" Height="920"
+        Background="{StaticResource B.Bg}" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Ideal" Icon="pack://application:,,,/app.ico">
+  <!-- custom chrome (36 px caption, native resize borders, Snap Layouts) is attached in code so that this window's message hook
+       is registered before WindowChrome's own hook (see MainWindow.xaml.cs) -->
+  <Grid x:Name="root">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="36"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- title bar: charcoal, icon, title, a restrained red accent; menu + caption buttons on the right -->
+    <Grid x:Name="titleBar" Background="{StaticResource B.Bar}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+        <Image Source="pack://application:,,,/app.ico" Width="16" Height="16" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+        <TextBlock Text="Classic Cart Studio" Margin="9,0,0,1" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{StaticResource B.Ink}"/>
+        <Border Width="6" Height="6" CornerRadius="3" Background="{StaticResource B.Red}" Margin="8,1,0,0" VerticalAlignment="Center" ToolTip="Classic Cart Studio for Windows" x:Name="accentDot"/>
+        <TextBlock x:Name="stateText" Margin="10,0,0,1" FontSize="12" VerticalAlignment="Center" Foreground="{StaticResource B.Muted}" Text=""/>
+      </StackPanel>
+      <StackPanel Grid.Column="2" Orientation="Horizontal">
+        <Button x:Name="menuBtn" Style="{StaticResource Caption}" Content="&#xE712;" FontSize="14" ToolTip="Studio menu" AutomationProperties.Name="Studio menu" Click="MenuBtn_Click"/>
+        <Button x:Name="minBtn" Style="{StaticResource Caption}" Content="&#xE921;" ToolTip="Minimize" AutomationProperties.Name="Minimize" Click="Min_Click"/>
+        <Button x:Name="maxBtn" Style="{StaticResource Caption}" Content="&#xE922;" ToolTip="Maximize" AutomationProperties.Name="Maximize" Click="Max_Click"/>
+        <Button x:Name="closeBtn" Style="{StaticResource Caption.Close}" Content="&#xE8BB;" ToolTip="Close" AutomationProperties.Name="Close" Click="Close_Click"/>
+      </StackPanel>
+    </Grid>
+    <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Background="{StaticResource B.Line}"/>
+
+    <!-- the website -->
+    <!-- WebView2 is a child HWND (WPF cannot draw over it): the WPF loading state covers only the moment before the browser exists;
+         from then on the branded Loading.html inside WebView2 is the loading state, so the page is never hidden while it loads -->
+    <wv2:WebView2 Grid.Row="1" x:Name="web" DefaultBackgroundColor="#FF101014"/>
+
+    <!-- loading state: branded, lightweight, shown only until the website has rendered -->
+    <Grid Grid.Row="1" x:Name="loading" Background="{StaticResource B.Bg}">
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="360">
+        <Image Source="pack://application:,,,/app.ico" Width="48" Height="48" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,0,14"/>
+        <TextBlock Text="CLASSIC CART" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource B.Ink}" TextOptions.TextFormattingMode="Ideal"><TextBlock.RenderTransform><TranslateTransform/></TextBlock.RenderTransform></TextBlock>
+        <TextBlock Text="STUDIO" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource B.Red3}" Margin="0,-6,0,16"/>
+        <!-- pixel-style progress: eight blocks that light up left to right (paused when the system has animations off) -->
+        <StackPanel x:Name="blocks" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+          <Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/>
+          <Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/>
+        </StackPanel>
+        <TextBlock x:Name="loadingText" Text="Starting…" HorizontalAlignment="Center" Style="{StaticResource T.Muted}"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- Studio menu (popup under the menu button) -->
+    <!-- opaque popup on purpose: WebView2's child window shows through layered (transparent) popups -->
+    <Popup x:Name="menuPopup" PlacementTarget="{Binding ElementName=menuBtn}" Placement="Bottom" HorizontalOffset="-200" VerticalOffset="4" StaysOpen="False" AllowsTransparency="False" PopupAnimation="None">
+      <Border Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Line2}" BorderThickness="1" Padding="4,6" Width="300">
+        <StackPanel>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Reload" AutomationProperties.Name="Reload the website"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE72C;"/><TextBlock Text="Reload the website"/></StackPanel></Button>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_OpenSite" AutomationProperties.Name="Open ClassicCartStudio.com in your browser"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE774;"/><TextBlock Text="Open the website in your browser"/></StackPanel></Button>
+          <Border Style="{StaticResource MenuSep}"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_DataFolder" AutomationProperties.Name="Open the data folder"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE8B7;"/><TextBlock Text="Open the data folder"/></StackPanel></Button>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Diagnostics" AutomationProperties.Name="Diagnostics"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE9D9;"/><TextBlock Text="Diagnostics"/></StackPanel></Button>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Updates" AutomationProperties.Name="Check for updates"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE896;"/><TextBlock Text="Check for updates"/></StackPanel></Button>
+          <Border Style="{StaticResource MenuSep}"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_About" AutomationProperties.Name="About Classic Cart Studio"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE946;"/><TextBlock Text="About Classic Cart Studio"/></StackPanel></Button>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Exit" AutomationProperties.Name="Exit"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE7E8;"/><TextBlock Text="Exit"/></StackPanel></Button>
+        </StackPanel>
+      </Border>
+    </Popup>
+  </Grid>
+</Window>

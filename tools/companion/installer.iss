@@ -1,6 +1,6 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.2.0 /DSourceDir=..\..\build\dist\NESClassicCollectionStudioCompanion /DOutDir=..\..\build\release installer.iss
-; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe and the WebView2 loader, copied there by the release workflow.
+; Build: ISCC.exe /DAppVersion=0.3.0 /DSourceDir=..\..\build\dist\NESClassicCollectionStudioCompanion /DOutDir=..\..\build\release installer.iss
+; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe, the WebView2 assemblies and the wizard images, copied there by the release workflow.
 ; Stable technical identifiers are kept on purpose (upgrade compatibility with the earlier "companion" releases): AppId, the install
 ; folder, the data folder %LOCALAPPDATA%\NESClassicCollectionStudio, the backend executable name and the nesstudio:// protocol.
 #ifndef AppVersion
@@ -42,6 +42,11 @@ UninstallDisplayName={#AppName}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+WizardSizePercent=110
+WizardImageFile={#SourceDir}\_internal\site\brand\public\wizard-large.bmp,{#SourceDir}\_internal\site\brand\public\wizard-large-200.bmp
+WizardSmallImageFile={#SourceDir}\_internal\site\brand\public\wizard-small.bmp,{#SourceDir}\_internal\site\brand\public\wizard-small-200.bmp
+ShowLanguageDialog=no
+DisableReadyPage=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
@@ -52,6 +57,12 @@ UsePreviousGroup=no
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription={#AppName} installer
 VersionInfoProductName={#AppName}
+
+[Messages]
+WelcomeLabel1=Welcome to Classic Cart Studio
+WelcomeLabel2=This installs [name/ver] for your user account: the Studio window, its local backend and the Start menu shortcuts. No administrator rights are needed.%n%nYour game files and collections are never uploaded anywhere.
+FinishedHeadingLabel=Ready to play
+FinishedLabel=[name] is installed. Start it from the Start menu, or right now: it opens the Studio website in its own window.
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

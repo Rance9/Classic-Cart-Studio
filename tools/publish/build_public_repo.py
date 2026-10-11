@@ -84,6 +84,7 @@ def build_site(site: str):
     subprocess.run([sys.executable, os.path.join(PROJECT, "tools", "rom-pipeline", "build_html.py"), "--public", "--out", site], check=True, env=env)
     shutil.copy2(os.path.join(site, "nes-catalog.html"), os.path.join(site, "index.html"))
     shutil.copytree(os.path.join(PROJECT, "tools", "publish", "site-static"), site, dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
+    for n in ("favicon.ico", "icon-32.png", "apple-touch-icon.png", "icon-192.png"): shutil.copy2(os.path.join(os.path.join(PROJECT, "tools", "publish", "assets"), "app-32.png" if n == "icon-32.png" else n), os.path.join(site, n))   # browser tab / home-screen icons
     open(os.path.join(site, ".nojekyll"), "w").close()
     open(os.path.join(site, "robots.txt"), "w").write("User-agent: *\nAllow: /\n")
     # release.json is written by the release workflow after a companion release exists; a placeholder keeps the page's lookup honest
