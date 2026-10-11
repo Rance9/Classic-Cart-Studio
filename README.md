@@ -11,6 +11,7 @@ Classic Cart Studio is one Studio in two places. The **website** lets you browse
 ## What you can do
 
 - Browse a library of 773 curated North American releases plus an extended index of regional releases, revisions, translations and other versions, with version chips, technical details (mapper, header, hashes, emulator) and controller-compatibility notes.
+- Preview on TV: the AS SEEN ON TV badge opens an interactive 16:9 simulation of the menu your collection proposes for the NES Classic, with every statement labeled known, estimated or unknown; a simulation, not a console capture.
 - Build a collection: the 30 games that came with the console are already there; choose what stays visible and what you add. Save it to a file, load it later, keep automatic snapshots, and restore.
 - Continue in the Windows application: the collection you built on the website is handed over as it is (names, exact ROM versions, factory-game choices). The application then helps you find the matching game files on your computer: individual files, several files, ZIP archives or whole folders, every file identified by its exact content, never by file name.
 - Add your own homebrew with artwork, load the games already set up on your computer (an existing Hakchi2 CE library), and prepare the collection for Hakchi2 CE.

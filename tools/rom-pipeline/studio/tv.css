@@ -1,0 +1,76 @@
+/* ==== "As Seen on TV": the Preview on TV button and the Proposed Menu Preview ==== */
+.tvbtn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:4px;border-radius:10px;cursor:pointer;transition:transform .16s var(--ease),filter .16s}
+.tvbtn img{width:92px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+.tvbtn:hover{transform:translateY(-2px) scale(1.04);filter:brightness(1.08)}
+.tvbtn:focus-visible{outline:2px solid var(--red3);outline-offset:3px}
+.hero-right{display:flex;align-items:center;gap:18px;justify-content:flex-end}
+@media (max-width:900px){.tvbtn img{width:80px}.hero-right{gap:12px}}
+@media (max-width:640px){.hero-right{display:none}}
+.menu .mi .tvmini{width:34px;height:auto;vertical-align:middle;margin-right:8px}
+.vis-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* the preview workspace: a dialog that uses the available height sensibly and never scrolls the page behind it */
+.tvmodal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:14px}
+.tvmodal.open{display:flex}
+.tvbox{width:min(1600px,100%);max-height:calc(100vh - 28px);display:flex;flex-direction:column;background:linear-gradient(180deg,#1b1b22,#121216);border:1px solid var(--line2);border-radius:14px;box-shadow:0 40px 100px rgba(0,0,0,.75);overflow:hidden}
+.tvhd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tvt{display:flex;align-items:center;gap:10px;min-width:0}.tvt h2{margin:0;font-family:var(--display);font-size:16px;letter-spacing:.5px;text-transform:uppercase}.tvlogo{width:44px;height:auto;flex:none}
+.tvtools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tvmain{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 14px;min-height:0;overflow:hidden;flex:1}
+.tvstagewrap{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.tvstage{position:relative;aspect-ratio:16/9;width:min(100%,calc((100vh - 230px) * 16 / 9));flex:none;margin:0 auto;background:#000;border-radius:8px;overflow:hidden;outline:none;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 20px 50px rgba(0,0,0,.6)}
+.tvstage:focus-visible{box-shadow:0 0 0 2px var(--red3),0 20px 50px rgba(0,0,0,.6)}
+.tvscreen{position:absolute;inset:0;background:linear-gradient(180deg,#eef0f3,#c9ced5);color:#1b1b20;font-family:"Segoe UI",system-ui,sans-serif;container-type:size}
+.tvcrt{position:absolute;inset:0;pointer-events:none;display:none}
+.tvstage.retro .tvcrt{display:block;background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0,rgba(0,0,0,.14) 1px,transparent 1px,transparent 3px);box-shadow:inset 0 0 120px rgba(0,0,0,.55);border-radius:8px}
+.tvstage.retro{box-shadow:0 0 0 6px #2a2a33,0 0 0 8px #15151a,0 20px 50px rgba(0,0,0,.6)}
+/* bands and tiles are sized from the screen height so the look is identical at any size */
+.tvtop{position:absolute;left:0;right:0;top:0;height:9cqh;background:#1b1b20;color:#f3f1ec;display:flex;align-items:center;justify-content:space-between;padding:0 3cqw;font-size:3.6cqh;font-weight:600}
+.tvtop .cnt{color:#bdbbb5;font-weight:500}
+.tvplate{position:absolute;left:50%;top:13cqh;transform:translateX(-50%);max-width:80cqw;background:rgba(27,27,32,.92);color:#fff;padding:1.2cqh 3cqw;border-radius:1.2cqh;font-size:4cqh;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:2cqw}
+.tvplate .pk{font-size:2.4cqh;font-weight:600;color:#9c9a95;background:rgba(255,255,255,.08);padding:.4cqh 1.2cqw;border-radius:99px;white-space:nowrap}.tvplate .pk.alt{color:#ffb0b4}
+.tvshelf{position:absolute;left:0;right:0;top:30cqh;height:52cqh;display:flex;align-items:center;justify-content:center;gap:1.2cqw;padding:0 4cqw}
+.tvtile{flex:none;width:11.8cqw;aspect-ratio:3/4.3;border:0;padding:0;background:#111;border-radius:.8cqh;overflow:hidden;box-shadow:0 1.2cqh 2.4cqh rgba(0,0,0,.35);transition:transform .14s var(--ease),box-shadow .14s;cursor:pointer}
+.tvtile img,.tvtile .tvph{width:100%;height:100%;object-fit:cover;display:block}
+.tvtile.sel{transform:scale(1.18);box-shadow:0 0 0 .6cqh #e4000f,0 2cqh 4cqh rgba(0,0,0,.5);z-index:2}
+.tvtile.sel.pop{animation:tvpop .16s var(--ease)}
+@keyframes tvpop{from{transform:scale(1.08)}to{transform:scale(1.18)}}
+.tvtile.fac::after{content:"";position:absolute;right:.6cqh;top:.6cqh;width:1.6cqh;height:1.6cqh;border-radius:50%;background:#ffd400;box-shadow:0 0 0 .3cqh rgba(0,0,0,.4)}
+.tvtile{position:relative}
+.tvshelf .more{position:absolute;top:50%;transform:translateY(-50%);font-size:3cqh;color:rgba(27,27,32,.55)}.tvshelf .more.l{left:1cqw}.tvshelf .more.r{right:1cqw}
+.tvph{display:grid;place-items:center;background:linear-gradient(180deg,#2a2a33,#15151a);color:#fff}.tvph span{font-family:var(--pixel);font-size:2.2cqh;background:#e4000f;padding:.6cqh 1cqw;border:.3cqh solid #fff;border-radius:.4cqh}
+.tvph.big{width:22cqw;aspect-ratio:3/4.3;border-radius:1cqh}
+.tvbar{position:absolute;left:0;right:0;bottom:0;height:9cqh;background:#1b1b20;color:#d6d4ce;display:flex;align-items:center;gap:3cqw;padding:0 3cqw;font-size:3cqh}
+.tvbar i{font-style:normal;font-weight:700;color:#fff;background:#2a2a33;border:1px solid #555;border-radius:.6cqh;padding:.3cqh 1cqw;margin-right:.8cqw;font-size:2.6cqh}
+.tvbar .r{margin-left:auto;color:#9c9a95}
+.tvempty{position:absolute;inset:9cqh 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5cqh;text-align:center;padding:0 10cqw}.tvempty b{font-size:4cqh}.tvempty span{font-size:2.8cqh;color:#4b4b52;max-width:60cqw}
+.tvdet{position:absolute;inset:9cqh 0;display:grid;grid-template-columns:30cqw 1fr;gap:4cqw;padding:4cqh 5cqw;align-items:center}
+.tvdetart img{width:100%;aspect-ratio:3/4.3;object-fit:cover;border-radius:1cqh;box-shadow:0 2cqh 4cqh rgba(0,0,0,.45)}
+.tvdettitle{font-size:5.2cqh;font-weight:800;line-height:1.1;margin-bottom:1cqh}.tvdetmeta{font-size:3cqh;color:#4b4b52;margin-bottom:3cqh}
+.tvslots .lbl{display:block;font-size:2.4cqh;letter-spacing:.2cqw;color:#4b4b52;margin-bottom:1cqh;font-weight:700}
+.tvslots .slots{display:flex;gap:1.5cqw}.tvslots .slots i{width:9cqw;aspect-ratio:4/3;background:rgba(27,27,32,.12);border:.3cqh dashed rgba(27,27,32,.35);border-radius:.8cqh}
+.tvslots .note{display:block;font-size:2.2cqh;color:#6b6b72;margin-top:1cqh}
+/* on-screen pad */
+.tvpad{display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap}
+.tvpad .dpad{display:grid;grid-template-columns:34px 34px 34px;grid-template-rows:34px 34px 34px;gap:2px}
+.tvpad .pb{font:700 12px var(--ui,inherit);color:#fff;background:#2a2a33;border:1px solid var(--line2);border-radius:8px;cursor:pointer;display:grid;place-items:center;min-width:34px;height:34px}
+.tvpad .pb:hover{background:#3a3a44}.tvpad .pb:focus-visible{outline:2px solid var(--red3)}
+.tvpad .up{grid-column:2;grid-row:1}.tvpad .left{grid-column:1;grid-row:2}.tvpad .right{grid-column:3;grid-row:2}.tvpad .down{grid-column:2;grid-row:3}
+.tvpad .abh{display:flex;gap:8px;align-items:center}.tvpad .pb.a,.tvpad .pb.b{width:40px;height:40px;border-radius:50%;background:var(--red);border-color:#ff5a63;font-size:14px}.tvpad .pb.b{background:#8a0008}.tvpad .pb.home{padding:0 12px;border-radius:999px;font-size:11px;letter-spacing:1px}
+.tvhint{width:100%;text-align:center;color:var(--muted)}
+/* side panel */
+.tvside{overflow:auto;min-height:0;padding-right:4px}
+.tvs{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.tvs .lbl{font-family:var(--pixel);font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
+.tvkv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:8px 0 0;font-size:12.5px}.tvkv dt{color:var(--muted)}.tvkv dd{margin:0}
+.lv{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:1px 6px;border-radius:999px;margin-left:4px;vertical-align:middle}
+.lv.known{background:rgba(52,209,110,.15);color:#6fe39a}.lv.estimated{background:rgba(240,160,48,.15);color:#f6c26f}.lv.unknown{background:rgba(255,255,255,.08);color:#bdbbb5}
+.tvassume{margin:0;padding:0;list-style:none;font-size:12px;color:var(--ink2)}.tvassume li{margin:0 0 6px}.tvassume .lv{margin:0 4px 0 0}
+.tvsel{width:100%;margin-top:6px;background:#0b0b0e;color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:6px;font:inherit;font-size:12px}
+.tvdiff{margin-top:8px}.tvdiff .mut{color:var(--muted)}
+.tvfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2);flex-wrap:wrap}.tvfoot .r{display:flex;gap:6px}
+/* responsive: the side panel goes below the stage on narrower screens; the stage stays 16:9 and uncropped */
+@media (max-width:1100px){.tvmain{display:block;overflow:auto}.tvstagewrap{display:block}.tvpad{margin:10px 0 12px}.tvside{max-height:none;overflow:visible}.tvstage{width:100%;height:auto}}
+@media (max-width:640px){.tvmodal{padding:6px}.tvbox{max-height:calc(100vh - 12px);border-radius:10px}.tvhd{padding:8px 10px}.tvt h2{font-size:14px}.tvmain{padding:8px 10px}.tvpad{gap:14px}.tvtools .btn{padding:6px 8px;font-size:12px}}
+@media (prefers-reduced-motion:reduce){.tvtile,.tvbtn{transition:none}.tvtile.sel.pop{animation:none}}
+.tvmodal .btn.active{border-color:var(--red3);color:#fff;background:rgba(228,0,15,.15)}

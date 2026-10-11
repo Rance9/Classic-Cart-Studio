@@ -8,6 +8,7 @@ Classic Cart Studio consists of a website (static files served by GitHub Pages a
 
 - your collection (selected games, version decisions, name, status, import baseline), automatic draft and snapshots (`studio-collection-v1`, `studio-snapshots-v1`, legacy `nes-classic-selection-v1`, `nes-classic-decisions-v1`);
 - favorites, list/grid view, Extended Library switch, first-run flag (`nes-classic-favorites-v1`, `nes-classic-view-v1`, `studio-ext-v1`, `studio-welcomed-v1`);
+- the Preview on TV display treatment (`studio-tv-v1`: clean or retro),
 - the id of the last collection handed to the desktop application (`studio-handoff-v1`, an identifier only). The website holds no token for the backend on your computer: it never connects to it directly.
 
 You can remove all of it by clearing the site's data in your browser. "Export Studio Data" writes the same information to a file you keep; "Import Studio Data" reads such a file. A browser profile and the Windows application's window have separate storage; the handoff below exists so you do not have to start over.
