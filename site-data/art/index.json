@@ -1540,9 +1540,11 @@
   "width": 480
  },
  "d2fbe8b10f762099": {
-  "source": "error",
-  "error": "cannot identify image file <_io.BytesIO object at 0x0000022F33D5A7A0>",
-  "nointro_name": "Dr. Mario (Japan, USA) (En) (Rev 1)"
+  "source": "libretro-thumbnails",
+  "file": "Dr. Mario (Japan, USA) (En) (Rev 1).png -> Dr. Mario (Japan, USA).png",
+  "url": "https://raw.githubusercontent.com/libretro-thumbnails/Nintendo_-_Nintendo_Entertainment_System/master/Named_Boxarts/Dr.%20Mario%20%28Japan%2C%20USA%29.png",
+  "nointro_name": "Dr. Mario (Japan, USA) (En) (Rev 1)",
+  "width": 480
  },
  "01d303a8c0ed6f37": {
   "source": "libretro-thumbnails",

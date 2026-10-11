@@ -224,10 +224,10 @@ button.det,button.star{font:inherit}
 #hover{position:fixed;z-index:60;pointer-events:none;display:none;background:linear-gradient(180deg,#26262e,#16161b);border:1px solid var(--line2);border-top:3px solid var(--red);border-radius:var(--r2);box-shadow:var(--sh3);padding:8px}#hover img{width:360px;max-width:80vw;height:auto;display:block;border-radius:6px}#hover .cap{font-size:12.5px;color:var(--ink2);margin-top:6px;max-width:360px;font-weight:600}
 /* ---------- misc ---------- */
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(10px);background:#1d1d23;color:#fff;padding:10px 16px;border-radius:var(--r2);font-size:13px;opacity:0;transition:opacity .2s,transform .2s;z-index:70;pointer-events:none;border:1px solid var(--line2);border-left:4px solid var(--red);box-shadow:var(--sh2);max-width:min(560px,90vw)}.toast.show{opacity:1;transform:translateX(-50%)}
-.howto{max-width:var(--maxw);margin:0 auto;padding:0 20px 30px}.howto .box{background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r3);padding:16px 18px}
+.howto{max-width:var(--maxw);margin:0 auto;padding:0 20px 30px}.howto .box{background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r3);padding:16px 170px 16px 18px}@media (max-width:900px){.howto .box{padding-right:18px}}
 .howto h2{font-family:var(--display);font-size:18px;margin:0 0 10px;letter-spacing:1px;text-transform:uppercase}.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.step{display:flex;gap:10px;font-size:13px;color:var(--ink2)}.step .n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-content:center;font-family:var(--pixel);font-size:9px}
 footer{border-top:1px solid var(--line2);background:linear-gradient(180deg,#0f0f12,#070708);padding:22px 20px 26px}footer .in{max-width:var(--maxw);margin:0 auto}
-footer .cast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:16px 18px;padding:10px 0 14px;border-bottom:1px solid var(--line)}footer .cast img{opacity:.9;transition:transform .15s,opacity .15s}footer .cast img:hover{transform:translateY(-4px);opacity:1}
+footer .credits{padding:6px 0 10px;border-bottom:1px solid var(--line)}footer .credits .cap{text-align:center;margin:0 0 4px;color:var(--muted)}footer .castwrap{overflow:hidden;container-type:inline-size}footer .cast{display:flex;flex-wrap:nowrap;align-items:flex-end;justify-content:flex-start;gap:14px;width:max-content;padding:6px 0 4px;animation:paradeWalk 150s linear infinite alternate}footer .cast img{max-height:44px;width:auto;opacity:.9;transition:transform .15s,opacity .15s}footer .cast img:hover{transform:translateY(-4px);opacity:1}@media (prefers-reduced-motion:reduce){footer .cast{animation:none}footer .castwrap{overflow-x:auto;scrollbar-width:thin}}
 footer .support{font-size:12.5px;color:var(--muted);max-width:1100px;margin:14px auto 0;text-align:center;line-height:1.6}footer .support a{color:var(--ink2);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px}footer .support a:hover{color:#fff;text-decoration:underline}footer .support .heart{image-rendering:pixelated;flex:none}
 footer .legal{font-size:12px;color:var(--dim);max-width:1100px;margin:14px auto 0;text-align:center;line-height:1.6}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -340,7 +340,7 @@ __STUDIO_CSS__
 <div class="step"><span class="n">3</span><div><b>Keep it.</b> Your draft is saved in this browser automatically; <b>Save / Load</b> keeps a portable file (no game files inside).</div></div>
 <div class="step"><span class="n">4</span><div><b>Install on NES Classic</b> checks and prepares the collection on this computer and shows, honestly, what the console steps are. <button class="btn sm secondary" type="button" data-guide="start">Open the full guide</button></div></div>
 </div><p class="small" style="margin:12px 0 0">Nothing here downloads games or changes your console. Hakchi2 CE provides the console-side technology — see <a href="#" data-guide="tech">About the Technology</a>.</p></div></section>
-<footer><div class="in"><div class="cast" aria-label="Character parade">__FOOTER_CAST__</div>
+<footer><div class="in"><div class="credits"><p class="small cap">Character credits · the pixel characters shown around the Studio; hover one for its game and origin</p><div class="castwrap"><div class="cast" aria-label="Character credits">__FOOTER_CAST__</div></div></div>
 <p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · Classic Cart Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
 <p class="legal">Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; see hakchi/LICENSE) — this Studio prepares collections for it and does not reimplement it. Personal, non-commercial fan project for one privately owned NES Classic Edition. Not affiliated with, sponsored or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and all character names and artwork are trademarks and copyrights of Nintendo or their respective owners; the pixel artwork, console lockup and interface icons shown here are Nintendo's own renderings read from this console's system backup and the box art is cached locally from community scans — none of it is redistributed with this file. Catalog <span id="gen"></span>.</p></div></footer>
 <div id="hkpanel" class="modal" role="dialog" aria-modal="true" aria-labelledby="hkTitle"><div class="mbox"><div class="mhd"><h2 id="hkTitle">Install on NES Classic</h2><span class="small" id="hkSub"></span><button class="btn sm" id="hkClose">Close</button></div><div id="hkBody"></div></div></div>
@@ -723,13 +723,13 @@ render();
 
 LEGAL_PRIVATE = TEMPLATE[TEMPLATE.index('<p class="legal">'):TEMPLATE.index("</p></div></footer>") + len("</p></div></footer>")]
 LEGAL_PUBLIC = ('<p class="legal">' + DISCLAIMER + ' Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3, a separate download; this Studio prepares collections for it and does not bundle or reimplement it). '
-    'The pixel artwork and interface icons are Nintendo\'s own renderings from the NES Classic Edition system software and documented community sprite rips (origins in the parade above), and the box art comes from community thumbnail collections; they are shown to identify and present the games, and all rights remain with their owners. No game files or console software are distributed with this website. '
+    'The pixel artwork and interface icons are Nintendo\'s own renderings from the NES Classic Edition system software and documented community sprite rips (origins in the character credits above), and the box art comes from community thumbnail collections; they are shown to identify and present the games, and all rights remain with their owners. No game files or console software are distributed with this website. '
     'Source code, releases and how to verify a download: <a href="https://github.com/Rance9/Classic-Cart-Studio" rel="noopener">github.com/Rance9/Classic-Cart-Studio</a>. Catalog <span id="gen"></span>.</p></div></footer>')
 
-def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title: str = "") -> str:
+def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title: str = "", loading: str = "lazy") -> str:
     f = index.get((folder, stem + ".png"))
     if not f: return ""
-    return f'<img class="px {cls}" src="brand/{folder}/{stem}.png" width="{f["w"]*scale}" height="{f["h"]*scale}" alt="" title="{title}" loading="lazy">'
+    return f'<img class="px {cls}" src="brand/{folder}/{stem}.png" width="{f["w"]*scale}" height="{f["h"]*scale}" alt="" title="{title}" loading="{loading}">'
 
 def main():
     data = json.load(open(os.path.join(SRC, "catalog.json"), encoding="utf-8"))
@@ -780,10 +780,11 @@ def main():
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
     studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
-    foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}") for st, n, g in ROSTER)
-    foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}") for st, n in WEB_ROSTER)
+    foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}", "eager") for st, n, g in ROSTER)   # the credits strip walks, so its sprites load up front
+    foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}", "eager") for st, n in WEB_ROSTER)
+    howto_loading = "eager"
     empty = "".join(sprite(d, st, sc, index) for d, st, sc in EMPTY_CAST)
-    howto = "".join(sprite(d, st, sc, index) for d, st, sc in HOWTO_CAST)
+    howto = "".join(sprite(d, st, sc, index, "", "", "eager") for d, st, sc in HOWTO_CAST)
     filt = "".join(sprite(d, st, sc, index) for d, st, sc in FILTERS_CAST)
     html = (TEMPLATE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__HERO_CAST__", hero).replace("__FOOTER_CAST__", foot)
             .replace("__EMPTY_CAST__", empty).replace("__HOWTO_CAST__", howto).replace("__FILTERS_CAST__", filt)

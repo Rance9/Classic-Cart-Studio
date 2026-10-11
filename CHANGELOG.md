@@ -10,6 +10,10 @@
 
 ## Website — 2026-10-11 (after 0.2.1; no new installer)
 
+- Preview on TV has the controller's SELECT and START buttons: SELECT cycles the sort order the way the real HOME menu does (title, two-player games, recently played, number of times played, release date, publisher; the two play-history orders are labeled unknown and shown in title order), START opens the highlighted game's details. The S key is SELECT on a keyboard.
+- Dr. Mario has its box art (the thumbnail source lists its Rev 1 scan as a link to the base scan; the fetcher follows such links now).
+- How it works keeps its right-hand characters clear of the text again at every width.
+- The footer's character wall is a compact one-row character credits strip that strolls across the page (hover a character for its game and origin); reduced-motion settings make it a scrollable row instead.
 - Preview on TV always shows a menu: while the tray is empty it shows the 30 built-in games as a clearly labeled sample (red notice on the screen, side panel, subtitle and saved image all say the tray is empty and that this is not your collection).
 - The character parade in the hero walks at every width now (it used to walk only when the row did not fit): the row starts centered, strolls to the right edge, back to the left and home, over 48 seconds. Phones still show the characters in wrapped rows, and reduced-motion settings stop the walk.
 - The My Collection menu is organized in layers: New Collection, **Open ▸** (games already on this computer, saved collection file, restore a previous collection), Add Your Own Game, Preview on TV, **More ▸** (collection information, show the welcome screen) and Continue in Desktop App. Submenus open in place (one at a time) with the mouse or the keyboard (Enter, Space, → open; ← closes; ↑ ↓ move; Esc closes the menu).

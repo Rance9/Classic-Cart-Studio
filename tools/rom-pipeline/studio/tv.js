@@ -10,7 +10,11 @@
 const TV_KEY='studio-tv-v1';
 const TV_SAMPLE_NOTICE='Your tray is empty — this is a sample of the 30 built-in games the NES Classic ships with. Select games to preview your own menu.';
 const TV_SKIN={name:'stock-inspired',visible:7,tileW:0.118,tileH:0.46,gap:0.012,bands:{top:0.09,shelf:0.70,bottom:0.09}};
-let TV={open:false,mode:'proposed',view:'menu',i:0,treatment:'clean',proj:null,returnTo:null,focusId:null,trap:null};
+let TV={open:false,mode:'proposed',view:'menu',i:0,treatment:'clean',proj:null,returnTo:null,focusId:null,trap:null,sort:'title'};
+// The real HOME menu's SELECT button cycles the sort order: title, two-player games, recently played, number of times played, release date, publisher (Nintendo, 2016-09-30 press release).
+const TV_SORTS=[{id:'title',label:'Title',level:'estimated',note:'By title, the sort name the preparation writes for Hakchi2 CE ("The" ignored).'},{id:'two',label:'Two-player games',level:'estimated',note:'Games with a two-player mode first, then by title.'},{id:'recent',label:'Recently played',level:'unknown',note:'The console sorts by its own play history, which this preview cannot know; shown in title order.'},{id:'times',label:'Number of times played',level:'unknown',note:'The console counts plays on the device; this preview has no play history, so this shows the title order.'},{id:'date',label:'Release date',level:'estimated',note:'By release year from the catalog, then by title.'},{id:'publisher',label:'Publisher',level:'estimated',note:'By publisher name from the catalog, then by title.'}];
+function tvSortInfo(){ return TV_SORTS.find(s=>s.id===TV.sort)||TV_SORTS[0]; }
+function tvSortLabel(){ return tvSortInfo().label; }
 
 function tvSortTitle(t){ return String(t||'').toLowerCase().replace(/^the\s+/,''); }   // Hakchi's SortRawTitle rule (what prepare writes)
 function tvFactoryTitle(code){ return (window.FACTORY_TITLES&&FACTORY_TITLES[code])||code; }
@@ -47,7 +51,9 @@ function tvProject(mode){
   counts:{builtin:entries.filter(e=>e.kind==='builtin').length,kept:entries.filter(e=>e.kind==='factory-kept').length,added:entries.filter(e=>e.kind==='added').length,alternate:entries.filter(e=>e.kind==='alternate').length,missing:entries.filter(e=>e.ready==='missing').length,ready:entries.filter(e=>e.ready==='ready').length,hardware:entries.filter(e=>e.hardware).length}};
  TV.proj=proj; return proj;
 }
-function tvEntries(){ return tvProject(TV.mode).entries; }
+function tvEntries(){ const e=tvProject(TV.mode).entries.slice(); const t=(a,b)=>a.sort<b.sort?-1:a.sort>b.sort?1:(a.id<b.id?-1:1); const two=x=>/[2-4]/.test(String(x.players||''))?0:1;
+ if(TV.sort==='two') e.sort((a,b)=>two(a)-two(b)||t(a,b)); else if(TV.sort==='date') e.sort((a,b)=>String(a.year||'9999').localeCompare(String(b.year||'9999'))||t(a,b)); else if(TV.sort==='publisher') e.sort((a,b)=>String(a.publisher||'\uffff').localeCompare(String(b.publisher||'\uffff'))||t(a,b));
+ return e; }
 
 // ---- markup (created once) ----
 function tvEnsure(){
@@ -61,8 +67,9 @@ function tvEnsure(){
   <div class="tvmain">
    <div class="tvstagewrap"><div class="tvstage" id="tvStage" tabindex="0" aria-label="Simulated NES Classic HOME menu, 16 by 9" aria-describedby="tvLive"><div class="tvscreen" id="tvScreen"></div><div class="tvcrt" aria-hidden="true"></div></div>
     <div class="tvpad" id="tvPad" aria-label="On-screen controls"><div class="dpad"><button class="pb up" data-act="up" aria-label="Up">▲</button><button class="pb left" data-act="left" aria-label="Left">◀</button><button class="pb right" data-act="right" aria-label="Right">▶</button><button class="pb down" data-act="down" aria-label="Down">▼</button></div>
+     <div class="ssh"><button class="pb sel" data-act="select" aria-label="SELECT, change the sort order">SELECT</button><button class="pb start" data-act="start" aria-label="START, open the highlighted game (its details here; the console would start the game)">START</button></div>
      <div class="abh"><button class="pb b" data-act="b" aria-label="B, back">B</button><button class="pb a" data-act="a" aria-label="A, select">A</button><button class="pb home" data-act="home" aria-label="HOME, back to the menu">HOME</button></div>
-     <div class="small tvhint">← → browse · Enter / A open · Backspace / B back · Esc close</div></div>
+     <div class="small tvhint">← → browse · Enter / A / START open · Backspace / B back · S / SELECT sort · Esc close</div></div>
    </div>
    <aside class="tvside" id="tvSide"></aside>
   </div>
@@ -103,7 +110,8 @@ function tvAct(act){
  if(act==='left') TV.i=(TV.i-1+n)%n; else if(act==='right') TV.i=(TV.i+1)%n;
  else if(act==='up') TV.i=Math.max(0,TV.i-TV_SKIN.visible); else if(act==='down') TV.i=Math.min(n-1,TV.i+TV_SKIN.visible);
  else if(act==='home') TV.i=0; else if(act==='end') TV.i=n-1;
- else if(act==='a'){ TV.view='details'; tvDraw(); return; }
+ else if(act==='a'||act==='start'){ TV.view='details'; tvDraw(); return; }
+ else if(act==='select'){ const cur=(ents[TV.i]||{}).id; const k=TV_SORTS.findIndex(s=>s.id===TV.sort); TV.sort=TV_SORTS[(k+1)%TV_SORTS.length].id; const ne=tvEntries(); const j=ne.findIndex(x=>x.id===cur); TV.i=j>=0?j:0; tvDraw(); tvSay('Sort order: '+tvSortLabel()); return; }
  else if(act==='b'){ closeTv(); return; }
  tvDraw();
 }
@@ -111,7 +119,7 @@ function tvKey(e){
  const t=e.target; if(t&&t.matches&&t.matches('input,textarea,select')) return;
  const k=e.key; let act=null;
  if(k==='ArrowLeft') act='left'; else if(k==='ArrowRight') act='right'; else if(k==='ArrowUp') act='up'; else if(k==='ArrowDown') act='down';
- else if(k==='Home') act='home'; else if(k==='End') act='end'; else if(k==='Enter'||k===' '||k==='a'||k==='A') act='a'; else if(k==='Backspace'||k==='b'||k==='B') act='b';
+ else if(k==='Home') act='home'; else if(k==='End') act='end'; else if(k==='Enter'||k===' '||k==='a'||k==='A') act='a'; else if(k==='Backspace'||k==='b'||k==='B') act='b'; else if(k==='s'||k==='S') act='select';
  else if(k==='Escape'){ e.preventDefault(); if(TV.view==='details'){ TV.view='menu'; tvDraw(); } else closeTv(); return; }
  else if(k==='Tab'){ tvTrapTab(e); return; }
  if(act){ if(act==='a'&&t&&t.closest&&t.closest('.tvtools,.tvside,.tvpad')&&k!=='a'&&k!=='A') return; e.preventDefault(); tvAct(act); }
@@ -140,7 +148,7 @@ function tvDraw(){
  }
  const vis=TV_SKIN.visible; let start=Math.max(0,Math.min(TV.i-Math.floor(vis/2),n-vis)); if(n<=vis) start=0;
  const shown=ents.slice(start,start+vis).map((x,k)=>tvTile(x,start+k,start+k===TV.i)).join('');
- scr.innerHTML=`<div class="tvtop"><span class="nm">${smp?'Tray is empty · sample':esc(COLL.name)}</span><span class="cnt">${TV.i+1} / ${n}${smp?' built-in':''}</span></div>${smp?`<div class="tvnotice" role="status">${esc(TV_SAMPLE_NOTICE)}</div>`:''}
+ scr.innerHTML=`<div class="tvtop"><span class="nm">${smp?'Tray is empty · sample':esc(COLL.name)}</span><span class="cnt">${TV.i+1} / ${n}${smp?' built-in':''} · ${esc(tvSortLabel())}</span></div>${smp?`<div class="tvnotice" role="status">${esc(TV_SAMPLE_NOTICE)}</div>`:''}
   <div class="tvplate"><span class="pt">${esc(e.title)}</span>${e.kind==='factory-kept'||e.kind==='builtin'?'<span class="pk">built-in</span>':e.kind==='alternate'?'<span class="pk alt">alternate version</span>':''}</div>
   <div class="tvshelf" style="--vis:${vis}">${start>0?'<span class="more l" aria-hidden="true">◀</span>':''}${shown}${start+vis<n?'<span class="more r" aria-hidden="true">▶</span>':''}</div>
   <div class="tvbar"><span><i>◀ ▶</i> browse</span><span><i>A</i> open</span><span class="r">${n} game${n===1?'':'s'}</span></div>`;
@@ -159,6 +167,7 @@ function tvSide(e){
   <dl class="tvkv"><dt>Position</dt><dd>${TV.i+1} of ${p.count} ${lab('estimated')}</dd><dt>Status</dt><dd>${esc(tvKindText(e.kind))} ${lab('known')}</dd>
   <dt>Game file</dt><dd>${e.ready==='n/a'?'not needed (already on the console)':e.ready==='ready'?'ready on this computer':e.ready==='missing'?'missing on this computer':'unknown here'} ${lab(e.ready==='unknown'?'unknown':'known')}</dd>
   <dt>Planned core</dt><dd>${esc(e.core)} ${lab(e.core==='unknown'?'unknown':'known')}</dd>${e.hardware?`<dt>Controller</dt><dd>${esc(e.hardware)} ${lab('known')}</dd>`:''}${e.personal?'<dt>Source</dt><dd>your own game ${lab(\'known\')}</dd>':''}</dl></div>`; }
+ h+=`<div class="tvs"><div class="lbl">Sort order</div><b>${esc(tvSortLabel())}</b><div class="small">${lab(tvSortInfo().level)} ${esc(tvSortInfo().note)} SELECT changes it, as on the console.</div></div>`;
  h+=`<div class="tvs"><div class="lbl">How sure is this?</div><ul class="tvassume">${p.assumptions.map(a=>`<li>${lab(a.level)} ${esc(a.text)}</li>`).join('')}</ul></div>`;
  h+=p.sample?`<div class="tvs"><div class="lbl">Current vs proposed</div><div class="small">Nothing to compare while the tray is empty: the sample is not a plan.</div></div>`:tvCompareHtml();
  s.innerHTML=h; const sel=s.querySelector('#tvSnap'); if(sel) sel.onchange=()=>{ s.querySelector('#tvDiff').innerHTML=tvDiffHtml(sel.value); };
@@ -184,7 +193,7 @@ async function tvSaveImage(){
  const ents=tvEntries(); const e=ents[TV.i]; const W=1920,H=1080; const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
  const g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'#eef0f3'); g.addColorStop(1,'#c9ced5'); x.fillStyle=g; x.fillRect(0,0,W,H);
  x.fillStyle='#1b1b20'; x.fillRect(0,0,W,H*TV_SKIN.bands.top); x.fillStyle='#f3f1ec'; x.font='600 38px "Segoe UI", system-ui, sans-serif'; x.textBaseline='middle'; x.fillText(tvProject(TV.mode).sample?'Tray is empty · sample of the 30 built-in games':COLL.name,48,H*TV_SKIN.bands.top/2); x.textAlign='right'; x.fillText(ents.length?`${TV.i+1} / ${ents.length}`:'0 games',W-48,H*TV_SKIN.bands.top/2); x.textAlign='left';
- x.fillStyle='#1b1b20'; x.fillRect(0,H*(1-TV_SKIN.bands.bottom),W,H*TV_SKIN.bands.bottom); x.fillStyle='#d6d4ce'; x.font='500 28px "Segoe UI", system-ui, sans-serif'; x.fillText(tvProject(TV.mode).sample?'Proposed Menu Preview · simulation · tray empty: sample of the 30 built-in games, not your collection':'◀ ▶ browse     A open     Proposed Menu Preview · simulation',48,H*(1-TV_SKIN.bands.bottom/2));
+ x.fillStyle='#1b1b20'; x.fillRect(0,H*(1-TV_SKIN.bands.bottom),W,H*TV_SKIN.bands.bottom); x.fillStyle='#d6d4ce'; x.font='500 28px "Segoe UI", system-ui, sans-serif'; x.fillText(tvProject(TV.mode).sample?'Proposed Menu Preview · simulation · tray empty: sample of the 30 built-in games, not your collection':'◀ ▶ browse     A open     SELECT sort: '+tvSortLabel()+'     Proposed Menu Preview · simulation',48,H*(1-TV_SKIN.bands.bottom/2));
  if(e){ x.fillStyle='rgba(27,27,32,.9)'; const pw=Math.min(W-200,Math.max(420,x.measureText(e.title).width+120)); x.fillRect((W-pw)/2,H*0.13,pw,76); x.fillStyle='#fff'; x.font='700 40px "Segoe UI", system-ui, sans-serif'; x.textAlign='center'; x.fillText(e.title,W/2,H*0.13+38); x.textAlign='left'; }
  const vis=TV_SKIN.visible; let start=Math.max(0,Math.min(TV.i-Math.floor(vis/2),ents.length-vis)); if(ents.length<=vis) start=0; const shown=ents.slice(start,start+vis);
  const tw=W*TV_SKIN.tileW, th=tw*4.3/3, gap=W*TV_SKIN.gap; const total=shown.length*tw+(shown.length-1)*gap; let px=(W-total)/2; const ty=H*0.30;
