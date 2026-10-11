@@ -292,6 +292,7 @@ __STUDIO_CSS__
    <button id="mOwn" class="mi" role="menuitem"><b>Add Your Own Game</b><span class="d">Bring in a game file you own that is not in the Game Library.</span></button>
    <button id="mRestore" class="mi" role="menuitem"><b>Restore a Previous Collection</b><span class="d">Automatic snapshots kept in this browser.</span></button>
    <button id="mTv" class="mi" role="menuitem"><b><img class="tvmini" src="brand/public/as-seen-on-tv.svg" alt="">Preview on TV</b><span class="d">See the menu this collection proposes for your NES Classic, the way it would look on the TV (16:9, a simulation).</span></button>
+   <button id="mWelcome" class="mi" role="menuitem"><b>Show the welcome screen</b><span class="d">The start-up screen with the three ways to begin. Its check box decides whether it opens on every start.</span></button>
    <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button>
    <div class="sep" id="mDesktopSep"></div>
    <button id="mDesktop" class="mi" role="menuitem" hidden><b>Continue in Desktop App</b><span class="d">Take this collection into Classic Cart Studio for Windows to find your game files and prepare it for your NES Classic.</span></button></div></div>

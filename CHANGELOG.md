@@ -19,7 +19,7 @@
 - Phones: the letter strip wraps instead of being cut off, the stats line is shown (it was hidden by the phone layout), the storage pill wraps on its own row, and the character parade wraps into rows inside the screen instead of being clipped at the edges. Nothing bleeds past the left or right edge at any width (checked from 360 to 1366 px).
 - The Nintendo Entertainment System wordmark in the hero is drawn at its natural pixel size (it was scaled to 80 %, which blurred the pixel art at 100 % zoom).
 - The B pixel art on the Tray button is the same size as the A on Install on NES Classic.
-- The welcome screen shows on every start by default; a **Show this welcome on every start** box on it (checked by default) turns it off, and the choice is kept (and mirrored in the desktop application's durable state).
+- The welcome screen shows on every start by default; a **Show this welcome on every start** box on it (checked by default) turns it off, and the choice is kept (and mirrored in the desktop application's durable state). **My Collection → Show the welcome screen** opens it again at any time; ticking the box there restores it on every start.
 - The Active area stays visible when nothing is active and says so (No filters · curated library · Title A–Z) instead of disappearing.
 - Clear all (in the Active filters row) now clears everything shown there, the Extended Library switch included, and a click anywhere on a chip counts (it ignored clicks on the chip's text and did not turn the Extended Library off).
 - The Active filters (chips) share the letter row: letters on the left, Active on the right when both fit; when they do not, Active moves below the letters and both are centered. Measured, at any width.
