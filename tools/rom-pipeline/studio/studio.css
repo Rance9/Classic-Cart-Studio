@@ -105,9 +105,13 @@
 .parade .cast img{height:auto;width:auto;max-height:34px;max-width:48px}.parade .cast img.lg{max-height:36px}.parade .cast img.float{margin-bottom:8px}.parade .cast img.f2{margin-bottom:12px}.parade .cast img.f3{margin-bottom:5px}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media (max-width:1400px){.hardware svg{max-width:120px}.hardware .pad{max-width:62px}}
-@media (max-width:1100px){.hero h1{white-space:nowrap}
- .parade .cast{justify-content:flex-start;overflow:visible;width:max-content;animation:paradeWalk 48s ease-in-out infinite alternate}.parade{overflow:hidden}
- @keyframes paradeWalk{from{transform:translateX(0)}to{transform:translateX(calc(100vw - 100% - 24px))}}}
+@media (max-width:1100px){.hero h1{white-space:nowrap}}
+/* the character parade walks at every width (owner, 2026-10-11): the row slides across the free space of the hero band,
+   starting centered, out to the right edge, back to the left edge and home again; when the row is wider than the band the
+   same rule slides the overflow into view instead. Phones wrap the row (below) and reduced motion stops it. */
+.parade{overflow:hidden;container-type:inline-size}
+.parade .cast{justify-content:flex-start;overflow:visible;width:max-content;animation:paradeWalk 48s ease-in-out infinite alternate}
+@keyframes paradeWalk{0%{transform:translateX(calc((100cqw - 100%) / 2))}50%{transform:translateX(calc(100cqw - 100%))}100%{transform:translateX(0)}}
 @media (prefers-reduced-motion:reduce){.parade .cast{animation:none!important}.parade{overflow-x:auto;scrollbar-width:thin}}
 @media (max-width:640px){.stickyhead{position:static;box-shadow:none}.toolbar{position:sticky;top:0;z-index:30;box-shadow:0 8px 30px rgba(0,0,0,.45)}.hero .lede,.hero .pills{display:none}.hero h1{font-size:18px}}
 /* ---- toolbar: task groups, no duplicate brand ---- */
