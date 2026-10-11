@@ -315,7 +315,7 @@ __STUDIO_CSS__
 </div>
 <div class="toolsfold" id="toolsFold">
 <div class="row tools">
- <input id="q" type="search" placeholder="Search title or No-Intro name…" aria-label="Search">
+ <input id="q" type="search" placeholder="Search games (dr mario, smb3, zelda 2, megaman…)" aria-label="Search games" title="Words in any order; punctuation, case and accents do not matter; roman numerals and digits are interchangeable; one typo is tolerated; publisher, year and genre are searched too">
  <button id="filtersBtn" class="btn" aria-haspopup="dialog"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h12M4 8h8M6 13h4"/></svg>Filter &amp; Sort<span class="badge" id="filtersBadge" hidden></span></button>
  <div class="menuwrap"><button id="selectBtn" class="btn" aria-haspopup="menu">Select<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
   <div class="menu" id="selectMenu" role="menu" hidden><button id="selVis" class="mi" role="menuitem">Select all visible</button><button id="unselVis" class="mi" role="menuitem">Unselect visible</button><button id="selKachi" class="mi" role="menuitem">Select visible kachikachi + verified</button><div class="sep"></div><button id="clear" class="mi danger" role="menuitem"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Clear selection</button></div></div>
@@ -453,9 +453,58 @@ function storageDetails(){ const m=storageModel(); const o=st.overhead_estimates
 renderStorage(); $('storage').onclick=storageDetails;
 function verClass(g){ return g.selection_status==='review'?'review':(g.nointro_match?'verified':'cartdb'); }
 function playersClass(g){ const p=g.players||''; if(!p) return '?'; if(p==='1') return '1'; if(p==='2') return g.simultaneous==='simultaneous'?'2sim':g.simultaneous==='alternating'?'2alt':'2'; return '3+'; }
-function visible(){ const q=$('q').value.toLowerCase(); const y=$('fYear').value,p=$('fPub').value,l=$('fLic').value,ge=$('fGenre').value,pl=$('fPlayers').value,e=$('fEmu').value,v=$('fVer').value,bi=$('fBuilt').value,s=$('fSel').value,rkf=$('fRank').value,inf=$('fInput').value;
+
+// ---- intelligent search (owner, 2026-10-11): not a literal substring test ----
+// Case, punctuation and accents are ignored; words match in any order by prefix; roman numerals and digits are interchangeable
+// (Zelda 2 = Zelda II); common abbreviations expand both ways (dr/doctor, mr/mister, bros/brothers, vs/versus, jr/junior, st/saint, &/and);
+// a run-together query matches the words joined (megaman) or the initials (smb3); one typo is tolerated in words of five letters or more, but only when nothing matches as typed;
+// the title, No-Intro name, built-in title, publisher, year and genre are all searched. With the default title order, results are ranked:
+// exact title, title starts with the query, every word in the title, then matches in the other fields.
+const SEARCH_ROMAN={i:'1',ii:'2',iii:'3',iv:'4',v:'5',vi:'6',vii:'7',viii:'8',ix:'9',x:'10',xi:'11',xii:'12'};
+const SEARCH_ABBR={dr:'doctor',mr:'mister',mrs:'missus',ms:'miss',st:'saint',jr:'junior',vs:'versus',bros:'brothers',ft:'featuring',feat:'featuring',pt:'part',vol:'volume',n:'and',nd:'and'};
+const SEARCH_ABBR_REV=Object.fromEntries(Object.entries(SEARCH_ABBR).map(([k,v])=>[v,k]));
+function searchNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/['\u2019`]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function searchTokens(s){ return searchNorm(s).split(' ').filter(Boolean).map(t=>SEARCH_ROMAN[t]||t); }
+function searchIndexOf(g){
+ if(g._si) return g._si;
+ const title=searchTokens(g.display_title); const idx=(toks)=>({toks, joined:toks.join(''), acro:toks.map(t=>t[0]).join('')});
+ g._si={title:idx(title), rest:idx(searchTokens([g.nointro_name,g.builtin_title,g.publisher,g.year,g.genre].filter(Boolean).join(' ')))};
+ return g._si;
+}
+function searchEdit1(a,b){ // true when a and b differ by at most one edit (insert, delete or substitute)
+ if(a===b) return true; const la=a.length, lb=b.length; if(Math.abs(la-lb)>1) return false;
+ let i=0,j=0,edits=0; while(i<la&&j<lb){ if(a[i]===b[j]){ i++; j++; continue; } if(++edits>1) return false; if(la>lb) i++; else if(lb>la) j++; else { i++; j++; } }
+ return edits+(la-i)+(lb-j)<=1;
+}
+function searchTokenHit(qt, ht, fz){
+ if(ht.startsWith(qt)) return true;
+ const ex=SEARCH_ABBR[qt]; if(ex&&ht.startsWith(ex)) return true;
+ const ab=SEARCH_ABBR_REV[ht]; if(ab&&(ab===qt||ab.startsWith(qt))) return true;
+ const hx=SEARCH_ABBR[ht]; if(hx&&hx.startsWith(qt)) return true;
+ if(fz&&qt.length>=5&&ht.length>=qt.length-1){ if(searchEdit1(qt,ht)) return true; if(ht.length>qt.length&&searchEdit1(qt,ht.slice(0,qt.length))) return true; }
+ return false;
+}
+function searchFieldHit(q, ix, fz){
+ if(ix.joined.includes(q.joined)) return true;                       // "megaman" vs "mega man", "dr mario" vs "dr. mario"
+ if(q.toks.length===1&&q.joined.length>=3&&ix.acro.startsWith(q.joined)) return true;   // "smb3"
+ return q.toks.every(qt=>ix.toks.some(ht=>searchTokenHit(qt,ht,fz)));
+}
+let SEARCH_Q=null, SEARCH_QRAW='', SEARCH_FZ={raw:null, fz:false};
+// one typo is tolerated only when the query matches nothing as typed (so 'contra' does not also pull in 'Remote Control')
+function searchFuzzy(q){ if(SEARCH_FZ.raw===SEARCH_QRAW) return SEARCH_FZ.fz; const fz=!games.some(g=>searchScore(g,q,false)>0); SEARCH_FZ={raw:SEARCH_QRAW, fz}; return fz; }
+function searchQuery(raw){ if(raw===SEARCH_QRAW&&SEARCH_Q) return SEARCH_Q; SEARCH_QRAW=raw; const toks=searchTokens(raw); SEARCH_Q=toks.length?{toks, joined:toks.join(''), norm:searchNorm(raw)}:null; return SEARCH_Q; }
+// 0 = not a match; 1 = exact title; 2 = title starts with the query; 3 = every word in the title; 4 = found in the other fields
+function searchScore(g, q, fz){
+ const si=searchIndexOf(g); const t=si.title;
+ if(t.toks.join(' ')===q.toks.join(' ')) return 1;
+ if(t.joined.startsWith(q.joined)) return 2;
+ if(searchFieldHit(q,t,fz)) return 3;
+ if(searchFieldHit(q,si.rest,fz)) return 4;
+ return 0;
+}
+function visible(){ const q=searchQuery($('q').value); const fz=q?searchFuzzy(q):false; const y=$('fYear').value,p=$('fPub').value,l=$('fLic').value,ge=$('fGenre').value,pl=$('fPlayers').value,e=$('fEmu').value,v=$('fVer').value,bi=$('fBuilt').value,s=$('fSel').value,rkf=$('fRank').value,inf=$('fInput').value;
  return games.filter(g=>{
-  if(q && !(g.display_title+' '+g.nointro_name).toLowerCase().includes(q)) return false;
+  if(q){ const sc=searchScore(g,q,fz); if(!sc) return false; g._ss=sc; }
   if(y && g.year!==y) return false; if(p && g.publisher!==p) return false; if(l && g.licensed!==l) return false;
   if(ge && !(g.genre||'').split(',').map(x=>x.trim()).includes(ge)) return false;
   if(pl){ const pc=playersClass(g); if(pl==='2'){ if(!(pc==='2'||pc==='2sim'||pc==='2alt')) return false; } else if(pc!==pl) return false; }
@@ -507,7 +556,7 @@ function vlReflow(force){ let cols=1, gap=0; if(view==='grid'){ const cs=getComp
   if(cols!==VL.cols||gap!==VL.gap||force){ VL.h.clear(); VL.cols=cols; VL.gap=gap; VL.start=VL.end=-1; } vlPaint(true); }
 function vlSchedule(){ if(VL.raf) return; VL.raf=requestAnimationFrame(()=>{ VL.raf=0; vlPaint(false); }); }
 addEventListener('scroll',vlSchedule,{passive:true});
-function render(){ const vis=visible(); vis.sort((a,b)=>{ if(sortK.startsWith('rank:')){ const x=rankKey(a,sortK), y=rankKey(b,sortK); if(x==null&&y==null) return a.display_title.localeCompare(b.display_title); if(x==null) return 1; if(y==null) return -1; return (x-y)*sortDir; } let x=a[sortK],y=b[sortK]; if(sortK==='sel'){x=sel.has(a.game_id)?1:0;y=sel.has(b.game_id)?1:0;} if(typeof x==='string'){x=x.toLowerCase();y=(y||'').toLowerCase();} return (x>y?1:x<y?-1:0)*sortDir; });
+function render(){ const vis=visible(); const rel=!!searchQuery($('q').value)&&sortK==='display_title'; vis.sort((a,b)=>{ if(rel&&a._ss!==b._ss) return a._ss-b._ss; if(sortK.startsWith('rank:')){ const x=rankKey(a,sortK), y=rankKey(b,sortK); if(x==null&&y==null) return a.display_title.localeCompare(b.display_title); if(x==null) return 1; if(y==null) return -1; return (x-y)*sortDir; } let x=a[sortK],y=b[sortK]; if(sortK==='sel'){x=sel.has(a.game_id)?1:0;y=sel.has(b.game_id)?1:0;} if(typeof x==='string'){x=x.toLowerCase();y=(y||'').toLowerCase();} return (x>y?1:x<y?-1:0)*sortDir; });
  if(!$('filters').classList.contains('open')){ $('sortSel').value=sortK; $('sortDir').value=((sortK==='sel')?sortDir>0:sortDir<0)?'desc':'asc'; }
  if(view==='list'){ $('listView').hidden=false; $('gridView').hidden=true; } else { $('listView').hidden=true; $('gridView').hidden=false; }
  vlReset(vis); vlReflow(true); document.documentElement.dataset.rows=vis.length; document.documentElement.dataset.ready='1';

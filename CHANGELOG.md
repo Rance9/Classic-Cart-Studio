@@ -10,6 +10,7 @@
 
 ## Website — 2026-10-11 (after 0.2.1; no new installer)
 
+- Search is no longer literal: words match in any order; punctuation, case and accents do not matter (“dr mario” finds Dr. Mario); roman numerals and digits are interchangeable (“zelda 2”); common abbreviations expand both ways (dr/doctor, bros/brothers, &/and); run-together queries match the joined words (“megaman”) or the initials (“smb3”); one typo is tolerated in longer words; publisher, year and genre are searched too; with the default title order the best matches come first.
 - Preview on TV has the controller's SELECT and START buttons: SELECT cycles the sort order the way the real HOME menu does (title, two-player games, recently played, number of times played, release date, publisher; the two play-history orders are labeled unknown and shown in title order), START opens the highlighted game's details. The S key is SELECT on a keyboard.
 - Dr. Mario has its box art (the thumbnail source lists its Rev 1 scan as a link to the base scan; the fetcher follows such links now).
 - How it works keeps its right-hand characters clear of the text again at every width.
