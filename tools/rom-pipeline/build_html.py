@@ -249,7 +249,7 @@ __STUDIO_CSS__
    <p class="lede">Browse NES games, build <b>My Collection</b>, and prepare it for your NES Classic.</p>
    <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games</span><span class="pill"><b id="heroSel">0</b> selected</span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
   </div>
-  <div class="hero-right"><button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV — proposed NES Classic menu"><img src="brand/public/as-seen-on-tv.svg" alt="" width="92" height="72"></button><div class="hardware" aria-hidden="true">
+  <div class="hardware" aria-hidden="true">
    <svg viewBox="0 0 520 210" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="gTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9d9d9"/><stop offset="1" stop-color="#b9b9b9"/></linearGradient><linearGradient id="gBot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8e8e8e"/><stop offset="1" stop-color="#6d6d6d"/></linearGradient><linearGradient id="gDoor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2a2a"/><stop offset="1" stop-color="#111"/></linearGradient><radialGradient id="gLed"><stop offset="0" stop-color="#ff8a90"/><stop offset=".5" stop-color="#ff1f2d"/><stop offset="1" stop-color="#b8000c"/></radialGradient></defs>
     <rect x="10" y="40" width="500" height="150" rx="10" fill="url(#gBot)"/><rect x="10" y="40" width="500" height="88" rx="10" fill="url(#gTop)"/>
@@ -273,7 +273,7 @@ __STUDIO_CSS__
     <rect x="178" y="64" width="30" height="30" rx="3" fill="#cfcfcf"/><rect x="214" y="64" width="30" height="30" rx="3" fill="#cfcfcf"/><circle cx="193" cy="79" r="11" fill="#e4000f"/><circle cx="229" cy="79" r="11" fill="#e4000f"/>
     <text x="189" y="104" font-family="Press Start 2P,monospace" font-size="6" fill="#e4000f">B</text><text x="225" y="104" font-family="Press Start 2P,monospace" font-size="6" fill="#e4000f">A</text>
    </svg>
-  </div></div>
+  </div>
  </div>
  <div class="parade" aria-hidden="true"><div class="cast">__HERO_CAST__</div><div class="ground"></div></div>
 </header>
@@ -291,7 +291,7 @@ __STUDIO_CSS__
    <div class="sep"></div>
    <button id="mOwn" class="mi" role="menuitem"><b>Add Your Own Game</b><span class="d">Bring in a game file you own that is not in the Game Library.</span></button>
    <button id="mRestore" class="mi" role="menuitem"><b>Restore a Previous Collection</b><span class="d">Automatic snapshots kept in this browser.</span></button>
-   <button id="mTv" class="mi" role="menuitem"><b><img class="tvmini" src="brand/public/as-seen-on-tv.svg" alt="">Preview on TV</b><span class="d">See the menu this collection proposes for your NES Classic, the way it would look on the TV (16:9, a simulation).</span></button>
+   <button id="mTv" class="mi" role="menuitem"><b>Preview on TV</b><span class="d">See the menu this collection proposes for your NES Classic, the way it would look on the TV (16:9, a simulation).</span></button>
    <button id="mWelcome" class="mi" role="menuitem"><b>Show the welcome screen</b><span class="d">The start-up screen with the three ways to begin. Its check box decides whether it opens on every start.</span></button>
    <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button>
    <div class="sep" id="mDesktopSep"></div>
@@ -314,6 +314,7 @@ __STUDIO_CSS__
  <button id="filtersBtn" class="btn" aria-haspopup="dialog"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h12M4 8h8M6 13h4"/></svg>Filter &amp; Sort<span class="badge" id="filtersBadge" hidden></span></button>
  <div class="menuwrap"><button id="selectBtn" class="btn" aria-haspopup="menu">Select<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
   <div class="menu" id="selectMenu" role="menu" hidden><button id="selVis" class="mi" role="menuitem">Select all visible</button><button id="unselVis" class="mi" role="menuitem">Unselect visible</button><button id="selKachi" class="mi" role="menuitem">Select visible kachikachi + verified</button><div class="sep"></div><button id="clear" class="mi danger" role="menuitem"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Clear selection</button></div></div>
+ <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
  <div class="seg" role="group" aria-label="View"><button id="vList" class="btn active">List</button><button id="vGrid" class="btn">Grid</button></div>
  <span style="flex:1"></span>
  <span class="stats" id="stats"></span>

@@ -47,7 +47,7 @@ function tvEnsure(){
  if($('tv')) return;
  const m=document.createElement('div'); m.id='tv'; m.className='tvmodal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-labelledby','tvTitle'); m.hidden=true;
  m.innerHTML=`<div class="tvbox">
-  <div class="tvhd"><div class="tvt"><img class="tvlogo" src="brand/public/as-seen-on-tv.svg" alt="" width="44" height="34"><div><h2 id="tvTitle">Proposed Menu Preview</h2><span class="small" id="tvSub"></span></div></div>
+  <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Proposed Menu Preview</h2><span class="small" id="tvSub"></span></div></div>
    <div class="tvtools"><div class="seg" role="group" aria-label="What to show"><button class="btn sm active" id="tvModeP" data-mode="proposed" title="The menu the plan proposes">Proposed menu</button><button class="btn sm" id="tvModeS" data-mode="selected" title="Only the games you selected, isolated; not the full menu">Selected games only</button></div>
    <div class="seg" role="group" aria-label="Display treatment"><button class="btn sm active" id="tvTrC" data-tr="clean">Clean</button><button class="btn sm" id="tvTrR" data-tr="retro" title="A cosmetic CRT-style look around the same 16:9 menu">Retro</button></div>
    <button class="btn sm" id="tvSave" title="Save the simulated TV surface as a 1920×1080 PNG">Save Preview Image</button><button class="btn sm ghost" id="tvClose" aria-label="Close the preview">Close</button></div></div>

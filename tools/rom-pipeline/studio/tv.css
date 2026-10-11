@@ -1,12 +1,12 @@
 /* ==== "As Seen on TV": the Preview on TV button and the Proposed Menu Preview ==== */
-.tvbtn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:4px;border-radius:10px;cursor:pointer;transition:transform .16s var(--ease),filter .16s}
-.tvbtn img{width:92px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
-.tvbtn:hover{transform:translateY(-2px) scale(1.04);filter:brightness(1.08)}
-.tvbtn:focus-visible{outline:2px solid var(--red3);outline-offset:3px}
-.hero-right{display:flex;align-items:center;gap:18px;justify-content:flex-end}
-@media (max-width:900px){.tvbtn img{width:80px}.hero-right{gap:12px}}
-@media (max-width:640px){.hero-right{display:none}}
-.menu .mi .tvmini{width:34px;height:auto;vertical-align:middle;margin-right:8px}
+.tvbtn{display:inline-flex;align-items:center;justify-content:center;width:52px;height:44px;padding:0;flex:none;background:transparent;border:1px solid transparent;border-radius:8px;cursor:pointer;margin:-4px 0}
+.tvbtn img{width:48px;height:auto;max-height:40px;object-fit:contain;display:block;image-rendering:auto}
+.tvbtn:hover{background:rgba(255,255,255,.06);border-color:var(--line2)}
+.tvbtn:focus-visible{outline:2px solid var(--red3);outline-offset:1px}
+@media (max-width:900px){.tvbtn img{width:42px}}
+.toolsfold.stack:not(.measuring) .row.tools .tvbtn{flex:0 0 52px;height:36px;margin:0}
+.toolsfold.stack:not(.measuring) .row.tools .tvbtn img{width:42px}
+.toolsfold.stack:not(.measuring) .row.tools #filtersBtn,.toolsfold.stack:not(.measuring) .row.tools .menuwrap,.toolsfold.stack:not(.measuring) .row.tools .seg{flex:1 1 calc((100% - 52px - 24px) / 3)}
 .vis-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* the preview workspace: a dialog that uses the available height sensibly and never scrolls the page behind it */
@@ -14,7 +14,7 @@
 .tvmodal.open{display:flex}
 .tvbox{width:min(1600px,100%);max-height:calc(100vh - 28px);display:flex;flex-direction:column;background:linear-gradient(180deg,#1b1b22,#121216);border:1px solid var(--line2);border-radius:14px;box-shadow:0 40px 100px rgba(0,0,0,.75);overflow:hidden}
 .tvhd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tvt{display:flex;align-items:center;gap:10px;min-width:0}.tvt h2{margin:0;font-family:var(--display);font-size:16px;letter-spacing:.5px;text-transform:uppercase}.tvlogo{width:44px;height:auto;flex:none}
+.tvt{display:flex;align-items:center;gap:10px;min-width:0}.tvt h2{margin:0;font-family:var(--display);font-size:16px;letter-spacing:.5px;text-transform:uppercase}
 .tvtools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tvmain{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 14px;min-height:0;overflow:hidden;flex:1}
 .tvstagewrap{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}

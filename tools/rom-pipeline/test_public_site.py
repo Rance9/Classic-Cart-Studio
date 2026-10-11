@@ -26,7 +26,7 @@ def main(site: str):
     ok("wordmark_present", 'src="brand/oem/nes-wordmark.png"' in page and os.path.exists(os.path.join(site, "brand", "oem", "nes-wordmark.png")))
     ok("interface_icons_from_firmware", page.count("brand/oem/icon-") >= 8 and all(os.path.exists(os.path.join(site, "brand", "oem", n)) for n in ("icon-a.png", "icon-b.png", "icon-cartridge.png", "icon-disk.png", "icon-warning.png", "icon-start.png")))
     ok("footer_roster_present", page.count('src="brand/oem/px-') >= 40 and page.count('src="brand/web/') >= 15, f"oem={page.count(chr(34)+'brand/oem/px-')} web={page.count('src='+chr(34)+'brand/web/')}")
-    ok("no_generic_substitutes", page.replace("brand/public/as-seen-on-tv.svg", "").count("brand/public/") == 0 and "original pixel art drawn" not in page and "original drawings" not in page)
+    ok("no_generic_substitutes", page.replace("brand/public/as-seen-on-tv.png", "").count("brand/public/") == 0 and "original pixel art drawn" not in page and "original drawings" not in page)
     refs = set(re.findall(r'(?:src|href)="([^"]+)"', page)) | set(re.findall(r'url\("([^"]+)"\)', page))
     refs = {r for r in refs if not r.startswith(("data:", "#", "blob:", "mailto:")) and "${" not in r}
     ext = sorted(r for r in refs if re.match(r"^[a-z]+:", r)); allowed_ext = ("https://github.com/", "https://rance9.github.io/", "https://ClassicCartStudio.com/", "https://classiccartstudio.com/", "https://api.github.com/", "http://127.0.0.1:", "https://www.nintendo.com/", "https://www.ebay.com/itm/302788782864")   # the seller recommendation is a plain anchor, not an asset
