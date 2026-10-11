@@ -1,6 +1,6 @@
 """Checks on the built PUBLIC site (no private workspace needed):  python test_public_site.py <site_dir>
 - required files (index.html, nes-catalog.html, data JSON, .nojekyll, robots.txt, release.json, original sprites + index + provenance)
-- every src/href/url() reference is relative (works under the /NES-Classic-Collection-Studio/ sub-path and on localhost), exists, and
+- every src/href/url() reference is relative (works under the /Classic-Cart-Studio/ sub-path and on localhost), exists, and
   nothing is fetched from a third-party host except the explicit GitHub links/API named in the page
 - no firmware-crop or online-character sprite paths, no box-art references, no NES wordmark image, disclaimer present, title correct
 - no local paths, no user names, no tokens (scan_prohibited rules) in the page or the data
@@ -54,6 +54,9 @@ def main(site: str):
         r = subprocess.run([node, "--check", p], capture_output=True, text=True); os.remove(p); ok("inline_script_parses", r.returncode == 0, r.stderr[:200])
     else: ok("inline_script_parses (node not available, skipped)", True)
     ok("page_size_reasonable", 1_000_000 < len(page) < 8_000_000, str(len(page)))
+    app_p = os.path.join(site, "app", "index.html"); app = open(app_p, encoding="utf-8").read() if os.path.exists(app_p) else ""
+    ok("app_shortlink_page_exists", bool(app), app_p)
+    ok("app_shortlink_redirects_to_latest_release", app.count("https://github.com/Rance9/Classic-Cart-Studio/releases/latest") >= 3 and "location.replace(" in app and 'http-equiv="refresh"' in app and "<title>Classic Cart Studio | Windows App</title>" in app and "NES-Classic-Collection-Studio" not in app)
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
 
 if __name__ == "__main__":

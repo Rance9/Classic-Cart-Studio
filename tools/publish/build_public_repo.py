@@ -32,7 +32,7 @@ ALLOW_FILES = [
     "tools/publish/make_public_sprites.py", "tools/publish/scan_prohibited.py", "tools/publish/build_public_repo.py", "tools/publish/publish_repo.py", "tools/publish/release_notes.py",
     "tools/publish/fixtures/make_fixtures.py",
 ]
-ALLOW_DIRS = ["tools/rom-pipeline/studio", "tools/publish/assets", "tools/publish/repo-files", "tools/publish/fixtures", "tools/desktop/ClassicCartStudio"]
+ALLOW_DIRS = ["tools/rom-pipeline/studio", "tools/publish/assets", "tools/publish/repo-files", "tools/publish/site-static", "tools/publish/fixtures", "tools/desktop/ClassicCartStudio"]
 SITE_DATA = ["catalog.json", "builtin.json", "library.json", "rankings.json"]
 # strings naming local paths are dropped from the public data; private markers (user/machine names) come only from the environment (NES_PRIVATE_MARKERS)
 PRIVATE_RE = re.compile("|".join([r"[A-Za-z]:\\", "One" + "Drive", "/Users/"] + [re.escape(m.strip()) for m in os.environ.get("NES_PRIVATE_MARKERS", "").split(",") if m.strip()]), re.I)
@@ -83,6 +83,7 @@ def build_site(site: str):
     env = dict(os.environ, NES_STUDIO_SITE=site, NES_PUBLIC_BUILD="1")
     subprocess.run([sys.executable, os.path.join(PROJECT, "tools", "rom-pipeline", "build_html.py"), "--public", "--out", site], check=True, env=env)
     shutil.copy2(os.path.join(site, "nes-catalog.html"), os.path.join(site, "index.html"))
+    shutil.copytree(os.path.join(PROJECT, "tools", "publish", "site-static"), site, dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
     open(os.path.join(site, ".nojekyll"), "w").close()
     open(os.path.join(site, "robots.txt"), "w").write("User-agent: *\nAllow: /\n")
     # release.json is written by the release workflow after a companion release exists; a placeholder keeps the page's lookup honest

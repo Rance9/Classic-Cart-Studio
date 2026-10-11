@@ -17,6 +17,7 @@ def main(out: str):
     shutil.copytree(os.path.join(sd, "brand", "fonts"), os.path.join(out, "brand", "fonts"), dirs_exist_ok=True)
     subprocess.run([sys.executable, os.path.join(REPO, "tools", "rom-pipeline", "build_html.py"), "--public", "--out", out], check=True, env=dict(os.environ, NES_STUDIO_SITE=out, NES_PUBLIC_BUILD="1"))
     shutil.copy2(os.path.join(out, "nes-catalog.html"), os.path.join(out, "index.html"))
+    shutil.copytree(os.path.join(REPO, "tools", "publish", "site-static"), out, dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
     open(os.path.join(out, ".nojekyll"), "w").close(); open(os.path.join(out, "robots.txt"), "w").write("User-agent: *\nAllow: /\n")
     if not os.path.exists(os.path.join(out, "release.json")): json.dump({"version": None, "note": "no companion release published yet"}, open(os.path.join(out, "release.json"), "w"))
     print("site built at", out)

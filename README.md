@@ -2,7 +2,7 @@
 
 **An independent game collection manager for the Nintendo NES Classic Edition.**
 
-Website: **https://classiccartstudio.com/** · Windows application: **https://github.com/Rance9/NES-Classic-Collection-Studio/releases**
+**Website:** [https://ClassicCartStudio.com](https://ClassicCartStudio.com) · **Windows App:** [https://ClassicCartStudio.com/app](https://ClassicCartStudio.com/app) (always the latest release)
 
 Classic Cart Studio is one Studio in two places. The **website** lets you browse the NES game library, choose games and the exact versions you prefer, build and save collections, and read the complete Help & User Guide, with nothing to install. **Classic Cart Studio for Windows** shows that same live website in its own application window and adds everything that needs your computer: reading the games already set up on your PC, importing your own game files (ZIP archives included), keeping managed copies, and preparing the collection for Hakchi2 CE. A collection you build on the website continues in the Windows application with **Continue in Desktop App**; your selections, including the exact versions you chose, come with you.
 
@@ -31,7 +31,7 @@ The Windows application starts a small backend that listens only on your own com
 
 ## Installation (Windows 10/11)
 
-1. On the website, choose **Continue in Desktop App** (My Collection menu or Install on NES Classic) or open the [releases page](https://github.com/Rance9/NES-Classic-Collection-Studio/releases).
+1. On the website, choose **Continue in Desktop App** (My Collection menu or Install on NES Classic) or go to [ClassicCartStudio.com/app](https://ClassicCartStudio.com/app), which always opens the latest release (the full [release history](https://github.com/Rance9/Classic-Cart-Studio/releases) is on GitHub).
 2. Download `ClassicCartStudio-Setup-<version>.exe`.
 3. **Check it** (recommended): in PowerShell run
    `Get-FileHash -Algorithm SHA256 "$env:USERPROFILE\Downloads\ClassicCartStudio-Setup-<version>.exe"`
