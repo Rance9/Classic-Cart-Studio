@@ -105,6 +105,11 @@ def main():
     os.makedirs(DATA_ROOT, exist_ok=True); setup_logging()
     port = int(nc.CFG.get("port", DEFAULT_PORT)); link = handle_protocol_arg(sys.argv[1:])
     if "--console-worker" in sys.argv[1:]:   # the console engine worker (simulation tier): line protocol on stdin/stdout, no window, no network
+        import io
+        # a windowed (console=False) frozen build has no std streams of its own: attach the pipes the parent process provides
+        if sys.stdin is None: sys.stdin = io.TextIOWrapper(os.fdopen(0, "rb", closefd=False), encoding="utf-8")
+        if sys.stdout is None: sys.stdout = io.TextIOWrapper(os.fdopen(1, "wb", closefd=False), encoding="utf-8", line_buffering=True)
+        if sys.stderr is None: sys.stderr = io.TextIOWrapper(os.fdopen(2, "wb", closefd=False), encoding="utf-8", line_buffering=True)
         from console_engine.worker import main as worker_main
         root = sys.argv[sys.argv.index("--root") + 1] if "--root" in sys.argv[1:] else os.path.join(DATA_ROOT, "console")
         worker_main(["--root", root]); return
