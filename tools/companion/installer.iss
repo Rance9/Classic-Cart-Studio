@@ -48,6 +48,7 @@ MinVersion=10.0.17763
 CloseApplications=yes
 RestartApplications=no
 UsePreviousAppDir=yes
+UsePreviousGroup=no
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription={#AppName} installer
 VersionInfoProductName={#AppName}
@@ -76,6 +77,15 @@ Root: HKCU; Subkey: "Software\Classes\nesstudio\shell\open\command"; ValueType: 
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Start Classic Cart Studio now"; Flags: nowait postinstall skipifsilent
+
+[InstallDelete]
+; shortcuts of the earlier "NES Classic Collection Studio Companion" releases (0.1.x): same AppId, new names and group
+Type: files; Name: "{userprograms}\NES Classic Collection Studio\NES Classic Collection Studio Companion.lnk"
+Type: files; Name: "{userprograms}\NES Classic Collection Studio\NES Classic Collection Studio (website).url"
+Type: files; Name: "{userprograms}\NES Classic Collection Studio\Classic Cart Studio.lnk"
+Type: files; Name: "{userprograms}\NES Classic Collection Studio\Classic Cart Studio website.url"
+Type: dirifempty; Name: "{userprograms}\NES Classic Collection Studio"
+Type: files; Name: "{autodesktop}\NES Classic Collection Studio Companion.lnk"
 
 [UninstallDelete]
 ; program files only — the user's data (%LOCALAPPDATA%\NESClassicCollectionStudio: imported games, personal games, collections, logs) is kept on purpose

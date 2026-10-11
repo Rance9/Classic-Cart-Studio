@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-11
+
+- Installer: when upgrading from the 0.1.x companion, the Start-menu group and shortcuts are renamed to Classic Cart Studio and the old companion shortcuts are removed (0.2.0 kept the old group name and left the old shortcuts next to the new ones). No application or website changes.
+
 ## 0.2.0 — 2026-10-11
 
 - **Classic Cart Studio** is the product's name (website, application window, Start menu, installer, Installed Apps, guide, README). The data folder `%LOCALAPPDATA%\NESClassicCollectionStudio`, the installer identity, the backend executable name and the `nesstudio://` link stay as they were, so this release upgrades the earlier companion in place and keeps everything you imported or saved.
