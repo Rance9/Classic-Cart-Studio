@@ -369,3 +369,11 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 #welcome .ft{align-items:center;gap:10px;flex-wrap:wrap}
 #welcome .ft .wevery{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);cursor:pointer;white-space:nowrap}
 #welcome .ft .wevery input{accent-color:var(--red);margin:0}
+/* layered submenus in the My Collection menu */
+.menu .mi.sub b .chev{display:inline-block;margin-left:6px;font-size:11px;color:var(--muted);transition:transform .15s var(--ease)}
+.menu .mi.sub.open b .chev{transform:rotate(90deg)}
+.menu .mi.sub.open{background:rgba(255,255,255,.05)}
+.menu .submenu{margin:2px 0 4px 14px;padding-left:10px;border-left:2px solid rgba(255,59,69,.45)}
+.menu .submenu .mi{padding:6px 10px}
+.menu .submenu .mi b{font-weight:600;font-size:12.5px}
+@media (prefers-reduced-motion:reduce){.menu .mi.sub b .chev{transition:none}}

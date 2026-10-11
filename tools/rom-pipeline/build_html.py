@@ -286,14 +286,19 @@ __STUDIO_CSS__
  <div class="menuwrap right"><button id="collBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span id="collName">My Collection</span><svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
   <div class="menu wide" id="collMenu" role="menu" hidden><div class="mhead"><div class="nm" id="collNameHead"></div><div class="st"><span class="stt" id="collStatus"><i></i>new</span></div></div>
    <button id="mNew" class="mi" role="menuitem"><b>New Collection</b><span class="d">Start again with an empty collection. The current one stays recoverable.</span></button>
-   <button id="mLoadLocal" class="mi" role="menuitem"><b>Load Existing Collection — games already on this computer</b><span class="d">Continue from the games set up on this computer. Looking changes nothing.</span></button>
-   <button id="mLoadFile" class="mi" role="menuitem"><b>Load Existing Collection — saved collection file</b><span class="d">Open a collection you saved earlier.</span></button>
-   <div class="sep"></div>
+   <div class="smwrap"><button id="mOpen" class="mi sub" role="menuitem" aria-haspopup="true" aria-expanded="false" aria-controls="smOpen"><b>Open <span class="chev">▸</span></b><span class="d">Games already on this computer, a saved file, or a previous version.</span></button>
+    <div class="submenu" id="smOpen" role="menu" hidden>
+     <button id="mLoadLocal" class="mi" role="menuitem"><b>Games already on this computer</b><span class="d">Continue from the games set up on this computer. Looking changes nothing.</span></button>
+     <button id="mLoadFile" class="mi" role="menuitem"><b>Saved collection file</b><span class="d">Open a collection you saved earlier.</span></button>
+     <button id="mRestore" class="mi" role="menuitem"><b>Restore a previous collection</b><span class="d">Automatic snapshots kept in this browser.</span></button>
+    </div></div>
    <button id="mOwn" class="mi" role="menuitem"><b>Add Your Own Game</b><span class="d">Bring in a game file you own that is not in the Game Library.</span></button>
-   <button id="mRestore" class="mi" role="menuitem"><b>Restore a Previous Collection</b><span class="d">Automatic snapshots kept in this browser.</span></button>
    <button id="mTv" class="mi" role="menuitem"><b>Preview on TV</b><span class="d">See the menu this collection proposes for your NES Classic, the way it would look on the TV (16:9, a simulation).</span></button>
-   <button id="mWelcome" class="mi" role="menuitem"><b>Show the welcome screen</b><span class="d">The start-up screen with the three ways to begin. Its check box decides whether it opens on every start.</span></button>
-   <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button>
+   <div class="smwrap"><button id="mMore" class="mi sub" role="menuitem" aria-haspopup="true" aria-expanded="false" aria-controls="smMore"><b>More <span class="chev">▸</span></b><span class="d">Collection information and the welcome screen.</span></button>
+    <div class="submenu" id="smMore" role="menu" hidden>
+     <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button>
+     <button id="mWelcome" class="mi" role="menuitem"><b>Show the welcome screen</b><span class="d">The start-up screen with the three ways to begin. Its check box decides whether it opens on every start.</span></button>
+    </div></div>
    <div class="sep" id="mDesktopSep"></div>
    <button id="mDesktop" class="mi" role="menuitem" hidden><b>Continue in Desktop App</b><span class="d">Take this collection into Classic Cart Studio for Windows to find your game files and prepare it for your NES Classic.</span></button></div></div>
  <div class="menuwrap right"><button id="ioBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-disk.png" alt="" onerror="this.remove()">Save / Load<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
