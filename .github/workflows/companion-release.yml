@@ -46,7 +46,7 @@ jobs:
       - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
         shell: pwsh
         run: |
-          $env:NES_STUDIO_DATA = "$env:RUNNER_TEMPs-selftest"
+          $env:NES_STUDIO_DATA = Join-Path $env:RUNNER_TEMP "ccs-selftest"
           & build/dist/NESClassicCollectionStudioCompanion/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
           if ($LASTEXITCODE -ne 0) { throw "desktop self-test failed" }
       - name: Build the installer (Inno Setup, per-user)
