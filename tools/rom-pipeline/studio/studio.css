@@ -270,3 +270,13 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
  th:nth-child(1),td:nth-child(1){width:30px}th:nth-child(2),td:nth-child(2){width:58px}th:nth-child(5),td:nth-child(5){width:48px}th:nth-child(9),td:nth-child(9){width:72px}th:nth-child(13),td:nth-child(13){width:64px}th:nth-child(14),td:nth-child(14){width:26px}
  td:nth-child(3){overflow-wrap:anywhere}td:nth-child(13){white-space:normal}
  .tablewrap{overflow:visible;overflow-x:clip}.tablewrap::after{content:none}.tablewrap th{position:sticky}}
+/* Tray and Install wrap together (owner request): one flex unit on wide and medium screens, separate grid cells on phones */
+.pair{display:inline-flex;gap:8px;align-items:center;flex:none}
+@media (max-width:640px){.pair{display:contents}}
+/* ---- list pills: one small size for the details button, the version chip and the identity/header/emulator tags (owner request) ---- */
+#t td .btn.sm{height:18px;padding:0 7px;font-size:10.5px;line-height:16px;border-radius:999px;gap:4px;box-shadow:none}
+#t td .btn.sm .ico{width:10px;height:10px}
+#t td .ver{height:18px;padding:0 7px;font-size:10.5px;line-height:16px;margin-left:5px}#t td .ver small,#t td .ver .c{font-size:9.5px}
+#t td .tag{height:18px;padding:0 7px;font-size:10.5px;line-height:16px;box-sizing:border-box}
+#t td .tags,#t td .pills{gap:4px}
+#t td .det{height:18px;padding:0 7px;font-size:10.5px;line-height:16px;margin-left:6px;box-sizing:border-box}

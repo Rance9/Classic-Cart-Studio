@@ -277,7 +277,7 @@ __STUDIO_CSS__
 <div class="toolbar" id="toolbar"><div class="in">
 <div class="row bar">
  <button class="btn howbtn" id="howBtn" title="Complete step-by-step guide to using NES Classic Collection Studio."><svg class="ico book" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H8v12H3.5A1.5 1.5 0 0 1 2 12.5zM14 3.5A1.5 1.5 0 0 0 12.5 2H8v12h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>Help &amp; User Guide<span class="chc" id="howCount"></span></button>
- <button class="btn foldbtn" id="foldBtn" aria-expanded="true" aria-controls="toolsFold" title="Show or hide search, filters, view and connection controls"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg><span class="fl">Search &amp; Filters</span><span class="badge" id="foldBadge" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
+ <button class="btn foldbtn" id="foldBtn" aria-expanded="true" aria-controls="toolsFold" title="Show or hide the tools: search, Filter &amp; Sort, Select, List or Grid, the alphabet jump, the storage figure and the connection status"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg><span class="fl">Search &amp; Tools</span><span class="badge" id="foldBadge" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
  <span style="flex:1"></span>
  <div class="actions">
  <div class="menuwrap right"><button id="collBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span id="collName">My Collection</span><svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
@@ -296,8 +296,8 @@ __STUDIO_CSS__
    <button id="sdExport" class="mi" role="menuitem"><b>Export Studio Data</b><span class="d">Favorites, snapshots, settings and the current collection in one file — to move to another browser or to the website.</span></button>
    <button id="sdImport" class="mi" role="menuitem"><b>Import Studio Data</b><span class="d">Bring favorites, snapshots and settings back from a Studio data file.</span></button></div></div>
  <input type="file" id="sdFile" accept="application/json,.json" hidden>
- <button id="trayBtn" class="btn tray"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
- <button class="btn hk" id="hkBtn" title="Check and prepare your collection; console installation is shown honestly"><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button>
+ <span class="pair"><button id="trayBtn" class="btn tray"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
+ <button class="btn hk" id="hkBtn" title="Check and prepare your collection; console installation is shown honestly"><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
  </div>
  <input type="file" id="import" accept="application/json" hidden>
 </div>
