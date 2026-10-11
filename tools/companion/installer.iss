@@ -47,6 +47,7 @@ WizardImageFile={#SourceDir}\_internal\site\brand\public\wizard-large.bmp,{#Sour
 WizardSmallImageFile={#SourceDir}\_internal\site\brand\public\wizard-small.bmp,{#SourceDir}\_internal\site\brand\public\wizard-small-200.bmp
 ShowLanguageDialog=no
 DisableReadyPage=yes
+DisableWelcomePage=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
