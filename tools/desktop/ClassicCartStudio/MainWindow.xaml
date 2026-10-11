@@ -57,7 +57,7 @@
 
     <!-- Studio menu (popup under the menu button) -->
     <!-- opaque popup on purpose: WebView2's child window shows through layered (transparent) popups -->
-    <Popup x:Name="menuPopup" PlacementTarget="{Binding ElementName=menuBtn}" Placement="Bottom" HorizontalOffset="-200" VerticalOffset="4" StaysOpen="False" AllowsTransparency="False" PopupAnimation="None">
+    <Popup x:Name="menuPopup" PlacementTarget="{Binding ElementName=menuBtn}" Placement="Custom" StaysOpen="False" AllowsTransparency="False" PopupAnimation="None">
       <Border Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Line2}" BorderThickness="1" Padding="4,6" Width="300">
         <StackPanel>
           <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Reload" AutomationProperties.Name="Reload the website"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE72C;"/><TextBlock Text="Reload the website"/></StackPanel></Button>

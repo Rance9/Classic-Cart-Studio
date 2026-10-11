@@ -39,6 +39,8 @@ namespace ClassicCartStudio
             SourceInitialized += (s, e) => { Native.ApplyDarkChrome(this, 0x00202024); HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc); };
             System.Windows.Shell.WindowChrome.SetWindowChrome(this, new System.Windows.Shell.WindowChrome { CaptionHeight = 36, GlassFrameThickness = new Thickness(0, 0, 0, 1), ResizeBorderThickness = new Thickness(6), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
             Loaded += (s, e) => { try { HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc); } catch { } };   // second registration: last-added hooks run first
+            // right-aligned under the menu button, in the window's own coordinates (independent of DPI, monitor position or maximize state)
+            menuPopup.CustomPopupPlacementCallback = (size, target, offset) => new[] { new System.Windows.Controls.Primitives.CustomPopupPlacement(new Point(target.Width - size.Width, target.Height + 4), System.Windows.Controls.Primitives.PopupPrimaryAxis.Horizontal) };
             menuPopup.Opened += (s, e) => { var first = ((menuPopup.Child as Border)?.Child as StackPanel)?.Children[0] as Button; first?.Focus(); };
             Loaded += async (s, e) => { StartBlocks(); await InitAsync(); };
             Closing += OnClosingWindow;
@@ -100,9 +102,9 @@ namespace ClassicCartStudio
         void Menu_Reload(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; Navigate(); }
         void Menu_OpenSite(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.OpenExternal(App.SiteUrl); }
         void Menu_DataFolder(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; try { Directory.CreateDirectory(App.DataRoot); Process.Start(new ProcessStartInfo("explorer.exe", "\"" + App.DataRoot + "\"") { UseShellExecute = true }); } catch { } }
-        void Menu_Diagnostics(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; ShowDiagnostics(); }
+        void Menu_Diagnostics(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: diagnostics"); ShowDiagnostics(); }
         void Menu_Updates(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.OpenExternal(App.UpdateUrl); }
-        void Menu_About(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; new AboutWindow(this).ShowDialog(); }
+        void Menu_About(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: about"); try { new AboutWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("about failed: " + ex); MessageDialog.Show(this, "About", "The About window could not be opened.", ex.Message); } }
         void Menu_Exit(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; Close(); }
 
         // ---------------- loading state ----------------
@@ -333,7 +335,7 @@ namespace ClassicCartStudio
             foreach (var a in startupArgs) HandleLink(a);
         }
 
-        internal void ShowDiagnostics() { new DiagnosticsWindow(this).ShowDialog(); }
+        internal void ShowDiagnostics() { try { new DiagnosticsWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("diagnostics failed: " + ex); MessageDialog.Show(this, "Diagnostics", "The Diagnostics window could not be opened.", ex.Message); } }
         internal string WebViewRuntime() { try { return CoreWebView2Environment.GetAvailableBrowserVersionString(); } catch { return "not found"; } }
         internal bool WebsiteShown => firstPageShown && !recoveryShown;
 
