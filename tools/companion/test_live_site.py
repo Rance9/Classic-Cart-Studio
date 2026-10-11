@@ -1,5 +1,5 @@
 """Live verification of the DEPLOYED website against a companion on this computer (no host mapping, no local TLS: the real origin).
-  python test_live_site.py [--url https://rance9.github.io/NES-Classic-Collection-Studio/] [--port 8765]
+  python test_live_site.py [--url https://rance9.github.io/Classic-Cart-Studio/] [--port 8765]
 Checks, in headless Edge with fresh profiles: the page loads from the real origin and sub-path with its assets; the connection pill
 shows "Connect to Your Computer" (companion running, not paired); the pairing page served by the companion accepts the real origin;
 claiming the one-time code connects the real page (library read through CORS + bearer); reload keeps the pairing; the download
@@ -76,7 +76,7 @@ def main():
     except Exception as e: ok("companion_running", False, str(e)[:80]); print("\n".join(checks)); print("RESULT: FAIL (companion not running)"); sys.exit(1)
     prof = os.path.join(work, "p1")
     o = cdp_run(a.url, prof, JS.replace("STEP", "'fresh'").replace("CODE", "''")); print("fresh:", json.dumps(o)[:800])
-    ok("real_origin_and_subpath", o.get("origin") == origin and (o.get("path") or "").startswith("/NES-Classic-Collection-Studio/" if "github.io" in origin else "/"), str(o)[:200])
+    ok("real_origin_and_subpath", o.get("origin") == origin and (o.get("path") or "").startswith("/Classic-Cart-Studio/" if "github.io" in origin else "/"), str(o)[:200])
     ok("page_runs_with_sprites", (o.get("games") or 0) > 700 and (o.get("sprites") or 0) >= 10, f"games={o.get('games')} sprites={o.get('sprites')}")
     ok("fresh_unpaired_state", o.get("state") == "unpaired" and o.get("hasConnect") is True, f"{o.get('state')} {o.get('err')}")
     if rel.get("version"): ok("download_section_shows_release", (rel["version"] in (o.get("dl") or "")) and o.get("hasHash") and (o.get("hash") or "").lower() == (rel.get("sha256") or "").lower(), (o.get("dl") or "")[:200])

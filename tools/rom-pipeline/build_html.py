@@ -115,7 +115,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .hero h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,2.3vw,40px);line-height:1;letter-spacing:-.3px;margin:6px 0 5px;text-transform:uppercase;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.5),0 12px 40px rgba(0,0,0,.6);white-space:nowrap}
 .hero h1 span{color:var(--red3);font-weight:600;letter-spacing:3px;margin-left:8px}
 .hero p{max-width:680px;color:var(--ink2);font-size:13px;line-height:1.4;margin:0 0 8px}
-.pills{display:flex;flex-wrap:wrap;gap:6px}.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line2);font-size:11.5px;color:var(--ink2);backdrop-filter:blur(6px)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line2);font-size:11.5px;color:var(--ink2)}
 .pill b{font-family:var(--display);font-size:13px;color:#fff}.pill .led{width:8px;height:8px;border-radius:50%;background:var(--red3);box-shadow:0 0 8px var(--red3),0 0 2px #fff inset}
 .pixlabel{font-family:var(--pixel);font-size:9px;letter-spacing:1px;color:var(--silver);text-transform:uppercase}
 .hardware{position:relative;display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-end;gap:12px;filter:drop-shadow(0 18px 24px rgba(0,0,0,.7))}
@@ -127,7 +127,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}.parade .cast img.float{animation:bob 3.2s ease-in-out infinite}.parade .cast img.f2{animation-duration:4.1s}.parade .cast img.f3{animation-duration:2.6s}
 @media (max-width:1180px){.parade .cast img.lg{display:none}}
 /* ---------- sticky toolbar ---------- */
-.toolbar{position:sticky;top:0;z-index:30;background:rgba(18,18,22,.86);backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line2);box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.toolbar{position:sticky;top:0;z-index:30;background:rgba(18,18,22,.975);border-bottom:1px solid var(--line2);box-shadow:0 8px 30px rgba(0,0,0,.45)}
 .toolbar .in{max-width:var(--maxw);margin:0 auto;padding:10px 20px 8px;display:flex;flex-direction:column;gap:8px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .brand{display:flex;align-items:center;gap:10px}.row.bar{justify-content:space-between;flex-wrap:nowrap}.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.row.tools{padding-top:2px}
@@ -183,7 +183,7 @@ main{max-width:var(--maxw);margin:0 auto;padding:16px 20px 30px}
 .view{animation:fadein .25s var(--ease)}@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 table{width:100%;border-collapse:separate;border-spacing:0;background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r2)}thead th:first-child{border-top-left-radius:var(--r2)}thead th:last-child{border-top-right-radius:var(--r2)}
 th,td{padding:8px 10px;vertical-align:top;text-align:left}th{position:sticky;top:var(--tb-h);background:#202028;cursor:pointer;user-select:none;z-index:2;font-family:var(--display);font-weight:600;font-size:12.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--silver);border-bottom:1px solid var(--line2)}th:hover{color:#fff}
-tr.pick{cursor:pointer}tr.pick td{border-top:1px solid var(--line)}tbody tr.pick:nth-child(even):not(.sel):not(.review) td{background:rgba(255,255,255,.035)}
+tr.pick{cursor:pointer}tr.pick td{border-top:1px solid var(--line)}tbody tr.pick.alt:not(.sel):not(.review) td{background:rgba(255,255,255,.035)}
 tr.pick:hover td{background:rgba(255,255,255,.05)}tr.sel td{background:rgba(228,0,15,.10)!important}tr.sel td:first-child{box-shadow:inset 4px 0 0 var(--red)}tr.review td{background:rgba(242,182,50,.07)}
 td .ttl{font-weight:700;font-size:14.5px;color:#fff}.det{display:inline-flex;align-items:center;cursor:pointer;color:var(--silver);border:1px solid var(--line2);border-radius:999px;padding:1px 9px;font-size:11px;margin-left:8px;background:rgba(255,255,255,.04);line-height:1.5}.det:hover{color:#fff;border-color:var(--red3);background:rgba(228,0,15,.15)}
 button.det,button.star{font:inherit}
@@ -316,6 +316,7 @@ __STUDIO_CSS__
 </div>
 <div class="row chips" id="chips" hidden></div>
 <div class="row sub"><div class="letters" id="letters"></div><button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button></div>
+<button class="foldhide" id="foldHide" type="button" aria-controls="toolsFold">▲ Hide Search &amp; Tools</button>
 </div>
 </div></div>
 </div>
@@ -420,7 +421,7 @@ fill('fGenre',[...new Set(DATA.games.flatMap(g=>(g.genre||'').split(',').map(x=>
 const letters=[...new Set(games.map(g=>{const c=(g.display_title||'')[0].toUpperCase();return /[A-Z]/.test(c)?c:'#'}))].sort();
 $('letters').innerHTML='<span class="lbl">Jump</span>'+letters.map(l=>`<a data-l="${l}" href="#" role="button" title="jump to ${l}">${l}</a>`).join('');
 function stickyH(){ const h=$('stickyHead'); return getComputedStyle(h).position==='sticky'?h.offsetHeight:$('toolbar').offsetHeight; }
-function jumpTo(letter){ if(sortK!=='display_title'){ sortK='display_title'; sortDir=1; render(); toast('Sorted by title so the letter jump lands correctly'); } if(typeof foldForJump==='function') foldForJump(); const r=document.querySelector(`#${view==='list'?'tb':'gridView'} [data-l="${letter}"]`); if(!r){ toast(`No titles starting with "${letter}" in the current view`); return false; } const y=r.getBoundingClientRect().top+scrollY-stickyH()-(view==='list'?44:10); scrollTo({top:Math.max(0,y)}); return true; }
+function jumpTo(letter){ if(sortK!=='display_title'){ sortK='display_title'; sortDir=1; render(); toast('Sorted by title so the letter jump lands correctly'); } if(typeof foldForJump==='function') foldForJump(); const idx=VL.items.findIndex(g=>letterOf(g)===letter); if(idx<0){ toast(`No titles starting with "${letter}" in the current view`); return false; } const r=Math.floor(idx/VL.cols); const head=view==='list'?(document.querySelector('#t thead')||{offsetHeight:0}).offsetHeight:0; const tgt=VL.items[idx]; const want=stickyH()+head+(view==='list'?2:10); for(let k=0;k<5;k++){ const el=document.querySelector(`#${view==='list'?'tb':'gridView'} [data-g="${tgt.game_id}"]`); if(el){ const d=el.getBoundingClientRect().top-want; if(Math.abs(d)<2) break; scrollBy({top:d,behavior:'instant'}); } else { const y=vlBase().getBoundingClientRect().top+scrollY+vlOffset(r)-want; scrollTo({top:Math.max(0,y),behavior:'instant'}); } vlPaint(false); } return true; }
 $('letters').onclick=e=>{ const a=e.target.closest('a[data-l]'); if(a){ e.preventDefault(); jumpTo(a.dataset.l); } };
 const mibToMb=x=>Number(x)*1048576/1e6; const fmtMb=x=>mibToMb(x).toLocaleString('en-US',{maximumFractionDigits:1})+' MB';
 // ---- NES Classic storage: source-aware. 'reference-estimate' = a documented stock-console model (never a visitor's measurement);
@@ -468,14 +469,38 @@ function notesCell(g){ const w=warnings(g); const alt=g.group_size>1?`alternates
 function starBtn(g){ return `<button type="button" class="star ${fav.has(g.game_id)?'on':''}" data-fav="${g.game_id}" title="favorite / shortlist" aria-label="favorite" aria-pressed="${fav.has(g.game_id)}">★</button>`; }
 function detBtn(g){ return `<button type="button" class="det" data-det="${g.game_id}" title="open details">details</button>`; }
 function rankKey(g,k){ const r=rankOf(g); if(!r) return null; if(k==='rank:consensus') return r.consensus||null; return (r.sources||{})[k.slice(5)]||null; }
+// ---- windowed list: only the rows (list) or card rows (grid) near the viewport exist in the page, whatever the library size.
+//      Heights are measured from what is painted; the rest is estimated with a running average and corrected as rows come into view.
+//      The spacer rows carry a single cell on purpose: a colspan would add phantom columns to the fixed-layout tables (641-1000 px).
+var VL={items:[],cols:1,gap:0,avg:85,h:new Map(),start:-1,end:-1,raf:0,pad:700,all:false};
+function letterOf(g){ const u=((g.display_title||'')[0]||'').toUpperCase(); return /[A-Z]/.test(u)?u:'#'; }
+function vlAnchor(i){ const g=VL.items[i], p=VL.items[i-1]; const l=letterOf(g); return (!p||letterOf(p)!==l)?` data-l="${l}"`:''; }
+function rowHtml(g,i){ return `<tr class="pick ${i%2?'alt ':''}${sel.has(g.game_id)?'sel ':''}${g.selection_status==='review'?'review':''}" data-g="${g.game_id}" tabindex="0" aria-selected="${sel.has(g.game_id)}"${vlAnchor(i)}><td><input type="checkbox" data-id="${g.game_id}" ${sel.has(g.game_id)?'checked':''} aria-label="select"></td><td>${artEl(g,'thumb')}</td><td><span class="ttl">${esc(g.display_title)}</span>${window.verChip?verChip(g):''}${window.srcBadge?srcBadge(g):''}${detBtn(g)}<div class="small">${esc(g.rev||'')} ${esc(g.regions||'')} · ${esc(g.nointro_name)}</div></td><td>${rankCell(g)}</td><td>${esc(g.year||'')}</td><td>${esc(g.publisher||'')}</td><td class="small">${esc(g.genre||'unknown')}</td><td class="small">${esc(g.players||'?')}${g.simultaneous?' '+esc(g.simultaneous):''}</td><td>${instTag(g)||'<span class="small">new</span>'}${g.ambiguity?'<br><span class="tag u" title="'+esc(g.ambiguity)+'">review</span>':''}</td><td class="mono">${g.mapper??''}</td><td>${idTag(g)}<br>${hdrTag(g)}</td><td style="white-space:nowrap">${emuTag(g)}${ciBtn(g)}${inBtn(g)}</td><td class="mono" style="white-space:nowrap">${fmt(g.payload_size+16)}</td><td>${starBtn(g)}</td></tr>`; }
+function cardHtml(g,i){ return `<div class="card ${sel.has(g.game_id)?'sel ':''}${g.selection_status==='review'?'review':''}" data-g="${g.game_id}" tabindex="0" aria-selected="${sel.has(g.game_id)}"${vlAnchor(i)}><div class="cover"><span class="selbadge">✓ Selected</span>${rankBadge(g)}${artEl(g,'')}</div><div class="body"><div class="t">${esc(g.display_title)}${window.srcBadge?srcBadge(g):''}</div>${window.verChip&&TITLES[g.title_id]&&TITLES[g.title_id].versions.length>1?`<div style="margin:2px 0 4px">${verChip(g)}</div>`:''}<div class="m">${esc(g.year||'')}${g.publisher?' · '+esc(g.publisher):''}${g.genre?' · '+esc(g.genre.split(',')[0]):''}</div><div>${g.licensed==='unlicensed'?'<span class="tag r">unlicensed</span>':''}${instTag(g)}${g.selection_status==='review'?'<span class="tag u">review</span>':''}${g.recommended_emulator==='RetroArch'?'<span class="tag r">RetroArch</span>':''}${ciBtn(g)}${inBtn(g)}</div><div class="ctl"><label><input type="checkbox" data-id="${g.game_id}" ${sel.has(g.game_id)?'checked':''}> Select</label><span>${detBtn(g)}${starBtn(g)}</span></div></div></div>`; }
+function vlReset(items){ VL.items=items; VL.start=VL.end=-1; }
+function vlRows(){ return VL.cols>1?Math.ceil(VL.items.length/VL.cols):VL.items.length; }
+function vlRowKey(r){ const g=VL.items[r*VL.cols]; return g?g.game_id:''; }
+function vlRowH(r){ return VL.h.get(vlRowKey(r))||VL.avg; }
+function vlOffset(r){ let y=0; for(let i=0;i<r;i++) y+=vlRowH(i); return y; }
+function vlIndexAt(y){ let acc=0; const n=vlRows(); for(let i=0;i<n;i++){ const h=vlRowH(i); if(acc+h>y) return i; acc+=h; } return n; }
+function vlBase(){ return view==='list'?$('tb'):$('gridView'); }
+function vlWindow(){ const n=vlRows(); if(!n) return [0,0]; if(VL.all) return [0,n]; const top=vlBase().getBoundingClientRect().top+scrollY; const y0=scrollY+stickyH()-top-VL.pad, y1=scrollY+innerHeight-top+VL.pad; let s=vlIndexAt(Math.max(0,y0)), e=vlIndexAt(Math.max(0,y1))+1; s=Math.max(0,Math.min(s,n)); e=Math.max(s,Math.min(e,n)); return [s,e]; }
+function vlPaint(force){ const [s,e]=vlWindow(); if(!force&&s===VL.start&&e===VL.end) return; VL.start=s; VL.end=e; const n=vlRows(); const before=Math.round(vlOffset(s)); let after=0; for(let i=e;i<n;i++) after+=vlRowH(i); after=Math.round(after);
+  if(view==='list'){ const sp=h=>h>0?`<tr class="vsp" aria-hidden="true"><td style="height:${h}px"></td></tr>`:''; let html=sp(before); for(let i=s;i<e;i++) html+=rowHtml(VL.items[i],i); $('tb').innerHTML=html+sp(after); }
+  else { const sp=h=>h>0?`<div class="vsp" aria-hidden="true" style="height:${h}px"></div>`:''; let html=sp(before); const lim=Math.min(e*VL.cols,VL.items.length); for(let i=s*VL.cols;i<lim;i++) html+=cardHtml(VL.items[i],i); $('gridView').innerHTML=html+sp(after); }
+  vlMeasure(); }
+function vlMeasure(){ let sum=0,n=0; if(view==='list'){ $('tb').querySelectorAll('tr.pick').forEach(r=>{ const h=r.offsetHeight; if(h){ VL.h.set(r.dataset.g,h); sum+=h; n++; } }); }
+  else { const cards=$('gridView').querySelectorAll('.card'); for(let i=0;i<cards.length;i+=VL.cols){ const h=cards[i].offsetHeight; if(h){ VL.h.set(cards[i].dataset.g,h+VL.gap); sum+=h+VL.gap; n++; } } }
+  if(n) VL.avg=Math.max(20,Math.round(sum/n)); }
+function vlReflow(force){ let cols=1, gap=0; if(view==='grid'){ const cs=getComputedStyle($('gridView')); cols=Math.max(1,cs.gridTemplateColumns.split(' ').length); gap=parseFloat(cs.rowGap)||0; }
+  if(cols!==VL.cols||gap!==VL.gap||force){ VL.h.clear(); VL.cols=cols; VL.gap=gap; VL.start=VL.end=-1; } vlPaint(true); }
+function vlSchedule(){ if(VL.raf) return; VL.raf=requestAnimationFrame(()=>{ VL.raf=0; vlPaint(false); }); }
+addEventListener('scroll',vlSchedule,{passive:true});
 function render(){ const vis=visible(); vis.sort((a,b)=>{ if(sortK.startsWith('rank:')){ const x=rankKey(a,sortK), y=rankKey(b,sortK); if(x==null&&y==null) return a.display_title.localeCompare(b.display_title); if(x==null) return 1; if(y==null) return -1; return (x-y)*sortDir; } let x=a[sortK],y=b[sortK]; if(sortK==='sel'){x=sel.has(a.game_id)?1:0;y=sel.has(b.game_id)?1:0;} if(typeof x==='string'){x=x.toLowerCase();y=(y||'').toLowerCase();} return (x>y?1:x<y?-1:0)*sortDir; });
  if(!$('filters').classList.contains('open')){ $('sortSel').value=sortK; $('sortDir').value=((sortK==='sel')?sortDir>0:sortDir<0)?'desc':'asc'; }
- let last=''; const anchor=g=>{const L=(g.display_title||'')[0].toUpperCase(); const l=/[A-Z]/.test(L)?L:'#'; const a=l!==last?` data-l="${l}"`:''; last=l; return a;};
- if(view==='list'){ $('listView').hidden=false; $('gridView').hidden=true; last='';
-  $('tb').innerHTML=vis.map(g=>`<tr class="pick ${sel.has(g.game_id)?'sel ':''}${g.selection_status==='review'?'review':''}" data-g="${g.game_id}" tabindex="0" aria-selected="${sel.has(g.game_id)}"${anchor(g)}><td><input type="checkbox" data-id="${g.game_id}" ${sel.has(g.game_id)?'checked':''} aria-label="select"></td><td>${artEl(g,'thumb')}</td><td><span class="ttl">${esc(g.display_title)}</span>${window.verChip?verChip(g):''}${window.srcBadge?srcBadge(g):''}${detBtn(g)}<div class="small">${esc(g.rev||'')} ${esc(g.regions||'')} · ${esc(g.nointro_name)}</div></td><td>${rankCell(g)}</td><td>${esc(g.year||'')}</td><td>${esc(g.publisher||'')}</td><td class="small">${esc(g.genre||'unknown')}</td><td class="small">${esc(g.players||'?')}${g.simultaneous?' '+esc(g.simultaneous):''}</td><td>${instTag(g)||'<span class="small">new</span>'}${g.ambiguity?'<br><span class="tag u" title="'+esc(g.ambiguity)+'">review</span>':''}</td><td class="mono">${g.mapper??''}</td><td>${idTag(g)}<br>${hdrTag(g)}</td><td style="white-space:nowrap">${emuTag(g)}${ciBtn(g)}${inBtn(g)}</td><td class="mono" style="white-space:nowrap">${fmt(g.payload_size+16)}</td><td>${starBtn(g)}</td></tr>`).join('');
- } else { $('listView').hidden=true; $('gridView').hidden=false; last='';
-  $('gridView').innerHTML=vis.map(g=>`<div class="card ${sel.has(g.game_id)?'sel ':''}${g.selection_status==='review'?'review':''}" data-g="${g.game_id}" tabindex="0" aria-selected="${sel.has(g.game_id)}"${anchor(g)}><div class="cover"><span class="selbadge">✓ Selected</span>${rankBadge(g)}${artEl(g,'')}</div><div class="body"><div class="t">${esc(g.display_title)}${window.srcBadge?srcBadge(g):''}</div>${window.verChip&&TITLES[g.title_id]&&TITLES[g.title_id].versions.length>1?`<div style="margin:2px 0 4px">${verChip(g)}</div>`:''}<div class="m">${esc(g.year||'')}${g.publisher?' · '+esc(g.publisher):''}${g.genre?' · '+esc(g.genre.split(',')[0]):''}</div><div>${g.licensed==='unlicensed'?'<span class="tag r">unlicensed</span>':''}${instTag(g)}${g.selection_status==='review'?'<span class="tag u">review</span>':''}${g.recommended_emulator==='RetroArch'?'<span class="tag r">RetroArch</span>':''}${ciBtn(g)}${inBtn(g)}</div><div class="ctl"><label><input type="checkbox" data-id="${g.game_id}" ${sel.has(g.game_id)?'checked':''}> Select</label><span>${detBtn(g)}${starBtn(g)}</span></div></div></div>`).join('');
- }
+ if(view==='list'){ $('listView').hidden=false; $('gridView').hidden=true; } else { $('listView').hidden=true; $('gridView').hidden=false; }
+ vlReset(vis); vlReflow(true); document.documentElement.dataset.rows=vis.length; document.documentElement.dataset.ready='1';
+ $('heroGames').textContent=games.filter(g=>extOn||!g.ext).length;
  const chosen=window.selectedGames?selectedGames():games.filter(g=>sel.has(g.game_id)); const toInstall=chosen.filter(installRequired); const bytes=toInstall.reduce((a,g)=>a+g.payload_size+16,0); const mib=bytes/1048576; const over=capMiB&&mib>capMiB;
  const selB=[...sel].filter(id=>{ const g=byId[id]; return g&&g.builtin_status&&g.builtin_status.startsWith('BUILT-IN'); }).length;
  $('stats').innerHTML=`${vis.length} shown · <b>${sel.size} selected</b>${selB?` <span class="mut">(${selB} built-in + ${sel.size-selB} added)</span>`:''} · <span class="mut">${window.libCountText?libCountText():games.length+' games'}</span> · ${toInstall.length} to install · ~${fmt(bytes)}${over?` <span class="over">(exceeds the ${storageModel()==='measured'?'measured':'estimated'} space)</span>`:''} · ${fav.size} ★`; $('trayBadge').textContent=sel.size; $('trayBadge').classList.toggle('zero',!sel.size);
@@ -648,12 +673,12 @@ $('hkBtn').onclick=async()=>{
 $('gen').textContent=`generated ${DATA.generated} · ${DATA.games.length} curated games · Extended Library index ${DATA.lib_counts?DATA.lib_counts.titles+' titles / '+DATA.lib_counts.versions+' versions':''} · collection files: nes-classic-collection/4`;
 $('heroGames').textContent=DATA.games.length;
 // keep the sticky table header just below the sticky toolbar
-const tb=$('stickyHead'); const setTb=()=>document.documentElement.style.setProperty('--tb-h',(getComputedStyle(tb).position==='sticky'?tb.offsetHeight:$('toolbar').offsetHeight)+'px'); if(window.ResizeObserver) new ResizeObserver(setTb).observe(tb); setTb(); addEventListener('resize',setTb);
+const tb=$('stickyHead'); const setTb=()=>{ document.documentElement.style.setProperty('--tb-h',(getComputedStyle(tb).position==='sticky'?tb.offsetHeight:$('toolbar').offsetHeight)+'px'); if(window.VL&&VL.items.length) vlSchedule(); }; if(window.ResizeObserver) new ResizeObserver(setTb).observe(tb); setTb(); addEventListener('resize',setTb);
 // ---- collapsible tools section: search, filters, view, stats, connection, alphabet strip and storage fold away; Help, My Collection, Save / Load, Tray and Install stay.
 //      Narrow screens: collapsed until opened. Wide screens: open at the top of the page, collapsed automatically once the reader scrolls into the list; a click pins the choice until the page is scrolled back to the top.
 const FOLD={auto:true,cramped:false,narrow:()=>FOLD.cramped||matchMedia('(max-width:640px)').matches};
 function foldOpen(){ return !$('toolsFold').classList.contains('collapsed'); }
-function setFold(open){ $('toolsFold').classList.toggle('collapsed',!open); $('foldBtn').setAttribute('aria-expanded',String(open)); $('foldBtn').classList.toggle('on',open); setTb(); }
+function setFold(open){ if(foldOpen()===!!open) return; $('toolsFold').classList.toggle('collapsed',!open); $('foldBtn').setAttribute('aria-expanded',String(open)); $('foldBtn').classList.toggle('on',open); setTb(); }
 function foldAuto(){ if(!FOLD.auto) return; setFold(FOLD.narrow()?false:scrollY<=120); }
 function foldForJump(){ if(FOLD.auto&&!FOLD.narrow()) setFold(false); }
 function foldBadge(n){ const b=$('foldBadge'); if(!b) return; b.textContent=n; b.hidden=!n; }
@@ -672,6 +697,9 @@ function barMeasure(){ const bar=$('toolbar').querySelector('.row.bar'); const i
   const tops=items.map(e=>e.getBoundingClientRect().top); bar.classList.toggle('wrapped',Math.max(...tops)-Math.min(...tops)>4); }
 let foldRaf=0; const foldOnResize=()=>{ if(foldRaf) return; foldRaf=requestAnimationFrame(()=>{ foldRaf=0; barMeasure(); foldMeasure(); foldAuto(); setTb(); }); }; window.foldKick=foldOnResize;
 addEventListener('resize',foldOnResize); if(window.ResizeObserver) new ResizeObserver(foldOnResize).observe($('toolbar'));
+// window resize: pause the decorative animations and transitions while the edge is being dragged; re-lay the list out once the size settles
+let rzT=0; addEventListener('resize',()=>{ document.documentElement.classList.add('resizing'); clearTimeout(rzT); rzT=setTimeout(()=>{ document.documentElement.classList.remove('resizing'); if(VL.items.length) vlReflow(false); },140); });
+$('foldHide').onclick=()=>{ FOLD.auto=false; setFold(false); $('foldBtn').focus({preventScroll:true}); };
 if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('toolsFold').querySelector('.row.tools'),{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
 barMeasure(); FOLD.cramped=!foldFits(); $('toolsFold').classList.toggle('stack',FOLD.cramped); foldAuto();
 __STUDIO_JS__
@@ -681,7 +709,7 @@ render();
 LEGAL_PRIVATE = TEMPLATE[TEMPLATE.index('<p class="legal">'):TEMPLATE.index("</p></div></footer>") + len("</p></div></footer>")]
 LEGAL_PUBLIC = ('<p class="legal">' + DISCLAIMER + ' Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3, a separate download; this Studio prepares collections for it and does not bundle or reimplement it). '
     'The pixel artwork and interface icons are Nintendo\'s own renderings from the NES Classic Edition system software and documented community sprite rips (origins in the parade above), and the box art comes from community thumbnail collections; they are shown to identify and present the games, and all rights remain with their owners. No game files or console software are distributed with this website. '
-    'Source code, releases and how to verify a download: <a href="https://github.com/Rance9/NES-Classic-Collection-Studio" rel="noopener">github.com/Rance9/NES-Classic-Collection-Studio</a>. Catalog <span id="gen"></span>.</p></div></footer>')
+    'Source code, releases and how to verify a download: <a href="https://github.com/Rance9/Classic-Cart-Studio" rel="noopener">github.com/Rance9/Classic-Cart-Studio</a>. Catalog <span id="gen"></span>.</p></div></footer>')
 
 def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title: str = "") -> str:
     f = index.get((folder, stem + ".png"))

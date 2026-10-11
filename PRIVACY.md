@@ -14,7 +14,7 @@ You can remove all of it by clearing the site's data in your browser. "Export St
 
 **Network requests the website makes:**
 
-- its own files from `https://classiccartstudio.com` (GitHub Pages serves them; GitHub's privacy statement applies to that hosting; the former address `https://rance9.github.io/NES-Classic-Collection-Studio/` redirects there);
+- its own files from `https://classiccartstudio.com` (GitHub Pages serves them; GitHub's privacy statement applies to that hosting; the former address `https://rance9.github.io/Classic-Cart-Studio/` redirects there);
 - `release.json` from the same site and, as a fallback for the download section, the public GitHub Releases API at `https://api.github.com` (unauthenticated);
 - the backend on your own computer at `http://127.0.0.1:8765`, only after you connect it or choose **Continue in Desktop App** (see below).
 
@@ -58,4 +58,4 @@ Uninstalling Classic Cart Studio (Windows Settings → Apps) removes the program
 
 ## Contact
 
-Questions and reports: the repository's issue tracker at https://github.com/Rance9/NES-Classic-Collection-Studio/issues (public). For security matters see `SECURITY.md`.
+Questions and reports: the repository's issue tracker at https://github.com/Rance9/Classic-Cart-Studio/issues (public). For security matters see `SECURITY.md`.

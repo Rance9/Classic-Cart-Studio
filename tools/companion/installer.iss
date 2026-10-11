@@ -17,7 +17,7 @@
 #define BackendExe "NESClassicCollectionStudioCompanion.exe"
 #define AppPublisher "Classic Cart Studio project (independent; not affiliated with Nintendo)"
 #define AppURL "https://classiccartstudio.com/"
-#define RepoURL "https://github.com/Rance9/NES-Classic-Collection-Studio"
+#define RepoURL "https://github.com/Rance9/Classic-Cart-Studio"
 
 [Setup]
 AppId={{7E4C1C3A-6B0C-4B59-9F3D-2A1D5C0E9B11}

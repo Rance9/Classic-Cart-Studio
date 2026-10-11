@@ -54,7 +54,7 @@ namespace ClassicCartStudio
             m.DropDownItems.Add(new ToolStripSeparator());
             m.DropDownItems.Add("Open the data folder", null, (s, e) => { try { Directory.CreateDirectory(App.DataRoot); Process.Start(new ProcessStartInfo("explorer.exe", "\"" + App.DataRoot + "\"") { UseShellExecute = true }); } catch { } });
             m.DropDownItems.Add("Diagnostics…", null, (s, e) => ShowDiagnostics());
-            m.DropDownItems.Add("Check for updates (releases page)", null, (s, e) => App.OpenExternal("https://github.com/Rance9/NES-Classic-Collection-Studio/releases"));
+            m.DropDownItems.Add("Check for updates (releases page)", null, (s, e) => App.OpenExternal("https://github.com/Rance9/Classic-Cart-Studio/releases"));
             m.DropDownItems.Add(new ToolStripSeparator());
             m.DropDownItems.Add("About Classic Cart Studio", null, (s, e) => ShowAbout());
             m.DropDownItems.Add("E&xit", null, (s, e) => Close());

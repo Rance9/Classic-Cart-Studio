@@ -4,7 +4,7 @@ Safety: refuses unless scan_prohibited.py passes on the tree AND on the full git
 authenticated GitHub login is not the expected account; never prints tokens (gh keeps them in the OS keyring); never touches the
 private development repository's history (publish/repo has its own .git).
 
-  python publish_repo.py --account Rance9 --repo NES-Classic-Collection-Studio --message "..." [--create] [--push]
+  python publish_repo.py --account Rance9 --repo Classic-Cart-Studio --message "..." [--create] [--push]
 """
 from __future__ import annotations
 import os, sys, json, subprocess, argparse

@@ -281,21 +281,53 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
 #t td .tags,#t td .pills{gap:4px}
 #t td .det{height:18px;padding:0 7px;font-size:10.5px;line-height:16px;margin-left:6px;box-sizing:border-box}
 /* tools row: one line or nothing. It never wraps; when it would need a second line the section collapses at once and, when
-   opened, lays out as an aligned grid (search / Filter & Sort · Select · List-Grid / stats · connection). */
+   opened, lays out as centered lines (search / Filter & Sort - Select - List-Grid / stats - connection / chips / letters / storage). */
 .row.tools{flex-wrap:nowrap;min-width:0}.row.tools>*{flex-shrink:0}
 .row.tools>input[type=search]{flex:1 1 auto;width:auto;min-width:200px;max-width:340px}
 .toolsfold.measuring{display:flex!important;height:0;overflow:hidden;visibility:hidden;margin:0;pointer-events:none}
 .toolsfold.measuring .row.tools{display:flex;flex-wrap:nowrap;overflow:hidden}
 .toolsfold.measuring .row.tools>input[type=search]{flex:0 0 200px;width:200px;min-width:200px;max-width:200px}
-.toolsfold.stack:not(.measuring) .row.tools{display:grid;grid-template-columns:1fr 1fr 1fr;grid-auto-rows:minmax(36px,auto);gap:8px;align-items:stretch}
+.toolsfold.measuring .foldhide{display:none}
+.toolsfold.stack:not(.measuring) .row.tools{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px}
 .toolsfold.stack:not(.measuring) .row.tools>span[style]{display:none}
-.toolsfold.stack:not(.measuring) .row.tools>input[type=search]{grid-column:1/-1;flex:none;width:100%;min-width:0;max-width:none;box-sizing:border-box}
-.toolsfold.stack:not(.measuring) .row.tools .menuwrap{width:100%;display:flex}
-.toolsfold.stack:not(.measuring) .row.tools .btn,.toolsfold.stack:not(.measuring) .row.tools .seg{width:100%;justify-content:center;box-sizing:border-box}
+.toolsfold.stack:not(.measuring) .row.tools>input[type=search]{flex:0 0 100%;width:100%;min-width:0;max-width:none;box-sizing:border-box;height:36px}
+.toolsfold.stack:not(.measuring) .row.tools #filtersBtn,.toolsfold.stack:not(.measuring) .row.tools .menuwrap,.toolsfold.stack:not(.measuring) .row.tools .seg{flex:1 1 calc(33.333% - 6px);min-width:0;height:36px;box-sizing:border-box}
+.toolsfold.stack:not(.measuring) .row.tools .menuwrap{display:flex}
+.toolsfold.stack:not(.measuring) .row.tools .btn,.toolsfold.stack:not(.measuring) .row.tools .seg{width:100%;justify-content:center;box-sizing:border-box;height:36px}
 .toolsfold.stack:not(.measuring) .row.tools .seg .btn{flex:1}
-.toolsfold.stack:not(.measuring) .row.tools .stats{grid-column:1/3;display:block;align-self:center;white-space:normal;line-height:1.35;min-width:0;padding:0 2px;font-size:11.5px;color:var(--muted)}
-.toolsfold.stack:not(.measuring) .row.tools .conn{grid-column:3;justify-self:end;align-self:center;justify-content:center;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:640px){.row.tools>input[type=search]{flex:none;width:100%;min-width:0;max-width:none}
- .toolsfold.stack:not(.measuring) .row.tools .stats{grid-column:1/-1;justify-content:center;text-align:center}.toolsfold.stack:not(.measuring) .row.tools .conn{grid-column:1/-1;justify-self:stretch}}
+.toolsfold.stack:not(.measuring) .row.tools .stats{flex:0 1 auto;white-space:normal;text-align:center;min-width:0;padding:0 2px;font-size:11.5px;color:var(--muted);line-height:1.35}
+.toolsfold.stack:not(.measuring) .row.tools .conn{flex:0 0 auto;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.toolsfold.stack:not(.measuring) .row.chips{justify-content:center}
+.toolsfold.stack:not(.measuring) .row.sub{justify-content:center;align-items:center}
+.toolsfold.stack:not(.measuring) .row.sub .letters{justify-content:center;flex:0 1 auto}
+.toolsfold.stack:not(.measuring) .notice{text-align:center;justify-content:center}
+.foldhide{display:none;align-self:center;margin:2px auto 0;padding:5px 12px;border-radius:999px;border:1px solid var(--line2);background:rgba(255,255,255,.04);color:var(--ink2);font-weight:600;font-size:12px;line-height:1;font-family:inherit;cursor:pointer}
+.foldhide:hover{border-color:#fff;color:#fff}
+.toolsfold.stack:not(.measuring) .foldhide{display:inline-flex}
+@media (max-width:640px){.row.tools>input[type=search]{flex:none;width:100%;min-width:0;max-width:none}.toolsfold.stack:not(.measuring) .row.tools .conn{flex:0 0 100%;justify-content:center}}
 /* top bar: when it needs more than one line, every line is centered (measured by the page, not by a breakpoint) */
 .row.bar.wrapped{justify-content:center;gap:8px}.row.bar.wrapped>span{display:none}.row.bar.wrapped .actions{display:contents}.row.bar.wrapped .menuwrap{display:inline-flex}
+
+/* windowed list: spacer rows stand in for the rows that are not painted */
+.vsp td{padding:0!important;border:0!important;background:transparent!important}
+.grid .vsp{grid-column:1/-1}
+/* wide screens: explicit column widths (automatic layout keeps them as minimums), so the painted rows settle the layout without
+   measuring the whole library; the Title column takes what is left. Hidden columns (display:none) are simply skipped. */
+@media (min-width:1001px){
+ #t{width:100%}
+ th:nth-child(1),td:nth-child(1){width:38px}th:nth-child(2),td:nth-child(2){width:68px}th:nth-child(4),td:nth-child(4){width:67px}th:nth-child(5),td:nth-child(5){width:52px}
+ th:nth-child(6),td:nth-child(6){width:132px}th:nth-child(7),td:nth-child(7){width:106px}th:nth-child(8),td:nth-child(8){width:100px}th:nth-child(9),td:nth-child(9){width:139px}
+ th:nth-child(10),td:nth-child(10){width:74px}th:nth-child(11),td:nth-child(11){width:140px}th:nth-child(12),td:nth-child(12){width:186px}th:nth-child(13),td:nth-child(13){width:74px}th:nth-child(14),td:nth-child(14){width:40px}
+ td:nth-child(3),td:nth-child(6),td:nth-child(7){overflow-wrap:anywhere}
+}
+#t,.grid{overflow-anchor:none}
+/* while the window edge is being dragged nothing animates or transitions */
+html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-state:paused!important;transition:none!important}
+/* the Install glow pulses by fading a shadow layer in and out (compositor only) instead of re-painting a box-shadow every frame */
+.btn.hk,.btn.hk.off{animation:none;position:relative}
+.btn.hk::after{content:"";position:absolute;inset:-1px;border-radius:inherit;box-shadow:0 3px 16px rgba(52,209,110,.5),0 0 36px rgba(84,230,140,.6);opacity:0;animation:hkpulse 2.8s ease-in-out infinite;pointer-events:none;z-index:-1}
+@keyframes hkpulse{0%,100%{opacity:0}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.btn.hk::after,.parade .cast img,.parade .cast,#guide .deco img{animation:none!important}}
+/* the Extended Library info button inside the Filter & Sort dialog */
+.ext .info{display:inline-grid;place-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--muted);font-family:inherit;font-size:11px;font-weight:700;line-height:1;cursor:help;padding:0;margin-left:4px;vertical-align:middle}
+.ext .info:hover{color:#fff;border-color:#fff}
