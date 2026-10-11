@@ -106,10 +106,13 @@ def main():
     port = int(nc.CFG.get("port", DEFAULT_PORT)); link = handle_protocol_arg(sys.argv[1:])
     if "--console-worker" in sys.argv[1:]:   # the console engine worker (simulation tier): line protocol on stdin/stdout, no window, no network
         import io
-        # a windowed (console=False) frozen build has no std streams of its own: attach the pipes the parent process provides
-        if sys.stdin is None: sys.stdin = io.TextIOWrapper(os.fdopen(0, "rb", closefd=False), encoding="utf-8")
-        if sys.stdout is None: sys.stdout = io.TextIOWrapper(os.fdopen(1, "wb", closefd=False), encoding="utf-8", line_buffering=True)
-        if sys.stderr is None: sys.stderr = io.TextIOWrapper(os.fdopen(2, "wb", closefd=False), encoding="utf-8", line_buffering=True)
+        # The protocol runs on the pipes the parent provides, whatever the process's own std streams are: a windowed frozen
+        # build has none, and setup_logging() above points sys.stdout/sys.stderr at server.log (which keeps receiving errors).
+        try:
+            sys.stdin = io.TextIOWrapper(os.fdopen(0, "rb", closefd=False), encoding="utf-8")
+            sys.stdout = io.TextIOWrapper(os.fdopen(1, "wb", closefd=False), encoding="utf-8", line_buffering=True)
+        except OSError as e:
+            LOG.error("console worker: no stdio pipes (%s)", e); return
         from console_engine.worker import main as worker_main
         root = sys.argv[sys.argv.index("--root") + 1] if "--root" in sys.argv[1:] else os.path.join(DATA_ROOT, "console")
         worker_main(["--root", root]); return
