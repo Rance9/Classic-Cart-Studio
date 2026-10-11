@@ -362,3 +362,10 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .toolsfold.stack:not(.measuring) .row.sub:not(.split):has(.chips[hidden]) .letters{justify-content:center}
 @media (max-width:640px){.row.sub{flex-direction:column;align-items:stretch}.row.sub .letters,.row.sub .chips{flex:0 0 auto;width:100%;justify-content:center}}
 .chips .none{font-size:12px;color:var(--muted);white-space:nowrap}
+/* the Classic Cart Studio logo (pixel-art cartridge) in the hero title, the welcome and the guide header */
+.hero h1{display:flex;align-items:center;flex-wrap:wrap;gap:0 .3em}.hero h1 .logo{height:1em;width:auto;margin:0;image-rendering:pixelated;flex:none}
+#welcome h2{display:flex;align-items:center;flex-wrap:wrap;gap:0 .45em}#welcome h2 .logo{height:1.5em;width:auto;margin:0;image-rendering:pixelated;flex:none}
+#guide .ghd .logo{width:28px;height:28px;image-rendering:pixelated;flex:none}
+#welcome .ft{align-items:center;gap:10px;flex-wrap:wrap}
+#welcome .ft .wevery{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);cursor:pointer;white-space:nowrap}
+#welcome .ft .wevery input{accent-color:var(--red);margin:0}

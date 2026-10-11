@@ -84,6 +84,9 @@ namespace ClassicCartStudio
         {
             var max = WindowState == WindowState.Maximized;
             maxBtn.Content = max ? "\uE923" : "\uE922"; maxBtn.ToolTip = max ? "Restore" : "Maximize";
+            // keep the whole window on the work area when maximized: inset the content by whatever the frame overshoots (measured, per side)
+            if (max) Dispatcher.BeginInvoke(new Action(() => { try { var o = Native.MaximizedOvershoot(new WindowInteropHelper(this).Handle); var dpi = VisualTreeHelper.GetDpi(this); root.Margin = new Thickness(o.left / dpi.DpiScaleX, o.top / dpi.DpiScaleY, o.right / dpi.DpiScaleX, o.bottom / dpi.DpiScaleY); } catch { } }), DispatcherPriority.Loaded);
+            else root.Margin = new Thickness(0);
         }
         void MenuBtn_Click(object s, RoutedEventArgs e) { menuPopup.IsOpen = !menuPopup.IsOpen; }
         void OnPreviewKeyDown(object s, KeyEventArgs e)

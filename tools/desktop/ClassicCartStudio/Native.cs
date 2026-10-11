@@ -51,6 +51,21 @@ namespace ClassicCartStudio
             catch { return false; }
         }
 
+        // how far the maximized frame extends past the monitor's work area (WindowChrome keeps the resize border outside): per side, in physical px
+        [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+        public static RECT MaximizedOvershoot(IntPtr hwnd)
+        {
+            var o = new RECT();
+            try
+            {
+                RECT f; if (!GetWindowRect(hwnd, out f)) return o;   // the real window rect: WindowChrome keeps the invisible resize border outside the screen when maximized
+                var mon = MonitorFromWindow(hwnd, 2); var mi = new MONITORINFO(); if (mon == IntPtr.Zero || !GetMonitorInfo(mon, mi)) return o;
+                o.left = Math.Max(0, mi.rcWork.left - f.left); o.top = Math.Max(0, mi.rcWork.top - f.top); o.right = Math.Max(0, f.right - mi.rcWork.right); o.bottom = Math.Max(0, f.bottom - mi.rcWork.bottom);
+            }
+            catch { }
+            return o;
+        }
+
         public static int GetX(IntPtr lParam) { return (short)(lParam.ToInt64() & 0xFFFF); }
         public static int GetY(IntPtr lParam) { return (short)((lParam.ToInt64() >> 16) & 0xFFFF); }
     }
