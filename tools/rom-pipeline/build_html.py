@@ -651,14 +651,29 @@ $('heroGames').textContent=DATA.games.length;
 const tb=$('stickyHead'); const setTb=()=>document.documentElement.style.setProperty('--tb-h',(getComputedStyle(tb).position==='sticky'?tb.offsetHeight:$('toolbar').offsetHeight)+'px'); if(window.ResizeObserver) new ResizeObserver(setTb).observe(tb); setTb(); addEventListener('resize',setTb);
 // ---- collapsible tools section: search, filters, view, stats, connection, alphabet strip and storage fold away; Help, My Collection, Save / Load, Tray and Install stay.
 //      Narrow screens: collapsed until opened. Wide screens: open at the top of the page, collapsed automatically once the reader scrolls into the list; a click pins the choice until the page is scrolled back to the top.
-const FOLD={auto:true,narrow:()=>matchMedia('(max-width:900px)').matches};
+const FOLD={auto:true,cramped:false,narrow:()=>FOLD.cramped||matchMedia('(max-width:640px)').matches};
 function foldOpen(){ return !$('toolsFold').classList.contains('collapsed'); }
 function setFold(open){ $('toolsFold').classList.toggle('collapsed',!open); $('foldBtn').setAttribute('aria-expanded',String(open)); $('foldBtn').classList.toggle('on',open); setTb(); }
 function foldAuto(){ if(!FOLD.auto) return; setFold(FOLD.narrow()?false:scrollY<=120); }
 function foldForJump(){ if(FOLD.auto&&!FOLD.narrow()) setFold(false); }
 function foldBadge(n){ const b=$('foldBadge'); if(!b) return; b.textContent=n; b.hidden=!n; }
+// Does the tools row (search … connection pill) fit on ONE line at the current width? Measured, not guessed: the row is laid out
+// unwrapped (invisibly when the section is collapsed) and compared with the space it has. If it would need a second line the section
+// is "cramped": it collapses at once, and when opened it uses the stacked grid (search / three controls / stats + connection) so
+// nothing is ever left scattered across two half-filled lines.
+function foldFits(){ const f=$('toolsFold'), r=f.querySelector('.row.tools'); const was=f.className; f.className='toolsfold measuring';
+  const fits=r.scrollWidth<=r.clientWidth+1; f.className=was; return fits; }
+function foldMeasure(){ const cramped=!foldFits(); if(cramped===FOLD.cramped) return; FOLD.cramped=cramped; $('toolsFold').classList.toggle('stack',cramped);
+  FOLD.auto=true; if(cramped) setFold(false); else foldAuto(); }
 $('foldBtn').onclick=()=>{ FOLD.auto=false; setFold(!foldOpen()); if(foldOpen()&&!FOLD.narrow()){ const q=$('q'); if(q&&scrollY<=120) q.focus({preventScroll:true}); } };
-addEventListener('scroll',()=>{ if(!FOLD.auto&&scrollY<=10) FOLD.auto=true; foldAuto(); },{passive:true}); addEventListener('resize',foldAuto); foldAuto();
+addEventListener('scroll',()=>{ if(!FOLD.auto&&scrollY<=10) FOLD.auto=true; foldAuto(); },{passive:true});
+// top bar: centered lines whenever it wraps (measured)
+function barMeasure(){ const bar=$('toolbar').querySelector('.row.bar'); const items=[...bar.querySelectorAll(':scope>*, :scope>.actions>*, :scope>.actions>.pair>*')].filter(e=>e.offsetParent&&getComputedStyle(e).display!=='none'&&e.tagName!=='SPAN'); if(items.length<2) return;
+  const tops=items.map(e=>e.getBoundingClientRect().top); bar.classList.toggle('wrapped',Math.max(...tops)-Math.min(...tops)>4); }
+let foldRaf=0; const foldOnResize=()=>{ if(foldRaf) return; foldRaf=requestAnimationFrame(()=>{ foldRaf=0; barMeasure(); foldMeasure(); foldAuto(); setTb(); }); }; window.foldKick=foldOnResize;
+addEventListener('resize',foldOnResize); if(window.ResizeObserver) new ResizeObserver(foldOnResize).observe($('toolbar'));
+if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('toolsFold').querySelector('.row.tools'),{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
+barMeasure(); FOLD.cramped=!foldFits(); $('toolsFold').classList.toggle('stack',FOLD.cramped); foldAuto();
 __STUDIO_JS__
 render();
 </script></body></html>"""

@@ -1,5 +1,9 @@
 # Changelog
 
+## Website — 2026-10-11 (after 0.2.1; no new installer)
+
+- Search & Tools section: the row that starts with the search box and ends with the connection pill never wraps. The page measures whether it fits on one line; the moment it would need a second line, the section collapses on its own, and opening it at such a width shows an aligned layout (search box across the full width, Filter & Sort / Select / List-Grid as three equal buttons, stats and the connection pill on one line). Widen the window again and the one-line layout returns. The top bar centers its rows whenever it wraps, at any width.
+
 ## 0.2.1 — 2026-10-11
 
 - Installer: when upgrading from the 0.1.x companion, the Start-menu group and shortcuts are renamed to Classic Cart Studio and the old companion shortcuts are removed (0.2.0 kept the old group name and left the old shortcuts next to the new ones). No application or website changes.

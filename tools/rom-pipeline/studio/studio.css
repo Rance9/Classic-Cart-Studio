@@ -280,3 +280,22 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
 #t td .tag{height:18px;padding:0 7px;font-size:10.5px;line-height:16px;box-sizing:border-box}
 #t td .tags,#t td .pills{gap:4px}
 #t td .det{height:18px;padding:0 7px;font-size:10.5px;line-height:16px;margin-left:6px;box-sizing:border-box}
+/* tools row: one line or nothing. It never wraps; when it would need a second line the section collapses at once and, when
+   opened, lays out as an aligned grid (search / Filter & Sort · Select · List-Grid / stats · connection). */
+.row.tools{flex-wrap:nowrap;min-width:0}.row.tools>*{flex-shrink:0}
+.row.tools>input[type=search]{flex:1 1 auto;width:auto;min-width:200px;max-width:340px}
+.toolsfold.measuring{display:flex!important;height:0;overflow:hidden;visibility:hidden;margin:0;pointer-events:none}
+.toolsfold.measuring .row.tools{display:flex;flex-wrap:nowrap;overflow:hidden}
+.toolsfold.measuring .row.tools>input[type=search]{flex:0 0 200px;width:200px;min-width:200px;max-width:200px}
+.toolsfold.stack:not(.measuring) .row.tools{display:grid;grid-template-columns:1fr 1fr 1fr;grid-auto-rows:minmax(36px,auto);gap:8px;align-items:stretch}
+.toolsfold.stack:not(.measuring) .row.tools>span[style]{display:none}
+.toolsfold.stack:not(.measuring) .row.tools>input[type=search]{grid-column:1/-1;flex:none;width:100%;min-width:0;max-width:none;box-sizing:border-box}
+.toolsfold.stack:not(.measuring) .row.tools .menuwrap{width:100%;display:flex}
+.toolsfold.stack:not(.measuring) .row.tools .btn,.toolsfold.stack:not(.measuring) .row.tools .seg{width:100%;justify-content:center;box-sizing:border-box}
+.toolsfold.stack:not(.measuring) .row.tools .seg .btn{flex:1}
+.toolsfold.stack:not(.measuring) .row.tools .stats{grid-column:1/3;display:block;align-self:center;white-space:normal;line-height:1.35;min-width:0;padding:0 2px;font-size:11.5px;color:var(--muted)}
+.toolsfold.stack:not(.measuring) .row.tools .conn{grid-column:3;justify-self:end;align-self:center;justify-content:center;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:640px){.row.tools>input[type=search]{flex:none;width:100%;min-width:0;max-width:none}
+ .toolsfold.stack:not(.measuring) .row.tools .stats{grid-column:1/-1;justify-content:center;text-align:center}.toolsfold.stack:not(.measuring) .row.tools .conn{grid-column:1/-1;justify-self:stretch}}
+/* top bar: when it needs more than one line, every line is centered (measured by the page, not by a breakpoint) */
+.row.bar.wrapped{justify-content:center;gap:8px}.row.bar.wrapped>span{display:none}.row.bar.wrapped .actions{display:contents}.row.bar.wrapped .menuwrap{display:inline-flex}
