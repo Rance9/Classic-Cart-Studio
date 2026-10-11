@@ -42,6 +42,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import hakchi_bridge as hb
 import hakchi_inspect as hi
 import personal as ps
+import console_runs as cr   # console engine runs (simulation tier; Gate G1 closed in code inside the worker)
 from version import VERSION, PROTOCOL, APP_ID, PUBLIC_ORIGIN, SITE_ORIGINS, SITE_URL
 from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path
 
@@ -74,7 +75,7 @@ def revoke_all():
 #      pairing ritual, but still an exact-origin, authenticated caller. The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["pairing", "library", "personal", "import", "locate", "prepare", "handoff", "desktop-state", "shutdown"]
+CAPABILITIES = ["pairing", "library", "personal", "import", "locate", "prepare", "handoff", "desktop-state", "shutdown", "console-sim"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -276,6 +277,18 @@ class H(http.server.BaseHTTPRequestHandler):
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
             return self._json(200, {"ok": True, "state": desktop_state_load()})
+        if path.startswith("/api/console/"):   # console engine (simulation tier): desktop application only; the website never sees these
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if path == "/api/console/capabilities":
+                r = cr.call("capabilities", {}, timeout=60); return self._json(200 if r.get("event") == "result" else 500, {"ok": r.get("event") == "result", **({"capabilities": r.get("result")} if r.get("event") == "result" else {"error": r.get("text")})})
+            if path == "/api/console/run":
+                q = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else ""); rid = (q.get("id") or [""])[0]
+                try: cur = int((q.get("cursor") or ["0"])[0])
+                except ValueError: cur = 0
+                r = cr.poll(re.sub(r"[^A-Za-z0-9-]", "", rid)[:40], max(0, cur))
+                return self._json(200 if r else 404, {"ok": bool(r), **(r or {"error": "unknown run"})})
+            return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path.startswith("/api/"): return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path == "/": path = "/nes-catalog.html"
         rel = os.path.normpath(path.lstrip("/")).replace("\\", "/")
@@ -334,13 +347,39 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "not connected: this website must be paired with the companion first" if self._cross_site() else "request not authorized (token/origin)", "pair_required": self._cross_site()})
         try: body = self._body()
         except Exception as e: return self._json(400, {"ok": False, "error": f"bad request: {e}"})
-        if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown"):
+        if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown") or path.startswith("/api/console/"):
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
             if path == "/api/shutdown":
-                self._json(200, {"ok": True, "stopping": True}); srv = SERVER_REF.get("srv")
+                self._json(200, {"ok": True, "stopping": True}); cr.shutdown(); srv = SERVER_REF.get("srv")
                 if srv: threading.Thread(target=srv.shutdown, daemon=True).start()
                 return
+            if path.startswith("/api/console/"):
+                # Console engine, simulation tier. Every call goes to an isolated worker process over the line protocol; the
+                # worker addresses plans by hash and can only open the fake transport. `execute` is forwarded on purpose so the
+                # refusal (Gate G1, in code) is proven end to end; nothing in this backend can open the gate.
+                op = path[len("/api/console/"):]; prof = re.sub(r"[^a-z0-9-]", "", str(body.get("profile") or ""))[:40]
+                if op == "identify": r = cr.call("identify", {"profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "device": r.get("result"), "error": r.get("text")})
+                if op == "plan":
+                    man = body.get("manifest")
+                    if not isinstance(man, dict): return self._json(400, {"ok": False, "error": "manifest required"})
+                    r = cr.call("plan", {"manifest": man, "profile": prof or None, "keep_foreign": bool(body.get("keep_foreign", True)), "approve_alternates": bool(CFG.get("approve_alternates", False))}, timeout=180)
+                    if r.get("event") != "result": return self._json(400, {"ok": False, "error": r.get("text")})
+                    pf = cr.call("preflight", {"plan_hash": r["result"]["plan"]["hash"]})
+                    return self._json(200, {"ok": True, "plan": r["result"]["plan"], "preflight": pf.get("result") if pf.get("event") == "result" else {"ok": False, "blocks": [{"code": "preflight-failed", "text": pf.get("text")}], "warnings": []}})
+                h = re.sub(r"[^0-9a-f]", "", str(body.get("plan_hash") or ""))[:64]
+                if op == "simulate":
+                    if len(h) != 64 or not prof: return self._json(400, {"ok": False, "error": "plan_hash and profile required"})
+                    rid = cr.start("simulate", {"plan_hash": h, "profile": prof}); return self._json(200, {"ok": True, "run": rid, "simulated": True})
+                if op == "verify":
+                    r = cr.call("verify", {"plan_hash": h, "profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "verify": r.get("result"), "error": r.get("text")})
+                if op == "execute":
+                    r = cr.call("execute", {"plan_hash": h, "transport": str(body.get("transport") or "ssh")})
+                    res = r.get("result") if r.get("event") == "result" else {"code": r.get("code"), "state": r.get("text")}
+                    return self._json(403, {"ok": False, "error": (res or {}).get("state") or "physical installation disabled", "code": (res or {}).get("code") or "physical-disabled", "physical": False})
+                if op == "cancel": return self._json(200, {"ok": True, **cr.cancel(re.sub(r"[^A-Za-z0-9-]", "", str(body.get("run") or ""))[:40])})
+                if op == "recover": r = cr.call("recover", {"stage": re.sub(r"[^a-z-]", "", str(body.get("stage") or ""))[:20]}); return self._json(200, {"ok": True, **(r.get("result") or {})})
+                return self._json(404, {"ok": False, "error": "unknown console operation"})
             if path == "/api/desktop/state":   # body was parsed above (bounded by _body)
                 st = body.get("state") if isinstance(body, dict) else None
                 if isinstance(st, dict) and len(json.dumps(st)) > 4_000_000: return self._json(413, {"ok": False, "error": "state too large"})

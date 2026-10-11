@@ -827,7 +827,7 @@ def main():
         cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
         return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
-    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js")
+    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("install.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
     foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}", "eager") for st, n, g in ROSTER)   # the credits strip walks, so its sprites load up front
     foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}", "eager") for st, n in WEB_ROSTER)

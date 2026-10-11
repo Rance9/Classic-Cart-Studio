@@ -1,5 +1,5 @@
 """Single source of the companion / website protocol version (shipped in both; the website refuses older companions)."""
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 PROTOCOL = 1
 APP_ID = "nes-classic-collection-studio-companion"
 PUBLIC_ORIGIN = "https://rance9.github.io"

@@ -104,6 +104,10 @@ def run_headless(port: int) -> int:
 def main():
     os.makedirs(DATA_ROOT, exist_ok=True); setup_logging()
     port = int(nc.CFG.get("port", DEFAULT_PORT)); link = handle_protocol_arg(sys.argv[1:])
+    if "--console-worker" in sys.argv[1:]:   # the console engine worker (simulation tier): line protocol on stdin/stdout, no window, no network
+        from console_engine.worker import main as worker_main
+        root = sys.argv[sys.argv.index("--root") + 1] if "--root" in sys.argv[1:] else os.path.join(DATA_ROOT, "console")
+        worker_main(["--root", root]); return
     if "--headless" in sys.argv[1:]:
         if "--port" in sys.argv[1:]:
             try: port = int(sys.argv[sys.argv.index("--port") + 1])

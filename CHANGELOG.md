@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-10-11
+
+- **Console engine (simulation tier).** The backend can plan, preflight, rehearse and verify a collection against a simulated NES Classic through an isolated worker process; Install on NES Classic gains the steps Console State, Review Changes, Install, Verify and Complete, always marked SIMULATION. Installing on a physical console is disabled pending Gate G1 owner approval: the engine refuses at two boundaries, no USB, FEL or SSH transport exists in this build, and the Install button is shown disabled with that reason.
+- Short links on the website (ClassicCartStudio.com/source, /app) open in your ordinary browser from inside the app; a load that the app's own navigation policy cancels no longer shows the recovery screen.
+- Behavior preserved: live website, backend started and supervised by the window, desktop session for the approved origin only, single instance, nesstudio:// handoff, durable desktop state.
+
 ## 0.3.0 — 2026-10-11
 
 - **Classic Cart Studio for Windows, modernized.** The window is now a WPF application (still .NET Framework 4.8, so nothing extra to install) with its own dark title bar: the Classic Cart Studio icon, the name, a small red accent, a discreet Studio menu (Fluent icons) and the standard minimize / maximize / close controls with Windows 11 Snap Layouts, rounded corners and a dark system frame. There is no menu bar and no status bar: the website gets the whole window below a 36 px title bar.
@@ -10,6 +16,8 @@
 
 ## Website — 2026-10-11 (after 0.2.1; no new installer)
 
+- Install on NES Classic, in Classic Cart Studio for Windows with the console engine: the steps Console State, Review Changes, Install, Verify and Complete are driven by one installation plan and can be rehearsed against a simulated console (always marked SIMULATION). The physical Install button is shown disabled with its reason (pending Gate G1 owner approval); nothing in this version can write to a console. On the website the console steps keep the Continue in Desktop App invitation.
+- Help & User Guide: the Installing Your Collection chapter describes the console steps, the simulation and the gate.
 - Inside Classic Cart Studio for Windows the site's short links (ClassicCartStudio.com/source and /app) open in your ordinary browser instead of being followed inside the app window.
 - **ClassicCartStudio.com/source** opens the source code repository (the same static forwarding page as /app, with a meta refresh and a visible link for browsers without JavaScript); the footer links to it instead of showing the raw GitHub address.
 - The footer's character credits strip pauses where it is while the pointer (or keyboard focus) is over it, so the game and origin tooltips can be read, and resumes from the same spot afterwards.

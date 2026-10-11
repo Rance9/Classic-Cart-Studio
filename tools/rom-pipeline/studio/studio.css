@@ -381,3 +381,12 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .menu .submenu .mi{padding:6px 10px}
 .menu .submenu .mi b{font-weight:600;font-size:12.5px}
 @media (prefers-reduced-motion:reduce){.menu .mi.sub b .chev{transition:none}}
+/* console steps (Install on NES Classic): simulation marking, progress bar */
+.simtag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#2a2a31;border:1px solid var(--line2);color:#ffb3b7;font-family:var(--display);font-size:9.5px;letter-spacing:1px;vertical-align:middle}
+#hkpanel .msg.sim{border-color:rgba(255,59,69,.5)}
+#hkpanel .msg.warn{border-color:rgba(255,196,0,.5)}
+#hkpanel .msg.ok{border-color:rgba(60,200,120,.5)}
+#hkpanel .msg.bad{border-color:rgba(255,59,69,.7)}
+#hkpanel .pbar{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 4px}#hkpanel .pbar i{display:block;height:100%;background:var(--red3);transition:width .2s linear}
+#hkpanel dl.tvkv{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0}#hkpanel dl.tvkv dt{color:var(--muted);font-size:12px}#hkpanel dl.tvkv dd{margin:0;font-size:13px}
+#hkpanel select#cProfile{background:#141418;color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:6px 8px;font:inherit}

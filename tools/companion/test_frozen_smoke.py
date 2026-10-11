@@ -30,6 +30,13 @@ def main():
         s, h, b = get(B + "/api/status", headers={"Origin": "https://evil.example"}); ok("untrusted_origin_refused", s == 401 and "Access-Control-Allow-Origin" not in h)
         s, h, b = get(B + "/api/status", headers={"Host": "evil.example"}); ok("rebinding_host_refused", s == 403)
         ok("data_folder_created", os.path.isdir(os.path.join(data, "logs")) and os.path.exists(os.path.join(data, "logs", "companion.log")))
+        # the console engine worker is bundled: worker mode answers capabilities with the gate closed and only the fake transport
+        try:
+            w = subprocess.run([a.exe, "--console-worker", "--root", os.path.join(data, "console")], input='{"v":1,"id":"c","cmd":"capabilities"}\nquit\n', capture_output=True, text=True, encoding="utf-8", timeout=60, env=env, cwd=os.path.dirname(a.exe))
+            caps = [json.loads(l) for l in w.stdout.splitlines() if l.strip().startswith("{")]
+            res = next((c for c in caps if c.get("event") == "result"), {})
+            ok("console_worker_bundled_gate_closed", res.get("result", {}).get("capability") == "console-sim" and res["result"]["transports"] == ["fake"] and res["result"]["tiers"]["install"] is False and res["result"]["tiers"]["inspect"] is False, (w.stdout[-200:] + w.stderr[-200:]))
+        except Exception as e: ok("console_worker_bundled_gate_closed", False, repr(e)[:200])
         # second instance hands over and exits
         p2 = subprocess.Popen([a.exe], env=dict(env, BROWSER="echo"), cwd=os.path.dirname(a.exe))
         try: rc = p2.wait(timeout=30); ok("second_instance_exits", rc == 0, str(rc))
