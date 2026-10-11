@@ -8,11 +8,15 @@
 // Nothing here talks to a console, scans the computer or uploads anything. The backend (desktop app) may enrich entries with
 // local file readiness when it is connected; the preview works without it.
 const TV_KEY='studio-tv-v1';
+const TV_SAMPLE_NOTICE='Your tray is empty — this is a sample of the 30 built-in games the NES Classic ships with. Select games to preview your own menu.';
 const TV_SKIN={name:'stock-inspired',visible:7,tileW:0.118,tileH:0.46,gap:0.012,bands:{top:0.09,shelf:0.70,bottom:0.09}};
 let TV={open:false,mode:'proposed',view:'menu',i:0,treatment:'clean',proj:null,returnTo:null,focusId:null,trap:null};
 
 function tvSortTitle(t){ return String(t||'').toLowerCase().replace(/^the\s+/,''); }   // Hakchi's SortRawTitle rule (what prepare writes)
 function tvFactoryTitle(code){ return (window.FACTORY_TITLES&&FACTORY_TITLES[code])||code; }
+// Empty tray: the preview still shows a menu, the 30 built-in games every NES Classic ships with, clearly labeled as a sample.
+function tvSampleEntries(){ return FACTORY_CODES.map(cd=>{ const g=games.find(x=>x.builtin_code===cd&&installClass(x)==='builtin')||games.find(x=>x.builtin_code===cd); const title=(g&&g.builtin_title)||tvFactoryTitle(cd);
+ return {id:'factory:'+cd,title_id:g?g.title_id:cd,title,version:(g&&g.builtin_factory_version)||'factory version',kind:'builtin',core:g?(g.recommended_emulator||'unknown'):'unknown',ready:'n/a',art:g?(g.art||''):'',players:g?(g.players||''):'',publisher:g?(g.publisher||''):'',year:g?(g.year||''):'',hardware:(g&&needsHardware(g))?(g.input_special_accessory||'special input hardware'):'',install:false,personal:false,ext:false,sort:tvSortTitle(title)}; }); }
 function tvEntryFor(g){
  const c=installClass(g); const dec=decisionOf(g); const alt=(c==='revision'||c==='review')&&dec==='alternate';
  const kind=c==='builtin'?'builtin':(c==='revision'||c==='review')?(alt?'alternate':'factory-kept'):'added';
@@ -27,16 +31,19 @@ function tvEntryFor(g){
 function tvProject(mode){
  mode=mode||'proposed'; const fp=collFingerprint()+'|'+mode+'|'+((typeof COMPANION!=='undefined'&&COMPANION.ok)?'desk':'web');
  if(TV.proj&&TV.proj.fp===fp) return TV.proj;
- const chosen=selectedGames(); const entries=chosen.map(tvEntryFor); entries.sort((a,b)=>a.sort<b.sort?-1:a.sort>b.sort?1:(a.id<b.id?-1:1));
- const hiddenCodes=FACTORY_CODES.filter(cd=>!chosen.some(g=>g.builtin_code===cd&&factoryVisible(g)));
- const assumptions=[
+ const chosen=selectedGames(); const sample=chosen.length===0; const entries=sample?tvSampleEntries():chosen.map(tvEntryFor); entries.sort((a,b)=>a.sort<b.sort?-1:a.sort>b.sort?1:(a.id<b.id?-1:1));
+ const hiddenCodes=sample?[]:FACTORY_CODES.filter(cd=>!chosen.some(g=>g.builtin_code===cd&&factoryVisible(g)));
+ const assumptions=sample?[
+  {level:'known',text:'Your tray is empty, so this is a sample: the 30 built-in games every NES Classic ships with, in their factory versions. Nothing from your collection is shown. Select games in the library and the preview shows your own proposed menu instead.'},
+  {level:'estimated',text:'Order: by title (the sort name the preparation writes for Hakchi2 CE, "The" ignored).'},
+  {level:'unknown',text:'What is on the physical console right now is not verified by this preview.'}]:[
   {level:'known',text:'Which games are in the plan, their exact versions and which built-in games the plan keeps come from your collection.'},
   {level:'estimated',text:'Order: by title (the sort name the preparation writes for Hakchi2 CE, "The" ignored). Hakchi’s sort setting can change this.'},
   {level:'estimated',text:`Unselected built-in games (${hiddenCodes.length}) are hidden by the plan; hiding is applied during preparation on this computer, not by the console itself.`},
   {level:'unknown',text:'Folders and pages: Hakchi2 CE’s folder scheme depends on its settings on this computer; the preview shows one continuous list.'},
   {level:(typeof COMPANION!=='undefined'&&COMPANION.ok)?'known':'unknown',text:(typeof COMPANION!=='undefined'&&COMPANION.ok)?'Game file readiness comes from the Studio on this computer.':'Game files: unknown here (the website cannot see your computer); the desktop app shows which files are ready.'},
   {level:'unknown',text:'What is on the physical console right now is not verified by this preview.'}];
- const proj={fp,mode,entries,count:entries.length,hidden:hiddenCodes.map(cd=>({code:cd,title:tvFactoryTitle(cd)})),assumptions,
+ const proj={fp,mode,sample,entries,count:entries.length,hidden:hiddenCodes.map(cd=>({code:cd,title:tvFactoryTitle(cd)})),assumptions,
   counts:{builtin:entries.filter(e=>e.kind==='builtin').length,kept:entries.filter(e=>e.kind==='factory-kept').length,added:entries.filter(e=>e.kind==='added').length,alternate:entries.filter(e=>e.kind==='alternate').length,missing:entries.filter(e=>e.ready==='missing').length,ready:entries.filter(e=>e.ready==='ready').length,hardware:entries.filter(e=>e.hardware).length}};
  TV.proj=proj; return proj;
 }
@@ -119,11 +126,11 @@ function tvTile(e,i,sel){
 function tvDraw(){
  const ents=tvEntries(); const n=ents.length; const scr=$('tvScreen'); if(!scr) return;
  if(TV.i>=n) TV.i=Math.max(0,n-1); const e=ents[TV.i];
- $('tvSub').textContent=TV.mode==='selected'?'Selected games only · this is not the full menu':'Simulation of the menu this collection proposes · stock-inspired look, not a console capture';
+ const smp=tvProject(TV.mode).sample; $('tvSub').textContent=smp?'Tray empty · sample of the 30 built-in games, not your collection · stock-inspired look, not a console capture':TV.mode==='selected'?'Selected games only · this is not the full menu':'Simulation of the menu this collection proposes · stock-inspired look, not a console capture';
  $('tvModeP').classList.toggle('active',TV.mode==='proposed'); $('tvModeS').classList.toggle('active',TV.mode==='selected');
- TV.focusId=null; if(!n){ scr.innerHTML=`<div class="tvtop"><span class="nm">${esc(COLL.name)}</span><span class="cnt">0 games</span></div><div class="tvempty"><div class="tvph big"><span>NES</span></div><b>Nothing to preview yet</b><span>Select games in the library and they appear here, laid out the way the plan would show them on your NES Classic.</span></div><div class="tvbar"><span><i>B</i> close</span></div>`; tvSide(null); tvFoot(); tvSay('Nothing to preview yet'); return; }
+ TV.focusId=null; if(!n){ scr.innerHTML=`<div class="tvtop"><span class="nm">${esc(COLL.name)}</span><span class="cnt">0 games</span></div><div class="tvempty"><div class="tvph big"><span>NES</span></div><b>Nothing to preview</b><span>This page has no built-in game list to sample. Select games in the library and they appear here.</span></div><div class="tvbar"><span><i>B</i> close</span></div>`; tvSide(null); tvFoot(); tvSay('Nothing to preview yet'); return; }
  if(TV.view==='details'){
-  scr.innerHTML=`<div class="tvtop"><span class="nm">${esc(e.title)}</span><span class="cnt">${TV.i+1} / ${n}</span></div>
+  scr.innerHTML=`<div class="tvtop"><span class="nm">${esc(e.title)}</span><span class="cnt">${TV.i+1} / ${n}${smp?' · sample':''}</span></div>
    <div class="tvdet"><div class="tvdetart">${e.art?`<img src="${esc(e.art)}" alt="">`:'<div class="tvph big"><span>NES</span></div>'}</div>
     <div class="tvdetinfo"><div class="tvdettitle">${esc(e.title)}</div><div class="tvdetmeta">${esc([e.year,e.publisher,e.players?e.players+' player(s)':''].filter(Boolean).join(' · '))}</div>
      <div class="tvslots" aria-label="Suspend points (illustration only)"><span class="lbl">SUSPEND POINTS</span><div class="slots"><i></i><i></i><i></i><i></i></div><span class="note">empty slots shown as an illustration; the preview never reads save data</span></div>
@@ -133,11 +140,11 @@ function tvDraw(){
  }
  const vis=TV_SKIN.visible; let start=Math.max(0,Math.min(TV.i-Math.floor(vis/2),n-vis)); if(n<=vis) start=0;
  const shown=ents.slice(start,start+vis).map((x,k)=>tvTile(x,start+k,start+k===TV.i)).join('');
- scr.innerHTML=`<div class="tvtop"><span class="nm">${esc(COLL.name)}</span><span class="cnt">${TV.i+1} / ${n}</span></div>
+ scr.innerHTML=`<div class="tvtop"><span class="nm">${smp?'Tray is empty · sample':esc(COLL.name)}</span><span class="cnt">${TV.i+1} / ${n}${smp?' built-in':''}</span></div>${smp?`<div class="tvnotice" role="status">${esc(TV_SAMPLE_NOTICE)}</div>`:''}
   <div class="tvplate"><span class="pt">${esc(e.title)}</span>${e.kind==='factory-kept'||e.kind==='builtin'?'<span class="pk">built-in</span>':e.kind==='alternate'?'<span class="pk alt">alternate version</span>':''}</div>
   <div class="tvshelf" style="--vis:${vis}">${start>0?'<span class="more l" aria-hidden="true">◀</span>':''}${shown}${start+vis<n?'<span class="more r" aria-hidden="true">▶</span>':''}</div>
   <div class="tvbar"><span><i>◀ ▶</i> browse</span><span><i>A</i> open</span><span class="r">${n} game${n===1?'':'s'}</span></div>`;
- tvSide(e); tvFoot(); tvSay(`${e.title}, ${TV.i+1} of ${n}`); TV.focusId=e.id;
+ tvSide(e); tvFoot(); tvSay(`${smp?'Tray is empty, sample of the 30 built-in games. ':''}${e.title}, ${TV.i+1} of ${n}`); TV.focusId=e.id;
  const selEl=scr.querySelector('.tvtile.sel'); if(selEl&&window.matchMedia&&!matchMedia('(prefers-reduced-motion: reduce)').matches) selEl.classList.add('pop');
  tvKeepFocus();
 }
@@ -147,13 +154,13 @@ function tvKindText(k){ return {builtin:'built-in game, kept as it is',"factory-
 function tvSide(e){
  const p=tvProject(TV.mode); const s=$('tvSide'); if(!s) return;
  const lab=l=>`<span class="lv ${l}">${l}</span>`;
- let h=`<div class="tvs"><div class="lbl">Collection</div><b>${esc(COLL.name)}</b><div class="small">${p.count} game${p.count===1?'':'s'} in the ${TV.mode==='selected'?'selection':'proposed menu'} · ${p.counts.builtin+p.counts.kept} built-in kept · ${p.counts.added+p.counts.alternate} added · ${p.hidden.length} built-in hidden by the plan</div></div>`;
+ let h=p.sample?`<div class="tvs sample"><div class="lbl">Tray is empty</div><b>Sample: the 30 built-in games</b><div class="small">${esc(TV_SAMPLE_NOTICE)}</div></div>`:`<div class="tvs"><div class="lbl">Collection</div><b>${esc(COLL.name)}</b><div class="small">${p.count} game${p.count===1?'':'s'} in the ${TV.mode==='selected'?'selection':'proposed menu'} · ${p.counts.builtin+p.counts.kept} built-in kept · ${p.counts.added+p.counts.alternate} added · ${p.hidden.length} built-in hidden by the plan</div></div>`;
  if(e){ h+=`<div class="tvs"><div class="lbl">Selected</div><b>${esc(e.title)}</b><div class="small">${esc(e.version)}</div>
   <dl class="tvkv"><dt>Position</dt><dd>${TV.i+1} of ${p.count} ${lab('estimated')}</dd><dt>Status</dt><dd>${esc(tvKindText(e.kind))} ${lab('known')}</dd>
   <dt>Game file</dt><dd>${e.ready==='n/a'?'not needed (already on the console)':e.ready==='ready'?'ready on this computer':e.ready==='missing'?'missing on this computer':'unknown here'} ${lab(e.ready==='unknown'?'unknown':'known')}</dd>
   <dt>Planned core</dt><dd>${esc(e.core)} ${lab(e.core==='unknown'?'unknown':'known')}</dd>${e.hardware?`<dt>Controller</dt><dd>${esc(e.hardware)} ${lab('known')}</dd>`:''}${e.personal?'<dt>Source</dt><dd>your own game ${lab(\'known\')}</dd>':''}</dl></div>`; }
  h+=`<div class="tvs"><div class="lbl">How sure is this?</div><ul class="tvassume">${p.assumptions.map(a=>`<li>${lab(a.level)} ${esc(a.text)}</li>`).join('')}</ul></div>`;
- h+=tvCompareHtml();
+ h+=p.sample?`<div class="tvs"><div class="lbl">Current vs proposed</div><div class="small">Nothing to compare while the tray is empty: the sample is not a plan.</div></div>`:tvCompareHtml();
  s.innerHTML=h; const sel=s.querySelector('#tvSnap'); if(sel) sel.onchange=()=>{ s.querySelector('#tvDiff').innerHTML=tvDiffHtml(sel.value); };
 }
 function tvFoot(){ const f=$('tvFoot'); if(!f) return; f.innerHTML=`<span><b>Simulation.</b> Stock-inspired look; your console may differ with Hakchi2 CE settings and future custom menus.</span><span class="r"><span class="lv known">known</span><span class="lv estimated">estimated</span><span class="lv unknown">unknown</span></span>`; }
@@ -176,8 +183,8 @@ function tvDiffHtml(i){
 async function tvSaveImage(){
  const ents=tvEntries(); const e=ents[TV.i]; const W=1920,H=1080; const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
  const g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'#eef0f3'); g.addColorStop(1,'#c9ced5'); x.fillStyle=g; x.fillRect(0,0,W,H);
- x.fillStyle='#1b1b20'; x.fillRect(0,0,W,H*TV_SKIN.bands.top); x.fillStyle='#f3f1ec'; x.font='600 38px "Segoe UI", system-ui, sans-serif'; x.textBaseline='middle'; x.fillText(COLL.name,48,H*TV_SKIN.bands.top/2); x.textAlign='right'; x.fillText(ents.length?`${TV.i+1} / ${ents.length}`:'0 games',W-48,H*TV_SKIN.bands.top/2); x.textAlign='left';
- x.fillStyle='#1b1b20'; x.fillRect(0,H*(1-TV_SKIN.bands.bottom),W,H*TV_SKIN.bands.bottom); x.fillStyle='#d6d4ce'; x.font='500 28px "Segoe UI", system-ui, sans-serif'; x.fillText('◀ ▶ browse     A open     Proposed Menu Preview · simulation',48,H*(1-TV_SKIN.bands.bottom/2));
+ x.fillStyle='#1b1b20'; x.fillRect(0,0,W,H*TV_SKIN.bands.top); x.fillStyle='#f3f1ec'; x.font='600 38px "Segoe UI", system-ui, sans-serif'; x.textBaseline='middle'; x.fillText(tvProject(TV.mode).sample?'Tray is empty · sample of the 30 built-in games':COLL.name,48,H*TV_SKIN.bands.top/2); x.textAlign='right'; x.fillText(ents.length?`${TV.i+1} / ${ents.length}`:'0 games',W-48,H*TV_SKIN.bands.top/2); x.textAlign='left';
+ x.fillStyle='#1b1b20'; x.fillRect(0,H*(1-TV_SKIN.bands.bottom),W,H*TV_SKIN.bands.bottom); x.fillStyle='#d6d4ce'; x.font='500 28px "Segoe UI", system-ui, sans-serif'; x.fillText(tvProject(TV.mode).sample?'Proposed Menu Preview · simulation · tray empty: sample of the 30 built-in games, not your collection':'◀ ▶ browse     A open     Proposed Menu Preview · simulation',48,H*(1-TV_SKIN.bands.bottom/2));
  if(e){ x.fillStyle='rgba(27,27,32,.9)'; const pw=Math.min(W-200,Math.max(420,x.measureText(e.title).width+120)); x.fillRect((W-pw)/2,H*0.13,pw,76); x.fillStyle='#fff'; x.font='700 40px "Segoe UI", system-ui, sans-serif'; x.textAlign='center'; x.fillText(e.title,W/2,H*0.13+38); x.textAlign='left'; }
  const vis=TV_SKIN.visible; let start=Math.max(0,Math.min(TV.i-Math.floor(vis/2),ents.length-vis)); if(ents.length<=vis) start=0; const shown=ents.slice(start,start+vis);
  const tw=W*TV_SKIN.tileW, th=tw*4.3/3, gap=W*TV_SKIN.gap; const total=shown.length*tw+(shown.length-1)*gap; let px=(W-total)/2; const ty=H*0.30;
