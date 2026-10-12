@@ -32,23 +32,70 @@ from PIL import Image, ImageDraw, ImageFont
 import hero_art
 
 MODEL = "gemini-3-pro-image"
+PROMPT_VERSION = "v2.1-style-refs"   # v1: text-only art direction (smoke1, rejected for flatness); v2: three approved illustrations as labeled style references
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BATCH_DIR = os.path.join(REPORTS, "art", "hero-batch"); MANIFEST = os.path.join(BATCH_DIR, "manifest.json")
 POC = {"8e844d77da01f86a": "10-Yard Fight", "9f54aafa367247b9": "1943 - The Battle of Midway", "ec0d4ebf6d2fcecd": "The Legend of Zelda"}
 REF_MAX = 1024          # longest side of a reference image sent to the model (bytes matter in batch files)
 OUT_MIN = (1280, 704)   # technical floor for a usable result
 
-# ---- art direction (calibrated on the master's hero and the three proof-of-concept illustrations) ----
-STYLE = """Art direction (apply exactly): a cinematic widescreen key-art illustration in a painterly pixel-art style: crisp,
-visible pixel clusters at roughly 2 to 3 px scale on a 1080p canvas, no smooth vector gradients, no photographic
-rendering, no outlines around characters. Palette: deep indigo and navy skies with a few bright stars, warm orange-rose
-dusk or sunset glow on the horizon, saturated accent colors on the subject, dark silhouetted foreground. Lighting:
-strong rim light on the subject from the horizon glow, soft atmospheric depth (hazier and cooler toward the distance),
-small bright highlights (sparks, lamps, tracer light) placed sparingly. Composition: 16:9; the main subject in the left
-two thirds in dynamic action or a heroic stance, seen slightly from below; the upper right third is open sky or soft
-cloud with no bright detail, because the title lettering is drawn there by the software; a strong horizon line in the
-lower third; a dark base along the bottom edge. Framing: a full-bleed scene, edge to edge, with no border, frame,
-vignette ring, letterbox, text, logo, watermark, UI, box edge or lettering of any kind anywhere in the image."""
+# ---- art direction, revised after the first paid test (owner review 2026-10-13): the three approved illustrations are STYLE
+# references for density, lighting and finish; each game's cover, title screen and gameplay screen are the IDENTITY references.
+STYLE_REF_IDS = ["8e844d77da01f86a", "9f54aafa367247b9", "ec0d4ebf6d2fcecd"]   # 10-Yard Fight, 1943, The Legend of Zelda (owner-approved)
+STYLE = """ART DIRECTION (match the three STYLE reference images exactly in finish, never in subject):
+- Finish: a premium cinematic key-art illustration rendered as fine, dense pixel art: visible pixel clusters of about 2 to 3 px on a
+  1080p canvas, surfaces textured and shaded with many tones, no vector-smooth gradients, no photographic look, no outlines around
+  figures. Intentional negative space and controlled quiet color fields are welcome where the composition needs rest; what to
+  avoid is large, visually uninteresting flat areas. Cinematic richness without clutter.
+- Depth: a layered scene with a detailed foreground, a fully developed middle ground and an atmospheric distance (haze, light
+  rays, drifting cloud, dust or spray as the setting suggests); the environment is richly developed everywhere, including the sky
+  (cloud structure, stars, weather, light), not a plain color field.
+- Lighting: sophisticated, directional, with rim light on the main subject, cast shadows, glowing highlights where the scene has
+  light sources (lamps, fire, tracer light, screens, moonlight), and a believable color temperature contrast between light and
+  shadow.
+- Composition: 16:9, full bleed, edge to edge; the main subject large and dynamic in the center-left of the frame at mid-height,
+  not pressed against the left edge and not lost at the bottom; the upper right third stays open, quieter and lower in contrast
+  (sky or atmosphere, no bright detail) because the title lettering is drawn there and must stay readable; the bottom edge stays
+  scenery, with no ground strip, checkerboard, platform band or decorative base.
+- Setting and palette: choose the time of day, weather, palette and location that fit THIS game's world as its references show it;
+  do not default to a navy sky with an orange sunset; vary the scene from game to game.
+- Nothing else in the image: no text, letters, numbers, logos, borders, frames, vignettes, letterbox bars, fake UI, HUD, score,
+  box edges, cartridges, consoles or screens of any kind."""
+
+VARIATION = {   # per-genre nudges so scenes vary; the game's own references still decide the setting
+    "Sports": "a packed arena or field under event lighting, crowd and banners in the distance, action frozen mid-play",
+    "Racing": "speed and motion blur in the scenery, a track or road receding into the distance, dust or spray",
+    "Shooter": "an intense moment with tracer light, explosions or energy effects, enemies converging from the distance",
+    "Platformer": "a vivid, wide landscape of the game's world with its landmarks, the hero mid-leap, enemies and props in the scene",
+    "Action": "a dramatic confrontation in the game's signature location, weather and light heightening the tension",
+    "Adventure": "a wide vista of the game's world with a destination in the distance, the hero at the threshold of the journey",
+    "RPG": "a sweeping fantasy landscape with castles, ruins or towns, the party or hero gazing toward a distant goal",
+    "Puzzle": "a stylized abstract or architectural space built from the game's shapes and colors, lit theatrically",
+    "Strategy": "a commanding overview of the game's battlefield or domain with units, terrain and weather",
+    "Simulation": "the game's environment rendered with atmospheric realism and a human-scale subject",
+    "Educational": "a warm, inviting scene built from the game's own characters and motifs",
+    "Board/Card": "a dramatic, moody table or arena built from the game's pieces and iconography",
+}
+
+def prompt_for(g, rank):
+    facts = f'"{g.get("display_title")}" ({g.get("year") or "year unknown"}, {g.get("publisher") or "publisher unknown"}, genre {g.get("genre") or "unknown"}, {g.get("players") or "?"} player(s))'
+    genre = (g.get("genre") or "").split(",")[0].strip(); nudge = VARIATION.get(genre, "a dramatic scene in the game's own signature setting")
+    return f"""Create ONE widescreen (16:9) cinematic key-art illustration for the NES game {facts}.
+
+REFERENCE IMAGES, in order, and what each is for:
+- Image 1, 2 and 3 are STYLE references only (key art for three other games). Match their rendering: pixel density, painterly
+  texture, layered depth, lighting sophistication and overall polish. They say nothing about this game: do NOT reuse their
+  subjects, characters, settings, compositions or palettes. Only images 4 to 6 define who and what appears in the scene.
+- Image 4 is THIS game's box cover: the authoritative look of its characters, costumes, vehicles and colors.
+- Image 5 is THIS game's title screen: its logo style is NOT to be drawn; use it only to recognize the game's mood and colors.
+- Image 6 is THIS game's gameplay screen: the authoritative setting, objects, enemies and environment to build the scene from.
+
+Depict this game's own world and its recognizable subjects, interpreted as a richly developed scene: {nudge}. Build the
+environment from what the gameplay and cover show, expanded into a full widescreen landscape with layered scenery.
+
+{STYLE}
+
+Output: a single full-bleed image, no text anywhere."""
 
 def load_manifest():
     if os.path.exists(MANIFEST): return json.load(open(MANIFEST, encoding="utf-8"))
@@ -81,21 +128,17 @@ def cmd_manifest(a):
     for r in m["games"].values(): st[r["status"]] = st.get(r["status"], 0) + 1
     print(f"manifest: {len(m['games'])} games", st, "->", MANIFEST)
 
-def prompt_for(g, rank):
-    facts = f'title "{g.get("display_title")}", released {g.get("year") or "year unknown"}, publisher {g.get("publisher") or "unknown"}, genre {g.get("genre") or "unknown"}, {g.get("players") or "?"} player(s)'
-    return f"""Create ONE widescreen (16:9) key-art illustration for the NES game {facts}.
-
-Depict this game's own world, its hero or vehicle, its enemies and its signature setting exactly as the attached
-references show them: image 1 is the box cover (the authoritative look of the characters and colors), image 2 is the
-title screen, image 3 is a gameplay screen (the authoritative setting and objects). Translate them into one dramatic
-scene; do not reproduce the cover layout, and do not draw any text, title, logo, box, cartridge, console or screen.
-
-{STYLE}
-
-Output: a single full-bleed image, no text anywhere."""
-
 def shrink(path):
     im = Image.open(path).convert("RGB"); im.thumbnail((REF_MAX, REF_MAX), Image.LANCZOS); b = io.BytesIO(); im.save(b, "PNG", optimize=True); return b.getvalue()
+
+def style_refs():
+    """the three approved illustrations (imported masters), shrunk; falls back to the owner's originals in _temp if a master is missing"""
+    out = []
+    for gid in STYLE_REF_IDS:
+        p = os.path.join(hero_art.OUT, gid + ".png")
+        if not os.path.exists(p): p = os.path.join(ROOT, "_temp", "images", "featured-shelf-hero-candidates", gid + ".png")
+        if os.path.exists(p): out.append((f"style-{gid}", shrink(p)))
+    return out
 
 def cmd_prepare(a):
     cat, by = hero_art.games(); m = load_manifest(); name = a.batch or time.strftime("b%Y%m%d-%H%M")
@@ -103,20 +146,25 @@ def cmd_prepare(a):
     if a.limit: ids = ids[:a.limit]
     if not ids: print("nothing to prepare (all games approved/candidate; use --force or --ids)"); return 1
     bdir = os.path.join(BATCH_DIR, name); os.makedirs(os.path.join(bdir, "prompts"), exist_ok=True); os.makedirs(os.path.join(bdir, "refs"), exist_ok=True)
+    srefs = style_refs()
+    if len(srefs) != 3: raise SystemExit(f"expected 3 style references, found {len(srefs)}; nothing prepared")
     lines = []; total = 0
     for gid in ids:
-        g = by[gid]; refs = []
+        g = by[gid]; refs = list(srefs); roles = [("style", n) for n, _ in srefs]
         for key, nm in (("art", "cover"), ("art_title", "title"), ("art_snap", "snap")):
-            if g.get(key) and os.path.exists(os.path.join(REPORTS, g[key])):
-                data = shrink(os.path.join(REPORTS, g[key])); rd = os.path.join(bdir, "refs", gid); os.makedirs(rd, exist_ok=True); open(os.path.join(rd, nm + ".png"), "wb").write(data); refs.append((nm, data))
+            if g.get(key) and os.path.exists(os.path.join(REPORTS, g[key])): refs.append((nm, shrink(os.path.join(REPORTS, g[key])))); roles.append(("identity", nm))
+        if len(refs) != 6: raise SystemExit(f"{gid} {g.get('display_title')}: expected cover, title screen and gameplay references, found {[r for r in roles if r[0] == 'identity']}; nothing prepared")
+        rd = os.path.join(bdir, "refs", gid); os.makedirs(rd, exist_ok=True)
+        for i, (nm, data) in enumerate(refs, 1): open(os.path.join(rd, f"{i:02d}-{nm}.png"), "wb").write(data)
         prompt = prompt_for(g, m["games"].get(gid, {}).get("rank")); open(os.path.join(bdir, "prompts", gid + ".md"), "w", encoding="utf-8").write(prompt)
+        open(os.path.join(rd, "references.md"), "w", encoding="utf-8").write("\n".join(f"Image {i}: {role} reference ({nm})" for i, (role, nm) in enumerate(roles, 1)) + "\n")
         parts = [{"text": prompt}] + [{"inline_data": {"mime_type": "image/png", "data": base64.b64encode(d).decode("ascii")}} for _, d in refs]
         req = {"key": gid, "request": {"contents": [{"role": "user", "parts": parts}], "generation_config": {"response_modalities": ["IMAGE"], "image_config": {"aspect_ratio": "16:9", "image_size": "2K"}}}}
         line = json.dumps(req, ensure_ascii=False); lines.append(line); total += len(line)
-        rec = m["games"].setdefault(gid, {"title": g.get("display_title"), "attempts": 0}); rec.update({"status": "prepared", "batch": name, "refs": [n for n, _ in refs]})
+        rec = m["games"].setdefault(gid, {"title": g.get("display_title"), "attempts": 0}); rec.update({"status": "prepared", "batch": name, "refs": [f"{role}:{nm}" for role, nm in roles], "prompt_version": PROMPT_VERSION})
     open(os.path.join(bdir, "requests.jsonl"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
-    m["batches"][name] = {"created": time.strftime("%Y-%m-%dT%H:%M:%S"), "games": ids, "state": "prepared", "job": None, "bytes": total}
-    save_manifest(m); print(f"batch {name}: {len(ids)} requests, {total/1e6:.1f} MB ->", bdir)
+    m["batches"][name] = {"created": time.strftime("%Y-%m-%dT%H:%M:%S"), "games": ids, "state": "prepared", "job": None, "bytes": total, "prompt_version": PROMPT_VERSION}
+    save_manifest(m); print(f"batch {name}: {len(ids)} requests, {total/1e6:.1f} MB, prompt {PROMPT_VERSION} ->", bdir)
 
 def cmd_validate(a):
     m = load_manifest(); name = a.batch or latest(m); bdir = os.path.join(BATCH_DIR, name); p = os.path.join(bdir, "requests.jsonl"); ok = True; n = 0
@@ -126,7 +174,8 @@ def cmd_validate(a):
         txt = [x for x in parts if "text" in x]; imgs = [x for x in parts if "inline_data" in x]
         probs = []
         if len(txt) != 1 or len(txt[0]["text"]) < 400: probs.append("prompt missing/short")
-        if not imgs: probs.append("no references")
+        if len(imgs) != 6: probs.append(f"expected 6 references (3 style + cover + title + gameplay), found {len(imgs)}")
+        if "STYLE references only" not in txt[0]["text"] or "Image 4 is THIS game" not in txt[0]["text"]: probs.append("prompt does not label the references")
         if "text" in txt[0]["text"].lower() and "no text" not in txt[0]["text"].lower(): probs.append("prompt lacks the no-text rule")
         for im in imgs:
             try: Image.open(io.BytesIO(base64.b64decode(im["inline_data"]["data"]))).verify()

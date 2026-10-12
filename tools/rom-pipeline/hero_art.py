@@ -63,10 +63,9 @@ def request(ids):
 def normalize(path: str) -> Image.Image:
     im = Image.open(path); im.verify(); im = Image.open(path).convert("RGB")
     if im.width < 1280 or im.height < 704: raise ValueError(f"too small ({im.width} x {im.height}); at least 1280 x 704")
-    want = HERO_W / HERO_H; have = im.width / im.height
-    if abs(have - want) / want > 0.04:                                 # center crop to 16:9
-        if have > want: w = round(im.height * want); x = (im.width - w) // 2; im = im.crop((x, 0, x + w, im.height))
-        else: h = round(im.width / want); y = (im.height - h) // 2; im = im.crop((0, y, im.width, y + h))
+    want = HERO_W / HERO_H; have = im.width / im.height   # the derivative's own aspect (1620:894 = 1.8121), not 16:9: crop straight to it, then resize; never stretch
+    if have > want + 1e-6: w = round(im.height * want); x = (im.width - w) // 2; im = im.crop((x, 0, x + w, im.height))
+    elif have < want - 1e-6: h = round(im.width / want); y = (im.height - h) // 2; im = im.crop((0, y, im.width, y + h))
     return im.resize((HERO_W, HERO_H), Image.LANCZOS)
 
 def import_one(gid: str, path: str, cat=None, by=None):
@@ -74,6 +73,8 @@ def import_one(gid: str, path: str, cat=None, by=None):
     if own: cat, by = games()
     if gid not in by: raise ValueError(f"unknown game {gid}")
     im = normalize(path); os.makedirs(OUT, exist_ok=True); out = os.path.join(OUT, gid + ".png"); im.save(out + ".tmp", "PNG", optimize=True); os.replace(out + ".tmp", out)
+    odir = os.path.join(OUT, "originals"); os.makedirs(odir, exist_ok=True); ext = os.path.splitext(path)[1].lower() or ".png"   # the full-resolution generated/supplied original, untouched
+    import shutil; shutil.copy2(path, os.path.join(odir, gid + ext))
     import hashlib, time
     sha = hashlib.sha256(open(out, "rb").read()).hexdigest()
     by[gid]["art_hero"] = f"art/hero/{gid}.png"; by[gid]["art_hero_source"] = os.path.basename(path); by[gid]["art_hero_sha256"] = sha; by[gid]["art_hero_status"] = "candidate"; by[gid]["art_hero_provenance"] = os.environ.get("HERO_PROVENANCE", "generated:chatgpt")

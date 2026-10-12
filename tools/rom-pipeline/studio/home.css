@@ -44,6 +44,8 @@
 .hm .details{position:absolute;inset:0;display:grid;grid-template-columns:340px 1fr;gap:44px;padding:56px 70px 60px;background:rgba(6,6,9,.9);font-family:var(--sans);isolation:isolate}
 .hm .details.art{background:#07070a}
 .hm .details .dbg{position:absolute;inset:0;z-index:0;overflow:hidden}.hm .details .dbg img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block}
+/* game-specific art: the subject sits center-left in the master; in Details the cover occupies that column, so the backdrop is enlarged and shifted right (left 10%, width 128%) to bring the subject beside the cover; the universal fallback has no subject and stays as is */
+.hm .details .dbg.hero img{left:10%;width:128%;height:118%;top:-9%;object-position:center center}
 .hm .details .dbg .dshade{position:absolute;inset:0}
 .hm .details .dcol,.hm .details .dmain{position:relative;z-index:1;min-width:0}
 .hm .details .cover{position:relative;width:340px;height:466px;border-radius:6px;box-shadow:0 24px 60px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.12)}
@@ -57,31 +59,28 @@
 .hm .details .desc.focus{border-color:var(--red)}.hm .details .desc .inner{transition:transform .18s}
 .hm .details .desc .bar{position:absolute;right:4px;top:6px;bottom:6px;width:6px;border-radius:3px;background:rgba(255,255,255,.12)}.hm .details .desc .bar i{position:absolute;left:0;right:0;border-radius:3px;background:rgba(255,255,255,.55)}
 .hm .details .none{color:#a9a7a2;font-style:italic}
-/* no description: a compact facts card at the bottom left of the text column; the art above it stays open */
-.hm .details .dfacts{width:min(520px,100%);border:2px solid rgba(255,255,255,.14);border-radius:8px;padding:12px 16px 10px;background:rgba(0,0,0,.5);font-size:15px;color:#e4e2dc}
-.hm .details .dfacts.focus{border-color:var(--red)}.hm .details .dfacts .fh{font-family:var(--px);font-size:9px;letter-spacing:1px;color:#ffb3b7;margin:0 0 8px}
-.hm .details .dfacts .fr{display:flex;justify-content:space-between;gap:16px;padding:4px 0;border-top:1px solid rgba(255,255,255,.08)}.hm .details .dfacts .fr span{color:#bdbbb5}.hm .details .dfacts .fr b{color:#fff;font-weight:600;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hm .details .dfacts .fn{margin-top:8px;font-size:13px;color:#a9a7a2;font-style:italic}
+/* no description: a single quiet line; the art keeps the space */
+.hm .details .nodesc-note{display:inline-block;margin-top:4px;padding:6px 12px;border-radius:6px;font-size:14px;color:#cfcdc7;font-style:italic;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1)}.hm .details .nodesc-note.focus{border-color:var(--red)}
 /* shading: a soft column behind the text and a base at the bottom; the art stays recognizable across most of the frame */
 .hm .details.art .dshade{background:linear-gradient(90deg,rgba(0,0,0,.18) 0%,rgba(0,0,0,.08) 28%,rgba(0,0,0,.52) 40%,rgba(0,0,0,.62) 100%),linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,0) 22%,rgba(0,0,0,0) 72%,rgba(0,0,0,.6) 100%)}
 /* Arcade Grid: navy pixel frame, cool tint, pixel-crisp art, square red-glow buttons */
 .hm-arcade-grid .details.art{border:4px solid #2f3f8c;box-shadow:inset 0 0 0 2px #070a22}.hm-arcade-grid .details.art .dbg img{image-rendering:pixelated}
 .hm-arcade-grid .details.art .dshade{background:linear-gradient(90deg,rgba(6,9,30,.15) 0%,rgba(6,9,30,.08) 28%,rgba(6,9,30,.6) 40%,rgba(6,9,30,.7) 100%),linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,0) 22%,rgba(0,0,0,0) 72%,rgba(6,9,30,.7) 100%)}
-.hm-arcade-grid .details h2{font-family:var(--sans);font-weight:800}.hm-arcade-grid .details .act{border-radius:4px;background:#0f1538;border-color:#2f3f8c}.hm-arcade-grid .details .desc,.hm-arcade-grid .details .dfacts{background:rgba(9,13,38,.72);border-color:#2f3f8c;border-radius:4px}.hm-arcade-grid .details .cover{box-shadow:0 0 0 3px #2f3f8c,0 24px 60px rgba(0,0,0,.85)}
+.hm-arcade-grid .details h2{font-family:var(--sans);font-weight:800}.hm-arcade-grid .details .act{border-radius:4px;background:#0f1538;border-color:#2f3f8c}.hm-arcade-grid .details .desc,.hm-arcade-grid .details .nodesc-note{background:rgba(9,13,38,.72);border-color:#2f3f8c;border-radius:4px}.hm-arcade-grid .details .cover{box-shadow:0 0 0 3px #2f3f8c,0 24px 60px rgba(0,0,0,.85)}
 /* Box Art Showcase: cinematic letterbox, Cinzel heading, thin light rules, no frame */
 .hm-box-art-showcase .details.art .dshade{background:linear-gradient(90deg,rgba(0,0,0,.1) 0%,rgba(0,0,0,.05) 28%,rgba(0,0,0,.55) 42%,rgba(0,0,0,.7) 100%),linear-gradient(180deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,0) 14%,rgba(0,0,0,0) 80%,rgba(0,0,0,.75) 100%)}
-.hm-box-art-showcase .details h2{font-family:var(--cin);font-weight:700;font-size:46px;letter-spacing:1px}.hm-box-art-showcase .details .act{border-radius:999px;border-color:rgba(255,255,255,.3);background:rgba(0,0,0,.55)}.hm-box-art-showcase .details .desc,.hm-box-art-showcase .details .dfacts{border:1px solid rgba(255,255,255,.28);border-radius:12px;background:rgba(0,0,0,.42)}.hm-box-art-showcase .details .dfacts .fh{font-family:var(--cin);font-size:13px;letter-spacing:2px;color:#f3efe6}
+.hm-box-art-showcase .details h2{font-family:var(--cin);font-weight:700;font-size:46px;letter-spacing:1px}.hm-box-art-showcase .details .act{border-radius:999px;border-color:rgba(255,255,255,.3);background:rgba(0,0,0,.55)}.hm-box-art-showcase .details .desc,.hm-box-art-showcase .details .nodesc-note{border:1px solid rgba(255,255,255,.28);border-radius:12px;background:rgba(0,0,0,.42)}
 .hm-box-art-showcase .details .cover{border-radius:3px;box-shadow:0 30px 70px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.2)}
 /* Featured Shelf: dark-red plates, Silkscreen heading, VT323 body */
 .hm-featured-shelf .details.art{border:3px solid #5b1a21}
 .hm-featured-shelf .details.art .dshade{background:linear-gradient(90deg,rgba(17,8,10,.14) 0%,rgba(17,8,10,.06) 28%,rgba(17,8,10,.58) 40%,rgba(17,8,10,.7) 100%),linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,0) 22%,rgba(0,0,0,0) 72%,rgba(17,8,10,.72) 100%)}
 .hm-featured-shelf .details h2{font-family:var(--silk);font-size:30px;line-height:1.25}.hm-featured-shelf .details .meta,.hm-featured-shelf .details .desc{font-family:var(--vt)}.hm-featured-shelf .details .meta{font-size:19px}.hm-featured-shelf .details .desc{font-size:23px}
-.hm-featured-shelf .details .act{border-radius:6px;background:#1b0f12;border-color:#5b1a21;font-family:var(--vt);font-size:23px}.hm-featured-shelf .details .desc,.hm-featured-shelf .details .dfacts{background:rgba(17,8,10,.72);border-color:#5b1a21}.hm-featured-shelf .details .dfacts{font-family:var(--vt);font-size:19px}.hm-featured-shelf .details .dfacts .fh{font-family:var(--silk);font-size:10px;color:#ff9aa0}
+.hm-featured-shelf .details .act{border-radius:6px;background:#1b0f12;border-color:#5b1a21;font-family:var(--vt);font-size:23px}.hm-featured-shelf .details .desc,.hm-featured-shelf .details .nodesc-note{background:rgba(17,8,10,.72);border-color:#5b1a21}
 /* Adventure Map: wood-and-red RPG frame, pixel heading, pixelated art */
 .hm-adventure-map .details.art{border:4px solid #6b4a2b;box-shadow:inset 0 0 0 2px var(--red2)}.hm-adventure-map .details.art .dbg img{image-rendering:pixelated}
 .hm-adventure-map .details.art .dshade{background:linear-gradient(90deg,rgba(16,10,8,.14) 0%,rgba(16,10,8,.06) 28%,rgba(16,10,8,.6) 40%,rgba(16,10,8,.72) 100%),linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,0) 22%,rgba(0,0,0,0) 72%,rgba(16,10,8,.72) 100%)}
-.hm-adventure-map .details h2{font-family:var(--px);font-size:22px;line-height:1.4;color:#f4e9d6}.hm-adventure-map .details .meta,.hm-adventure-map .details .desc,.hm-adventure-map .details .act,.hm-adventure-map .details .dfacts{font-family:var(--mono)}
-.hm-adventure-map .details .act{border-radius:3px;border:3px solid #6b4a2b;background:rgba(16,10,8,.9)}.hm-adventure-map .details .desc,.hm-adventure-map .details .dfacts{border:3px solid #6b4a2b;border-radius:3px;background:rgba(16,10,8,.8)}.hm-adventure-map .details .dfacts .fh{color:#ffd27a}.hm-adventure-map .details .cover{border-radius:2px;box-shadow:0 0 0 3px #6b4a2b,0 24px 60px rgba(0,0,0,.85)}
+.hm-adventure-map .details h2{font-family:var(--px);font-size:22px;line-height:1.4;color:#f4e9d6}.hm-adventure-map .details .meta,.hm-adventure-map .details .desc,.hm-adventure-map .details .act{font-family:var(--mono)}
+.hm-adventure-map .details .act{border-radius:3px;border:3px solid #6b4a2b;background:rgba(16,10,8,.9)}.hm-adventure-map .details .desc,.hm-adventure-map .details .nodesc-note{border:3px solid #6b4a2b;border-radius:3px;background:rgba(16,10,8,.8)}.hm-adventure-map .details .cover{border-radius:2px;box-shadow:0 0 0 3px #6b4a2b,0 24px 60px rgba(0,0,0,.85)}
 /* ---- shared sections drawn inside a theme panel region (browse, search, history, settings) ---- */
 .hm .section{position:absolute;background:rgba(8,8,12,.92);border:2px solid rgba(255,255,255,.16);border-radius:10px;padding:16px 20px;overflow:hidden;font-family:var(--sans)}
 .hm .section h3{margin:0 0 10px;font-family:var(--px);font-size:11px;letter-spacing:1px;color:#ffb3b7}
