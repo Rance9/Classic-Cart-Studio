@@ -61,7 +61,8 @@ function tvEnsure(){
   <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Preview on TV</h2><span class="small" id="tvSub"></span></div></div>
    <div class="tvtools"><div class="seg" role="group" aria-label="Theme (host shortcut; on the console: START, Change Theme)">${HOME_THEME_META.map(t=>`<button class="btn sm tvtheme" data-theme="${t.id}" title="${esc(t.note)}">${esc(t.name)}</button>`).join('')}</div>
    <div class="seg" role="group" aria-label="Display treatment"><button class="btn sm active" id="tvTrC" data-tr="clean">Clean</button><button class="btn sm" id="tvTrR" data-tr="retro" title="A cosmetic CRT-style look around the same 16:9 HOME">Retro</button></div>
-   <button class="btn sm" id="tvSave" title="Save the simulated TV surface as a 1920×1080 PNG">Save Preview Image</button><button class="btn sm ghost" id="tvClose" aria-label="Close the preview">Close</button></div></div>
+   <button class="btn sm" id="tvSave" title="Save the simulated TV surface as a 1920×1080 PNG">Save Preview Image</button></div></div>
+  <button class="tvclose" id="tvClose" type="button" aria-label="Close the preview" title="Close (Esc)">✕</button>
   <div class="tvmain">
    <div class="tvstagewrap"><div class="tvstage" id="tvStage" tabindex="0" aria-label="Simulated NES Classic HOME, 16 by 9" aria-describedby="tvLive"><div class="hmwrap" id="tvHome"></div><div class="tvsim" id="tvSim" hidden></div><div class="tvcrt" aria-hidden="true"></div></div>
     <div class="tvpad" id="tvPad" aria-label="On-screen controls (the console has only these)"><div class="dpad"><button class="pb up" data-act="up" aria-label="Up">▲</button><button class="pb left" data-act="left" aria-label="Left">◀</button><button class="pb right" data-act="right" aria-label="Right">▶</button><button class="pb down" data-act="down" aria-label="Down">▼</button></div>

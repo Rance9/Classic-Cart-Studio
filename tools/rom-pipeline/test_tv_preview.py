@@ -72,6 +72,8 @@ def main():
         # ---------- A. widescreen stage, 1280x720 logical ----------
         stg = js(f"(()=>{{ const r=$('tvStage').getBoundingClientRect(); const hm={SH}.querySelector('.hm'); const hr=hm.getBoundingClientRect(); return {{w:r.width, h:r.height, ratio:r.width/r.height, inside:r.right<=innerWidth&&r.bottom<=innerHeight&&r.left>=0, logical:[hm.offsetWidth,hm.offsetHeight], fitted:Math.abs(hr.width-r.width)<3&&Math.abs(hr.height-r.height)<3, brand:hm.querySelector('.brand').textContent, bg:getComputedStyle(hm).backgroundImage.includes('bg-arcade-grid')}}; }})()")
         ok("stage_is_16_9", stg and abs(stg["ratio"] - 16 / 9) < 0.02 and stg["inside"], stg)
+        cb = js("(()=>{ const b=$('tvClose'); const r=b.getBoundingClientRect(); const box=$('tv').querySelector('.tvbox').getBoundingClientRect(); return {w:r.width, h:r.height, topGap:r.top-box.top, rightGap:box.right-r.right, label:b.getAttribute('aria-label'), text:b.textContent, visible:r.width>0}; })()")
+        ok("close_button_top_right_corner", cb and cb["visible"] and cb["w"] >= 36 and cb["h"] >= 36 and cb["topGap"] <= 12 and cb["rightGap"] <= 14 and cb["label"] == "Close the preview", cb)
         ok("stage_logical_1280x720_scaled_to_fit", stg and stg["logical"] == [1280, 720] and stg["fitted"], stg)
         ok("brand_heading_exact", stg and stg["brand"] == "Classic Cart Studio" and stg["bg"], stg and stg["brand"])
         js("closeTv()")
