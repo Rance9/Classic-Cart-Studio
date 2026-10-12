@@ -21,7 +21,7 @@ from version import VERSION
 
 # ---- allow list: exact files and whole folders (relative to the project root) that may appear in the public repository ----
 ALLOW_FILES = [
-    "tools/rom-pipeline/make_placeholder_covers.py", "tools/rom-pipeline/test_home_engine.js", "tools/rom-pipeline/test_tv_preview.py", "tools/companion/home_sync.py", "tools/companion/test_home_sync.py", "tools/companion/test_home_api.py", "tools/publish/make_home_art.py",
+    "tools/rom-pipeline/make_placeholder_covers.py", "tools/rom-pipeline/test_home_engine.js", "tools/rom-pipeline/test_tv_preview.py", "tools/rom-pipeline/shot_mobile.py", "tools/rom-pipeline/home_visual_review.py", "tools/rom-pipeline/fetch_snaps.py", "tools/companion/home_sync.py", "tools/companion/test_home_sync.py", "tools/companion/test_home_api.py", "tools/publish/make_home_art.py",
     "tools/rom-pipeline/common.py", "tools/rom-pipeline/catalog.py", "tools/rom-pipeline/input_requirements.py", "tools/rom-pipeline/library_lookup.py", "tools/rom-pipeline/manifest_v4.py",
     "tools/rom-pipeline/import_selected.py", "tools/rom-pipeline/build_html.py", "tools/rom-pipeline/index_all.py", "tools/rom-pipeline/identity_audit.py",
     "tools/rom-pipeline/test_manifest_v4_pure.py", "tools/rom-pipeline/test_public_site.py",

@@ -8,6 +8,7 @@
 - **Generated placeholder covers** for games without box art, on the catalog page and in every theme, marked GENERATED COVER on the image itself; authentic art always takes precedence.
 - Classic Cart Studio for Windows: the HOME state is saved by the backend and can be synchronized with a **simulated** console store (favorites and history two-way with per-item reconciliation and clear generations; folders Windows-owned). No physical console is contacted (Gate G1 not approved).
 - Help & User Guide: the Preview on TV chapter describes the themes and controls.
+- The preview closes with a large X in the top right corner of the window (Esc still works).
 
 ## Website — 2026-10-12 (after 0.3.3; no new installer)
 

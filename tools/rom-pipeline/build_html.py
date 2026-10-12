@@ -242,6 +242,12 @@ footer .legal{font-size:12px;color:var(--dim);max-width:1100px;margin:14px auto 
 @media (max-width:900px){th:nth-child(6),td:nth-child(6),th:nth-child(8),td:nth-child(8),th:nth-child(11),td:nth-child(11){display:none}#details .box{grid-template-columns:1fr}.brand .nm small{display:none}.parade{height:64px}.parade .cast{gap:6px}}
 @media (max-width:640px){th:nth-child(7),td:nth-child(7),th:nth-child(10),td:nth-child(10),th:nth-child(13),td:nth-child(13){display:none}.hero-inner{padding:22px 16px 6px}.toolbar .in{padding:8px 12px}main{padding:12px}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.howto,footer{padding-left:12px;padding-right:12px}}
 __STUDIO_CSS__
+@font-face{font-family:"Silkscreen";src:url("brand/home/fonts/Silkscreen-Regular.ttf") format("truetype");font-display:swap}
+@font-face{font-family:"VT323";src:url("brand/home/fonts/VT323-Regular.ttf") format("truetype");font-display:swap}
+@font-face{font-family:"Cinzel";src:url("brand/home/fonts/Cinzel.ttf") format("truetype");font-weight:400 900;font-display:swap}
+@font-face{font-family:"Pixelify Sans";src:url("brand/home/fonts/PixelifySans.ttf") format("truetype");font-weight:400 700;font-display:swap}
+@font-face{font-family:"Space Mono";src:url("brand/home/fonts/SpaceMono-Regular.ttf") format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"Space Mono";src:url("brand/home/fonts/SpaceMono-Bold.ttf") format("truetype");font-weight:700;font-display:swap}
 </style></head><body>
 <a class="skip" href="#main">Skip to catalog</a>
 <div class="stickyhead" id="stickyHead">
@@ -471,6 +477,7 @@ function playersClass(g){ const p=g.players||''; if(!p) return '?'; if(p==='1') 
 __SEARCH_JS__
 __HOME_JS__
 const HOME_CSS_TEXT=__HOME_CSS__;
+const HOME_ART=__HOME_ART__;
 function visible(){ const q=searchQuery($('q').value); const fz=q?searchFuzzy(q, games):false; const y=$('fYear').value,p=$('fPub').value,l=$('fLic').value,ge=$('fGenre').value,pl=$('fPlayers').value,e=$('fEmu').value,v=$('fVer').value,bi=$('fBuilt').value,s=$('fSel').value,rkf=$('fRank').value,inf=$('fInput').value;
  return games.filter(g=>{
   if(q){ const sc=searchScore(g,q,fz); if(!sc) return false; g._ss=sc; }
@@ -848,7 +855,7 @@ def main():
     except Exception as _e: print("placeholder covers skipped:", _e)
     html = (TEMPLATE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__HERO_CAST__", hero).replace("__FOOTER_CAST__", foot)
             .replace("__EMPTY_CAST__", empty).replace("__HOWTO_CAST__", howto).replace("__FILTERS_CAST__", filt)
-            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css")).replace("__SEARCH_JS__", part("search.js")).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<\/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
+            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css")).replace("__SEARCH_JS__", part("search.js")).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<\/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__HOME_ART__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-art.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
     css0, css1 = html.find("<style>") + 7, html.find("</style>"); html = html[:css1] + dock_twins(html[css0:css1]) + html[css1:]   # docked My Collection twins of every width rule
     if PUBLIC:
         html = (html.replace("<title>NES Classic Collection — Game Selection Catalog</title>", f"<title>{APP_NAME}</title><meta name=\"description\" content=\"{TAGLINE}\"><meta name=\"robots\" content=\"index,follow\"><meta property=\"og:title\" content=\"{APP_NAME}\"><meta property=\"og:description\" content=\"{TAGLINE}\">")

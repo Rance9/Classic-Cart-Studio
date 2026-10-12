@@ -70,11 +70,11 @@ def main():
         ok("first_run_arcade_grid_all_games", es and es["theme"] == "arcade-grid" and es["sec"] == "allgames")
         shot("tv-empty")
         # ---------- A. widescreen stage, 1280x720 logical ----------
-        stg = js(f"(()=>{{ const r=$('tvStage').getBoundingClientRect(); const hm={SH}.querySelector('.hm'); const hr=hm.getBoundingClientRect(); return {{w:r.width, h:r.height, ratio:r.width/r.height, inside:r.right<=innerWidth&&r.bottom<=innerHeight&&r.left>=0, logical:[hm.offsetWidth,hm.offsetHeight], fitted:Math.abs(hr.width-r.width)<3&&Math.abs(hr.height-r.height)<3, brand:hm.querySelector('.brand').textContent, bg:getComputedStyle(hm).backgroundImage.includes('bg-arcade-grid')}}; }})()")
-        ok("stage_is_16_9", stg and abs(stg["ratio"] - 16 / 9) < 0.02 and stg["inside"], stg)
+        stg = js(f"(()=>{{ const r=$('tvStage').getBoundingClientRect(); const hm={SH}.querySelector('.hm'); const hr=hm.getBoundingClientRect(); return {{w:r.width, h:r.height, ratio:r.width/r.height, inside:r.right<=innerWidth&&r.bottom<=innerHeight&&r.left>=0, logical:[hm.offsetWidth,hm.offsetHeight], fitted:Math.abs(hr.width-r.width)<3&&Math.abs(hr.height-r.height)<3, brand:(hm.querySelector('.brand')||{{textContent:'(brand in the master scene)'}}).textContent, bg:getComputedStyle(hm).backgroundImage.includes('scene-arcade-grid')}}; }})()")
+        ok("stage_is_16_9", isinstance(stg, dict) and abs(stg["ratio"] - 16 / 9) < 0.02 and stg["inside"], stg)
         cb = js("(()=>{ const b=$('tvClose'); const r=b.getBoundingClientRect(); const box=$('tv').querySelector('.tvbox').getBoundingClientRect(); return {w:r.width, h:r.height, topGap:r.top-box.top, rightGap:box.right-r.right, label:b.getAttribute('aria-label'), text:b.textContent, visible:r.width>0}; })()")
         ok("close_button_top_right_corner", cb and cb["visible"] and cb["w"] >= 36 and cb["h"] >= 36 and cb["topGap"] <= 12 and cb["rightGap"] <= 14 and cb["label"] == "Close the preview", cb)
-        ok("stage_logical_1280x720_scaled_to_fit", stg and stg["logical"] == [1280, 720] and stg["fitted"], stg)
+        ok("stage_logical_1280x720_scaled_to_fit", isinstance(stg, dict) and stg["logical"] == [1280, 720] and stg["fitted"], stg)
         ok("brand_heading_exact", stg and stg["brand"] == "Classic Cart Studio" and stg["bg"], stg and stg["brand"])
         js("closeTv()")
         # ---------- projection: one game, built-ins, versions ----------
@@ -176,7 +176,7 @@ def main():
         ok("keys_do_not_leak_when_closed", js("(()=>{ const before=TV.S.index; document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight'})); return TV.S.index===before && !TV.open; })()"))
         ok("preflight_button_wired", "hkTv" in js("(window.renderInstallBase||renderInstall).toString()"))
         ok("guide_chapter_present", js("(()=>{ openGuide('tv'); const t=$('guideArt').querySelector('section.on').textContent; closeGuide(); return /16:9/.test(t) && /Arcade Grid/.test(t) && /SELECT/.test(t); })()"))
-        ok("no_xy_controls_in_hints", js(f"(()=>{{ openTv(); const t={SH}.querySelector('.hints').textContent; closeTv(); return !/\\bX\\b|\\bY\\b/.test(t) && /SELECT|START|A|B/.test(t); }})()"))
+        ok("no_xy_controls_in_hints", js(f"(()=>{{ openTv(); const t={SH}.querySelector('.legend').textContent; closeTv(); return !/\\bX\\b|\\bY\\b/.test(t) && /SELECT|START|A|B/.test(t); }})()"))
         # ---------- responsive ----------
         for w, mob in ((900, False), (412, True)):
             size(w, 900 if not mob else 820, mob); js("openTv()"); time.sleep(0.5)
