@@ -749,11 +749,11 @@ $('heroGames').textContent=DATA.games.length;
 const tb=$('stickyHead'); const setTb=()=>{ document.documentElement.style.setProperty('--tb-h',(getComputedStyle(tb).position==='sticky'?tb.offsetHeight:$('toolbar').offsetHeight)+'px'); if(window.VL&&VL.items.length) vlSchedule(); }; if(window.ResizeObserver) new ResizeObserver(setTb).observe(tb); setTb(); addEventListener('resize',setTb);
 // ---- collapsible tools section: search, filters, view, stats, connection, alphabet strip and storage fold away; Help, My Collection, Save / Load, Tray and Install stay.
 //      Narrow screens: collapsed until opened. Wide screens: open at the top of the page, collapsed automatically once the reader scrolls into the list; a click pins the choice until the page is scrolled back to the top.
-const FOLD={auto:true,cramped:false,narrow:()=>FOLD.cramped||matchMedia('(max-width:640px)').matches};
+const FOLD={auto:true,pinned:false,cramped:false,narrow:()=>FOLD.cramped||matchMedia('(max-width:640px)').matches};   // pinned = the reader opened it: stays open until the reader closes it (owner rule)
 function foldOpen(){ return !$('toolsFold').classList.contains('collapsed'); }
 function setFold(open){ if(foldOpen()===!!open) return; $('toolsFold').classList.toggle('collapsed',!open); $('foldBtn').setAttribute('aria-expanded',String(open)); $('foldBtn').classList.toggle('on',open); setTb(); }
-function foldAuto(){ if(!FOLD.auto) return; setFold(FOLD.narrow()?false:scrollY<=120); }
-function foldForJump(){ if(FOLD.auto&&!FOLD.narrow()) setFold(false); }
+function foldAuto(){ if(!FOLD.auto||FOLD.pinned) return; setFold(FOLD.narrow()?false:scrollY<=120); }
+function foldForJump(){ if(FOLD.auto&&!FOLD.pinned&&!FOLD.narrow()) setFold(false); }
 function foldBadge(n){ const b=$('foldBadge'); if(!b) return; b.textContent=n; b.hidden=!n; }
 // Does the tools row (search … connection pill) fit on ONE line at the current width? Measured, not guessed: the row is laid out
 // unwrapped (invisibly when the section is collapsed) and compared with the space it has. If it would need a second line the section
@@ -765,9 +765,10 @@ function foldFits(){ const f=$('toolsFold'), r=f.querySelector('.row.tools'); co
 function chipsFit(){ const sub=$('subRow'), L=$('letters'), C=$('chips'); if(!C||C.hidden) return true; const nat=el=>{ const g=parseFloat(getComputedStyle(el).columnGap)||0; const k=[...el.children]; return k.reduce((a,c)=>a+c.offsetWidth,0)+g*Math.max(0,k.length-1); };
   const gap=parseFloat(getComputedStyle(sub).columnGap)||0; return nat(L)+gap+nat(C)<=sub.clientWidth-1; }
 function foldMeasure(){ const cramped=!foldFits(); if(cramped===FOLD.cramped) return; FOLD.cramped=cramped; $('toolsFold').classList.toggle('stack',cramped);
+  if(FOLD.pinned) return;   /* opened by the reader: only the layout (stacked or one line) changes, never the open state */
   FOLD.auto=true; if(cramped) setFold(false); else foldAuto(); }
-$('foldBtn').onclick=()=>{ FOLD.auto=false; setFold(!foldOpen()); if(foldOpen()&&!FOLD.narrow()){ const q=$('q'); if(q&&scrollY<=120) q.focus({preventScroll:true}); } };
-addEventListener('scroll',()=>{ if(!FOLD.auto&&scrollY<=10) FOLD.auto=true; foldAuto(); },{passive:true});
+$('foldBtn').onclick=()=>{ FOLD.auto=false; setFold(!foldOpen()); FOLD.pinned=foldOpen(); if(foldOpen()&&!FOLD.narrow()){ const q=$('q'); if(q&&scrollY<=120) q.focus({preventScroll:true}); } };
+addEventListener('scroll',()=>{ if(!FOLD.auto&&!FOLD.pinned&&scrollY<=10) FOLD.auto=true; foldAuto(); },{passive:true});
 // top bar: centered lines whenever it wraps (measured)
 function barMeasure(){ const bar=$('toolbar').querySelector('.row.bar'); const items=[...bar.querySelectorAll(':scope>*, :scope>.actions>*, :scope>.actions>.pair>*')].filter(e=>e.offsetParent&&getComputedStyle(e).display!=='none'&&e.tagName!=='SPAN'); if(items.length<2) return;
   const tops=items.map(e=>e.getBoundingClientRect().top); bar.classList.toggle('wrapped',Math.max(...tops)-Math.min(...tops)>4); }
@@ -775,7 +776,7 @@ let foldRaf=0; const foldOnResize=()=>{ if(foldRaf) return; foldRaf=requestAnima
 addEventListener('resize',foldOnResize); if(window.ResizeObserver) new ResizeObserver(foldOnResize).observe($('toolbar'));
 // window resize: pause the decorative animations and transitions while the edge is being dragged; re-lay the list out once the size settles
 let rzT=0; addEventListener('resize',()=>{ document.documentElement.classList.add('resizing'); clearTimeout(rzT); rzT=setTimeout(()=>{ document.documentElement.classList.remove('resizing'); if(VL.items.length) vlReflow(false); },140); });
-$('foldHide').onclick=()=>{ FOLD.auto=false; setFold(false); $('foldBtn').focus({preventScroll:true}); };
+$('foldHide').onclick=()=>{ FOLD.auto=false; FOLD.pinned=false; setFold(false); $('foldBtn').focus({preventScroll:true}); };
 if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('toolsFold').querySelector('.row.tools'),{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
 if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('chips'),{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
 barMeasure(); FOLD.cramped=!foldFits(); $('toolsFold').classList.toggle('stack',FOLD.cramped); foldAuto();
@@ -814,6 +815,10 @@ def dock_twins(css: str) -> str:
             keep = ["body.dock" + s[4:] if s.startswith("body") else ("body.dock " + s if not s.startswith("html") else s) for s in keep]
             rules.append(",".join(keep) + "{" + r.group(2).strip() + "}")
         if rules: out.append(f"@media (min-width:1000px) and {q2}{{" + "".join(rules) + "}")
+    # the plain stylesheet overrides its narrow-screen overflow rules (hidden / auto on main, #listView, .tablewrap) with a later
+    # unconditional clip rule; the body.dock twins outrank that rule, so the override is restated for the docked state (those
+    # containers must never become scroll containers: that detaches the sticky table header)
+    out.append("@media (min-width:1000px){body.dock main,body.dock #listView,body.dock .tablewrap{overflow-x:clip}}")
     return "\n/* docked My Collection: the responsive rules mirrored for the width beside the panel (generated) */\n" + "\n".join(out) + "\n"
 
 def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title: str = "", loading: str = "lazy") -> str:

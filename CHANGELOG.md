@@ -1,5 +1,11 @@
 # Changelog
 
+## Website — 2026-10-12 (after 0.3.3; no new installer)
+
+- Search & Tools stays open once you open it: scrolling no longer collapses it. It collapses on scroll only when you did not open it yourself, and after you close it the automatic behavior resumes when you return to the top.
+- With My Collection docked, the table's header row sticks under the toolbar again instead of scrolling over the rows.
+- The hero shows the console as a straight-on front view drawn from the owner's reference, without the icon mark beside the title.
+
 ## 0.3.3 — 2026-10-12
 
 - **Application icon, final:** the full NES Classic controller drawing (light body, dark inset panel, cross D-pad, SELECT and START pills, two red buttons) at every size, in the window title bar, the taskbar, the Start menu and the installer. 64 px and up are drawn directly; the smaller sizes are the 64 px drawing scaled down.
