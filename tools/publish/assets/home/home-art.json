@@ -2971,7 +2971,7 @@
    }
   }
  },
- "hero_fallback": null,
+ "hero_fallback": "hero-fallback.png",
  "unresolved_assets": {
   "featured-shelf hero": "no illustrated wide scene exists for NES games; the hero shows the game's own gameplay screen (libretro Named_Snaps) inside the master's hero frame with softened (blurred) edge extension of the same screen; an owner-supplied hero image per game (reports/art/hero/<game_id>.png) takes precedence"
  }

@@ -17,6 +17,7 @@ it is never written to the manifest, logs, requests or output.
   python hero_batch.py fetch --batch NAME                                   download results, decode images, run technical validation, import as candidates, write contact sheets
   python hero_batch.py retry --batch NAME                                   re-prepare only the failed / rejected games into a new batch
   python hero_batch.py sheet [--batch NAME]                                 regenerate the contact sheets
+  python hero_batch.py smoke --id <game_id>                                 prepare a one-image batch (paid API smoke test); submit separately with --confirm
 
 Manifest: reports/art/hero-batch/manifest.json
   games: {game_id: {title, rank, status: pending|prepared|submitted|generated|failed|candidate|approved|rejected, batch, attempts, last_error, sha256, reviewed}}
@@ -222,6 +223,14 @@ def cmd_retry(a):
     if not ids: print("nothing to retry"); return
     cmd_prepare(argparse.Namespace(batch=f"{name}-retry{int(time.time()) % 10000}", ids=",".join(ids), limit=None, force=True))
 
+def cmd_smoke(a):
+    """prepare a ONE-image batch (the paid API smoke test): same request shape, same submit/status/fetch path as production"""
+    cat, by = hero_art.games(); m = load_manifest(); gid = a.id
+    if gid not in by: raise SystemExit("unknown game " + gid)
+    m["games"].setdefault(gid, {"title": by[gid].get("display_title"), "attempts": 0, "status": "pending"}); save_manifest(m)
+    name = a.batch or "smoke1"; cmd_prepare(argparse.Namespace(batch=name, ids=gid, limit=None, force=True)); cmd_validate(argparse.Namespace(batch=name))
+    print(f"smoke batch {name} prepared for {by[gid].get('display_title')}; submit with: hero_batch.py submit --batch {name} --confirm   (PAID, one image; owner authorization required)")
+
 def cmd_sheet(a):
     m = load_manifest(); name = a.batch or latest(m); b = m["batches"][name]; cat, by = hero_art.games(); art = json.load(open(os.path.join(ROOT, "tools", "publish", "assets", "home", "home-art.json"), encoding="utf-8"))
     hb = art["themes"]["featured-shelf"]["geometry"]["hero"]["frame"]; master = Image.open(os.path.join(ROOT, "tools", "publish", "assets", "home", art["themes"]["featured-shelf"]["reference"])).convert("RGB").crop(tuple(hb))
@@ -257,6 +266,7 @@ def main(argv):
     s = sub.add_parser("fetch"); s.add_argument("--batch"); s.set_defaults(fn=cmd_fetch)
     s = sub.add_parser("retry"); s.add_argument("--batch"); s.set_defaults(fn=cmd_retry)
     s = sub.add_parser("sheet"); s.add_argument("--batch"); s.set_defaults(fn=cmd_sheet)
+    s = sub.add_parser("smoke"); s.add_argument("--id", required=True); s.add_argument("--batch"); s.set_defaults(fn=cmd_smoke)
     a = ap.parse_args(argv); return a.fn(a) or 0
 
 if __name__ == "__main__": sys.exit(main(sys.argv[1:]))

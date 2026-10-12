@@ -18,10 +18,12 @@ except Exception: pass
 import os, sys, json, shutil, argparse, subprocess, re, hashlib
 HERE = os.path.dirname(os.path.abspath(__file__)); PROJECT = os.path.normpath(os.path.join(HERE, "..", "..")); sys.path.insert(0, os.path.join(PROJECT, "tools", "companion"))
 from version import VERSION
+import hero_guard as hg   # release guard for hero key art (approved-only); shared by the site build and the repo tree
+HERO_APPROVED = hg.approved_ids(hg.load_registry(os.path.join(PROJECT, "reports", "art", "hero", "index.json")))
 
 # ---- allow list: exact files and whole folders (relative to the project root) that may appear in the public repository ----
 ALLOW_FILES = [
-    "tools/rom-pipeline/make_placeholder_covers.py", "tools/rom-pipeline/test_home_engine.js", "tools/rom-pipeline/test_tv_preview.py", "tools/rom-pipeline/shot_mobile.py", "tools/rom-pipeline/home_visual_review.py", "tools/rom-pipeline/fetch_snaps.py", "tools/companion/home_sync.py", "tools/companion/folder_art.py", "tools/companion/test_folder_art.py", "tools/rom-pipeline/hero_art.py", "tools/rom-pipeline/hero_demo.py", "tools/rom-pipeline/hero_batch.py", "tools/rom-pipeline/test_hero_batch.py", "tools/rom-pipeline/test_tv_search.py", "tools/rom-pipeline/make_hero_meta.py", "tools/companion/test_home_sync.py", "tools/companion/test_home_api.py", "tools/publish/make_home_art.py",
+    "tools/rom-pipeline/make_placeholder_covers.py", "tools/rom-pipeline/test_home_engine.js", "tools/rom-pipeline/test_tv_preview.py", "tools/rom-pipeline/shot_mobile.py", "tools/rom-pipeline/home_visual_review.py", "tools/rom-pipeline/fetch_snaps.py", "tools/companion/home_sync.py", "tools/companion/folder_art.py", "tools/companion/test_folder_art.py", "tools/rom-pipeline/hero_art.py", "tools/rom-pipeline/hero_demo.py", "tools/rom-pipeline/hero_batch.py", "tools/rom-pipeline/test_hero_batch.py", "tools/rom-pipeline/test_tv_search.py", "tools/rom-pipeline/make_hero_meta.py", "tools/companion/test_home_sync.py", "tools/companion/test_home_api.py", "tools/publish/make_home_art.py", "tools/publish/hero_guard.py", "tools/publish/test_hero_guard.py",
     "tools/rom-pipeline/common.py", "tools/rom-pipeline/catalog.py", "tools/rom-pipeline/input_requirements.py", "tools/rom-pipeline/library_lookup.py", "tools/rom-pipeline/manifest_v4.py",
     "tools/rom-pipeline/import_selected.py", "tools/rom-pipeline/build_html.py", "tools/rom-pipeline/index_all.py", "tools/rom-pipeline/identity_audit.py",
     "tools/rom-pipeline/test_manifest_v4_pure.py", "tools/rom-pipeline/test_public_site.py",
@@ -85,18 +87,8 @@ def build_site(site: str):
     os.makedirs(site, exist_ok=True)   # built in place: every file is rewritten; folder deletion of freshly written image folders fails intermittently on this PC
     for sub in ("oem", "web"): shutil.copytree(os.path.join(PROJECT, "reports", "brand", sub), os.path.join(site, "brand", sub), dirs_exist_ok=True)   # approved sprite sets, as they are
     shutil.copytree(os.path.join(PROJECT, "reports", "art"), os.path.join(site, "art"), dirs_exist_ok=True)   # approved box art, as it is
-    # hero key art: only images the owner approved (reports/art/hero/index.json) are published; candidates, rejects, request packs and batch work stay private
-    for sub in ("hero-requests", "hero-batch"): shutil.rmtree(os.path.join(site, "art", sub), ignore_errors=True)
-    hdir = os.path.join(site, "art", "hero")
-    if os.path.isdir(hdir):
-        reg = {}
-        try: reg = json.load(open(os.path.join(PROJECT, "reports", "art", "hero", "index.json"), encoding="utf-8")).get("games", {})
-        except Exception: pass
-        shutil.rmtree(os.path.join(hdir, "rejected"), ignore_errors=True)
-        for name in os.listdir(hdir):
-            gid, ext = os.path.splitext(name)
-            if ext.lower() == ".png" and reg.get(gid, {}).get("status") != "approved": os.remove(os.path.join(hdir, name))
-        json.dump({"schema": "ccs-hero-art/1", "games": {k: v for k, v in reg.items() if v.get("status") == "approved"}}, open(os.path.join(hdir, "index.json"), "w", encoding="utf-8"), indent=1)
+    # hero key art: only owner-approved images leave the workspace (tools/publish/hero_guard.py; tests in test_hero_guard.py)
+    hg.prune_private_art(os.path.join(site, "art")); hg.prune_hero_dir(os.path.join(site, "art", "hero"), HERO_APPROVED)
     os.makedirs(os.path.join(site, "brand", "public"), exist_ok=True); shutil.copy2(os.path.join(PROJECT, "tools", "publish", "assets", "app.ico"), os.path.join(site, "brand", "public", "app.ico"))   # the companion's window/installer icon (project asset), at the path the installer expects
     os.makedirs(os.path.join(site, "brand", "fonts"), exist_ok=True); shutil.copy2(os.path.join(PROJECT, "reports", "brand", "fonts", "PressStart2P-Regular.ttf"), os.path.join(site, "brand", "fonts"))
     for lic in ("OFL-PressStart2P.txt",):
@@ -105,7 +97,9 @@ def build_site(site: str):
     for n in SITE_DATA:
         p = os.path.join(PROJECT, "reports", n)
         if not os.path.exists(p): continue
-        d = sanitize(json.load(open(p, encoding="utf-8"))); json.dump(d, open(os.path.join(site, n), "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
+        d = sanitize(json.load(open(p, encoding="utf-8")))
+        if n == "catalog.json" and isinstance(d, dict): hg.suppress_catalog(d.get("games", []), HERO_APPROVED)   # no page may reference a hero image that is not published
+        json.dump(d, open(os.path.join(site, n), "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
     align_factory_hash(site)
     env = dict(os.environ, NES_STUDIO_SITE=site, NES_PUBLIC_BUILD="1")
     subprocess.run([sys.executable, os.path.join(PROJECT, "tools", "rom-pipeline", "build_html.py"), "--public", "--out", site], check=True, env=env)
@@ -148,12 +142,7 @@ def build_repo(repo: str, site: str):
         if os.path.exists(os.path.join(site, n)): shutil.copy2(os.path.join(site, n), sd); _reg(os.path.join(sd, n))
     for sub in ("oem", "web", "fonts"): copytree_reg(os.path.join(site, "brand", sub), os.path.join(sd, "brand", sub))
     copytree_reg(os.path.join(site, "art"), os.path.join(sd, "art"))   # box art is part of the approved presentation
-    for sub in ("hero-requests", "hero-batch"): shutil.rmtree(os.path.join(sd, "art", sub), ignore_errors=True)   # never in the public tree, including stale copies from earlier syncs
-    hd = os.path.join(sd, "art", "hero")
-    if os.path.isdir(hd):
-        keep = set(os.listdir(os.path.join(site, "art", "hero"))) if os.path.isdir(os.path.join(site, "art", "hero")) else set()
-        for n in os.listdir(hd):
-            if n not in keep: (shutil.rmtree if os.path.isdir(os.path.join(hd, n)) else os.remove)(os.path.join(hd, n))
+    hg.prune_private_art(os.path.join(sd, "art")); hg.prune_hero_dir(os.path.join(sd, "art", "hero"), HERO_APPROVED)   # the repo tree too (sync in place keeps stale files)
     open(os.path.join(repo, "VERSION"), "w").write(VERSION + "\n"); _reg(os.path.join(repo, "VERSION"))
     # remove stale files (anything this build did not write), then drop folders that became empty; a folder that cannot be removed is harmless to git
     for r, ds, fs in os.walk(repo, topdown=False):
