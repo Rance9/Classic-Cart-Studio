@@ -1,0 +1,21 @@
+# deterministic demo: move the cursor, hold a button through the repeat delay, lose focus, launch a dummy game, capture frames
+frame 01-ready.png
+press down
+tick 50
+release down
+press down
+tick 650
+frame 02-held-down-repeating.png
+release down
+focus lost
+press a
+focus gained
+frame 03-after-focus-loss.png
+launch
+frame 04-after-game-return.png
+device disconnect
+device connect
+press right
+tick 100
+release right
+frame 05-final.png

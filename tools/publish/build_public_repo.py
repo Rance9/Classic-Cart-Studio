@@ -33,7 +33,7 @@ ALLOW_FILES = [
     "tools/publish/make_public_sprites.py", "tools/publish/scan_prohibited.py", "tools/publish/build_public_repo.py", "tools/publish/publish_repo.py", "tools/publish/release_notes.py",
     "tools/publish/fixtures/make_fixtures.py",
 ]
-ALLOW_DIRS = ["tools/rom-pipeline/studio", "tools/publish/assets", "tools/publish/repo-files", "tools/publish/site-static", "tools/publish/fixtures", "tools/desktop/ClassicCartStudio", "tools/companion/console_engine"]
+ALLOW_DIRS = ["tools/rom-pipeline/studio", "tools/publish/assets", "tools/publish/repo-files", "tools/publish/site-static", "tools/publish/fixtures", "tools/desktop/ClassicCartStudio", "tools/console-simulator", "tools/companion/console_engine"]
 SITE_DATA = ["catalog.json", "builtin.json", "library.json", "rankings.json"]
 # strings naming local paths are dropped from the public data; private markers (user/machine names) come only from the environment (NES_PRIVATE_MARKERS)
 PRIVATE_RE = re.compile("|".join([r"[A-Za-z]:\\", "One" + "Drive", "/Users/"] + [re.escape(m.strip()) for m in os.environ.get("NES_PRIVATE_MARKERS", "").split(",") if m.strip()]), re.I)

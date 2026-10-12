@@ -1,0 +1,278 @@
+{
+"entries": [
+{
+"art_ref": "art/factory-01.png",
+"id": "sim:factory-visible:00000",
+"kind": "factory-visible",
+"order": 0,
+"ready": "n/a",
+"title": "Factory Title 01",
+"version_id": "6322a727b1fda9fe:factory"
+},
+{
+"art_ref": "art/factory-02.png",
+"id": "sim:factory-visible:00001",
+"kind": "factory-visible",
+"order": 1,
+"ready": "n/a",
+"title": "Factory Title 02",
+"version_id": "85aa7e61501ebcba:factory"
+},
+{
+"art_ref": "art/factory-03.png",
+"id": "sim:factory-visible:00002",
+"kind": "factory-visible",
+"order": 2,
+"ready": "n/a",
+"title": "Factory Title 03",
+"version_id": "8954d67538503d3d:factory"
+},
+{
+"art_ref": "art/factory-04.png",
+"id": "sim:factory-visible:00003",
+"kind": "factory-visible",
+"order": 3,
+"ready": "n/a",
+"title": "Factory Title 04",
+"version_id": "72950551bf5ad982:factory"
+},
+{
+"art_ref": "art/factory-05.png",
+"id": "sim:factory-visible:00004",
+"kind": "factory-visible",
+"order": 4,
+"ready": "n/a",
+"title": "Factory Title 05",
+"version_id": "c5488999a11d0d18:factory"
+},
+{
+"art_ref": "art/factory-06.png",
+"id": "sim:factory-visible:00005",
+"kind": "factory-visible",
+"order": 5,
+"ready": "n/a",
+"title": "Factory Title 06",
+"version_id": "2d4c1e074bc64a83:factory"
+},
+{
+"art_ref": "art/factory-07.png",
+"id": "sim:factory-visible:00006",
+"kind": "factory-visible",
+"order": 6,
+"ready": "n/a",
+"title": "Factory Title 07",
+"version_id": "c13bae6077ba5bc1:factory"
+},
+{
+"art_ref": "art/factory-08.png",
+"id": "sim:factory-visible:00007",
+"kind": "factory-visible",
+"order": 7,
+"ready": "n/a",
+"title": "Factory Title 08",
+"version_id": "2d9840ba6b1c5b77:factory"
+},
+{
+"art_ref": "art/factory-09.png",
+"id": "sim:factory-visible:00008",
+"kind": "factory-visible",
+"order": 8,
+"ready": "n/a",
+"title": "Factory Title 09",
+"version_id": "476a55fef6f7bd90:factory"
+},
+{
+"art_ref": "art/factory-10.png",
+"id": "sim:factory-visible:00009",
+"kind": "factory-visible",
+"order": 9,
+"ready": "n/a",
+"title": "Factory Title 10",
+"version_id": "ab3f3144f7dc1ca3:factory"
+},
+{
+"art_ref": "art/factory-11.png",
+"id": "sim:factory-visible:00010",
+"kind": "factory-visible",
+"order": 10,
+"ready": "n/a",
+"title": "Factory Title 11",
+"version_id": "feeaedd6068acbf2:factory"
+},
+{
+"art_ref": "art/factory-12.png",
+"id": "sim:factory-visible:00011",
+"kind": "factory-visible",
+"order": 11,
+"ready": "n/a",
+"title": "Factory Title 12",
+"version_id": "211bb29c819eaaea:factory"
+},
+{
+"art_ref": "art/factory-13.png",
+"id": "sim:factory-visible:00012",
+"kind": "factory-visible",
+"order": 12,
+"ready": "n/a",
+"title": "Factory Title 13",
+"version_id": "dce5ec4b7aa6aca6:factory"
+},
+{
+"art_ref": "art/factory-14.png",
+"id": "sim:factory-visible:00013",
+"kind": "factory-visible",
+"order": 13,
+"ready": "n/a",
+"title": "Factory Title 14",
+"version_id": "ce33e40e7733bb04:factory"
+},
+{
+"art_ref": "art/factory-15.png",
+"id": "sim:factory-visible:00014",
+"kind": "factory-visible",
+"order": 14,
+"ready": "n/a",
+"title": "Factory Title 15",
+"version_id": "025e7b738bad1390:factory"
+},
+{
+"art_ref": "art/factory-16.png",
+"id": "sim:factory-visible:00015",
+"kind": "factory-visible",
+"order": 15,
+"ready": "n/a",
+"title": "Factory Title 16",
+"version_id": "162a58d3b1c2cb3d:factory"
+},
+{
+"art_ref": "art/factory-17.png",
+"id": "sim:factory-visible:00016",
+"kind": "factory-visible",
+"order": 16,
+"ready": "n/a",
+"title": "Factory Title 17",
+"version_id": "034415c7917d7f4c:factory"
+},
+{
+"art_ref": "art/factory-18.png",
+"id": "sim:factory-visible:00017",
+"kind": "factory-visible",
+"order": 17,
+"ready": "n/a",
+"title": "Factory Title 18",
+"version_id": "cc4777f4e9e12b26:factory"
+},
+{
+"art_ref": "art/factory-19.png",
+"id": "sim:factory-visible:00018",
+"kind": "factory-visible",
+"order": 18,
+"ready": "n/a",
+"title": "Factory Title 19",
+"version_id": "7ee8a980035a10bc:factory"
+},
+{
+"art_ref": "art/factory-20.png",
+"id": "sim:factory-visible:00019",
+"kind": "factory-visible",
+"order": 19,
+"ready": "n/a",
+"title": "Factory Title 20",
+"version_id": "8526b59ab0a8d27e:factory"
+},
+{
+"art_ref": "art/factory-21.png",
+"id": "sim:factory-visible:00020",
+"kind": "factory-visible",
+"order": 20,
+"ready": "n/a",
+"title": "Factory Title 21",
+"version_id": "c7d27a857b70675f:factory"
+},
+{
+"art_ref": "art/factory-22.png",
+"id": "sim:factory-visible:00021",
+"kind": "factory-visible",
+"order": 21,
+"ready": "n/a",
+"title": "Factory Title 22",
+"version_id": "7a7f5caddf97951f:factory"
+},
+{
+"art_ref": "art/factory-23.png",
+"id": "sim:factory-visible:00022",
+"kind": "factory-visible",
+"order": 22,
+"ready": "n/a",
+"title": "Factory Title 23",
+"version_id": "c00d27e5accc86c8:factory"
+},
+{
+"art_ref": "art/factory-24.png",
+"id": "sim:factory-visible:00023",
+"kind": "factory-visible",
+"order": 23,
+"ready": "n/a",
+"title": "Factory Title 24",
+"version_id": "2aa9b212a7062c05:factory"
+},
+{
+"art_ref": "art/factory-25.png",
+"id": "sim:factory-visible:00024",
+"kind": "factory-visible",
+"order": 24,
+"ready": "n/a",
+"title": "Factory Title 25",
+"version_id": "733e4d3ef368c25c:factory"
+},
+{
+"art_ref": "art/factory-26.png",
+"id": "sim:factory-visible:00025",
+"kind": "factory-visible",
+"order": 25,
+"ready": "n/a",
+"title": "Factory Title 26",
+"version_id": "bdd790dd2aef553a:factory"
+},
+{
+"art_ref": "art/factory-27.png",
+"id": "sim:factory-visible:00026",
+"kind": "factory-visible",
+"order": 26,
+"ready": "n/a",
+"title": "Factory Title 27",
+"version_id": "d423a8ad8f959586:factory"
+},
+{
+"art_ref": "art/factory-28.png",
+"id": "sim:factory-visible:00027",
+"kind": "factory-visible",
+"order": 27,
+"ready": "n/a",
+"title": "Factory Title 28",
+"version_id": "749b350f72468263:factory"
+},
+{
+"art_ref": "art/factory-29.png",
+"id": "sim:factory-visible:00028",
+"kind": "factory-visible",
+"order": 28,
+"ready": "n/a",
+"title": "Factory Title 29",
+"version_id": "e0f92910ad68561e:factory"
+},
+{
+"art_ref": "art/factory-30.png",
+"id": "sim:factory-visible:00029",
+"kind": "factory-visible",
+"order": 29,
+"ready": "n/a",
+"title": "Factory Title 30",
+"version_id": "d2f31b1cd45afe5e:factory"
+}
+],
+"name": "factory-only (synthetic)",
+"note": "30 synthetic factory placeholders; not Nintendo titles",
+"schema": "ccs-sim-fixture/1",
+"source": "synthetic"
+}

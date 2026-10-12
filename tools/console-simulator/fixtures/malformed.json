@@ -1,0 +1,74 @@
+{
+"entries": [
+{
+"id": "sim:added:00000",
+"kind": "added",
+"order": 0,
+"ready": "ready",
+"title": "Valid One",
+"version_id": "e7f09f6dcca80d54:v1"
+},
+{
+"kind": "added",
+"title": "No Id",
+"version_id": "v"
+},
+{
+"id": "sim:bad:1",
+"kind": "added",
+"title": "No Version"
+},
+{
+"id": "sim:bad:2",
+"kind": "carousel-tile",
+"title": "Bad Kind",
+"version_id": "v"
+},
+{
+"id": "sim:added:00000",
+"kind": "added",
+"title": "Duplicate Of Valid One",
+"version_id": "v2"
+},
+{
+"id": "sim:bad:3",
+"kind": "added",
+"launch_command": "/bin/sh -c 'echo no'",
+"title": "Smuggled Command",
+"version_id": "v"
+},
+{
+"id": "sim:bad:4",
+"kind": "added",
+"title": "Visible Not Bool",
+"version_id": "v",
+"visible": "yes"
+},
+{
+"id": "sim:bad:5",
+"kind": "added",
+"order": "first",
+"title": "Order Not Number",
+"version_id": "v"
+},
+{
+"id": "sim:bad:6",
+"kind": "added",
+"ready": "soon",
+"title": "Bad Ready",
+"version_id": "v"
+},
+"not an object",
+{
+"id": "sim:personal:00009",
+"kind": "personal",
+"order": 9,
+"ready": "missing",
+"title": "Valid Two",
+"version_id": "921e4c4f131fb355:v9"
+}
+],
+"name": "malformed (synthetic)",
+"schema": "ccs-sim-fixture/1",
+"source": "synthetic"
+}
