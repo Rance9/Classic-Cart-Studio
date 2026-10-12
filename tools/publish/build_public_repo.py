@@ -148,6 +148,12 @@ def build_repo(repo: str, site: str):
         if os.path.exists(os.path.join(site, n)): shutil.copy2(os.path.join(site, n), sd); _reg(os.path.join(sd, n))
     for sub in ("oem", "web", "fonts"): copytree_reg(os.path.join(site, "brand", sub), os.path.join(sd, "brand", sub))
     copytree_reg(os.path.join(site, "art"), os.path.join(sd, "art"))   # box art is part of the approved presentation
+    for sub in ("hero-requests", "hero-batch"): shutil.rmtree(os.path.join(sd, "art", sub), ignore_errors=True)   # never in the public tree, including stale copies from earlier syncs
+    hd = os.path.join(sd, "art", "hero")
+    if os.path.isdir(hd):
+        keep = set(os.listdir(os.path.join(site, "art", "hero"))) if os.path.isdir(os.path.join(site, "art", "hero")) else set()
+        for n in os.listdir(hd):
+            if n not in keep: (shutil.rmtree if os.path.isdir(os.path.join(hd, n)) else os.remove)(os.path.join(hd, n))
     open(os.path.join(repo, "VERSION"), "w").write(VERSION + "\n"); _reg(os.path.join(repo, "VERSION"))
     # remove stale files (anything this build did not write), then drop folders that became empty; a folder that cannot be removed is harmless to git
     for r, ds, fs in os.walk(repo, topdown=False):
