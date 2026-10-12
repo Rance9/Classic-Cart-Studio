@@ -120,7 +120,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .pill b{font-family:var(--display);font-size:13px;color:#fff}.pill .led{width:8px;height:8px;border-radius:50%;background:var(--red3);box-shadow:0 0 8px var(--red3),0 0 2px #fff inset}
 .pixlabel{font-family:var(--pixel);font-size:9px;letter-spacing:1px;color:var(--silver);text-transform:uppercase}
 .hardware{position:relative;display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-end;gap:12px;filter:drop-shadow(0 18px 24px rgba(0,0,0,.7))}
-.hardware svg{width:100%;max-width:270px;height:auto}.hardware .pad{max-width:140px;margin:0 0 6px}
+.hardware svg{width:100%;max-width:250px;height:auto}.hardware .pad{max-width:140px;margin:0 0 6px}
 .parade{position:relative;height:86px;margin-top:0}
 .parade .ground{position:absolute;left:0;right:0;bottom:0;height:22px;background:url("brand/oem/tile-ground.png") repeat-x;background-size:22px 22px;image-rendering:pixelated;border-top:2px solid rgba(0,0,0,.4);box-shadow:0 -12px 24px rgba(0,0,0,.35)}
 .parade .cast{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,1.1vw,22px);padding:0 16px;overflow:hidden}
@@ -237,7 +237,7 @@ footer .legal{font-size:12px;color:var(--dim);max-width:1100px;margin:14px auto 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media (max-width:1400px){.row.sub{flex-direction:column;align-items:flex-start;gap:4px}.row.sub .letters{flex:none;width:100%}.notice{white-space:normal}.toolbar .in{padding:6px 12px 6px;gap:5px}.toolbar input[type=search]{min-width:180px}.toolbar .btn{padding:5px 8px;font-size:12.5px}.toolbar select,.toolbar input[type=search]{padding:5px 8px;font-size:13px}.brand .nm{font-size:14px}.stats{font-size:12.5px}.letters a{min-width:20px;padding:1px 3px;font-size:12px}.notice{font-size:11.5px}.notice>span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.notice .meter{width:110px}}
 @media (max-width:1100px){.hero h1{font-size:clamp(24px,5vw,36px);white-space:normal}}
-@media (max-width:900px){.hardware svg{max-width:250px}.hardware .pad{max-width:60px}}
+@media (max-width:900px){.hardware svg{max-width:120px}.hardware .pad{max-width:60px}}
 @media (max-width:640px){.hero-inner{grid-template-columns:1fr}.hardware{display:none}}
 @media (max-width:900px){th:nth-child(6),td:nth-child(6),th:nth-child(8),td:nth-child(8),th:nth-child(11),td:nth-child(11){display:none}#details .box{grid-template-columns:1fr}.brand .nm small{display:none}.parade{height:64px}.parade .cast{gap:6px}}
 @media (max-width:640px){th:nth-child(7),td:nth-child(7),th:nth-child(10),td:nth-child(10),th:nth-child(13),td:nth-child(13){display:none}.hero-inner{padding:22px 16px 6px}.toolbar .in{padding:8px 12px}main{padding:12px}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.howto,footer{padding-left:12px;padding-right:12px}}
@@ -256,12 +256,12 @@ __STUDIO_CSS__
   <div class="hardware" aria-hidden="true">
    <svg viewBox="0 0 558 192" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="gFace" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3e1dc"/><stop offset=".7" stop-color="#cfcdc8"/><stop offset="1" stop-color="#bfbdb8"/></linearGradient><linearGradient id="gPanel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9e7e2"/><stop offset="1" stop-color="#d8d6d1"/></linearGradient><linearGradient id="gBase" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#75767c"/><stop offset="1" stop-color="#55565b"/></linearGradient><linearGradient id="gBtn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3c1bc"/><stop offset="1" stop-color="#9a9893"/></linearGradient><linearGradient id="gPlug" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8e9eb"/><stop offset="1" stop-color="#9a9da3"/></linearGradient><radialGradient id="gLed"><stop offset="0" stop-color="#ffb3b7"/><stop offset=".45" stop-color="#ff2a36"/><stop offset="1" stop-color="#9c0009"/></radialGradient></defs>
-    <path d="M2 86 L556 86 L556 182 Q556 190 548 190 L10 190 Q2 190 2 182 Z" fill="url(#gBase)"/><path d="M2 86 L556 86 L556 92 L2 92 Z" fill="#000" opacity=".18"/>
-    <path d="M14 3 Q14 0 18 0 L540 0 Q544 0 544 3 L558 86 L0 86 Z" fill="url(#gFace)"/>
+    <path d="M0 86 L558 86 L544 184 Q543 190 537 190 L21 190 Q15 190 14 184 Z" fill="url(#gBase)"/><path d="M0 86 L558 86 L557 92 L1 92 Z" fill="#000" opacity=".18"/>
+    <path d="M26 3 Q27 0 31 0 L527 0 Q531 0 532 3 L558 86 L0 86 Z" fill="url(#gFace)"/>
     <rect x="72" y="6" width="314" height="68" rx="3" fill="url(#gPanel)"/><rect x="72" y="74" width="314" height="5" rx="1.5" fill="#a9a7a2"/><rect x="300" y="80" width="44" height="3" rx="1.5" fill="#9f9d98"/>
     <text x="90" y="40" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="800" font-style="italic" font-size="24" fill="#e4000f">Nintendo</text><text x="90" y="56" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="700" font-size="10.5" letter-spacing="1.6" fill="#e4000f">ENTERTAINMENT SYSTEM</text>
-    <path d="M386 0 L492 0 L494 86 L384 86 Z" fill="#1b1b1e"/><g stroke="#4a4a4f" stroke-width="2"><path d="M390 12 L490 12"/><path d="M390 24 L490 24"/><path d="M390 36 L490 36"/></g>
-    <path d="M384 86 L494 86 L494 190 L384 190 Z" fill="#101013"/>
+    <path d="M392 0 L486 0 L494 86 L384 86 Z" fill="#1b1b1e"/><g stroke="#4a4a4f" stroke-width="2"><path d="M390 12 L490 12"/><path d="M390 24 L490 24"/><path d="M390 36 L490 36"/></g>
+    <path d="M384 86 L494 86 L488 190 L390 190 Z" fill="#101013"/>
     <text x="411" y="98" text-anchor="middle" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="700" font-size="9" fill="#e4000f">1</text><text x="465" y="98" text-anchor="middle" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="700" font-size="9" fill="#e4000f">2</text>
     <rect x="390" y="102" width="42" height="78" rx="7" fill="#07070a"/><path d="M398 110 L424 110 Q428 110 428 114 L428 150 L421 172 L401 172 L394 150 L394 114 Q394 110 398 110 Z" fill="url(#gPlug)"/><rect x="404" y="120" width="14" height="38" rx="4" fill="#1e1f23"/>
     <rect x="444" y="102" width="42" height="78" rx="7" fill="#07070a"/><path d="M452 110 L478 110 Q482 110 482 114 L482 150 L475 172 L455 172 L448 150 L448 114 Q448 110 452 110 Z" fill="url(#gPlug)"/><rect x="458" y="120" width="14" height="38" rx="4" fill="#1e1f23"/>
