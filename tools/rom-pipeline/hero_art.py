@@ -16,6 +16,8 @@ generation (or illustration) capability that this toolchain does not have, so th
   python hero_art.py request <game_id>... | --all
   python hero_art.py import <game_id> <image> | --dir <folder with <game_id>.<ext> files>
   python hero_art.py status
+  python hero_art.py approve|reject <game_id> [reason]    review verdicts (only approved art is published)
+  python hero_art.py remove <game_id>                     drop an imported image (back to the fallback)
 """
 from __future__ import annotations
 import os, sys, json, shutil
@@ -71,7 +73,12 @@ def import_one(gid: str, path: str, cat=None, by=None):
     if own: cat, by = games()
     if gid not in by: raise ValueError(f"unknown game {gid}")
     im = normalize(path); os.makedirs(OUT, exist_ok=True); out = os.path.join(OUT, gid + ".png"); im.save(out + ".tmp", "PNG", optimize=True); os.replace(out + ".tmp", out)
-    by[gid]["art_hero"] = f"art/hero/{gid}.png"; by[gid]["art_hero_source"] = os.path.basename(path)
+    import hashlib, time
+    sha = hashlib.sha256(open(out, "rb").read()).hexdigest()
+    by[gid]["art_hero"] = f"art/hero/{gid}.png"; by[gid]["art_hero_source"] = os.path.basename(path); by[gid]["art_hero_sha256"] = sha; by[gid]["art_hero_status"] = "candidate"; by[gid]["art_hero_provenance"] = os.environ.get("HERO_PROVENANCE", "generated:chatgpt")
+    reg_p = os.path.join(OUT, "index.json"); reg = json.load(open(reg_p, encoding="utf-8")) if os.path.exists(reg_p) else {"schema": "ccs-hero-art/1", "games": {}}
+    reg["games"][gid] = {"title": by[gid].get("display_title"), "file": f"art/hero/{gid}.png", "sha256": sha, "source": os.path.basename(path), "status": "candidate", "provenance": by[gid]["art_hero_provenance"], "imported": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1)
     if own: json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     return out
 
@@ -80,9 +87,30 @@ def status():
     req = [d for d in (os.listdir(REQ) if os.path.isdir(REQ) else []) if os.path.isdir(os.path.join(REQ, d))]
     print(f"hero art: {len(have)} games with imported art, {len(req)} request packs, {len(cat['games']) - len(have)} games on the composed fallback")
 
+def verdict(gid: str, status: str, reason: str = ""):
+    cat, by = games(); reg_p = os.path.join(OUT, "index.json"); reg = json.load(open(reg_p, encoding="utf-8")) if os.path.exists(reg_p) else {"schema": "ccs-hero-art/1", "games": {}}
+    if gid not in by or gid not in reg["games"]: raise ValueError("no imported hero art for " + gid)
+    import time
+    reg["games"][gid]["status"] = status; reg["games"][gid]["reviewed"] = time.strftime("%Y-%m-%dT%H:%M:%S"); reg["games"][gid]["reason"] = reason
+    by[gid]["art_hero_status"] = status
+    if status == "rejected":   # rejected candidates leave the runtime path and are kept aside for the next brief iteration
+        os.makedirs(os.path.join(OUT, "rejected"), exist_ok=True); src = os.path.join(OUT, gid + ".png")
+        if os.path.exists(src): os.replace(src, os.path.join(OUT, "rejected", gid + ".png"))
+        by[gid].pop("art_hero", None)
+    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print(gid, status)
+
+def remove(gid: str):
+    cat, by = games(); reg_p = os.path.join(OUT, "index.json"); reg = json.load(open(reg_p, encoding="utf-8")) if os.path.exists(reg_p) else {"schema": "ccs-hero-art/1", "games": {}}
+    for k in ("art_hero", "art_hero_source", "art_hero_sha256", "art_hero_status", "art_hero_provenance"): by.get(gid, {}).pop(k, None)
+    reg["games"].pop(gid, None); p = os.path.join(OUT, gid + ".png")
+    if os.path.exists(p): os.remove(p)
+    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print("removed", gid)
+
 def main(argv):
-    if not argv or argv[0] not in ("request", "import", "status"): print(__doc__); return 2
+    if not argv or argv[0] not in ("request", "import", "status", "approve", "reject", "remove"): print(__doc__); return 2
     if argv[0] == "status": status(); return 0
+    if argv[0] in ("approve", "reject"): verdict(argv[1], "approved" if argv[0] == "approve" else "rejected", " ".join(argv[2:])); return 0
+    if argv[0] == "remove": remove(argv[1]); return 0
     if argv[0] == "request":
         cat, by = games(); ids = list(by) if "--all" in argv[1:] else argv[1:]; request(ids); return 0
     cat, by = games(); n = 0

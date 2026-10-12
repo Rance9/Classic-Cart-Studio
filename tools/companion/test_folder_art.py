@@ -48,6 +48,36 @@ class FolderArtTests(unittest.TestCase):
         self.assertIn("previous artwork is unchanged", str(cm.exception))
         after = {n: open(os.path.join(fa.FOLDER_ART_DIR, n), "rb").read() for n in self.files("f1")}
         self.assertEqual(before, after); self.assertFalse(any(n.endswith(fa.STAGE) for n in os.listdir(fa.FOLDER_ART_DIR)))
+    def test_04b_failure_during_swap_rolls_back(self):
+        before = {n: open(os.path.join(fa.FOLDER_ART_DIR, n), "rb").read() for n in self.files("f1")}
+        orig = fa._swap; calls = {"n": 0}
+        def flaky(src, dst):
+            calls["n"] += 1
+            if calls["n"] == 5: raise OSError("sharing violation during the second final replace")   # 3 backups + 1 swapped + failure
+            return orig(src, dst)
+        fa._swap = flaky
+        try:
+            with self.assertRaises(ValueError) as cm: fa.set_art("f1", png("e.png", (500, 900), (220, 200, 0)))
+        finally: fa._swap = orig
+        self.assertIn("previous artwork was restored", str(cm.exception))
+        after = {n: open(os.path.join(fa.FOLDER_ART_DIR, n), "rb").read() for n in self.files("f1")}
+        self.assertEqual(before, after); self.assertFalse(any(n.endswith(fa.STAGE) or n.endswith(fa.BAK) for n in os.listdir(fa.FOLDER_ART_DIR)))
+    def test_04c_recover_restores_after_interrupted_swap(self):
+        before = {n: open(os.path.join(fa.FOLDER_ART_DIR, n), "rb").read() for n in self.files("f1")}
+        # simulate a crash after the backups were made and only the cover had moved in
+        for n in list(before): os.replace(os.path.join(fa.FOLDER_ART_DIR, n), os.path.join(fa.FOLDER_ART_DIR, n + fa.BAK))
+        Image.new("RGB", (480, 720), (9, 9, 9)).save(os.path.join(fa.FOLDER_ART_DIR, "f1-cover.jpg"), "JPEG"); open(os.path.join(fa.FOLDER_ART_DIR, "f1-wide.jpg" + fa.STAGE), "wb").write(b"partial")
+        r = fa.recover("f1"); self.assertEqual(r["recovered"], "restored previous artwork")
+        after = {n: open(os.path.join(fa.FOLDER_ART_DIR, n), "rb").read() for n in self.files("f1")}
+        self.assertEqual(before, after); self.assertFalse(any(n.endswith(fa.STAGE) or n.endswith(fa.BAK) for n in os.listdir(fa.FOLDER_ART_DIR)))
+    def test_04d_recover_completes_when_final_set_is_whole(self):
+        # simulate a crash after every final file moved in but before the backups were dropped
+        names = self.files("f1")
+        for n in names: shutil.copy2(os.path.join(fa.FOLDER_ART_DIR, n), os.path.join(fa.FOLDER_ART_DIR, n + fa.BAK))
+        finals = {n: open(os.path.join(fa.FOLDER_ART_DIR, n), "rb").read() for n in names}
+        r = fa.describe("f1"); self.assertEqual(r["provenance"], "custom")   # describe runs recover()
+        self.assertFalse(any(n.endswith(fa.BAK) for n in os.listdir(fa.FOLDER_ART_DIR)))
+        self.assertEqual(finals, {n: open(os.path.join(fa.FOLDER_ART_DIR, n), "rb").read() for n in self.files("f1")})
     def test_05_describe_and_clear(self):
         self.assertEqual(fa.describe("f1")["provenance"], "custom")
         r = fa.clear("f1"); self.assertEqual(r["removed"], 3); self.assertEqual(self.files("f1"), []); self.assertEqual(fa.describe("f1")["provenance"], "generated")
