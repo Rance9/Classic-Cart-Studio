@@ -1,5 +1,5 @@
 """Single source of the companion / website protocol version (shipped in both; the website refuses older companions)."""
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 PROTOCOL = 1
 APP_ID = "classic-cart-studio-backend"
 PUBLIC_ORIGIN = "https://rance9.github.io"
