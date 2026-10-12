@@ -201,6 +201,7 @@ def main():
     for old in ("bg-arcade-grid.jpg", "bg-box-art-showcase.jpg", "bg-featured-shelf.jpg", "bg-adventure-map.jpg"):
         q = os.path.join(OUT, old)
         if os.path.exists(q): os.remove(q)
+    man["hero_fallback"] = "hero-fallback.png" if os.path.exists(os.path.join(OUT, "hero-fallback.png")) else None   # universal key-art fallback once installed (hero_art.py fallback <image>)
     man["unresolved_assets"] = {"featured-shelf hero": "no illustrated wide scene exists for NES games; the hero shows the game's own gameplay screen (libretro Named_Snaps) inside the master's hero frame with softened (blurred) edge extension of the same screen; an owner-supplied hero image per game (reports/art/hero/<game_id>.png) takes precedence"}
     json.dump(man, open(os.path.join(OUT, "home-art.json"), "w"), indent=1); print("manifest", os.path.join(OUT, "home-art.json"))
 

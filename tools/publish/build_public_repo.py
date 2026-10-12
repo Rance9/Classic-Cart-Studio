@@ -21,7 +21,7 @@ from version import VERSION
 
 # ---- allow list: exact files and whole folders (relative to the project root) that may appear in the public repository ----
 ALLOW_FILES = [
-    "tools/rom-pipeline/make_placeholder_covers.py", "tools/rom-pipeline/test_home_engine.js", "tools/rom-pipeline/test_tv_preview.py", "tools/rom-pipeline/shot_mobile.py", "tools/rom-pipeline/home_visual_review.py", "tools/rom-pipeline/fetch_snaps.py", "tools/companion/home_sync.py", "tools/companion/folder_art.py", "tools/companion/test_folder_art.py", "tools/rom-pipeline/hero_art.py", "tools/rom-pipeline/hero_demo.py", "tools/rom-pipeline/test_tv_search.py", "tools/rom-pipeline/make_hero_meta.py", "tools/companion/test_home_sync.py", "tools/companion/test_home_api.py", "tools/publish/make_home_art.py",
+    "tools/rom-pipeline/make_placeholder_covers.py", "tools/rom-pipeline/test_home_engine.js", "tools/rom-pipeline/test_tv_preview.py", "tools/rom-pipeline/shot_mobile.py", "tools/rom-pipeline/home_visual_review.py", "tools/rom-pipeline/fetch_snaps.py", "tools/companion/home_sync.py", "tools/companion/folder_art.py", "tools/companion/test_folder_art.py", "tools/rom-pipeline/hero_art.py", "tools/rom-pipeline/hero_demo.py", "tools/rom-pipeline/hero_batch.py", "tools/rom-pipeline/test_hero_batch.py", "tools/rom-pipeline/test_tv_search.py", "tools/rom-pipeline/make_hero_meta.py", "tools/companion/test_home_sync.py", "tools/companion/test_home_api.py", "tools/publish/make_home_art.py",
     "tools/rom-pipeline/common.py", "tools/rom-pipeline/catalog.py", "tools/rom-pipeline/input_requirements.py", "tools/rom-pipeline/library_lookup.py", "tools/rom-pipeline/manifest_v4.py",
     "tools/rom-pipeline/import_selected.py", "tools/rom-pipeline/build_html.py", "tools/rom-pipeline/index_all.py", "tools/rom-pipeline/identity_audit.py",
     "tools/rom-pipeline/test_manifest_v4_pure.py", "tools/rom-pipeline/test_public_site.py",
@@ -85,6 +85,18 @@ def build_site(site: str):
     os.makedirs(site, exist_ok=True)   # built in place: every file is rewritten; folder deletion of freshly written image folders fails intermittently on this PC
     for sub in ("oem", "web"): shutil.copytree(os.path.join(PROJECT, "reports", "brand", sub), os.path.join(site, "brand", sub), dirs_exist_ok=True)   # approved sprite sets, as they are
     shutil.copytree(os.path.join(PROJECT, "reports", "art"), os.path.join(site, "art"), dirs_exist_ok=True)   # approved box art, as it is
+    # hero key art: only images the owner approved (reports/art/hero/index.json) are published; candidates, rejects, request packs and batch work stay private
+    for sub in ("hero-requests", "hero-batch"): shutil.rmtree(os.path.join(site, "art", sub), ignore_errors=True)
+    hdir = os.path.join(site, "art", "hero")
+    if os.path.isdir(hdir):
+        reg = {}
+        try: reg = json.load(open(os.path.join(PROJECT, "reports", "art", "hero", "index.json"), encoding="utf-8")).get("games", {})
+        except Exception: pass
+        shutil.rmtree(os.path.join(hdir, "rejected"), ignore_errors=True)
+        for name in os.listdir(hdir):
+            gid, ext = os.path.splitext(name)
+            if ext.lower() == ".png" and reg.get(gid, {}).get("status") != "approved": os.remove(os.path.join(hdir, name))
+        json.dump({"schema": "ccs-hero-art/1", "games": {k: v for k, v in reg.items() if v.get("status") == "approved"}}, open(os.path.join(hdir, "index.json"), "w", encoding="utf-8"), indent=1)
     os.makedirs(os.path.join(site, "brand", "public"), exist_ok=True); shutil.copy2(os.path.join(PROJECT, "tools", "publish", "assets", "app.ico"), os.path.join(site, "brand", "public", "app.ico"))   # the companion's window/installer icon (project asset), at the path the installer expects
     os.makedirs(os.path.join(site, "brand", "fonts"), exist_ok=True); shutil.copy2(os.path.join(PROJECT, "reports", "brand", "fonts", "PressStart2P-Regular.ttf"), os.path.join(site, "brand", "fonts"))
     for lic in ("OFL-PressStart2P.txt",):

@@ -18,6 +18,7 @@ generation (or illustration) capability that this toolchain does not have, so th
   python hero_art.py status
   python hero_art.py approve|reject <game_id> [reason]    review verdicts (only approved art is published)
   python hero_art.py remove <game_id>                     drop an imported image (back to the fallback)
+  python hero_art.py fallback <image>                     install the universal genre-neutral fallback scene (hero-fallback.png)
 """
 from __future__ import annotations
 import os, sys, json, shutil
@@ -106,8 +107,16 @@ def remove(gid: str):
     if os.path.exists(p): os.remove(p)
     json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print("removed", gid)
 
+ASSETS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "publish", "assets", "home")
+def fallback(path: str):
+    """install the universal fallback key art (genre-neutral scene): validated, normalized, placed in the HOME assets, manifest regenerated"""
+    im = normalize(path); os.makedirs(ASSETS, exist_ok=True); out = os.path.join(ASSETS, "hero-fallback.png"); im.save(out + ".tmp", "PNG", optimize=True); os.replace(out + ".tmp", out)
+    import subprocess; subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "publish", "make_home_art.py")], check=True, stdout=subprocess.DEVNULL)
+    print("universal fallback installed:", out, "(home-art.json hero_fallback set; rebuild the page with build_html.py)")
+
 def main(argv):
-    if not argv or argv[0] not in ("request", "import", "status", "approve", "reject", "remove"): print(__doc__); return 2
+    if not argv or argv[0] not in ("request", "import", "status", "approve", "reject", "remove", "fallback"): print(__doc__); return 2
+    if argv[0] == "fallback": fallback(argv[1]); return 0
     if argv[0] == "status": status(); return 0
     if argv[0] in ("approve", "reject"): verdict(argv[1], "approved" if argv[0] == "approve" else "rejected", " ".join(argv[2:])); return 0
     if argv[0] == "remove": remove(argv[1]); return 0
