@@ -404,3 +404,13 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 #guide .shot img,#guide .hero-fig img,#guide .hw .card img,#guide .duo .shot img{cursor:zoom-in}
 #glb{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}#glb.open{display:flex}#glb img{max-width:min(96vw,1800px);max-height:92vh;width:auto;height:auto;object-fit:contain;border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,.8)}#glb .cap{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:var(--ink2);font-size:13px;padding:0 24px}
 #guide .shot .cap .credit{display:block;margin-top:4px;font-size:11px;color:var(--muted)}#guide .shot .cap .credit a{color:#9cc0ff}
+/* ---- Folders & Console HOME editor ---- */
+.hf-grid{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:16px;min-height:360px}
+@media (max-width:900px){.hf-grid{grid-template-columns:1fr}}
+.hf-col .lbl{font-family:var(--display);font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--silver);margin-bottom:8px}
+.hf-tree{max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:8px;background:var(--bg1);padding:6px 0}
+.hf-f{padding:6px 8px;cursor:pointer;border-left:3px solid transparent}.hf-f:hover{background:rgba(255,255,255,.04)}.hf-f.on{border-left-color:var(--red3);background:rgba(228,0,15,.12);color:#fff}
+.hf-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.hf-games{max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:8px;background:var(--bg1);padding:6px}
+.hf-g{display:flex;align-items:center;gap:8px;padding:4px 6px;border-bottom:1px solid var(--line)}.hf-g .tl{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hf-gb{display:flex;gap:4px}
+.hf-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:13px}.hf-row select{flex:1;min-width:0}

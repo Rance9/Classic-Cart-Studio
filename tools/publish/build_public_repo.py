@@ -21,6 +21,7 @@ from version import VERSION
 
 # ---- allow list: exact files and whole folders (relative to the project root) that may appear in the public repository ----
 ALLOW_FILES = [
+    "tools/rom-pipeline/make_placeholder_covers.py", "tools/rom-pipeline/test_home_engine.js", "tools/rom-pipeline/test_tv_preview.py", "tools/companion/home_sync.py", "tools/companion/test_home_sync.py", "tools/companion/test_home_api.py", "tools/publish/make_home_art.py",
     "tools/rom-pipeline/common.py", "tools/rom-pipeline/catalog.py", "tools/rom-pipeline/input_requirements.py", "tools/rom-pipeline/library_lookup.py", "tools/rom-pipeline/manifest_v4.py",
     "tools/rom-pipeline/import_selected.py", "tools/rom-pipeline/build_html.py", "tools/rom-pipeline/index_all.py", "tools/rom-pipeline/identity_audit.py",
     "tools/rom-pipeline/test_manifest_v4_pure.py", "tools/rom-pipeline/test_public_site.py",
@@ -100,7 +101,8 @@ def build_site(site: str):
     shutil.copytree(os.path.join(PROJECT, "tools", "publish", "site-static"), site, dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
     for n in ("favicon.ico", "icon-32.png", "apple-touch-icon.png", "icon-192.png"): shutil.copy2(os.path.join(os.path.join(PROJECT, "tools", "publish", "assets"), "app-32.png" if n == "icon-32.png" else n), os.path.join(site, n))   # browser tab / home-screen icons
     shutil.copy2(os.path.join(os.path.join(PROJECT, "tools", "publish", "assets"), "as-seen-on-tv.png"), os.path.join(site, "brand", "public", "as-seen-on-tv.png"))
-    if os.path.isdir(os.path.join(PROJECT, "tools", "publish", "assets", "help")): shutil.copytree(os.path.join(PROJECT, "tools", "publish", "assets", "help"), os.path.join(site, "brand", "help"), dirs_exist_ok=True)   # Help & User Guide figures (screenshots of this Studio, project illustrations)   # the Preview on TV badge (Wikimedia Commons PNG, public domain, see THIRD_PARTY_NOTICES)
+    if os.path.isdir(os.path.join(PROJECT, "tools", "publish", "assets", "help")): shutil.copytree(os.path.join(PROJECT, "tools", "publish", "assets", "help"), os.path.join(site, "brand", "help"), dirs_exist_ok=True)
+    if os.path.isdir(os.path.join(PROJECT, "tools", "publish", "assets", "home")): shutil.copytree(os.path.join(PROJECT, "tools", "publish", "assets", "home"), os.path.join(site, "brand", "home"), dirs_exist_ok=True)   # console HOME theme scenery (scaled masters)   # Help & User Guide figures (screenshots of this Studio, project illustrations)   # the Preview on TV badge (Wikimedia Commons PNG, public domain, see THIRD_PARTY_NOTICES)
     open(os.path.join(site, ".nojekyll"), "w").close()
     open(os.path.join(site, "robots.txt"), "w").write("User-agent: *\nAllow: /\n")
     # release.json is written by the release workflow after a companion release exists; a placeholder keeps the page's lookup honest

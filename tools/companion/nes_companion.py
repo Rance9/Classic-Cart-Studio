@@ -120,6 +120,13 @@ def handoff_validate(body: dict) -> tuple[dict | None, str]:
     return {"id": oid, "name": name, "count": len(games), "schema": man["schema"], "collection": man, "fingerprint": hashlib.sha256(json.dumps(man, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}, ""
 
 def desktop_state_path(): return data_path("desktop-state.json")
+def home_state_path(): return data_path("home-state.json")
+def home_state_load() -> dict:
+    try: return json.load(open(home_state_path(), encoding="utf-8"))
+    except Exception: return {}
+def home_state_save(state: dict) -> dict:
+    state = dict(state); state["saved_at"] = time.strftime("%Y-%m-%dT%H:%M:%S"); tmp = home_state_path() + ".tmp"
+    json.dump(state, open(tmp, "w", encoding="utf-8"), ensure_ascii=False); os.replace(tmp, home_state_path()); return state
 def desktop_state_load() -> dict:
     try:
         j = json.load(open(desktop_state_path(), encoding="utf-8")); return j if isinstance(j, dict) else {}
@@ -277,6 +284,14 @@ class H(http.server.BaseHTTPRequestHandler):
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
             return self._json(200, {"ok": True, "state": desktop_state_load()})
+        if path == "/api/home/state":   # console HOME model extras (folders, favorites, history, sorts, theme, shortcuts): desktop application only
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            return self._json(200, {"ok": True, "home": home_state_load()})
+        if path == "/api/home/console":   # the MOCK console store (simulation; Gate G1 not approved, no device)
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            import home_sync as hs; return self._json(200, {"ok": True, "simulation": True, "console": hs.MockConsoleStore(data_path("mock-console.json")).load()})
         if path.startswith("/api/console/"):   # console engine (simulation tier): desktop application only; the website never sees these
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
@@ -347,7 +362,7 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "not connected: this website must be paired with the companion first" if self._cross_site() else "request not authorized (token/origin)", "pair_required": self._cross_site()})
         try: body = self._body()
         except Exception as e: return self._json(400, {"ok": False, "error": f"bad request: {e}"})
-        if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown") or path.startswith("/api/console/"):
+        if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown") or path.startswith("/api/console/") or path.startswith("/api/home/"):
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
             if path == "/api/shutdown":
@@ -380,6 +395,24 @@ class H(http.server.BaseHTTPRequestHandler):
                 if op == "cancel": return self._json(200, {"ok": True, **cr.cancel(re.sub(r"[^A-Za-z0-9-]", "", str(body.get("run") or ""))[:40])})
                 if op == "recover": r = cr.call("recover", {"stage": re.sub(r"[^a-z-]", "", str(body.get("stage") or ""))[:20]}); return self._json(200, {"ok": True, **(r.get("result") or {})})
                 return self._json(404, {"ok": False, "error": "unknown console operation"})
+            if path == "/api/home/state":   # desktop application only (checked above with the other desktop routes)
+                st = body.get("home") if isinstance(body, dict) else None
+                if not isinstance(st, dict): return self._json(400, {"ok": False, "error": "home must be an object"})
+                if len(json.dumps(st)) > 8_000_000: return self._json(413, {"ok": False, "error": "home state too large"})
+                try: saved = home_state_save(st)
+                except Exception as e: return self._json(500, {"ok": False, "error": f"could not save: {e}"})
+                return self._json(200, {"ok": True, "saved_at": saved.get("saved_at")})
+            if path == "/api/home/sync":   # one sync round against the MOCK console store; never a device (Gate G1 not approved)
+                import home_sync as hs
+                man = body.get("manifest") if isinstance(body, dict) else None; st = body.get("state") if isinstance(body, dict) else None
+                if not isinstance(man, dict) or not isinstance(st, dict): return self._json(400, {"ok": False, "error": "manifest and state objects are required"})
+                if len(json.dumps(body)) > 16_000_000: return self._json(413, {"ok": False, "error": "sync payload too large"})
+                try: res = hs.sync(hs.MockConsoleStore(data_path("mock-console.json")), man, st)
+                except Exception as e: return self._json(500, {"ok": False, "error": f"sync failed: {e}"})
+                if res.get("ok"):
+                    try: cur = home_state_load(); cur["favorites"] = res["state"]["favorites"]; cur["history"] = res["state"]["history"]; home_state_save(cur)
+                    except Exception: pass
+                return self._json(200 if res.get("ok") else 422, res)
             if path == "/api/desktop/state":   # body was parsed above (bounded by _body)
                 st = body.get("state") if isinstance(body, dict) else None
                 if isinstance(st, dict) and len(json.dumps(st)) > 4_000_000: return self._json(413, {"ok": False, "error": "state too large"})

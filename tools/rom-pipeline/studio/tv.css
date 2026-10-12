@@ -77,3 +77,10 @@
 @media (max-width:640px){.tvmodal{padding:6px}.tvbox{max-height:calc(100vh - 12px);border-radius:10px}.tvhd{padding:8px 10px}.tvt h2{font-size:14px}.tvmain{padding:8px 10px}.tvpad{gap:14px}.tvtools .btn{padding:6px 8px;font-size:12px}}
 @media (prefers-reduced-motion:reduce){.tvtile,.tvbtn{transition:none}.tvtile.sel.pop{animation:none}}
 .tvmodal .btn.active{border-color:var(--red3);color:#fff;background:rgba(228,0,15,.15)}
+/* ---- HOME runtime host: the stage fills the 16:9 surface; the simulated-launch interstitial sits above it ---- */
+.tvstage .hmwrap{position:absolute;inset:0}
+.tvsim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);z-index:5}
+.tvsim .box{max-width:60%;padding:22px 28px;border:2px solid #e4000f;border-radius:10px;background:#111115;text-align:center;color:#f2f0ea}
+.tvsim .k{font-family:"Press Start 2P",monospace;font-size:11px;color:#ffb3b7;letter-spacing:1px;margin-bottom:10px}
+.tvsim b{display:block;font-size:22px;margin-bottom:8px}.tvsim p{margin:0 0 8px;font-size:14px;line-height:1.5;color:#d6d4ce}
+.tvtools .tvtheme.active{background:#e4000f;color:#fff;border-color:#ff3b47}

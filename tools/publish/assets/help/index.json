@@ -5,7 +5,7 @@
    1400,
    622
   ],
-  "bytes": 99694
+  "bytes": 98120
  },
  {
   "name": "hero",
@@ -13,7 +13,7 @@
    1400,
    183
   ],
-  "bytes": 60901
+  "bytes": 62164
  },
  {
   "name": "toolbar",
@@ -21,7 +21,7 @@
    1400,
    154
   ],
-  "bytes": 38182
+  "bytes": 38690
  },
  {
   "name": "tools-row",
@@ -29,7 +29,7 @@
    1400,
    100
   ],
-  "bytes": 26426
+  "bytes": 26485
  },
  {
   "name": "search-dr-mario",
@@ -37,7 +37,7 @@
    1400,
    382
   ],
-  "bytes": 59543
+  "bytes": 59131
  },
  {
   "name": "list-rows",
@@ -69,7 +69,7 @@
    1400,
    983
   ],
-  "bytes": 126500
+  "bytes": 126473
  },
  {
   "name": "select-menu",
@@ -85,7 +85,7 @@
    1400,
    535
   ],
-  "bytes": 81929
+  "bytes": 81847
  },
  {
   "name": "tray",
@@ -93,7 +93,7 @@
    1400,
    2609
   ],
-  "bytes": 485862
+  "bytes": 471004
  },
  {
   "name": "details",
@@ -101,15 +101,15 @@
    1400,
    1026
   ],
-  "bytes": 235108
+  "bytes": 235044
  },
  {
   "name": "my-collection-menu",
   "size": [
    1312,
-   2460
+   2560
   ],
-  "bytes": 144231
+  "bytes": 154627
  },
  {
   "name": "save-load-menu",
@@ -117,7 +117,7 @@
    1312,
    1316
   ],
-  "bytes": 78414
+  "bytes": 78575
  },
  {
   "name": "extended-toggle",
@@ -125,7 +125,7 @@
    80,
    80
   ],
-  "bytes": 1506
+  "bytes": 1452
  },
  {
   "name": "tv-preview",
@@ -133,7 +133,7 @@
    1600,
    1182
   ],
-  "bytes": 232131
+  "bytes": 355550
  },
  {
   "name": "tv-details",
@@ -141,7 +141,23 @@
    1400,
    787
   ],
-  "bytes": 150389
+  "bytes": 253367
+ },
+ {
+  "name": "tv-themes",
+  "size": [
+   1400,
+   787
+  ],
+  "bytes": 252678
+ },
+ {
+  "name": "tv-search",
+  "size": [
+   1400,
+   787
+  ],
+  "bytes": 154095
  },
  {
   "name": "tv-retro",
@@ -149,7 +165,7 @@
    1400,
    787
   ],
-  "bytes": 186653
+  "bytes": 294267
  },
  {
   "name": "tv-side-panel",
@@ -163,9 +179,9 @@
   "name": "tv-pad",
   "size": [
    1400,
-   187
+   138
   ],
-  "bytes": 33590
+  "bytes": 27207
  },
  {
   "name": "tv-sample",
@@ -173,7 +189,7 @@
    1400,
    787
   ],
-  "bytes": 195745
+  "bytes": 348313
  },
  {
   "name": "install-check",
@@ -181,7 +197,7 @@
    1400,
    785
   ],
-  "bytes": 144860
+  "bytes": 143859
  },
  {
   "name": "install-connect",
@@ -189,7 +205,7 @@
    1400,
    806
   ],
-  "bytes": 124701
+  "bytes": 124302
  },
  {
   "name": "install-console-state",
@@ -197,7 +213,7 @@
    1400,
    898
   ],
-  "bytes": 154028
+  "bytes": 153719
  },
  {
   "name": "install-review",
@@ -205,7 +221,7 @@
    1400,
    800
   ],
-  "bytes": 124794
+  "bytes": 125026
  },
  {
   "name": "install-authorize",
@@ -213,7 +229,7 @@
    1400,
    528
   ],
-  "bytes": 85189
+  "bytes": 85661
  },
  {
   "name": "install-verify",
@@ -221,7 +237,7 @@
    1400,
    578
   ],
-  "bytes": 92822
+  "bytes": 92457
  },
  {
   "name": "desktop-invitation",
@@ -229,7 +245,7 @@
    1400,
    485
   ],
-  "bytes": 126748
+  "bytes": 127639
  },
  {
   "name": "guide-window",
@@ -237,7 +253,7 @@
    1400,
    1044
   ],
-  "bytes": 198879
+  "bytes": 204597
  },
  {
   "name": "phone-toolbar",
@@ -245,6 +261,6 @@
    824,
    724
   ],
-  "bytes": 70013
+  "bytes": 71216
  }
 ]

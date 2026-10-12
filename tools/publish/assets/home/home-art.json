@@ -1,0 +1,223 @@
+{
+ "schema": "ccs-home-art/1",
+ "stage": [
+  1280,
+  720
+ ],
+ "themes": {
+  "featured-shelf": {
+   "neutralized_regions": [
+    [
+     0,
+     0,
+     1280,
+     84
+    ],
+    [
+     14,
+     96,
+     244,
+     330
+    ],
+    [
+     250,
+     96,
+     880,
+     448
+    ],
+    [
+     896,
+     96,
+     1250,
+     380
+    ],
+    [
+     216,
+     456,
+     1250,
+     650
+    ],
+    [
+     280,
+     660,
+     1000,
+     720
+    ]
+   ],
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_16 PM-1.png",
+   "master_sha256": "7681fc9b8b7fe890bd80ddd80eb3396b982946ff61a4683e2510afcda0767ae2",
+   "master_size": [
+    1672,
+    941
+   ],
+   "scenery": "bg-featured-shelf.jpg",
+   "scenery_bytes": 56506,
+   "thumb": "thumb-featured-shelf.jpg"
+  },
+  "arcade-grid": {
+   "neutralized_regions": [
+    [
+     0,
+     0,
+     1280,
+     100
+    ],
+    [
+     14,
+     100,
+     246,
+     330
+    ],
+    [
+     250,
+     100,
+     1240,
+     622
+    ],
+    [
+     0,
+     640,
+     1280,
+     720
+    ]
+   ],
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_17 PM-2.png",
+   "master_sha256": "a94a6866a6167f35e1255d4ba7987b8b864faf94c9844cb7386418453c6c1be9",
+   "master_size": [
+    1672,
+    941
+   ],
+   "scenery": "bg-arcade-grid.jpg",
+   "scenery_bytes": 72805,
+   "thumb": "thumb-arcade-grid.jpg"
+  },
+  "box-art-showcase": {
+   "neutralized_regions": [
+    [
+     0,
+     0,
+     1280,
+     66
+    ],
+    [
+     0,
+     66,
+     900,
+     470
+    ],
+    [
+     900,
+     222,
+     1280,
+     470
+    ],
+    [
+     1180,
+     110,
+     1280,
+     250
+    ],
+    [
+     0,
+     470,
+     1060,
+     720
+    ]
+   ],
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_19 PM-3.png",
+   "master_sha256": "b65f59ae16f0a7ace5e39bdfbfe1ddf09699036a8152d1abb814fa739cace61e",
+   "master_size": [
+    1672,
+    941
+   ],
+   "scenery": "bg-box-art-showcase.jpg",
+   "scenery_bytes": 39278,
+   "thumb": "thumb-box-art-showcase.jpg"
+  },
+  "adventure-map": {
+   "neutralized_regions": [
+    [
+     60,
+     18,
+     350,
+     84
+    ],
+    [
+     1140,
+     14,
+     1270,
+     62
+    ],
+    [
+     372,
+     90,
+     522,
+     268
+    ],
+    [
+     20,
+     224,
+     100,
+     254
+    ],
+    [
+     234,
+     260,
+     334,
+     294
+    ],
+    [
+     574,
+     278,
+     666,
+     310
+    ],
+    [
+     758,
+     272,
+     854,
+     304
+    ],
+    [
+     942,
+     280,
+     1040,
+     312
+    ],
+    [
+     1108,
+     290,
+     1216,
+     322
+    ],
+    [
+     356,
+     362,
+     924,
+     532
+    ],
+    [
+     100,
+     534,
+     1180,
+     662
+    ],
+    [
+     0,
+     666,
+     1280,
+     720
+    ]
+   ],
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_20 PM-4.png",
+   "master_sha256": "9122821529ddbb274e95e9bafdf5a0c28c6265d9aed550d9897f0dc44f15cc3c",
+   "master_size": [
+    1672,
+    941
+   ],
+   "scenery": "bg-adventure-map.jpg",
+   "scenery_bytes": 185164,
+   "thumb": "thumb-adventure-map.jpg"
+  }
+ }
+}

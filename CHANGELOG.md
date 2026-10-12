@@ -1,5 +1,14 @@
 # Changelog
 
+## Website — 2026-10-12 (console HOME; after 0.3.3, no new installer)
+
+- **Preview on TV is now the approved console HOME.** Four themes over your own collection at the television's 16:9 shape: Arcade Grid (default), Box Art Showcase, Featured Shelf and Adventure Map, drawn from the approved master designs with your real titles, covers and counts. Original-controller contract everywhere: A launches at once (a labeled simulation here), SELECT opens full-screen Game Details, START opens the menu, B returns to the exact place; no wrapping at edges; held directions repeat.
+- All Games, Browse (custom folders first, then automatic categories from your games' real metadata), Search (the website's own intelligent engine over installed games, suggestions, a six-column keyboard), Favorites, Recently Played with View All History (date groups, Left/Right jump between days), Game Details, Settings (Change Theme, reduced motion, control hints, Clear Play History with confirmation), Sort Games (seven view-only sorts per location; your order is never rewritten).
+- **My Collection ▸ Folders & Console HOME**: create, rename, nest (up to five levels), move and delete folders; each folder keeps its own game order; two Adventure Map folder shortcuts; default theme. Favorites and play history built in the preview persist in this browser.
+- **Generated placeholder covers** for games without box art, on the catalog page and in every theme, marked GENERATED COVER on the image itself; authentic art always takes precedence.
+- Classic Cart Studio for Windows: the HOME state is saved by the backend and can be synchronized with a **simulated** console store (favorites and history two-way with per-item reconciliation and clear generations; folders Windows-owned). No physical console is contacted (Gate G1 not approved).
+- Help & User Guide: the Preview on TV chapter describes the themes and controls.
+
 ## Website — 2026-10-12 (after 0.3.3; no new installer)
 
 - Search & Tools stays open once you open it: scrolling no longer collapses it. It collapses on scroll only when you did not open it yourself, and after you close it the automatic behavior resumes when you return to the top.
