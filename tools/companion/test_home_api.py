@@ -16,7 +16,7 @@ def req(method, path, body=None, headers=None):
 
 def main():
     checks = []; ok = lambda k, v, n="": checks.append(f"{k}={'true' if v else 'false'}{(' ('+str(n)[:200]+')') if n and not v else ''}")
-    work = tempfile.mkdtemp(prefix="ccs-home-api-"); token = secrets.token_urlsafe(24); cfgp = os.path.join(work, "companion.json"); json.dump({"hakchi_root": os.path.join(work, "hakchi")}, open(cfgp, "w"))
+    work = tempfile.mkdtemp(prefix="ccs-home-api-"); token = secrets.token_urlsafe(24); cfgp = os.path.join(work, "companion.json"); json.dump({"hakchi_root": os.path.join(work, "hakchi"), "rehearsal_tree": work}, open(cfgp, "w"))
     env = dict(os.environ, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=os.path.join(work, "personal"), NES_STUDIO_DATA=work, CCS_HOST_TOKEN=token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8")
     logf = open(os.path.join(work, "server.log"), "w"); proc = subprocess.Popen([sys.executable, "-u", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT)], env=env, stdout=logf, stderr=subprocess.STDOUT)
     desk = {"Origin": SITE, "Authorization": "Bearer " + token}; web = {"Origin": SITE}
@@ -40,6 +40,26 @@ def main():
         s, r2 = req("POST", "/api/home/sync", {"manifest": man, "state": r["state"]}, headers=desk); ok("second_sync_idempotent", s == 200 and r2["changed"] is False)
         bad = dict(man, order=["g1"]); s, r3 = req("POST", "/api/home/sync", {"manifest": bad, "state": st}, headers=desk); ok("invalid_manifest_refused", s == 422 and not r3["ok"] and r3["problems"])
         s, r4 = req("GET", "/api/home/state", headers=desk); ok("sync_result_adopted_into_windows_state", s == 200 and r4["home"]["history"]["events"][0]["id"] == "e1")
+        # ---- custom folder artwork: validation, derivatives, replace, remove (desktop only)
+        from PIL import Image
+        good = os.path.join(work, "art-good.png"); Image.new("RGB", (640, 400), (200, 40, 40)).save(good)
+        small = os.path.join(work, "art-small.png"); Image.new("RGB", (80, 80), (0, 0, 0)).save(small)
+        notimg = os.path.join(work, "art-fake.png"); open(notimg, "wb").write(b"not an image at all")
+        ok("website_cannot_set_folder_art", req("POST", "/api/home/folder-art", {"folder": "f1", "op": "set", "path": good}, headers=web)[0] in (401, 403))
+        s, r = req("POST", "/api/home/folder-art", {"folder": "f1", "op": "set", "path": good}, headers=desk)
+        ok("folder_art_accepted_with_derivatives", s == 200 and r["ok"] and r["art"]["provenance"] == "custom" and r["art"]["src"].startswith("personal/art/folders/f1-cover.jpg") and r["art"]["wide"].startswith("personal/art/folders/f1-wide.jpg"), (s, r))
+        fdir = os.path.join(work, "personal", "art", "folders")
+        with Image.open(os.path.join(fdir, "f1-cover.jpg")) as cov, Image.open(os.path.join(fdir, "f1-wide.jpg")) as wide: sizes = (cov.size, wide.size)   # closed again: an open handle would block the server's removal on Windows
+        ok("derivative_sizes", sizes == ((480, 720), (810, 447)) and os.path.exists(os.path.join(fdir, "f1-src.png")), sizes)
+        try:
+            with urllib.request.urlopen(urllib.request.Request(B + "/personal/art/folders/f1-cover.jpg", headers=desk), timeout=20) as resp: ok("derivative_served", resp.status == 200 and resp.read()[:2] == bytes([0xFF, 0xD8]), resp.status)
+        except Exception as e: ok("derivative_served", False, e)
+        s, r = req("POST", "/api/home/folder-art", {"folder": "f1", "op": "set", "path": small}, headers=desk); ok("too_small_refused_keeps_existing", s == 400 and "smaller" in r.get("error", "") and os.path.exists(os.path.join(fdir, "f1-cover.jpg")), (s, r))
+        s, r = req("POST", "/api/home/folder-art", {"folder": "f1", "op": "set", "path": notimg}, headers=desk); ok("non_image_refused", s == 400 and "readable image" in r.get("error", ""), (s, r))
+        s, r = req("POST", "/api/home/folder-art", {"folder": "f1", "op": "set", "path": os.path.join(work, "missing.png")}, headers=desk); ok("missing_file_refused", s == 400, (s, r))
+        s, r = req("POST", "/api/home/folder-art", {"folder": "f1", "op": "describe"}, headers=desk); ok("describe_reports_custom", s == 200 and r["art"]["provenance"] == "custom", (s, r))
+        s, r = req("POST", "/api/home/folder-art", {"folder": "f1", "op": "clear"}, headers=desk); ok("clear_removes_files", s == 200 and r["art"]["provenance"] == "generated" and r["art"]["removed"] == 3 and not os.path.exists(os.path.join(fdir, "f1-cover.jpg")), (s, r))
+        s, r = req("POST", "/api/home/folder-art", {"folder": "f1", "op": "describe"}, headers=desk); ok("describe_reports_generated_after_clear", s == 200 and r["art"]["provenance"] == "generated", (s, r))
         ok("no_device_endpoint_in_log", "169.254" not in open(os.path.join(work, "server.log"), encoding="utf-8", errors="replace").read())
     finally:
         try: req("POST", "/api/shutdown", {}, headers=desk)

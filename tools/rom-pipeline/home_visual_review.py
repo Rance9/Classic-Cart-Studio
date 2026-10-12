@@ -99,11 +99,11 @@ class Browser:
         except Exception: self.p.kill()
         shutil.rmtree(self.prof, ignore_errors=True)
 
-FIXTURE = "sel.clear(); DATA.games.filter(g=>g.art).slice(0,36).forEach(g=>sel.add(g.game_id)); persist(); render()"
+FIXTURE = "sel.clear(); DATA.games.filter(g=>g.art).slice(0,34).forEach(g=>sel.add(g.game_id)); DATA.games.filter(g=>!g.art).slice(0,2).forEach(g=>sel.add(g.game_id)); persist(); render()"
 ALL = "sel.clear(); DATA.games.forEach(g=>sel.add(g.game_id)); persist(); render()"
 FOLDERS = """(()=>{const m=TV.model; const ids=m.order.slice(); if(m.folders.length) return m.folders.length;
  const f1=homeFolderCreate(m,'Role-Playing Picks',null); ids.slice(0,6).forEach(id=>homeFolderAddGame(m,f1.id,id));
- const f2=homeFolderCreate(m,'Weekend Classics',null); ids.slice(6,14).forEach(id=>homeFolderAddGame(m,f2.id,id));
+ const f2=homeFolderCreate(m,'Saturday Morning Cartoon Adventures and Licensed Tie-Ins',null); ids.slice(6,14).forEach(id=>homeFolderAddGame(m,f2.id,id));
  const f3=homeFolderCreate(m,'Two Player',f1.id); ids.slice(2,5).forEach(id=>homeFolderAddGame(m,f3.id,id));
  m.map_shortcuts=[f1.id,f2.id]; try{homeExtrasSave()}catch(e){} return m.folders.length; })()"""
 STAGE = "(()=>{const st=$('tvStage'); st.style.position='fixed'; st.style.left='0px'; st.style.top='0px'; st.style.width='1280px'; st.style.height='720px'; st.style.zIndex='99999'; homeFit($('tvHome'));})()"
@@ -256,7 +256,17 @@ def capture_theme(b, theme, out, art):
         b.js("TV.S.zone='map'; TV.S.landmark=0; tvDraw()"); time.sleep(0.3); b.act(["right", "right", "right"], 5.0); cap("16c-map-folder-landmark", "Character at a custom-folder landmark (live folder name on the authored sign)")
     b.js("TV.S.section={type:'allgames'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=(()=>{const ids=homeListing(TV.model,TV.S,tvSearch()).ids; let b=0; ids.forEach((id,i)=>{ if(hmGame(TV.model,id).title.length>hmGame(TV.model,ids[b]).title.length) b=i; }); return b;})(); tvDraw()"); time.sleep(0.9)
     cap("17-stress-long-title", "Stress: the longest title in the listing focused (shrink-to-fit, two-line or scrolling treatment)")
+    b.js("TV.S.section={type:'allgames'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=(()=>{const ids=homeListing(TV.model,TV.S,tvSearch()).ids; const k=ids.findIndex(id=>{const g=hmGame(TV.model,id); return g.art&&g.art.provenance==='generated';}); return k<0?0:k;})(); tvDraw()"); time.sleep(0.9)
+    cap("19-missing-artwork", "Missing artwork: a game whose cover is the generated placeholder (GENERATED COVER mark) focused")
     return caps, geometry, meas
+
+def small_collections(b, outdir, results):
+    """1-game and 3-game collections per theme (small library states)"""
+    for n in (1, 3):
+        b.js("try{tvClose()}catch(e){} " + f"sel.clear(); DATA.games.filter(g=>g.art).slice(0,{n}).forEach(g=>sel.add(g.game_id)); persist(); render()"); time.sleep(0.5); b.js("openTv()"); time.sleep(1.0); b.js(STAGE); time.sleep(0.3)
+        for theme in THEMES:
+            set_theme(b, theme); out = os.path.join(outdir, theme); name = f"20-small-collection-{n}.png"; b.shot(os.path.join(out, name)); st = state(b)
+            results[theme]["captures"].append({"file": name, "note": f"Small collection: {n} game{'s' if n > 1 else ''} selected", "state": st}); print(f"  {theme} small {n}: {st}")
 
 def run(url, outdir):
     art = json.load(open(os.path.join(ASSETS, "home-art.json"), encoding="utf-8")); os.makedirs(outdir, exist_ok=True)
@@ -274,6 +284,7 @@ def run(url, outdir):
             caps, geometry, meas = capture_theme(b, theme, out, art)
             an = analyze(theme, out, art, meas)
             results[theme] = {"captures": caps, "geometry": geometry, "analysis": an, "fonts": meas.get("__fonts", []), "legend": meas.get("__legend", [])}
+        small_collections(b, outdir, results)
         # actual catalog data (every catalog game) and the large-library stress state, per theme
         b.js("try{tvClose()}catch(e){} " + ALL); time.sleep(0.5); b.js("openTv()"); time.sleep(1.0); b.js(STAGE); time.sleep(0.3); b.js(FOLDERS)
         for theme in THEMES:
@@ -290,7 +301,7 @@ def run(url, outdir):
     print("errors:", errs[:8] if errs else "none"); return results
 
 def write_theme_review(theme, outdir, r, art, h):
-    T = art["themes"][theme]; out = os.path.join(outdir, theme); L = [f"# {TITLES[theme]} — visual review packet", "", f"Master: `{os.path.join(MASTER_DIR, T['master_file'])}` (SHA-256 `{h['sha256']}`, {h['size'][0]}x{h['size'][1]}, {'unchanged' if h['unchanged'] else 'MISMATCH'})", f"Registered 1280x720 master: `01-master.png` (from `{T['reference']}`)", "Runtime: `02-runtime.png` (= `10-default-fixture.png`), side-by-side `03-side-by-side.png`, overlay `04-overlay-50.png`, heat map `05-diff-heatmap.png`, static mask `06-static-mask.png`, strict static diff `07-static-diff.png`, layers `08-layer-diagnostic.png`", ""]
+    T = art["themes"][theme]; out = os.path.join(outdir, theme); L = [f"# {TITLES[theme]} — visual review packet", "", "Automated numbers below are diagnostics, not fidelity evidence: the static-region diff covers untouched scenery only; the dynamic areas (cards, boxes, hero, signs) are judged by eye from the screenshots.", "", f"Master: `{os.path.join(MASTER_DIR, T['master_file'])}` (SHA-256 `{h['sha256']}`, {h['size'][0]}x{h['size'][1]}, {'unchanged' if h['unchanged'] else 'MISMATCH'})", f"Registered 1280x720 master: `01-master.png` (from `{T['reference']}`)", "Runtime: `02-runtime.png` (= `10-default-fixture.png`), side-by-side `03-side-by-side.png`, overlay `04-overlay-50.png`, heat map `05-diff-heatmap.png`, static mask `06-static-mask.png`, strict static diff `07-static-diff.png`, layers `08-layer-diagnostic.png`", ""]
     a = r["analysis"]; L += ["## Static regions (strict pixel diff)", "", f"- {a['static_pct_excluding_moved_sprites']:.2f}% of static pixels differ by more than {DIFF_T} (any channel) after excluding sprite copies the renderer moves; {a['static_pct_strict']:.2f}% before; mean |d| {a['static_mean_abs_diff']:.2f}.", f"- Largest differing blobs (stage px boxes): {[b for _, b in a['blobs'][:4]]}", ""]
     L += ["## Region-by-region verdicts", "", "| Region | Kind | Verdict | Evidence |", "|---|---|---|---|"] + [f"| {v['region']} | {v['kind']} | **{v['verdict']}** | {v['evidence']} |" for v in a["verdicts"]] + [""]
     L += ["## Measured key-element geometry (stage px, expected from the master-derived manifest)", "", "| Element | Verdict | Detail |", "|---|---|---|"] + [f"| {g['element']} | **{g['verdict']}** | {g['detail']} |" for g in r["geometry"]] + [""]
@@ -305,7 +316,7 @@ def write_summary(outdir, results, hashes, errs):
     for i, t in enumerate(THEMES, 1):
         r = results[t]; a = r["analysis"]; fails = [v for v in a["verdicts"] if v["verdict"] != "PASS"] + [g for g in r["geometry"] if g["verdict"] != "PASS"]
         L += [f"THEME {i} — {TITLES[t]}", f"  Master image: {os.path.join(MASTER_DIR, hashes[t]['file'])}", f"  Runtime screenshot: {os.path.join(outdir, t, '02-runtime.png')}", f"  Overlay / difference map: {os.path.join(outdir, t, '04-overlay-50.png')} ; {os.path.join(outdir, t, '05-diff-heatmap.png')} ; {os.path.join(outdir, t, '07-static-diff.png')}",
-              f"  Static-region strict diff: {a['static_pct_excluding_moved_sprites']:.2f}% pixels differ (> {DIFF_T}); region verdicts: {sum(v['verdict']=='PASS' for v in a['verdicts'])}/{len(a['verdicts'])} PASS; geometry: {sum(g['verdict']=='PASS' for g in r['geometry'])}/{len(r['geometry'])} PASS",
+              f"  Automated checks (evidence only, not fidelity): region verdicts {sum(v['verdict']=='PASS' for v in a['verdicts'])}/{len(a['verdicts'])} PASS; geometry {sum(g['verdict']=='PASS' for g in r['geometry'])}/{len(r['geometry'])} PASS (static-region pixel diff kept in verdicts.json as a diagnostic of untouched scenery only; it says nothing about the dynamic areas)",
               "  Automated FAIL items: " + ("NONE" if not fails else "; ".join((f.get('region') or f.get('element')) + " — " + (f.get('evidence') or f.get('detail')) for f in fails)), "  Status: AWAITING OWNER APPROVAL", ""]
     L += ["User visual approval: NOT YET GRANTED", "Publication / completion status: NOT RELEASED AS ACCEPTED", ""]
     open(os.path.join(outdir, "REVIEW.md"), "w", encoding="utf-8").write("\n".join(L)); print("\n".join(L))

@@ -395,6 +395,23 @@ class H(http.server.BaseHTTPRequestHandler):
                 if op == "cancel": return self._json(200, {"ok": True, **cr.cancel(re.sub(r"[^A-Za-z0-9-]", "", str(body.get("run") or ""))[:40])})
                 if op == "recover": r = cr.call("recover", {"stage": re.sub(r"[^a-z-]", "", str(body.get("stage") or ""))[:20]}); return self._json(200, {"ok": True, **(r.get("result") or {})})
                 return self._json(404, {"ok": False, "error": "unknown console operation"})
+            if path == "/api/home/folder-art":   # custom folder artwork: native picker (or a path in rehearsal configurations), validation, derivatives; or removal
+                import folder_art as fa
+                fid = str(body.get("folder") or ""); op = str(body.get("op") or "pick")
+                try:
+                    if op == "clear": return self._json(200, {"ok": True, "art": fa.clear(fid)})
+                    if op == "describe": return self._json(200, {"ok": True, "art": fa.describe(fid)})
+                    if op in ("pick", "set"):
+                        if body.get("path"):
+                            if not CFG.get("rehearsal_tree"): return self._json(403, {"ok": False, "error": "setting artwork from a path is available only in rehearsal configurations"})
+                            chosen = str(body.get("path"))
+                        else:
+                            chosen = ps.pick_file("Choose artwork for this folder (PNG, JPEG, WebP, BMP or GIF; up to 8 MB)", [("Images", "*.png *.jpg *.jpeg *.webp *.bmp *.gif"), ("All files", "*.*")])
+                            if not chosen: return self._json(200, {"ok": False, "canceled": True})
+                        return self._json(200, {"ok": True, "art": fa.set_art(fid, chosen)})
+                    return self._json(400, {"ok": False, "error": "unknown artwork operation"})
+                except ValueError as e: return self._json(400, {"ok": False, "error": str(e)})
+                except Exception as e: return self._json(500, {"ok": False, "error": f"artwork failed: {e}"})
             if path == "/api/home/state":   # desktop application only (checked above with the other desktop routes)
                 st = body.get("home") if isinstance(body, dict) else None
                 if not isinstance(st, dict): return self._json(400, {"ok": False, "error": "home must be an object"})
