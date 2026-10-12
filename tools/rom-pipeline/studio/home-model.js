@@ -39,7 +39,7 @@ function homeBuild(manifest, byId, prev, opts){
   games.push({id, title_id:s.title_id||g.title_id||null, title:s.display_title||g.display_title||s.title||id, sort_title:homeSortTitle(s.display_title||g.display_title||s.title),
    version_id:s.payload_sha256||s.builtin_factory_version||id, version_label:s.nointro_name||s.version_label||(s.builtin_code&&!s.install_required?'factory version':''),
    publisher:g.publisher||null, developer:g.developer||null, genre:g.genre||null, players:g.players||null, year:g.year||null, description:g.description||null,
-   art:{src:prov==='generated'?opts.generated[id]:artSrc, provenance:prov}, snap:g.art_snap||null, title_screen:g.art_title||null, bands:g.art_bands||null, art_size:g.art_size||null, tone:g.art_tone||null, hero:g.art_hero||null, kind:s.builtin_code&&!s.install_required?'factory':(s.source==='personal'?'personal':'added'),
+   art:{src:prov==='generated'?opts.generated[id]:artSrc, provenance:prov}, snap:g.art_snap||null, title_screen:g.art_title||null, bands:g.art_bands||null, art_size:g.art_size||null, tone:g.art_tone||null, hero:g.art_hero||null, hero_title:g.art_hero_title||null, kind:s.builtin_code&&!s.install_required?'factory':(s.source==='personal'?'personal':'added'),
    playable:installed, launch:{adapter:'mock', core:g.recommended_emulator||null, ref:id}}); }
  const order=games.map(g=>g.id);
  const m={schema:HOME_SCHEMA, generated:homeNow(), source:{schema:manifest&&manifest.schema||null, name:manifest&&manifest.name||null}, games, order,

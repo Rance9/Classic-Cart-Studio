@@ -25,7 +25,7 @@ class HeroBatchTests(unittest.TestCase):
     def test_prompt_has_facts_style_and_no_text_rule(self):
         g = {"display_title": "Contra", "year": "1988", "publisher": "Konami", "genre": "Shooter", "players": "2"}
         p = hb.prompt_for(g, 4)
-        for s in ("Contra", "1988", "Konami", "Shooter", "16:9", "no text", "upper right third", "pixel art", "STYLE references only", "Image 4 is THIS game", "Image 6 is THIS game"): self.assertIn(s, p)
+        for s in ("Contra", "1988", "Konami", "Shooter", "16:9", "no text", "right third", "pixel-art illustration", "STYLE references only", "Image 4 is THIS game", "Image 6 is THIS game"): self.assertIn(s, p)
         self.assertNotIn("navy sky with an orange sunset template", p)
     def test_style_references_are_the_three_approved_illustrations(self):
         refs = hb.style_refs(); self.assertEqual([n for n, _ in refs], [f"style-{g}" for g in hb.STYLE_REF_IDS]); self.assertTrue(all(len(d) > 10000 for _, d in refs))

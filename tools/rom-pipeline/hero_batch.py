@@ -32,7 +32,7 @@ from PIL import Image, ImageDraw, ImageFont
 import hero_art
 
 MODEL = "gemini-3-pro-image"
-PROMPT_VERSION = "v2.1-style-refs"   # v1: text-only art direction (smoke1, rejected for flatness); v2: three approved illustrations as labeled style references
+PROMPT_VERSION = "v3-finish"   # v1: text-only art direction (smoke1, rejected for flatness); v2: three approved illustrations as labeled style references
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BATCH_DIR = os.path.join(REPORTS, "art", "hero-batch"); MANIFEST = os.path.join(BATCH_DIR, "manifest.json")
 POC = {"8e844d77da01f86a": "10-Yard Fight", "9f54aafa367247b9": "1943 - The Battle of Midway", "ec0d4ebf6d2fcecd": "The Legend of Zelda"}
@@ -42,23 +42,26 @@ OUT_MIN = (1280, 704)   # technical floor for a usable result
 # ---- art direction, revised after the first paid test (owner review 2026-10-13): the three approved illustrations are STYLE
 # references for density, lighting and finish; each game's cover, title screen and gameplay screen are the IDENTITY references.
 STYLE_REF_IDS = ["8e844d77da01f86a", "9f54aafa367247b9", "ec0d4ebf6d2fcecd"]   # 10-Yard Fight, 1943, The Legend of Zelda (owner-approved)
-STYLE = """ART DIRECTION (match the three STYLE reference images exactly in finish, never in subject):
-- Finish: a premium cinematic key-art illustration rendered as fine, dense pixel art: visible pixel clusters of about 2 to 3 px on a
-  1080p canvas, surfaces textured and shaded with many tones, no vector-smooth gradients, no photographic look, no outlines around
-  figures. Intentional negative space and controlled quiet color fields are welcome where the composition needs rest; what to
-  avoid is large, visually uninteresting flat areas. Cinematic richness without clutter.
-- Depth: a layered scene with a detailed foreground, a fully developed middle ground and an atmospheric distance (haze, light
-  rays, drifting cloud, dust or spray as the setting suggests); the environment is richly developed everywhere, including the sky
-  (cloud structure, stars, weather, light), not a plain color field.
-- Lighting: sophisticated, directional, with rim light on the main subject, cast shadows, glowing highlights where the scene has
-  light sources (lamps, fire, tracer light, screens, moonlight), and a believable color temperature contrast between light and
-  shadow.
-- Composition: 16:9, full bleed, edge to edge; the main subject large and dynamic in the center-left of the frame at mid-height,
-  not pressed against the left edge and not lost at the bottom; the upper right third stays open, quieter and lower in contrast
-  (sky or atmosphere, no bright detail) because the title lettering is drawn there and must stay readable; the bottom edge stays
-  scenery, with no ground strip, checkerboard, platform band or decorative base.
-- Setting and palette: choose the time of day, weather, palette and location that fit THIS game's world as its references show it;
-  do not default to a navy sky with an orange sunset; vary the scene from game to game.
+STYLE = """RENDERING FINISH (this is the part the STYLE references define; match it closely):
+- A premium, dense, painterly pixel-art illustration, not an enlarged retro gameplay screen. Every surface carries rich tonal
+  variation and material texture: grass with blades and highlights, hills with shading bands and ground texture, stone with
+  cracks and weathering, clouds with volume and lit edges, mushrooms and pipes with sheen, dents and shadow, buildings with
+  bricks, windows and wear. Fine illustration density comparable to the STYLE references.
+- Sophisticated light interaction: a clear key light with directional shadows cast by every object, rim light on the main
+  subject, bounce light in the shadows, atmospheric depth (haze, light rays, depth-faded distance), glowing highlights on
+  anything that emits or reflects light.
+- Environmental complexity: a detailed foreground, a fully developed middle ground and a layered distance with landmarks, so
+  the scene reads as a world, not a stage.
+- Keep the game's own mood and colors: a bright, colorful world stays bright and colorful; do not force realism, grimness,
+  darkness or a moody cinematic palette onto a cheerful game. Sophistication comes from texture, light and depth, not from
+  darkening.
+- The box art defines WHO is in the scene (characters, costumes, enemies, props, their colors) and must NOT dictate the
+  rendering style: do not reproduce its flat cartoon shading or thick outlines. Render those characters with the painterly
+  pixel-art finish of the STYLE references.
+- Composition: 16:9, full bleed, edge to edge; the main subject large and dynamic in the center-left at mid-height; the upper
+  right third stays visually quiet and lower in contrast (soft sky or atmosphere) because the title lettering is drawn there:
+  keep it calm, do not fill it with detail; the bottom edge stays scenery with no ground strip, checkerboard, platform band or
+  decorative base.
 - Nothing else in the image: no text, letters, numbers, logos, borders, frames, vignettes, letterbox bars, fake UI, HUD, score,
   box edges, cartridges, consoles or screens of any kind."""
 
@@ -86,12 +89,14 @@ REFERENCE IMAGES, in order, and what each is for:
 - Image 1, 2 and 3 are STYLE references only (key art for three other games). Match their rendering: pixel density, painterly
   texture, layered depth, lighting sophistication and overall polish. They say nothing about this game: do NOT reuse their
   subjects, characters, settings, compositions or palettes. Only images 4 to 6 define who and what appears in the scene.
-- Image 4 is THIS game's box cover: the authoritative look of its characters, costumes, vehicles and colors.
+- Image 4 is THIS game's box cover: the authoritative look of its characters, costumes, vehicles and colors (identity only; its
+  flat cartoon rendering style is NOT to be copied).
 - Image 5 is THIS game's title screen: its logo style is NOT to be drawn; use it only to recognize the game's mood and colors.
 - Image 6 is THIS game's gameplay screen: the authoritative setting, objects, enemies and environment to build the scene from.
 
-Depict this game's own world and its recognizable subjects, interpreted as a richly developed scene: {nudge}. Build the
-environment from what the gameplay and cover show, expanded into a full widescreen landscape with layered scenery.
+Depict this game's own world and its recognizable subjects, unmistakably this game, interpreted as a richly developed scene:
+{nudge}. Build the environment from what the gameplay and cover show, expanded into a full widescreen landscape with layered,
+textured scenery.
 
 {STYLE}
 
@@ -278,7 +283,7 @@ def cmd_fetch(a):
         raw = os.path.join(rdir, key + ".png"); open(raw, "wb").write(img); im = Image.open(raw); probs = technical_check(im)
         rec["generated_size"] = list(im.size)
         if probs: rec["status"] = "failed"; rec["last_error"] = "technical: " + "; ".join(probs); bad += 1; continue
-        os.environ["HERO_PROVENANCE"] = f"generated:{MODEL}:{name}"; hero_art.import_one(key, raw, cat, by); rec["status"] = "candidate"; rec["sha256"] = by[key].get("art_hero_sha256"); rec["last_error"] = None; good += 1
+        os.environ["HERO_PROVENANCE"] = f"generated:{MODEL}:{name}"; os.environ["HERO_PROMPT_VERSION"] = str(b.get("prompt_version") or PROMPT_VERSION); hero_art.import_one(key, raw, cat, by, tag=name); rec["status"] = "candidate"; rec["sha256"] = by[key].get("art_hero_sha256"); rec["last_error"] = None; good += 1
     json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     b["state"] = "fetched"; b["good"] = good; b["bad"] = bad; save_manifest(m); print(f"fetched {name}: {good} candidates, {bad} failed"); cmd_sheet(argparse.Namespace(batch=name))
 

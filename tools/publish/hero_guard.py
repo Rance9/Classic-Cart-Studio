@@ -11,7 +11,7 @@ the runtime shows it for every game without an approved hero (hmKeyArt in home-t
 from __future__ import annotations
 import os, json, shutil
 
-HERO_FIELDS = ("art_hero", "art_hero_source", "art_hero_sha256", "art_hero_status", "art_hero_provenance")
+HERO_FIELDS = ("art_hero", "art_hero_source", "art_hero_sha256", "art_hero_status", "art_hero_provenance", "art_hero_title")
 
 def load_registry(path: str) -> dict:
     try: return json.load(open(path, encoding="utf-8")).get("games", {})

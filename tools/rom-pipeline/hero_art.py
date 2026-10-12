@@ -17,11 +17,13 @@ generation (or illustration) capability that this toolchain does not have, so th
   python hero_art.py import <game_id> <image> | --dir <folder with <game_id>.<ext> files>
   python hero_art.py status
   python hero_art.py approve|reject <game_id> [reason]    review verdicts (only approved art is published)
-  python hero_art.py remove <game_id>                     drop an imported image (back to the fallback)
+  python hero_art.py remove <game_id>                     drop the runtime image (candidates stay on disk; back to the fallback)
+  python hero_art.py select <game_id> <tag>               make an earlier candidate the runtime image again
+  python hero_art.py approve|reject <game_id> [tag=<tag>] [reason]
   python hero_art.py fallback <image>                     install the universal genre-neutral fallback scene (hero-fallback.png)
 """
 from __future__ import annotations
-import os, sys, json, shutil
+import os, sys, json, shutil, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import REPORTS
 from PIL import Image
@@ -68,58 +70,100 @@ def normalize(path: str) -> Image.Image:
     elif have < want - 1e-6: h = round(im.width / want); y = (im.height - h) // 2; im = im.crop((0, y, im.width, y + h))
     return im.resize((HERO_W, HERO_H), Image.LANCZOS)
 
-def import_one(gid: str, path: str, cat=None, by=None):
+TITLE_SLOTS = [   # lettering block candidates (fractions of the hero box): left x, top y, preference penalty; alternates are right-aligned
+    ("top-right", 0.50, 0.09, 0.00), ("top-right-narrow", 0.58, 0.09, 0.05), ("top-right-far", 0.64, 0.09, 0.08), ("mid-right", 0.50, 0.40, 0.15), ("low-right", 0.50, 0.62, 0.20)]
+DEFAULT_TITLE = {"x": 0.50, "y": 0.09, "slot": "top-right"}
+
+def title_box(im: Image.Image) -> dict:
+    """pick the quietest lettering slot on the normalized master so the title stays off the subject. Busyness = share of strong
+    edges (contrast steps above 40 levels) inside the text footprint (the slot's top 30 %, from its left edge to the right margin),
+    normalized by the whole image; the preference penalty keeps the master's top-right placement unless it is clearly busier."""
+    import numpy as np
+    a = np.array(im.convert("L")).astype(float); H, W = a.shape
+    e = np.maximum(np.abs(np.diff(a, axis=1, prepend=a[:, :1])), np.abs(np.diff(a, axis=0, prepend=a[:1, :]))); strong = (e > 40).astype(float); whole = max(strong.mean(), 1e-6)
+    best = None
+    for slot, x, y, pen in TITLE_SLOTS:
+        x0, y0, x1, y1 = int(W * x), int(H * y), int(W * 0.965), int(H * min(1.0, y + 0.30)); score = strong[y0:y1, x0:x1].mean() / whole + pen
+        if best is None or score < best[0]: best = (score, slot, x, y)
+    return {"x": best[2], "y": best[3], "slot": best[1], "busyness": round(float(best[0]), 3), "align": "left" if best[1] == "top-right" else "right"}
+
+def _reg():
+    reg_p = os.path.join(OUT, "index.json"); return reg_p, (json.load(open(reg_p, encoding="utf-8")) if os.path.exists(reg_p) else {"schema": "ccs-hero-art/2", "games": {}})
+
+def _apply_current(by, reg, gid, tag):
+    """make <tag> the runtime candidate for the game: copy its master to <gid>.png and mirror its fields into the catalog row and the record's top level"""
+    rec = reg["games"][gid]; c = rec["candidates"][tag]; cur = os.path.join(OUT, gid + ".png")
+    shutil.copy2(os.path.join(OUT, c["file"]), cur + ".tmp"); os.replace(cur + ".tmp", cur)
+    rec.update({"current": tag, "file": f"art/hero/{gid}.png", "sha256": c["sha256"], "source": c["source"], "status": c["status"], "provenance": c["provenance"], "imported": c["imported"], "title_box": c.get("title_box") or DEFAULT_TITLE})
+    by[gid]["art_hero"] = f"art/hero/{gid}.png"; by[gid]["art_hero_source"] = c["source"]; by[gid]["art_hero_sha256"] = c["sha256"]; by[gid]["art_hero_status"] = c["status"]; by[gid]["art_hero_provenance"] = c["provenance"]; by[gid]["art_hero_title"] = rec["title_box"]
+
+def import_one(gid: str, path: str, cat=None, by=None, tag: str = None, pinned_title: bool = False):
+    """import one candidate under its own tag: originals/<gid>-<tag>.<ext> (untouched), candidates/<gid>-<tag>.png (master), registry entry;
+    an existing tag is never overwritten (a numeric suffix is added); the new candidate becomes the runtime current for development preview"""
     own = cat is None
     if own: cat, by = games()
     if gid not in by: raise ValueError(f"unknown game {gid}")
-    im = normalize(path); os.makedirs(OUT, exist_ok=True); out = os.path.join(OUT, gid + ".png"); im.save(out + ".tmp", "PNG", optimize=True); os.replace(out + ".tmp", out)
-    odir = os.path.join(OUT, "originals"); os.makedirs(odir, exist_ok=True); ext = os.path.splitext(path)[1].lower() or ".png"   # the full-resolution generated/supplied original, untouched
-    import shutil; shutil.copy2(path, os.path.join(odir, gid + ext))
     import hashlib, time
-    sha = hashlib.sha256(open(out, "rb").read()).hexdigest()
-    by[gid]["art_hero"] = f"art/hero/{gid}.png"; by[gid]["art_hero_source"] = os.path.basename(path); by[gid]["art_hero_sha256"] = sha; by[gid]["art_hero_status"] = "candidate"; by[gid]["art_hero_provenance"] = os.environ.get("HERO_PROVENANCE", "generated:chatgpt")
-    reg_p = os.path.join(OUT, "index.json"); reg = json.load(open(reg_p, encoding="utf-8")) if os.path.exists(reg_p) else {"schema": "ccs-hero-art/1", "games": {}}
-    reg["games"][gid] = {"title": by[gid].get("display_title"), "file": f"art/hero/{gid}.png", "sha256": sha, "source": os.path.basename(path), "status": "candidate", "provenance": by[gid]["art_hero_provenance"], "imported": time.strftime("%Y-%m-%dT%H:%M:%S")}
-    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1)
+    reg_p, reg = _reg(); rec = reg["games"].setdefault(gid, {"title": by[gid].get("display_title"), "candidates": {}}); rec.setdefault("candidates", {})
+    tag = re.sub(r"[^A-Za-z0-9_.-]", "", tag or os.environ.get("HERO_TAG") or time.strftime("import-%Y%m%d-%H%M%S")) or "import"
+    base = tag; n = 2
+    while tag in rec["candidates"]: tag = f"{base}-{n}"; n += 1
+    im = normalize(path); os.makedirs(os.path.join(OUT, "candidates"), exist_ok=True); os.makedirs(os.path.join(OUT, "originals"), exist_ok=True)
+    master = os.path.join(OUT, "candidates", f"{gid}-{tag}.png"); im.save(master + ".tmp", "PNG", optimize=True); os.replace(master + ".tmp", master)
+    ext = os.path.splitext(path)[1].lower() or ".png"; orig = os.path.join(OUT, "originals", f"{gid}-{tag}{ext}"); shutil.copy2(path, orig)
+    sha = hashlib.sha256(open(master, "rb").read()).hexdigest()
+    rec["candidates"][tag] = {"file": f"candidates/{gid}-{tag}.png", "original": f"originals/{gid}-{tag}{ext}", "original_size": list(Image.open(path).size), "sha256": sha, "source": os.path.basename(path), "status": "candidate",
+                              "provenance": os.environ.get("HERO_PROVENANCE", "generated:chatgpt"), "prompt_version": os.environ.get("HERO_PROMPT_VERSION"), "imported": time.strftime("%Y-%m-%dT%H:%M:%S"), "title_box": DEFAULT_TITLE if pinned_title else title_box(im)}
+    _apply_current(by, reg, gid, tag); json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1)
     if own: json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    return out
+    return master
+
+def select(gid: str, tag: str):
+    cat, by = games(); reg_p, reg = _reg()
+    if gid not in reg["games"] or tag not in reg["games"][gid].get("candidates", {}): raise ValueError(f"no candidate {tag} for {gid}")
+    _apply_current(by, reg, gid, tag); json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print(gid, "current ->", tag)
 
 def status():
-    cat, by = games(); have = [g for g in cat["games"] if g.get("art_hero") and os.path.exists(os.path.join(REPORTS, g["art_hero"]))]
-    req = [d for d in (os.listdir(REQ) if os.path.isdir(REQ) else []) if os.path.isdir(os.path.join(REQ, d))]
-    print(f"hero art: {len(have)} games with imported art, {len(req)} request packs, {len(cat['games']) - len(have)} games on the composed fallback")
+    cat, by = games(); reg_p, reg = _reg()
+    have = [g for g, r in reg["games"].items() if r.get("current") and os.path.exists(os.path.join(OUT, g + ".png"))]
+    nc = sum(len(r.get("candidates", {})) for r in reg["games"].values()); req = [d for d in (os.listdir(REQ) if os.path.isdir(REQ) else []) if os.path.isdir(os.path.join(REQ, d))]
+    print(f"hero art: {len(have)} games with a current candidate ({nc} candidates kept), {len(req)} request packs, {len(cat['games']) - len(have)} games on the universal fallback")
+    for g, r in reg["games"].items(): print(f"  {g} {r.get('title')}: current={r.get('current')} " + ", ".join(f"{t}[{c['status']}]" for t, c in r.get("candidates", {}).items()))
 
-def verdict(gid: str, status: str, reason: str = ""):
-    cat, by = games(); reg_p = os.path.join(OUT, "index.json"); reg = json.load(open(reg_p, encoding="utf-8")) if os.path.exists(reg_p) else {"schema": "ccs-hero-art/1", "games": {}}
-    if gid not in by or gid not in reg["games"]: raise ValueError("no imported hero art for " + gid)
+def verdict(gid: str, status: str, reason: str = "", tag: str = None):
+    """approve or reject one candidate (the current one by default); only an approved current candidate is ever published"""
+    cat, by = games(); reg_p, reg = _reg(); rec = reg["games"].get(gid)
+    if not rec or not rec.get("candidates"): raise ValueError("no imported hero art for " + gid)
+    tag = tag or rec.get("current"); c = rec["candidates"].get(tag)
+    if not c: raise ValueError(f"no candidate {tag} for {gid}")
     import time
-    reg["games"][gid]["status"] = status; reg["games"][gid]["reviewed"] = time.strftime("%Y-%m-%dT%H:%M:%S"); reg["games"][gid]["reason"] = reason
-    by[gid]["art_hero_status"] = status
-    if status == "rejected":   # rejected candidates leave the runtime path and are kept aside for the next brief iteration
-        os.makedirs(os.path.join(OUT, "rejected"), exist_ok=True); src = os.path.join(OUT, gid + ".png")
-        if os.path.exists(src): os.replace(src, os.path.join(OUT, "rejected", gid + ".png"))
-        by[gid].pop("art_hero", None)
-    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print(gid, status)
+    c["status"] = status; c["reviewed"] = time.strftime("%Y-%m-%dT%H:%M:%S"); c["reason"] = reason
+    if tag == rec.get("current"):
+        rec["status"] = status; by[gid]["art_hero_status"] = status
+        if status == "rejected":   # a rejected current candidate leaves the runtime path; its files stay recoverable under candidates/ and originals/
+            p = os.path.join(OUT, gid + ".png")
+            if os.path.exists(p): os.remove(p)
+            rec["current"] = None
+            for k in ("art_hero", "art_hero_source", "art_hero_sha256", "art_hero_status", "art_hero_provenance", "art_hero_title"): by[gid].pop(k, None)
+    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print(gid, tag, status)
 
 def remove(gid: str):
-    cat, by = games(); reg_p = os.path.join(OUT, "index.json"); reg = json.load(open(reg_p, encoding="utf-8")) if os.path.exists(reg_p) else {"schema": "ccs-hero-art/1", "games": {}}
-    for k in ("art_hero", "art_hero_source", "art_hero_sha256", "art_hero_status", "art_hero_provenance"): by.get(gid, {}).pop(k, None)
-    reg["games"].pop(gid, None); p = os.path.join(OUT, gid + ".png")
+    """drop the runtime image only; candidates and originals stay on disk"""
+    cat, by = games(); reg_p, reg = _reg()
+    for k in ("art_hero", "art_hero_source", "art_hero_sha256", "art_hero_status", "art_hero_provenance", "art_hero_title"): by.get(gid, {}).pop(k, None)
+    if gid in reg["games"]: reg["games"][gid]["current"] = None
+    p = os.path.join(OUT, gid + ".png")
     if os.path.exists(p): os.remove(p)
-    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print("removed", gid)
-
-ASSETS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "publish", "assets", "home")
-def fallback(path: str):
-    """install the universal fallback key art (genre-neutral scene): validated, normalized, placed in the HOME assets, manifest regenerated"""
-    im = normalize(path); os.makedirs(ASSETS, exist_ok=True); out = os.path.join(ASSETS, "hero-fallback.png"); im.save(out + ".tmp", "PNG", optimize=True); os.replace(out + ".tmp", out)
-    import subprocess; subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "publish", "make_home_art.py")], check=True, stdout=subprocess.DEVNULL)
-    print("universal fallback installed:", out, "(home-art.json hero_fallback set; rebuild the page with build_html.py)")
+    json.dump(reg, open(reg_p, "w", encoding="utf-8"), indent=1); json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1); print("removed runtime image for", gid)
 
 def main(argv):
-    if not argv or argv[0] not in ("request", "import", "status", "approve", "reject", "remove", "fallback"): print(__doc__); return 2
+    if not argv or argv[0] not in ("request", "import", "status", "approve", "reject", "remove", "fallback", "select"): print(__doc__); return 2
+    if argv[0] == "select": select(argv[1], argv[2]); return 0
     if argv[0] == "fallback": fallback(argv[1]); return 0
     if argv[0] == "status": status(); return 0
-    if argv[0] in ("approve", "reject"): verdict(argv[1], "approved" if argv[0] == "approve" else "rejected", " ".join(argv[2:])); return 0
+    if argv[0] in ("approve", "reject"):
+        tag = argv[2] if len(argv) > 2 and argv[2].startswith("tag=") else None; reason = " ".join(x for x in argv[2:] if not x.startswith("tag="))
+        verdict(argv[1], "approved" if argv[0] == "approve" else "rejected", reason, tag[4:] if tag else None); return 0
     if argv[0] == "remove": remove(argv[1]); return 0
     if argv[0] == "request":
         cat, by = games(); ids = list(by) if "--all" in argv[1:] else argv[1:]; request(ids); return 0
