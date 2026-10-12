@@ -214,9 +214,6 @@ button.det,button.star{font:inherit}
 /* ---------- docked My Collection (wide screens): the page keeps its full-width hero and reflows beside the panel ---------- */
 :root{--dockw:440px}
 @media (min-width:1000px){body.dock{padding-right:var(--dockw)}body.dock .hero{margin-right:calc(-1*var(--dockw))}body.dock #tray{box-shadow:none;border-left:1px solid var(--line2)}}
-@media (min-width:1000px) and (max-width:1840px){body.dock .row.sub{flex-direction:column;align-items:flex-start;gap:4px}body.dock .row.sub .letters{flex:none;width:100%}body.dock .notice{white-space:normal}body.dock .toolbar .in{padding:6px 12px 6px;gap:5px}body.dock .toolbar input[type=search]{min-width:180px}body.dock .toolbar .btn{padding:5px 8px;font-size:12.5px}body.dock .toolbar select,body.dock .toolbar input[type=search]{padding:5px 8px;font-size:13px}body.dock .brand .nm{font-size:14px}body.dock .stats{font-size:12.5px}body.dock .letters a{min-width:20px;padding:1px 3px;font-size:12px}body.dock .notice{font-size:11.5px}body.dock .notice>span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}body.dock .notice .meter{width:110px}}
-@media (min-width:1000px) and (max-width:1400px){body.dock th:nth-child(6),body.dock td:nth-child(6),body.dock th:nth-child(8),body.dock td:nth-child(8),body.dock th:nth-child(11),body.dock td:nth-child(11){display:none}body.dock #details .box{grid-template-columns:1fr}body.dock .brand .nm small{display:none}}
-@media (min-width:1000px) and (max-width:1140px){body.dock th:nth-child(7),body.dock td:nth-child(7),body.dock th:nth-child(10),body.dock td:nth-child(10),body.dock th:nth-child(13),body.dock td:nth-child(13){display:none}body.dock .toolbar .in{padding:8px 12px}body.dock main{padding:12px}body.dock .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}body.dock .howto,body.dock footer{padding-left:12px;padding-right:12px}}
 /* ---------- details ---------- */
 #details{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);display:none;z-index:50;align-items:center;justify-content:center;padding:18px}
 #details.open{display:flex}#details .box{background:linear-gradient(180deg,#22222a,#15151a);border:1px solid var(--line2);border-radius:var(--r3);max-width:1040px;width:100%;max-height:92vh;overflow:auto;padding:22px;display:grid;grid-template-columns:300px 1fr;gap:24px;box-shadow:var(--sh3);position:relative;animation:pop .22s var(--ease)}
@@ -792,6 +789,34 @@ LEGAL_PUBLIC = ('<p class="legal">' + DISCLAIMER + ' Console-side technology by 
     'The pixel artwork and interface icons are Nintendo\'s own renderings from the NES Classic Edition system software and documented community sprite rips (origins in the character credits above), and the box art comes from community thumbnail collections; they are shown to identify and present the games, and all rights remain with their owners. No game files or console software are distributed with this website. '
     'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>. Catalog <span id="gen"></span>.</p></div></footer>')
 
+DOCK_W = 440   # width of the docked My Collection panel (keep in sync with --dockw in the CSS)
+DOCK_SKIP = (".hero", "#hero", ".parade", ".hardware", ".stickyhead", "#tray", "body.dock", "#guide", "#welcome", "#tech", "#hkpanel", "#details", "#filters", ".modal", ".tvmodal", ".tvbox", ".tvhd", ".tvt", ".tvmain", ".tvstage", ".tvpad", ".tvside", ".tvtools", "#verpop", "#glb", "#tip", "#hover", ".toast", "#collm")
+
+def dock_twins(css: str) -> str:
+    """Mirror every width media query for the docked state: the content beside the panel is laid out at (viewport - DOCK_W),
+    so each rule gets a twin whose width thresholds are shifted by DOCK_W, gated to viewports of 1000 px and more (where the
+    panel docks) and scoped to body.dock. Hero, parade, sticky header, tray and the viewport-fixed overlays are skipped."""
+    out = []; i = 0; head = re.compile(r'@media([^{]*)\{')
+    while True:
+        m = head.search(css, i)
+        if not m: break
+        depth = 1; j = m.end()
+        while depth and j < len(css):
+            depth += {'{': 1, '}': -1}.get(css[j], 0); j += 1
+        body = css[m.end(): j - 1]; q = m.group(1).strip(); i = j
+        if "width" not in q: continue
+        q2 = re.sub(r'\((max|min)-width:\s*(\d+)px\)', lambda w: f"({w.group(1)}-width:{int(w.group(2)) + DOCK_W}px)", q)
+        rules = []
+        for r in re.finditer(r'([^{}]+)\{([^{}]*)\}', body):
+            sels = [s.strip() for s in r.group(1).split(',')]
+            if any('@' in s or '{' in s for s in sels): continue
+            keep = [s for s in sels if s and not s.startswith(DOCK_SKIP)]
+            if not keep: continue
+            keep = ["body.dock" + s[4:] if s.startswith("body") else ("body.dock " + s if not s.startswith("html") else s) for s in keep]
+            rules.append(",".join(keep) + "{" + r.group(2).strip() + "}")
+        if rules: out.append(f"@media (min-width:1000px) and {q2}{{" + "".join(rules) + "}")
+    return "\n/* docked My Collection: the responsive rules mirrored for the width beside the panel (generated) */\n" + "\n".join(out) + "\n"
+
 def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title: str = "", loading: str = "lazy") -> str:
     f = index.get((folder, stem + ".png"))
     if not f: return ""
@@ -855,6 +880,7 @@ def main():
     html = (TEMPLATE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__HERO_CAST__", hero).replace("__FOOTER_CAST__", foot)
             .replace("__EMPTY_CAST__", empty).replace("__HOWTO_CAST__", howto).replace("__FILTERS_CAST__", filt)
             .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
+    css0, css1 = html.find("<style>") + 7, html.find("</style>"); html = html[:css1] + dock_twins(html[css0:css1]) + html[css1:]   # docked My Collection twins of every width rule
     if PUBLIC:
         html = (html.replace("<title>NES Classic Collection — Game Selection Catalog</title>", f"<title>{APP_NAME}</title><meta name=\"description\" content=\"{TAGLINE}\"><meta name=\"robots\" content=\"index,follow\"><meta property=\"og:title\" content=\"{APP_NAME}\"><meta property=\"og:description\" content=\"{TAGLINE}\">")
                 .replace(LEGAL_PRIVATE, LEGAL_PUBLIC))
