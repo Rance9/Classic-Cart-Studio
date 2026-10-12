@@ -159,6 +159,16 @@ def main():
         gc = js("(()=>{ const g=DATA.games.find(x=>!x.art&&x.art_generated); return g?{has:true, src:g.art_generated, site:!!document.querySelector('#tb img.gen, .grid img.gen')||true}:{has:false}; })()")
         ok("generated_cover_assigned_for_missing_art", gc and gc["has"] and gc["src"].startswith("art/generated/"), gc)
         js("closeTv(); (()=>{ const g=DATA.games.find(x=>!x.art&&x.art_generated); sel.add(g.game_id); persist(); render(); openTv({focus:g.game_id}); })()"); time.sleep(0.4)
+        # ---- key art: own hero art for a game that has it, the universal fallback for every other game, in the Featured Shelf hero and in Game Details
+        js("window.__ka0=JSON.parse(JSON.stringify({theme:TV.S.theme,section:TV.S.section,zone:TV.S.zone,index:TV.S.index,overlay:TV.S.overlay})); TV.S.theme='featured-shelf'; TV.model.theme='featured-shelf'; TV.S.section={type:'allgames'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=0; tvDraw()"); time.sleep(0.6)
+        ka = js(f"""(()=>{{ const sh={SH}; const ids=homeListing(TV.model,TV.S,tvSearch()).ids; const withHero=ids.findIndex(id=>hmGame(TV.model,id).hero); const without=ids.findIndex(id=>!hmGame(TV.model,id).hero); const out={{withHero,without}};
+          const probe=(i,k)=>{{ TV.S.index=i; TV.S.overlay=null; tvDraw(); const w=sh.querySelector('.hero img.wide'); out[k+'Src']=w?w.getAttribute('src'):null; tvAct('select'); const d=sh.querySelector('.details .dbg'); out[k+'Dbg']=d?d.className:null; const di=sh.querySelector('.details .dbg img'); out[k+'DbgSrc']=di?di.getAttribute('src'):null; tvAct('b'); }};
+          if(without>=0) probe(without,'fb'); if(withHero>=0) probe(withHero,'hero'); out.fallbackAsset=(typeof HOME_ART!=='undefined')&&HOME_ART.hero_fallback||null; return out; }})()""")
+        ok("fallback_asset_declared", bool(ka) and ka.get("fallbackAsset") == "hero-fallback.png", ka)
+        ok("game_without_hero_shows_universal_fallback_in_hero", bool(ka) and ka.get("without", -1) >= 0 and str(ka.get("fbSrc") or "").endswith("hero-fallback.png"), ka)
+        ok("game_without_hero_shows_universal_fallback_in_details", bool(ka) and "fallback" in str(ka.get("fbDbg") or "") and str(ka.get("fbDbgSrc") or "").endswith("hero-fallback.png"), ka)
+        ok("game_with_hero_shows_its_own_art_or_none_present", bool(ka) and (ka.get("withHero", -1) < 0 or ("art/hero/" in str(ka.get("heroSrc") or "") and "hero" in str(ka.get("heroDbg") or "") and "art/hero/" in str(ka.get("heroDbgSrc") or ""))), ka)
+        js("(()=>{const k=window.__ka0; TV.S.theme=k.theme; TV.model.theme=k.theme; TV.S.section=k.section; TV.S.zone=k.zone; TV.S.index=k.index; TV.S.overlay=k.overlay; tvDraw();})()"); time.sleep(0.3)
         ok("generated_cover_marked_once_in_home", js(f"(()=>{{ const sh={SH}; const c=sh.querySelector('.cover.focus'); const g=TV.model.games.find(x=>x.id===TV.focusId); const im=c&&c.querySelector('img'); return !!c && !!im && /art\\/generated\\//.test(im.getAttribute('src')) && !c.querySelector('.gen') && !/GENERATED COVER/.test(sh.querySelector('.hm').textContent) && g.art.provenance==='generated' && $('tvSide').textContent.includes('generated placeholder'); }})()"))   # the mark is baked into the placeholder image once; no DOM label doubles it
         # ---------- side panel honesty, export, deep link, escape ----------
         sp = js("(()=>{ const s=$('tvSide').textContent; return {known:(s.match(/known/g)||[]).length, unk:(s.match(/unknown/g)||[]).length, core:/Planned core/.test(s), file:/Game file/.test(s), notVerified:/Current console state not verified/.test(s), controls:/only the D-pad, A, B, START and SELECT/.test(s), sim:/simulation/i.test(s)}; })()")
@@ -185,16 +195,6 @@ def main():
             shot(f"tv-{w}"); js("closeTv()")
             if mob: ok("badge_in_toolbar_on_phone", js("(()=>{ if(!foldOpen()) $('foldBtn').click(); const b=$('tvBtn'); const r=b.getBoundingClientRect(); const img=b.querySelector('img').getBoundingClientRect(); const W=document.documentElement.clientWidth; closeTv(); return r.width>0 && r.right<=W+1 && img.width<=48 && img.width>=36 && Math.abs(img.width/img.height-1.28)<0.05 && !$('mTv').hidden; })()"))
         size(1366); js("sel.clear(); persist(); render(); localStorage.removeItem('studio-home-v1')")
-        # ---- key art: own hero art for a game that has it, the universal fallback for every other game, in the Featured Shelf hero and in Game Details
-        js("TV.S.theme='featured-shelf'; TV.model.theme='featured-shelf'; TV.S.section={type:'allgames'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=0; tvDraw()"); time.sleep(0.6)
-        ka = js(f"""(()=>{{ const sh={SH}; const ids=homeListing(TV.model,TV.S,tvSearch()).ids; const withHero=ids.findIndex(id=>hmGame(TV.model,id).hero); const without=ids.findIndex(id=>!hmGame(TV.model,id).hero); const out={{withHero,without}};
-          const probe=(i,k)=>{{ TV.S.index=i; TV.S.overlay=null; tvDraw(); const w=sh.querySelector('.hero img.wide'); out[k+'Src']=w?w.getAttribute('src'):null; tvAct('select'); const d=sh.querySelector('.details .dbg'); out[k+'Dbg']=d?d.className:null; const di=sh.querySelector('.details .dbg img'); out[k+'DbgSrc']=di?di.getAttribute('src'):null; tvAct('b'); }};
-          if(without>=0) probe(without,'fb'); if(withHero>=0) probe(withHero,'hero'); out.fallbackAsset=(typeof HOME_ART!=='undefined')&&HOME_ART.hero_fallback||null; return out; }})()""")
-        ok("fallback_asset_declared", bool(ka) and ka.get("fallbackAsset") == "hero-fallback.png", ka)
-        ok("game_without_hero_shows_universal_fallback_in_hero", bool(ka) and ka.get("without", -1) >= 0 and str(ka.get("fbSrc") or "").endswith("hero-fallback.png"), ka)
-        ok("game_without_hero_shows_universal_fallback_in_details", bool(ka) and "fallback" in str(ka.get("fbDbg") or "") and str(ka.get("fbDbgSrc") or "").endswith("hero-fallback.png"), ka)
-        ok("game_with_hero_shows_its_own_art_or_none_present", bool(ka) and (ka.get("withHero", -1) < 0 or ("art/hero/" in str(ka.get("heroSrc") or "") and "hero" in str(ka.get("heroDbg") or "") and "art/hero/" in str(ka.get("heroDbgSrc") or ""))), ka)
-        js("TV.S.theme='arcade-grid'; TV.model.theme='arcade-grid'; TV.S.overlay=null; tvDraw()"); time.sleep(0.3)
         errs = js("typeof errors!=='undefined'?errors.length:0"); ok("no_js_errors", not errs, errs)
     finally:
         try: call("Browser.close")

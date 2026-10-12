@@ -38,7 +38,19 @@ def prune_hero_dir(folder: str, approved: set) -> dict:
     return out
 
 def prune_private_art(art_folder: str):
-    for sub in ("hero-requests", "hero-batch"): shutil.rmtree(os.path.join(art_folder, sub), ignore_errors=True)
+    """remove request packs and batch work; Windows sometimes refuses to delete freshly emptied directories, so files go first and leftover empty folders are tolerated (nothing tracked)"""
+    for sub in ("hero-requests", "hero-batch"):
+        root = os.path.join(art_folder, sub)
+        if not os.path.isdir(root): continue
+        for dp, dn, fn in os.walk(root, topdown=False):
+            for f in fn:
+                try: os.remove(os.path.join(dp, f))
+                except OSError: pass
+            for d in dn:
+                try: os.rmdir(os.path.join(dp, d))
+                except OSError: pass
+        try: os.rmdir(root)
+        except OSError: pass
 
 def suppress_catalog(games: list, approved: set) -> int:
     n = 0

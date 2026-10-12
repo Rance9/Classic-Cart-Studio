@@ -182,8 +182,19 @@ def extract_image(r: dict):
             if d and d.get("data"): return key, base64.b64decode(d["data"]), None
     return key, None, err or "no image in response"
 
+def sharpness(im: Image.Image):
+    """(detail, strong_edge_fraction) at a normalized 1620 px width: detail = mean difference between the image and a
+    Gaussian-blurred copy of itself; strong = share of horizontal neighbor pairs differing by more than 24 levels.
+    A crisp image, even flat-shaded pixel art with large plain areas, keeps far more fine detail than its blur; a soft
+    upscale keeps almost none. Scale- and style-independent, unlike raw edge energy."""
+    import numpy as np
+    from PIL import ImageFilter
+    n = im.convert("L").resize((1620, max(1, round(im.height * 1620 / im.width))), Image.LANCZOS); an = np.array(n).astype(float)
+    ab = np.array(n.filter(ImageFilter.GaussianBlur(2.0))).astype(float)
+    return float(np.abs(an - ab).mean()), float((np.abs(np.diff(an, axis=1)) > 24).mean())
+
 def technical_check(im: Image.Image):
-    """size, aspect, letterbox/border, flatness; returns list of problems"""
+    """size, aspect, letterbox/border, flatness, sharpness; returns a list of problems (empty = pass)"""
     import numpy as np
     probs = []
     if im.width < OUT_MIN[0] or im.height < OUT_MIN[1]: probs.append(f"too small {im.size}")
@@ -192,19 +203,22 @@ def technical_check(im: Image.Image):
     for name, strip in (("top", a[: h // 40]), ("bottom", a[-h // 40:]), ("left", a[:, : w // 40]), ("right", a[:, -w // 40:])):
         if strip.std() < 3: probs.append(f"flat {name} border")
     if a.std() < 18: probs.append("image is nearly flat")
-    g = np.abs(np.diff(a, axis=1)).mean()
-    if g < 2.5: probs.append("blurry (low edge energy)")
+    detail, strong = sharpness(im)
+    if detail < 1.6 or strong < 0.012: probs.append(f"soft image (detail {detail:.2f}, strong edges {strong * 100:.2f}%)")
     return probs
 
 def cmd_fetch(a):
-    m = load_manifest(); name = a.batch or latest(m); b = m["batches"][name]; c = client(); job = c.batches.get(name=b["job"]); b["state"] = str(job.state)
-    if "SUCCEEDED" not in str(job.state): save_manifest(m); print("job state", job.state, "- nothing fetched"); return 1
-    rdir = os.path.join(BATCH_DIR, name, "results"); os.makedirs(rdir, exist_ok=True)
-    dest = job.dest; data = None
-    if getattr(dest, "file_name", None): data = c.files.download(file=dest.file_name).decode("utf-8")
-    elif getattr(dest, "inlined_responses", None): data = "\n".join(json.dumps(r.model_dump() if hasattr(r, "model_dump") else r) for r in dest.inlined_responses)
-    if not data: raise SystemExit("no results in the job")
-    open(os.path.join(rdir, "responses.jsonl"), "w", encoding="utf-8").write(data)
+    m = load_manifest(); name = a.batch or latest(m); b = m["batches"][name]; rdir = os.path.join(BATCH_DIR, name, "results"); os.makedirs(rdir, exist_ok=True)
+    if getattr(a, "local", False):   # re-process the stored responses offline (for example after a validation rule changed); no network, no new request
+        data = open(os.path.join(rdir, "responses.jsonl"), encoding="utf-8").read()
+    else:
+        c = client(); job = c.batches.get(name=b["job"]); b["state"] = str(job.state)
+        if "SUCCEEDED" not in str(job.state): save_manifest(m); print("job state", job.state, "- nothing fetched"); return 1
+        dest = job.dest; data = None
+        if getattr(dest, "file_name", None): data = c.files.download(file=dest.file_name).decode("utf-8")
+        elif getattr(dest, "inlined_responses", None): data = "\n".join(json.dumps(r.model_dump() if hasattr(r, "model_dump") else r) for r in dest.inlined_responses)
+        if not data: raise SystemExit("no results in the job")
+        open(os.path.join(rdir, "responses.jsonl"), "w", encoding="utf-8").write(data)
     cat, by = hero_art.games(); good = bad = 0
     for line in data.splitlines():
         if not line.strip(): continue
@@ -213,6 +227,7 @@ def cmd_fetch(a):
         if not img:
             rec["status"] = "failed"; rec["last_error"] = str(err or "no image in response")[:300]; bad += 1; continue
         raw = os.path.join(rdir, key + ".png"); open(raw, "wb").write(img); im = Image.open(raw); probs = technical_check(im)
+        rec["generated_size"] = list(im.size)
         if probs: rec["status"] = "failed"; rec["last_error"] = "technical: " + "; ".join(probs); bad += 1; continue
         os.environ["HERO_PROVENANCE"] = f"generated:{MODEL}:{name}"; hero_art.import_one(key, raw, cat, by); rec["status"] = "candidate"; rec["sha256"] = by[key].get("art_hero_sha256"); rec["last_error"] = None; good += 1
     json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -263,7 +278,7 @@ def main(argv):
     s = sub.add_parser("estimate"); s.add_argument("--batch"); s.set_defaults(fn=cmd_estimate)
     s = sub.add_parser("submit"); s.add_argument("--batch"); s.add_argument("--confirm", action="store_true"); s.set_defaults(fn=cmd_submit)
     s = sub.add_parser("status"); s.add_argument("--batch"); s.add_argument("--watch", action="store_true"); s.set_defaults(fn=cmd_status)
-    s = sub.add_parser("fetch"); s.add_argument("--batch"); s.set_defaults(fn=cmd_fetch)
+    s = sub.add_parser("fetch"); s.add_argument("--batch"); s.add_argument("--local", action="store_true", help="re-process stored responses offline"); s.set_defaults(fn=cmd_fetch)
     s = sub.add_parser("retry"); s.add_argument("--batch"); s.set_defaults(fn=cmd_retry)
     s = sub.add_parser("sheet"); s.add_argument("--batch"); s.set_defaults(fn=cmd_sheet)
     s = sub.add_parser("smoke"); s.add_argument("--id", required=True); s.add_argument("--batch"); s.set_defaults(fn=cmd_smoke)
