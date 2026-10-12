@@ -249,7 +249,7 @@ __STUDIO_CSS__
  <div class="hero-inner">
   <div>
    <img class="wordmark px" src="brand/oem/nes-wordmark.png" alt="Nintendo Entertainment System" width="137" height="15" onerror="this.style.display='none'">
-   <h1><img class="logo" src="icon-192.png" width="40" height="40" alt="" onerror="this.remove()">Classic Cart<span>Studio</span></h1>
+   <h1>Classic Cart<span>Studio</span></h1>
    <p class="lede">Browse NES games, build <b>My Collection</b>, and prepare it for your NES Classic.</p>
    <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games</span><span class="pill"><b id="heroSel">0</b> selected</span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
   </div>
