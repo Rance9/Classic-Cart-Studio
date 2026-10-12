@@ -32,7 +32,7 @@ from PIL import Image, ImageDraw, ImageFont
 import hero_art
 
 MODEL = "gemini-3-pro-image"
-PROMPT_VERSION = "v3-finish"   # v1: text-only art direction (smoke1, rejected for flatness); v2: three approved illustrations as labeled style references
+PROMPT_VERSION = "v4-pixel-first"   # v1: text-only art direction (smoke1, rejected for flatness); v2: three approved illustrations as labeled style references
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BATCH_DIR = os.path.join(REPORTS, "art", "hero-batch"); MANIFEST = os.path.join(BATCH_DIR, "manifest.json")
 POC = {"8e844d77da01f86a": "10-Yard Fight", "9f54aafa367247b9": "1943 - The Battle of Midway", "ec0d4ebf6d2fcecd": "The Legend of Zelda"}
@@ -42,26 +42,23 @@ OUT_MIN = (1280, 704)   # technical floor for a usable result
 # ---- art direction, revised after the first paid test (owner review 2026-10-13): the three approved illustrations are STYLE
 # references for density, lighting and finish; each game's cover, title screen and gameplay screen are the IDENTITY references.
 STYLE_REF_IDS = ["8e844d77da01f86a", "9f54aafa367247b9", "ec0d4ebf6d2fcecd"]   # 10-Yard Fight, 1943, The Legend of Zelda (owner-approved)
-STYLE = """RENDERING FINISH (this is the part the STYLE references define; match it closely):
-- A premium, dense, painterly pixel-art illustration, not an enlarged retro gameplay screen. Every surface carries rich tonal
-  variation and material texture: grass with blades and highlights, hills with shading bands and ground texture, stone with
-  cracks and weathering, clouds with volume and lit edges, mushrooms and pipes with sheen, dents and shadow, buildings with
-  bricks, windows and wear. Fine illustration density comparable to the STYLE references.
-- Sophisticated light interaction: a clear key light with directional shadows cast by every object, rim light on the main
-  subject, bounce light in the shadows, atmospheric depth (haze, light rays, depth-faded distance), glowing highlights on
-  anything that emits or reflects light.
-- Environmental complexity: a detailed foreground, a fully developed middle ground and a layered distance with landmarks, so
-  the scene reads as a world, not a stage.
-- Keep the game's own mood and colors: a bright, colorful world stays bright and colorful; do not force realism, grimness,
-  darkness or a moody cinematic palette onto a cheerful game. Sophistication comes from texture, light and depth, not from
-  darkening.
-- The box art defines WHO is in the scene (characters, costumes, enemies, props, their colors) and must NOT dictate the
-  rendering style: do not reproduce its flat cartoon shading or thick outlines. Render those characters with the painterly
-  pixel-art finish of the STYLE references.
+STYLE = """PRIMARY REQUIREMENT, RENDERING TECHNIQUE: fine, premium PIXEL ART, exactly as the STYLE references are made.
+- The entire illustration is constructed from clearly visible, intentional pixel clusters at the canvas's own resolution: every
+  pixel is a deliberate choice; clusters of 1 to 3 pixels; crisp, hand-placed pixel edges and silhouettes with no anti-aliasing
+  blur; stepped tonal transitions built from distinct pixel colors; selective dithering (checker and scatter patterns) where
+  tones meet; clustered pixel highlights. Shading is CONSTRUCTED from pixels, never painted or blended smoothly.
+- Fine pixel-level texturing across everything: skin and cloth, hair and fur, grass blades, stone grain, bark, metal, cloud
+  volume, water, smoke, light rays. Look at how the STYLE references build a face, a sword blade, a crowd, a propeller, a tree
+  line: that density and that technique, everywhere in this image.
+- This is NOT: smooth vector or cartoon illustration; rounded anti-aliased animation-style characters; airbrushed shading or
+  smooth digital gradients; a children's-book or animated-film look; a smooth drawing with a pixelation filter applied; and
+  also NOT oversized chunky blocks, crude 8-bit sprites or a restricted console palette. Fine, rich, many-colored pixel art.
+- Cinematic qualities are expressed THROUGH the pixel art: directional key light with cast shadows, rim light on the subject,
+  atmospheric depth (haze and depth-faded distance), a detailed foreground, a developed middle ground, a layered distance with
+  landmarks. Keep the game's own mood and colors: a bright, colorful world stays bright and colorful.
 - Composition: 16:9, full bleed, edge to edge; the main subject large and dynamic in the center-left at mid-height; the upper
-  right third stays visually quiet and lower in contrast (soft sky or atmosphere) because the title lettering is drawn there:
-  keep it calm, do not fill it with detail; the bottom edge stays scenery with no ground strip, checkerboard, platform band or
-  decorative base.
+  right third stays visually quiet and lower in contrast (soft sky or atmosphere, still rendered in pixel art) because the title
+  lettering is drawn there; the bottom edge stays scenery with no ground strip, checkerboard, platform band or decorative base.
 - Nothing else in the image: no text, letters, numbers, logos, borders, frames, vignettes, letterbox bars, fake UI, HUD, score,
   box edges, cartridges, consoles or screens of any kind."""
 
@@ -83,24 +80,26 @@ VARIATION = {   # per-genre nudges so scenes vary; the game's own references sti
 def prompt_for(g, rank):
     facts = f'"{g.get("display_title")}" ({g.get("year") or "year unknown"}, {g.get("publisher") or "publisher unknown"}, genre {g.get("genre") or "unknown"}, {g.get("players") or "?"} player(s))'
     genre = (g.get("genre") or "").split(",")[0].strip(); nudge = VARIATION.get(genre, "a dramatic scene in the game's own signature setting")
-    return f"""Create ONE widescreen (16:9) cinematic key-art illustration for the NES game {facts}.
+    return f"""Create ONE widescreen (16:9) cinematic PIXEL-ART illustration for the NES game {facts}.
 
 REFERENCE IMAGES, in order, and what each is for:
-- Image 1, 2 and 3 are STYLE references only (key art for three other games). Match their rendering: pixel density, painterly
-  texture, layered depth, lighting sophistication and overall polish. They say nothing about this game: do NOT reuse their
-  subjects, characters, settings, compositions or palettes. Only images 4 to 6 define who and what appears in the scene.
-- Image 4 is THIS game's box cover: the authoritative look of its characters, costumes, vehicles and colors (identity only; its
-  flat cartoon rendering style is NOT to be copied).
-- Image 5 is THIS game's title screen: its logo style is NOT to be drawn; use it only to recognize the game's mood and colors.
-- Image 6 is THIS game's gameplay screen: the authoritative setting, objects, enemies and environment to build the scene from.
+- Images 1, 2 and 3 are the STYLE MASTERS: finished illustrations for three other games. They define the REQUIRED rendering
+  technique, finish and density: fine premium pixel art. Reproduce that technique exactly. They say nothing about this game:
+  do NOT reuse their subjects, characters, settings, compositions or palettes.
+- Images 4, 5 and 6 are 100 % crops of the STYLE MASTERS, showing the pixel clusters, stepped shading, dithering and pixel-level
+  texture up close. Your image must look like this at the pixel level everywhere.
+- Image 7 is THIS game's box cover: IDENTITY ONLY. It tells you who the characters are, their costumes, colors and props. Its
+  smooth cartoon drawing style is NOT to be reproduced; render these characters in the pixel-art technique of images 1 to 6.
+- Image 8 is THIS game's title screen: mood and colors only; do not draw its logo.
+- Image 9 is THIS game's gameplay screen: the authentic setting, objects, enemies and environment to build the scene from; it does
+  not limit the composition, which must be a full cinematic illustration, never an enlarged screenshot.
 
-Depict this game's own world and its recognizable subjects, unmistakably this game, interpreted as a richly developed scene:
-{nudge}. Build the environment from what the gameplay and cover show, expanded into a full widescreen landscape with layered,
-textured scenery.
+Depict this game's own world and its recognizable subjects, unmistakably this game: {nudge}. Build the environment from what
+the gameplay and cover show, expanded into a full widescreen landscape with layered, pixel-textured scenery.
 
 {STYLE}
 
-Output: a single full-bleed image, no text anywhere."""
+Output: a single full-bleed pixel-art image at the full output resolution, no text anywhere."""
 
 def load_manifest():
     if os.path.exists(MANIFEST): return json.load(open(MANIFEST, encoding="utf-8"))
@@ -133,17 +132,26 @@ def cmd_manifest(a):
     for r in m["games"].values(): st[r["status"]] = st.get(r["status"], 0) + 1
     print(f"manifest: {len(m['games'])} games", st, "->", MANIFEST)
 
-def shrink(path):
-    im = Image.open(path).convert("RGB"); im.thumbnail((REF_MAX, REF_MAX), Image.LANCZOS); b = io.BytesIO(); im.save(b, "PNG", optimize=True); return b.getvalue()
+def shrink(path, longest=REF_MAX):
+    im = Image.open(path).convert("RGB"); im.thumbnail((longest, longest), Image.LANCZOS); b = io.BytesIO(); im.save(b, "PNG", optimize=True); return b.getvalue()
+
+def native_png(path):
+    """the style masters go in at their native resolution so the pixel technique survives (a 1024 px downscale softens it)"""
+    im = Image.open(path).convert("RGB"); b = io.BytesIO(); im.save(b, "PNG", optimize=True); return b.getvalue()
+
+STYLE_CROPS = {"8e844d77da01f86a": (560, 250), "9f54aafa367247b9": (560, 230), "ec0d4ebf6d2fcecd": (330, 420)}   # 100 % crop origins (helmet and crowd, cockpit and propeller, Link and the hillside)
+CROP = 384
 
 def style_refs():
-    """the three approved illustrations (imported masters), shrunk; falls back to the owner's originals in _temp if a master is missing"""
-    out = []
+    """images 1-3: the three approved illustrations at native size; images 4-6: 384 x 384 crops at 100 % (no resampling) showing the pixel technique"""
+    full = []; crops = []
     for gid in STYLE_REF_IDS:
-        p = os.path.join(hero_art.OUT, gid + ".png")
+        p = os.path.join(hero_art.OUT, "originals", f"{gid}-owner-poc.png")
         if not os.path.exists(p): p = os.path.join(ROOT, "_temp", "images", "featured-shelf-hero-candidates", gid + ".png")
-        if os.path.exists(p): out.append((f"style-{gid}", shrink(p)))
-    return out
+        if not os.path.exists(p): continue
+        full.append((f"style-{gid}", native_png(p)))
+        x, y = STYLE_CROPS[gid]; im = Image.open(p).convert("RGB").crop((x, y, x + CROP, y + CROP)); b = io.BytesIO(); im.save(b, "PNG", optimize=True); crops.append((f"style-crop-{gid}", b.getvalue()))
+    return full + crops
 
 def cmd_prepare(a):
     cat, by = hero_art.games(); m = load_manifest(); name = a.batch or time.strftime("b%Y%m%d-%H%M")
@@ -152,17 +160,17 @@ def cmd_prepare(a):
     if not ids: print("nothing to prepare (all games approved/candidate; use --force or --ids)"); return 1
     bdir = os.path.join(BATCH_DIR, name); os.makedirs(os.path.join(bdir, "prompts"), exist_ok=True); os.makedirs(os.path.join(bdir, "refs"), exist_ok=True)
     srefs = style_refs()
-    if len(srefs) != 3: raise SystemExit(f"expected 3 style references, found {len(srefs)}; nothing prepared")
+    if len(srefs) != 6: raise SystemExit(f"expected 3 style masters + 3 technique crops, found {len(srefs)}; nothing prepared")
     lines = []; total = 0
     for gid in ids:
         g = by[gid]; refs = list(srefs); roles = [("style", n) for n, _ in srefs]
-        for key, nm in (("art", "cover"), ("art_title", "title"), ("art_snap", "snap")):
-            if g.get(key) and os.path.exists(os.path.join(REPORTS, g[key])): refs.append((nm, shrink(os.path.join(REPORTS, g[key])))); roles.append(("identity", nm))
-        if len(refs) != 6: raise SystemExit(f"{gid} {g.get('display_title')}: expected cover, title screen and gameplay references, found {[r for r in roles if r[0] == 'identity']}; nothing prepared")
+        for key, nm, longest in (("art", "cover", 640), ("art_title", "title", 512), ("art_snap", "snap", 512)):
+            if g.get(key) and os.path.exists(os.path.join(REPORTS, g[key])): refs.append((nm, shrink(os.path.join(REPORTS, g[key]), longest))); roles.append(("identity", nm))
+        if len(refs) != 9: raise SystemExit(f"{gid} {g.get('display_title')}: expected cover, title screen and gameplay references, found {[r for r in roles if r[0] == 'identity']}; nothing prepared")
         rd = os.path.join(bdir, "refs", gid); os.makedirs(rd, exist_ok=True)
         for i, (nm, data) in enumerate(refs, 1): open(os.path.join(rd, f"{i:02d}-{nm}.png"), "wb").write(data)
         prompt = prompt_for(g, m["games"].get(gid, {}).get("rank")); open(os.path.join(bdir, "prompts", gid + ".md"), "w", encoding="utf-8").write(prompt)
-        open(os.path.join(rd, "references.md"), "w", encoding="utf-8").write("\n".join(f"Image {i}: {role} reference ({nm})" for i, (role, nm) in enumerate(roles, 1)) + "\n")
+        open(os.path.join(rd, "references.md"), "w", encoding="utf-8").write("\n".join(f"Image {i}: {role} reference ({nm}){' at native resolution' if role == 'style' and not nm.startswith('style-crop') else (' 100 % crop, 384 x 384' if nm.startswith('style-crop') else '')}" for i, (role, nm) in enumerate(roles, 1)) + "\n")
         parts = [{"text": prompt}] + [{"inline_data": {"mime_type": "image/png", "data": base64.b64encode(d).decode("ascii")}} for _, d in refs]
         req = {"key": gid, "request": {"contents": [{"role": "user", "parts": parts}], "generation_config": {"response_modalities": ["IMAGE"], "image_config": {"aspect_ratio": "16:9", "image_size": "2K"}}}}
         line = json.dumps(req, ensure_ascii=False); lines.append(line); total += len(line)
@@ -179,8 +187,8 @@ def cmd_validate(a):
         txt = [x for x in parts if "text" in x]; imgs = [x for x in parts if "inline_data" in x]
         probs = []
         if len(txt) != 1 or len(txt[0]["text"]) < 400: probs.append("prompt missing/short")
-        if len(imgs) != 6: probs.append(f"expected 6 references (3 style + cover + title + gameplay), found {len(imgs)}")
-        if "STYLE references only" not in txt[0]["text"] or "Image 4 is THIS game" not in txt[0]["text"]: probs.append("prompt does not label the references")
+        if len(imgs) != 9: probs.append(f"expected 9 references (3 style masters + 3 technique crops + cover + title + gameplay), found {len(imgs)}")
+        if "STYLE MASTERS" not in txt[0]["text"] or "Image 7 is THIS game" not in txt[0]["text"] or "PIXEL ART" not in txt[0]["text"]: probs.append("prompt does not label the references or lacks the pixel-art requirement")
         if "text" in txt[0]["text"].lower() and "no text" not in txt[0]["text"].lower(): probs.append("prompt lacks the no-text rule")
         for im in imgs:
             try: Image.open(io.BytesIO(base64.b64decode(im["inline_data"]["data"]))).verify()
@@ -236,6 +244,45 @@ def extract_image(r: dict):
             if d and d.get("data"): return key, base64.b64decode(d["data"]), None
     return key, None, err or "no image in response"
 
+# Pixel-art signature, measured at the image's native resolution (never resampled): the three approved originals set the bands.
+#   hard  = share of neighbor pairs that differ by 24+ levels (crisp pixel edges)          originals 6.4 to 9.5 %, Gemini v1-v3 1.3 to 1.7 %
+#   soft  = share of neighbor pairs that differ by 1 to 5 levels (smooth blended shading)  originals 41 to 44 %,  Gemini v1-v3 52 to 58 %
+#   colors = median distinct colors (8-level buckets) per 48 x 48 tile (pixel-level texture) originals 318 to 350, Gemini v1-v3 14 to 65
+#   block = dominant block pitch of the edge map (enlarged-block pixelation shows a pitch of 2 px or more with strong periodicity)
+PIXEL_BANDS = {"hard_min": 5.0, "soft_max": 47.0, "colors_min": 200, "block_max": 1.5}
+
+def pixel_signature(im: Image.Image) -> dict:
+    import numpy as np
+    a = np.array(im.convert("RGB")).astype(int); H, W, _ = a.shape; g = a.mean(axis=2)
+    dx = np.abs(np.diff(g, axis=1)); dy = np.abs(np.diff(g, axis=0))
+    hard = ((dx >= 24).mean() + (dy >= 24).mean()) / 2 * 100; soft = (((dx >= 1) & (dx < 6)).mean() + ((dy >= 1) & (dy < 6)).mean()) / 2 * 100
+    tiles = [len(np.unique((a[y:y + 48, x:x + 48] // 8).reshape(-1, 3), axis=0)) for y in range(0, H - 48, 96) for x in range(0, W - 48, 96)]
+    e = (dx >= 24).astype(float); row = e.mean(axis=0); f = np.fft.rfft(row - row.mean()); power = np.abs(f) ** 2; freqs = np.fft.rfftfreq(len(row))
+    k = int(np.argmax(power[1:]) + 1); pitch = (1 / freqs[k]) if freqs[k] > 0 else 0.0; peak = float(power[k] / max(power[1:].mean(), 1e-9))
+    block = pitch if (2 <= pitch <= 24 and peak > 25) else 1.0     # a strong periodic edge comb at 2..24 px = enlarged blocks
+    return {"hard": round(float(hard), 2), "soft": round(float(soft), 2), "colors_per_tile": int(np.median(tiles)), "block_pitch": round(float(block), 1)}
+
+def pixel_verdict(sig: dict) -> tuple:
+    """(verdict, reasons) against the originals' bands; a report, never an approval"""
+    r = []
+    if sig["hard"] < PIXEL_BANDS["hard_min"]: r.append(f"few crisp pixel edges ({sig['hard']}% vs originals 6.4-9.5%)")
+    if sig["soft"] > PIXEL_BANDS["soft_max"]: r.append(f"much smooth shading ({sig['soft']}% soft steps vs originals 41-44%)")
+    if sig["colors_per_tile"] < PIXEL_BANDS["colors_min"]: r.append(f"little pixel-level texture ({sig['colors_per_tile']} colors per tile vs originals 318-350)")
+    if sig["block_pitch"] > PIXEL_BANDS["block_max"]: r.append(f"enlarged-block pixelation (block pitch {sig['block_pitch']} px)")
+    return ("PIXEL-ART SIGNATURE MATCHES THE ORIGINALS" if not r else ("PARTIAL" if len(r) <= 1 else "DOES NOT MATCH")), r
+
+def crop_sheet(candidate_path: str, out_path: str, label: str):
+    """100 % crops (384 px, shown at 3x nearest): the candidate's subject and scenery beside the same-size crops of the three originals"""
+    f = ImageFont.truetype("C:/Windows/Fonts/consola.ttf", 18) if os.path.exists("C:/Windows/Fonts/consola.ttf") else ImageFont.load_default()
+    cand = Image.open(candidate_path).convert("RGB"); W, H = cand.size
+    tiles = [(f"{label}: center-left subject", cand, (int(W * 0.30), int(H * 0.18))), (f"{label}: lower scenery", cand, (int(W * 0.52), int(H * 0.62)))]
+    for gid, t in (("8e844d77da01f86a", "ORIGINAL 10-Yard Fight"), ("9f54aafa367247b9", "ORIGINAL 1943"), ("ec0d4ebf6d2fcecd", "ORIGINAL Zelda")):
+        p = os.path.join(hero_art.OUT, "originals", f"{gid}-owner-poc.png"); tiles.append((t, Image.open(p).convert("RGB"), STYLE_CROPS[gid]))
+    S, Z = CROP, 3; cols = 3; rows = 2; sheet = Image.new("RGB", (cols * (S * Z + 12), rows * (S * Z + 34)), (12, 12, 14)); d = ImageDraw.Draw(sheet)
+    for i, (lab, im, (x, y)) in enumerate(tiles):
+        c = im.crop((x, y, x + S, y + S)).resize((S * Z, S * Z), Image.NEAREST); cx = (i % cols) * (S * Z + 12); cy = (i // cols) * (S * Z + 34); sheet.paste(c, (cx, cy + 30)); d.text((cx + 4, cy + 6), f"{lab}  {S}x{S} native px at {Z}x nearest", fill=(255, 255, 255), font=f)
+    sheet.save(out_path)
+
 def sharpness(im: Image.Image):
     """(detail, strong_edge_fraction) at a normalized 1620 px width: detail = mean difference between the image and a
     Gaussian-blurred copy of itself; strong = share of horizontal neighbor pairs differing by more than 24 levels.
@@ -281,7 +328,8 @@ def cmd_fetch(a):
         if not img:
             rec["status"] = "failed"; rec["last_error"] = str(err or "no image in response")[:300]; bad += 1; continue
         raw = os.path.join(rdir, key + ".png"); open(raw, "wb").write(img); im = Image.open(raw); probs = technical_check(im)
-        rec["generated_size"] = list(im.size)
+        rec["generated_size"] = list(im.size); sig = pixel_signature(im); pv, reasons = pixel_verdict(sig); rec["pixel_signature"] = sig; rec["pixel_verdict"] = pv; rec["pixel_reasons"] = reasons
+        crop_sheet(raw, os.path.join(rdir, key + "-crops-100pct.png"), f"{name} candidate")
         if probs: rec["status"] = "failed"; rec["last_error"] = "technical: " + "; ".join(probs); bad += 1; continue
         os.environ["HERO_PROVENANCE"] = f"generated:{MODEL}:{name}"; os.environ["HERO_PROMPT_VERSION"] = str(b.get("prompt_version") or PROMPT_VERSION); hero_art.import_one(key, raw, cat, by, tag=name); rec["status"] = "candidate"; rec["sha256"] = by[key].get("art_hero_sha256"); rec["last_error"] = None; good += 1
     json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)

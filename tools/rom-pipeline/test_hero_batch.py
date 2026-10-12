@@ -25,10 +25,19 @@ class HeroBatchTests(unittest.TestCase):
     def test_prompt_has_facts_style_and_no_text_rule(self):
         g = {"display_title": "Contra", "year": "1988", "publisher": "Konami", "genre": "Shooter", "players": "2"}
         p = hb.prompt_for(g, 4)
-        for s in ("Contra", "1988", "Konami", "Shooter", "16:9", "no text", "right third", "pixel-art illustration", "STYLE references only", "Image 4 is THIS game", "Image 6 is THIS game"): self.assertIn(s, p)
+        for s in ("Contra", "1988", "Konami", "Shooter", "16:9", "no text", "right third", "PIXEL ART", "STYLE MASTERS", "Image 7 is THIS game", "Image 9 is THIS game", "dithering"): self.assertIn(s, p)
         self.assertNotIn("navy sky with an orange sunset template", p)
     def test_style_references_are_the_three_approved_illustrations(self):
-        refs = hb.style_refs(); self.assertEqual([n for n, _ in refs], [f"style-{g}" for g in hb.STYLE_REF_IDS]); self.assertTrue(all(len(d) > 10000 for _, d in refs))
+        refs = hb.style_refs(); self.assertEqual([n for n, _ in refs], [f"style-{g}" for g in hb.STYLE_REF_IDS] + [f"style-crop-{g}" for g in hb.STYLE_REF_IDS]); self.assertTrue(all(len(d) > 10000 for _, d in refs))
+        import io; self.assertEqual(Image.open(io.BytesIO(refs[0][1])).size, (1672, 941)); self.assertEqual(Image.open(io.BytesIO(refs[3][1])).size, (384, 384))
+    def test_pixel_signature_separates_originals_from_smooth_results(self):
+        import os
+        o = os.path.join(hb.hero_art.OUT, "originals")
+        for g in hb.STYLE_REF_IDS:
+            v, r = hb.pixel_verdict(hb.pixel_signature(Image.open(os.path.join(o, f"{g}-owner-poc.png")))); self.assertEqual(v, "PIXEL-ART SIGNATURE MATCHES THE ORIGINALS", (g, r))
+        for tag in ("smoke1", "smoke2", "smoke3"):
+            p = os.path.join(o, f"959fdd32c71735d6-{tag}.png")
+            if os.path.exists(p): v, r = hb.pixel_verdict(hb.pixel_signature(Image.open(p))); self.assertEqual(v, "DOES NOT MATCH", (tag, r))
     def test_technical_check_accepts_a_detailed_scene(self): self.assertEqual(hb.technical_check(scene()), [])
     def test_technical_check_refuses_small_flat_bordered(self):
         self.assertTrue(any("too small" in x for x in hb.technical_check(scene(640, 360))))
@@ -55,7 +64,7 @@ class HeroBatchTests(unittest.TestCase):
         if not name: self.skipTest("no prepared batch")
         line = open(os.path.join(hb.BATCH_DIR, name, "requests.jsonl"), encoding="utf-8").readline(); r = json.loads(line)
         self.assertIn("key", r); parts = r["request"]["contents"][0]["parts"]; self.assertTrue(any("text" in p for p in parts)); self.assertTrue(any("inline_data" in p for p in parts))
-        self.assertEqual(r["request"]["generation_config"]["image_config"]["aspect_ratio"], "16:9")
+        self.assertEqual(r["request"]["generation_config"]["image_config"]["aspect_ratio"], "16:9"); self.assertEqual(sum(1 for p in parts if "inline_data" in p), 9)
         self.assertNotIn("GEMINI", line.upper().replace("GEMINI-3-PRO-IMAGE", ""))
 
 if __name__ == "__main__": unittest.main()
