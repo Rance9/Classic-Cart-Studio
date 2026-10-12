@@ -1,4 +1,4 @@
-name: Companion (build Windows installer and publish a release)
+name: Classic Cart Studio for Windows (build the installer and publish a release)
 
 on:
   push:
@@ -41,22 +41,22 @@ jobs:
         run: |
           dotnet build tools/desktop/ClassicCartStudio/ClassicCartStudio.csproj -c Release -nologo "-p:Version=$env:APP_VERSION"
           $out = "tools/desktop/ClassicCartStudio/bin/Release/net48"
-          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.Wpf.dll", "$out/WebView2Loader.dll" build/dist/NESClassicCollectionStudioCompanion/ -ErrorAction Stop
-          Get-ChildItem build/dist/NESClassicCollectionStudioCompanion/*.exe | ForEach-Object { "$($_.Name) $($_.Length)" }
+          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.Wpf.dll", "$out/WebView2Loader.dll" build/dist/ClassicCartStudioBackend/ -ErrorAction Stop
+          Get-ChildItem build/dist/ClassicCartStudioBackend/*.exe | ForEach-Object { "$($_.Name) $($_.Length)" }
       - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
         shell: pwsh
         run: |
           $env:NES_STUDIO_DATA = Join-Path $env:RUNNER_TEMP "ccs-selftest"
-          & build/dist/NESClassicCollectionStudioCompanion/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
+          & build/dist/ClassicCartStudioBackend/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
           if ($LASTEXITCODE -ne 0) { throw "desktop self-test failed" }
       - name: Copy the installer wizard images
         shell: pwsh
-        run: Copy-Item tools/publish/assets/wizard-*.bmp build/dist/NESClassicCollectionStudioCompanion/_internal/site/brand/public/
+        run: Copy-Item tools/publish/assets/wizard-*.bmp build/dist/ClassicCartStudioBackend/_internal/site/brand/public/
       - name: Build the installer (Inno Setup, per-user)
         shell: pwsh
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\NESClassicCollectionStudioCompanion" "/DOutDir=$PWD\build\release" tools\companion\installer.iss
+          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\ClassicCartStudioBackend" "/DOutDir=$PWD\build\release" tools\companion\installer.iss
       - name: Scan the release folder and the frozen tree (no game files, images or secrets may ship)
         run: |
           python tools/publish/scan_prohibited.py build/dist --allow "**/*.pyd" --allow "**/*.dll" --allow "**/*.exe" --allow "**/base_library.zip" --allow "**/*.exe.config"
@@ -72,7 +72,7 @@ jobs:
           Get-Content SHA256SUMS.txt
       - name: Smoke-test the frozen companion (starts, answers /api/version, stops)
         shell: pwsh
-        run: python tools/companion/test_frozen_smoke.py build/dist/NESClassicCollectionStudioCompanion/NESClassicCollectionStudioCompanion.exe
+        run: python tools/companion/test_frozen_smoke.py build/dist/ClassicCartStudioBackend/ClassicCartStudioBackend.exe
       - uses: actions/upload-artifact@v4
         with:
           name: installer

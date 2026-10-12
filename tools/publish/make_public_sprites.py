@@ -1,4 +1,4 @@
-"""Original pixel art for the PUBLIC build of NES Classic Collection Studio.
+"""Original pixel art for the PUBLIC build of Classic Cart Studio.
 
 Everything here is drawn for this project from the pixel maps below (no Nintendo characters, no console-firmware crops, no
 box art, no wordmark). The private development build keeps using the firmware crops that never leave this computer.
@@ -498,7 +498,7 @@ def main(out: str):
     for group, label in ((CHARS, "character"), (ITEMS, "item"), (ICONS, "icon")):
         for stem, (name, m) in group.items():
             im = draw(m); im.save(os.path.join(bd, stem + ".png")); index.append({"file": stem + ".png", "label": name, "w": im.width, "h": im.height, "kind": label})
-            prov.append({"slug": stem, "name": name, "kind": label, "origin": "Original pixel art drawn for NES Classic Collection Studio (this repository, tools/publish/make_public_sprites.py)", "license": "MIT (project license)"})
+            prov.append({"slug": stem, "name": name, "kind": label, "origin": "Original pixel art drawn for Classic Cart Studio (this repository, tools/publish/make_public_sprites.py)", "license": "MIT (project license)"})
     cf = console_face(); cf.save(os.path.join(bd, "nes-console-face.png")); index.append({"file": "nes-console-face.png", "label": "Generic console drawing", "w": cf.width, "h": cf.height, "kind": "hardware"})
     cf.crop((0, 60, cf.width, cf.height)).save(os.path.join(bd, "nes-console-face-lower.png"))
     app_icon(bd)

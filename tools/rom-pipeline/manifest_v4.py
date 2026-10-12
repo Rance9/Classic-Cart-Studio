@@ -1,4 +1,4 @@
-"""Collection manifest schema 4 (`nes-classic-collection/4`) — what NES Classic Collection Studio saves and loads.
+"""Collection manifest schema 4 (`nes-classic-collection/4`) — what Classic Cart Studio saves and loads.
 
 Compared with `nes-classic-selection/3` (which stays accepted everywhere with its documented semantics):
   * `selections` replace `games`: each carries the logical `title_id`, the exact `version_id` (= the payload-derived id that schema 3
@@ -22,7 +22,7 @@ ALL_SCHEMAS = SCHEMAS + (SCHEMA4,)
 EXCLUSIVE_SCHEMAS = (SCHEMAS[2], SCHEMA4)
 SOURCES = ("catalog", "extended", "personal")
 STATUSES = ("exact-match", "different-revision", "identity-only", "not-built-in")
-APP = "NES Classic Collection Studio"
+APP = "Classic Cart Studio"
 
 def is_exclusive(man: dict) -> bool: return man.get("schema") in EXCLUSIVE_SCHEMAS
 

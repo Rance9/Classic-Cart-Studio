@@ -1,6 +1,6 @@
 """Smoke test for the frozen companion executable: it starts (isolated data folder, test port), answers /api/version with the app id,
 serves the bundled site, refuses an untrusted origin, hands over to an existing instance, and stops cleanly. Exit 0 = PASS.
-  python test_frozen_smoke.py <path to NESClassicCollectionStudioCompanion.exe> [--port 8794]"""
+  python test_frozen_smoke.py <path to ClassicCartStudioBackend.exe> [--port 8794]"""
 from __future__ import annotations
 import os, sys, json, time, subprocess, tempfile, shutil, urllib.request, urllib.error, argparse
 
@@ -22,7 +22,7 @@ def main():
             try: urllib.request.urlopen(B + "/api/ping", timeout=1); up = True; break
             except Exception: time.sleep(0.25)
         ok("starts_and_listens", up)
-        s, h, b = get(B + "/api/version"); j = json.loads(b or b"{}"); ok("version_endpoint", s == 200 and j.get("app") == "nes-classic-collection-studio-companion" and j.get("frozen") is True and j.get("protocol") >= 1, b[:200].decode(errors="replace"))
+        s, h, b = get(B + "/api/version"); j = json.loads(b or b"{}"); ok("version_endpoint", s == 200 and j.get("app") == "classic-cart-studio-backend" and j.get("frozen") is True and j.get("protocol") >= 1, b[:200].decode(errors="replace"))
         s, h, b = get(B + "/nes-catalog.html"); ok("serves_bundled_site_with_approved_visuals", s == 200 and b"Classic Cart Studio" in b and b"brand/oem/nes-wordmark.png" in b and b.count(b'src="brand/oem/px-') >= 40, str(s))
         s, h, b = get(B + "/brand/public/as-seen-on-tv.png"); ok("serves_preview_badge_from_bundled_public_assets", s == 200 and b[:4] == b"\x89PNG", str(s))
         s, h, b = get(B + "/brand/oem/px-mario-walk-1.png"); ok("serves_hero_sprites", s == 200 and b[:4] == b"\x89PNG")

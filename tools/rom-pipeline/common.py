@@ -23,12 +23,21 @@ DB_PATH = os.path.join(WORK, "inventory.sqlite")
 REPORTS = os.path.join(PROJECT, "reports")
 INCOMING = os.path.join(PROJECT, "roms", "incoming")
 # ---- runtime roots: the packaged Windows companion reads catalog/builtin/library data from <app>\site and keeps user data under
-#      %LOCALAPPDATA%\NESClassicCollectionStudio; in the development checkout both are the project's reports\ folder ----
+#      %LOCALAPPDATA%\ClassicCartStudio (moved from the earlier NESClassicCollectionStudio folder on first start); in the development checkout both are the project's reports\ folder ----
 FROZEN = bool(getattr(sys, "frozen", False))
 APP_ROOT = os.path.dirname(sys.executable) if FROZEN else PROJECT
 BUNDLE = getattr(sys, "_MEIPASS", APP_ROOT)   # PyInstaller one-folder: bundled data lives in <app>\_internal
 SITE_ROOT = os.environ.get("NES_STUDIO_SITE") or (os.path.join(BUNDLE, "site") if FROZEN else REPORTS)
-DATA_ROOT = os.environ.get("NES_STUDIO_DATA") or (os.path.join(os.environ.get("LOCALAPPDATA") or APP_ROOT, "NESClassicCollectionStudio") if FROZEN else REPORTS)
+def _data_root():
+    env = os.environ.get("NES_STUDIO_DATA")
+    if env: return env
+    if not FROZEN: return REPORTS
+    la = os.environ.get("LOCALAPPDATA") or APP_ROOT; new, old = os.path.join(la, "ClassicCartStudio"), os.path.join(la, "NESClassicCollectionStudio")
+    if not os.path.isdir(new) and os.path.isdir(old):
+        try: os.rename(old, new)   # one-time move of the earlier releases' data folder (same volume: atomic, nothing copied)
+        except OSError: return old
+    return new
+DATA_ROOT = _data_root()
 DEV_MODE = os.path.exists(DB_PATH) and not FROZEN
 def site_path(*p): return os.path.join(SITE_ROOT, *p)
 def data_path(*p): return os.path.join(DATA_ROOT, *p)

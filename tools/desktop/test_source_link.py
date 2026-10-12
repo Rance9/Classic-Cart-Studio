@@ -12,8 +12,8 @@ from poc_run import Dev, port_listening
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--devtools", type=int, default=9361); a = ap.parse_args()
     checks = []; ok = lambda k, v, n="": checks.append(f"{k}={'true' if v else 'false'}{(' ('+str(n)+')') if n and not v else ''}")
-    app = os.path.join(os.environ["LOCALAPPDATA"], "Programs", "NESClassicCollectionStudio"); exe = os.path.join(app, "ClassicCartStudio.exe")
-    log = os.path.join(os.environ["LOCALAPPDATA"], "NESClassicCollectionStudio", "logs", "desktop.log")   # App.DataRoot keeps the original folder name
+    app = os.path.join(os.environ["LOCALAPPDATA"], "Programs", "ClassicCartStudio"); exe = os.path.join(app, "ClassicCartStudio.exe")
+    log = os.path.join(os.environ["LOCALAPPDATA"], "ClassicCartStudio", "logs", "desktop.log")   # App.DataRoot keeps the original folder name
     ok("installed_app_present", os.path.exists(exe)); ok("backend_port_free", not port_listening(8765))
     before = os.path.getsize(log) if os.path.exists(log) else 0
     proc = subprocess.Popen([exe, f"--devtools-port={a.devtools}"], cwd=app)

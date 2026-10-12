@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Classic Cart Studio for Windows: a WPF window (custom dark chrome) that shows the live website (https://classiccartstudio.com/)
-       in WebView2 and starts, supervises and stops the Python backend (NESClassicCollectionStudioCompanion.exe, headless).
+       in WebView2 and starts, supervises and stops the Python backend (ClassicCartStudioBackend.exe, headless).
        .NET Framework 4.8 is part of Windows 10/11, so nothing else has to be installed; the WebView2 runtime ships with Microsoft Edge. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -14,12 +14,12 @@
     <Platforms>x64</Platforms>
     <ApplicationIcon>..\..\publish\assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <FileVersion>$(Version)</FileVersion>
     <InformationalVersion>$(Version)</InformationalVersion>
     <Product>Classic Cart Studio</Product>
     <AssemblyTitle>Classic Cart Studio</AssemblyTitle>
-    <Company>Rance9</Company>
+    <Company>Classic Cart Studio Project - Rance9</Company>
     <Copyright>Classic Cart Studio project (independent; not affiliated with Nintendo)</Copyright>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>

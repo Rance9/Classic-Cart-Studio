@@ -18,4 +18,4 @@ labels: bug
 1.
 2.
 
-**Log** (companion: `%LOCALAPPDATA%\NESClassicCollectionStudio\logs\companion.log` — it contains no tokens; remove anything you consider private):
+**Log** (backend: `%LOCALAPPDATA%\ClassicCartStudio\logs\companion.log` — it contains no tokens; remove anything you consider private):

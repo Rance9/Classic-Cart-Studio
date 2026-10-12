@@ -16,7 +16,7 @@ namespace ClassicCartStudio
 {
     internal class Backend
     {
-        public const string CompanionExe = "NESClassicCollectionStudioCompanion.exe";   // stable technical name (upgrade compatibility)
+        public const string CompanionExe = "ClassicCartStudioBackend.exe";
         public readonly string Token;
         public int Port { get; private set; } = 8765;
         public Process Process { get; private set; }
@@ -92,7 +92,7 @@ namespace ClassicCartStudio
                 var req = (HttpWebRequest)WebRequest.Create(Base + "/api/version"); req.Timeout = 1500;
                 using (var resp = (HttpWebResponse)req.GetResponse()) using (var sr = new StreamReader(resp.GetResponseStream()))
                 {
-                    var body = sr.ReadToEnd(); var ours = body.Contains("\"nes-classic-collection-studio-companion\"");
+                    var body = sr.ReadToEnd(); var ours = body.Contains("\"classic-cart-studio-backend\"");
                     var m = Regex.Match(body, "\"version\"\\s*:\\s*\"([^\"]*)\""); return new KeyValuePair<bool, string>(ours, m.Success ? m.Groups[1].Value : "?");
                 }
             }

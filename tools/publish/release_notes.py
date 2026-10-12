@@ -24,7 +24,7 @@ def changelog_section(version: str) -> str:
 
 def notes(version: str, bi: dict) -> str:
     body = changelog_section(version) or "_No changelog section for this version._"
-    return f"""# NES Classic Collection Studio Companion {version}
+    return f"""# Classic Cart Studio for Windows {version}
 
 {body}
 
@@ -50,7 +50,7 @@ Get-FileHash -Algorithm SHA256 "$env:USERPROFILE\\Downloads\\{bi.get('installer'
 
 ## Install / upgrade / uninstall
 
-Per-user install under `%LOCALAPPDATA%\\Programs\\NESClassicCollectionStudio`; no administrator rights. Running a newer installer upgrades in place and keeps your data (`%LOCALAPPDATA%\\NESClassicCollectionStudio`). Uninstall from Windows Settings → Apps; your imported games, personal games and collections are kept.
+Per-user install under `%LOCALAPPDATA%\\Programs\\ClassicCartStudio`; no administrator rights. Running a newer installer upgrades in place and keeps your data (`%LOCALAPPDATA%\\ClassicCartStudio`; the earlier `NESClassicCollectionStudio` folder is moved there on first start). Uninstall from Windows Settings → Apps; your imported games, personal games and collections are kept.
 """
 
 def latest_release_json() -> dict:

@@ -37,12 +37,12 @@ The Windows application starts a small backend that listens only on your own com
 3. **Check it** (recommended): in PowerShell run
    `Get-FileHash -Algorithm SHA256 "$env:USERPROFILE\Downloads\ClassicCartStudio-Setup-<version>.exe"`
    and compare the result with `SHA256SUMS.txt` on the release (the website shows the same value with a Copy button).
-4. Run the installer. It installs for your user account only (no administrator rights), under `%LOCALAPPDATA%\Programs\NESClassicCollectionStudio`, and adds a Start-menu entry **Classic Cart Studio**.
+4. Run the installer. It installs for your user account only (no administrator rights), under `%LOCALAPPDATA%\Programs\ClassicCartStudio`, and adds a Start-menu entry **Classic Cart Studio**.
 5. Start Classic Cart Studio from the Start menu. It opens the Studio in its own window with the backend already connected. If you came from the website with Continue in Desktop App, the application shows the collection and asks before opening it.
 
 Classic Cart Studio needs the Microsoft Edge WebView2 runtime, which is part of Windows 10/11 with Microsoft Edge, and .NET Framework 4.8, which is part of Windows 10 (version 1903 and later) and Windows 11. An internet connection is needed to load the website inside the window; if the website cannot be reached the application shows a recovery screen and keeps your data.
 
-**Upgrading from the earlier "NES Classic Collection Studio Companion" releases (0.1.x)**: run the new installer; it replaces the program in the same folder and keeps your data (imported games, personal games, collections, Hakchi setup) in `%LOCALAPPDATA%\NESClassicCollectionStudio`. The Start-menu entry is now Classic Cart Studio. **Uninstalling**: Windows Settings → Apps. Your data folder stays until you delete it yourself.
+**Upgrading from an earlier release**: run the new installer; it replaces the program and keeps your data (imported games, personal games, collections, Hakchi setup) in `%LOCALAPPDATA%\ClassicCartStudio`. The Start-menu entry is now Classic Cart Studio. **Uninstalling**: Windows Settings → Apps. Your data folder stays until you delete it yourself.
 
 ### Why the installer is not signed
 
@@ -58,7 +58,7 @@ The Studio never downloads games and never ships them. It works with files **you
 
 ## Privacy
 
-The website stores your collection, favorites and settings in your browser only. The Windows application keeps its data in `%LOCALAPPDATA%\NESClassicCollectionStudio` on your PC (including the durable copy of your collection state and the WebView2 profile). Nothing is sent to any server by this project; the website and the application fetch only the website's own files and the public GitHub releases information. Details: [PRIVACY.md](PRIVACY.md).
+The website stores your collection, favorites and settings in your browser only. The Windows application keeps its data in `%LOCALAPPDATA%\ClassicCartStudio` on your PC (including the durable copy of your collection state and the WebView2 profile). Nothing is sent to any server by this project; the website and the application fetch only the website's own files and the public GitHub releases information. Details: [PRIVACY.md](PRIVACY.md).
 
 ## Development
 

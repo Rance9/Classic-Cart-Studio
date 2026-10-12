@@ -27,7 +27,7 @@ When you choose **Continue in Desktop App**, the website sends your current coll
 
 ## Classic Cart Studio for Windows
 
-**Stored on your PC** under `%LOCALAPPDATA%\NESClassicCollectionStudio` (the same folder the earlier companion used, so an upgrade keeps your data):
+**Stored on your PC** under `%LOCALAPPDATA%\ClassicCartStudio` (an upgrade keeps your data; the folder of earlier releases is moved there on first start):
 
 - `personal\`: copies of game files you import (managed copies of known versions and your personal games), their artwork, and `index.json` / `library-store.json` describing them. Your original files are never modified, moved or deleted.
 - `desktop-state.json` (and `.bak`): the application's durable copy of your collection, favorites, snapshots and display settings, written through the backend so it survives a WebView2 profile reset or an upgrade.
@@ -55,7 +55,7 @@ The "NES Classic · estimated game space" figure is a reference estimate derived
 
 ## Removal
 
-Uninstalling Classic Cart Studio (Windows Settings → Apps) removes the program and keeps the data folder above so your imported games and collections survive a reinstall; delete `%LOCALAPPDATA%\NESClassicCollectionStudio` yourself to remove them, including the application's browser profile. Clear the site's browser data to remove everything the website kept in your normal browser.
+Uninstalling Classic Cart Studio (Windows Settings → Apps) removes the program and keeps the data folder above so your imported games and collections survive a reinstall; delete `%LOCALAPPDATA%\ClassicCartStudio` yourself to remove them, including the application's browser profile. Clear the site's browser data to remove everything the website kept in your normal browser.
 
 ## Contact
 

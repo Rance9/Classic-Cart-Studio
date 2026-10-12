@@ -9,6 +9,6 @@ a = Analysis([os.path.join(HERE, "companion_app.py")], pathex=[HERE, os.path.joi
              binaries=[], datas=[(SITE, "site"), (os.path.join(HERE, "Read-HakchiSelection.ps1"), "."), (os.path.join(HERE, "Get-ProcessWindows.ps1"), "."), (os.path.join(HERE, "Close-Hakchi.ps1"), ".")],
              hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.ttk", "console_engine", "console_engine.worker", "console_engine.engine", "console_engine.plan", "console_engine.profiles", "console_engine.transport", "console_engine.journal", "console_engine.gate", "console_runs"], hookspath=[], runtime_hooks=[], excludes=["matplotlib", "numpy", "PIL", "pytest", "IPython"], noarchive=False)
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="NESClassicCollectionStudioCompanion", debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False,
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="ClassicCartStudioBackend", debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False,
           icon=ICON if os.path.exists(ICON) else None, version=os.path.join(HERE, "version_info.txt") if os.path.exists(os.path.join(HERE, "version_info.txt")) else None)
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="NESClassicCollectionStudioCompanion")
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="ClassicCartStudioBackend")

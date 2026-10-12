@@ -152,12 +152,12 @@ PAIR_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta
 .origin{display:inline-block;background:#111;border:1px solid #3a3c45;border-radius:8px;padding:6px 10px;font-family:Consolas,monospace;color:#fff;word-break:break-all}.row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 button{font:inherit;font-weight:600;padding:10px 18px;border-radius:9px;border:1px solid #3a3c45;background:#2a2b33;color:#fff;cursor:pointer}button.ok{background:#d4262c;border-color:#d4262c}button:disabled{opacity:.5;cursor:default}
 .code{font:700 34px/1 Consolas,monospace;letter-spacing:6px;background:#111;border-radius:10px;padding:14px;text-align:center;margin:12px 0}.small{font-size:13px;color:#9a9ba3}.bad{color:#ff8e8e}</style></head>
-<body><div class="card" id="card"><h1>Connect to this computer?</h1><p>The website <span class="origin" id="o"></span> is asking to use the NES Classic Collection Studio companion on this computer.</p>
+<body><div class="card" id="card"><h1>Connect to this computer?</h1><p>The website <span class="origin" id="o"></span> is asking to use the Classic Cart Studio backend on this computer.</p>
 <p class="small">If you allow it, that website can read your games list, prepare collections and open Hakchi on this computer until the companion is closed or you disconnect. Nothing is sent to the console. Only click Allow if you opened that website yourself.</p>
 <div class="row"><button class="ok" id="allow">Allow</button><button id="deny">Don't allow</button></div><p class="small" id="msg"></p></div>
 <script>(function(){ const q=new URLSearchParams(location.search); const origin=(q.get('origin')||'').replace(/\/$/,''); const ok=__ALLOWED__.includes(origin); const $=i=>document.getElementById(i); $('o').textContent=origin||'(no website named)';
  const tok=(document.querySelector('meta[name="nes-companion-token"]')||{}).content||'';
- if(!ok){ $('card').innerHTML='<h1>Not allowed</h1><p class="bad">The website <span class="origin">'+(origin||'(none)').replace(/[<>&]/g,'')+'</span> is not on the companion\'s list of trusted websites, so it cannot be connected.</p><p class="small">Only the official NES Classic Collection Studio website ('+__PUBLIC__+') and local development addresses can connect. You can close this window.</p>'; return; }
+ if(!ok){ $('card').innerHTML='<h1>Not allowed</h1><p class="bad">The website <span class="origin">'+(origin||'(none)').replace(/[<>&]/g,'')+'</span> is not on the companion\'s list of trusted websites, so it cannot be connected.</p><p class="small">Only the official Classic Cart Studio website ('+__PUBLIC__+') and local development addresses can connect. You can close this window.</p>'; return; }
  const say=(w,o)=>{ try{ if(window.opener&&!window.opener.closed) window.opener.postMessage(w,o); }catch(e){} };
  $('deny').onclick=()=>{ say({type:'nes-studio-pair',denied:true},origin); $('card').innerHTML='<h1>Not connected</h1><p>The website was not given access. You can close this window.</p>'; setTimeout(()=>window.close(),1200); };
  $('allow').onclick=async()=>{ $('allow').disabled=true; $('deny').disabled=true; let r; try{ r=await (await fetch('/api/pair/approve',{method:'POST',headers:{'Content-Type':'application/json','X-NES-Token':tok},body:JSON.stringify({origin})})).json(); }catch(e){ r={ok:false,error:String(e)}; }
@@ -583,7 +583,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--port", type=int, default=PORT); ap.add_argument("--no-browser", action="store_true"); a = ap.parse_args()
     with make_server(a.port) as srv:
         url = f"http://127.0.0.1:{a.port}/nes-catalog.html"
-        print(f"NES Classic Collection Studio companion {VERSION} (protocol {PROTOCOL}) listening on {url}  (loopback only; Ctrl+C to stop); trusted websites: {', '.join(sorted(ALLOWED))}")
+        print(f"Classic Cart Studio backend {VERSION} (protocol {PROTOCOL}) listening on {url}  (loopback only; Ctrl+C to stop); trusted websites: {', '.join(sorted(ALLOWED))}")
         st = hb.env_status(CFG); print(f"hakchi: {st['hakchi_path']} -> {'OK' if st['hakchi_found'] else st['hakchi_check']}; install={st['install']['state']}; console driver={st['driver']['state']} ({st['driver'].get('inf')}); running={st['hakchi_running']}; console connected={st['console_connected']}")
         if not a.no_browser: threading.Timer(0.8, lambda: webbrowser.open(url)).start()
         try: srv.serve_forever()

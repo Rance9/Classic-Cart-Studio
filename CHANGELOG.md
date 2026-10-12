@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2 — 2026-10-12
+
+- **The old name is gone.** Release titles, the installer, the program folder (`%LOCALAPPDATA%\Programs\ClassicCartStudio`), the backend executable (`ClassicCartStudioBackend.exe`), its version information, the data folder (`%LOCALAPPDATA%\ClassicCartStudio`, with the earlier folder moved there on first start; nothing is copied or lost) and the backend's own messages all say Classic Cart Studio. The previous program folder is removed by the installer. The `nesstudio://` link type and your saved collections are unchanged.
+- Welcome screen: clicking outside the box is the same as Just browse, and the title keeps its word spacing in every font.
+- **My Collection docks.** On screens 1000 px and wider the open panel is a column beside the page instead of a drawer over it: the page reflows to the remaining width (table columns and toolbar adapt as on a narrower screen), nothing is covered, the hero keeps the full width and the panel starts under the characters and their ground. Close works as before; narrower screens keep the drawer.
+- Windows Settings > Apps > Installed apps shows the publisher as "Classic Cart Studio Project - Rance9" (the same text is in the executables' version information).
+- **New application icon:** the drawn match of the NES Classic controller (gray body, dark panel, cross D-pad, SELECT and START pills, two red buttons) replaces the generic gamepad in the window title bar, the taskbar, the browser tab, the Start menu, the installer wizard and the top left of the website's hero.
+- The hero's console and controller are drawn from photographs of the real NES Classic Edition: POWER and RESET with the power light at the front left, the two numbered controller ports at the front right, no controller door.
+- Help & User Guide, second pass: filler figures removed, screenshots captured larger and shown full width when wide, every figure opens full size on click, and the console is shown in photographs (Wikimedia Commons, DemonDays64, CC BY 4.0, credited).
+
 ## 0.3.1 — 2026-10-11
 
 - **Console engine (simulation tier).** The backend can plan, preflight, rehearse and verify a collection against a simulated NES Classic through an isolated worker process; Install on NES Classic gains the steps Console State, Review Changes, Install, Verify and Complete, always marked SIMULATION. Installing on a physical console is disabled pending Gate G1 owner approval: the engine refuses at two boundaries, no USB, FEL or SSH transport exists in this build, and the Install button is shown disabled with that reason.

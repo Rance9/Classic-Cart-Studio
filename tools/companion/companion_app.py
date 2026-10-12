@@ -1,7 +1,7 @@
-"""NES Classic Collection Studio Companion — the Windows desktop entry point.
+"""Classic Cart Studio backend — the Windows entry point of the Python backend.
 
 A small status window plus the loopback server from nes_companion.py (same code as the development companion). It:
-  * creates the per-user data folder (%LOCALAPPDATA%\\NESClassicCollectionStudio) and a default companion.json on first run,
+  * creates the per-user data folder (%LOCALAPPDATA%\\ClassicCartStudio) and a default companion.json on first run,
   * starts the server on 127.0.0.1:8765 (refuses to start when another program holds the port; if the other program IS this
     companion, the new instance just hands over and exits — single instance),
   * shows status, the connected websites, and buttons to open the Studio on this computer or the public website,

@@ -9,11 +9,11 @@ def main(out: str):
     txt = f"""VSVersionInfo(
   ffi=FixedFileInfo(filevers={v}, prodvers={v}, mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
   kids=[StringFileInfo([StringTable('040904B0', [
-    StringStruct('CompanyName', 'NES Classic Collection Studio project (independent; not affiliated with Nintendo)'),
-    StringStruct('FileDescription', 'NES Classic Collection Studio Companion'),
+    StringStruct('CompanyName', 'Classic Cart Studio Project - Rance9'),
+    StringStruct('FileDescription', 'Classic Cart Studio backend'),
     StringStruct('FileVersion', '{vs}'), StringStruct('ProductVersion', '{VERSION}'),
-    StringStruct('InternalName', 'NESClassicCollectionStudioCompanion'), StringStruct('OriginalFilename', 'NESClassicCollectionStudioCompanion.exe'),
-    StringStruct('ProductName', 'NES Classic Collection Studio Companion'),
+    StringStruct('InternalName', 'ClassicCartStudioBackend'), StringStruct('OriginalFilename', 'ClassicCartStudioBackend.exe'),
+    StringStruct('ProductName', 'Classic Cart Studio'),
     StringStruct('LegalCopyright', 'MIT License. Not affiliated with Nintendo.')])]), VarFileInfo([VarStruct('Translation', [1033, 1200])])])
 """
     open(out, "w", encoding="utf-8").write(txt); print("wrote", out, VERSION)

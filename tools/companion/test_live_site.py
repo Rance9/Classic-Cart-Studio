@@ -69,10 +69,10 @@ def main():
         try:
             with urllib.request.urlopen(u, timeout=30) as r: return r.status, r.read(), dict(r.headers)
         except urllib.error.HTTPError as e: return e.code, b"", {}
-    s, b, h = get(a.url); ok("live_index_loads", s == 200 and b"NES Classic Collection Studio" in b and b"brand/oem/" in b and b"Filter &amp; Sort" in b and b"Help &amp; User Guide" in b, str(s))
+    s, b, h = get(a.url); ok("live_index_loads", s == 200 and b"Classic Cart Studio" in b and b"brand/oem/" in b and b"Filter &amp; Sort" in b and b"Help &amp; User Guide" in b, str(s))
     ok("live_robots_and_nojekyll_assets", get(a.url + "robots.txt")[0] == 200 and get(a.url + "brand/oem/icon-a.png")[0] == 200 and get(a.url + "brand/fonts/PressStart2P-Regular.ttf")[0] == 200)
     s, b, h = get(a.url + "release.json"); rel = json.loads(b or b"{}") if s == 200 else {}; ok("live_release_json", s == 200, str(s))
-    try: v = json.load(urllib.request.urlopen(B + "/api/version", timeout=3)); ok("companion_running", v.get("app") == "nes-classic-collection-studio-companion", str(v)[:100])
+    try: v = json.load(urllib.request.urlopen(B + "/api/version", timeout=3)); ok("companion_running", v.get("app") == "classic-cart-studio-backend", str(v)[:100])
     except Exception as e: ok("companion_running", False, str(e)[:80]); print("\n".join(checks)); print("RESULT: FAIL (companion not running)"); sys.exit(1)
     prof = os.path.join(work, "p1")
     o = cdp_run(a.url, prof, JS.replace("STEP", "'fresh'").replace("CODE", "''")); print("fresh:", json.dumps(o)[:800])

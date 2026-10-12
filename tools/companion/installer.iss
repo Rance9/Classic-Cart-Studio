@@ -1,21 +1,21 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.3.0 /DSourceDir=..\..\build\dist\NESClassicCollectionStudioCompanion /DOutDir=..\..\build\release installer.iss
+; Build: ISCC.exe /DAppVersion=0.3.2 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release installer.iss
 ; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe, the WebView2 assemblies and the wizard images, copied there by the release workflow.
 ; Stable technical identifiers are kept on purpose (upgrade compatibility with the earlier "companion" releases): AppId, the install
-; folder, the data folder %LOCALAPPDATA%\NESClassicCollectionStudio, the backend executable name and the nesstudio:// protocol.
+; folder, the nesstudio:// link type; the program folder, the backend executable and the data folder carry the product name since 0.3.2 (data moved on first start).
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
 #ifndef SourceDir
-  #define SourceDir "..\..\build\dist\NESClassicCollectionStudioCompanion"
+  #define SourceDir "..\..\build\dist\ClassicCartStudioBackend"
 #endif
 #ifndef OutDir
   #define OutDir "..\..\build\release"
 #endif
 #define AppName "Classic Cart Studio"
 #define AppExe "ClassicCartStudio.exe"
-#define BackendExe "NESClassicCollectionStudioCompanion.exe"
-#define AppPublisher "Classic Cart Studio project (independent; not affiliated with Nintendo)"
+#define BackendExe "ClassicCartStudioBackend.exe"
+#define AppPublisher "Classic Cart Studio Project - Rance9"
 #define AppURL "https://classiccartstudio.com/"
 #define RepoURL "https://github.com/Rance9/Classic-Cart-Studio"
 
@@ -28,7 +28,7 @@ AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#RepoURL}/issues
 AppUpdatesURL={#RepoURL}/releases
-DefaultDirName={localappdata}\Programs\NESClassicCollectionStudio
+DefaultDirName={localappdata}\Programs\ClassicCartStudio
 DisableDirPage=yes
 DefaultGroupName=Classic Cart Studio
 DisableProgramGroupPage=yes
@@ -53,7 +53,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 CloseApplications=yes
 RestartApplications=no
-UsePreviousAppDir=yes
+UsePreviousAppDir=no
 UsePreviousGroup=no
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription={#AppName} installer
@@ -98,14 +98,15 @@ Type: files; Name: "{userprograms}\NES Classic Collection Studio\Classic Cart St
 Type: files; Name: "{userprograms}\NES Classic Collection Studio\Classic Cart Studio website.url"
 Type: dirifempty; Name: "{userprograms}\NES Classic Collection Studio"
 Type: files; Name: "{autodesktop}\NES Classic Collection Studio Companion.lnk"
+Type: filesandordirs; Name: "{localappdata}\Programs\NESClassicCollectionStudio"
 
 [UninstallDelete]
-; program files only — the user's data (%LOCALAPPDATA%\NESClassicCollectionStudio: imported games, personal games, collections, logs) is kept on purpose
+; program files only — the user's data (%LOCALAPPDATA%\ClassicCartStudio: imported games, personal games, collections, logs) is kept on purpose
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
-    MsgBox('Classic Cart Studio was removed. Your imported games, personal games and collections were kept in ' + ExpandConstant('{localappdata}') + '\NESClassicCollectionStudio. Delete that folder yourself if you no longer want them.', mbInformation, MB_OK);
+    MsgBox('Classic Cart Studio was removed. Your imported games, personal games and collections were kept in ' + ExpandConstant('{localappdata}') + '\ClassicCartStudio. Delete that folder yourself if you no longer want them.', mbInformation, MB_OK);
 end;
