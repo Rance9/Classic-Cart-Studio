@@ -6,10 +6,11 @@ future console use directly:
   personal/art/folders/<folder_id>-src.<ext>    the file as chosen
   personal/art/folders/<folder_id>-cover.jpg    2:3 portrait, center crop, 480 x 720   (Browse tiles, shelves, cards)
   personal/art/folders/<folder_id>-wide.jpg     16:9 landscape, center crop, 810 x 447 (hero and landmark use)
-Nothing is written unless the chosen file validates; replacing existing artwork is the caller's explicit decision (the
-Windows UI asks first); removing artwork deletes only that folder's files. Without custom artwork the themes draw the
-collage of the folder's own game covers (the default fallback). Files are served by the companion under
-personal/art/… for the Studio's own origin only.
+Replacement is transactional: the complete new set (source copy + both derivatives) is written to staging names and
+re-verified first; only then are the previous files swapped out, one atomic replace per file. A failure at any point
+removes the staging files and leaves the previous artwork untouched. Removing artwork deletes only that folder's files.
+Without custom artwork the themes draw the collage of the folder's own game covers (the default fallback). Files are
+served by the companion under personal/art/… for the Studio's own origin only.
 """
 from __future__ import annotations
 import os, re, time
@@ -20,6 +21,7 @@ ALLOWED = {"png", "jpg", "jpeg", "webp", "bmp", "gif"}
 MAX_BYTES = 8 * 1024 * 1024
 MIN_SIDE = 160
 COVER = (480, 720); WIDE = (810, 447)
+STAGE = ".new"
 
 def _fid(folder_id: str) -> str:
     fid = re.sub(r"[^A-Za-z0-9_:-]", "", str(folder_id or ""))[:64].replace(":", "_")
@@ -46,15 +48,41 @@ def validate(path: str) -> tuple:
     if im.width < MIN_SIDE or im.height < MIN_SIDE: raise ValueError(f"the image is smaller than {MIN_SIDE} x {MIN_SIDE} pixels")
     return im, ("jpg" if ext == "jpeg" else ext)
 
+def _files(fid: str) -> list:
+    if not os.path.isdir(FOLDER_ART_DIR): return []
+    return [n for n in os.listdir(FOLDER_ART_DIR) if n.startswith(fid + "-") and n.split("-", 1)[1].split(".")[0] in ("src", "cover", "wide")]
+
+def _verify_jpeg(path: str, size):
+    from PIL import Image
+    with Image.open(path) as im:
+        im.verify()
+    with Image.open(path) as im:
+        if im.size != tuple(size): raise ValueError(f"derivative has the wrong size {im.size}")
+
 def set_art(folder_id: str, path: str) -> dict:
     fid = _fid(folder_id); im, ext = validate(path)
     os.makedirs(FOLDER_ART_DIR, exist_ok=True)
-    clear(fid, keep_dir=True)                       # the previous files go only after the new one validated
-    src = os.path.join(FOLDER_ART_DIR, f"{fid}-src.{ext}")
-    with open(path, "rb") as f, open(src + ".tmp", "wb") as g: g.write(f.read())
-    os.replace(src + ".tmp", src)
-    _crop_to(im, COVER).save(os.path.join(FOLDER_ART_DIR, f"{fid}-cover.jpg"), "JPEG", quality=90, optimize=True)
-    _crop_to(im, WIDE).save(os.path.join(FOLDER_ART_DIR, f"{fid}-wide.jpg"), "JPEG", quality=90, optimize=True)
+    src = os.path.join(FOLDER_ART_DIR, f"{fid}-src.{ext}"); cover = os.path.join(FOLDER_ART_DIR, f"{fid}-cover.jpg"); wide = os.path.join(FOLDER_ART_DIR, f"{fid}-wide.jpg")
+    staged = [src + STAGE, cover + STAGE, wide + STAGE]
+    try:
+        # 1. prepare the complete replacement set under staging names
+        with open(path, "rb") as f, open(src + STAGE, "wb") as g: g.write(f.read())
+        _crop_to(im, COVER).save(cover + STAGE, "JPEG", quality=90, optimize=True)
+        _crop_to(im, WIDE).save(wide + STAGE, "JPEG", quality=90, optimize=True)
+        # 2. verify every staged file re-opens with the expected size before anything existing is touched
+        _verify_jpeg(cover + STAGE, COVER); _verify_jpeg(wide + STAGE, WIDE)
+        if os.path.getsize(src + STAGE) != os.path.getsize(path): raise ValueError("the source copy is incomplete")
+    except Exception as e:
+        for p in staged:
+            try: os.remove(p)
+            except OSError: pass
+        raise ValueError(f"artwork could not be prepared; the previous artwork is unchanged ({e})")
+    # 3. swap: atomic replace per file; a source with another extension from the previous artwork goes last
+    old_src = [n for n in _files(fid) if n.startswith(fid + "-src.") and not n.endswith(STAGE) and n != os.path.basename(src)]
+    os.replace(cover + STAGE, cover); os.replace(wide + STAGE, wide); os.replace(src + STAGE, src)
+    for n in old_src:
+        try: os.remove(os.path.join(FOLDER_ART_DIR, n))
+        except OSError: pass
     return describe(fid, os.path.basename(path), (im.width, im.height))
 
 def describe(folder_id: str, source_name: str = "", size=None) -> dict:
@@ -65,11 +93,9 @@ def describe(folder_id: str, source_name: str = "", size=None) -> dict:
 
 def clear(folder_id: str, keep_dir: bool = False) -> dict:
     fid = _fid(folder_id); n = 0; failed = []
-    if os.path.isdir(FOLDER_ART_DIR):
-        for name in os.listdir(FOLDER_ART_DIR):
-            if name.startswith(fid + "-") and (name.split("-", 1)[1].split(".")[0] in ("src", "cover", "wide")):
-                try: os.remove(os.path.join(FOLDER_ART_DIR, name)); n += 1
-                except OSError as e: failed.append(f"{name}: {e}")
+    for name in _files(fid) + [p for p in (os.listdir(FOLDER_ART_DIR) if os.path.isdir(FOLDER_ART_DIR) else []) if p.startswith(fid + "-") and p.endswith(STAGE)]:
+        try: os.remove(os.path.join(FOLDER_ART_DIR, name)); n += 1
+        except OSError as e: failed.append(f"{name}: {e}")
     out = {"src": None, "wide": None, "provenance": "generated", "removed": n}
     if failed: out["failed"] = failed
     return out

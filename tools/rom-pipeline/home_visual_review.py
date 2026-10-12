@@ -75,7 +75,7 @@ class Browser:
             if r.get("id") == self.mid: return r
     def js(self, e):
         r = self.call("Runtime.evaluate", {"expression": e, "returnByValue": True, "awaitPromise": True}).get("result", {})
-        if "exceptionDetails" in r: self.errors.append("eval: " + str(r["exceptionDetails"].get("exception", {}).get("description", ""))[:300])
+        if "exceptionDetails" in r and "dataset.ready" not in e: self.errors.append("eval: " + str(r["exceptionDetails"].get("exception", {}).get("description", ""))[:300])
         return r.get("result", {}).get("value")
     def wait_images(self, secs=8.0):
         t0 = time.time()
@@ -104,7 +104,7 @@ ALL = "sel.clear(); DATA.games.forEach(g=>sel.add(g.game_id)); persist(); render
 FOLDERS = """(()=>{const m=TV.model; const ids=m.order.slice(); if(m.folders.length) return m.folders.length;
  const f1=homeFolderCreate(m,'Role-Playing Picks',null); ids.slice(0,6).forEach(id=>homeFolderAddGame(m,f1.id,id));
  const f2=homeFolderCreate(m,'Saturday Morning Cartoon Adventures and Licensed Tie-Ins',null); ids.slice(6,14).forEach(id=>homeFolderAddGame(m,f2.id,id));
- const f3=homeFolderCreate(m,'Two Player',f1.id); ids.slice(2,5).forEach(id=>homeFolderAddGame(m,f3.id,id));
+ const f3=homeFolderCreate(m,'Two Player',f1.id); ids.slice(2,5).forEach(id=>homeFolderAddGame(m,f3.id,id)); const g7=hmGame(m,ids[7]); if(g7&&g7.art&&g7.art.src) f2.art={src:g7.art.src,provenance:'custom'}; homeFolderCreate(m,'Empty Shelf',null);
  m.map_shortcuts=[f1.id,f2.id]; try{homeExtrasSave()}catch(e){} return m.folders.length; })()"""
 STAGE = "(()=>{const st=$('tvStage'); st.style.position='fixed'; st.style.left='0px'; st.style.top='0px'; st.style.width='1280px'; st.style.height='720px'; st.style.zIndex='99999'; homeFit($('tvHome'));})()"
 MEASURE = """(()=>{const sh=$('tvHome').shadowRoot; const h=sh.querySelector('.hm').getBoundingClientRect(); const R=el=>{const r=el.getBoundingClientRect(); return [Math.round(r.left-h.left),Math.round(r.top-h.top),Math.round(r.right-h.left),Math.round(r.bottom-h.top)];};
@@ -244,6 +244,12 @@ def capture_theme(b, theme, out, art):
     b.js("TV.S.section={type:'search'}; TV.S.zone='keyboard'; TV.S.overlay=null; TV.S.query='ma'; TV.S.keyRow=0; TV.S.keyCol=0; tvDraw()"); time.sleep(0.6); cap("14a-search-keyboard", "Search: six-column keyboard, live results for 'ma'")
     b.act(["up"], 0.4); cap("14b-search-suggest", "Search: suggestion zone focused"); b.act(["a"], 0.5); cap("14c-search-results", "Search: results zone")
     b.js("TV.S.section={type:'allgames'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=2; tvDraw()"); time.sleep(0.5); b.act(["select"], 0.6); cap("15-details", "Game Details (SELECT): real metadata, Play Game focused, original-controller legend"); b.act(["b"], 0.4)
+    b.js("TV.S.index=11; tvDraw()"); time.sleep(0.4); b.act(["select"], 0.6); cap("15b-details-other-game", "Game Details for another game (dynamic content)"); b.act(["b"], 0.4)
+    b.js("(()=>{const m=TV.model; const ids=homeListing(m,{section:{type:'allgames'}},null).ids; [1,4,7].forEach(i=>homeSetFavorite(m,ids[i],true)); [3,5,8,3].forEach((i,k)=>homeRecordLaunch(m,ids[i],Date.now()-k*3600000)); try{homeExtrasSave()}catch(e){} })()")
+    b.js("TV.S.section={type:'favorites'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=0; tvDraw()"); time.sleep(0.7); cap("21-favorites", "Favorites (three games marked): the theme's own listing presentation")
+    b.js("TV.S.section={type:'recent'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=0; tvDraw()"); time.sleep(0.7); cap("22-recent", "Recently Played after simulated launches (unique games, View All History near the top)")
+    b.js("TV.S.section={type:'settings'}; TV.S.zone='settings'; TV.S.overlay=null; TV.S.settingsIndex=0; tvDraw()"); time.sleep(0.6); cap("23-settings", "Settings (theme, reduced motion, hints, history, info) in the theme's panel language")
+    b.js("TV.S.section={type:'allgames'}; TV.S.zone='games'; TV.S.overlay=null; TV.S.index=0; tvDraw()"); time.sleep(0.4)
     if theme == "arcade-grid":
         b.js("TV.S.index=21; tvDraw()"); time.sleep(0.6); cap("16-theme-state", "Scrolled grid: the dominant card follows the selection into the second page")
     elif theme == "box-art-showcase":
@@ -300,7 +306,18 @@ def run(url, outdir):
     write_summary(outdir, results, hashes, errs)
     print("errors:", errs[:8] if errs else "none"); return results
 
+def sections_sheet(theme, out):
+    names = [("13-browse.png", "Browse"), ("14c-search-results.png", "Search results"), ("15-details.png", "Details"), ("15b-details-other-game.png", "Details (other game)"), ("21-favorites.png", "Favorites"), ("22-recent.png", "Recently Played"), ("23-settings.png", "Settings"), ("19-missing-artwork.png", "Missing artwork")]
+    tiles = [(n, l) for n, l in names if os.path.exists(os.path.join(out, n))]
+    if not tiles: return
+    tw, th = 640, 360; cols = 2; rows = (len(tiles) + 1) // 2; sheet = Image.new("RGB", (cols * (tw + 8), rows * (th + 30)), (12, 12, 14)); d = ImageDraw.Draw(sheet); f = font(16)
+    for k, (n, l) in enumerate(tiles):
+        im = Image.open(os.path.join(out, n)).convert("RGB").resize((tw, th), Image.LANCZOS); x = (k % cols) * (tw + 8); y = (k // cols) * (th + 30)
+        sheet.paste(im, (x, y + 26)); d.text((x + 4, y + 4), f"{TITLES[theme]} · {l}", fill=(255, 255, 255), font=f)
+    sheet.save(os.path.join(out, "09-sections-sheet.png"))
+
 def write_theme_review(theme, outdir, r, art, h):
+    sections_sheet(theme, os.path.join(outdir, theme))
     T = art["themes"][theme]; out = os.path.join(outdir, theme); L = [f"# {TITLES[theme]} — visual review packet", "", "Automated numbers below are diagnostics, not fidelity evidence: the static-region diff covers untouched scenery only; the dynamic areas (cards, boxes, hero, signs) are judged by eye from the screenshots.", "", f"Master: `{os.path.join(MASTER_DIR, T['master_file'])}` (SHA-256 `{h['sha256']}`, {h['size'][0]}x{h['size'][1]}, {'unchanged' if h['unchanged'] else 'MISMATCH'})", f"Registered 1280x720 master: `01-master.png` (from `{T['reference']}`)", "Runtime: `02-runtime.png` (= `10-default-fixture.png`), side-by-side `03-side-by-side.png`, overlay `04-overlay-50.png`, heat map `05-diff-heatmap.png`, static mask `06-static-mask.png`, strict static diff `07-static-diff.png`, layers `08-layer-diagnostic.png`", ""]
     a = r["analysis"]; L += ["## Static regions (strict pixel diff)", "", f"- {a['static_pct_excluding_moved_sprites']:.2f}% of static pixels differ by more than {DIFF_T} (any channel) after excluding sprite copies the renderer moves; {a['static_pct_strict']:.2f}% before; mean |d| {a['static_mean_abs_diff']:.2f}.", f"- Largest differing blobs (stage px boxes): {[b for _, b in a['blobs'][:4]]}", ""]
     L += ["## Region-by-region verdicts", "", "| Region | Kind | Verdict | Evidence |", "|---|---|---|---|"] + [f"| {v['region']} | {v['kind']} | **{v['verdict']}** | {v['evidence']} |" for v in a["verdicts"]] + [""]
