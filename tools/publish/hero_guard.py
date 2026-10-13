@@ -39,7 +39,7 @@ def prune_hero_dir(folder: str, approved: set) -> dict:
 
 def prune_private_art(art_folder: str):
     """remove request packs and batch work; Windows sometimes refuses to delete freshly emptied directories, so files go first and leftover empty folders are tolerated (nothing tracked)"""
-    for sub in ("hero-requests", "hero-batch"):
+    for sub in ("hero-requests", "hero-batch", "hero-experiments"):
         root = os.path.join(art_folder, sub)
         if not os.path.isdir(root): continue
         for dp, dn, fn in os.walk(root, topdown=False):
