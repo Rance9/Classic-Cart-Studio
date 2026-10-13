@@ -34,7 +34,7 @@ CAMPAIGN_MAX_REQUESTS = 36; CAMPAIGN_MAX_USD = 7.00
 # conservative = STANDARD tier (the Batch tier halves both): input $2.00 per 1M tokens, image output $120 per 1M tokens, a 2K image = 1120 tokens
 PRICE_IN_PER_TOKEN = 2.00 / 1e6; PRICE_OUT_IMAGE = 1120 * 120.00 / 1e6
 TOKENS_PER_REF_IMAGE = 774          # measured: one 1024 px reference image cost 774 prompt tokens in smoke1 (three refs = 2322 in smoke4 at larger sizes); the estimate uses 1000 per image
-EST_TOKENS_PER_IMAGE = 1000; EST_TOKENS_TEXT = 900
+EST_TOKENS_PER_IMAGE = 1000; EST_TOKENS_TEXT = 900; EST_TOKENS_OUT = 1400   # wave 1 measured: ~1290-1380 output tokens per request (image + a little text), 643-1805 input
 
 ORIG = {g: os.path.join(hero_art.OUT, "originals", f"{g}-owner-poc.png") for g in hb.STYLE_REF_IDS}
 NAMES = {"8e844d77da01f86a": "10-Yard Fight", "9f54aafa367247b9": "1943", "ec0d4ebf6d2fcecd": "The Legend of Zelda"}
@@ -51,6 +51,7 @@ LANG = {
     "pixel-painted": "Render it as a rich cinematic illustration with fine pixel-painted textures, in the same finish as the style reference illustration(s).",
     "hires-pixel": "Render it as an intricately rendered high-resolution pixel-art illustration, in the same finish as the style reference illustration(s).",
     "painterly-raster": "Render it as a painterly raster illustration matching the actual visual finish of the style reference illustration(s): their texture, light, color depth and detail.",
+    "detail-dense": "Also raise the fine detail density everywhere to the level of the style reference illustration(s): individual grass blades and small flowers, leaf and bark texture, weathering and cracks on pipes and stone, clouds with volume and lit edges, small distant elements (birds, ships, towers, windows), subtle highlights and cast shadows, so the image rewards close viewing. Keep every character, position, shape and color exactly as it is.",
 }
 EDIT = ("Keep this image's scene, characters, composition, framing and colors exactly as they are. Change only the artistic rendering: re-render the whole "
         "image in the visual finish of the style reference illustration(s) that follow it: the same fine, dense, richly detailed texture, lighting, shading "
@@ -99,7 +100,7 @@ def save(c):
 
 def estimate_request(n_images: int, text_chars: int) -> float:
     tokens_in = n_images * EST_TOKENS_PER_IMAGE + max(EST_TOKENS_TEXT, text_chars // 4)
-    return round(tokens_in * PRICE_IN_PER_TOKEN + PRICE_OUT_IMAGE, 4)
+    return round(tokens_in * PRICE_IN_PER_TOKEN + EST_TOKENS_OUT * 120.00 / 1e6, 4)
 
 def cmd_plan(a):
     c = load(); exps = json.load(open(a.from_json, encoding="utf-8")) if getattr(a, "from_json", None) else wave_plan(a.wave, c)
@@ -109,16 +110,22 @@ def cmd_plan(a):
     c["waves"][str(a.wave)] = {"ids": [e["id"] for e in exps], "state": "planned", "job": None}; save(c); print(f"wave {a.wave}: {len(exps)} experiments planned ->", CAMPAIGN)
 
 def build_prompt(e):
-    styles_n = len(e["styles"]) + (len(e["styles"]) if e["crops"] else 0)
+    ns = len(e["styles"])
     if e["method"] == "edit":
-        head = f"The first image is the picture to re-render. The next {styles_n} image(s) are STYLE reference illustration(s) (other games): they define the visual finish only, not the content."
-        return f"{head}\n\n{EDIT}"
-    head = f"The first {styles_n} image(s) are STYLE reference illustration(s) for other games: they define the visual finish only (texture, light, depth, overall look); do not reuse their subjects or compositions. {IDENTITY}"
+        head = f"The first image is the picture to re-render. The next {ns} image(s) are STYLE reference illustration(s) (other games): they define the visual finish only, not the content."
+        if e["crops"]: head += f" The {ns} image(s) after those are close-up crops of the same reference illustrations at full size, showing the fine texture and grain of their finish up close; the re-rendered image must show that grain when viewed up close."
+        tail = "" if e["lang"] == "neutral" else "\n\n" + LANG[e["lang"]]
+        return f"{head}\n\n{EDIT}{tail}"
+    head = f"The first {ns} image(s) are STYLE reference illustration(s) for other games: they define the visual finish only (texture, light, depth, overall look); do not reuse their subjects or compositions."
+    if e["crops"]: head += f" The {ns} image(s) after those are close-up crops of the same reference illustrations at full size, showing the fine texture and grain of their finish up close; the new image must show that grain when viewed up close."
+    head += " " + IDENTITY
     return f"{head}\n\n{SCENE}\n\n{LANG[e['lang']]}"
 
 def build_parts(e, by):
     refs = []
-    if e["method"] == "edit": refs.append(("source-smoke3", hb.native_png(e["source"])))
+    if e["method"] == "edit":
+        src = e["source"]; label = "source-" + (os.path.basename(os.path.dirname(src)) if os.path.basename(src) == "result.png" else os.path.splitext(os.path.basename(src))[0].split("-")[-1])
+        refs.append((label, hb.native_png(src)))
     for gid in e["styles"]: refs.append(style_part(gid))
     if e["crops"]:
         for gid in e["styles"]: refs.append(style_part(gid, crop=True))
@@ -208,7 +215,11 @@ def cmd_fetch(a):
         os.environ["HERO_PROVENANCE"] = f"generated:{MODEL}:experiment:{key}"; os.environ["HERO_PROMPT_VERSION"] = "campaign-v1:" + e["variant"]
         hero_art.import_one(GAME, raw, cat, by, tag=key); e["status"] = "candidate"; e["candidate_tag"] = key; good += 1
     json.dump(cat, open(os.path.join(REPORTS, "catalog.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    w["state"] = "fetched"; w["good"] = good; w["bad"] = bad; save(c); print(f"wave {a.wave}: {good} candidates, {bad} failed"); cmd_review(argparse.Namespace())
+    # actual usage priced at STANDARD rates replaces the estimate for this wave when it is higher (the ceiling never relaxes)
+    actual = sum(((e.get("usage") or {}).get("promptTokenCount", 0) * PRICE_IN_PER_TOKEN + (e.get("usage") or {}).get("candidatesTokenCount", 0) * 120.00 / 1e6) for e in c["experiments"].values() if e.get("wave") == a.wave)
+    w["actual_usd_standard"] = round(actual, 3); w["actual_usd_batch"] = round(actual / 2, 3)
+    if actual > w.get("est_usd", 0): c["estimated_usd"] = round(c["estimated_usd"] - w.get("est_usd", 0) + actual, 2); w["est_usd"] = round(actual, 2)
+    w["state"] = "fetched"; w["good"] = good; w["bad"] = bad; save(c); print(f"wave {a.wave}: {good} candidates, {bad} failed; actual ${actual:.2f} at standard prices (${actual/2:.2f} batch); campaign ${c['estimated_usd']:.2f}/${CAMPAIGN_MAX_USD:.2f}"); cmd_review(argparse.Namespace())
 
 def cmd_review(a):
     c = load(); rdir = os.path.join(DIR, "review"); os.makedirs(rdir, exist_ok=True); f = ImageFont.truetype("C:/Windows/Fonts/consola.ttf", 18); fs = ImageFont.truetype("C:/Windows/Fonts/consola.ttf", 14)

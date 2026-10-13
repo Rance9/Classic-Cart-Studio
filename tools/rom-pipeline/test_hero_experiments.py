@@ -15,14 +15,15 @@ class CampaignTests(unittest.TestCase):
     def test_01_plan_build_validate_wave1(self):
         hx.cmd_plan(argparse.Namespace(wave=1, from_json=None)); c = hx.load(); self.assertEqual(len(c["experiments"]), 12); self.assertEqual(len(set(c["experiments"])), 12)
         hx.cmd_build(argparse.Namespace(wave=1)); self.assertEqual(hx.cmd_validate(argparse.Namespace(wave=1)), 0)
-        c = hx.load(); w = c["waves"]["1"]; self.assertEqual(w["requests"], 12); self.assertLess(w["est_usd"], 2.0); self.assertGreater(w["est_usd"], 1.0)
+        c = hx.load(); w = c["waves"]["1"]; self.assertEqual(w["requests"], 12); self.assertLess(w["est_usd"], 2.6); self.assertGreater(w["est_usd"], 1.2)   # 12 requests at the conservative standard-tier estimate (~$0.18 each)
         lines = [json.loads(l) for l in open(os.path.join(self.tmp, "waves", "1", "requests.jsonl"), encoding="utf-8") if l.strip()]
         self.assertEqual([l["key"] for l in lines], w["ids"])
         e = c["experiments"]["w1-D1a"]; self.assertEqual(e["method"], "edit"); self.assertEqual(e["refs"][0], "source-smoke3"); self.assertEqual(len(e["refs"]), 4)
         e = c["experiments"]["w1-A1a"]; self.assertEqual(e["refs"], ["style-The Legend of Zelda", "identity-cover", "identity-title", "identity-gameplay"])
         for l in lines:
             t = l["request"]["contents"][0]["parts"][0]["text"].lower(); self.assertNotIn("1 to 3", t); self.assertNotIn("dither", t)
-            self.assertNotIn("use checker", t); self.assertNotIn("with checker", t); self.assertIn("no ground strip or checkerboard band", t)   # the only mention is a prohibition
+            self.assertNotIn("use checker", t); self.assertNotIn("with checker", t)
+            if "picture to re-render" not in t: self.assertIn("no ground strip or checkerboard band", t)   # generation prompts: the only mention is a prohibition; edit prompts keep the source scene
         self.assertFalse(any((os.environ.get("GEMINI_API_KEY") or "NOKEY") in l for l in open(os.path.join(self.tmp, "waves", "1", "requests.jsonl"), encoding="utf-8")))
     def test_02_ids_never_reused(self):
         with self.assertRaises(SystemExit): hx.cmd_plan(argparse.Namespace(wave=1, from_json=None))
