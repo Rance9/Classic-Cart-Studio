@@ -1,0 +1,2978 @@
+{
+ "schema": "ccs-home-art/2",
+ "stage": [
+  1280,
+  720
+ ],
+ "master_size": [
+  1672,
+  941
+ ],
+ "scale": [
+  0.7655502392344498,
+  0.7651434643995749
+ ],
+ "method": "lossless scaled scene with only the dynamic regions inpainted; authored frames, plates, icons and markers cut as sprites; geometry measured on the masters",
+ "themes": {
+  "featured-shelf": {
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_16 PM-1.png",
+   "master_sha256": "7681fc9b8b7fe890bd80ddd80eb3396b982946ff61a4683e2510afcda0767ae2",
+   "scene": "scene-featured-shelf.png",
+   "scene_bytes": 474616,
+   "reference": "ref-featured-shelf.png",
+   "regions": [
+    {
+     "name": "clock, date, status icons",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1515,
+      14,
+      1650,
+      100
+     ],
+     "box_stage": [
+      1160,
+      11,
+      1263,
+      77
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "sidebar items (plate kept as sprite)",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      40,
+      150,
+      310,
+      420
+     ],
+     "box_stage": [
+      31,
+      115,
+      237,
+      321
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "hero scene",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      330,
+      128,
+      1140,
+      575
+     ],
+     "box_stage": [
+      253,
+      98,
+      873,
+      440
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "featured title, metadata, text",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1175,
+      135,
+      1615,
+      495
+     ],
+     "box_stage": [
+      900,
+      103,
+      1236,
+      379
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 0 and focus frame with its glow (frame kept as sprite)",
+     "sample_master": [
+      606,
+      620,
+      616,
+      790
+     ],
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      274,
+      586,
+      456,
+      824
+     ],
+     "box_stage": [
+      210,
+      448,
+      349,
+      630
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 1",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      456,
+      603,
+      606,
+      808
+     ],
+     "box_stage": [
+      349,
+      461,
+      464,
+      618
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 2",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      616,
+      603,
+      766,
+      808
+     ],
+     "box_stage": [
+      472,
+      461,
+      586,
+      618
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 3",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      780,
+      603,
+      930,
+      808
+     ],
+     "box_stage": [
+      597,
+      461,
+      712,
+      618
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 4",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      938,
+      603,
+      1088,
+      808
+     ],
+     "box_stage": [
+      718,
+      461,
+      833,
+      618
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 5",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1098,
+      603,
+      1248,
+      808
+     ],
+     "box_stage": [
+      841,
+      461,
+      955,
+      618
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 6",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1260,
+      603,
+      1410,
+      808
+     ],
+     "box_stage": [
+      965,
+      461,
+      1079,
+      618
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 7",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1420,
+      603,
+      1570,
+      808
+     ],
+     "box_stage": [
+      1087,
+      461,
+      1202,
+      618
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "legend",
+     "sample_master": null,
+     "kind": "LEGEND CORRECTION",
+     "box_master": [
+      440,
+      876,
+      1100,
+      918
+     ],
+     "box_stage": [
+      337,
+      670,
+      842,
+      702
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "everything else: brand, lamp, characters, ground, mountains, moons, shelf trim, arrows",
+     "sample_master": null,
+     "kind": "STATIC PRESERVE",
+     "box_master": [
+      0,
+      0,
+      1672,
+      941
+     ],
+     "box_stage": [
+      0,
+      0,
+      1280,
+      720
+     ],
+     "method": null
+    }
+   ],
+   "sprites": {
+    "side-active": {
+     "file": "sprite-featured-shelf-side-active.png",
+     "box_master": [
+      24,
+      146,
+      310,
+      214
+     ],
+     "box_stage": [
+      18,
+      112,
+      237,
+      164
+     ],
+     "hole_stage": null
+    },
+    "icon-home": {
+     "file": "sprite-featured-shelf-icon-home.png",
+     "box_master": [
+      58,
+      158,
+      104,
+      204
+     ],
+     "box_stage": [
+      44,
+      121,
+      80,
+      156
+     ],
+     "hole_stage": null
+    },
+    "icon-star": {
+     "file": "sprite-featured-shelf-icon-star.png",
+     "box_master": [
+      58,
+      228,
+      104,
+      274
+     ],
+     "box_stage": [
+      44,
+      174,
+      80,
+      210
+     ],
+     "hole_stage": null
+    },
+    "icon-folder": {
+     "file": "sprite-featured-shelf-icon-folder.png",
+     "box_master": [
+      58,
+      296,
+      104,
+      342
+     ],
+     "box_stage": [
+      44,
+      226,
+      80,
+      262
+     ],
+     "hole_stage": null
+    },
+    "icon-gear": {
+     "file": "sprite-featured-shelf-icon-gear.png",
+     "box_master": [
+      58,
+      364,
+      104,
+      410
+     ],
+     "box_stage": [
+      44,
+      279,
+      80,
+      314
+     ],
+     "hole_stage": null
+    },
+    "hero-frame": {
+     "file": "sprite-featured-shelf-hero-frame.png",
+     "box_master": [
+      318,
+      118,
+      1150,
+      582
+     ],
+     "box_stage": [
+      243,
+      90,
+      880,
+      445
+     ],
+     "hole_stage": [
+      253,
+      98,
+      873,
+      440
+     ]
+    },
+    "shelf-focus": {
+     "file": "sprite-featured-shelf-shelf-focus.png",
+     "box_master": [
+      286,
+      598,
+      448,
+      812
+     ],
+     "box_stage": [
+      219,
+      458,
+      343,
+      621
+     ],
+     "hole_stage": [
+      227,
+      465,
+      335,
+      614
+     ]
+    },
+    "badge-a": {
+     "file": "sprite-featured-shelf-badge-a.png",
+     "box_master": [
+      488,
+      880,
+      524,
+      916
+     ],
+     "box_stage": [
+      374,
+      673,
+      401,
+      701
+     ],
+     "hole_stage": null
+    },
+    "badge-x": {
+     "file": "sprite-featured-shelf-badge-x.png",
+     "box_master": [
+      628,
+      880,
+      664,
+      916
+     ],
+     "box_stage": [
+      481,
+      673,
+      508,
+      701
+     ],
+     "hole_stage": null
+    },
+    "arrow-l": {
+     "file": "sprite-featured-shelf-arrow-l.png",
+     "box_master": [
+      238,
+      688,
+      274,
+      724
+     ],
+     "box_stage": [
+      182,
+      526,
+      210,
+      554
+     ],
+     "hole_stage": null
+    },
+    "arrow-r": {
+     "file": "sprite-featured-shelf-arrow-r.png",
+     "box_master": [
+      1575,
+      688,
+      1611,
+      724
+     ],
+     "box_stage": [
+      1206,
+      526,
+      1233,
+      554
+     ],
+     "hole_stage": null
+    }
+   },
+   "geometry": {
+    "brand": [
+     119,
+     15,
+     482,
+     50
+    ],
+    "clock": [
+     1160,
+     11,
+     1263,
+     50
+    ],
+    "side": {
+     "plate": [
+      18,
+      112,
+      237,
+      164
+     ],
+     "pitch": 52,
+     "icon_x": 44,
+     "text_x": 100,
+     "first_y": 112
+    },
+    "hero": {
+     "frame": [
+      243,
+      90,
+      880,
+      445
+     ],
+     "inner": [
+      253,
+      98,
+      873,
+      440
+     ]
+    },
+    "info": {
+     "label": [
+      903,
+      106,
+      1225,
+      121
+     ],
+     "title": [
+      903,
+      124,
+      1233,
+      162
+     ],
+     "rows": [
+      [
+       903,
+       181,
+       1217,
+       204
+      ],
+      [
+       903,
+       211,
+       1217,
+       234
+      ],
+      [
+       903,
+       242,
+       1217,
+       265
+      ]
+     ],
+     "text": [
+      903,
+      285,
+      1234,
+      376
+     ],
+     "icon_x": 903,
+     "value_right": 1216
+    },
+    "shelf": {
+     "cells": [
+      [
+       228,
+       468,
+       334,
+       613
+      ],
+      [
+       354,
+       468,
+       459,
+       613
+      ],
+      [
+       476,
+       468,
+       582,
+       613
+      ],
+      [
+       602,
+       468,
+       707,
+       613
+      ],
+      [
+       723,
+       468,
+       828,
+       613
+      ],
+      [
+       845,
+       468,
+       951,
+       613
+      ],
+      [
+       969,
+       468,
+       1075,
+       613
+      ],
+      [
+       1092,
+       468,
+       1197,
+       613
+      ]
+     ],
+     "focus": [
+      219,
+      458,
+      343,
+      621
+     ],
+     "pitch": 124
+    },
+    "arrow_l": [
+     182,
+     526,
+     210,
+     554
+    ],
+    "arrow_r": [
+     1206,
+     526,
+     1233,
+     554
+    ],
+    "legend": [
+     230,
+     670,
+     1056,
+     702
+    ]
+   }
+  },
+  "arcade-grid": {
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_17 PM-2.png",
+   "master_sha256": "a94a6866a6167f35e1255d4ba7987b8b864faf94c9844cb7386418453c6c1be9",
+   "scene": "scene-arcade-grid.png",
+   "scene_bytes": 544222,
+   "reference": "ref-arcade-grid.png",
+   "regions": [
+    {
+     "name": "clock",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1535,
+      18,
+      1655,
+      50
+     ],
+     "box_stage": [
+      1175,
+      14,
+      1267,
+      38
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "tab bar labels, icons and the active plate (plate kept as sprite)",
+     "sample_master": [
+      1440,
+      72,
+      1476,
+      114
+     ],
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      412,
+      64,
+      1480,
+      118
+     ],
+     "box_stage": [
+      315,
+      49,
+      1133,
+      90
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "stats panel contents",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      40,
+      155,
+      300,
+      395
+     ],
+     "box_stage": [
+      31,
+      119,
+      230,
+      302
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "selected card and frame (frame kept as sprite)",
+     "sample_master": [
+      725,
+      364,
+      1600,
+      371
+     ],
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      322,
+      132,
+      716,
+      600
+     ],
+     "box_stage": [
+      247,
+      101,
+      548,
+      459
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r0c0",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      725,
+      150,
+      891,
+      362
+     ],
+     "box_stage": [
+      555,
+      115,
+      682,
+      277
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r0c1",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      905,
+      150,
+      1071,
+      362
+     ],
+     "box_stage": [
+      693,
+      115,
+      820,
+      277
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r0c2",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1085,
+      150,
+      1251,
+      362
+     ],
+     "box_stage": [
+      831,
+      115,
+      958,
+      277
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r0c3",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1265,
+      150,
+      1431,
+      362
+     ],
+     "box_stage": [
+      968,
+      115,
+      1096,
+      277
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r0c4",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1445,
+      150,
+      1611,
+      362
+     ],
+     "box_stage": [
+      1106,
+      115,
+      1233,
+      277
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r1c0",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      725,
+      375,
+      891,
+      587
+     ],
+     "box_stage": [
+      555,
+      287,
+      682,
+      449
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r1c1",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      905,
+      375,
+      1071,
+      587
+     ],
+     "box_stage": [
+      693,
+      287,
+      820,
+      449
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r1c2",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1085,
+      375,
+      1251,
+      587
+     ],
+     "box_stage": [
+      831,
+      287,
+      958,
+      449
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r1c3",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1265,
+      375,
+      1431,
+      587
+     ],
+     "box_stage": [
+      968,
+      287,
+      1096,
+      449
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r1c4",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1445,
+      375,
+      1611,
+      587
+     ],
+     "box_stage": [
+      1106,
+      287,
+      1233,
+      449
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r2c0",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      342,
+      600,
+      508,
+      794
+     ],
+     "box_stage": [
+      262,
+      459,
+      389,
+      608
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r2c1",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      540,
+      600,
+      706,
+      794
+     ],
+     "box_stage": [
+      413,
+      459,
+      540,
+      608
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r2c2",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      725,
+      600,
+      891,
+      794
+     ],
+     "box_stage": [
+      555,
+      459,
+      682,
+      608
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r2c3",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      905,
+      600,
+      1071,
+      794
+     ],
+     "box_stage": [
+      693,
+      459,
+      820,
+      608
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r2c4",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1085,
+      600,
+      1251,
+      794
+     ],
+     "box_stage": [
+      831,
+      459,
+      958,
+      608
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "small cover r2c5",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1265,
+      600,
+      1431,
+      794
+     ],
+     "box_stage": [
+      968,
+      459,
+      1096,
+      608
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "legend bar contents",
+     "sample_master": [
+      1010,
+      856,
+      1440,
+      910
+     ],
+     "kind": "LEGEND CORRECTION",
+     "box_master": [
+      40,
+      856,
+      1640,
+      910
+     ],
+     "box_stage": [
+      31,
+      655,
+      1256,
+      696
+     ],
+     "method": "rows"
+    },
+    {
+     "name": "everything else: sky, islands, castle, waterfall, ground, brand, bar plates",
+     "sample_master": null,
+     "kind": "STATIC PRESERVE",
+     "box_master": [
+      0,
+      0,
+      1672,
+      941
+     ],
+     "box_stage": [
+      0,
+      0,
+      1280,
+      720
+     ],
+     "method": null
+    }
+   ],
+   "sprites": {
+    "card-frame": {
+     "file": "sprite-arcade-grid-card-frame.png",
+     "box_master": [
+      322,
+      132,
+      716,
+      600
+     ],
+     "box_stage": [
+      247,
+      101,
+      548,
+      459
+     ],
+     "hole_stage": [
+      259,
+      113,
+      537,
+      454
+     ]
+    },
+    "tab-active": {
+     "file": "sprite-arcade-grid-tab-active.png",
+     "box_master": [
+      412,
+      64,
+      618,
+      120
+     ],
+     "box_stage": [
+      315,
+      49,
+      473,
+      92
+     ],
+     "hole_stage": null
+    },
+    "tab-bar": {
+     "file": "sprite-arcade-grid-tab-bar.png",
+     "box_master": [
+      408,
+      60,
+      1492,
+      124
+     ],
+     "box_stage": [
+      312,
+      46,
+      1142,
+      95
+     ],
+     "hole_stage": [
+      326,
+      54,
+      1131,
+      89
+     ]
+    },
+    "icon-games": {
+     "file": "sprite-arcade-grid-icon-games.png",
+     "box_master": [
+      436,
+      76,
+      472,
+      108
+     ],
+     "box_stage": [
+      334,
+      58,
+      361,
+      83
+     ],
+     "hole_stage": null
+    },
+    "icon-builtin": {
+     "file": "sprite-arcade-grid-icon-builtin.png",
+     "box_master": [
+      655,
+      76,
+      700,
+      108
+     ],
+     "box_stage": [
+      501,
+      58,
+      536,
+      83
+     ],
+     "hole_stage": null
+    },
+    "icon-star": {
+     "file": "sprite-arcade-grid-icon-star.png",
+     "box_master": [
+      858,
+      76,
+      898,
+      108
+     ],
+     "box_stage": [
+      657,
+      58,
+      687,
+      83
+     ],
+     "hole_stage": null
+    },
+    "icon-folder": {
+     "file": "sprite-arcade-grid-icon-folder.png",
+     "box_master": [
+      1080,
+      76,
+      1120,
+      108
+     ],
+     "box_stage": [
+      827,
+      58,
+      857,
+      83
+     ],
+     "hole_stage": null
+    },
+    "icon-clock": {
+     "file": "sprite-arcade-grid-icon-clock.png",
+     "box_master": [
+      1303,
+      76,
+      1343,
+      108
+     ],
+     "box_stage": [
+      998,
+      58,
+      1028,
+      83
+     ],
+     "hole_stage": null
+    },
+    "icon-gear": {
+     "file": "sprite-arcade-grid-icon-gear.png",
+     "box_master": [
+      1472,
+      862,
+      1512,
+      902
+     ],
+     "box_stage": [
+      1127,
+      660,
+      1158,
+      690
+     ],
+     "hole_stage": null
+    },
+    "badge-a": {
+     "file": "sprite-arcade-grid-badge-a.png",
+     "box_master": [
+      58,
+      862,
+      100,
+      902
+     ],
+     "box_stage": [
+      44,
+      660,
+      77,
+      690
+     ],
+     "hole_stage": null
+    },
+    "badge-x": {
+     "file": "sprite-arcade-grid-badge-x.png",
+     "box_master": [
+      236,
+      862,
+      278,
+      902
+     ],
+     "box_stage": [
+      181,
+      660,
+      213,
+      690
+     ],
+     "hole_stage": null
+    },
+    "stat-icon-games": {
+     "file": "sprite-arcade-grid-stat-icon-games.png",
+     "box_master": [
+      46,
+      160,
+      92,
+      200
+     ],
+     "box_stage": [
+      35,
+      122,
+      70,
+      153
+     ],
+     "hole_stage": null
+    },
+    "stat-icon-storage": {
+     "file": "sprite-arcade-grid-stat-icon-storage.png",
+     "box_master": [
+      46,
+      232,
+      92,
+      272
+     ],
+     "box_stage": [
+      35,
+      178,
+      70,
+      208
+     ],
+     "hole_stage": null
+    },
+    "stat-icon-coll": {
+     "file": "sprite-arcade-grid-stat-icon-coll.png",
+     "box_master": [
+      46,
+      335,
+      92,
+      375
+     ],
+     "box_stage": [
+      35,
+      256,
+      70,
+      287
+     ],
+     "hole_stage": null
+    }
+   },
+   "geometry": {
+    "brand": [
+     31,
+     21,
+     318,
+     61
+    ],
+    "clock": [
+     1175,
+     14,
+     1267,
+     38
+    ],
+    "tabbar": [
+     312,
+     46,
+     1142,
+     95
+    ],
+    "tab_active_w": 158,
+    "stats": {
+     "panel": [
+      17,
+      98,
+      233,
+      306
+     ],
+     "rows": [
+      [
+       86,
+       122,
+       230,
+       157
+      ],
+      [
+       86,
+       180,
+       230,
+       214
+      ],
+      [
+       86,
+       259,
+       230,
+       293
+      ]
+     ],
+     "icon_x": 35
+    },
+    "card": {
+     "frame": [
+      247,
+      101,
+      548,
+      459
+     ],
+     "cover": [
+      260,
+      115,
+      534,
+      406
+     ],
+     "caption": [
+      260,
+      407,
+      536,
+      453
+     ]
+    },
+    "cells": [
+     [
+      555,
+      115,
+      682,
+      277
+     ],
+     [
+      693,
+      115,
+      820,
+      277
+     ],
+     [
+      831,
+      115,
+      958,
+      277
+     ],
+     [
+      968,
+      115,
+      1096,
+      277
+     ],
+     [
+      1106,
+      115,
+      1233,
+      277
+     ],
+     [
+      555,
+      287,
+      682,
+      449
+     ],
+     [
+      693,
+      287,
+      820,
+      449
+     ],
+     [
+      831,
+      287,
+      958,
+      449
+     ],
+     [
+      968,
+      287,
+      1096,
+      449
+     ],
+     [
+      1106,
+      287,
+      1233,
+      449
+     ],
+     [
+      262,
+      459,
+      389,
+      608
+     ],
+     [
+      413,
+      459,
+      540,
+      608
+     ],
+     [
+      555,
+      459,
+      682,
+      608
+     ],
+     [
+      693,
+      459,
+      820,
+      608
+     ],
+     [
+      831,
+      459,
+      958,
+      608
+     ],
+     [
+      968,
+      459,
+      1096,
+      608
+     ]
+    ],
+    "legend": [
+     31,
+     650,
+     1256,
+     700
+    ]
+   }
+  },
+  "box-art-showcase": {
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_19 PM-3.png",
+   "master_sha256": "b65f59ae16f0a7ace5e39bdfbfe1ddf09699036a8152d1abb814fa739cace61e",
+   "scene": "scene-box-art-showcase.png",
+   "scene_bytes": 510728,
+   "reference": "ref-box-art-showcase.png",
+   "regions": [
+    {
+     "name": "top navigation labels",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      940,
+      25,
+      1420,
+      62
+     ],
+     "box_stage": [
+      720,
+      19,
+      1087,
+      47
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "clock",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1540,
+      14,
+      1650,
+      66
+     ],
+     "box_stage": [
+      1179,
+      11,
+      1263,
+      50
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "box envelope 0",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      44,
+      244,
+      210,
+      522
+     ],
+     "box_stage": [
+      34,
+      187,
+      161,
+      399
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "box envelope 1",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      208,
+      220,
+      362,
+      524
+     ],
+     "box_stage": [
+      159,
+      168,
+      277,
+      401
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "box envelope 2",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      352,
+      180,
+      578,
+      524
+     ],
+     "box_stage": [
+      269,
+      138,
+      442,
+      401
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "box envelope 3",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      570,
+      80,
+      962,
+      584
+     ],
+     "box_stage": [
+      436,
+      61,
+      736,
+      447
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "box envelope 4",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      958,
+      190,
+      1188,
+      534
+     ],
+     "box_stage": [
+      733,
+      145,
+      909,
+      409
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "box envelope 5",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1188,
+      236,
+      1352,
+      524
+     ],
+     "box_stage": [
+      909,
+      181,
+      1035,
+      401
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "box envelope 6",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1344,
+      260,
+      1488,
+      524
+     ],
+     "box_stage": [
+      1029,
+      199,
+      1139,
+      401
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "box envelope 7",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1480,
+      286,
+      1606,
+      520
+     ],
+     "box_stage": [
+      1133,
+      219,
+      1229,
+      398
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "floor reflections (rebuilt)",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      40,
+      522,
+      1612,
+      608
+     ],
+     "box_stage": [
+      31,
+      399,
+      1234,
+      465
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "title (the compass star stays)",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      112,
+      596,
+      830,
+      694
+     ],
+     "box_stage": [
+      86,
+      456,
+      635,
+      531
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "blurb",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      60,
+      715,
+      760,
+      775
+     ],
+     "box_stage": [
+      46,
+      547,
+      582,
+      593
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "facts row",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      60,
+      805,
+      800,
+      865
+     ],
+     "box_stage": [
+      46,
+      616,
+      612,
+      662
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "collection panel contents",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      900,
+      645,
+      1240,
+      870
+     ],
+     "box_stage": [
+      689,
+      494,
+      949,
+      666
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "legend row (the master shows no controller legend here; the renderer adds the original-controller legend in the empty floor band)",
+     "sample_master": null,
+     "kind": "LEGEND CORRECTION",
+     "box_master": [
+      300,
+      876,
+      1380,
+      918
+     ],
+     "box_stage": [
+      230,
+      670,
+      1056,
+      702
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "everything else: sky, moon, castle, floor, brand plate, characters, arrows, panel frame",
+     "sample_master": null,
+     "kind": "STATIC PRESERVE",
+     "box_master": [
+      0,
+      0,
+      1672,
+      941
+     ],
+     "box_stage": [
+      0,
+      0,
+      1280,
+      720
+     ],
+     "method": null
+    }
+   ],
+   "sprites": {
+    "badge-brand": {
+     "file": "sprite-box-art-showcase-badge-brand.png",
+     "box_master": [
+      835,
+      530,
+      950,
+      562
+     ],
+     "box_stage": [
+      639,
+      406,
+      727,
+      430
+     ],
+     "hole_stage": null
+    },
+    "seal": {
+     "file": "sprite-box-art-showcase-seal.png",
+     "box_master": [
+      898,
+      478,
+      948,
+      528
+     ],
+     "box_stage": [
+      687,
+      366,
+      726,
+      404
+     ],
+     "hole_stage": null
+    },
+    "logo-mark": {
+     "file": "sprite-box-art-showcase-logo-mark.png",
+     "box_master": [
+      636,
+      516,
+      692,
+      566
+     ],
+     "box_stage": [
+      487,
+      395,
+      530,
+      433
+     ],
+     "hole_stage": null
+    },
+    "arrow-l": {
+     "file": "sprite-box-art-showcase-arrow-l.png",
+     "box_master": [
+      8,
+      410,
+      64,
+      466
+     ],
+     "box_stage": [
+      6,
+      314,
+      49,
+      357
+     ],
+     "hole_stage": null
+    },
+    "arrow-r": {
+     "file": "sprite-box-art-showcase-arrow-r.png",
+     "box_master": [
+      1608,
+      410,
+      1664,
+      466
+     ],
+     "box_stage": [
+      1231,
+      314,
+      1274,
+      357
+     ],
+     "hole_stage": null
+    },
+    "panel-frame": {
+     "file": "sprite-box-art-showcase-panel-frame.png",
+     "box_master": [
+      888,
+      628,
+      1248,
+      878
+     ],
+     "box_stage": [
+      680,
+      481,
+      955,
+      672
+     ],
+     "hole_stage": [
+      689,
+      490,
+      946,
+      663
+     ]
+    }
+   },
+   "geometry": {
+    "brand": [
+     54,
+     23,
+     402,
+     67
+    ],
+    "nav": [
+     689,
+     20,
+     1125,
+     47
+    ],
+    "clock": [
+     1179,
+     11,
+     1263,
+     50
+    ],
+    "envelopes": [
+     {
+      "d": -3,
+      "box": [
+       38,
+       191,
+       157,
+       394
+      ]
+     },
+     {
+      "d": -2,
+      "box": [
+       165,
+       172,
+       272,
+       398
+      ]
+     },
+     {
+      "d": -1,
+      "box": [
+       276,
+       142,
+       436,
+       398
+      ]
+     },
+     {
+      "d": 0,
+      "box": [
+       440,
+       65,
+       731,
+       444
+      ]
+     },
+     {
+      "d": 1,
+      "box": [
+       739,
+       149,
+       903,
+       406
+      ]
+     },
+     {
+      "d": 2,
+      "box": [
+       915,
+       184,
+       1030,
+       398
+      ]
+     },
+     {
+      "d": 3,
+      "box": [
+       1033,
+       203,
+       1133,
+       398
+      ]
+     },
+     {
+      "d": 4,
+      "box": [
+       1137,
+       222,
+       1225,
+       394
+      ]
+     }
+    ],
+    "spine_ratio": 0.11842105263157894,
+    "dots": [
+     536,
+     454,
+     720,
+     464
+    ],
+    "title": [
+     96,
+     458,
+     628,
+     529
+    ],
+    "star": [
+     47,
+     471,
+     84,
+     507
+    ],
+    "blurb": [
+     54,
+     547,
+     582,
+     593
+    ],
+    "rule": [
+     55,
+     605,
+     680,
+     607
+    ],
+    "facts": [
+     54,
+     618,
+     643,
+     660
+    ],
+    "panel": {
+     "frame": [
+      680,
+      481,
+      955,
+      672
+     ],
+     "heading": [
+      754,
+      497,
+      942,
+      517
+     ],
+     "rows": [
+      [
+       754,
+       537,
+       942,
+       559
+      ],
+      [
+       754,
+       566,
+       942,
+       588
+      ],
+      [
+       754,
+       595,
+       942,
+       617
+      ],
+      [
+       754,
+       624,
+       942,
+       646
+      ]
+     ],
+     "icon_x": 706
+    },
+    "arrow_l": [
+     6,
+     314,
+     49,
+     357
+    ],
+    "arrow_r": [
+     1231,
+     314,
+     1274,
+     357
+    ]
+   }
+  },
+  "adventure-map": {
+   "master_file": "ChatGPT Image Oct 11, 2026, 08_49_20 PM-4.png",
+   "master_sha256": "9122821529ddbb274e95e9bafdf5a0c28c6265d9aed550d9897f0dc44f15cc3c",
+   "scene": "scene-adventure-map.png",
+   "scene_bytes": 1114784,
+   "reference": "ref-adventure-map.png",
+   "regions": [
+    {
+     "name": "clock",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1518,
+      24,
+      1620,
+      60
+     ],
+     "box_stage": [
+      1162,
+      18,
+      1240,
+      46
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "walking character and dog (become the walker sprite)",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      142,
+      288,
+      266,
+      386
+     ],
+     "box_stage": [
+      109,
+      220,
+      204,
+      295
+     ],
+     "method": "synth"
+    },
+    {
+     "name": "landmark game card and frame (frame kept as sprite)",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      478,
+      110,
+      690,
+      348
+     ],
+     "box_stage": [
+      366,
+      84,
+      528,
+      266
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "sign BUILT-IN label",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      310,
+      350,
+      440,
+      376
+     ],
+     "box_stage": [
+      237,
+      268,
+      337,
+      288
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "sign FAVORITES label",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      738,
+      372,
+      872,
+      397
+     ],
+     "box_stage": [
+      565,
+      285,
+      668,
+      304
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "sign FOLDER 1 label",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      988,
+      364,
+      1118,
+      390
+     ],
+     "box_stage": [
+      756,
+      279,
+      856,
+      298
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "sign FOLDER 2 label",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1225,
+      374,
+      1356,
+      399
+     ],
+     "box_stage": [
+      938,
+      286,
+      1038,
+      305
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "sign SETTINGS label",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1458,
+      394,
+      1588,
+      421
+     ],
+     "box_stage": [
+      1116,
+      301,
+      1216,
+      322
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "sign START label",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      42,
+      298,
+      108,
+      324
+     ],
+     "box_stage": [
+      32,
+      228,
+      83,
+      248
+     ],
+     "method": "telea"
+    },
+    {
+     "name": "details panel contents (frame kept as sprite)",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      480,
+      488,
+      1190,
+      692
+     ],
+     "box_stage": [
+      367,
+      373,
+      911,
+      529
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 0 and focus frame (frame kept as sprite)",
+     "sample_master": [
+      348,
+      850,
+      900,
+      858
+     ],
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      142,
+      717,
+      338,
+      855
+     ],
+     "box_stage": [
+      109,
+      549,
+      259,
+      654
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 1",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      348,
+      725,
+      530,
+      847
+     ],
+     "box_stage": [
+      266,
+      555,
+      406,
+      648
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 2",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      546,
+      725,
+      728,
+      847
+     ],
+     "box_stage": [
+      418,
+      555,
+      557,
+      648
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 3",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      744,
+      725,
+      926,
+      847
+     ],
+     "box_stage": [
+      570,
+      555,
+      709,
+      648
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 4",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      942,
+      725,
+      1124,
+      847
+     ],
+     "box_stage": [
+      721,
+      555,
+      860,
+      648
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 5",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1146,
+      725,
+      1328,
+      847
+     ],
+     "box_stage": [
+      877,
+      555,
+      1017,
+      648
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "shelf cover 6",
+     "sample_master": null,
+     "kind": "DYNAMIC RECREATE",
+     "box_master": [
+      1346,
+      725,
+      1528,
+      847
+     ],
+     "box_stage": [
+      1030,
+      555,
+      1170,
+      648
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "legend",
+     "sample_master": null,
+     "kind": "LEGEND CORRECTION",
+     "box_master": [
+      380,
+      878,
+      1300,
+      915
+     ],
+     "box_stage": [
+      291,
+      672,
+      995,
+      700
+     ],
+     "method": "ring"
+    },
+    {
+     "name": "everything else: the overworld, signs, statues, bridges, waterfalls, castle, creatures, brand, arrows",
+     "sample_master": null,
+     "kind": "STATIC PRESERVE",
+     "box_master": [
+      0,
+      0,
+      1672,
+      941
+     ],
+     "box_stage": [
+      0,
+      0,
+      1280,
+      720
+     ],
+     "method": null
+    }
+   ],
+   "sprites": {
+    "card-frame": {
+     "file": "sprite-adventure-map-card-frame.png",
+     "box_master": [
+      478,
+      110,
+      690,
+      348
+     ],
+     "box_stage": [
+      366,
+      84,
+      528,
+      266
+     ],
+     "hole_stage": [
+      379,
+      98,
+      515,
+      253
+     ]
+    },
+    "card-pointer": {
+     "file": "sprite-adventure-map-card-pointer.png",
+     "box_master": [
+      560,
+      340,
+      600,
+      364
+     ],
+     "box_stage": [
+      429,
+      260,
+      459,
+      279
+     ],
+     "hole_stage": null
+    },
+    "marker": {
+     "file": "sprite-adventure-map-marker.png",
+     "box_master": [
+      552,
+      360,
+      606,
+      392
+     ],
+     "box_stage": [
+      423,
+      275,
+      464,
+      300
+     ],
+     "hole_stage": null
+    },
+    "panel-frame": {
+     "file": "sprite-adventure-map-panel-frame.png",
+     "box_master": [
+      462,
+      470,
+      1208,
+      708
+     ],
+     "box_stage": [
+      354,
+      360,
+      925,
+      542
+     ],
+     "hole_stage": [
+      367,
+      373,
+      911,
+      529
+     ]
+    },
+    "sign": {
+     "file": "sprite-adventure-map-sign.png",
+     "box_master": [
+      300,
+      342,
+      450,
+      384
+     ],
+     "box_stage": [
+      230,
+      262,
+      344,
+      294
+     ],
+     "hole_stage": null
+    },
+    "sign-start": {
+     "file": "sprite-adventure-map-sign-start.png",
+     "box_master": [
+      36,
+      292,
+      114,
+      332
+     ],
+     "box_stage": [
+      28,
+      223,
+      87,
+      254
+     ],
+     "hole_stage": null
+    },
+    "shelf-focus": {
+     "file": "sprite-adventure-map-shelf-focus.png",
+     "box_master": [
+      142,
+      717,
+      338,
+      855
+     ],
+     "box_stage": [
+      109,
+      549,
+      259,
+      654
+     ],
+     "hole_stage": [
+      116,
+      556,
+      251,
+      647
+     ]
+    },
+    "shelf-frame": {
+     "file": "sprite-adventure-map-shelf-frame.png",
+     "box_master": [
+      340,
+      717,
+      536,
+      855
+     ],
+     "box_stage": [
+      260,
+      549,
+      410,
+      654
+     ],
+     "hole_stage": [
+      268,
+      556,
+      403,
+      647
+     ]
+    },
+    "badge-dpad": {
+     "file": "sprite-adventure-map-badge-dpad.png",
+     "box_master": [
+      388,
+      876,
+      428,
+      916
+     ],
+     "box_stage": [
+      297,
+      670,
+      328,
+      701
+     ],
+     "hole_stage": null
+    },
+    "badge-a": {
+     "file": "sprite-adventure-map-badge-a.png",
+     "box_master": [
+      560,
+      876,
+      600,
+      916
+     ],
+     "box_stage": [
+      429,
+      670,
+      459,
+      701
+     ],
+     "hole_stage": null
+    },
+    "badge-b": {
+     "file": "sprite-adventure-map-badge-b.png",
+     "box_master": [
+      716,
+      876,
+      756,
+      916
+     ],
+     "box_stage": [
+      548,
+      670,
+      579,
+      701
+     ],
+     "hole_stage": null
+    },
+    "badge-menu": {
+     "file": "sprite-adventure-map-badge-menu.png",
+     "box_master": [
+      1200,
+      876,
+      1240,
+      916
+     ],
+     "box_stage": [
+      919,
+      670,
+      949,
+      701
+     ],
+     "hole_stage": null
+    },
+    "arrow-l": {
+     "file": "sprite-adventure-map-arrow-l.png",
+     "box_master": [
+      82,
+      762,
+      118,
+      798
+     ],
+     "box_stage": [
+      63,
+      583,
+      90,
+      611
+     ],
+     "hole_stage": null
+    },
+    "arrow-r": {
+     "file": "sprite-adventure-map-arrow-r.png",
+     "box_master": [
+      1556,
+      762,
+      1592,
+      798
+     ],
+     "box_stage": [
+      1191,
+      583,
+      1219,
+      611
+     ],
+     "hole_stage": null
+    },
+    "hero": {
+     "file": "sprite-adventure-map-hero.png",
+     "box_master": [
+      142,
+      288,
+      266,
+      386
+     ],
+     "box_stage": [
+      109,
+      220,
+      204,
+      295
+     ],
+     "hole_stage": null
+    }
+   },
+   "geometry": {
+    "brand": [
+     73,
+     42,
+     333,
+     77
+    ],
+    "clock": [
+     1162,
+     18,
+     1240,
+     46
+    ],
+    "landmarks": [
+     {
+      "id": "allgames",
+      "sign": [
+       28,
+       223,
+       87,
+       254
+      ],
+      "center": [
+       57,
+       256
+      ],
+      "stand": [
+       109,
+       220
+      ]
+     },
+     {
+      "id": "browse",
+      "sign": [
+       230,
+       262,
+       344,
+       294
+      ],
+      "center": [
+       287,
+       302
+      ]
+     },
+     {
+      "id": "favorites",
+      "sign": [
+       559,
+       279,
+       674,
+       311
+      ],
+      "center": [
+       616,
+       321
+      ]
+     },
+     {
+      "id": "folder1",
+      "sign": [
+       749,
+       272,
+       864,
+       305
+      ],
+      "center": [
+       805,
+       314
+      ]
+     },
+     {
+      "id": "folder2",
+      "sign": [
+       930,
+       280,
+       1045,
+       312
+      ],
+      "center": [
+       989,
+       321
+      ]
+     },
+     {
+      "id": "settings",
+      "sign": [
+       1109,
+       295,
+       1223,
+       327
+      ],
+      "center": [
+       1165,
+       331
+      ]
+     }
+    ],
+    "card": {
+     "frame": [
+      366,
+      84,
+      528,
+      266
+     ],
+     "cover": [
+      379,
+      98,
+      515,
+      253
+     ],
+     "pointer": [
+      429,
+      260,
+      459,
+      279
+     ],
+     "marker": [
+      423,
+      275,
+      464,
+      300
+     ]
+    },
+    "path": [
+     [
+      61,
+      254
+     ],
+     [
+      153,
+      259
+     ],
+     [
+      253,
+      285
+     ],
+     [
+      360,
+      285
+     ],
+     [
+      442,
+      289
+     ],
+     [
+      536,
+      308
+     ],
+     [
+      616,
+      321
+     ],
+     [
+      712,
+      318
+     ],
+     [
+      805,
+      314
+     ],
+     [
+      903,
+      323
+     ],
+     [
+      989,
+      321
+     ],
+     [
+      1087,
+      327
+     ],
+     [
+      1165,
+      331
+     ]
+    ],
+    "panel": {
+     "frame": [
+      354,
+      360,
+      925,
+      542
+     ],
+     "cover": [
+      379,
+      383,
+      564,
+      525
+     ],
+     "title": [
+      593,
+      383,
+      903,
+      413
+     ],
+     "tags": [
+      596,
+      418,
+      903,
+      439
+     ],
+     "text": [
+      593,
+      448,
+      903,
+      508
+     ],
+     "rule": [
+      605,
+      519,
+      888,
+      523
+     ]
+    },
+    "shelf": {
+     "cells": [
+      [
+       121,
+       561,
+       248,
+       642
+      ],
+      [
+       273,
+       561,
+       400,
+       642
+      ],
+      [
+       424,
+       561,
+       551,
+       642
+      ],
+      [
+       576,
+       561,
+       703,
+       642
+      ],
+      [
+       727,
+       561,
+       854,
+       642
+      ],
+      [
+       883,
+       561,
+       1011,
+       642
+      ],
+      [
+       1037,
+       561,
+       1164,
+       642
+      ]
+     ],
+     "focus": [
+      109,
+      549,
+      259,
+      654
+     ],
+     "frame": [
+      260,
+      549,
+      410,
+      654
+     ],
+     "pitch": 152
+    },
+    "arrow_l": [
+     63,
+     583,
+     90,
+     611
+    ],
+    "arrow_r": [
+     1191,
+     583,
+     1219,
+     611
+    ],
+    "legend": [
+     291,
+     670,
+     995,
+     702
+    ]
+   }
+  }
+ },
+ "hero_fallback": "hero-fallback.png",
+ "unresolved_assets": {
+  "featured-shelf hero": "no illustrated wide scene exists for NES games; the hero shows the game's own gameplay screen (libretro Named_Snaps) inside the master's hero frame with softened (blurred) edge extension of the same screen; an owner-supplied hero image per game (reports/art/hero/<game_id>.png) takes precedence"
+ }
+}

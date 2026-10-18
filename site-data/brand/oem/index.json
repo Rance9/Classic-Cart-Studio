@@ -1,0 +1,763 @@
+{
+ "source": "Nintendo NES Classic Edition system software, read from the owner's verified backup (nandb-decrypted.bin SHA-256 e845bdca\u2026f36f); Nintendo-owned artwork, local personal use only",
+ "files": [
+  {
+   "file": "px-super-mushroom.png",
+   "label": "super-mushroom",
+   "game": "Super Mario Bros.",
+   "code": "CLV-P-NAAAE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAAE/pixelart/1.png",
+   "w": 16,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-fire-flower.png",
+   "label": "fire-flower",
+   "game": "Super Mario Bros.",
+   "code": "CLV-P-NAAAE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAAE/pixelart/2.B.png",
+   "w": 16,
+   "h": 23,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-raccoon-mario.png",
+   "label": "raccoon-mario",
+   "game": "Super Mario Bros. 3",
+   "code": "CLV-P-NAACE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAACE/pixelart/1.A.png",
+   "w": 24,
+   "h": 27,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-mario-kuribo-shoe.png",
+   "label": "mario-kuribo-shoe",
+   "game": "Super Mario Bros. 3",
+   "code": "CLV-P-NAACE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAACE/pixelart/2.B.png",
+   "w": 16,
+   "h": 27,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-shy-guy.png",
+   "label": "shy-guy",
+   "game": "Super Mario Bros. 2",
+   "code": "CLV-P-NAADE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAADE/pixelart/1.B.png",
+   "w": 16,
+   "h": 15,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-birdo.png",
+   "label": "birdo",
+   "game": "Super Mario Bros. 2",
+   "code": "CLV-P-NAADE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAADE/pixelart/2.B.png",
+   "w": 16,
+   "h": 32,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-jumpman-mario-hammer.png",
+   "label": "jumpman-mario-hammer",
+   "game": "Donkey Kong",
+   "code": "CLV-P-NAAEE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAEE/pixelart/1.B.png",
+   "w": 25,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-pauline.png",
+   "label": "pauline",
+   "game": "Donkey Kong",
+   "code": "CLV-P-NAAEE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAEE/pixelart/2.A.png",
+   "w": 15,
+   "h": 22,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-donkey-kong-jr.png",
+   "label": "donkey-kong-jr",
+   "game": "Donkey Kong Jr.",
+   "code": "CLV-P-NAAFE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAFE/pixelart/1.png",
+   "w": 17,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-banana.png",
+   "label": "banana",
+   "game": "Donkey Kong Jr.",
+   "code": "CLV-P-NAAFE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAFE/pixelart/2.png",
+   "w": 15,
+   "h": 10,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-excitebike-rider-red.png",
+   "label": "excitebike-rider-red",
+   "game": "Excitebike",
+   "code": "CLV-P-NAAHE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAHE/pixelart/1.A.png",
+   "w": 18,
+   "h": 24,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-excitebike-rider-purple.png",
+   "label": "excitebike-rider-purple",
+   "game": "Excitebike",
+   "code": "CLV-P-NAAHE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAHE/pixelart/2.A.png",
+   "w": 20,
+   "h": 21,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-link.png",
+   "label": "link",
+   "game": "The Legend of Zelda",
+   "code": "CLV-P-NAANE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAANE/pixelart/1.png",
+   "w": 15,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-zelda-old-man.png",
+   "label": "zelda-old-man",
+   "game": "The Legend of Zelda",
+   "code": "CLV-P-NAANE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAANE/pixelart/2.png",
+   "w": 14,
+   "h": 26,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-kirby.png",
+   "label": "kirby",
+   "game": "Kirby's Adventure",
+   "code": "CLV-P-NAAPE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAPE/pixelart/1.A.png",
+   "w": 16,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-parasol-waddle-dee.png",
+   "label": "parasol-waddle-dee",
+   "game": "Kirby's Adventure",
+   "code": "CLV-P-NAAPE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAPE/pixelart/2.A.png",
+   "w": 16,
+   "h": 31,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-samus.png",
+   "label": "samus",
+   "game": "Metroid",
+   "code": "CLV-P-NAAQE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAQE/pixelart/1.A.png",
+   "w": 20,
+   "h": 32,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-metroid.png",
+   "label": "metroid",
+   "game": "Metroid",
+   "code": "CLV-P-NAAQE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAQE/pixelart/2.png",
+   "w": 22,
+   "h": 21,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-balloon-fighter.png",
+   "label": "balloon-fighter",
+   "game": "Balloon Fight",
+   "code": "CLV-P-NAARE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAARE/pixelart/1.B.png",
+   "w": 16,
+   "h": 24,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-balloon-bird.png",
+   "label": "balloon-bird",
+   "game": "Balloon Fight",
+   "code": "CLV-P-NAARE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAARE/pixelart/2.B.png",
+   "w": 16,
+   "h": 24,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-link-zelda2.png",
+   "label": "link-zelda2",
+   "game": "Zelda II - The Adventure of Link",
+   "code": "CLV-P-NAASE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAASE/pixelart/1.B.png",
+   "w": 16,
+   "h": 27,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-zelda2-knight.png",
+   "label": "zelda2-knight",
+   "game": "Zelda II - The Adventure of Link",
+   "code": "CLV-P-NAASE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAASE/pixelart/2.A.png",
+   "w": 32,
+   "h": 32,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-boxing-glove.png",
+   "label": "boxing-glove",
+   "game": "Punch-Out!! Featuring Mr. Dream",
+   "code": "CLV-P-NAATE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAATE/pixelart/1.A.png",
+   "w": 20,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-little-mac.png",
+   "label": "little-mac",
+   "game": "Punch-Out!! Featuring Mr. Dream",
+   "code": "CLV-P-NAATE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAATE/pixelart/2.123789.png",
+   "w": 24,
+   "h": 61,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-popo.png",
+   "label": "popo",
+   "game": "Ice Climber",
+   "code": "CLV-P-NAAUE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAUE/pixelart/1.A.png",
+   "w": 20,
+   "h": 21,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-nana.png",
+   "label": "nana",
+   "game": "Ice Climber",
+   "code": "CLV-P-NAAUE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAUE/pixelart/2.B.png",
+   "w": 12,
+   "h": 20,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-pit.png",
+   "label": "pit",
+   "game": "Kid Icarus",
+   "code": "CLV-P-NAAVE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAVE/pixelart/1.A.png",
+   "w": 15,
+   "h": 24,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-kid-icarus-monoeye.png",
+   "label": "kid-icarus-monoeye",
+   "game": "Kid Icarus",
+   "code": "CLV-P-NAAVE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAVE/pixelart/2.B.png",
+   "w": 16,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-mario-bros-mario.png",
+   "label": "mario-bros-mario",
+   "game": "Mario Bros.",
+   "code": "CLV-P-NAAWE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAWE/pixelart/1.A.png",
+   "w": 15,
+   "h": 21,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-shellcreeper.png",
+   "label": "shellcreeper",
+   "game": "Mario Bros.",
+   "code": "CLV-P-NAAWE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAWE/pixelart/2.A.png",
+   "w": 11,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-dr-mario-viruses.png",
+   "label": "dr-mario-viruses",
+   "game": "Dr. MARIO",
+   "code": "CLV-P-NAAXE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAXE/pixelart/1.png",
+   "w": 25,
+   "h": 25,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-dr-mario-pills.png",
+   "label": "dr-mario-pills",
+   "game": "Dr. MARIO",
+   "code": "CLV-P-NAAXE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAXE/pixelart/2.png",
+   "w": 25,
+   "h": 9,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-mike-jones.png",
+   "label": "mike-jones",
+   "game": "StarTropics",
+   "code": "CLV-P-NAAZE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAZE/pixelart/1.B.png",
+   "w": 14,
+   "h": 30,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-startropics-enemy.png",
+   "label": "startropics-enemy",
+   "game": "StarTropics",
+   "code": "CLV-P-NAAZE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NAAZE/pixelart/2.A.png",
+   "w": 16,
+   "h": 15,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-mega-man.png",
+   "label": "mega-man",
+   "game": "MEGA MAN\u2122 2",
+   "code": "CLV-P-NABBE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABBE/pixelart/1.A.png",
+   "w": 31,
+   "h": 24,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-arthur.png",
+   "label": "arthur",
+   "game": "GHOSTS'N GOBLINS\u2122",
+   "code": "CLV-P-NABCE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABCE/pixelart/1.A.png",
+   "w": 16,
+   "h": 24,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-ff-fighter.png",
+   "label": "ff-fighter",
+   "game": "FINAL FANTASY\u00ae",
+   "code": "CLV-P-NABJE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABJE/pixelart/1.B.png",
+   "w": 16,
+   "h": 24,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-bub.png",
+   "label": "bub",
+   "game": "BUBBLE BOBBLE",
+   "code": "CLV-P-NABKE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABKE/pixelart/1.A.png",
+   "w": 16,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-pac-man.png",
+   "label": "pac-man",
+   "game": "PAC-MAN",
+   "code": "CLV-P-NABME",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABME/pixelart/1.B.png",
+   "w": 12,
+   "h": 14,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-galaga-fighter.png",
+   "label": "galaga-fighter",
+   "game": "Galaga",
+   "code": "CLV-P-NABNE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABNE/pixelart/1.486.png",
+   "w": 15,
+   "h": 16,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-simon-belmont.png",
+   "label": "simon-belmont",
+   "game": "Castlevania",
+   "code": "CLV-P-NABQE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABQE/pixelart/1.369.png",
+   "w": 32,
+   "h": 31,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-vic-viper.png",
+   "label": "vic-viper",
+   "game": "GRADIUS",
+   "code": "CLV-P-NABRE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABRE/pixelart/1.369.png",
+   "w": 26,
+   "h": 12,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-super-c-soldier.png",
+   "label": "super-c-soldier",
+   "game": "Super C",
+   "code": "CLV-P-NABVE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABVE/pixelart/1.369.png",
+   "w": 21,
+   "h": 34,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-simon-belmont-2.png",
+   "label": "simon-belmont-2",
+   "game": "Castlevania II Simon's Quest",
+   "code": "CLV-P-NABXE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NABXE/pixelart/1.369.png",
+   "w": 32,
+   "h": 30,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-ryu-hayabusa.png",
+   "label": "ryu-hayabusa",
+   "game": "NINJA GAIDEN",
+   "code": "CLV-P-NACBE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NACBE/pixelart/1.A.png",
+   "w": 17,
+   "h": 32,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-tecmo-bowl-player.png",
+   "label": "tecmo-bowl-player",
+   "game": "TECMO BOWL",
+   "code": "CLV-P-NACDE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NACDE/pixelart/1.A.png",
+   "w": 12,
+   "h": 21,
+   "kind": "pixelart"
+  },
+  {
+   "file": "px-double-dragon-lee.png",
+   "label": "double-dragon-lee",
+   "game": "DOUBLE DRAGON II: The Revenge",
+   "code": "CLV-P-NACHE",
+   "source_path": "/usr/share/games/nes/kachikachi/CLV-P-NACHE/pixelart/1.A.png",
+   "w": 30,
+   "h": 30,
+   "kind": "pixelart"
+  },
+  {
+   "file": "nes-console-face.png",
+   "label": "nes-console-face",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#menubar_U.png",
+   "w": 432,
+   "h": 40,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "nes-console-face-lower.png",
+   "label": "nes-console-face-lower",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#menubar_L.png",
+   "w": 432,
+   "h": 40,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "smb-1-1-screen.png",
+   "label": "smb-1-1-screen",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#capture_pixelPerfect.png",
+   "w": 256,
+   "h": 240,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-a.png",
+   "label": "icon-a",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_A_light.png",
+   "w": 10,
+   "h": 10,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-b.png",
+   "label": "icon-b",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_B_light.png",
+   "w": 10,
+   "h": 10,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-start.png",
+   "label": "icon-start",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_start_light.png",
+   "w": 26,
+   "h": 8,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-select.png",
+   "label": "icon-select",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_select_light.png",
+   "w": 30,
+   "h": 8,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-dpad.png",
+   "label": "icon-dpad",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#Icon_direction_light.png",
+   "w": 10,
+   "h": 10,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-cartridge.png",
+   "label": "icon-cartridge",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_casette_nes.png",
+   "w": 20,
+   "h": 20,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-1p.png",
+   "label": "icon-1p",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_1P.png",
+   "w": 19,
+   "h": 11,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-1p-2p.png",
+   "label": "icon-1p-2p",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_1P-2P.png",
+   "w": 19,
+   "h": 11,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-2p-sim.png",
+   "label": "icon-2p-sim",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_2P_simultaneous.png",
+   "w": 19,
+   "h": 11,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "cmn-circle.png",
+   "label": "cmn-circle",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#cmn_circle.png",
+   "w": 64,
+   "h": 64,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "game-card.png",
+   "label": "game-card",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#game_card.png",
+   "w": 82,
+   "h": 90,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-warning.png",
+   "label": "icon-warning",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_exclamation.png",
+   "w": 24,
+   "h": 24,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "tv-frame.png",
+   "label": "tv-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#tv_frame.png",
+   "w": 106,
+   "h": 64,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-disk.png",
+   "label": "icon-disk",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_disk.png",
+   "w": 20,
+   "h": 20,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "icon-resume.png",
+   "label": "icon-resume",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#icon_Resume.png",
+   "w": 24,
+   "h": 24,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "ui-characters_sbm.png",
+   "label": "characters_sbm",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 128,
+   "h": 64,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "ui-wallpaper-hvc.png",
+   "label": "wallpaper-hvc",
+   "source_path": "/usr/share/clover-ui/resources/sprites/wallpaper-hvc.png",
+   "w": 64,
+   "h": 16,
+   "kind": "ui-atlas"
+  },
+  {
+   "file": "nes-wordmark.png",
+   "label": "nintendo-entertainment-system-wordmark",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#menubar_L (red pixels only)",
+   "w": 137,
+   "h": 15,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-mario-walk-0.png",
+   "label": "mario-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 12,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-luigi-walk-0.png",
+   "label": "luigi-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 12,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-mario-walk-1.png",
+   "label": "mario-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 15,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-luigi-walk-1.png",
+   "label": "luigi-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 15,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-mario-walk-2.png",
+   "label": "mario-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 11,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-luigi-walk-2.png",
+   "label": "luigi-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 11,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-mario-walk-3.png",
+   "label": "mario-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 13,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-luigi-walk-3.png",
+   "label": "luigi-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 13,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-mario-walk-4.png",
+   "label": "mario-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 16,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-luigi-walk-4.png",
+   "label": "luigi-walk-frame",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 16,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-question-block-0.png",
+   "label": "question-block",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 16,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-question-block-1.png",
+   "label": "question-block",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 16,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "px-question-block-2.png",
+   "label": "question-block",
+   "source_path": "/usr/share/clover-ui/resources/sprites/characters_sbm.png",
+   "w": 16,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "tile-ground.png",
+   "label": "smb-ground-tile",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#capture_pixelPerfect (ground tile)",
+   "w": 16,
+   "h": 16,
+   "kind": "ui-atlas-crop"
+  },
+  {
+   "file": "tile-ground-row.png",
+   "label": "smb-ground-row",
+   "source_path": "/usr/share/clover-ui/resources/sprites/nes.png#capture_pixelPerfect (ground rows)",
+   "w": 256,
+   "h": 32,
+   "kind": "ui-atlas-crop"
+  }
+ ]
+}

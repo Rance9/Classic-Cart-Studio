@@ -1,0 +1,26 @@
+{
+  "schema": "ccs-sim-toolchain-lock/1",
+  "note": "Pinned developer toolchain for the Console Simulator. Nothing here needs root or administrator rights: zig is a user-space archive, the Debian packages are fetched with apt-get download (signed by the distribution's apt index) and extracted into a user prefix with dpkg-deb -x.",
+  "zig": {
+    "version": "0.17.0",
+    "linux_x86_64": {
+      "url": "https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz",
+      "sha256": "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026",
+      "size": 57332648
+    },
+    "source": "https://ziglang.org/download/index.json (2026-10-01 release)",
+    "license": "MIT (zig), with bundled LLVM/clang (Apache-2.0 with LLVM exception) and musl (MIT)"
+  },
+  "debian_packages": {
+    "distribution": "Ubuntu 26.04 LTS (resolute), the WSL distribution already present on the workstation",
+    "qemu-user": { "version": "1:10.2.1+ds-1ubuntu3", "purpose": "qemu-arm user-mode emulator (static-pie x86-64 binary)", "license": "GPL-2.0" },
+    "libc6-armhf-cross": { "version": "2.43-2ubuntu2cross1", "purpose": "armhf glibc runtime (dynamic loader + libc) for the optional dynamic ARM build; verifies that missing ARM runtime libraries fail understandably", "license": "LGPL-2.1" }
+  },
+  "host_compilers": {
+    "linux_x86_64": "gcc 15.2.0 (Ubuntu), already installed in the WSL distribution",
+    "arm_linux_musleabihf": "zig cc -target arm-linux-musleabihf -mcpu=cortex_a7 (static)",
+    "arm_linux_gnueabihf": "zig cc -target arm-linux-gnueabihf.2.31 -mcpu=cortex_a7 (dynamic, optional)",
+    "windows_x86_64": "zig cc -target x86_64-windows-gnu"
+  },
+  "python": { "windows": "3.13 (tkinter 8.6, Pillow 12)", "wsl": "3.14" }
+}

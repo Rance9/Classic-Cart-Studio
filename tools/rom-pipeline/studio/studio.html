@@ -1,0 +1,21 @@
+<div id="welcome" class="modal" role="dialog" aria-modal="true" aria-labelledby="wTitle"><div class="mbox nesframe">
+ <div class="cast" aria-hidden="true">__WELCOME_CAST__</div>
+ <h2 id="wTitle"><img class="logo" src="icon-192.png" width="40" height="40" alt="" onerror="this.remove()">Welcome to <span>Classic Cart Studio</span></h2>
+ <p class="lead">Build the game collection you want on your NES Classic the way you would build a playlist: browse the Game Library, pick your games and the versions you prefer, and the Studio takes care of the technical work on this computer. Nothing is sent to the console until you ask for it.</p>
+ <div class="choices">
+  <button class="ch" id="wNew"><span class="k">A</span><b>Start a New Collection</b><span>Browse the Game Library and begin choosing games. The 30 games that came with the console are already there.</span><img class="px" src="brand/oem/icon-cartridge.png" width="40" height="40" alt="" onerror="this.remove()"></button>
+  <button class="ch" id="wLoad"><span class="k">B</span><b>Load an Existing Collection</b><span>Continue from games already set up on this computer, or open a collection you saved to a file.</span><img class="px" src="brand/oem/icon-disk.png" width="40" height="40" alt="" onerror="this.remove()"></button>
+  <button class="ch" id="wHow"><span class="k">?</span><b>Help &amp; User Guide</b><span>The complete guide: what customizing an NES Classic involves, how this Studio helps, and what happens on the console.</span><img class="px" src="brand/oem/icon-dpad.png" width="40" height="40" alt="" onerror="this.remove()"></button>
+ </div>
+ <div class="found" id="wFound" hidden></div>
+ <div class="ft"><span>You can come back to any of these from the <b>My Collection</b> menu and the <b>Help &amp; User Guide</b> button.</span><span class="sp"></span><label class="wevery"><input type="checkbox" id="wEvery" checked> Show this welcome on every start</label><button class="btn sm ghost" id="wSkip">Just browse</button></div>
+</div></div>
+
+<div id="collm" class="modal" role="dialog" aria-modal="true" aria-labelledby="collTitle"><div class="mbox sbox"><div class="mhd"><h2 id="collTitle">My Collection</h2><span class="small" id="collSub"></span><button class="btn sm" id="collClose">Close</button></div><div id="collBody"></div></div></div>
+
+<div id="tech" class="modal" role="dialog" aria-modal="true" aria-labelledby="techTitle"><div class="mbox"><div class="mhd"><h2 id="techTitle">Technical Details</h2><span class="small" id="techSub"></span><button class="btn sm" id="techClose">Close</button></div><div class="tabs" id="techTabs"></div><div id="techBody"></div></div></div>
+
+<div id="guide" class="modal" role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="mbox"><div class="ghd"><img class="logo" src="icon-192.png" width="28" height="28" alt="" onerror="this.remove()"><h2 id="guideTitle">Help &amp; User Guide <span>· Classic Cart Studio</span></h2><span class="small gkeys" aria-hidden="true"><span class="kbd">←</span><span class="kbd">→</span> chapters</span><span class="small" id="guidePos"></span><button class="btn sm" id="guideClose">Close <span class="kbd">ESC</span></button></div><div class="gprog" aria-hidden="true"><i id="guideBar"></i></div>
+ <div class="gbody"><nav id="guideNav" aria-label="Chapters"></nav><article id="guideArt" tabindex="0">__GUIDE_SECTIONS__</article></div></div></div>
+
+<div id="verpop" role="menu" aria-label="Game versions"></div>

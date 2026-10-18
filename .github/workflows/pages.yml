@@ -1,0 +1,53 @@
+name: Website (build, scan, deploy to GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build dependencies (Pillow for the original sprites)
+        run: python -m pip install --quiet pillow
+      - name: Unit tests that need no game files
+        run: |
+          python tools/rom-pipeline/test_manifest_v4_pure.py
+      - name: Build the static site from the public data
+        run: python tools/publish/build_site_ci.py build/site
+      - name: Prohibited-content scan of the site artifact (fails the build on any finding)
+        run: python tools/publish/scan_prohibited.py build/site
+      - name: Page checks (structure, no external assets, no private paths, sub-path safe)
+        run: python tools/rom-pipeline/test_public_site.py build/site
+      - name: Attach the latest companion release information for the download section
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/publish/release_notes.py --write-release-json build/site/release.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
