@@ -1,0 +1,5277 @@
+{
+ "schema": "ccs-hero-art/1",
+ "games": {
+  "8e844d77da01f86a": {
+   "title": "10-Yard Fight",
+   "candidates": {
+    "owner-poc": {
+     "file": "candidates/8e844d77da01f86a-owner-poc.png",
+     "original": "originals/8e844d77da01f86a-owner-poc.png",
+     "original_size": [
+      1672,
+      941
+     ],
+     "sha256": "1cffb1b198feb405ae80e4c36086268ff34baca5fbecaf3f406d467ab26bc2f4",
+     "source": "8e844d77da01f86a.png",
+     "status": "approved",
+     "provenance": "generated:chatgpt",
+     "prompt_version": null,
+     "imported": "2026-10-12T18:05:13",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "8e844d77da01f86a/owner-poc (original approved master)"
+    }
+   },
+   "current": "owner-poc",
+   "file": "art/hero/8e844d77da01f86a.jpg",
+   "sha256": "1cffb1b198feb405ae80e4c36086268ff34baca5fbecaf3f406d467ab26bc2f4",
+   "source": "8e844d77da01f86a.png",
+   "status": "approved",
+   "provenance": "generated:chatgpt",
+   "imported": "2026-10-12T18:05:13",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "align": "left"
+   },
+   "runtime_sha256": "7fe751e057c1bb60a0be44186335e6a90bd8b2451037b18701ec25269bc0821a"
+  },
+  "9f54aafa367247b9": {
+   "title": "1943 - The Battle of Midway",
+   "candidates": {
+    "owner-poc": {
+     "file": "candidates/9f54aafa367247b9-owner-poc.png",
+     "original": "originals/9f54aafa367247b9-owner-poc.png",
+     "original_size": [
+      1672,
+      941
+     ],
+     "sha256": "71b65dd1a6613c8d8b5b4ac378ada6e14503c2046ec9375d25714e3e59121579",
+     "source": "9f54aafa367247b9.png",
+     "status": "approved",
+     "provenance": "generated:chatgpt",
+     "prompt_version": null,
+     "imported": "2026-10-12T18:05:15",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "9f54aafa367247b9/owner-poc (original approved master)"
+    }
+   },
+   "current": "owner-poc",
+   "file": "art/hero/9f54aafa367247b9.jpg",
+   "sha256": "71b65dd1a6613c8d8b5b4ac378ada6e14503c2046ec9375d25714e3e59121579",
+   "source": "9f54aafa367247b9.png",
+   "status": "approved",
+   "provenance": "generated:chatgpt",
+   "imported": "2026-10-12T18:05:15",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "align": "left"
+   },
+   "runtime_sha256": "b99620e0aa3eddeb35afb9733967e3ca9252c043c42fc610c729a26e79e6ac67"
+  },
+  "ec0d4ebf6d2fcecd": {
+   "title": "Legend of Zelda, The",
+   "candidates": {
+    "owner-poc": {
+     "file": "candidates/ec0d4ebf6d2fcecd-owner-poc.png",
+     "original": "originals/ec0d4ebf6d2fcecd-owner-poc.png",
+     "original_size": [
+      1672,
+      941
+     ],
+     "sha256": "bb18cd89f6c1a5f68d0d623c488ba1fc0cd11de34e8dc3dafd20f1d614d35784",
+     "source": "ec0d4ebf6d2fcecd.png",
+     "status": "approved",
+     "provenance": "generated:chatgpt",
+     "prompt_version": null,
+     "imported": "2026-10-12T18:05:16",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "ec0d4ebf6d2fcecd/owner-poc (original approved master)"
+    }
+   },
+   "current": "owner-poc",
+   "file": "art/hero/ec0d4ebf6d2fcecd.jpg",
+   "sha256": "bb18cd89f6c1a5f68d0d623c488ba1fc0cd11de34e8dc3dafd20f1d614d35784",
+   "source": "ec0d4ebf6d2fcecd.png",
+   "status": "approved",
+   "provenance": "generated:chatgpt",
+   "imported": "2026-10-12T18:05:16",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "align": "left"
+   },
+   "runtime_sha256": "d3c45146f051701e81279d8118ef770cf1b75b3af7d7ce29cfb5592ba3b7413b"
+  },
+  "959fdd32c71735d6": {
+   "title": "Super Mario Bros. 3",
+   "candidates": {
+    "smoke1": {
+     "file": "candidates/959fdd32c71735d6-smoke1.png",
+     "original": "originals/959fdd32c71735d6-smoke1.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "9f8827d8364c9e9299ae510405c9359b123bf68e92b6c672cacec647fa84e85b",
+     "source": "959fdd32c71735d6.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:smoke1",
+     "prompt_version": "v1",
+     "imported": "2026-10-12T18:05:19",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.06,
+      "align": "left"
+     }
+    },
+    "smoke2": {
+     "file": "candidates/959fdd32c71735d6-smoke2.png",
+     "original": "originals/959fdd32c71735d6-smoke2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "413d18fa4a1d029239fa10b5e00d5ab2a0a13ecc01aa951823f827270d7210d1",
+     "source": "959fdd32c71735d6.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:smoke2",
+     "prompt_version": "v2-style-refs",
+     "imported": "2026-10-12T18:05:22",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.519,
+      "align": "right"
+     }
+    },
+    "smoke3": {
+     "file": "candidates/959fdd32c71735d6-smoke3.png",
+     "original": "originals/959fdd32c71735d6-smoke3.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "9f3ec7216ac8cd719e8aacf791d569f248d5e5cd8a781c40d45a824e457672ea",
+     "source": "959fdd32c71735d6.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:smoke3",
+     "prompt_version": "v3-finish",
+     "imported": "2026-10-12T18:19:48",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.03,
+      "align": "left"
+     }
+    },
+    "smoke4": {
+     "file": "candidates/959fdd32c71735d6-smoke4.png",
+     "original": "originals/959fdd32c71735d6-smoke4.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a2ad98529336f5f79081abba11eb32f01ad1bb4e68e915cb2a09776686117351",
+     "source": "959fdd32c71735d6.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:smoke4",
+     "prompt_version": "v4-pixel-first",
+     "imported": "2026-10-12T19:13:59",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.027,
+      "align": "left"
+     }
+    },
+    "w1-A1a": {
+     "file": "candidates/959fdd32c71735d6-w1-A1a.png",
+     "original": "originals/959fdd32c71735d6-w1-A1a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "6e6912927fa4518df1b6f903812d31aded22dcd9e6a3110d625672dec60b1f75",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-A1a",
+     "prompt_version": "campaign-v1:A: one style ref (Zelda) + short visual prompt",
+     "imported": "2026-10-12T20:13:30",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.113,
+      "align": "left"
+     }
+    },
+    "w1-A1b": {
+     "file": "candidates/959fdd32c71735d6-w1-A1b.png",
+     "original": "originals/959fdd32c71735d6-w1-A1b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "67f8c40d5cae8a8ab8221b0203a4256e0b3a05cf7607cdcbbbf398125d0fcb0b",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-A1b",
+     "prompt_version": "campaign-v1:A: one style ref (Zelda) + short visual prompt",
+     "imported": "2026-10-12T20:13:34",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.3,
+      "align": "left"
+     }
+    },
+    "w1-A2": {
+     "file": "candidates/959fdd32c71735d6-w1-A2.png",
+     "original": "originals/959fdd32c71735d6-w1-A2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "b4d1ea5cac6fd8a73909a6616fbe18763bfee026aa6d32e9ef0e886dd502d4cd",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-A2",
+     "prompt_version": "campaign-v1:A: one style ref (1943) + short visual prompt",
+     "imported": "2026-10-12T20:13:37",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.038,
+      "align": "left"
+     }
+    },
+    "w1-A3": {
+     "file": "candidates/959fdd32c71735d6-w1-A3.png",
+     "original": "originals/959fdd32c71735d6-w1-A3.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "3855ada73c17f0126bbe08562834269a106d84e063ec69c669f1e704fdfb8165",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-A3",
+     "prompt_version": "campaign-v1:A: one style ref (10-Yard Fight) + short visual prompt",
+     "imported": "2026-10-12T20:13:41",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.536,
+      "align": "right"
+     }
+    },
+    "w1-B1a": {
+     "file": "candidates/959fdd32c71735d6-w1-B1a.png",
+     "original": "originals/959fdd32c71735d6-w1-B1a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "fb3088ee96eb014efa91b9672800175b6179e6c856f676849dc4731a14e0587d",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-B1a",
+     "prompt_version": "campaign-v1:B: three style refs, no crops, neutral language",
+     "imported": "2026-10-12T20:13:45",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.336,
+      "align": "left"
+     }
+    },
+    "w1-B1b": {
+     "file": "candidates/959fdd32c71735d6-w1-B1b.png",
+     "original": "originals/959fdd32c71735d6-w1-B1b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "9e05ade7ee36fb79517e876041eb0b57ecfdbd114a2322b1ecd49634f3190833",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-B1b",
+     "prompt_version": "campaign-v1:B: three style refs, no crops, neutral language",
+     "imported": "2026-10-12T20:13:50",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.135,
+      "align": "left"
+     }
+    },
+    "w1-C1": {
+     "file": "candidates/959fdd32c71735d6-w1-C1.png",
+     "original": "originals/959fdd32c71735d6-w1-C1.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "fd44a81f79741bd3ccb79d378325dba77d0b748e534fc40c1062659ec43a1d8e",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-C1",
+     "prompt_version": "campaign-v1:C: three style refs, language 'pixel-painted textures'",
+     "imported": "2026-10-12T20:13:53",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.023,
+      "align": "left"
+     }
+    },
+    "w1-C2": {
+     "file": "candidates/959fdd32c71735d6-w1-C2.png",
+     "original": "originals/959fdd32c71735d6-w1-C2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "51fcc312bd943ddd8b302de540c6383a9966682b9b810b4063e7c1868a3899e9",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-C2",
+     "prompt_version": "campaign-v1:C: three style refs, language 'high-resolution pixel-art illustration'",
+     "imported": "2026-10-12T20:13:57",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.108,
+      "align": "left"
+     }
+    },
+    "w1-C3": {
+     "file": "candidates/959fdd32c71735d6-w1-C3.png",
+     "original": "originals/959fdd32c71735d6-w1-C3.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "dea590f2b81474d7d33a6f096375d1d89bd2e55d05d9a9230862e25d62b3031a",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-C3",
+     "prompt_version": "campaign-v1:C: three style refs, language 'painterly raster, actual finish'",
+     "imported": "2026-10-12T20:14:00",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.0,
+      "align": "left"
+     }
+    },
+    "w1-D1a": {
+     "file": "candidates/959fdd32c71735d6-w1-D1a.png",
+     "original": "originals/959fdd32c71735d6-w1-D1a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "c25460481af80886ca5478f0478c0da783a34767e76ae122c3d1ac68a68a0485",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-D1a",
+     "prompt_version": "campaign-v1:D: image-to-image from smoke3 + three style refs",
+     "imported": "2026-10-12T20:14:04",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.523,
+      "align": "left"
+     }
+    },
+    "w1-D1b": {
+     "file": "candidates/959fdd32c71735d6-w1-D1b.png",
+     "original": "originals/959fdd32c71735d6-w1-D1b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "2af5a59da67f33a7c594276e2e86e6f10263106ddfea12ba4603ab598005624f",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-D1b",
+     "prompt_version": "campaign-v1:D: image-to-image from smoke3 + three style refs",
+     "imported": "2026-10-12T20:14:07",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.067,
+      "align": "left"
+     }
+    },
+    "w1-D2": {
+     "file": "candidates/959fdd32c71735d6-w1-D2.png",
+     "original": "originals/959fdd32c71735d6-w1-D2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7707faca322cba5f796f765819e30df922cf7e78610ff68e439e3475ba0c3667",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w1-D2",
+     "prompt_version": "campaign-v1:D: image-to-image from smoke3 + one style ref (Zelda)",
+     "imported": "2026-10-12T20:14:14",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.035,
+      "align": "left"
+     }
+    },
+    "w2-E1a": {
+     "file": "candidates/959fdd32c71735d6-w2-E1a.png",
+     "original": "originals/959fdd32c71735d6-w2-E1a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "eb0cb7f436b9e1b5e50a2d4eff2cb1351a8c31bd65d1123b8fe6d17affab4cac",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-E1a",
+     "prompt_version": "campaign-v1:E: two-stage, edit wave-1 D1a result + three refs + crops",
+     "imported": "2026-10-12T20:25:44",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.503,
+      "align": "left"
+     }
+    },
+    "w2-E1b": {
+     "file": "candidates/959fdd32c71735d6-w2-E1b.png",
+     "original": "originals/959fdd32c71735d6-w2-E1b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "f12af9022a8417ed0118a4c0d0e4102625987d5ca3a99ce74b1180a9cc7d2070",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-E1b",
+     "prompt_version": "campaign-v1:E: two-stage, edit wave-1 D1a result + three refs + crops",
+     "imported": "2026-10-12T20:25:47",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.515,
+      "align": "left"
+     }
+    },
+    "w2-D3a": {
+     "file": "candidates/959fdd32c71735d6-w2-D3a.png",
+     "original": "originals/959fdd32c71735d6-w2-D3a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "835f2405e5dfacee8f95a056284230f7fab5f888dd303730fa8c0650104e72dd",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-D3a",
+     "prompt_version": "campaign-v1:D: edit smoke3 + three refs + crops",
+     "imported": "2026-10-12T20:25:50",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.18,
+      "align": "left"
+     }
+    },
+    "w2-D3b": {
+     "file": "candidates/959fdd32c71735d6-w2-D3b.png",
+     "original": "originals/959fdd32c71735d6-w2-D3b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a4b24b80efd50aeaad6c6a2918b96d7b5b0f30e6db336ec7588dcdfec8e4455e",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-D3b",
+     "prompt_version": "campaign-v1:D: edit smoke3 + three refs + crops",
+     "imported": "2026-10-12T20:25:53",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.19,
+      "align": "left"
+     }
+    },
+    "w2-D4": {
+     "file": "candidates/959fdd32c71735d6-w2-D4.png",
+     "original": "originals/959fdd32c71735d6-w2-D4.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a299d3a53df031ca6058eb00377172a33384af383719c10ac399a6dfec24075b",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-D4",
+     "prompt_version": "campaign-v1:D: edit smoke3 + one ref (1943) + its crop",
+     "imported": "2026-10-12T20:25:56",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.348,
+      "align": "left"
+     }
+    },
+    "w2-D5": {
+     "file": "candidates/959fdd32c71735d6-w2-D5.png",
+     "original": "originals/959fdd32c71735d6-w2-D5.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "26f23bc7d4636b52953e1665f378d30c087f3a4ca739fbb0106faf4c2f9c8909",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-D5",
+     "prompt_version": "campaign-v1:D: edit smoke3 + one ref (10-Yard Fight) + its crop",
+     "imported": "2026-10-12T20:25:59",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.029,
+      "align": "left"
+     }
+    },
+    "w2-H1": {
+     "file": "candidates/959fdd32c71735d6-w2-H1.png",
+     "original": "originals/959fdd32c71735d6-w2-H1.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "148106fc5e51d0098c2d53b90b4f80d5b20ffcd57a377b2f94effd4fe9dd9b9d",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-H1",
+     "prompt_version": "campaign-v1:H: edit smoke3 + three refs, language hires-pixel",
+     "imported": "2026-10-12T20:26:03",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.036,
+      "align": "left"
+     }
+    },
+    "w2-H2": {
+     "file": "candidates/959fdd32c71735d6-w2-H2.png",
+     "original": "originals/959fdd32c71735d6-w2-H2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "747287f2440be9ee89495f07661d4b493d736e0593a423ab29fba53c7037f7e4",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-H2",
+     "prompt_version": "campaign-v1:H: edit smoke3 + three refs, language pixel-painted",
+     "imported": "2026-10-12T20:26:06",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.383,
+      "align": "left"
+     }
+    },
+    "w2-G1a": {
+     "file": "candidates/959fdd32c71735d6-w2-G1a.png",
+     "original": "originals/959fdd32c71735d6-w2-G1a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "83f9f169aa95cc96bad6b3ba1b8f4f601825b6fea85ade60ac318e124200a6c5",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-G1a",
+     "prompt_version": "campaign-v1:G: edit smoke2 (blocky source) + three refs + crops",
+     "imported": "2026-10-12T20:26:10",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.579,
+      "align": "right"
+     }
+    },
+    "w2-G1b": {
+     "file": "candidates/959fdd32c71735d6-w2-G1b.png",
+     "original": "originals/959fdd32c71735d6-w2-G1b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "cdc62d7c2851a2c4ec3ad09ac94b690e0a2092224a9613ec721144ab6d04b4a5",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-G1b",
+     "prompt_version": "campaign-v1:G: edit smoke2 (blocky source) + three refs + crops",
+     "imported": "2026-10-12T20:26:13",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.695,
+      "align": "right"
+     }
+    },
+    "w2-B2": {
+     "file": "candidates/959fdd32c71735d6-w2-B2.png",
+     "original": "originals/959fdd32c71735d6-w2-B2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "c40ed98bfd48c31dd7bb398f7f95e2877f72d2cb783ca89d99c74304c4ab23ec",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-B2",
+     "prompt_version": "campaign-v1:B: generate, three refs + crops, neutral language",
+     "imported": "2026-10-12T20:26:16",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.044,
+      "align": "left"
+     }
+    },
+    "w2-E2": {
+     "file": "candidates/959fdd32c71735d6-w2-E2.png",
+     "original": "originals/959fdd32c71735d6-w2-E2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "e0823b5152a3095cc94bf31caf34fa0b3d1f19a87f5fcd1c9ea4b22bb8d765e7",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w2-E2",
+     "prompt_version": "campaign-v1:E: two-stage, edit wave-1 D2 result + Zelda + its crop",
+     "imported": "2026-10-12T20:26:19",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.11,
+      "align": "left"
+     }
+    },
+    "w3-R1a": {
+     "file": "candidates/959fdd32c71735d6-w3-R1a.png",
+     "original": "originals/959fdd32c71735d6-w3-R1a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "0889e6ef3cc1eb761498ca4fed5ef16af528428ee26619fc452ca3314d1be3ad",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-R1a",
+     "prompt_version": "campaign-v1:R: repeat best config (edit smoke3 + three refs + crops, neutral)",
+     "imported": "2026-10-12T20:33:03",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.061,
+      "align": "left"
+     }
+    },
+    "w3-R1b": {
+     "file": "candidates/959fdd32c71735d6-w3-R1b.png",
+     "original": "originals/959fdd32c71735d6-w3-R1b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ab20beb2a34eb09702b1660631e5a398fb5a8cd9eda217f2c2f926758d3c24e4",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-R1b",
+     "prompt_version": "campaign-v1:R: repeat best config (edit smoke3 + three refs + crops, neutral)",
+     "imported": "2026-10-12T20:33:06",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.232,
+      "align": "left"
+     }
+    },
+    "w3-R1c": {
+     "file": "candidates/959fdd32c71735d6-w3-R1c.png",
+     "original": "originals/959fdd32c71735d6-w3-R1c.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "8b538cb2435144e335aa034fbad9e9ff91e793858c9f471a8d1b8461a751d19a",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-R1c",
+     "prompt_version": "campaign-v1:R: repeat best config (edit smoke3 + three refs + crops, neutral)",
+     "imported": "2026-10-12T20:33:09",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.246,
+      "align": "left"
+     }
+    },
+    "w3-F1a": {
+     "file": "candidates/959fdd32c71735d6-w3-F1a.png",
+     "original": "originals/959fdd32c71735d6-w3-F1a.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "88340263abf743b6e0d8d9adbb94ab89045f13f8232ea0e21997d29611ddb6a1",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-F1a",
+     "prompt_version": "campaign-v1:F: edit smoke3 + three refs + crops, detail-dense refinement",
+     "imported": "2026-10-12T20:33:14",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.157,
+      "align": "left"
+     }
+    },
+    "w3-F1b": {
+     "file": "candidates/959fdd32c71735d6-w3-F1b.png",
+     "original": "originals/959fdd32c71735d6-w3-F1b.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "b77411afe93c9ca6352c27ee82a127595c4e558d00df2ac8f4496fe1172f0039",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-F1b",
+     "prompt_version": "campaign-v1:F: edit smoke3 + three refs + crops, detail-dense refinement",
+     "imported": "2026-10-12T20:33:17",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.046,
+      "align": "left"
+     }
+    },
+    "w3-F1c": {
+     "file": "candidates/959fdd32c71735d6-w3-F1c.png",
+     "original": "originals/959fdd32c71735d6-w3-F1c.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "82417bb3b7c8b981447f0d0e5ce89bb427d7325b863e74519814c6e260001eba",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-F1c",
+     "prompt_version": "campaign-v1:F: edit smoke3 + three refs + crops, detail-dense refinement",
+     "imported": "2026-10-12T20:33:20",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.089,
+      "align": "left"
+     }
+    },
+    "w3-F2": {
+     "file": "candidates/959fdd32c71735d6-w3-F2.png",
+     "original": "originals/959fdd32c71735d6-w3-F2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "58010e5cd322190ca34ef78f54adc2909ea6fcd3f1d2dafa08f14625770f9257",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-F2",
+     "prompt_version": "campaign-v1:F: second pass, edit w2-E1a result, detail-dense",
+     "imported": "2026-10-12T20:33:23",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.464,
+      "align": "left"
+     }
+    },
+    "w3-F3": {
+     "file": "candidates/959fdd32c71735d6-w3-F3.png",
+     "original": "originals/959fdd32c71735d6-w3-F3.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "00ec6f0fd3e92db509b5f236157e1d647002bb672e26a9c5fbf021b009f7f94e",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w3-F3",
+     "prompt_version": "campaign-v1:F: second pass, edit w2-D3a result, detail-dense",
+     "imported": "2026-10-12T20:33:26",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.36,
+      "align": "left"
+     }
+    },
+    "w4-X1": {
+     "file": "candidates/959fdd32c71735d6-w4-X1.png",
+     "original": "originals/959fdd32c71735d6-w4-X1.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "23df10047918319e7c2e315a8da58a8449c7f8af36b7c5508b40922cee3283f7",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w4-X1",
+     "prompt_version": "campaign-v1:X: reverse edit, source = ORIGINAL Zelda, replace content with SMB3",
+     "imported": "2026-10-12T20:59:06",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.508,
+      "align": "right"
+     }
+    },
+    "w4-X2": {
+     "file": "candidates/959fdd32c71735d6-w4-X2.png",
+     "original": "originals/959fdd32c71735d6-w4-X2.png",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7b7d345aa5749b177ec8d6640b136e7e0ba3a6cd786bbcbc1fb34789115adf15",
+     "source": "result.png",
+     "status": "candidate",
+     "provenance": "generated:gemini-3-pro-image:experiment:w4-X2",
+     "prompt_version": "campaign-v1:X: reverse edit, source = ORIGINAL 1943, replace content with SMB3",
+     "imported": "2026-10-12T20:59:09",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.283,
+      "align": "left"
+     }
+    },
+    "top100-c03": {
+     "file": "candidates/959fdd32c71735d6-top100-c03.png",
+     "original": "originals/959fdd32c71735d6-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "eeb413f3bfe0b18fdbceb1ec04059257d561bc253c348639c26e8a667d457f1f",
+     "source": "959fdd32c71735d6-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:959fdd32c71735d6-candidate-03",
+     "prompt_version": "959fdd32c71735d6-candidate-03",
+     "imported": "2026-10-13T21:24:48",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.4,
+      "slot": "mid-right",
+      "busyness": 1.504,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "959fdd32c71735d6-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/959fdd32c71735d6.jpg",
+   "sha256": "eeb413f3bfe0b18fdbceb1ec04059257d561bc253c348639c26e8a667d457f1f",
+   "source": "959fdd32c71735d6-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:959fdd32c71735d6-candidate-03",
+   "imported": "2026-10-13T21:24:48",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.4,
+    "slot": "mid-right",
+    "busyness": 1.504,
+    "align": "right"
+   },
+   "runtime_sha256": "d316b845aaa8895149501714f81a32d6e5aebadeb5b9ec0d6c081a085c94b21c"
+  },
+  "1e588d435e75d80c": {
+   "title": "Mega Man 2",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/1e588d435e75d80c-top100-c03.png",
+     "original": "originals/1e588d435e75d80c-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "0abbd939bf0b1b047fcc31f48baa3fa041a104d0bca9555410d1bc74bd355108",
+     "source": "1e588d435e75d80c-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:1e588d435e75d80c-candidate-03",
+     "prompt_version": "1e588d435e75d80c-candidate-03",
+     "imported": "2026-10-13T21:24:52",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "1e588d435e75d80c-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/1e588d435e75d80c.jpg",
+   "sha256": "0abbd939bf0b1b047fcc31f48baa3fa041a104d0bca9555410d1bc74bd355108",
+   "runtime_sha256": "e6dd2ec042ce43f0f8170e11a3e820f0e8e37bb95b3010dee8b768da6df22e90",
+   "source": "1e588d435e75d80c-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:1e588d435e75d80c-candidate-03",
+   "imported": "2026-10-13T21:24:52",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "align": "right"
+   }
+  },
+  "d41e28b1a33b3b67": {
+   "title": "Contra",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/d41e28b1a33b3b67-top100-c03.png",
+     "original": "originals/d41e28b1a33b3b67-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "9fabd0a14ee5ad6fc542d077fc6c1bcb758e4f27a5c4643353a412f64134e015",
+     "source": "d41e28b1a33b3b67-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:d41e28b1a33b3b67-candidate-03",
+     "prompt_version": "d41e28b1a33b3b67-candidate-03",
+     "imported": "2026-10-13T21:24:53",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.127,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "d41e28b1a33b3b67-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/d41e28b1a33b3b67.jpg",
+   "sha256": "9fabd0a14ee5ad6fc542d077fc6c1bcb758e4f27a5c4643353a412f64134e015",
+   "runtime_sha256": "a22654178884f12f6a1c9c6d685475fce545f06979d36ae2212e96bb66de3e7d",
+   "source": "d41e28b1a33b3b67-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:d41e28b1a33b3b67-candidate-03",
+   "imported": "2026-10-13T21:24:53",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.127,
+    "align": "left"
+   }
+  },
+  "2ebab487204c42b0": {
+   "title": "Mike Tyson's Punch-Out!!",
+   "candidates": {
+    "fixes1-edit-glove": {
+     "file": "candidates/2ebab487204c42b0-fixes1-edit-glove.png",
+     "original": "originals/2ebab487204c42b0-fixes1-edit-glove.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7b496e37f93debe307508e42ca5330be5ba466d68069ef50e262c7d4ceb5adc2",
+     "source": "2ebab487204c42b0__fixes1__edit-glove.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:fixes1:2ebab487204c42b0__fixes1__edit-glove",
+     "prompt_version": "2ebab487204c42b0__fixes1__edit-glove",
+     "imported": "2026-10-13T21:24:55",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "2ebab487204c42b0__fixes1__edit-glove",
+     "fix_note": "corrective edit of 2ebab487204c42b0-candidate-03 (stray glove removed)",
+     "superseded_candidates": [
+      "2ebab487204c42b0-candidate-01",
+      "2ebab487204c42b0-candidate-02",
+      "2ebab487204c42b0-candidate-03"
+     ]
+    }
+   },
+   "current": "fixes1-edit-glove",
+   "file": "art/hero/2ebab487204c42b0.jpg",
+   "sha256": "7b496e37f93debe307508e42ca5330be5ba466d68069ef50e262c7d4ceb5adc2",
+   "runtime_sha256": "aeb6a703b6b2409d2905b2aa15ac8167bf21760a1bbb4880acb6324c98e0dfd1",
+   "source": "2ebab487204c42b0__fixes1__edit-glove.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:fixes1:2ebab487204c42b0__fixes1__edit-glove",
+   "imported": "2026-10-13T21:24:55",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "6e8d289635ac3947": {
+   "title": "Castlevania III - Dracula's Curse",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/6e8d289635ac3947-top100-c01.png",
+     "original": "originals/6e8d289635ac3947-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "c5946d908ad0c70aea381d645310e7390f5292d3a92f8ac052fc3c26059e864a",
+     "source": "6e8d289635ac3947-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:6e8d289635ac3947-candidate-01",
+     "prompt_version": "6e8d289635ac3947-candidate-01",
+     "imported": "2026-10-13T21:24:56",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.007,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "6e8d289635ac3947-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/6e8d289635ac3947.jpg",
+   "sha256": "c5946d908ad0c70aea381d645310e7390f5292d3a92f8ac052fc3c26059e864a",
+   "runtime_sha256": "c5f1a85c22f741668df091a928ba7ed5511ac976fd0e77636f72eab0d26a2fc3",
+   "source": "6e8d289635ac3947-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:6e8d289635ac3947-candidate-01",
+   "imported": "2026-10-13T21:24:56",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.007,
+    "align": "left"
+   }
+  },
+  "fcb6a0ef3a20c19b": {
+   "title": "Super Mario Bros.",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/fcb6a0ef3a20c19b-top100-c01.png",
+     "original": "originals/fcb6a0ef3a20c19b-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a1ebe3d97df8ae3a272e1fa9b536269b843ff13f544e6283216f11d69ef3e19a",
+     "source": "fcb6a0ef3a20c19b-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:fcb6a0ef3a20c19b-candidate-01",
+     "prompt_version": "fcb6a0ef3a20c19b-candidate-01",
+     "imported": "2026-10-13T21:24:58",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.4,
+      "slot": "mid-right",
+      "busyness": 0.874,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "fcb6a0ef3a20c19b-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/fcb6a0ef3a20c19b.jpg",
+   "sha256": "a1ebe3d97df8ae3a272e1fa9b536269b843ff13f544e6283216f11d69ef3e19a",
+   "runtime_sha256": "bcc3776ca5985edb8517e4408f0e2eec3a3bc25107f50c794cc7d56bb7da56ce",
+   "source": "fcb6a0ef3a20c19b-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:fcb6a0ef3a20c19b-candidate-01",
+   "imported": "2026-10-13T21:24:58",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.4,
+    "slot": "mid-right",
+    "busyness": 0.874,
+    "align": "right"
+   }
+  },
+  "649db8035018f251": {
+   "title": "Metroid",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/649db8035018f251-top100-c02.png",
+     "original": "originals/649db8035018f251-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "725af179bca698b749a8fda12fa2f0469b5447a5ab94e0e765012425a024871a",
+     "source": "649db8035018f251-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:649db8035018f251-candidate-02",
+     "prompt_version": "649db8035018f251-candidate-02",
+     "imported": "2026-10-13T21:24:59",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 1.086,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "649db8035018f251-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/649db8035018f251.jpg",
+   "sha256": "725af179bca698b749a8fda12fa2f0469b5447a5ab94e0e765012425a024871a",
+   "runtime_sha256": "fb1dfac5ee6deab5fee1847db48f5970591185906a62b5407c31e11c88eb1f87",
+   "source": "649db8035018f251-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:649db8035018f251-candidate-02",
+   "imported": "2026-10-13T21:24:59",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 1.086,
+    "align": "right"
+   }
+  },
+  "aeb61fd5cf5a5ed7": {
+   "title": "Bionic Commando",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/aeb61fd5cf5a5ed7-top100-c01.png",
+     "original": "originals/aeb61fd5cf5a5ed7-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "b72ff00b9758dabb992c5a45f6048a6fe6434819237ec7ff55d47ad9978add24",
+     "source": "aeb61fd5cf5a5ed7-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:aeb61fd5cf5a5ed7-candidate-01",
+     "prompt_version": "aeb61fd5cf5a5ed7-candidate-01",
+     "imported": "2026-10-13T21:25:01",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.715,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "aeb61fd5cf5a5ed7-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/aeb61fd5cf5a5ed7.jpg",
+   "sha256": "b72ff00b9758dabb992c5a45f6048a6fe6434819237ec7ff55d47ad9978add24",
+   "runtime_sha256": "a411219440c3223b6c16b6055a4748400d1572ec06407bbbcdabe36e38d5e5d4",
+   "source": "aeb61fd5cf5a5ed7-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:aeb61fd5cf5a5ed7-candidate-01",
+   "imported": "2026-10-13T21:25:01",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.715,
+    "align": "right"
+   }
+  },
+  "1250a80faf865aa5": {
+   "title": "Kirby's Adventure",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/1250a80faf865aa5-top100-c02.png",
+     "original": "originals/1250a80faf865aa5-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "76853c0dbb00d5362dd4c50008ee453228565e37c084ceba6c36057219525ed1",
+     "source": "1250a80faf865aa5-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:1250a80faf865aa5-candidate-02",
+     "prompt_version": "1250a80faf865aa5-candidate-02",
+     "imported": "2026-10-13T21:25:04",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.773,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "1250a80faf865aa5-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/1250a80faf865aa5.jpg",
+   "sha256": "76853c0dbb00d5362dd4c50008ee453228565e37c084ceba6c36057219525ed1",
+   "runtime_sha256": "44269292f02ac874e85c81329a215b043174a7568e8623f3c62294611980eb79",
+   "source": "1250a80faf865aa5-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:1250a80faf865aa5-candidate-02",
+   "imported": "2026-10-13T21:25:04",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.773,
+    "align": "left"
+   }
+  },
+  "54cdc8b6fab80433": {
+   "title": "River City Ransom",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/54cdc8b6fab80433-top100-c01.png",
+     "original": "originals/54cdc8b6fab80433-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "4fbd886dd1730f98078f2c35cb444550eebb4139e68f0b82b61057e013a47bcf",
+     "source": "54cdc8b6fab80433-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:54cdc8b6fab80433-candidate-01",
+     "prompt_version": "54cdc8b6fab80433-candidate-01",
+     "imported": "2026-10-13T21:25:05",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.076,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "54cdc8b6fab80433-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/54cdc8b6fab80433.jpg",
+   "sha256": "4fbd886dd1730f98078f2c35cb444550eebb4139e68f0b82b61057e013a47bcf",
+   "runtime_sha256": "9b9681276de1f32e5b4c6b1788256b2c4576162abbba84ece1a0f9cc39688659",
+   "source": "54cdc8b6fab80433-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:54cdc8b6fab80433-candidate-01",
+   "imported": "2026-10-13T21:25:05",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.076,
+    "align": "left"
+   }
+  },
+  "4cfc55e1521e5803": {
+   "title": "Zelda II - The Adventure of Link",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/4cfc55e1521e5803-top100-c03.png",
+     "original": "originals/4cfc55e1521e5803-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "164abd8eb95dfd67ac3f71bbad0b23f01bce59934547d707d86cb2c838cb4870",
+     "source": "4cfc55e1521e5803-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:4cfc55e1521e5803-candidate-03",
+     "prompt_version": "4cfc55e1521e5803-candidate-03",
+     "imported": "2026-10-13T21:25:06",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.415,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "4cfc55e1521e5803-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/4cfc55e1521e5803.jpg",
+   "sha256": "164abd8eb95dfd67ac3f71bbad0b23f01bce59934547d707d86cb2c838cb4870",
+   "runtime_sha256": "ce0a2030c3ba3c3f583579b706df597da68f3bffc6246525c29b0ca7fe16b33c",
+   "source": "4cfc55e1521e5803-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:4cfc55e1521e5803-candidate-03",
+   "imported": "2026-10-13T21:25:06",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.415,
+    "align": "left"
+   }
+  },
+  "728d0ca6751b0c03": {
+   "title": "Super Mario Bros. 2",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/728d0ca6751b0c03-top100-c01.png",
+     "original": "originals/728d0ca6751b0c03-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ed1c14bfa7b264b63de9ce656afea24f5e363b41dbb8626bd56c09f4c8f8c911",
+     "source": "728d0ca6751b0c03-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:728d0ca6751b0c03-candidate-01",
+     "prompt_version": "728d0ca6751b0c03-candidate-01",
+     "imported": "2026-10-13T21:25:08",
+     "title_box": {
+      "x": 0.04,
+      "y": 0.09,
+      "w": 0.42,
+      "slot": "top-left-two-line",
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "728d0ca6751b0c03-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/728d0ca6751b0c03.jpg",
+   "sha256": "ed1c14bfa7b264b63de9ce656afea24f5e363b41dbb8626bd56c09f4c8f8c911",
+   "runtime_sha256": "fc7146ab71ab870c212cc1eb0cc41d8253ecbb5713b6ee33f98d3a294666823d",
+   "source": "728d0ca6751b0c03-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:728d0ca6751b0c03-candidate-01",
+   "imported": "2026-10-13T21:25:08",
+   "title_box": {
+    "x": 0.04,
+    "y": 0.09,
+    "w": 0.42,
+    "slot": "top-left-two-line",
+    "align": "left"
+   }
+  },
+  "31523322db8f94e7": {
+   "title": "Bubble Bobble",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/31523322db8f94e7-top100-c02.png",
+     "original": "originals/31523322db8f94e7-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "1fedd84f68e6113724863a294975a7ef74cdcba570f446dcdd913ec327d49413",
+     "source": "31523322db8f94e7-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:31523322db8f94e7-candidate-02",
+     "prompt_version": "31523322db8f94e7-candidate-02",
+     "imported": "2026-10-13T21:25:10",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.663,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "31523322db8f94e7-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/31523322db8f94e7.jpg",
+   "sha256": "1fedd84f68e6113724863a294975a7ef74cdcba570f446dcdd913ec327d49413",
+   "runtime_sha256": "9fc96f96fb4966f06c796a2d5529b96f239846e030acb3116901178f1856e795",
+   "source": "31523322db8f94e7-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:31523322db8f94e7-candidate-02",
+   "imported": "2026-10-13T21:25:10",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.663,
+    "align": "left"
+   }
+  },
+  "5ad644d368f70b61": {
+   "title": "Crystalis",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/5ad644d368f70b61-top100-c01.png",
+     "original": "originals/5ad644d368f70b61-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "5e29d848f0f28225a82e408270f1ebcf8fb2be0be88292be804d4b5b4222d31d",
+     "source": "5ad644d368f70b61-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:5ad644d368f70b61-candidate-01",
+     "prompt_version": "5ad644d368f70b61-candidate-01",
+     "imported": "2026-10-13T21:25:11",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.058,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "5ad644d368f70b61-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/5ad644d368f70b61.jpg",
+   "sha256": "5e29d848f0f28225a82e408270f1ebcf8fb2be0be88292be804d4b5b4222d31d",
+   "runtime_sha256": "7a89511bf9e78d7fe69e4dabeb225ef90c563d244b120ee69a1f462f505efb86",
+   "source": "5ad644d368f70b61-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:5ad644d368f70b61-candidate-01",
+   "imported": "2026-10-13T21:25:11",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.058,
+    "align": "left"
+   }
+  },
+  "7a26c62a9b1605cb": {
+   "title": "Blaster Master",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/7a26c62a9b1605cb-top100-c01.png",
+     "original": "originals/7a26c62a9b1605cb-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "eb336f68f68b5794b8c93efb9638984826ec332a7d766b6aaf134b4fc292ccd2",
+     "source": "7a26c62a9b1605cb-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:7a26c62a9b1605cb-candidate-01",
+     "prompt_version": "7a26c62a9b1605cb-candidate-01",
+     "imported": "2026-10-13T21:25:13",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.895,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "7a26c62a9b1605cb-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/7a26c62a9b1605cb.jpg",
+   "sha256": "eb336f68f68b5794b8c93efb9638984826ec332a7d766b6aaf134b4fc292ccd2",
+   "runtime_sha256": "64b55c8faffdaea0fd6eeb828b0125ed48177467bfa1b230608f73dc96fe05bf",
+   "source": "7a26c62a9b1605cb-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:7a26c62a9b1605cb-candidate-01",
+   "imported": "2026-10-13T21:25:13",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.895,
+    "align": "left"
+   }
+  },
+  "5b85c1ff632c6ac3": {
+   "title": "Mega Man 3",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/5b85c1ff632c6ac3-top100-c02.png",
+     "original": "originals/5b85c1ff632c6ac3-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "e5b30b7636b1a923dc5099b68681282f49a70b45a97dbc51661bcfe2d6289936",
+     "source": "5b85c1ff632c6ac3-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:5b85c1ff632c6ac3-candidate-02",
+     "prompt_version": "5b85c1ff632c6ac3-candidate-02",
+     "imported": "2026-10-13T21:25:14",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.4,
+      "slot": "mid-right",
+      "busyness": 1.206,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "5b85c1ff632c6ac3-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/5b85c1ff632c6ac3.jpg",
+   "sha256": "e5b30b7636b1a923dc5099b68681282f49a70b45a97dbc51661bcfe2d6289936",
+   "runtime_sha256": "1704c5aa7dd410db7dedb8e322453521a98b2f423eb30e7ba666c00c629b309d",
+   "source": "5b85c1ff632c6ac3-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:5b85c1ff632c6ac3-candidate-02",
+   "imported": "2026-10-13T21:25:14",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.4,
+    "slot": "mid-right",
+    "busyness": 1.206,
+    "align": "right"
+   }
+  },
+  "cd5ad84e6bba35c1": {
+   "title": "Tecmo Super Bowl",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/cd5ad84e6bba35c1-top100-c01.png",
+     "original": "originals/cd5ad84e6bba35c1-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "2b6cb2f5321b4e8e74c19196383bc6abd14aebe67f1c90a1bd8e74f308becb89",
+     "source": "cd5ad84e6bba35c1-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:cd5ad84e6bba35c1-candidate-01",
+     "prompt_version": "cd5ad84e6bba35c1-candidate-01",
+     "imported": "2026-10-13T21:25:15",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.63,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "cd5ad84e6bba35c1-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/cd5ad84e6bba35c1.jpg",
+   "sha256": "2b6cb2f5321b4e8e74c19196383bc6abd14aebe67f1c90a1bd8e74f308becb89",
+   "runtime_sha256": "7d8ba6b312dd8e740e34ac95826ad87f6fed27ae6f31700bdf0679bc5ec33886",
+   "source": "cd5ad84e6bba35c1-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:cd5ad84e6bba35c1-candidate-01",
+   "imported": "2026-10-13T21:25:15",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 0.63,
+    "align": "right"
+   }
+  },
+  "fa456d852372173e": {
+   "title": "Final Fantasy",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/fa456d852372173e-top100-c02.png",
+     "original": "originals/fa456d852372173e-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "006ee7af42030c49843be68fe0556eb17eacefe854190175df39f48140e3530d",
+     "source": "fa456d852372173e-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:fa456d852372173e-candidate-02",
+     "prompt_version": "fa456d852372173e-candidate-02",
+     "imported": "2026-10-13T21:25:16",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.235,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "fa456d852372173e-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/fa456d852372173e.jpg",
+   "sha256": "006ee7af42030c49843be68fe0556eb17eacefe854190175df39f48140e3530d",
+   "runtime_sha256": "a81af7a149c1deec4185a81dc2b21dffc3e21588b84f7b6533fa360c75d7e005",
+   "source": "fa456d852372173e-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:fa456d852372173e-candidate-02",
+   "imported": "2026-10-13T21:25:16",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.235,
+    "align": "left"
+   }
+  },
+  "21c51dc47a458a7d": {
+   "title": "Ninja Gaiden II - The Dark Sword of Chaos",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/21c51dc47a458a7d-top100-c03.png",
+     "original": "originals/21c51dc47a458a7d-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "c0472b04904510cefa4c8da548d486e6f1edd9d73bd883e20f6292444923d3a5",
+     "source": "21c51dc47a458a7d-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:21c51dc47a458a7d-candidate-03",
+     "prompt_version": "21c51dc47a458a7d-candidate-03",
+     "imported": "2026-10-13T21:25:18",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "busyness": 1.203,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "21c51dc47a458a7d-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/21c51dc47a458a7d.jpg",
+   "sha256": "c0472b04904510cefa4c8da548d486e6f1edd9d73bd883e20f6292444923d3a5",
+   "runtime_sha256": "7658e82315fa8dcbe92000ca349154681e25fef0669a68efe98f78f63ef977a1",
+   "source": "21c51dc47a458a7d-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:21c51dc47a458a7d-candidate-03",
+   "imported": "2026-10-13T21:25:18",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "busyness": 1.203,
+    "align": "right"
+   }
+  },
+  "6799437d4122b81c": {
+   "title": "Ninja Gaiden",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/6799437d4122b81c-top100-c01.png",
+     "original": "originals/6799437d4122b81c-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "576615751c42c51cca37a427ee585f3dcf80491ffa56e262a7c003547c3dbbae",
+     "source": "6799437d4122b81c-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:6799437d4122b81c-candidate-01",
+     "prompt_version": "6799437d4122b81c-candidate-01",
+     "imported": "2026-10-13T21:25:20",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.796,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "6799437d4122b81c-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/6799437d4122b81c.jpg",
+   "sha256": "576615751c42c51cca37a427ee585f3dcf80491ffa56e262a7c003547c3dbbae",
+   "runtime_sha256": "6c73624d6af4b56f03f524b70fa68de992f420a281208fde763fe15bdacd908b",
+   "source": "6799437d4122b81c-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:6799437d4122b81c-candidate-01",
+   "imported": "2026-10-13T21:25:20",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.796,
+    "align": "left"
+   }
+  },
+  "7eba1637cd2fdbc4": {
+   "title": "Castlevania",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/7eba1637cd2fdbc4-top100-c01.png",
+     "original": "originals/7eba1637cd2fdbc4-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "fa2c09911647599a91a3af00cf7c23442f38117cc56622264fbd4fdb22025957",
+     "source": "7eba1637cd2fdbc4-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:7eba1637cd2fdbc4-candidate-01",
+     "prompt_version": "7eba1637cd2fdbc4-candidate-01",
+     "imported": "2026-10-13T21:25:21",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.561,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "7eba1637cd2fdbc4-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/7eba1637cd2fdbc4.jpg",
+   "sha256": "fa2c09911647599a91a3af00cf7c23442f38117cc56622264fbd4fdb22025957",
+   "runtime_sha256": "4d2f6a63b9d63bd8f692f07c389af747a6f5bb9a6d21446e6442082cd4dc9967",
+   "source": "7eba1637cd2fdbc4-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:7eba1637cd2fdbc4-candidate-01",
+   "imported": "2026-10-13T21:25:21",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.561,
+    "align": "left"
+   }
+  },
+  "dbd530e6ca07cc4b": {
+   "title": "Life Force",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/dbd530e6ca07cc4b-top100-c02.png",
+     "original": "originals/dbd530e6ca07cc4b-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "1e358f45987269ffd04d523564e6234064bb130057518425e1717bdd15e9011f",
+     "source": "dbd530e6ca07cc4b-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:dbd530e6ca07cc4b-candidate-02",
+     "prompt_version": "dbd530e6ca07cc4b-candidate-02",
+     "imported": "2026-10-13T21:25:23",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.989,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "dbd530e6ca07cc4b-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/dbd530e6ca07cc4b.jpg",
+   "sha256": "1e358f45987269ffd04d523564e6234064bb130057518425e1717bdd15e9011f",
+   "runtime_sha256": "5a5ea58e1a124980b144c2d6d61382d4f878ac4e106170030366707c2402bb70",
+   "source": "dbd530e6ca07cc4b-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:dbd530e6ca07cc4b-candidate-02",
+   "imported": "2026-10-13T21:25:23",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.989,
+    "align": "left"
+   }
+  },
+  "84f5377980d2fd44": {
+   "title": "Maniac Mansion",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/84f5377980d2fd44-top100-c01.png",
+     "original": "originals/84f5377980d2fd44-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "b0a526e52e4dd45cee7e93107a0c1f714bdd1db0ecbacf1e9eaa86d632faf771",
+     "source": "84f5377980d2fd44-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:84f5377980d2fd44-candidate-01",
+     "prompt_version": "84f5377980d2fd44-candidate-01",
+     "imported": "2026-10-13T21:25:24",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.908,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "84f5377980d2fd44-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/84f5377980d2fd44.jpg",
+   "sha256": "b0a526e52e4dd45cee7e93107a0c1f714bdd1db0ecbacf1e9eaa86d632faf771",
+   "runtime_sha256": "b58868b0f83cc4a27a1c2a4f65bc024a3a745d3523646f1c25946fc1400f4682",
+   "source": "84f5377980d2fd44-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:84f5377980d2fd44-candidate-01",
+   "imported": "2026-10-13T21:25:24",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.908,
+    "align": "right"
+   }
+  },
+  "8ba8baed01a9fbaf": {
+   "title": "DuckTales",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/8ba8baed01a9fbaf-top100-c01.png",
+     "original": "originals/8ba8baed01a9fbaf-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "60a8b14fa45abee3def519aeb6377c4a5b0c1eda2e7dbc023f82a18407530d75",
+     "source": "8ba8baed01a9fbaf-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:8ba8baed01a9fbaf-candidate-01",
+     "prompt_version": "8ba8baed01a9fbaf-candidate-01",
+     "imported": "2026-10-13T21:25:25",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.172,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "8ba8baed01a9fbaf-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/8ba8baed01a9fbaf.jpg",
+   "sha256": "60a8b14fa45abee3def519aeb6377c4a5b0c1eda2e7dbc023f82a18407530d75",
+   "runtime_sha256": "f94e9b599fcdfb73504621e860347289dc03cb0bf09b6f0c2a47916cebb5dbbe",
+   "source": "8ba8baed01a9fbaf-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:8ba8baed01a9fbaf-candidate-01",
+   "imported": "2026-10-13T21:25:25",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.172,
+    "align": "left"
+   }
+  },
+  "56d25e05dde2048c": {
+   "title": "Battletoads",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/56d25e05dde2048c-top100-c01.png",
+     "original": "originals/56d25e05dde2048c-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "45fda7a56a2d5cb3f5005554b7bb18005f8fe396f6adf07ddaa420c4a85fe106",
+     "source": "56d25e05dde2048c-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:56d25e05dde2048c-candidate-01",
+     "prompt_version": "56d25e05dde2048c-candidate-01",
+     "imported": "2026-10-13T21:25:27",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.409,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "56d25e05dde2048c-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/56d25e05dde2048c.jpg",
+   "sha256": "45fda7a56a2d5cb3f5005554b7bb18005f8fe396f6adf07ddaa420c4a85fe106",
+   "runtime_sha256": "788b9a9fcb09ea3c9c4acdd844e6b2fbb66d0ca16ae200d776980fb05137b427",
+   "source": "56d25e05dde2048c-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:56d25e05dde2048c-candidate-01",
+   "imported": "2026-10-13T21:25:27",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 0.409,
+    "align": "right"
+   }
+  },
+  "2ae5fb18a1bf8410": {
+   "title": "Tetris",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/2ae5fb18a1bf8410-top100-c01.png",
+     "original": "originals/2ae5fb18a1bf8410-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "4f526dcb096f288030c5fb704207c611b0195f2272bb795427b0e0c7e8b6acab",
+     "source": "2ae5fb18a1bf8410-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:2ae5fb18a1bf8410-candidate-01",
+     "prompt_version": "2ae5fb18a1bf8410-candidate-01",
+     "imported": "2026-10-13T21:25:28",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.858,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "2ae5fb18a1bf8410-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/2ae5fb18a1bf8410.jpg",
+   "sha256": "4f526dcb096f288030c5fb704207c611b0195f2272bb795427b0e0c7e8b6acab",
+   "runtime_sha256": "f2a43b050959a277d2d2161b82c5d50fada351a579075163db78c3c8ff37cb40",
+   "source": "2ae5fb18a1bf8410-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:2ae5fb18a1bf8410-candidate-01",
+   "imported": "2026-10-13T21:25:28",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 0.858,
+    "align": "right"
+   }
+  },
+  "58f2ba801354a8e5": {
+   "title": "Faxanadu",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/58f2ba801354a8e5-top100-c02.png",
+     "original": "originals/58f2ba801354a8e5-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "f0ff10086cc8a13d92ae153dab8ad45702cb63202708a51cd6760833b3dd7444",
+     "source": "58f2ba801354a8e5-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:58f2ba801354a8e5-candidate-02",
+     "prompt_version": "58f2ba801354a8e5-candidate-02",
+     "imported": "2026-10-13T21:25:30",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 1.233,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "58f2ba801354a8e5-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/58f2ba801354a8e5.jpg",
+   "sha256": "f0ff10086cc8a13d92ae153dab8ad45702cb63202708a51cd6760833b3dd7444",
+   "runtime_sha256": "bba90e7f45fa6f9ee081ef0b647123d444a259686d76a2731306d8befb8f1588",
+   "source": "58f2ba801354a8e5-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:58f2ba801354a8e5-candidate-02",
+   "imported": "2026-10-13T21:25:30",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 1.233,
+    "align": "right"
+   }
+  },
+  "69de2c7552fa81ca": {
+   "title": "StarTropics",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/69de2c7552fa81ca-top100-c03.png",
+     "original": "originals/69de2c7552fa81ca-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "54a47dddbe3f339ee34dc56a79fa30473439e238f012839b1cf48d8e84a35f90",
+     "source": "69de2c7552fa81ca-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:69de2c7552fa81ca-candidate-03",
+     "prompt_version": "69de2c7552fa81ca-candidate-03",
+     "imported": "2026-10-13T21:25:32",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.695,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "69de2c7552fa81ca-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/69de2c7552fa81ca.jpg",
+   "sha256": "54a47dddbe3f339ee34dc56a79fa30473439e238f012839b1cf48d8e84a35f90",
+   "runtime_sha256": "0bdaad583a2d9c0e62f885c4b95acefbce70edeeda8134602745d23b593a879d",
+   "source": "69de2c7552fa81ca-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:69de2c7552fa81ca-candidate-03",
+   "imported": "2026-10-13T21:25:32",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.695,
+    "align": "left"
+   }
+  },
+  "1df64e9554fb9997": {
+   "title": "Micro Machines",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/1df64e9554fb9997-top100-c03.png",
+     "original": "originals/1df64e9554fb9997-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "5b5827b6cb05f651df45d1e097740f456e1b5bc0648b38c43578ea6beb456588",
+     "source": "1df64e9554fb9997-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:1df64e9554fb9997-candidate-03",
+     "prompt_version": "1df64e9554fb9997-candidate-03",
+     "imported": "2026-10-13T21:25:34",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "1df64e9554fb9997-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/1df64e9554fb9997.jpg",
+   "sha256": "5b5827b6cb05f651df45d1e097740f456e1b5bc0648b38c43578ea6beb456588",
+   "runtime_sha256": "e804a889106ba6ba323d4cb928ffd261f3b1284a343b710b63e97897d7b2d13d",
+   "source": "1df64e9554fb9997-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:1df64e9554fb9997-candidate-03",
+   "imported": "2026-10-13T21:25:34",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "d968a138b19d39da": {
+   "title": "Dragon Warrior",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/d968a138b19d39da-top100-c01.png",
+     "original": "originals/d968a138b19d39da-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "6d8d7b5e1035b4837ed19ef786ae7e0db1854763596433f4d6d0e4513deb704d",
+     "source": "d968a138b19d39da-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:d968a138b19d39da-candidate-01",
+     "prompt_version": "d968a138b19d39da-candidate-01",
+     "imported": "2026-10-13T21:25:36",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.584,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "d968a138b19d39da-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/d968a138b19d39da.jpg",
+   "sha256": "6d8d7b5e1035b4837ed19ef786ae7e0db1854763596433f4d6d0e4513deb704d",
+   "runtime_sha256": "96c3e617c81176c26ad5a7849a32e693364013d9a1cd57892460dd402ae7a674",
+   "source": "d968a138b19d39da-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:d968a138b19d39da-candidate-01",
+   "imported": "2026-10-13T21:25:36",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.584,
+    "align": "right"
+   }
+  },
+  "f91a8bfc25bd267f": {
+   "title": "Dragon Warrior III",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/f91a8bfc25bd267f-top100-c02.png",
+     "original": "originals/f91a8bfc25bd267f-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "61d0b50c389897b7929e0dc723be35331de33e8970fb6bf76c29d5ec3894d1d9",
+     "source": "f91a8bfc25bd267f-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:f91a8bfc25bd267f-candidate-02",
+     "prompt_version": "f91a8bfc25bd267f-candidate-02",
+     "imported": "2026-10-13T21:25:37",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.364,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "f91a8bfc25bd267f-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/f91a8bfc25bd267f.jpg",
+   "sha256": "61d0b50c389897b7929e0dc723be35331de33e8970fb6bf76c29d5ec3894d1d9",
+   "runtime_sha256": "241875540f1294a2f65d7ae212302a5a5bcd9f540cc3a0b7e990e8bf18540f6b",
+   "source": "f91a8bfc25bd267f-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:f91a8bfc25bd267f-candidate-02",
+   "imported": "2026-10-13T21:25:37",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.364,
+    "align": "left"
+   }
+  },
+  "abde6fc87b2d90e0": {
+   "title": "Blades of Steel",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/abde6fc87b2d90e0-top100-c01.png",
+     "original": "originals/abde6fc87b2d90e0-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "2c325990369a3af9120900e3b7d234d78012238833c543720e8f66946928380d",
+     "source": "abde6fc87b2d90e0-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:abde6fc87b2d90e0-candidate-01",
+     "prompt_version": "abde6fc87b2d90e0-candidate-01",
+     "imported": "2026-10-13T21:25:39",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.529,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "abde6fc87b2d90e0-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/abde6fc87b2d90e0.jpg",
+   "sha256": "2c325990369a3af9120900e3b7d234d78012238833c543720e8f66946928380d",
+   "runtime_sha256": "0793a49bc8bad08021eb8eac2ddfc74597a736c87282fc30ee12177dfb5a1580",
+   "source": "abde6fc87b2d90e0-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:abde6fc87b2d90e0-candidate-01",
+   "imported": "2026-10-13T21:25:39",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.529,
+    "align": "left"
+   }
+  },
+  "b035ec9e2a7fc408": {
+   "title": "Baseball Stars",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/b035ec9e2a7fc408-top100-c01.png",
+     "original": "originals/b035ec9e2a7fc408-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "f4d17d1652ea821f3d35046f89643620dad0cc5754fa1546ce816fc710b90df2",
+     "source": "b035ec9e2a7fc408-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:b035ec9e2a7fc408-candidate-01",
+     "prompt_version": "b035ec9e2a7fc408-candidate-01",
+     "imported": "2026-10-13T21:25:41",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.099,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "b035ec9e2a7fc408-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/b035ec9e2a7fc408.jpg",
+   "sha256": "f4d17d1652ea821f3d35046f89643620dad0cc5754fa1546ce816fc710b90df2",
+   "runtime_sha256": "309070603ea637b4bf91aaa29d358740613f353c7670a59fc89829d09274eeab",
+   "source": "b035ec9e2a7fc408-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:b035ec9e2a7fc408-candidate-01",
+   "imported": "2026-10-13T21:25:41",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.099,
+    "align": "left"
+   }
+  },
+  "e9f4c9d1b7c66c6a": {
+   "title": "Excitebike",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/e9f4c9d1b7c66c6a-top100-c02.png",
+     "original": "originals/e9f4c9d1b7c66c6a-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "13f8fedfc043f16fb75b82d1057dcbc3482a3aef53b3d6358d1406634c3183ec",
+     "source": "e9f4c9d1b7c66c6a-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:e9f4c9d1b7c66c6a-candidate-02",
+     "prompt_version": "e9f4c9d1b7c66c6a-candidate-02",
+     "imported": "2026-10-13T21:25:43",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.252,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "e9f4c9d1b7c66c6a-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/e9f4c9d1b7c66c6a.jpg",
+   "sha256": "13f8fedfc043f16fb75b82d1057dcbc3482a3aef53b3d6358d1406634c3183ec",
+   "runtime_sha256": "6932af33b44a2afbc996b575583afe8ddf02af8f4088a817312319ba02820977",
+   "source": "e9f4c9d1b7c66c6a-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:e9f4c9d1b7c66c6a-candidate-02",
+   "imported": "2026-10-13T21:25:43",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.252,
+    "align": "left"
+   }
+  },
+  "ee8b884dec3b2c5c": {
+   "title": "Kid Icarus",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/ee8b884dec3b2c5c-top100-c02.png",
+     "original": "originals/ee8b884dec3b2c5c-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "5242adb826db7bce0b3ca9454699a2170aad04177dc8ca10fa99f7559017ac1d",
+     "source": "ee8b884dec3b2c5c-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:ee8b884dec3b2c5c-candidate-02",
+     "prompt_version": "ee8b884dec3b2c5c-candidate-02",
+     "imported": "2026-10-13T21:25:45",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "ee8b884dec3b2c5c-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/ee8b884dec3b2c5c.jpg",
+   "sha256": "5242adb826db7bce0b3ca9454699a2170aad04177dc8ca10fa99f7559017ac1d",
+   "runtime_sha256": "df9fbb911c4973a6a45482489eaaa913401d666a10b4766262cddeeb05b4029e",
+   "source": "ee8b884dec3b2c5c-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:ee8b884dec3b2c5c-candidate-02",
+   "imported": "2026-10-13T21:25:45",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "368d7ea3a066d4dc": {
+   "title": "Teenage Mutant Ninja Turtles II - The Arcade Game",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/368d7ea3a066d4dc-top100-c02.png",
+     "original": "originals/368d7ea3a066d4dc-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ba8ef17ed3cce6a53f42b3beb2dba519895ca5ab42abc944fa06e917395b90b6",
+     "source": "368d7ea3a066d4dc-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:368d7ea3a066d4dc-candidate-02",
+     "prompt_version": "368d7ea3a066d4dc-candidate-02",
+     "imported": "2026-10-13T21:25:47",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.957,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "368d7ea3a066d4dc-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/368d7ea3a066d4dc.jpg",
+   "sha256": "ba8ef17ed3cce6a53f42b3beb2dba519895ca5ab42abc944fa06e917395b90b6",
+   "runtime_sha256": "3765af2c1454bb1ae9dfecaf6a9fd3075c8f7d95c6145cdca91a72c9bae9385c",
+   "source": "368d7ea3a066d4dc-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:368d7ea3a066d4dc-candidate-02",
+   "imported": "2026-10-13T21:25:47",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.957,
+    "align": "left"
+   }
+  },
+  "2fbbc465fc239b48": {
+   "title": "Metal Storm",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/2fbbc465fc239b48-top100-c03.png",
+     "original": "originals/2fbbc465fc239b48-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "fa895243260133f4eb8118a9c33c35612a9b1920aa5076ef8b8b1ad697bfa9c1",
+     "source": "2fbbc465fc239b48-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:2fbbc465fc239b48-candidate-03",
+     "prompt_version": "2fbbc465fc239b48-candidate-03",
+     "imported": "2026-10-13T21:25:48",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 1.109,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "2fbbc465fc239b48-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/2fbbc465fc239b48.jpg",
+   "sha256": "fa895243260133f4eb8118a9c33c35612a9b1920aa5076ef8b8b1ad697bfa9c1",
+   "runtime_sha256": "4931a2453de887b6e8c3fc28c3457b0c5b1689aa9356d6969314e1d7f236a40f",
+   "source": "2fbbc465fc239b48-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:2fbbc465fc239b48-candidate-03",
+   "imported": "2026-10-13T21:25:48",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 1.109,
+    "align": "right"
+   }
+  },
+  "9575ec31c1c658fd": {
+   "title": "Castlevania II - Simon's Quest",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/9575ec31c1c658fd-top100-c01.png",
+     "original": "originals/9575ec31c1c658fd-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "4e61000f68e07e359cb7fe4e4fc8ca96dffe2c5640dae89db169eca0c22cad20",
+     "source": "9575ec31c1c658fd-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:9575ec31c1c658fd-candidate-01",
+     "prompt_version": "9575ec31c1c658fd-candidate-01",
+     "imported": "2026-10-13T21:25:50",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.814,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "9575ec31c1c658fd-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/9575ec31c1c658fd.jpg",
+   "sha256": "4e61000f68e07e359cb7fe4e4fc8ca96dffe2c5640dae89db169eca0c22cad20",
+   "runtime_sha256": "7c408a433c7b813fa2b6035e0b0ce5ed2e859ea83ab6a80f7761597858287112",
+   "source": "9575ec31c1c658fd-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:9575ec31c1c658fd-candidate-01",
+   "imported": "2026-10-13T21:25:50",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.814,
+    "align": "right"
+   }
+  },
+  "e49cb745370065a4": {
+   "title": "Dragon Warrior IV",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/e49cb745370065a4-top100-c01.png",
+     "original": "originals/e49cb745370065a4-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7e44277cfbc33fcfd6ee73295b5c6cfcb86f5d3e0bdaf026630015ee03a5874d",
+     "source": "e49cb745370065a4-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:e49cb745370065a4-candidate-01",
+     "prompt_version": "e49cb745370065a4-candidate-01",
+     "imported": "2026-10-13T21:25:51",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.761,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "e49cb745370065a4-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/e49cb745370065a4.jpg",
+   "sha256": "7e44277cfbc33fcfd6ee73295b5c6cfcb86f5d3e0bdaf026630015ee03a5874d",
+   "runtime_sha256": "f211628bbf0a43c390209d0fa7df3651f6df22dcc374ce576d6de2f1dd51fff5",
+   "source": "e49cb745370065a4-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:e49cb745370065a4-candidate-01",
+   "imported": "2026-10-13T21:25:51",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.761,
+    "align": "left"
+   }
+  },
+  "f28821df0114eb6c": {
+   "title": "Batman - The Video Game",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/f28821df0114eb6c-top100-c03.png",
+     "original": "originals/f28821df0114eb6c-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "c1b9a039a94b22c72e99d99485b342173fb4d0d0147cea12879187bed143631d",
+     "source": "f28821df0114eb6c-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:f28821df0114eb6c-candidate-03",
+     "prompt_version": "f28821df0114eb6c-candidate-03",
+     "imported": "2026-10-13T21:25:53",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.4,
+      "slot": "mid-right",
+      "busyness": 1.159,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "f28821df0114eb6c-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/f28821df0114eb6c.jpg",
+   "sha256": "c1b9a039a94b22c72e99d99485b342173fb4d0d0147cea12879187bed143631d",
+   "runtime_sha256": "f372c44680585507a0faa1e6f295d071e3146de6aeff698ae6a3bddbe28238b6",
+   "source": "f28821df0114eb6c-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:f28821df0114eb6c-candidate-03",
+   "imported": "2026-10-13T21:25:53",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.4,
+    "slot": "mid-right",
+    "busyness": 1.159,
+    "align": "right"
+   }
+  },
+  "f6d29afbd7ddad33": {
+   "title": "Metal Gear",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/f6d29afbd7ddad33-top100-c01.png",
+     "original": "originals/f6d29afbd7ddad33-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "bda895baf3519344a69b2d5e1ecdc761d08f6b110e9d5e3751b6e82dacbad1f6",
+     "source": "f6d29afbd7ddad33-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:f6d29afbd7ddad33-candidate-01",
+     "prompt_version": "f6d29afbd7ddad33-candidate-01",
+     "imported": "2026-10-13T21:25:54",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.887,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "f6d29afbd7ddad33-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/f6d29afbd7ddad33.jpg",
+   "sha256": "bda895baf3519344a69b2d5e1ecdc761d08f6b110e9d5e3751b6e82dacbad1f6",
+   "runtime_sha256": "227587d8c1b9bd1929910f6a357e18a059a58c98bcd669ad299346167eb464c7",
+   "source": "f6d29afbd7ddad33-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:f6d29afbd7ddad33-candidate-01",
+   "imported": "2026-10-13T21:25:54",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.887,
+    "align": "left"
+   }
+  },
+  "3edd803db1cc8815": {
+   "title": "Super C",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/3edd803db1cc8815-top100-c03.png",
+     "original": "originals/3edd803db1cc8815-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ffc01b02d8bc47bdb46da4910c882e2aa7678f6995c27bd61a91d5d8415a99b7",
+     "source": "3edd803db1cc8815-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:3edd803db1cc8815-candidate-03",
+     "prompt_version": "3edd803db1cc8815-candidate-03",
+     "imported": "2026-10-13T21:25:56",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.714,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "3edd803db1cc8815-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/3edd803db1cc8815.jpg",
+   "sha256": "ffc01b02d8bc47bdb46da4910c882e2aa7678f6995c27bd61a91d5d8415a99b7",
+   "runtime_sha256": "1b11cedc6f33b52801d55b6ee7af2d3fcf3167bcdef8e8e98a3526164ae9fe9c",
+   "source": "3edd803db1cc8815-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:3edd803db1cc8815-candidate-03",
+   "imported": "2026-10-13T21:25:56",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.714,
+    "align": "left"
+   }
+  },
+  "5314ad0c40616119": {
+   "title": "Mega Man",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/5314ad0c40616119-top100-c02.png",
+     "original": "originals/5314ad0c40616119-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "0a7f60e7896126fb2a8914f575d5506c9ae12d46e463b45cfe306325c6998926",
+     "source": "5314ad0c40616119-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:5314ad0c40616119-candidate-02",
+     "prompt_version": "5314ad0c40616119-candidate-02",
+     "imported": "2026-10-13T21:25:58",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.019,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "5314ad0c40616119-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/5314ad0c40616119.jpg",
+   "sha256": "0a7f60e7896126fb2a8914f575d5506c9ae12d46e463b45cfe306325c6998926",
+   "runtime_sha256": "0ce8dc0fa57a259815850ad2a25d1a2d03db71c14204fb1e06efa16578cc43d1",
+   "source": "5314ad0c40616119-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:5314ad0c40616119-candidate-02",
+   "imported": "2026-10-13T21:25:58",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.019,
+    "align": "left"
+   }
+  },
+  "3f9e3d3b48a897d9": {
+   "title": "R.C. Pro-Am",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/3f9e3d3b48a897d9-top100-c02.png",
+     "original": "originals/3f9e3d3b48a897d9-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ff29055cbc16de41daf35396be006611493e9db1801b4d48c21d29e1224d62fd",
+     "source": "3f9e3d3b48a897d9-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:3f9e3d3b48a897d9-candidate-02",
+     "prompt_version": "3f9e3d3b48a897d9-candidate-02",
+     "imported": "2026-10-13T21:25:59",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "3f9e3d3b48a897d9-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/3f9e3d3b48a897d9.jpg",
+   "sha256": "ff29055cbc16de41daf35396be006611493e9db1801b4d48c21d29e1224d62fd",
+   "runtime_sha256": "3cf1a18254165ad789fa0e0e49309d91cb4045c38106df76247be3d9309e4c7e",
+   "source": "3f9e3d3b48a897d9-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:3f9e3d3b48a897d9-candidate-02",
+   "imported": "2026-10-13T21:25:59",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "98691aea357072f9": {
+   "title": "Snake Rattle n Roll",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/98691aea357072f9-top100-c03.png",
+     "original": "originals/98691aea357072f9-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "37f178166697eb9fdf96ab153da4d2416536d2c3c24d8646ef6a854a43664b2f",
+     "source": "98691aea357072f9-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:98691aea357072f9-candidate-03",
+     "prompt_version": "98691aea357072f9-candidate-03",
+     "imported": "2026-10-13T21:26:02",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.806,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "98691aea357072f9-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/98691aea357072f9.jpg",
+   "sha256": "37f178166697eb9fdf96ab153da4d2416536d2c3c24d8646ef6a854a43664b2f",
+   "runtime_sha256": "dd422d9e0a1e5086cd2fd52133301bff1452712925419ab96a3e6cd8faad433b",
+   "source": "98691aea357072f9-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:98691aea357072f9-candidate-03",
+   "imported": "2026-10-13T21:26:02",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.806,
+    "align": "left"
+   }
+  },
+  "a5165565263eaf8b": {
+   "title": "Little Samson",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/a5165565263eaf8b-top100-c02.png",
+     "original": "originals/a5165565263eaf8b-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "04e3e0b60308f25135ec1f41172bff8b325172d6febc9e5bc6653d6233ab779f",
+     "source": "a5165565263eaf8b-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:a5165565263eaf8b-candidate-02",
+     "prompt_version": "a5165565263eaf8b-candidate-02",
+     "imported": "2026-10-13T21:26:03",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "a5165565263eaf8b-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/a5165565263eaf8b.jpg",
+   "sha256": "04e3e0b60308f25135ec1f41172bff8b325172d6febc9e5bc6653d6233ab779f",
+   "runtime_sha256": "ffbfb295a52f0aec2aed19f16bb57f78518a26664cd3609da3562cc76fd35460",
+   "source": "a5165565263eaf8b-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:a5165565263eaf8b-candidate-02",
+   "imported": "2026-10-13T21:26:03",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "eea66f7bcc90d114": {
+   "title": "Ghosts'n Goblins",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/eea66f7bcc90d114-top100-c01.png",
+     "original": "originals/eea66f7bcc90d114-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "baa1289ad8a9c32ffeee445e8ffecec5a4c1ce23e72985687e88f634d09e4ccc",
+     "source": "eea66f7bcc90d114-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:eea66f7bcc90d114-candidate-01",
+     "prompt_version": "eea66f7bcc90d114-candidate-01",
+     "imported": "2026-10-13T21:26:05",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.547,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "eea66f7bcc90d114-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/eea66f7bcc90d114.jpg",
+   "sha256": "baa1289ad8a9c32ffeee445e8ffecec5a4c1ce23e72985687e88f634d09e4ccc",
+   "runtime_sha256": "42dee8e7a0cb29630e87b5ea7a0e4f84b93e1b83ad3418c56d2047d1ab25205b",
+   "source": "eea66f7bcc90d114-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:eea66f7bcc90d114-candidate-01",
+   "imported": "2026-10-13T21:26:05",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.547,
+    "align": "left"
+   }
+  },
+  "6918d7cbb81bfcd2": {
+   "title": "Gradius",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/6918d7cbb81bfcd2-top100-c01.png",
+     "original": "originals/6918d7cbb81bfcd2-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a62a8dbe864b0d6880c194e5c93e2926649709084a27c9b0c1c1da7663771f1a",
+     "source": "6918d7cbb81bfcd2-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:6918d7cbb81bfcd2-candidate-01",
+     "prompt_version": "6918d7cbb81bfcd2-candidate-01",
+     "imported": "2026-10-13T21:26:07",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.531,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "6918d7cbb81bfcd2-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/6918d7cbb81bfcd2.jpg",
+   "sha256": "a62a8dbe864b0d6880c194e5c93e2926649709084a27c9b0c1c1da7663771f1a",
+   "runtime_sha256": "b15210bde7a1f17841dcea430c92dc85f21d45630b51c4be83e3946880b04c17",
+   "source": "6918d7cbb81bfcd2-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:6918d7cbb81bfcd2-candidate-01",
+   "imported": "2026-10-13T21:26:07",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.531,
+    "align": "right"
+   }
+  },
+  "d2fbe8b10f762099": {
+   "title": "Dr. Mario",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/d2fbe8b10f762099-top100-c01.png",
+     "original": "originals/d2fbe8b10f762099-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ebafb0bcb6ccf4fe62859e7a551f4b959f09690514dd610fce3dea44484d70be",
+     "source": "d2fbe8b10f762099-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:d2fbe8b10f762099-candidate-01",
+     "prompt_version": "d2fbe8b10f762099-candidate-01",
+     "imported": "2026-10-13T21:26:09",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.4,
+      "slot": "mid-right",
+      "busyness": 1.271,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "d2fbe8b10f762099-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/d2fbe8b10f762099.jpg",
+   "sha256": "ebafb0bcb6ccf4fe62859e7a551f4b959f09690514dd610fce3dea44484d70be",
+   "runtime_sha256": "07c9ad28904b882f940b7e6a37bf8059d340e7ebe88b63767e828608fd09806a",
+   "source": "d2fbe8b10f762099-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:d2fbe8b10f762099-candidate-01",
+   "imported": "2026-10-13T21:26:09",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.4,
+    "slot": "mid-right",
+    "busyness": 1.271,
+    "align": "right"
+   }
+  },
+  "adb1a1a9e853c239": {
+   "title": "Willow",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/adb1a1a9e853c239-top100-c01.png",
+     "original": "originals/adb1a1a9e853c239-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "26a8c68199ae2a6ff6dcb48f29a545cb55e15039d51dd526b777c97d228b6832",
+     "source": "adb1a1a9e853c239-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:adb1a1a9e853c239-candidate-01",
+     "prompt_version": "adb1a1a9e853c239-candidate-01",
+     "imported": "2026-10-13T21:26:10",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.582,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "adb1a1a9e853c239-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/adb1a1a9e853c239.jpg",
+   "sha256": "26a8c68199ae2a6ff6dcb48f29a545cb55e15039d51dd526b777c97d228b6832",
+   "runtime_sha256": "790c366168fb4cfaf5da2a0abed1463d65e85721d1b854dc889dd290df25cad8",
+   "source": "adb1a1a9e853c239-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:adb1a1a9e853c239-candidate-01",
+   "imported": "2026-10-13T21:26:10",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.582,
+    "align": "left"
+   }
+  },
+  "9bef1813dbcfa003": {
+   "title": "Rygar",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/9bef1813dbcfa003-top100-c02.png",
+     "original": "originals/9bef1813dbcfa003-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "38741c5217a95c2bddc1aa423549e93d251bf9e1fa6d8d543ddc64d36cbd3ae8",
+     "source": "9bef1813dbcfa003-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:9bef1813dbcfa003-candidate-02",
+     "prompt_version": "9bef1813dbcfa003-candidate-02",
+     "imported": "2026-10-13T21:26:12",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "busyness": 1.094,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "9bef1813dbcfa003-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/9bef1813dbcfa003.jpg",
+   "sha256": "38741c5217a95c2bddc1aa423549e93d251bf9e1fa6d8d543ddc64d36cbd3ae8",
+   "runtime_sha256": "135fd121c9e39f46fa5bae6034d7ad544c14978054c46287d531d48f546e036b",
+   "source": "9bef1813dbcfa003-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:9bef1813dbcfa003-candidate-02",
+   "imported": "2026-10-13T21:26:12",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "busyness": 1.094,
+    "align": "right"
+   }
+  },
+  "e84d90fefb92f2b6": {
+   "title": "Chip 'n Dale - Rescue Rangers",
+   "candidates": {
+    "fixes1-new": {
+     "file": "candidates/e84d90fefb92f2b6-fixes1-new.png",
+     "original": "originals/e84d90fefb92f2b6-fixes1-new.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "94241cda8f1e026ee0d7b27ab6ca1895e2c57403cdb47da0bae999cb32683459",
+     "source": "e84d90fefb92f2b6__fixes1__new.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:fixes1:e84d90fefb92f2b6__fixes1__new",
+     "prompt_version": "e84d90fefb92f2b6__fixes1__new",
+     "imported": "2026-10-13T21:26:13",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "e84d90fefb92f2b6__fixes1__new",
+     "fix_note": "replacement illustration; all three campaign candidates rejected",
+     "superseded_candidates": [
+      "e84d90fefb92f2b6-candidate-01",
+      "e84d90fefb92f2b6-candidate-02",
+      "e84d90fefb92f2b6-candidate-03"
+     ]
+    }
+   },
+   "current": "fixes1-new",
+   "file": "art/hero/e84d90fefb92f2b6.jpg",
+   "sha256": "94241cda8f1e026ee0d7b27ab6ca1895e2c57403cdb47da0bae999cb32683459",
+   "runtime_sha256": "64220c094175be6d725f895781c49b8c1be9d7ef1bb6048ed8d7d77830c805e9",
+   "source": "e84d90fefb92f2b6__fixes1__new.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:fixes1:e84d90fefb92f2b6__fixes1__new",
+   "imported": "2026-10-13T21:26:13",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "055fb73baaed0f3c": {
+   "title": "Gargoyle's Quest II",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/055fb73baaed0f3c-top100-c03.png",
+     "original": "originals/055fb73baaed0f3c-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "24abcc40e4855b794fba309a5748243afdf46a4d8a687ecd1aedc7d8058ee0ea",
+     "source": "055fb73baaed0f3c-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:055fb73baaed0f3c-candidate-03",
+     "prompt_version": "055fb73baaed0f3c-candidate-03",
+     "imported": "2026-10-13T21:26:15",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.781,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "055fb73baaed0f3c-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/055fb73baaed0f3c.jpg",
+   "sha256": "24abcc40e4855b794fba309a5748243afdf46a4d8a687ecd1aedc7d8058ee0ea",
+   "runtime_sha256": "9a5250671492f969251e5d347490c1c9fb51c3cabb90d3011c2c7990e9b4f357",
+   "source": "055fb73baaed0f3c-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:055fb73baaed0f3c-candidate-03",
+   "imported": "2026-10-13T21:26:15",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.781,
+    "align": "left"
+   }
+  },
+  "2e14f4481b5b762b": {
+   "title": "Rad Racer",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/2e14f4481b5b762b-top100-c03.png",
+     "original": "originals/2e14f4481b5b762b-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "061dda489bae1bca0d8bdaa21ea94c5350448b70be56b2b4d677884a57d0a360",
+     "source": "2e14f4481b5b762b-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:2e14f4481b5b762b-candidate-03",
+     "prompt_version": "2e14f4481b5b762b-candidate-03",
+     "imported": "2026-10-13T21:26:17",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.538,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "2e14f4481b5b762b-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/2e14f4481b5b762b.jpg",
+   "sha256": "061dda489bae1bca0d8bdaa21ea94c5350448b70be56b2b4d677884a57d0a360",
+   "runtime_sha256": "c9145f36bde29eeaec949c11d0504b93e13c19863ee913a62468a0fa7a9301d8",
+   "source": "2e14f4481b5b762b-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:2e14f4481b5b762b-candidate-03",
+   "imported": "2026-10-13T21:26:17",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.538,
+    "align": "left"
+   }
+  },
+  "6928e8c589d6d9cc": {
+   "title": "Jackal",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/6928e8c589d6d9cc-top100-c01.png",
+     "original": "originals/6928e8c589d6d9cc-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "f1a9bfd2030c135f8e27502c27a29c390ef913050543bf4145889554f07be5c2",
+     "source": "6928e8c589d6d9cc-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:6928e8c589d6d9cc-candidate-01",
+     "prompt_version": "6928e8c589d6d9cc-candidate-01",
+     "imported": "2026-10-13T21:26:19",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.762,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "6928e8c589d6d9cc-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/6928e8c589d6d9cc.jpg",
+   "sha256": "f1a9bfd2030c135f8e27502c27a29c390ef913050543bf4145889554f07be5c2",
+   "runtime_sha256": "313f330f3821cb627722de965b805899934de8b637c7675c9c52f971ddb7dac9",
+   "source": "6928e8c589d6d9cc-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:6928e8c589d6d9cc-candidate-01",
+   "imported": "2026-10-13T21:26:19",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.762,
+    "align": "left"
+   }
+  },
+  "7026334a7e8742b6": {
+   "title": "Duck Hunt",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/7026334a7e8742b6-top100-c02.png",
+     "original": "originals/7026334a7e8742b6-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "bf53fa4f2622a85f7fd4e8b30fea7a362d08e7f94daef397faf2d6c32a72a0a7",
+     "source": "7026334a7e8742b6-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:7026334a7e8742b6-candidate-02",
+     "prompt_version": "7026334a7e8742b6-candidate-02",
+     "imported": "2026-10-13T21:26:21",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.346,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "7026334a7e8742b6-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/7026334a7e8742b6.jpg",
+   "sha256": "bf53fa4f2622a85f7fd4e8b30fea7a362d08e7f94daef397faf2d6c32a72a0a7",
+   "runtime_sha256": "058bcae7a0ced463bbe497e3e217ac04a63612d7956333df97a9bc94715c2ee1",
+   "source": "7026334a7e8742b6-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:7026334a7e8742b6-candidate-02",
+   "imported": "2026-10-13T21:26:21",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.346,
+    "align": "right"
+   }
+  },
+  "ae8684d9075b6665": {
+   "title": "Pirates!",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/ae8684d9075b6665-top100-c01.png",
+     "original": "originals/ae8684d9075b6665-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "193c69c2e127fc8f30d119784cc2e0f97bab4efb3a964ddd8167fb56fc06e135",
+     "source": "ae8684d9075b6665-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:ae8684d9075b6665-candidate-01",
+     "prompt_version": "ae8684d9075b6665-candidate-01",
+     "imported": "2026-10-13T21:26:22",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.699,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "ae8684d9075b6665-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/ae8684d9075b6665.jpg",
+   "sha256": "193c69c2e127fc8f30d119784cc2e0f97bab4efb3a964ddd8167fb56fc06e135",
+   "runtime_sha256": "3e30800ffd36bac1842215829de5368fcb5ff914fd530a09aab3375e33c2d053",
+   "source": "ae8684d9075b6665-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:ae8684d9075b6665-candidate-01",
+   "imported": "2026-10-13T21:26:22",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.699,
+    "align": "left"
+   }
+  },
+  "28ce7c337755f30a": {
+   "title": "Super Dodge Ball",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/28ce7c337755f30a-top100-c03.png",
+     "original": "originals/28ce7c337755f30a-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "6d9eb315828b0204d4f40d35f004d9908943996c79dfdbae0c15e4f2cfa6ba97",
+     "source": "28ce7c337755f30a-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:28ce7c337755f30a-candidate-03",
+     "prompt_version": "28ce7c337755f30a-candidate-03",
+     "imported": "2026-10-13T21:26:24",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.314,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "28ce7c337755f30a-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/28ce7c337755f30a.jpg",
+   "sha256": "6d9eb315828b0204d4f40d35f004d9908943996c79dfdbae0c15e4f2cfa6ba97",
+   "runtime_sha256": "48bfd8eb4d3decf282905b7a69aaf68abffe5c64f3e3643a976a5680538dfedb",
+   "source": "28ce7c337755f30a-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:28ce7c337755f30a-candidate-03",
+   "imported": "2026-10-13T21:26:24",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.314,
+    "align": "right"
+   }
+  },
+  "55c2d10ae1b034b3": {
+   "title": "North and South",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/55c2d10ae1b034b3-top100-c01.png",
+     "original": "originals/55c2d10ae1b034b3-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ea96dc067bfbe07ce2bd0b462c07e0420e35b0d4b15998c59d859d2d650d6bb1",
+     "source": "55c2d10ae1b034b3-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:55c2d10ae1b034b3-candidate-01",
+     "prompt_version": "55c2d10ae1b034b3-candidate-01",
+     "imported": "2026-10-13T21:26:26",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "55c2d10ae1b034b3-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/55c2d10ae1b034b3.jpg",
+   "sha256": "ea96dc067bfbe07ce2bd0b462c07e0420e35b0d4b15998c59d859d2d650d6bb1",
+   "runtime_sha256": "3dffc20f008c4045899cd928762b4059acbc651c8a898aea061b41fe49150ee6",
+   "source": "55c2d10ae1b034b3-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:55c2d10ae1b034b3-candidate-01",
+   "imported": "2026-10-13T21:26:26",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "433f6bcbd59a9d59": {
+   "title": "Vice - Project Doom",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/433f6bcbd59a9d59-top100-c03.png",
+     "original": "originals/433f6bcbd59a9d59-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "91967676cdc9f6807f03372a48d2d5d94d98b9e1bdf85b5cc971c2fb993c9b19",
+     "source": "433f6bcbd59a9d59-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:433f6bcbd59a9d59-candidate-03",
+     "prompt_version": "433f6bcbd59a9d59-candidate-03",
+     "imported": "2026-10-13T21:26:28",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.789,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "433f6bcbd59a9d59-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/433f6bcbd59a9d59.jpg",
+   "sha256": "91967676cdc9f6807f03372a48d2d5d94d98b9e1bdf85b5cc971c2fb993c9b19",
+   "runtime_sha256": "0dcf5578c7167f74ff1d8f7832d28297f2cad21770dd16ad947dbcd60e4fffbc",
+   "source": "433f6bcbd59a9d59-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:433f6bcbd59a9d59-candidate-03",
+   "imported": "2026-10-13T21:26:28",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.789,
+    "align": "left"
+   }
+  },
+  "730399227c156663": {
+   "title": "R.C. Pro-Am II",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/730399227c156663-top100-c02.png",
+     "original": "originals/730399227c156663-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "83e8391782593200a75f992976a0138f354643c12a10d710b6d31180808f6887",
+     "source": "730399227c156663-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:730399227c156663-candidate-02",
+     "prompt_version": "730399227c156663-candidate-02",
+     "imported": "2026-10-13T21:26:29",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "730399227c156663-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/730399227c156663.jpg",
+   "sha256": "83e8391782593200a75f992976a0138f354643c12a10d710b6d31180808f6887",
+   "runtime_sha256": "611cdfb51a5cbf73c868767b622ad0f504bd54bbc818210cb3e5766cdc4f0eab",
+   "source": "730399227c156663-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:730399227c156663-candidate-02",
+   "imported": "2026-10-13T21:26:29",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "c564704993cf79c9": {
+   "title": "Double Dragon II - The Revenge",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/c564704993cf79c9-top100-c01.png",
+     "original": "originals/c564704993cf79c9-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7a841579e9db82f12be14e4bd64de9a4d9384cb9b366be83a85745096dd389ce",
+     "source": "c564704993cf79c9-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:c564704993cf79c9-candidate-01",
+     "prompt_version": "c564704993cf79c9-candidate-01",
+     "imported": "2026-10-13T21:26:31",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "busyness": 0.927,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "c564704993cf79c9-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/c564704993cf79c9.jpg",
+   "sha256": "7a841579e9db82f12be14e4bd64de9a4d9384cb9b366be83a85745096dd389ce",
+   "runtime_sha256": "57d639af2962582ccbf4de756284d5c9bfdec9c0eb0a47fc972f677431925b70",
+   "source": "c564704993cf79c9-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:c564704993cf79c9-candidate-01",
+   "imported": "2026-10-13T21:26:31",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "busyness": 0.927,
+    "align": "right"
+   }
+  },
+  "2037babe50fed7a1": {
+   "title": "Mega Man 6",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/2037babe50fed7a1-top100-c02.png",
+     "original": "originals/2037babe50fed7a1-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "92c2aa982e941eee974a755b94ac42ad8ea70e9ee97597f8ac1071bf81d656ad",
+     "source": "2037babe50fed7a1-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:2037babe50fed7a1-candidate-02",
+     "prompt_version": "2037babe50fed7a1-candidate-02",
+     "imported": "2026-10-13T21:26:33",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "busyness": 0.841,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "2037babe50fed7a1-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/2037babe50fed7a1.jpg",
+   "sha256": "92c2aa982e941eee974a755b94ac42ad8ea70e9ee97597f8ac1071bf81d656ad",
+   "runtime_sha256": "4de34d659c0a2825ddfa806ccda743bfdb393df08a24ba0daa2377ddef5dc29e",
+   "source": "2037babe50fed7a1-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:2037babe50fed7a1-candidate-02",
+   "imported": "2026-10-13T21:26:33",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "busyness": 0.841,
+    "align": "right"
+   }
+  },
+  "e437dbafa7e20dd7": {
+   "title": "Solstice - The Quest for the Staff of Demnos",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/e437dbafa7e20dd7-top100-c02.png",
+     "original": "originals/e437dbafa7e20dd7-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a2d4242ba92b0cebbf41659e721655d7817796b32a01d43a26910e14a7b3bd92",
+     "source": "e437dbafa7e20dd7-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:e437dbafa7e20dd7-candidate-02",
+     "prompt_version": "e437dbafa7e20dd7-candidate-02",
+     "imported": "2026-10-13T21:26:35",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.061,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "e437dbafa7e20dd7-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/e437dbafa7e20dd7.jpg",
+   "sha256": "a2d4242ba92b0cebbf41659e721655d7817796b32a01d43a26910e14a7b3bd92",
+   "runtime_sha256": "1a85e1276d9058f034c41f46eb86b9bb2bf3ccd104426b2989126ec85cea5576",
+   "source": "e437dbafa7e20dd7-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:e437dbafa7e20dd7-candidate-02",
+   "imported": "2026-10-13T21:26:35",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.061,
+    "align": "left"
+   }
+  },
+  "d77ed527cf081019": {
+   "title": "Marble Madness",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/d77ed527cf081019-top100-c01.png",
+     "original": "originals/d77ed527cf081019-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "4f76a5b5e07b84e108c689fe32bd79a1df8ab74f35e39bc0d01685bc9f960bee",
+     "source": "d77ed527cf081019-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:d77ed527cf081019-candidate-01",
+     "prompt_version": "d77ed527cf081019-candidate-01",
+     "imported": "2026-10-13T21:26:36",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "d77ed527cf081019-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/d77ed527cf081019.jpg",
+   "sha256": "4f76a5b5e07b84e108c689fe32bd79a1df8ab74f35e39bc0d01685bc9f960bee",
+   "runtime_sha256": "9e65ca399534ea345b0fe06833ecc42cb7a53aac2d2989045db1d1df3867d28e",
+   "source": "d77ed527cf081019-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:d77ed527cf081019-candidate-01",
+   "imported": "2026-10-13T21:26:36",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "4a9544bb41869e88": {
+   "title": "Kickle Cubicle",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/4a9544bb41869e88-top100-c01.png",
+     "original": "originals/4a9544bb41869e88-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a9e8a824c90c18a5fd5f39e5a176989bf34aae4937972df827ce3eb9e9931c3a",
+     "source": "4a9544bb41869e88-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:4a9544bb41869e88-candidate-01",
+     "prompt_version": "4a9544bb41869e88-candidate-01",
+     "imported": "2026-10-13T21:26:38",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.978,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "4a9544bb41869e88-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/4a9544bb41869e88.jpg",
+   "sha256": "a9e8a824c90c18a5fd5f39e5a176989bf34aae4937972df827ce3eb9e9931c3a",
+   "runtime_sha256": "d4e1b80f24dbb4576e4c50a298c5a85b292642d4a502458e8256116dbfd3de6b",
+   "source": "4a9544bb41869e88-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:4a9544bb41869e88-candidate-01",
+   "imported": "2026-10-13T21:26:38",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.978,
+    "align": "left"
+   }
+  },
+  "fbc69cdaf7c14199": {
+   "title": "Shadowgate",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/fbc69cdaf7c14199-top100-c01.png",
+     "original": "originals/fbc69cdaf7c14199-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7b6ebaf4af60af1dda61a75af09676ef4d9edf2af2baa561e4a7ca0446e6a43e",
+     "source": "fbc69cdaf7c14199-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:fbc69cdaf7c14199-candidate-01",
+     "prompt_version": "fbc69cdaf7c14199-candidate-01",
+     "imported": "2026-10-13T21:26:40",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "busyness": 0.493,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "fbc69cdaf7c14199-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/fbc69cdaf7c14199.jpg",
+   "sha256": "7b6ebaf4af60af1dda61a75af09676ef4d9edf2af2baa561e4a7ca0446e6a43e",
+   "runtime_sha256": "4c6cc560e238b198c3848d0c54a7c6256c532c9c27e44be0126d72c56a63cdcc",
+   "source": "fbc69cdaf7c14199-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:fbc69cdaf7c14199-candidate-01",
+   "imported": "2026-10-13T21:26:40",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "busyness": 0.493,
+    "align": "right"
+   }
+  },
+  "a2033c3b3d9f54b3": {
+   "title": "Guerrilla War",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/a2033c3b3d9f54b3-top100-c01.png",
+     "original": "originals/a2033c3b3d9f54b3-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "78aa1a8ee1ab130eeda570f3c72c51d2f08f682f376c5f4291d8aae3bc7b49e7",
+     "source": "a2033c3b3d9f54b3-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:a2033c3b3d9f54b3-candidate-01",
+     "prompt_version": "a2033c3b3d9f54b3-candidate-01",
+     "imported": "2026-10-13T21:26:42",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.078,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "a2033c3b3d9f54b3-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/a2033c3b3d9f54b3.jpg",
+   "sha256": "78aa1a8ee1ab130eeda570f3c72c51d2f08f682f376c5f4291d8aae3bc7b49e7",
+   "runtime_sha256": "893dd7f63bbb2130f2301f0c317de80061ff608ede058ba10c7c37dd4801033b",
+   "source": "a2033c3b3d9f54b3-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:a2033c3b3d9f54b3-candidate-01",
+   "imported": "2026-10-13T21:26:42",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.078,
+    "align": "left"
+   }
+  },
+  "494aa7d49d3f4d66": {
+   "title": "Lemmings",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/494aa7d49d3f4d66-top100-c02.png",
+     "original": "originals/494aa7d49d3f4d66-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "bb983fb94e20dabbc94f6e0e74d633f4d17fc20b69671f7f03fd8aadd2549a55",
+     "source": "494aa7d49d3f4d66-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:494aa7d49d3f4d66-candidate-02",
+     "prompt_version": "494aa7d49d3f4d66-candidate-02",
+     "imported": "2026-10-13T21:26:44",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.216,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "494aa7d49d3f4d66-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/494aa7d49d3f4d66.jpg",
+   "sha256": "bb983fb94e20dabbc94f6e0e74d633f4d17fc20b69671f7f03fd8aadd2549a55",
+   "runtime_sha256": "474794ab26d53c73597e1afe8e57cf76bc1cde3f1d09b173554312960e0fdd07",
+   "source": "494aa7d49d3f4d66-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:494aa7d49d3f4d66-candidate-02",
+   "imported": "2026-10-13T21:26:44",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.216,
+    "align": "left"
+   }
+  },
+  "d18ad8b76f9d0678": {
+   "title": "Guardian Legend, The",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/d18ad8b76f9d0678-top100-c02.png",
+     "original": "originals/d18ad8b76f9d0678-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "ef039d0dfbf69ce412a259ab15e24c2447784d726ece67c1711d759af8a711e1",
+     "source": "d18ad8b76f9d0678-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:d18ad8b76f9d0678-candidate-02",
+     "prompt_version": "d18ad8b76f9d0678-candidate-02",
+     "imported": "2026-10-13T21:26:45",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.431,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "d18ad8b76f9d0678-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/d18ad8b76f9d0678.jpg",
+   "sha256": "ef039d0dfbf69ce412a259ab15e24c2447784d726ece67c1711d759af8a711e1",
+   "runtime_sha256": "e4d970059ef557ebfd60adbb937b50539201067eadcb24ebc82aa17b8e85a23f",
+   "source": "d18ad8b76f9d0678-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:d18ad8b76f9d0678-candidate-02",
+   "imported": "2026-10-13T21:26:45",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.431,
+    "align": "right"
+   }
+  },
+  "12d3119e25f7b40a": {
+   "title": "Adventures of Lolo 2",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/12d3119e25f7b40a-top100-c01.png",
+     "original": "originals/12d3119e25f7b40a-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a47a021921c287faa5b9a3ea40359990826ffa4fe1f129529e049d22a9f4b0da",
+     "source": "12d3119e25f7b40a-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:12d3119e25f7b40a-candidate-01",
+     "prompt_version": "12d3119e25f7b40a-candidate-01",
+     "imported": "2026-10-13T21:26:48",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "busyness": 1.123,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "12d3119e25f7b40a-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/12d3119e25f7b40a.jpg",
+   "sha256": "a47a021921c287faa5b9a3ea40359990826ffa4fe1f129529e049d22a9f4b0da",
+   "runtime_sha256": "cb8bbc64c87687b5b648ccf3b194ef101550863badf26be96c6d5c8b4759b9d4",
+   "source": "12d3119e25f7b40a-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:12d3119e25f7b40a-candidate-01",
+   "imported": "2026-10-13T21:26:48",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "busyness": 1.123,
+    "align": "right"
+   }
+  },
+  "53bfc94fce46a251": {
+   "title": "Adventure Island",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/53bfc94fce46a251-top100-c01.png",
+     "original": "originals/53bfc94fce46a251-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "16b80c8546a4a69e9deb69495684116c8a205a9ea97fc8aef1d4ed5e0ce0217b",
+     "source": "53bfc94fce46a251-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:53bfc94fce46a251-candidate-01",
+     "prompt_version": "53bfc94fce46a251-candidate-01",
+     "imported": "2026-10-13T21:26:50",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.832,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "53bfc94fce46a251-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/53bfc94fce46a251.jpg",
+   "sha256": "16b80c8546a4a69e9deb69495684116c8a205a9ea97fc8aef1d4ed5e0ce0217b",
+   "runtime_sha256": "ec9d40296e2347d690db3aada82453b5d32eaa7fba5757c7ea726d527833a1df",
+   "source": "53bfc94fce46a251-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:53bfc94fce46a251-candidate-01",
+   "imported": "2026-10-13T21:26:50",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 0.832,
+    "align": "right"
+   }
+  },
+  "e95d3557fa60baca": {
+   "title": "Little Nemo - The Dream Master",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/e95d3557fa60baca-top100-c01.png",
+     "original": "originals/e95d3557fa60baca-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "fdb25b18ee17759c85e9576ed1a4877ed882178eee83c46e1796e9a6acd3200a",
+     "source": "e95d3557fa60baca-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:e95d3557fa60baca-candidate-01",
+     "prompt_version": "e95d3557fa60baca-candidate-01",
+     "imported": "2026-10-13T21:26:52",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.898,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "e95d3557fa60baca-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/e95d3557fa60baca.jpg",
+   "sha256": "fdb25b18ee17759c85e9576ed1a4877ed882178eee83c46e1796e9a6acd3200a",
+   "runtime_sha256": "c61e739102ff0ae0884dfad1ba65ca4d95a851fecaebe9fb96a35fa44608806a",
+   "source": "e95d3557fa60baca-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:e95d3557fa60baca-candidate-01",
+   "imported": "2026-10-13T21:26:52",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.898,
+    "align": "left"
+   }
+  },
+  "5ee479ef04d80366": {
+   "title": "Adventure Island II",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/5ee479ef04d80366-top100-c01.png",
+     "original": "originals/5ee479ef04d80366-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "1bcc0653e1056c3f5abedd97e31b47c7547811fe40c902d8d43de1198d01b633",
+     "source": "5ee479ef04d80366-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:5ee479ef04d80366-candidate-01",
+     "prompt_version": "5ee479ef04d80366-candidate-01",
+     "imported": "2026-10-13T21:26:54",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.19,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "5ee479ef04d80366-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/5ee479ef04d80366.jpg",
+   "sha256": "1bcc0653e1056c3f5abedd97e31b47c7547811fe40c902d8d43de1198d01b633",
+   "runtime_sha256": "98c7dc76bd1dfe1bfe3f18ef080cf1402273624a41e01e59e23b998ca6dce6c4",
+   "source": "5ee479ef04d80366-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:5ee479ef04d80366-candidate-01",
+   "imported": "2026-10-13T21:26:54",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.19,
+    "align": "left"
+   }
+  },
+  "d30e480e7a99b5c3": {
+   "title": "Wizards & Warriors",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/d30e480e7a99b5c3-top100-c01.png",
+     "original": "originals/d30e480e7a99b5c3-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "098cc87d3d1ccd95b0118ea4434b109719874b3ea9da78948f5c3054a0eb57a3",
+     "source": "d30e480e7a99b5c3-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:d30e480e7a99b5c3-candidate-01",
+     "prompt_version": "d30e480e7a99b5c3-candidate-01",
+     "imported": "2026-10-13T21:26:55",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.663,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "d30e480e7a99b5c3-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/d30e480e7a99b5c3.jpg",
+   "sha256": "098cc87d3d1ccd95b0118ea4434b109719874b3ea9da78948f5c3054a0eb57a3",
+   "runtime_sha256": "0f921e3b3d3b9d24438bb7c7f20d8d8e9d9a06f46a1a0cf905fcc92ec5d84c57",
+   "source": "d30e480e7a99b5c3-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:d30e480e7a99b5c3-candidate-01",
+   "imported": "2026-10-13T21:26:55",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.663,
+    "align": "right"
+   }
+  },
+  "28b3f1dde1488dd8": {
+   "title": "Klax",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/28b3f1dde1488dd8-top100-c02.png",
+     "original": "originals/28b3f1dde1488dd8-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "b773e99c1b925726a7db9148be2eacb495336341377b8d15c7fcae98a8d4078b",
+     "source": "28b3f1dde1488dd8-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:28b3f1dde1488dd8-candidate-02",
+     "prompt_version": "28b3f1dde1488dd8-candidate-02",
+     "imported": "2026-10-13T21:26:58",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.12,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "28b3f1dde1488dd8-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/28b3f1dde1488dd8.jpg",
+   "sha256": "b773e99c1b925726a7db9148be2eacb495336341377b8d15c7fcae98a8d4078b",
+   "runtime_sha256": "656d6a20c8a3cb35df397b97888e8d3b9bc2c73512198458413f3a11ca85bf45",
+   "source": "28b3f1dde1488dd8-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:28b3f1dde1488dd8-candidate-02",
+   "imported": "2026-10-13T21:26:58",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.12,
+    "align": "left"
+   }
+  },
+  "4ddb728c3a007f1a": {
+   "title": "Mega Man 5",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/4ddb728c3a007f1a-top100-c01.png",
+     "original": "originals/4ddb728c3a007f1a-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "9f36941880c7b5699354be46542580a35a7746850583f7e269a96d2f339d0fbe",
+     "source": "4ddb728c3a007f1a-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:4ddb728c3a007f1a-candidate-01",
+     "prompt_version": "4ddb728c3a007f1a-candidate-01",
+     "imported": "2026-10-13T21:26:59",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.999,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "4ddb728c3a007f1a-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/4ddb728c3a007f1a.jpg",
+   "sha256": "9f36941880c7b5699354be46542580a35a7746850583f7e269a96d2f339d0fbe",
+   "runtime_sha256": "0c55b6f0ec1993223567dd6b4f1b6e3a257a0a938a351a4bf8609268a86d7380",
+   "source": "4ddb728c3a007f1a-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:4ddb728c3a007f1a-candidate-01",
+   "imported": "2026-10-13T21:26:59",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.999,
+    "align": "left"
+   }
+  },
+  "9caa01a2b81ce1f9": {
+   "title": "Kiwi Kraze - A Bird-Brained Adventure!",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/9caa01a2b81ce1f9-top100-c03.png",
+     "original": "originals/9caa01a2b81ce1f9-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "d52fa9b80ff70c78b513199e35e3645ace637d1baaa15048684e3e72b8ed94f2",
+     "source": "9caa01a2b81ce1f9-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:9caa01a2b81ce1f9-candidate-03",
+     "prompt_version": "9caa01a2b81ce1f9-candidate-03",
+     "imported": "2026-10-13T21:27:01",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.4,
+      "slot": "mid-right",
+      "busyness": 0.927,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "9caa01a2b81ce1f9-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/9caa01a2b81ce1f9.jpg",
+   "sha256": "d52fa9b80ff70c78b513199e35e3645ace637d1baaa15048684e3e72b8ed94f2",
+   "runtime_sha256": "38412535f08a4ed3c7a2980e18ab6957b4ea54b75ce3b84ab7f3558d36a015b7",
+   "source": "9caa01a2b81ce1f9-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:9caa01a2b81ce1f9-candidate-03",
+   "imported": "2026-10-13T21:27:01",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.4,
+    "slot": "mid-right",
+    "busyness": 0.927,
+    "align": "right"
+   }
+  },
+  "9b547db136e4b756": {
+   "title": "Elite",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/9b547db136e4b756-top100-c01.png",
+     "original": "originals/9b547db136e4b756-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "21006f081787e31c645e9a2cd83520ea32c35e8d8899136f1958996418524511",
+     "source": "9b547db136e4b756-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:9b547db136e4b756-candidate-01",
+     "prompt_version": "9b547db136e4b756-candidate-01",
+     "imported": "2026-10-13T21:27:03",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.62,
+      "slot": "low-right",
+      "busyness": 1.023,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "9b547db136e4b756-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/9b547db136e4b756.jpg",
+   "sha256": "21006f081787e31c645e9a2cd83520ea32c35e8d8899136f1958996418524511",
+   "runtime_sha256": "3d4a30b4997fd009271ed4b4d10f86de12bb27307fa6e718aed2fa0a6b510c3e",
+   "source": "9b547db136e4b756-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:9b547db136e4b756-candidate-01",
+   "imported": "2026-10-13T21:27:03",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.62,
+    "slot": "low-right",
+    "busyness": 1.023,
+    "align": "right"
+   }
+  },
+  "892468d05a109776": {
+   "title": "Teenage Mutant Ninja Turtles",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/892468d05a109776-top100-c01.png",
+     "original": "originals/892468d05a109776-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "df952fada6df97bdb3ab216a837a0724cadbc1714f728c384d99fc93e163a12b",
+     "source": "892468d05a109776-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:892468d05a109776-candidate-01",
+     "prompt_version": "892468d05a109776-candidate-01",
+     "imported": "2026-10-13T21:27:05",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.51,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "892468d05a109776-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/892468d05a109776.jpg",
+   "sha256": "df952fada6df97bdb3ab216a837a0724cadbc1714f728c384d99fc93e163a12b",
+   "runtime_sha256": "5ebe5662dd8561b9785b1ea34ddaab52b2ed060c035543346ca553496fc4918c",
+   "source": "892468d05a109776-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:892468d05a109776-candidate-01",
+   "imported": "2026-10-13T21:27:05",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.51,
+    "align": "right"
+   }
+  },
+  "16c7de15b7dc72c5": {
+   "title": "Goonies II, The",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/16c7de15b7dc72c5-top100-c02.png",
+     "original": "originals/16c7de15b7dc72c5-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "c6986d63c4c10e80c44fdba3ea6d6ed4eb64e9767cc316127d40b7e4a12ef430",
+     "source": "16c7de15b7dc72c5-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:16c7de15b7dc72c5-candidate-02",
+     "prompt_version": "16c7de15b7dc72c5-candidate-02",
+     "imported": "2026-10-13T21:27:06",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.895,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "16c7de15b7dc72c5-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/16c7de15b7dc72c5.jpg",
+   "sha256": "c6986d63c4c10e80c44fdba3ea6d6ed4eb64e9767cc316127d40b7e4a12ef430",
+   "runtime_sha256": "a65175aa1ea3f2507d9ea02fca66d2891fcd9cc350454d346f6cc0565fd987f4",
+   "source": "16c7de15b7dc72c5-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:16c7de15b7dc72c5-candidate-02",
+   "imported": "2026-10-13T21:27:06",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.895,
+    "align": "left"
+   }
+  },
+  "b59b46aaaa6b382d": {
+   "title": "Ice Hockey",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/b59b46aaaa6b382d-top100-c01.png",
+     "original": "originals/b59b46aaaa6b382d-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "bafa80fad6076d38606f9c89434a0389771afa5e3e569456bb3f3de5a25fa668",
+     "source": "b59b46aaaa6b382d-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:b59b46aaaa6b382d-candidate-01",
+     "prompt_version": "b59b46aaaa6b382d-candidate-01",
+     "imported": "2026-10-13T21:27:08",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "b59b46aaaa6b382d-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/b59b46aaaa6b382d.jpg",
+   "sha256": "bafa80fad6076d38606f9c89434a0389771afa5e3e569456bb3f3de5a25fa668",
+   "runtime_sha256": "baec9aee618a278d41e7f6c84ab25874551adee5cc62d35b8fbbc772c8493b17",
+   "source": "b59b46aaaa6b382d-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:b59b46aaaa6b382d-candidate-01",
+   "imported": "2026-10-13T21:27:08",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "ed8bc89c9cd44bf5": {
+   "title": "Mega Man 4",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/ed8bc89c9cd44bf5-top100-c03.png",
+     "original": "originals/ed8bc89c9cd44bf5-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "cf227a1ffa9cb212f40f6908fc7128d39d02ba03cb97a17d8a593f43e7e41fea",
+     "source": "ed8bc89c9cd44bf5-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:ed8bc89c9cd44bf5-candidate-03",
+     "prompt_version": "ed8bc89c9cd44bf5-candidate-03",
+     "imported": "2026-10-13T21:27:10",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.827,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "ed8bc89c9cd44bf5-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/ed8bc89c9cd44bf5.jpg",
+   "sha256": "cf227a1ffa9cb212f40f6908fc7128d39d02ba03cb97a17d8a593f43e7e41fea",
+   "runtime_sha256": "70f0bb18b416891cf78bb5ca9a1bff71940f7ce30d2d14f3850ec0d68dae4cc9",
+   "source": "ed8bc89c9cd44bf5-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:ed8bc89c9cd44bf5-candidate-03",
+   "imported": "2026-10-13T21:27:10",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.827,
+    "align": "left"
+   }
+  },
+  "751d3bf4722ce117": {
+   "title": "Archon",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/751d3bf4722ce117-top100-c03.png",
+     "original": "originals/751d3bf4722ce117-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "03ac83482d1134d9252790368045f6a1eabc546d5de5493f067c708bd4acb193",
+     "source": "751d3bf4722ce117-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:751d3bf4722ce117-candidate-03",
+     "prompt_version": "751d3bf4722ce117-candidate-03",
+     "imported": "2026-10-13T21:27:12",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.615,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "751d3bf4722ce117-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/751d3bf4722ce117.jpg",
+   "sha256": "03ac83482d1134d9252790368045f6a1eabc546d5de5493f067c708bd4acb193",
+   "runtime_sha256": "e6f5c41ad1ec610cb281a30d27922ceb58a2b395081ca41472acb229f437479e",
+   "source": "751d3bf4722ce117-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:751d3bf4722ce117-candidate-03",
+   "imported": "2026-10-13T21:27:12",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.615,
+    "align": "left"
+   }
+  },
+  "c0c98471130cd09c": {
+   "title": "Fester's Quest",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/c0c98471130cd09c-top100-c01.png",
+     "original": "originals/c0c98471130cd09c-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "967f0cebfc75181a930901cff39e9ac004a95a2a4966b30b332bb3734e176557",
+     "source": "c0c98471130cd09c-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:c0c98471130cd09c-candidate-01",
+     "prompt_version": "c0c98471130cd09c-candidate-01",
+     "imported": "2026-10-13T21:27:14",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.732,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "c0c98471130cd09c-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/c0c98471130cd09c.jpg",
+   "sha256": "967f0cebfc75181a930901cff39e9ac004a95a2a4966b30b332bb3734e176557",
+   "runtime_sha256": "fd02f16d05f234ebafe0da83fac96b58ca5f79ba1c218abaea79a5304a889c58",
+   "source": "c0c98471130cd09c-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:c0c98471130cd09c-candidate-01",
+   "imported": "2026-10-13T21:27:14",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.732,
+    "align": "left"
+   }
+  },
+  "d088f4b91a03dd6a": {
+   "title": "Tecmo Bowl",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/d088f4b91a03dd6a-top100-c01.png",
+     "original": "originals/d088f4b91a03dd6a-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "2e1da655e649bc6600f0c1531b62613bce832f2ebc2e82c48ff60a5be56687d3",
+     "source": "d088f4b91a03dd6a-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:d088f4b91a03dd6a-candidate-01",
+     "prompt_version": "d088f4b91a03dd6a-candidate-01",
+     "imported": "2026-10-13T21:27:16",
+     "title_box": {
+      "x": 0.64,
+      "y": 0.09,
+      "slot": "top-right-far",
+      "busyness": 0.719,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "d088f4b91a03dd6a-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/d088f4b91a03dd6a.jpg",
+   "sha256": "2e1da655e649bc6600f0c1531b62613bce832f2ebc2e82c48ff60a5be56687d3",
+   "runtime_sha256": "9a8f072b5eb6cb90b6546f60e93354c7b635f28aa94cd4bdecb8cbbea63ee7f0",
+   "source": "d088f4b91a03dd6a-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:d088f4b91a03dd6a-candidate-01",
+   "imported": "2026-10-13T21:27:16",
+   "title_box": {
+    "x": 0.64,
+    "y": 0.09,
+    "slot": "top-right-far",
+    "busyness": 0.719,
+    "align": "right"
+   }
+  },
+  "0a3f0c3795700df2": {
+   "title": "Rainbow Islands",
+   "candidates": {
+    "fixes1-new": {
+     "file": "candidates/0a3f0c3795700df2-fixes1-new.png",
+     "original": "originals/0a3f0c3795700df2-fixes1-new.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7036337c1a0033e3a2ae6df432d259189dc661a3990ec0a4205bb283014343fb",
+     "source": "0a3f0c3795700df2__fixes1__new.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:fixes1:0a3f0c3795700df2__fixes1__new",
+     "prompt_version": "0a3f0c3795700df2__fixes1__new",
+     "imported": "2026-10-13T21:27:17",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "0a3f0c3795700df2__fixes1__new",
+     "fix_note": "replacement illustration; all three campaign candidates rejected",
+     "superseded_candidates": [
+      "0a3f0c3795700df2-candidate-01",
+      "0a3f0c3795700df2-candidate-02",
+      "0a3f0c3795700df2-candidate-03"
+     ]
+    }
+   },
+   "current": "fixes1-new",
+   "file": "art/hero/0a3f0c3795700df2.jpg",
+   "sha256": "7036337c1a0033e3a2ae6df432d259189dc661a3990ec0a4205bb283014343fb",
+   "runtime_sha256": "128e8c35e2b7135052a00bce0e51259182aface3b2f6027fef5c06425b61763e",
+   "source": "0a3f0c3795700df2__fixes1__new.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:fixes1:0a3f0c3795700df2__fixes1__new",
+   "imported": "2026-10-13T21:27:17",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "9f671090ffd2bb1d": {
+   "title": "Teenage Mutant Ninja Turtles III - The Manhattan Project",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/9f671090ffd2bb1d-top100-c02.png",
+     "original": "originals/9f671090ffd2bb1d-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "5af5eeccb2e9b1bc8cc63eb7fc9a6d6fc6c32563f284feb7a3b9e31dee32099f",
+     "source": "9f671090ffd2bb1d-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:9f671090ffd2bb1d-candidate-02",
+     "prompt_version": "9f671090ffd2bb1d-candidate-02",
+     "imported": "2026-10-13T21:27:19",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.016,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "9f671090ffd2bb1d-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/9f671090ffd2bb1d.jpg",
+   "sha256": "5af5eeccb2e9b1bc8cc63eb7fc9a6d6fc6c32563f284feb7a3b9e31dee32099f",
+   "runtime_sha256": "e7d5ca457c3c5184105613c8fb583f97ca3ad461ea6403c0e66a198f98a92e03",
+   "source": "9f671090ffd2bb1d-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:9f671090ffd2bb1d-candidate-02",
+   "imported": "2026-10-13T21:27:19",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.016,
+    "align": "left"
+   }
+  },
+  "9daa4bec3013ae7e": {
+   "title": "Tetris",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/9daa4bec3013ae7e-top100-c01.png",
+     "original": "originals/9daa4bec3013ae7e-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "52328255a2d4a089101160b7d47efddf1f1e93ee5f575ad865f70486c1ba0dad",
+     "source": "9daa4bec3013ae7e-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:9daa4bec3013ae7e-candidate-01",
+     "prompt_version": "9daa4bec3013ae7e-candidate-01",
+     "imported": "2026-10-13T21:27:22",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.822,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "9daa4bec3013ae7e-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/9daa4bec3013ae7e.jpg",
+   "sha256": "52328255a2d4a089101160b7d47efddf1f1e93ee5f575ad865f70486c1ba0dad",
+   "runtime_sha256": "b4e695b94ab17f943310f27ae697482cfe5609a82a26f29b189fa3320965a44e",
+   "source": "9daa4bec3013ae7e-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:9daa4bec3013ae7e-candidate-01",
+   "imported": "2026-10-13T21:27:22",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 0.822,
+    "align": "right"
+   }
+  },
+  "8f2f9ba926280edd": {
+   "title": "Double Dragon",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/8f2f9ba926280edd-top100-c01.png",
+     "original": "originals/8f2f9ba926280edd-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7f336b951d5af29034a58cc219db73982952c6f6201ff195db2be10a19fc7369",
+     "source": "8f2f9ba926280edd-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:8f2f9ba926280edd-candidate-01",
+     "prompt_version": "8f2f9ba926280edd-candidate-01",
+     "imported": "2026-10-13T21:27:24",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.847,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "8f2f9ba926280edd-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/8f2f9ba926280edd.jpg",
+   "sha256": "7f336b951d5af29034a58cc219db73982952c6f6201ff195db2be10a19fc7369",
+   "runtime_sha256": "32e7ec63175c90addb556ad9d09b0547fba2bf8766e9981c8e0127f9cf2919ab",
+   "source": "8f2f9ba926280edd-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:8f2f9ba926280edd-candidate-01",
+   "imported": "2026-10-13T21:27:24",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.847,
+    "align": "left"
+   }
+  },
+  "81a77623adf819f1": {
+   "title": "Kid Niki - Radical Ninja",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/81a77623adf819f1-top100-c03.png",
+     "original": "originals/81a77623adf819f1-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "8c1e64ac9c9a6c1456bc85d2a2c4ec2ed2fbaa7ce6a9b1eff8a7ec6a56f7e428",
+     "source": "81a77623adf819f1-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:81a77623adf819f1-candidate-03",
+     "prompt_version": "81a77623adf819f1-candidate-03",
+     "imported": "2026-10-13T21:27:26",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.85,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "81a77623adf819f1-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/81a77623adf819f1.jpg",
+   "sha256": "8c1e64ac9c9a6c1456bc85d2a2c4ec2ed2fbaa7ce6a9b1eff8a7ec6a56f7e428",
+   "runtime_sha256": "625db7d2100d47961e5eb295c944bd352f59133d186650fe93790cde141b0d0b",
+   "source": "81a77623adf819f1-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:81a77623adf819f1-candidate-03",
+   "imported": "2026-10-13T21:27:26",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 0.85,
+    "align": "right"
+   }
+  },
+  "0417d7caec593852": {
+   "title": "Journey to Silius",
+   "candidates": {
+    "top100-c03": {
+     "file": "candidates/0417d7caec593852-top100-c03.png",
+     "original": "originals/0417d7caec593852-top100-c03.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "e2bf57f15880bc2184c62af4ab98978175f880cf0d8f35972adb90520495a12a",
+     "source": "0417d7caec593852-candidate-03.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:0417d7caec593852-candidate-03",
+     "prompt_version": "0417d7caec593852-candidate-03",
+     "imported": "2026-10-13T21:27:28",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.4,
+      "slot": "mid-right",
+      "busyness": 0.96,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "0417d7caec593852-candidate-03"
+    }
+   },
+   "current": "top100-c03",
+   "file": "art/hero/0417d7caec593852.jpg",
+   "sha256": "e2bf57f15880bc2184c62af4ab98978175f880cf0d8f35972adb90520495a12a",
+   "runtime_sha256": "bc2f392b98224499d66c24548989c10f3ae6aae5619c648c9157f4116b8df1eb",
+   "source": "0417d7caec593852-candidate-03.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:0417d7caec593852-candidate-03",
+   "imported": "2026-10-13T21:27:28",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.4,
+    "slot": "mid-right",
+    "busyness": 0.96,
+    "align": "right"
+   }
+  },
+  "db26936868427b5b": {
+   "title": "Cobra Triangle",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/db26936868427b5b-top100-c01.png",
+     "original": "originals/db26936868427b5b-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "c35c581d208da2916200ecf9020b810415835f11f532d3adf916e8b77402e9e6",
+     "source": "db26936868427b5b-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:db26936868427b5b-candidate-01",
+     "prompt_version": "db26936868427b5b-candidate-01",
+     "imported": "2026-10-13T21:27:30",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.55,
+      "slot": "low-right-raised",
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "db26936868427b5b-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/db26936868427b5b.jpg",
+   "sha256": "c35c581d208da2916200ecf9020b810415835f11f532d3adf916e8b77402e9e6",
+   "runtime_sha256": "b535167a445cf4f647035a19c6b73f12db84dd4f10542a928ed53570b361df2e",
+   "source": "db26936868427b5b-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:db26936868427b5b-candidate-01",
+   "imported": "2026-10-13T21:27:30",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.55,
+    "slot": "low-right-raised",
+    "align": "right"
+   }
+  },
+  "0e58f270e7b11678": {
+   "title": "Boulder Dash",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/0e58f270e7b11678-top100-c01.png",
+     "original": "originals/0e58f270e7b11678-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7dbc264a694e4536e8e595900ddca4b1956b34041f43e0fa0c3100726f1211ab",
+     "source": "0e58f270e7b11678-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:0e58f270e7b11678-candidate-01",
+     "prompt_version": "0e58f270e7b11678-candidate-01",
+     "imported": "2026-10-13T21:27:32",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.944,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "0e58f270e7b11678-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/0e58f270e7b11678.jpg",
+   "sha256": "7dbc264a694e4536e8e595900ddca4b1956b34041f43e0fa0c3100726f1211ab",
+   "runtime_sha256": "7efebf283328ad9979c2129b72cbd9c7b133377fd3e5ffaf87f1b77aa9b510f4",
+   "source": "0e58f270e7b11678-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:0e58f270e7b11678-candidate-01",
+   "imported": "2026-10-13T21:27:32",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.944,
+    "align": "left"
+   }
+  },
+  "24f7bb802a0ddce0": {
+   "title": "Adventures of Lolo 3",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/24f7bb802a0ddce0-top100-c01.png",
+     "original": "originals/24f7bb802a0ddce0-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "a5f9444032d3d1d812377901a97f051d361676a547e499da9f2f8e41ccc3e730",
+     "source": "24f7bb802a0ddce0-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:24f7bb802a0ddce0-candidate-01",
+     "prompt_version": "24f7bb802a0ddce0-candidate-01",
+     "imported": "2026-10-13T21:27:34",
+     "title_box": {
+      "x": 0.58,
+      "y": 0.09,
+      "slot": "top-right-narrow",
+      "busyness": 0.952,
+      "align": "right"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "24f7bb802a0ddce0-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/24f7bb802a0ddce0.jpg",
+   "sha256": "a5f9444032d3d1d812377901a97f051d361676a547e499da9f2f8e41ccc3e730",
+   "runtime_sha256": "e4b402a082afa0e9e98cc596b12d6a44ea75599e3883d3e8bba3a5af81cd1789",
+   "source": "24f7bb802a0ddce0-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:24f7bb802a0ddce0-candidate-01",
+   "imported": "2026-10-13T21:27:34",
+   "title_box": {
+    "x": 0.58,
+    "y": 0.09,
+    "slot": "top-right-narrow",
+    "busyness": 0.952,
+    "align": "right"
+   }
+  },
+  "c15ab051ff066f01": {
+   "title": "Dragon Warrior II",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/c15ab051ff066f01-top100-c02.png",
+     "original": "originals/c15ab051ff066f01-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "5513eaacce1c59590e9c26ce0524518b601c8789f37b63944551dbd8b18356e4",
+     "source": "c15ab051ff066f01-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:c15ab051ff066f01-candidate-02",
+     "prompt_version": "c15ab051ff066f01-candidate-02",
+     "imported": "2026-10-13T21:27:35",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.444,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "c15ab051ff066f01-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/c15ab051ff066f01.jpg",
+   "sha256": "5513eaacce1c59590e9c26ce0524518b601c8789f37b63944551dbd8b18356e4",
+   "runtime_sha256": "ae0449269c108ca3eaeeac291601ed6ba943b395604018a34b8ae16b36321e88",
+   "source": "c15ab051ff066f01-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:c15ab051ff066f01-candidate-02",
+   "imported": "2026-10-13T21:27:35",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.444,
+    "align": "left"
+   }
+  },
+  "17da401495807145": {
+   "title": "Spy Hunter",
+   "candidates": {
+    "top100-c02": {
+     "file": "candidates/17da401495807145-top100-c02.png",
+     "original": "originals/17da401495807145-top100-c02.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "fef57f43a37f001dcbcc1ea0bf845df2aa80c900eebb749e4fd4b9be39aedbf4",
+     "source": "17da401495807145-candidate-02.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:17da401495807145-candidate-02",
+     "prompt_version": "17da401495807145-candidate-02",
+     "imported": "2026-10-13T21:27:38",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.361,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "17da401495807145-candidate-02"
+    }
+   },
+   "current": "top100-c02",
+   "file": "art/hero/17da401495807145.jpg",
+   "sha256": "fef57f43a37f001dcbcc1ea0bf845df2aa80c900eebb749e4fd4b9be39aedbf4",
+   "runtime_sha256": "447bd4b87a44c3f02d691abcd6c58d2756a4f466343e35f2ba70c453df1bb3d3",
+   "source": "17da401495807145-candidate-02.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:17da401495807145-candidate-02",
+   "imported": "2026-10-13T21:27:38",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.361,
+    "align": "left"
+   }
+  },
+  "2395a8a102bfc403": {
+   "title": "Shadow of the Ninja",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/2395a8a102bfc403-top100-c01.png",
+     "original": "originals/2395a8a102bfc403-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "7f4f89c3107da8801c00fbb90c5bb138411cc32d511feca7036a7443676edae2",
+     "source": "2395a8a102bfc403-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:2395a8a102bfc403-candidate-01",
+     "prompt_version": "2395a8a102bfc403-candidate-01",
+     "imported": "2026-10-13T21:27:39",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 0.803,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "2395a8a102bfc403-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/2395a8a102bfc403.jpg",
+   "sha256": "7f4f89c3107da8801c00fbb90c5bb138411cc32d511feca7036a7443676edae2",
+   "runtime_sha256": "33161f460ca150e1fcc8daa30a876c197e36d5a15667533c338f8f8c4c9a5bb0",
+   "source": "2395a8a102bfc403-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:2395a8a102bfc403-candidate-01",
+   "imported": "2026-10-13T21:27:39",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 0.803,
+    "align": "left"
+   }
+  },
+  "c3f361c4a1441101": {
+   "title": "Shatterhand",
+   "candidates": {
+    "top100-c01": {
+     "file": "candidates/c3f361c4a1441101-top100-c01.png",
+     "original": "originals/c3f361c4a1441101-top100-c01.jpg",
+     "original_size": [
+      2752,
+      1536
+     ],
+     "sha256": "8b2a1756accadba987b21d847b36c3f768aab7e65fcfe8e8f2dd32284a4664e9",
+     "source": "c3f361c4a1441101-candidate-01.jpg",
+     "status": "approved",
+     "provenance": "generated:gemini-3-pro-image:top100-campaign:c3f361c4a1441101-candidate-01",
+     "prompt_version": "c3f361c4a1441101-candidate-01",
+     "imported": "2026-10-13T21:27:42",
+     "title_box": {
+      "x": 0.5,
+      "y": 0.09,
+      "slot": "top-right",
+      "busyness": 1.385,
+      "align": "left"
+     },
+     "reviewed": "2026-10-13T21:59:37",
+     "reason": "owner: Top 100 artwork integration authorization (2026-10-13)",
+     "artwork_id": "c3f361c4a1441101-candidate-01"
+    }
+   },
+   "current": "top100-c01",
+   "file": "art/hero/c3f361c4a1441101.jpg",
+   "sha256": "8b2a1756accadba987b21d847b36c3f768aab7e65fcfe8e8f2dd32284a4664e9",
+   "runtime_sha256": "9f7fc38366d46ec8437b3906cc225465e875d9bb3fbb79888d2eb04c11842ee4",
+   "source": "c3f361c4a1441101-candidate-01.jpg",
+   "status": "approved",
+   "provenance": "generated:gemini-3-pro-image:top100-campaign:c3f361c4a1441101-candidate-01",
+   "imported": "2026-10-13T21:27:42",
+   "title_box": {
+    "x": 0.5,
+    "y": 0.09,
+    "slot": "top-right",
+    "busyness": 1.385,
+    "align": "left"
+   }
+  }
+ }
+}

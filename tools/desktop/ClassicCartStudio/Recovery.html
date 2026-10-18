@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Classic Cart Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#101014;--s1:#18181e;--s2:#1f1f26;--line:rgba(255,255,255,.12);--ink:#f3f1ec;--ink2:#d6d4ce;--muted:#9c9a95;--red:#e4000f;--red3:#ff3b45}
+html,body{height:100%}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;display:grid;place-items:center;padding:24px;box-sizing:border-box}
+.box{width:min(560px,100%);padding:28px 30px 24px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--s1),var(--bg));box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:16px}.brand svg{width:28px;height:28px}
+.brand b{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--ink2)}.brand b i{font-style:normal;color:var(--red3)}
+h1{font-family:"Segoe UI Variable Display","Segoe UI",sans-serif;font-size:20px;margin:0 0 8px;font-weight:600}p{color:var(--ink2);margin:6px 0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+button{font:inherit;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:var(--s2);color:#fff;cursor:pointer}
+button:hover{border-color:rgba(255,255,255,.5);background:#26262e}button:focus-visible{outline:2px solid var(--red3);outline-offset:1px}
+button.p{background:var(--red);border-color:#ff5a63}button.p:hover{background:var(--red3)}
+pre{display:none;white-space:pre-wrap;word-break:break-all;font:12px/1.5 "Cascadia Mono",Consolas,monospace;color:var(--muted);background:#0b0b0e;border:1px solid var(--line);border-radius:8px;padding:10px;margin:14px 0 0}
+pre.on{display:block}.hint{font-size:12px;color:var(--muted);margin-top:14px}
+</style></head><body>
+<div class="box" role="dialog" aria-labelledby="h">
+<div class="brand"><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="3" y="4" width="22" height="20" rx="3" fill="#2a2a33" stroke="#555" /><rect x="7" y="8" width="14" height="8" rx="1" fill="#101014"/><rect x="9" y="18" width="10" height="2" fill="#e4000f"/></svg><b>Classic Cart <i>Studio</i></b></div>
+<h1 id="h">Classic Cart Studio couldn't load its interface.</h1>
+<p id="m">The interface is installed with the application and is served by its backend on this computer; no internet connection is needed. Your collections, imported game files and settings on this computer are kept.</p>
+<div class="acts"><button class="p" onclick="send('retry')" autofocus>Try Again</button><button onclick="toggle()">View Details</button><button onclick="send('diagnostics')">Diagnostics</button><button onclick="send('exit')">Exit</button></div>
+<pre id="d"></pre>
+<div class="hint">If this keeps happening, open Diagnostics for the backend status, or reinstall Classic Cart Studio.</div>
+</div>
+<script>
+function send(cmd){ if(window.chrome&&chrome.webview) chrome.webview.postMessage({cmd:cmd}); }
+function toggle(){ document.getElementById('d').classList.toggle('on'); }
+window.__ccsRecovery=function(info){ try{ var i=JSON.parse(info); if(i.title) document.getElementById('h').textContent=i.title; if(i.message) document.getElementById('m').textContent=i.message; document.getElementById('d').textContent=i.details||''; }catch(e){} };
+</script></body></html>

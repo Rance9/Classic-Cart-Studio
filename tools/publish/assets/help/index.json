@@ -1,0 +1,266 @@
+[
+ {
+  "name": "welcome",
+  "size": [
+   1400,
+   622
+  ],
+  "bytes": 98120
+ },
+ {
+  "name": "hero",
+  "size": [
+   1400,
+   183
+  ],
+  "bytes": 62164
+ },
+ {
+  "name": "toolbar",
+  "size": [
+   1400,
+   154
+  ],
+  "bytes": 38690
+ },
+ {
+  "name": "tools-row",
+  "size": [
+   1400,
+   100
+  ],
+  "bytes": 26485
+ },
+ {
+  "name": "search-dr-mario",
+  "size": [
+   1400,
+   382
+  ],
+  "bytes": 59131
+ },
+ {
+  "name": "list-rows",
+  "size": [
+   1400,
+   535
+  ],
+  "bytes": 73062
+ },
+ {
+  "name": "grid-cards",
+  "size": [
+   1400,
+   535
+  ],
+  "bytes": 206248
+ },
+ {
+  "name": "version-chip",
+  "size": [
+   1400,
+   1131
+  ],
+  "bytes": 213659
+ },
+ {
+  "name": "filters",
+  "size": [
+   1400,
+   983
+  ],
+  "bytes": 126473
+ },
+ {
+  "name": "select-menu",
+  "size": [
+   1272,
+   816
+  ],
+  "bytes": 36909
+ },
+ {
+  "name": "selected-rows",
+  "size": [
+   1400,
+   535
+  ],
+  "bytes": 81847
+ },
+ {
+  "name": "tray",
+  "size": [
+   1400,
+   2609
+  ],
+  "bytes": 471004
+ },
+ {
+  "name": "details",
+  "size": [
+   1400,
+   1026
+  ],
+  "bytes": 235044
+ },
+ {
+  "name": "my-collection-menu",
+  "size": [
+   1312,
+   2560
+  ],
+  "bytes": 154627
+ },
+ {
+  "name": "save-load-menu",
+  "size": [
+   1312,
+   1316
+  ],
+  "bytes": 78575
+ },
+ {
+  "name": "extended-toggle",
+  "size": [
+   80,
+   80
+  ],
+  "bytes": 1452
+ },
+ {
+  "name": "tv-preview",
+  "size": [
+   1600,
+   1182
+  ],
+  "bytes": 355550
+ },
+ {
+  "name": "tv-details",
+  "size": [
+   1400,
+   787
+  ],
+  "bytes": 253367
+ },
+ {
+  "name": "tv-themes",
+  "size": [
+   1400,
+   787
+  ],
+  "bytes": 252678
+ },
+ {
+  "name": "tv-search",
+  "size": [
+   1400,
+   787
+  ],
+  "bytes": 154095
+ },
+ {
+  "name": "tv-retro",
+  "size": [
+   1400,
+   787
+  ],
+  "bytes": 294267
+ },
+ {
+  "name": "tv-side-panel",
+  "size": [
+   1400,
+   1
+  ],
+  "bytes": 84
+ },
+ {
+  "name": "tv-pad",
+  "size": [
+   1400,
+   138
+  ],
+  "bytes": 27207
+ },
+ {
+  "name": "tv-sample",
+  "size": [
+   1400,
+   787
+  ],
+  "bytes": 348313
+ },
+ {
+  "name": "install-check",
+  "size": [
+   1400,
+   785
+  ],
+  "bytes": 143859
+ },
+ {
+  "name": "install-connect",
+  "size": [
+   1400,
+   806
+  ],
+  "bytes": 124302
+ },
+ {
+  "name": "install-console-state",
+  "size": [
+   1400,
+   898
+  ],
+  "bytes": 153719
+ },
+ {
+  "name": "install-review",
+  "size": [
+   1400,
+   800
+  ],
+  "bytes": 125026
+ },
+ {
+  "name": "install-authorize",
+  "size": [
+   1400,
+   528
+  ],
+  "bytes": 85661
+ },
+ {
+  "name": "install-verify",
+  "size": [
+   1400,
+   578
+  ],
+  "bytes": 92457
+ },
+ {
+  "name": "desktop-invitation",
+  "size": [
+   1400,
+   485
+  ],
+  "bytes": 127639
+ },
+ {
+  "name": "guide-window",
+  "size": [
+   1400,
+   1044
+  ],
+  "bytes": 204597
+ },
+ {
+  "name": "phone-toolbar",
+  "size": [
+   824,
+   724
+  ],
+  "bytes": 71216
+ }
+]
