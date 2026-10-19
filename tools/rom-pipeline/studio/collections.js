@@ -13,9 +13,9 @@ function csId(){ return 'c'+(typeof uuid==='function'?uuid():String(Math.random(
 function csRead(){ try{ const s=JSON.parse(localStorage.getItem(CSKEY)||'null'); if(s&&s.schema===CS_SCHEMA&&s.items&&typeof s.items==='object') return s; }catch(e){} return null; }
 function csWrite(){ try{ localStorage.setItem(CSKEY, JSON.stringify(CS)); }catch(e){ toast('Your collections could not be saved in this browser (storage full?). Use Back Up Studio Data now.'); } try{ if(typeof desktopStateDirty==='function') desktopStateDirty(); }catch(e){} }
 function csHomeRead(){ try{ return JSON.parse(localStorage.getItem(HOME_KEY)||'null'); }catch(e){ return null; } }
-function csCollFields(c){ const o={}; ['created','modified','savedToFile','prepared','baseline','pref','multi','avail','placeholders'].forEach(k=>{ if(c&&c[k]!==undefined) o[k]=c[k]; }); return JSON.parse(JSON.stringify(o)); }
+function csCollFields(c){ const o={}; ['created','modified','savedToFile','prepared','baseline','pref','multi','avail','placeholders','missing'].forEach(k=>{ if(c&&c[k]!==undefined) o[k]=c[k]; }); return JSON.parse(JSON.stringify(o)); }
 // the working copy (the established keys) -> a record
-function csFromWorking(id, name){ return {id, name:(name||COLL.name||'My Collection').slice(0,80), created:COLL.created||csNow(), modified:COLL.modified||csNow(), sel:[...sel], decisions:JSON.parse(JSON.stringify(decisions||{})), coll:csCollFields(COLL), home:csHomeRead()}; }
+function csFromWorking(id, name){ const coll=csCollFields(COLL); const mi={}; [...sel].forEach(x=>{ if(!byId[x]&&coll.missing&&coll.missing[x]) mi[x]=coll.missing[x]; }); coll.missing=mi; return {id, name:(name||COLL.name||'My Collection').slice(0,80), created:COLL.created||csNow(), modified:COLL.modified||csNow(), sel:[...sel], decisions:JSON.parse(JSON.stringify(decisions||{})), coll, home:csHomeRead()}; }
 function csActive(){ return CS&&CS.items[CS.active]; }
 function csList(){ return CS?Object.values(CS.items).sort((a,b)=>(b.modified||'').localeCompare(a.modified||'')):[]; }
 // ---- migration (idempotent): the first start with this version turns the existing single collection into the first named one ----
@@ -32,8 +32,8 @@ function csDirty(){ if(!CS) return; clearTimeout(CS_T); CS_T=setTimeout(csSaveAc
  if(typeof homeExtrasSave==='function'){ const h=homeExtrasSave; homeExtrasSave=function(){ const r=h.apply(this,arguments); try{ csDirty(); }catch(e){} return r; }; }
  addEventListener('beforeunload',()=>{ try{ if(CS_T) csSaveActiveNow(); }catch(e){} }); document.addEventListener('visibilitychange',()=>{ if(document.hidden&&CS_T) csSaveActiveNow(); }); })();
 // ---- switching: store the current collection, then load the other one into the working copy ----
-function csLoadWorking(r){ sel=new Set((r.sel||[]).filter(id=>byId[id])); decisions=JSON.parse(JSON.stringify(r.decisions||{}));
- COLL=Object.assign({name:r.name, created:r.created, modified:r.modified, savedToFile:null, prepared:null, baseline:null, pref:{}, multi:{}, avail:[], placeholders:[], personalCache:(COLL&&COLL.personalCache)||{}}, JSON.parse(JSON.stringify(r.coll||{})), {name:r.name});
+function csLoadWorking(r){ sel=new Set(r.sel||[]); decisions=JSON.parse(JSON.stringify(r.decisions||{}));
+ COLL=Object.assign({name:r.name, created:r.created, modified:r.modified, savedToFile:null, prepared:null, baseline:null, pref:{}, multi:{}, avail:[], placeholders:[], missing:{}, personalCache:(COLL&&COLL.personalCache)||{}}, JSON.parse(JSON.stringify(r.coll||{})), {name:r.name});
  try{ if(r.home) localStorage.setItem(HOME_KEY, JSON.stringify(r.home)); else localStorage.removeItem(HOME_KEY); }catch(e){}
  localStorage.setItem(KEY, JSON.stringify([...sel])); localStorage.setItem(DKEY, JSON.stringify(decisions)); localStorage.setItem(CKEY, JSON.stringify(COLL));
  if((r.sel||[]).some(id=>byId[id]&&byId[id].ext)&&typeof setExt==='function') setExt(true);
@@ -57,7 +57,7 @@ function csDelete(id){ const r=CS.items[id]; if(!r) return; if(typeof snapshotNo
 // a collection's portable file: the schema-4 collection (readable by every earlier version) plus the exact Studio record (HOME folders,
 // theme and HOME favorites travel with it). Built for any collection, not only the open one.
 function csWithRecord(r, fn){ if(r.id===CS.active){ csSaveActiveNow(); return fn(); }
- const s0=sel, d0=decisions, c0=COLL; try{ sel=new Set((r.sel||[]).filter(id=>byId[id])); decisions=r.decisions||{}; COLL=Object.assign({}, c0, {savedToFile:null,prepared:null,baseline:null,pref:{},multi:{},avail:[],placeholders:[]}, r.coll||{}, {name:r.name}); return fn(); } finally { sel=s0; decisions=d0; COLL=c0; } }
+ const s0=sel, d0=decisions, c0=COLL; try{ sel=new Set(r.sel||[]); decisions=r.decisions||{}; COLL=Object.assign({}, c0, {savedToFile:null,prepared:null,baseline:null,pref:{},multi:{},avail:[],placeholders:[],missing:{}}, r.coll||{}, {name:r.name}); return fn(); } finally { sel=s0; decisions=d0; COLL=c0; } }
 function csRecordOut(r){ return {schema:CREC_SCHEMA, id:r.id, name:r.name, created:r.created, modified:r.modified, sel:r.sel||[], decisions:r.decisions||{}, coll:r.coll||{}, home:r.home||null}; }
 function csFileFor(r){ return csWithRecord(r, ()=>{ const m=buildManifest(); m.ccs_collection=csRecordOut(CS.items[r.id]||r); return m; }); }
 // ---- file names (always editable) ----
@@ -81,13 +81,14 @@ async function csExport(id){ id=id||CS.active; const r=CS.items[id]; if(!r) retu
  if(!res.ok) return; if(id===CS.active){ COLL.savedToFile={at:csNow(),fp:collFingerprint()}; saveColl(); updateStatusLine(); }
  toast(`Exported "${r.name}" (${m.count} game${m.count===1?'':'s'}) to ${res.name}`); }
 // ---- Import Collection: always a new collection (never overwrites); duplicates get a distinct name ----
-function csRecordFromFile(rec, fallbackName){ const known=(rec.sel||[]).filter(id=>byId[id]); const missing=(rec.sel||[]).filter(id=>!byId[id]); const dec={}; Object.entries(rec.decisions||{}).forEach(([k,v])=>{ if(byId[k]&&(v==='factory'||v==='alternate')) dec[k]=v; });
- return {rec:{name:String(rec.name||fallbackName||'Imported collection').slice(0,80), created:rec.created||csNow(), sel:known, decisions:dec, coll:(rec.coll&&typeof rec.coll==='object')?rec.coll:{}, home:(rec.home&&typeof rec.home==='object')?rec.home:null}, missing}; }
+function csRecordFromFile(rec, fallbackName){ const ids=[...new Set((rec.sel||[]).filter(id=>typeof id==='string'&&id&&id.length<=128))]; const missing=ids.filter(id=>!byId[id]); const dec={}; Object.entries(rec.decisions||{}).forEach(([k,v])=>{ if(ids.includes(k)&&(v==='factory'||v==='alternate')) dec[k]=v; });
+ const coll=(rec.coll&&typeof rec.coll==='object')?JSON.parse(JSON.stringify(rec.coll)):{}; coll.missing=Object.assign({}, coll.missing||{}); missing.forEach(id=>{ if(!coll.missing[id]) coll.missing[id]={title:id, source:'unknown'}; });
+ return {rec:{name:String(rec.name||fallbackName||'Imported collection').slice(0,80), created:rec.created||csNow(), sel:ids, decisions:dec, coll, home:(rec.home&&typeof rec.home==='object')?rec.home:null}, missing}; }
 async function csImportObject(obj, fileName){ if(!obj||typeof obj!=='object'){ toast('That file is not a collection file'); return 0; }
  if(obj.schema===SBACKUP_SCHEMA||obj.schema==='nes-classic-studio-data/1'){ csRestoreDialog(obj, fileName); return 0; }
  const recs=obj.schema===CBUNDLE_SCHEMA&&Array.isArray(obj.collections)?obj.collections:(obj.ccs_collection&&obj.ccs_collection.schema===CREC_SCHEMA?[obj.ccs_collection]:null);
  if(recs){ let n=0, miss=0, last=null; recs.slice(0,200).forEach(x=>{ if(!x||!Array.isArray(x.sel)) return; const {rec,missing}=csRecordFromFile(x, fileName); last=csCreate(rec.name, rec); miss+=missing.length; n++; });
-  if(last) csSwitch(last.id, true); toast(`Imported ${n} collection${n===1?'':'s'}${miss?` (${miss} game${miss===1?'':'s'} not in this Game Library were left out)`:''}`); csMenuRefresh(); return n; }
+  if(last) csSwitch(last.id, true); toast(`Imported ${n} collection${n===1?'':'s'}${miss?` · ${miss} game${miss===1?' is':'s are'} kept but not available on this computer`:''}`); csMenuRefresh(); return n; }
  if(typeof KNOWN_SCHEMAS!=='undefined'&&KNOWN_SCHEMAS.includes(obj.schema)){ const r=csCreate(obj.name||(fileName||'Imported collection').replace(/\.json$/i,'')); csSwitch(r.id, true); const res=await applyManifest(obj, fileName, 'before importing a collection file'); if(res){ COLL.name=r.name; saveColl(); updateStatusLine(); csSaveActiveNow(); } return res?1:0; }
  toast('That file is not a collection file (unknown format)'); return 0; }
 function csImportPick(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json'; inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; f.text().then(t=>{ let o; try{ o=JSON.parse(t); }catch(e){ toast('That file is not a collection file'); return; } csImportObject(o, f.name); }); }; inp.click(); }
@@ -149,6 +150,30 @@ if(typeof desktopApplyState==='function'){ const _da=desktopApplyState; desktopA
 (function(){ const r=csActive(); if(r&&JSON.stringify([...sel].sort())!==JSON.stringify((r.sel||[]).filter(id=>byId[id]).slice().sort())&&r.modified&&COLL.modified&&r.modified>COLL.modified) csLoadWorking(r); })();
 addEventListener('storage',e=>{ if(e.key!==CSKEY||!e.newValue) return; const s=csRead(); if(!s) return; const switched=CS&&s.active!==CS.active; CS=s; if(switched&&CS.items[CS.active]) csLoadWorking(CS.items[CS.active]); else csMenuRefresh(); });
 // Restore Previous Version adds the earlier state as its own collection: restoring never overwrites the open collection (or any other)
-restoreSnapshot=function(i){ const snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); const s=snaps[i]; if(!s) return; const known=(s.sel||[]).filter(id=>byId[id]); const dec={}; Object.entries(s.decisions||{}).forEach(([k,v])=>{ if(byId[k]) dec[k]=v; });
- const r=csCreate(s.name||'Restored collection', {sel:known, decisions:dec, coll:{pref:s.pref||{}, multi:s.multi||{}, avail:s.avail||[], baseline:s.baseline||null}, home:null}); csSwitch(r.id, true); closeColl();
+restoreSnapshot=function(i){ const snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); const s=snaps[i]; if(!s) return; const known=(s.sel||[]).slice(); const dec=Object.assign({}, s.decisions||{});
+ const r=csCreate(s.name||'Restored collection', {sel:known, decisions:dec, coll:{pref:s.pref||{}, multi:s.multi||{}, avail:s.avail||[], baseline:s.baseline||null, missing:s.missing||{}}, home:null}); csSwitch(r.id, true); closeColl();
  toast(`Restored "${s.name}" from ${nowShort(s.at)} as "${r.name}" (${known.length} games)`); };
+
+// ---- every entry stays: games this computer cannot resolve (not in this Game Library, or a personal game whose file is not here) keep
+//      their identity and description in the collection's `missing` list; they are counted, listed, exported, transferred and shared like
+//      any other entry, and become ordinary entries as soon as the matching file is added (personal ids come from the file's content hash)
+function csEntryFromSelection(s, plib){ const id=s.version_id||s.game_id; const p=(plib||[]).find(x=>x&&x.id===id)||null;
+ const src=s.source==='personal'||/^p_/.test(id||'')?'personal':s.source==='extended'?'extended':s.source==='catalog'?'catalog':(s.source||'unknown');
+ const o={title:String(s.display_title||s.title||(p&&p.title)||id).slice(0,120), version:String(s.version_label||s.nointro_name||s.version||(p&&p.version_label)||'').slice(0,160), year:String(s.year||'').slice(0,8), publisher:String(s.publisher||'').slice(0,80), source:src,
+  content_sha256:/^[0-9a-f]{64}$/.test((p&&p.content_sha256)||s.content_sha256||'')?((p&&p.content_sha256)||s.content_sha256):'', file_sha256:/^[0-9a-f]{64}$/.test((p&&p.file_sha256)||s.file_sha256||'')?((p&&p.file_sha256)||s.file_sha256):'',
+  payload_sha256:/^[0-9a-f]{64}$/.test(s.payload_sha256||'')?s.payload_sha256:'', size:Number((p&&p.content_size)||s.size||0)||0, art:/^art\/[0-9a-f]{16}\.jpg$/.test(s.art||'')?s.art:'', thumb_url:/^https:\/\//.test(s.thumb_url||'')?s.thumb_url:''};
+ if(p) o.personal={id:p.id, title:p.title, version_label:p.version_label||'', content_sha256:p.content_sha256, file_sha256:p.file_sha256, content_size:p.content_size, file_size:p.file_size, format:p.format, file_name:String(p.file_name||'').split(/[\\/]/).pop(), user:p.user||null, detected:p.detected||null};
+ return o; }
+function csMissing(id){ return (COLL.missing||{})[id]||{title:id, source:'unknown'}; }
+// every entry of the open collection, in collection order: {id, g (when resolvable here), m (metadata otherwise)}
+function csEntries(){ return [...sel].map(id=>byId[id]?{id, g:byId[id]}:{id, m:csMissing(id)}); }
+window.csEntries=csEntries;
+// the collection file lists every entry: entries this computer cannot resolve are written from their kept metadata (available: false)
+(function(){ const _bm=buildManifest; buildManifest=function(){ const m=_bm.apply(this,arguments); const have=new Set(m.selections.map(s=>s.version_id));
+  [...sel].filter(id=>!byId[id]&&!have.has(id)).forEach(id=>{ const x=csMissing(id); m.selections.push({title_id:null, version_id:id, game_id:id, payload_sha256:x.payload_sha256||x.content_sha256||null, title:x.title, display_title:x.title, version_label:x.version||'', nointro_name:x.version||'', year:x.year||'', publisher:x.publisher||'', source:x.source||'unknown', available:false, content_sha256:x.content_sha256||null, file_sha256:x.file_sha256||null, size:x.size||0, art:x.art||'', thumb_url:x.thumb_url||'', revision_decision:decisions[id]||null, install_required:true, comparison_status:'unknown'});
+   if(x.personal&&!m.personal_library.some(p=>p.id===id)) m.personal_library.push(Object.assign({identity:'personal', file_present:false}, x.personal)); });
+  (m.personal_library||[]).forEach(p=>{ if(p&&p.file_name) p.file_name=String(p.file_name).split(/[\\/]/).pop(); delete p.path; delete p.source_path; });   /* a file name only: never where the file is */
+  m.count=m.selections.length; if(m.summary) m.summary.collection=m.selections.length; m.unavailable=[...sel].filter(id=>!byId[id]).length; return m; }; })();
+// the tray lists the entries whose file or library record is not here, below the others
+(function(){ if(typeof renderTray!=='function') return; const _rt=renderTray; renderTray=function(){ const r=_rt.apply(this,arguments); try{ const miss=[...sel].filter(id=>!byId[id]); const ul=$('trayList'); if(ul&&miss.length){
+   ul.insertAdjacentHTML('beforeend', `<li class="trmiss-h"><div class="small"><b>${miss.length} game${miss.length===1?'':'s'} not available on this computer</b> · kept in the collection; add the matching file with Add Your Own Game</div></li>`+miss.map(id=>{ const x=csMissing(id); const img=x.art?artUrl(x.art):(x.thumb_url||''); return `<li class="trmiss">${img?`<img loading="lazy" src="${esc(img)}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ph" style="width:36px;height:51px;padding:0;font-size:7px"><span style="border:none">NES</span></div>'}<div style="min-width:0;flex:1"><b class="tl">${esc(x.title)}</b><div class="small">${esc(x.version||'')}${x.year?' · '+esc(x.year):''}${x.publisher?' · '+esc(x.publisher):''}</div><div class="small"><span class="tag">${x.source==='personal'?'personal game':'not in this Game Library'}</span> file not on this computer</div></div><span class="x" data-rm="${esc(id)}" title="remove from the collection" role="button" tabindex="0">✕</span></li>`; }).join('')); } }catch(e){} return r; }; })();

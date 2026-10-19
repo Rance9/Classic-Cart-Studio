@@ -130,7 +130,7 @@ def main():
             ok("share_page_metadata_in_first_html", '<meta property="og:title" content="Alpha"' in page and f'{SHARE}/c/{share_id}/card.png' in page and 'twitter:card" content="summary_large_image"' in page and "Three of my favorites." in page, page[:400])
             img = urllib.request.urlopen(f"{SHARE}/c/{share_id}/card.png").read(); ok("share_card_png_1200x630", img[:8] == b"\x89PNG\r\n\x1a\n" and int.from_bytes(img[16:20], "big") == 1200 and int.from_bytes(img[20:24], "big") == 630)
             snapj = json.loads(urllib.request.urlopen(f"{SHARE}/api/c/{share_id}").read()); keys = {k for g in snapj["games"] for k in g}
-            ok("published_fields_allowlisted", keys <= {"id", "title", "version", "year", "publisher", "art"} and "token" not in json.dumps(snapj) and len(snapj["games"]) == 3, keys)
+            ok("published_fields_allowlisted", keys <= {"id", "title", "version", "year", "publisher", "art", "source", "content_sha256", "file_sha256", "size", "thumb", "thumb_url"} and "token" not in json.dumps(snapj) and len(snapj["games"]) == 3, keys)
             # share actions: generated URLs and text (the windows they open are not followed)
             ed.js("window.__opened=[]; window.open=(u)=>{ window.__opened.push(String(u)); return null; }; navigator.clipboard.writeText=async t=>{ window.__clip=t; };")
             for k in ("facebook", "x", "linkedin", "copy"): ed.js(f"shDest('{k}')"); time.sleep(0.3)
@@ -173,7 +173,7 @@ def main():
             except urllib.error.HTTPError as e: gone = e.code == 410
             ok("unpublish_stops_the_link", gone and ed.js(f"!!csActive().shares.find(s=>s.id==='{share_id}').unpublished"))
             ok("sender_collection_unaffected", sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == sender_before)
-        req = urllib.request.Request(SHARE + "/api/publish", data=json.dumps({"schema": "ccs-share/1", "name": "x", "games": [{"id": "../etc", "title": "x"}], "image": ""}).encode(), headers={"Content-Type": "application/json", "Origin": WEB}, method="POST")
+        req = urllib.request.Request(SHARE + "/api/publish", data=json.dumps({"schema": "ccs-share/2", "name": "x", "games": [{"id": "../etc", "title": "x"}], "image": ""}).encode(), headers={"Content-Type": "application/json", "Origin": WEB}, method="POST")
         try: urllib.request.urlopen(req); rej = False
         except urllib.error.HTTPError as e: rej = e.code == 400
         ok("invalid_publish_rejected", rej)

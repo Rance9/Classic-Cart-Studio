@@ -54,17 +54,30 @@ class MemoryR2 {
     const e = this.map.get(key);
     if (!e) return null;
     return {
+      key,
+      size: e.bytes.byteLength,
       httpMetadata: e.meta,
       async arrayBuffer() { return e.bytes.slice().buffer; },
+      async text() { return new TextDecoder().decode(e.bytes); },
       async json() { return JSON.parse(new TextDecoder().decode(e.bytes)); },
     };
   }
   async put(key, value, opts = {}) {
     const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : new Uint8Array(ArrayBuffer.isView(value) ? value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) : value);
     this.map.set(key, { bytes, meta: opts.httpMetadata || {} });
+    return { key };
   }
-  async delete(key) {
-    this.map.delete(key);
+  async delete(keys) {
+    const list = Array.isArray(keys) ? keys : [keys];
+    if (list.length > 1000) throw new Error('R2 deletes at most 1000 keys per call');
+    for (const k of list) this.map.delete(k);
+  }
+  async list({ prefix = '' } = {}) {
+    return { objects: [...this.map.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })), truncated: false };
+  }
+  async json(key) {
+    const o = await this.get(key);
+    return o ? o.json() : null;
   }
 }
 
@@ -73,8 +86,9 @@ function makeLimiter(allow) {
   return { calls, async limit(arg) { calls.push(arg); return { success: allow(calls.length, arg) }; } };
 }
 
+// R2 is the primary store; KV is optional (counters) or a fallback store.
 function makeEnv(extra = {}) {
-  return { SHARES: new MemoryKV(), SITE_ORIGIN: SITE, SHARE_ORIGIN: SHARE, ...extra };
+  return { SHARE_BUCKET: new MemoryR2(), SITE_ORIGIN: SITE, SHARE_ORIGIN: SHARE, ...extra };
 }
 
 const ctx = { waitUntil() {}, passThroughOnException() {} };
@@ -132,10 +146,16 @@ const GOOD_B64 = GOOD_PNG.toString('base64');
 // ---------- helpers ----------
 
 const hex16 = (n) => n.toString(16).padStart(16, '0');
+const hex64 = (n) => createHash('sha256').update(String(n)).digest('hex');
+
+// Minimal JPEG-shaped bytes: SOI + APP0 marker ... EOI (validation checks the markers).
+function makeJpeg(padBytes = 64) {
+  return Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]), randomBytes(padBytes), Buffer.from([0xff, 0xd9])]);
+}
 
 function payload(over = {}) {
   return {
-    schema: 'ccs-share/1',
+    schema: 'ccs-share/2',
     name: 'My Picks',
     description: 'A few favorites.',
     games: [
@@ -212,11 +232,12 @@ async function main() {
   const id = pj.id;
   const token = pj.manage_token;
 
-  const stored = await env.SHARES.get(`c:${id}`, { type: 'json' });
+  const stored = await env.SHARE_BUCKET.json(`c/${id}.json`);
   check('stored record has SHA-256(token)', stored && stored.token_hash === sha256(token));
   check('stored record never contains the raw token', !JSON.stringify(stored).includes(token));
   check('stored record has ISO created time', stored && !Number.isNaN(Date.parse(stored.created)) && stored.created.endsWith('Z'));
-  check('stored PNG under img:<id>', (await env.SHARES.get(`img:${id}`, { type: 'arrayBuffer' }))?.byteLength === GOOD_PNG.length);
+  check('stored PNG under c/<id>/card.png (R2, image/png)', env.SHARE_BUCKET.map.get(`c/${id}/card.png`)?.bytes.byteLength === GOOD_PNG.length && env.SHARE_BUCKET.map.get(`c/${id}/card.png`).meta.contentType === 'image/png');
+  check('stored record content type JSON', env.SHARE_BUCKET.map.get(`c/${id}.json`).meta.contentType === 'application/json');
 
   // a second publish gets a different id
   const pub2 = await publish(env, payload());
@@ -234,7 +255,7 @@ async function main() {
   check('JSON games match input', snap.games.length === 3 && snap.games[0].id === 'a1b2c3d4e5f60718' && snap.games[0].art === 'art/a1b2c3d4e5f60718.jpg' && snap.games[0].version === 'USA (Rev 1)' && snap.games[1].art === '');
   check('JSON optional game fields default to ""', snap.games[2].version === '' && snap.games[2].year === '' && snap.games[2].publisher === '');
   check('JSON stats and description kept', snap.stats.added === 2 && snap.description === 'A few favorites.');
-  check('JSON schema/id/url/image_url/created present', snap.schema === 'ccs-share/1' && snap.id === id && snap.url === `${SHARE}/c/${id}` && snap.image_url.endsWith('/card.png') && !!snap.created);
+  check('JSON schema/id/url/image_url/created present', snap.schema === 'ccs-share/2' && snap.id === id && snap.url === `${SHARE}/c/${id}` && snap.image_url.endsWith('/card.png') && !!snap.created);
   check('JSON omits token hash and token', !('token_hash' in snap) && !snapText.includes(stored.token_hash) && !snapText.includes(token) && !/token/i.test(snapText));
   check('JSON without Origin has no ACAO', (await call(env, 'GET', `/api/c/${id}`)).headers.get('access-control-allow-origin') === null);
   await expectStatus('GET /api/c/<unknown> 404', call(env, 'GET', '/api/c/ZZZZZZZZZZ'), 404, 'not_found');
@@ -266,7 +287,7 @@ async function main() {
   check('page footer', html.includes('Shared with Classic Cart Studio &middot; not affiliated with Nintendo'));
   check('page has no third-party URLs', [...html.matchAll(/(?:src|href)="(https?:[^"]+)"/g)].every((m) => m[1].startsWith(SITE) || m[1].startsWith(SHARE)));
   const csp = page.headers.get('content-security-policy') || '';
-  check('page CSP', csp.includes("default-src 'none'") && csp.includes(`img-src 'self' ${SITE} data:`) && csp.includes("frame-ancestors 'none'") && csp.includes("base-uri 'none'") && csp.includes("form-action 'none'"), csp);
+  check('page CSP', csp.includes("default-src 'none'") && csp.includes(`img-src 'self' ${SHARE} ${SITE} data:`) && csp.includes("frame-ancestors 'none'") && csp.includes("base-uri 'none'") && csp.includes("form-action 'none'"), csp);
   check('page nosniff + referrer policy', page.headers.get('x-content-type-options') === 'nosniff' && page.headers.get('referrer-policy') === 'strict-origin-when-cross-origin');
 
   // description fallback
@@ -295,9 +316,9 @@ async function main() {
   const okUn = await expectStatus('unpublish right token 200', unpub({ id, token }), 200);
   const okUnJ = await okUn.json();
   check('unpublish response ok', okUnJ.ok === true && okUnJ.unpublished === true);
-  const tomb = await env.SHARES.get(`c:${id}`, { type: 'json' });
+  const tomb = await env.SHARE_BUCKET.json(`c/${id}.json`);
   check('tombstone replaces snapshot', tomb.unpublished === true && !!tomb.at && !('games' in tomb) && !('token_hash' in tomb));
-  check('image deleted on unpublish', (await env.SHARES.get(`img:${id}`)) === null);
+  check('image deleted on unpublish', !env.SHARE_BUCKET.map.has(`c/${id}/card.png`));
   const gone = await expectStatus('page after unpublish 410', call(env, 'GET', `/c/${id}`), 410);
   const goneHtml = await gone.text();
   check('410 page styled + noindex', goneHtml.includes('<meta name="robots" content="noindex">') && goneHtml.includes('unpublished') && goneHtml.includes('<style>'));
@@ -318,9 +339,37 @@ async function main() {
   await bad('reject art "../x"', payload({ games: [{ id: hex16(1), title: 'X', art: '../x' }] }), 'bad_art_path');
   await bad('reject art http:// URL', payload({ games: [{ id: hex16(1), title: 'X', art: 'http://evil.example/x.jpg' }] }), 'bad_art_path');
   await bad('reject art with uppercase/other ext', payload({ games: [{ id: hex16(1), title: 'X', art: 'art/A1B2C3D4E5F60718.png' }] }), 'bad_art_path');
-  await bad('reject personal p_ id', payload({ games: [{ id: 'p_0123456789abcdef', title: 'Mine' }] }), 'bad_game_id');
-  await bad('reject uppercase hex id', payload({ games: [{ id: 'A1B2C3D4E5F60718', title: 'X' }] }), 'bad_game_id');
-  await bad('reject 501 games', payload({ games: Array.from({ length: 501 }, (_, i) => ({ id: hex16(i), title: `G${i}` })) }), 'too_many_games');
+  await bad('reject id starting with "_"', payload({ games: [{ id: '_abc', title: 'X' }] }), 'bad_game_id');
+  await bad('reject id with "/"', payload({ games: [{ id: 'a/b', title: 'X' }] }), 'bad_game_id');
+  await bad('reject id with space', payload({ games: [{ id: 'a b', title: 'X' }] }), 'bad_game_id');
+  await bad('reject 81-char id', payload({ games: [{ id: 'a'.repeat(81), title: 'X' }] }), 'bad_game_id');
+  await bad('reject missing id', payload({ games: [{ title: 'X' }] }), 'bad_game_id');
+  await bad('reject missing title', payload({ games: [{ id: 'abc' }] }), 'invalid_payload');
+  await bad('reject unknown source', payload({ games: [{ id: 'abc', title: 'X', source: 'homebrew' }] }), 'bad_source');
+  await bad('reject bad content_sha256', payload({ games: [{ id: 'abc', title: 'X', content_sha256: 'ABC' }] }), 'bad_hash');
+  await bad('reject uppercase file_sha256', payload({ games: [{ id: 'abc', title: 'X', file_sha256: hex64(1).toUpperCase() }] }), 'bad_hash');
+  await bad('reject size over 16 MiB', payload({ games: [{ id: 'abc', title: 'X', size: 16777217 }] }), 'invalid_payload');
+  await bad('reject negative size', payload({ games: [{ id: 'abc', title: 'X', size: -1 }] }), 'invalid_payload');
+  const dup = await bad('reject duplicate game id', payload({ games: [{ id: 'p_0123456789abcdef', title: 'A' }, { id: 'p_0123456789abcdef', title: 'B' }] }), 'duplicate_game');
+  check('duplicate message names the id', ((await dup.json()).error || '').includes('p_0123456789abcdef'));
+  const over = await bad('reject 2001 games', payload({ games: Array.from({ length: 2001 }, (_, i) => ({ id: hex16(i), title: `G${i}` })) }), 'too_many_games');
+  check('2001 games message', (await over.json()).error === 'A shared collection can hold at most 2000 games; this one has 2001.');
+  await bad('reject thumb index past thumbs', payload({ games: [{ id: 'abc', title: 'X', thumb: 1 }], thumbs: [makeJpeg().toString('base64')] }), 'bad_thumb_index');
+  await bad('reject thumb index with no thumbs', payload({ games: [{ id: 'abc', title: 'X', thumb: 0 }] }), 'bad_thumb_index');
+  await bad('reject thumb index -2', payload({ games: [{ id: 'abc', title: 'X', thumb: -2 }], thumbs: [makeJpeg().toString('base64')] }), 'bad_thumb_index');
+  await bad('reject non-integer thumb index', payload({ games: [{ id: 'abc', title: 'X', thumb: '0' }], thumbs: [makeJpeg().toString('base64')] }), 'bad_thumb_index');
+  await bad('reject non-JPEG thumb (PNG bytes)', payload({ thumbs: [makePng(8, 8).toString('base64')] }), 'bad_thumb');
+  await bad('reject thumb without EOI marker', payload({ thumbs: [makeJpeg().subarray(0, 40).toString('base64')] }), 'bad_thumb');
+  await bad('reject thumb not base64', payload({ thumbs: ['***'] }), 'bad_thumb');
+  await bad('reject thumb not a string', payload({ thumbs: [5] }), 'bad_thumb');
+  await bad('reject thumb over 48 KB', payload({ thumbs: [makeJpeg(48 * 1024).toString('base64')] }), 'thumb_too_large');
+  await bad('reject 401 thumbs', payload({ thumbs: Array.from({ length: 401 }, () => makeJpeg(4).toString('base64')) }), 'too_many_thumbs');
+  await bad('reject home folder with unknown game id', payload({ home: { theme: 'arcade-grid', folders: [{ name: 'F', order: ['a1b2c3d4e5f60718', 'nope'] }] } }), 'bad_home');
+  await bad('reject home unknown key', payload({ home: { theme: '', layout: 1 } }), 'unknown_field');
+  await bad('reject home folder unknown key', payload({ home: { folders: [{ name: 'F', order: [], color: 'red' }] } }), 'unknown_field');
+  await bad('reject home bad theme', payload({ home: { theme: 'neon' } }), 'bad_home');
+  await bad('reject home 101 folders', payload({ home: { folders: Array.from({ length: 101 }, (_, i) => ({ name: `F${i}`, order: [] })) } }), 'bad_home');
+  await bad('reject home folder empty name', payload({ home: { folders: [{ name: ' ', order: [] }] } }), 'invalid_payload');
   await bad('reject 0 games', payload({ games: [] }), 'invalid_payload');
   await bad('reject 81-char name', payload({ name: 'N'.repeat(81) }), 'invalid_payload');
   await bad('reject empty name', payload({ name: ' \u0001 ' }), 'invalid_payload');
@@ -328,8 +377,8 @@ async function main() {
   await bad('reject 281-char description', payload({ description: 'd'.repeat(281) }), 'invalid_payload');
   await bad('reject 121-char title', payload({ games: [{ id: hex16(1), title: 't'.repeat(121) }] }), 'invalid_payload');
   await bad('reject 9-char year', payload({ games: [{ id: hex16(1), title: 'X', year: '198501011' }] }), 'invalid_payload');
-  await bad('reject wrong schema', payload({ schema: 'ccs-share/2' }), 'bad_schema');
-  await bad('reject stats out of range', payload({ stats: { games: 1001 } }), 'invalid_payload');
+  await bad('reject wrong schema', payload({ schema: 'ccs-share/1' }), 'bad_schema');
+  await bad('reject stats out of range', payload({ stats: { games: 5001 } }), 'invalid_payload');
   await bad('reject stats non-integer', payload({ stats: { games: 1.5 } }), 'invalid_payload');
   await bad('reject stats unknown key', payload({ stats: { games: 1, extra: 2 } }), 'unknown_field');
   await bad('reject games not array', payload({ games: {} }), 'invalid_payload');
@@ -345,15 +394,21 @@ async function main() {
   await bad('reject missing content type', JSON.stringify(payload()), 'unsupported_media_type', 415, { contentType: '' });
   await bad('reject invalid JSON', '{"schema":', 'invalid_json');
   await bad('reject JSON array body', [], 'invalid_payload');
-  const huge = JSON.stringify(payload({ description: 'x'.repeat(1_000_001) }));
-  await bad('oversized body (streamed) 413', huge, 'payload_too_large', 413);
+  const huge = JSON.stringify(payload({ description: 'x'.repeat(8_000_001) }));
+  const big413 = await bad('oversized body (streamed) 413', huge, 'payload_too_large', 413);
+  check('413 message', (await big413.json()).error === 'The collection is too large to share (limit 8 MB).');
   await bad('oversized Content-Length 413', huge, 'payload_too_large', 413, { extraHeaders: { 'content-length': String(Buffer.byteLength(huge)) } });
   const okCharset = await publish(env, payload(), { contentType: 'application/json; charset=utf-8' });
   check('accept application/json; charset=utf-8', okCharset.status === 201, `got ${okCharset.status}`);
   const okData = await publish(env, payload({ image: `data:image/png;base64,${GOOD_B64}`, name: 'N'.repeat(80), stats: undefined, description: undefined }));
   check('accept data: URL image, 80-char name, no stats/description', okData.status === 201, `got ${okData.status}`);
-  const max = await publish(env, payload({ games: Array.from({ length: 500 }, (_, i) => ({ id: hex16(i), title: `Game ${i}` })) }));
-  check('accept exactly 500 games', max.status === 201, `got ${max.status}`);
+  const max = await publish(env, payload({ games: Array.from({ length: 2000 }, (_, i) => ({ id: hex16(i), title: `Game ${i}`, thumb: i < 100 ? i : -1 })), thumbs: Array.from({ length: 100 }, () => makeJpeg(40 * 1024).toString('base64')) }));
+  check('accept exactly 2000 games with 100 x 40 KB thumbs (body under 8 MB)', max.status === 201, `got ${max.status}`);
+  const maxJ = await (await call(env, 'GET', `/api/c/${(await max.json()).id}`)).json();
+  check('2000-game snapshot returns all 2000 games', maxJ.games.length === 2000 && maxJ.games[1999].id === hex16(1999));
+  const t400 = await publish(env, payload({ games: [{ id: 'abc', title: 'X', thumb: 399 }], thumbs: Array.from({ length: 400 }, () => makeJpeg(8).toString('base64')) }));
+  check('accept exactly 400 thumbs', t400.status === 201, `got ${t400.status}`);
+  check('stats up to 5000 accepted', (await publish(env, payload({ stats: { games: 5000, factory: 30, added: 4970, personal: 5000, unavailable: 0 } }))).status === 201);
 
   // --- CORS ---
   const pre = (origin) => call(env, 'OPTIONS', '/api/publish', { headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type' } });
@@ -378,7 +433,7 @@ async function main() {
   check('error responses carry ACAO for allowed origin', errCors.status === 400 && errCors.headers.get('access-control-allow-origin') === SITE);
 
   // --- rate limits ---
-  const rlEnv = makeEnv();
+  const rlEnv = makeEnv({ SHARES: new MemoryKV() });
   const rip = '203.0.113.9';
   let okCount = 0;
   for (let i = 0; i < 20; i++) if ((await publish(rlEnv, payload(), { ip: rip })).status === 201) okCount++;
@@ -389,7 +444,11 @@ async function main() {
   check('429 has Retry-After', !!r21.headers.get('retry-after'));
   check('other IP still allowed', (await publish(rlEnv, payload(), { ip: '203.0.113.10' })).status === 201);
   const rlKey = [...rlEnv.SHARES.map.keys()].find((k) => k.startsWith(`rl:${rip}:`));
-  check('counter key rl:<ip>:<hour> with 3600 s TTL', !!rlKey && rlEnv.SHARES.map.get(rlKey).ttl === 3600, rlKey);
+  check('counter key rl:<ip>:<hour> with 3600 s TTL (KV when bound)', !!rlKey && rlEnv.SHARES.map.get(rlKey).ttl === 3600, rlKey);
+  check('counters not written to R2 when KV is bound', ![...rlEnv.SHARE_BUCKET.map.keys()].some((k) => k.startsWith('rl')));
+  const r2rl = makeEnv();
+  await publish(r2rl, payload(), { ip: '203.0.113.11' });
+  check('counters fall back to R2 objects without KV', [...r2rl.SHARE_BUCKET.map.keys()].some((k) => k.startsWith('rl:203.0.113.11:')));
   const invEnv = makeEnv();
   for (let i = 0; i < 25; i++) await publish(invEnv, payload({ extra: 1 }), { ip: '203.0.113.20' });
   check('invalid publishes do not consume the quota', (await publish(invEnv, payload(), { ip: '203.0.113.20' })).status === 201);
@@ -424,14 +483,99 @@ async function main() {
   await expectStatus('unknown path 404', call(env, 'GET', '/wp-admin'), 404, 'not_found');
   await expectStatus('unknown api path 404', call(env, 'GET', '/api/nope'), 404, 'not_found');
 
-  // --- R2 adapter ---
-  const r2Env = { SHARE_BUCKET: new MemoryR2(), SHARES: new MemoryKV(), SITE_ORIGIN: SITE, SHARE_ORIGIN: SHARE };
-  const r2p = await publish(r2Env, payload());
-  const r2j = await r2p.json();
-  check('R2 adapter: publish stores in bucket', r2p.status === 201 && r2Env.SHARE_BUCKET.map.has(`c:${r2j.id}`) && r2Env.SHARE_BUCKET.map.has(`img:${r2j.id}`) && !r2Env.SHARES.map.has(`c:${r2j.id}`));
-  check('R2 adapter: image content type', r2Env.SHARE_BUCKET.map.get(`img:${r2j.id}`).meta.contentType === 'image/png');
-  const r2card = Buffer.from(await (await call(r2Env, 'GET', `/c/${r2j.id}/card.png`)).arrayBuffer());
-  check('R2 adapter: card.png served', r2card.equals(GOOD_PNG));
+  // --- mixed 120-game collection with thumbs (R2 primary) ---
+  const mixEnv = makeEnv();
+  const thumbs = Array.from({ length: 5 }, (_, i) => makeJpeg(100 + i));
+  const mixed = [];
+  for (let i = 0; i < 120; i++) {
+    const kind = i % 4;
+    if (kind === 0) mixed.push({ id: hex16(0xa000 + i), title: `Catalog <Game> ${i}`, version: 'USA', year: '1988', publisher: 'Nintendo', source: 'catalog', art: `art/${hex16(0xa000 + i)}.jpg` });
+    else if (kind === 1) mixed.push({ id: `p_${hex16(0xb000 + i)}`, title: `Personal Hack ${i}`, version: 'v1.2 (hack)', source: 'personal', content_sha256: hex64(`c${i}`), file_sha256: hex64(`f${i}`), size: 40976 + i });
+    else if (kind === 2) mixed.push({ id: `unk:${i}.rom-x`, title: `Unknown Dump ${i}`, source: 'unknown', file_sha256: hex64(`u${i}`), size: 24592 });
+    else mixed.push({ id: hex16(0xc000 + i), title: `Extended ${i}`, source: 'extended', year: '1990' });
+  }
+  mixed[118] = { id: hex16(0xd001), title: 'Same Title', version: 'USA (Rev 0)', source: 'catalog' };
+  mixed[119] = { id: hex16(0xd002), title: 'Same Title', version: 'USA (Rev 1)', source: 'catalog' };
+  // Five personal games carry uploaded thumbs; one catalog game has no "source" (defaults to catalog).
+  const thumbGames = [1, 5, 9, 13, 17];
+  thumbGames.forEach((gi, n) => { mixed[gi].thumb = n; });
+  mixed[3].thumb = -1;
+  delete mixed[4].source;
+  const personalIds = mixed.filter((g) => g.source === 'personal').map((g) => g.id);
+  const mixBody = payload({
+    name: 'Everything I Own',
+    games: mixed,
+    thumbs: thumbs.map((t, i) => (i === 0 ? `data:image/jpeg;base64,${t.toString('base64')}` : t.toString('base64'))),
+    stats: { games: 120, factory: 30, added: 90, personal: 30, unavailable: 30 },
+    home: { theme: 'featured-shelf', folders: [{ name: 'My hacks', order: personalIds }, { name: 'Empty', order: [] }] },
+  });
+  const mixPub = await publish(mixEnv, mixBody);
+  check('mixed 120-game collection publishes (201)', mixPub.status === 201, `got ${mixPub.status} ${mixPub.status !== 201 ? await mixPub.clone().text() : ''}`);
+  const mixJ = await mixPub.json();
+  const mixId = mixJ.id;
+  const mixUrl = `${SHARE}/c/${mixId}`;
+  const mSnap = await (await call(mixEnv, 'GET', `/api/c/${mixId}`)).json();
+  check('mixed: all 120 games returned', mSnap.games.length === 120);
+  check('mixed: order preserved', mSnap.games.every((g, i) => g.id === mixed[i].id));
+  check('mixed: personal p_ ids, hashes and size kept', mSnap.games[1].id === mixed[1].id && mSnap.games[1].source === 'personal' && mSnap.games[1].content_sha256 === hex64('c1') && mSnap.games[1].file_sha256 === hex64('f1') && mSnap.games[1].size === 40977);
+  check('mixed: unknown ids kept with source unknown', mSnap.games[2].id === 'unk:2.rom-x' && mSnap.games[2].source === 'unknown');
+  check('mixed: extended source kept', mSnap.games[3].source === 'extended');
+  check('mixed: missing source defaults to catalog', mSnap.games[4].source === 'catalog');
+  check('mixed: two versions of one title both kept', mSnap.games[118].title === 'Same Title' && mSnap.games[119].title === 'Same Title' && mSnap.games[118].version !== mSnap.games[119].version);
+  check('mixed: thumb_url absolute for thumbed games', thumbGames.every((gi, n) => mSnap.games[gi].thumb === n && mSnap.games[gi].thumb_url === `${mixUrl}/t/${n}.jpg`));
+  check('mixed: no thumb_url without thumb (incl. thumb -1)', mSnap.games.filter((g, i) => !thumbGames.includes(i)).every((g) => !('thumb_url' in g) && !('thumb' in g)));
+  check('mixed: home kept', mSnap.home && mSnap.home.theme === 'featured-shelf' && mSnap.home.folders.length === 2 && mSnap.home.folders[0].name === 'My hacks' && mSnap.home.folders[0].order.join() === personalIds.join());
+  check('mixed: stats kept (personal, unavailable)', mSnap.stats.personal === 30 && mSnap.stats.unavailable === 30);
+  check('mixed: public JSON has no token hash / thumb_count', !/token|thumb_count/.test(JSON.stringify(mSnap)));
+  for (let n = 0; n < 5; n++) {
+    const t = await call(mixEnv, 'GET', `/c/${mixId}/t/${n}.jpg`);
+    const tb = Buffer.from(await t.arrayBuffer());
+    check(`mixed: thumb ${n} served as image/jpeg with long cache`, t.status === 200 && t.headers.get('content-type') === 'image/jpeg' && /max-age=31536000/.test(t.headers.get('cache-control') || '') && tb.equals(thumbs[n]));
+  }
+  check('mixed: thumbs stored under c/<id>/t/<n>.jpg', [0, 1, 2, 3, 4].every((n) => mixEnv.SHARE_BUCKET.map.get(`c/${mixId}/t/${n}.jpg`)?.meta.contentType === 'image/jpeg'));
+  await expectStatus('mixed: thumb index past count 404', call(mixEnv, 'GET', `/c/${mixId}/t/5.jpg`), 404);
+  await expectStatus('mixed: thumb with leading zero 404', call(mixEnv, 'GET', `/c/${mixId}/t/01.jpg`), 404);
+  await expectStatus('thumb for unknown share 404', call(mixEnv, 'GET', '/c/ZZZZZZZZZZ/t/0.jpg'), 404);
+  check('POST thumb 405', (await call(mixEnv, 'POST', `/c/${mixId}/t/0.jpg`)).status === 405);
+  const mHtml = await (await call(mixEnv, 'GET', `/c/${mixId}`)).text();
+  check('mixed page: lists all 120 games', (mHtml.match(/<li class="game">/g) || []).length === 120);
+  check('mixed page: every title present (escaped)', mixed.every((g) => mHtml.includes(`<span class="t">${g.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`)));
+  check('mixed page: thumb cover uses thumb_url', mHtml.includes(`src="${mixUrl}/t/0.jpg"`) && mHtml.includes(`src="${mixUrl}/t/4.jpg"`));
+  check('mixed page: catalog art cover from SITE_ORIGIN', mHtml.includes(`src="${SITE}/art/${hex16(0xa000)}.jpg"`));
+  check('mixed page: fallback box for unknown without art', /<div class="cover"><div class="fb" aria-hidden="true"><i><\/i>Unknown Dump 2<\/div><\/div>/.test(mHtml));
+  check('mixed page: "Personal game" label', (mHtml.match(/<span class="s">Personal game<\/span>/g) || []).length === 30);
+  check('mixed page: unknown label', (mHtml.match(/<span class="s">Not in the Classic Cart Studio library<\/span>/g) || []).length === 29); // game 118 became a catalog version
+  check('mixed page: version lines shown', mHtml.includes('<span class="v">v1.2 (hack)</span>') && mHtml.includes('USA (Rev 0)') && mHtml.includes('USA (Rev 1)'));
+  check('mixed page: stats use total games', mHtml.includes('<li><b>120</b>games</li>') && mHtml.includes('<li><b>30</b>personal</li>'));
+  check('mixed page: header count 120', mHtml.includes('Games in this collection <span>120</span>'));
+  check('mixed page: no script', !/<script/i.test(mHtml));
+  // Unpublish removes card and thumbs; the tombstone answers 410.
+  const mixUn = await call(mixEnv, 'POST', '/api/unpublish', { body: { id: mixId, token: mixJ.manage_token }, headers: { 'content-type': 'application/json', origin: SITE }, ip: freshIp() });
+  check('mixed: unpublish 200', mixUn.status === 200);
+  check('mixed: unpublish deleted card and all thumbs', [...mixEnv.SHARE_BUCKET.map.keys()].filter((k) => k.startsWith(`c/${mixId}/`)).length === 0);
+  check('mixed: tombstone kept', (await mixEnv.SHARE_BUCKET.json(`c/${mixId}.json`)).unpublished === true);
+  for (const n of [0, 4]) {
+    const g = await call(mixEnv, 'GET', `/c/${mixId}/t/${n}.jpg`);
+    check(`mixed: thumb ${n} after unpublish 410/404`, g.status === 410 || g.status === 404, `got ${g.status}`);
+  }
+  await expectStatus('mixed: page after unpublish 410', call(mixEnv, 'GET', `/c/${mixId}`), 410);
+
+  // --- KV fallback smoke test (no R2 bucket bound) ---
+  const kvEnv = { SHARES: new MemoryKV(), SITE_ORIGIN: SITE, SHARE_ORIGIN: SHARE };
+  const kvPub = await publish(kvEnv, payload({ games: [{ id: 'p_00000000000000aa', title: 'KV Personal', source: 'personal', thumb: 0 }, { id: 'zz', title: 'KV Unknown', source: 'unknown' }], thumbs: [thumbs[0].toString('base64')] }));
+  const kvJ = await kvPub.json();
+  check('KV fallback: publish 201 stored in KV', kvPub.status === 201 && kvEnv.SHARES.map.has(`c:${kvJ.id}`) && kvEnv.SHARES.map.has(`img:${kvJ.id}`) && kvEnv.SHARES.map.has(`t:${kvJ.id}:0`));
+  const kvSnap = await (await call(kvEnv, 'GET', `/api/c/${kvJ.id}`)).json();
+  check('KV fallback: snapshot round-trips', kvSnap.games.length === 2 && kvSnap.games[0].thumb_url === `${SHARE}/c/${kvJ.id}/t/0.jpg`);
+  check('KV fallback: card served', Buffer.from(await (await call(kvEnv, 'GET', `/c/${kvJ.id}/card.png`)).arrayBuffer()).equals(GOOD_PNG));
+  check('KV fallback: thumb served', Buffer.from(await (await call(kvEnv, 'GET', `/c/${kvJ.id}/t/0.jpg`)).arrayBuffer()).equals(thumbs[0]));
+  const kvUn = await call(kvEnv, 'POST', '/api/unpublish', { body: { id: kvJ.id, token: kvJ.manage_token }, headers: { 'content-type': 'application/json', origin: SITE }, ip: freshIp() });
+  check('KV fallback: unpublish removes card and thumb', kvUn.status === 200 && !kvEnv.SHARES.map.has(`img:${kvJ.id}`) && !kvEnv.SHARES.map.has(`t:${kvJ.id}:0`));
+  check('KV fallback: thumb after unpublish 410', (await call(kvEnv, 'GET', `/c/${kvJ.id}/t/0.jpg`)).status === 410);
+  const quiet = console.error;
+  console.error = () => {};
+  const noStore = await call({ SITE_ORIGIN: SITE }, 'GET', `/c/${kvJ.id}`).finally(() => { console.error = quiet; });
+  check('no storage binding -> 500 (no crash)', noStore.status === 500);
 
   // --- summary ---
   const failed = results.filter((r) => !r.ok).map((r) => r.name);

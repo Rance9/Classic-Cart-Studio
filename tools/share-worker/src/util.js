@@ -135,8 +135,8 @@ export function requireJsonContentType(request) {
   }
 }
 
-export async function readJsonBody(request, limit) {
-  const tooLarge = () => new HttpError(413, 'payload_too_large', `Request body must be at most ${limit} bytes.`);
+export async function readJsonBody(request, limit, tooLargeMessage) {
+  const tooLarge = () => new HttpError(413, 'payload_too_large', tooLargeMessage || `Request body must be at most ${limit} bytes.`);
   const cl = request.headers.get('content-length');
   if (cl !== null) {
     const n = Number(cl);

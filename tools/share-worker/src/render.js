@@ -1,11 +1,14 @@
 // Server-rendered HTML for share pages. No scripts, no third-party requests.
 import { escapeHtml as e } from './util.js';
 
-export function htmlHeaders(siteOrigin) {
+// img-src: 'self' (cards, thumbs), the share origin when it is addressed by
+// another host name, and SITE_ORIGIN (catalog cover art).
+export function htmlHeaders(siteOrigin, shareOrigin) {
+  const extra = shareOrigin && shareOrigin !== siteOrigin ? ` ${shareOrigin}` : '';
   return {
     'Content-Type': 'text/html; charset=utf-8',
     'Content-Security-Policy':
-      `default-src 'none'; img-src 'self' ${siteOrigin} data:; style-src 'unsafe-inline'; ` +
+      `default-src 'none'; img-src 'self'${extra} ${siteOrigin} data:; style-src 'unsafe-inline'; ` +
       `base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -54,6 +57,7 @@ h1{margin:0 0 12px;font-size:clamp(28px,4.4vw,44px);line-height:1.1;overflow-wra
 .meta .t{font-weight:700;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
 .meta .v{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .meta .y{color:#7f8490;font-size:12px}
+.meta .s{color:#7f8490;font-size:11px;font-style:italic;overflow-wrap:anywhere}
 .msg{padding:72px 0 88px;text-align:center}
 .msg .code{display:inline-block;font-weight:800;color:var(--red2);letter-spacing:.14em;font-size:14px;margin-bottom:8px}
 .msg h1{margin-bottom:10px}
@@ -102,15 +106,27 @@ function formatDate(iso) {
   }
 }
 
-function gameItem(g, siteOrigin) {
+const SOURCE_LABELS = {
+  personal: 'Personal game',
+  unknown: 'Not in the Classic Cart Studio library',
+};
+
+function coverUrl(g, siteOrigin, pageUrl) {
+  if (Number.isInteger(g.thumb) && g.thumb >= 0) return `${pageUrl}/t/${g.thumb}.jpg`;
+  if (g.art) return `${siteOrigin}/${g.art}`;
+  return '';
+}
+
+function gameItem(g, siteOrigin, pageUrl) {
   const sub = [g.year, g.publisher].filter(Boolean).join(' · ');
-  const img = g.art
-    ? `<img src="${e(`${siteOrigin}/${g.art}`)}" alt="" loading="lazy" decoding="async">`
-    : '';
+  const src = coverUrl(g, siteOrigin, pageUrl);
+  const img = src ? `<img src="${e(src)}" alt="" loading="lazy" decoding="async">` : '';
+  const label = SOURCE_LABELS[g.source];
   return `<li class="game"><div class="cover"><div class="fb" aria-hidden="true"><i></i>${e(g.title)}</div>${img}</div>` +
     `<div class="meta"><span class="t">${e(g.title)}</span>` +
     (g.version ? `<span class="v">${e(g.version)}</span>` : '') +
     (sub ? `<span class="y">${e(sub)}</span>` : '') +
+    (label ? `<span class="s">${e(label)}</span>` : '') +
     `</div></li>`;
 }
 
@@ -142,9 +158,11 @@ export function renderSharePage(snap, { siteOrigin, shareOrigin }) {
     `<meta name="twitter:image:alt" content="${e(imageAlt)}">`,
   ].join('\n');
 
-  const statItems = [`<li><b>${Number.isInteger(stats.games) ? stats.games : count}</b>games</li>`];
+  // The games total is always the number of games actually shared.
+  const statItems = [`<li><b>${count}</b>${count === 1 ? 'game' : 'games'}</li>`];
   if (Number.isInteger(stats.factory)) statItems.push(`<li><b>${stats.factory}</b>factory</li>`);
   if (Number.isInteger(stats.added)) statItems.push(`<li><b>${stats.added}</b>added</li>`);
+  if (Number.isInteger(stats.personal) && stats.personal > 0) statItems.push(`<li><b>${stats.personal}</b>personal</li>`);
   const when = formatDate(snap.created);
 
   const body = `<section class="hero">
@@ -164,7 +182,7 @@ ${when ? `<p class="when">Shared ${e(when)}</p>` : ''}
 <section class="games">
 <h2>Games in this collection <span>${count}</span></h2>
 <ul class="grid">
-${snap.games.map((g) => gameItem(g, siteOrigin)).join('\n')}
+${snap.games.map((g) => gameItem(g, siteOrigin, pageUrl)).join('\n')}
 </ul>
 </section>`;
 
