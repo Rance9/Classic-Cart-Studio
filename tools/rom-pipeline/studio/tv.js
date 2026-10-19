@@ -12,7 +12,7 @@ let TV={open:false,mode:'proposed',treatment:'clean',proj:null,returnTo:null,foc
 function tvSortTitle(t){ t=String(t||'').toLowerCase().trim(); return t.startsWith('the ')?t.slice(4):t; }
 function tvFactoryTitle(code){ return (typeof FACTORY_TITLES!=='undefined'&&FACTORY_TITLES[code])||code; }
 // sample entries when the tray is empty: the 30 built-in games in their factory versions
-function tvSampleEntries(){ return [...FACTORY_CODES].sort().map(cd=>{ const g=(DATA.games||[]).find(x=>x.builtin_code===cd&&x.builtin_status==='BUILT-IN: EXACT MATCH'); const title=tvFactoryTitle(cd); return {id:g?g.game_id:'factory:'+cd,title_id:g?g.title_id:'factory:'+cd,title,version:'factory version',kind:'builtin',core:'clover-kachikachi-wr',ready:'n/a',art:g?g.art||'':'',players:g?g.players||'':'',publisher:g?g.publisher||'':'',year:g?g.year||'':'',genre:g?g.genre||'':'',hardware:'',install:false,personal:false,ext:false,sort:tvSortTitle(title),builtin_code:cd}; }); }
+function tvSampleEntries(){ return [...FACTORY_CODES].sort().map(cd=>{ const g=factoryRowFor(cd); const title=tvFactoryTitle(cd); return {id:g?g.game_id:'factory:'+cd,title_id:g?g.title_id:'factory:'+cd,title,version:'factory version',kind:'builtin',core:'clover-kachikachi-wr',ready:'n/a',art:g?g.art||'':'',players:g?g.players||'':'',publisher:g?g.publisher||'':'',year:g?g.year||'':'',genre:g?g.genre||'':'',hardware:'',install:false,personal:false,ext:false,sort:tvSortTitle(title),builtin_code:cd}; }); }
 function tvEntryFor(g){
  const c=installClass(g); const dec=decisionOf(g); const alt=(c==='revision'||c==='review')&&dec==='alternate';
  const kind=c==='builtin'?'builtin':(c==='revision'||c==='review')?(alt?'alternate':'factory-kept'):'added';

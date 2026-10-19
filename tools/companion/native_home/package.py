@@ -127,21 +127,20 @@ class Builder:
 
     def cached(self, kind: str, src_hash: str, params: str, ext: str, make) -> str: return self.cache.get(kind, src_hash, params, ext, make)
 
-    def game_cover(self, g: dict) -> tuple[str | None, str]:
-        """effective cover: the user's replacement > authentic art > the NES-style mock cover (always one image per game)"""
-        u = g.get("art_user")
-        if u:
-            crop = json.dumps(u.get("crop"), sort_keys=True); h = u.get("sha256") or DV.sha256_file(u["path"])
-            p = self.cached("user-cover", h, f"{crop}|{DV.COVER_BOX}", ".jpg", lambda out: DV.user_cover(u["path"], u.get("crop"), out)); kind = "user"
+    def game_cover(self, g: dict) -> tuple[str | None, str, str | None]:
+        """effective cover (config.cover_source: the user's replacement > authentic art > the NES-style mock cover; always one image
+        per game) -> (package path, kind, the site art path it was derived from)"""
+        cs = CF.cover_source(g); kind = cs["kind"]
+        if cs["problem"]: self.warnings.append(f"{g['title']}: {cs['problem']}; the mock cover is shown")
+        if kind == "user":
+            u = g["art_user"]; crop = json.dumps(u.get("crop"), sort_keys=True); h = u.get("sha256") or DV.sha256_file(u["path"])
+            p = self.cached("user-cover", h, f"{crop}|{DV.COVER_BOX}", ".jpg", lambda out: DV.user_cover(u["path"], u.get("crop"), out))
+        elif kind == "authentic":
+            src = cs["path"]; p = self.cached("cover", DV.sha256_file(src), f"contain{DV.COVER_BOX}", ".jpg", lambda out: DV.cover(src, out))
         else:
-            src = CF._art_path(g.get("art"))
-            if g.get("art") and not src: self.warnings.append(f"{g['title']}: artwork listed but not found ({g['art']}); the mock cover is shown")
-            if src and not g.get("cover_generated"):
-                p = self.cached("cover", DV.sha256_file(src), f"contain{DV.COVER_BOX}", ".jpg", lambda out: DV.cover(src, out)); kind = "authentic"
-            else:
-                key = DV.sha256_bytes(json.dumps([g["id"], g.get("title"), g.get("publisher"), g.get("year")], ensure_ascii=False).encode())
-                p = self.cached("mock", key, f"mock-2|{DV.COVER_BOX}", ".jpg", lambda out: DV.mock(g.get("title") or g["id"], g.get("publisher"), g.get("year"), g["id"], out, theme_root())); kind = "mock"
-        d = DV.sha256_file(p); return self.put(f"cover/{d[:16]}.jpg", p, "game-covers", "cover-jpeg", art=kind), kind
+            key = DV.sha256_bytes(json.dumps([g["id"], g.get("title"), g.get("publisher"), g.get("year")], ensure_ascii=False).encode())
+            p = self.cached("mock", key, f"mock-2|{DV.COVER_BOX}", ".jpg", lambda out: DV.mock(g.get("title") or g["id"], g.get("publisher"), g.get("year"), g["id"], out, theme_root()))
+        d = DV.sha256_file(p); return self.put(f"cover/{d[:16]}.jpg", p, "game-covers", "cover-jpeg", art=kind), kind, cs["rel"]
 
     def _assemble(self) -> dict:
         cfg = self.cfg; troot = theme_root(); art = _jload(os.path.join(troot, "home-art.json")); games = cfg["games"]
@@ -176,8 +175,8 @@ class Builder:
             return fb[kind]
         for g in games:
             rec = {k: g.get(k) for k in ("id", "title", "version_label", "year", "players", "genre", "publisher", "developer")}
-            rec["home_kind"] = g.get("home_kind"); rec["source"] = g.get("source")
-            rec["cover"], kind = self.game_cover(g); rec["cover_kind"] = kind; n_kind[kind] += 1
+            rec["home_kind"] = g.get("home_kind"); rec["source"] = g.get("source"); rec["builtin_code"] = g.get("builtin_code")
+            rec["cover"], kind, rec["cover_source"] = self.game_cover(g); rec["cover_kind"] = kind; n_kind[kind] += 1
             hs = CF._art_path(g.get("hero"))
             if hs:
                 h = DV.sha256_file(hs)
