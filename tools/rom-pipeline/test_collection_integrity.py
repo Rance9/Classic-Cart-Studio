@@ -11,6 +11,8 @@ from __future__ import annotations
 import base64, json, os, re, shutil, subprocess, sys, tempfile, time, urllib.request, urllib.error
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.dirname(HERE); sys.path.insert(0, HERE)
 from test_collections_web import EdgeSession, serve, free_port
+import urllib.request as _ur
+_ur.install_opener(_ur.build_opener()); _ur._opener.addheaders = [("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ClassicCartStudioTest")]   # a browser-like agent: the live service sits behind Cloudflare's browser check
 
 READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csEntries==='function'&&document.readyState==='complete'"
 # the sender's collection, built in the page: personal rows are injected exactly as the app would hold them (no backend on the website)
@@ -30,9 +32,12 @@ BUILD = r"""(async()=>{ try{ doneWelcome(); }catch(e){}
 def main():
     site = sys.argv[1]; checks = []
     def ok(k, v, n=""): checks.append((k, bool(v), n)); print(f"{k}={'PASS' if v else 'FAIL'}" + (f" ({str(n)[:300]})" if n and not v else ""), flush=True)
-    web = serve(site); WEB = f"http://127.0.0.1:{web.server_address[1]}"; sport = free_port(); SHARE = f"http://127.0.0.1:{sport}"
-    dev = subprocess.Popen([shutil.which("node"), os.path.join(TOOLS, "share-worker", "test", "dev-server.mjs"), str(sport), WEB], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    profs = [tempfile.mkdtemp(prefix=f"ccs-int-{k}-") for k in ("a", "b", "c")]; URL = f"{WEB}/index.html?shareapi={SHARE}"
+    web = serve(site); WEB = f"http://127.0.0.1:{web.server_address[1]}"; LIVE = os.environ.get("CCS_LIVE_SHARE")   # a deployed service (the site's share-config.json must enable it)
+    if LIVE: SHARE = LIVE.rstrip("/"); dev = subprocess.Popen([sys.executable, "-c", "pass"])
+    else:
+        sport = free_port(); SHARE = f"http://127.0.0.1:{sport}"
+        dev = subprocess.Popen([shutil.which("node"), os.path.join(TOOLS, "share-worker", "test", "dev-server.mjs"), str(sport), WEB], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    profs = [tempfile.mkdtemp(prefix=f"ccs-int-{k}-") for k in ("a", "b", "c")]; URL = f"{WEB}/index.html" + ("" if LIVE else f"?shareapi={SHARE}")
     ids_of = "JSON.stringify([...sel])"
     try:
         for _ in range(40):
@@ -68,7 +73,7 @@ def main():
         ok("published_data_has_no_files_or_paths", not re.search(r"[A-Za-z]:\\\\|/Users/|\\\\Users\\\\|file_name|\.nes\b|personal/art|data:", blob) and len(blob) < 200000, re.findall(r"[A-Za-z]:\\\\[^\"]{0,30}|file_name|personal/art", blob)[:3])
         # ---- a recipient in a clean browser, with none of the personal files ----
         with EdgeSession(width=1400, height=900, profile=profs[1]) as ed:
-            ed.navigate(f"{WEB}/index.html?shareapi={SHARE}&share={sid}"); ed.wait_for(READY, timeout=120); ed.wait_for("!!$('srSave')", timeout=30)
+            ed.navigate(f"{WEB}/index.html?share={sid}" + ("" if LIVE else f"&shareapi={SHARE}")); ed.wait_for(READY, timeout=120); ed.wait_for("!!$('srSave')", timeout=30)
             ok("recipient_sees_every_game", ed.js("document.querySelectorAll('.shg').length") == N and ed.js("document.querySelectorAll('.shg.away').length") >= 3)
             ed.js("$('srSave').click()"); ed.wait_for("!!$('srOpen')", timeout=10); ed.js("$('srOpen').click()")
             got = json.loads(ed.js(ids_of)); ok("recipient_copy_every_game", sorted(got) == sorted(ids), len(got))
