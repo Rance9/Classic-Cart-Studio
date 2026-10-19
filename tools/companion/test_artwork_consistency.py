@@ -125,7 +125,7 @@ def factory_checks(rep: dict) -> list[str]:
         ok("excitebike_preview_sample_cover", exs.get("art") == ex.get("art") and exs.get("id") == ex.get("game_id"), exs)
         rep["preview_sample"] = sample
     elif os.path.isdir(studio): ok("preview_sample_shows_the_catalog_cover_for_all_30 (node not available)", False, "node is required for this check")
-    # the page's sources may not look a factory game up by its exact version alone (the defect that hid three covers)
+    # the page's sources look a factory game up only through the shared precedence (exact version alone misses three of the 30)
     if os.path.isdir(studio):
         offenders = []
         for n in os.listdir(studio):
