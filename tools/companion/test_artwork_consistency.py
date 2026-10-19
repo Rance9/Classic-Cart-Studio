@@ -32,6 +32,11 @@ from common import site_path   # noqa: E402
 from native_home import config as CF, derive as DV, package as P   # noqa: E402
 
 EXCITEBIKE = "CLV-P-NAAHE"
+# re-releases whose own scan shows another edition's packaging (Famicom or PAL) for the US game: shown with that game's US box
+REVIEWED_BOXES = {"124b458b2f39ceb8": "d088f4b91a03dd6a",   # Tecmo Bowl (World) (Rev 1) (Virtual Console, Switch Online) -> Tecmo Bowl (USA) (Rev 1)
+                  "2ab0c7a5dfc67367": "3edd803db1cc8815",   # Super C (World) (Contra Anniversary Collection) -> Super C (USA)
+                  "119939df74819780": "d41e28b1a33b3b67",   # Contra (World) (Contra Anniversary Collection) -> Contra (USA)
+                  "fd306b992c91d59a": "e5bcb8838f567f48"}   # Jungle Book, The (World) (Disney Classic Games) -> Jungle Book, The (USA)
 ART_RE = re.compile(r"^art/([0-9a-f]{16})\.jpg$")
 THEMES = ("arcade-grid", "box-art-showcase", "featured-shelf", "adventure-map")
 CHECKS: list = []
@@ -84,6 +89,11 @@ def data_checks(rep: dict):
     ok("no_generated_flag_beside_authentic_art", not both, both[:5]); ok("curated_rows_use_available_authentic_art", not ignored, ignored[:5])
     ok("page_and_package_select_the_same_cover_for_every_record", not disagree, disagree[:5])
     ok("records_examined", counts["library_versions"] >= 4000 and counts["curated_rows"] >= 700, counts)
+    wrong_box = {vid: page_rule(vid, cat, lib) for vid, box in REVIEWED_BOXES.items() if page_rule(vid, cat, lib) != f"art/{box}.jpg"}
+    ok("reviewed_re_releases_show_their_us_box", not wrong_box, wrong_box)
+    # every factory game's exact version in the library shows a cover too (own scan or a reviewed / same-region box)
+    fac = [v for v in V.values() if v.get("builtin_code") and v.get("builtin_status") == "BUILT-IN: EXACT MATCH"]
+    ok("library_factory_versions_have_authentic_art", len(fac) == 30 and all(page_rule(v["id"], cat, lib) for v in fac), [v["name"] for v in fac if not page_rule(v["id"], cat, lib)])
 
 # ---------------------------------------------------------------- factory games
 def factory_checks(rep: dict) -> list[str]:
@@ -169,7 +179,8 @@ def package_checks(rep: dict, factory_ids: list[str], root: str) -> dict:
     ok("package_representatives_follow_the_rule", not [x for x in wrong if x[0] not in factory_ids], [x for x in wrong if x[0] not in factory_ids][:5])
     ex = next((g for g in games.values() if g.get("builtin_code") == EXCITEBIKE), {})
     ok("excitebike_package_cover_authentic", ex.get("cover_kind") == "authentic" and ex.get("cover_source") == LL.factory_row(EXCITEBIKE)["art"], {k: ex.get(k) for k in ("id", "cover_kind", "cover_source")})
-    rep["package"] = {"games": len(games), "kinds": {k: sum(1 for g in games.values() if g.get("cover_kind") == k) for k in ("user", "authentic", "mock")}, "representatives": reps}
+    rep["package"] = {"games": len(games), "kinds": {k: sum(1 for g in games.values() if g.get("cover_kind") == k) for k in ("user", "authentic", "mock")}, "representatives": reps,
+                      "per_game": {k: {"title": g.get("title"), "builtin_code": g.get("builtin_code"), "cover_kind": g.get("cover_kind"), "cover_source": g.get("cover_source"), "expected": page_rule(k, cat, lib)} for k, g in games.items()}}
     return {"pkg": pkg, "games": games, "ex": ex}
 
 def override_checks(rep: dict, root: str):
