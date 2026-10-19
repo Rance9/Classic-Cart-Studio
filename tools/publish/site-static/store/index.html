@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Classic Cart Studio Store</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="A curated list of links to third-party sellers for the NES Classic Edition and its accessories.">
+<link rel="icon" href="../favicon.ico">
+<style>
+:root{--bg:#15161a;--panel:#1f2026;--panel2:#26272f;--line:#30313a;--red:#e4000f;--red-hi:#ff2a37;--text:#f2f2f5;--muted:#b4b4c0;--dim:#8b8b98;--radius:14px}
+*{box-sizing:border-box}
+html{background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);min-height:100vh;overflow-x:hidden}
+a{color:#ff5a63}
+a:focus-visible,.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.wrap{width:100%;max-width:1200px;margin:0 auto;padding:0 16px}
+header.top{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1b1c21,var(--bg))}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none;font-weight:700;letter-spacing:.2px;min-width:0}
+.brand img{width:32px;height:32px;image-rendering:pixelated;flex:none}
+.brand span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.back{color:var(--muted);text-decoration:none;font-size:14px;white-space:nowrap}
+.back:hover{color:var(--text)}
+.hero{padding:36px 0 8px}
+.hero h1{margin:0 0 8px;font-size:clamp(26px,4.2vw,40px);line-height:1.15}
+.hero h1 b{color:var(--red)}
+.intro{margin:0;color:var(--muted);max-width:70ch;font-size:17px}
+.updated{margin:8px 0 0;color:var(--dim);font-size:13px}
+.notices{display:grid;gap:10px;margin:20px 0 8px}
+.notice{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--muted)}
+.notice.disclosure{border-left:4px solid var(--red);color:var(--text);font-weight:600}
+section.cat{margin:34px 0}
+section.cat>h2{font-size:20px;margin:0 0 14px;display:flex;align-items:center;gap:10px}
+section.cat>h2::before{content:"";width:6px;height:20px;border-radius:3px;background:var(--red);flex:none}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:border-color .15s,transform .15s}
+.card:hover{border-color:#4a4b57;transform:translateY(-2px)}
+.card .media{background:var(--panel2);aspect-ratio:4/3;display:flex;align-items:center;justify-content:center}
+.card .media img{width:100%;height:100%;object-fit:contain;display:block}
+.card .body{padding:16px;display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.card h3{margin:0;font-size:17px;line-height:1.3;overflow-wrap:anywhere}
+.chip{align-self:flex-start;background:rgba(228,0,15,.14);color:#ff8088;border:1px solid rgba(228,0,15,.45);border-radius:999px;font-size:12px;font-weight:700;padding:2px 10px;letter-spacing:.3px}
+.desc{margin:0;color:var(--muted);font-size:15px;overflow-wrap:anywhere}
+.compat{margin:0;font-size:14px;color:var(--muted);background:var(--panel2);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere}
+.compat b{color:var(--text);font-weight:600}
+.seller{margin:0;font-size:13px;color:var(--dim);overflow-wrap:anywhere}
+.commission{margin:0;font-size:13px;color:var(--dim);font-style:italic;overflow-wrap:anywhere}
+.actions{margin-top:auto;padding-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--red);color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:10px 16px;border-radius:10px;min-height:44px;transition:background .15s}
+.btn:hover{background:var(--red-hi)}
+.btn svg{width:14px;height:14px;flex:none}
+.paid{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text);border:1px solid #5a5b66;border-radius:6px;padding:2px 7px}
+.host{width:100%;font-size:12px;color:var(--dim);overflow-wrap:anywhere}
+.featured{margin:28px 0 8px;background:linear-gradient(135deg,#2a1215 0%,var(--panel) 55%);border:1px solid rgba(228,0,15,.55);border-radius:18px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.featured .kicker{margin:0 0 12px;font-size:13px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--red-hi)}
+.featured .grid{grid-template-columns:1fr}
+.featured .card{background:transparent;border:0;flex-direction:row;flex-wrap:wrap}
+.featured .card:hover{transform:none}
+.featured .card .media{flex:1 1 280px;max-width:460px;border-radius:12px}
+.featured .card .body{flex:1 1 300px;padding:4px 4px 4px 20px}
+.featured .card h3{font-size:clamp(20px,2.6vw,28px)}
+.featured .desc{font-size:16px}
+.closed{margin:56px auto;max-width:560px;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:36px 24px}
+.closed img{width:64px;height:64px;image-rendering:pixelated;margin-bottom:12px}
+.closed h1{font-size:22px;margin:0 0 8px}
+.closed p{color:var(--muted);margin:6px 0}
+.closed .btn{margin-top:14px}
+footer{border-top:1px solid var(--line);margin-top:40px;padding:20px 0 32px;color:var(--dim);font-size:13px}
+footer p{margin:4px 0}
+[hidden]{display:none!important}
+@media (max-width:480px){.back .long{display:none}}
+@media (max-width:560px){.featured{padding:14px}.featured .card .body{padding:14px 0 0}.hero{padding-top:24px}}
+@media (prefers-reduced-motion:reduce){.card,.btn{transition:none}.card:hover{transform:none}}
+</style>
+</head>
+<body data-state="loading">
+<header class="top"><div class="wrap bar">
+  <a class="brand" href="/"><img src="../icon-192.png" alt="" onerror="this.remove()"><span>Classic Cart Studio</span></a>
+  <a class="back" href="/">&larr; Back<span class="long"> to Classic Cart Studio</span></a>
+</div></header>
+
+<main class="wrap">
+  <div id="closed" class="closed" hidden>
+    <img src="../icon-192.png" alt="" onerror="this.remove()">
+    <h1>The Classic Cart Studio Store is not open yet.</h1>
+    <p>Check back later for a short list of hand-picked links for your NES Classic.</p>
+    <a class="btn" href="/">Back to Classic Cart Studio</a>
+  </div>
+
+  <div id="store" hidden>
+    <div class="hero">
+      <h1>Classic Cart Studio <b>Store</b></h1>
+      <p class="intro" id="intro"></p>
+      <p class="updated" id="updated" hidden></p>
+    </div>
+    <div class="notices">
+      <p class="notice disclosure" id="disclosure" hidden>As an Amazon Associate I earn from qualifying purchases.</p>
+      <p class="notice" id="independence">These are personally selected links to third-party sellers. Purchases happen on the seller&rsquo;s site, not here. Classic Cart Studio is an independent fan project. Nintendo, Amazon and eBay do not sponsor or operate it.</p>
+    </div>
+    <section class="featured" id="featured" hidden aria-labelledby="featured-title">
+      <p class="kicker" id="featured-title">Featured console</p>
+      <div class="grid" id="featured-grid"></div>
+    </section>
+    <div id="categories"></div>
+  </div>
+  <noscript><div class="closed"><h1>The Classic Cart Studio Store is not open yet.</h1><p><a href="/">Back to Classic Cart Studio</a></p></div></noscript>
+</main>
+
+<footer><div class="wrap">
+  <p>Prices, availability and compatibility are set by each seller; check the listing before you buy.</p>
+</div></footer>
+
+<script>
+(function () {
+  "use strict";
+  var PLATFORM = { ebay: "eBay", amazon: "Amazon" };
+  var LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"];
+
+  // ?data=<file>.json is honored only for local previews and tests; the public website always reads store.json
+  function resolveDataUrl(loc) {
+    var name = null;
+    try { name = new URLSearchParams(loc.search || "").get("data"); } catch (e) { name = null; }
+    var local = LOCAL_HOSTS.indexOf(String(loc.hostname || "").toLowerCase()) !== -1;
+    if (local && name && /^[A-Za-z0-9._-]+\.json$/.test(name) && name.indexOf("..") === -1) return name;
+    return "store.json";
+  }
+
+  function httpsUrl(u) {
+    if (typeof u !== "string" || !/^https:\/\//i.test(u)) return null;
+    try { var p = new URL(u); return p.protocol === "https:" && p.hostname ? p : null; } catch (e) { return null; }
+  }
+
+  function imagePath(p) {   // "" = no image; null = rejected
+    if (p === undefined || p === null || p === "") return "";
+    if (typeof p !== "string" || !/^img\/[A-Za-z0-9._\/-]+$/.test(p) || p.indexOf("..") !== -1 || p.indexOf("//") !== -1) return null;
+    return p;
+  }
+
+  function str(v) { return typeof v === "string" ? v.trim() : ""; }
+
+  // the products that may be shown: enabled, https link, known category, image under img/ (others are skipped with a warning)
+  function validProducts(data) {
+    var cats = {}; (Array.isArray(data.categories) ? data.categories : []).forEach(function (c) { if (c && typeof c.id === "string") cats[c.id] = true; });
+    var out = [];
+    (Array.isArray(data.products) ? data.products : []).forEach(function (p, i) {
+      if (!p || typeof p !== "object" || p.enabled !== true) return;
+      var label = (p && p.id) || ("#" + i);
+      var url = httpsUrl(p.url);
+      if (!url) { console.warn("store: skipped " + label + ": the link is not https"); return; }
+      var img = imagePath(p.image);
+      if (img === null) { console.warn("store: skipped " + label + ": the image must be a relative path under img/"); return; }
+      if (!str(p.name)) { console.warn("store: skipped " + label + ": no name"); return; }
+      if (!cats[p.category]) { console.warn("store: skipped " + label + ": unknown category"); return; }
+      out.push({ p: p, url: url, img: img });
+    });
+    return out;
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+
+  function externalIcon() {
+    var ns = "http://www.w3.org/2000/svg", s = document.createElementNS(ns, "svg"), path = document.createElementNS(ns, "path");
+    s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("aria-hidden", "true"); s.setAttribute("focusable", "false");
+    path.setAttribute("d", "M9 2h5v5h-2V5.4L7.7 9.7 6.3 8.3 10.6 4H9V2zM3 4h4v2H4v6h6V9h2v5H2V4h1z"); path.setAttribute("fill", "currentColor");
+    s.appendChild(path); return s;
+  }
+
+  function card(item) {
+    var p = item.p, platform = p.platform === "ebay" || p.platform === "amazon" ? p.platform : "other", seller = str(p.seller), affiliate = p.affiliate === true;
+    var c = el("article", "card product-card");
+    c.setAttribute("data-id", str(p.id)); c.setAttribute("data-affiliate", affiliate ? "true" : "false");
+    if (item.img) {
+      var m = el("div", "media"), im = document.createElement("img");
+      im.src = item.img; im.alt = str(p.name); im.loading = "lazy"; im.decoding = "async";
+      im.addEventListener("error", function () { m.remove(); });
+      m.appendChild(im); c.appendChild(m);
+    }
+    var b = el("div", "body"); c.appendChild(b);
+    if (str(p.recommendation)) b.appendChild(el("span", "chip", str(p.recommendation)));
+    b.appendChild(el("h3", null, str(p.name)));
+    if (str(p.description)) b.appendChild(el("p", "desc", str(p.description)));
+    if (str(p.compatibility)) { var cp = el("p", "compat"); cp.appendChild(el("b", null, "Compatibility: ")); cp.appendChild(document.createTextNode(str(p.compatibility))); b.appendChild(cp); }
+    var sellerName = seller || PLATFORM[platform] || item.url.hostname;
+    b.appendChild(el("p", "seller", platform === "other" ? "Sold by " + sellerName : "Sold by " + sellerName + " on " + PLATFORM[platform]));
+    if (!affiliate && str(p.commission_note)) b.appendChild(el("p", "commission", str(p.commission_note)));
+    var act = el("div", "actions"), a = el("a", "btn");
+    a.href = item.url.href; a.target = "_blank"; a.rel = affiliate ? "noopener sponsored" : "noopener";
+    a.appendChild(document.createTextNode(platform === "other" ? "View at " + sellerName : "View on " + PLATFORM[platform])); a.appendChild(externalIcon());
+    act.appendChild(a);
+    if (affiliate) act.appendChild(el("span", "paid", "Paid link"));
+    act.appendChild(el("span", "host", "Opens " + item.url.hostname.replace(/^www\./i, "") + " in a new tab"));
+    b.appendChild(act);
+    return c;
+  }
+
+  function show(state) {
+    document.body.setAttribute("data-state", state);
+    document.getElementById("closed").hidden = state !== "closed";
+    document.getElementById("store").hidden = state !== "open";
+  }
+
+  function render(data) {
+    if (!data || typeof data !== "object" || data.schema !== "ccs-store/1" || data.published !== true) { show("closed"); return; }
+    var items = validProducts(data);
+    if (!items.length) { show("closed"); return; }
+    document.getElementById("intro").textContent = str(data.intro);
+    if (str(data.updated)) { var u = document.getElementById("updated"); u.textContent = "Updated " + str(data.updated); u.hidden = false; }
+    document.getElementById("disclosure").hidden = !items.some(function (it) { return it.p.affiliate === true; });
+    var featured = items.filter(function (it) { return it.p.featured === true && it.p.category === "console"; });
+    var fg = document.getElementById("featured-grid");
+    featured.forEach(function (it) { fg.appendChild(card(it)); });
+    document.getElementById("featured").hidden = !featured.length;
+    var host = document.getElementById("categories");
+    data.categories.forEach(function (c) {
+      if (!c || typeof c.id !== "string") return;
+      var list = items.filter(function (it) { return it.p.category === c.id && featured.indexOf(it) === -1; });
+      if (!list.length) return;
+      var s = el("section", "cat"); s.setAttribute("data-category", c.id);
+      s.appendChild(el("h2", null, str(c.name) || c.id));
+      var g = el("div", "grid"); list.forEach(function (it) { g.appendChild(card(it)); });
+      s.appendChild(g); host.appendChild(s);
+    });
+    show("open");
+  }
+
+  window.CCSStore = { resolveDataUrl: resolveDataUrl, httpsUrl: httpsUrl, imagePath: imagePath, validProducts: validProducts };
+
+  fetch(resolveDataUrl(window.location), { cache: "no-cache", credentials: "omit" })
+    .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(render)
+    .catch(function (e) { console.warn("store: data unavailable (" + e.message + ")"); show("closed"); });
+})();
+</script>
+</body>
+</html>

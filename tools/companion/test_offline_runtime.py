@@ -48,7 +48,12 @@ def main():
             if not arg or LOOPBACK.search(arg): continue
             ext.append((os.path.basename(p), arg[:60], src[max(0, m.start() - 200):m.start()]))
     allowed = [e for e in ext if e[1] in ("RELEASES_API", "s.browser_download_url") and "!CO.desktop" in e[2] + "".join(x[2] for x in ext if x[1] == "RELEASES_API")]
-    ok("interface_external_fetch_only_website_download_box", len(allowed) == len(ext) and len(ext) <= 2, [(e[0], e[1]) for e in ext if e not in allowed][:5])
+    # Share Collection: the sharing service is called only from the share dialog's own actions (publish, unpublish) and when a shared
+    # link is opened; nothing the application needs to work is fetched from it
+    shared = [e for e in ext if (e[0] == "share.js" and e[1].startswith("SHARE_API")) or (e[0] == "tv-native.js" and e[1] == "im.src")]   # im.src: the preview frame already on screen (a local blob)
+    ok("interface_external_fetch_only_website_download_box_and_explicit_sharing", len(allowed) + len(shared) == len(ext) and len(allowed) <= 2 and len(shared) <= 4, [(e[0], e[1]) for e in ext if e not in allowed and e not in shared][:5])
+    src = open(os.path.join(TOOLS, "rom-pipeline", "studio", "share.js"), encoding="utf-8").read() if os.path.exists(os.path.join(TOOLS, "rom-pipeline", "studio", "share.js")) else ""
+    ok("sharing_never_runs_at_start_without_a_share_link", not src or re.search(r"get\('share'\);.*if\(!id", src, re.S) is not None)
     # the Hakchi bridge has no download source at all
     sys.path[:0] = [HERE, os.path.join(TOOLS, "rom-pipeline")]
     import hakchi_bridge as hb

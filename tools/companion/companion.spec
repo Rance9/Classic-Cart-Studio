@@ -24,7 +24,25 @@ RELEASE = bool(os.environ.get("CCS_RELEASE_BUILD") or os.environ.get("CCS_REQUIR
 _tpn = os.path.join(PROJECT, "tools", "publish", "repo-files", "THIRD_PARTY_NOTICES.md")
 _tpn = _tpn if os.path.isfile(_tpn) else os.path.join(PROJECT, "THIRD_PARTY_NOTICES.md")   # the public repository keeps it at the root
 EXTRA += [(_tpn, ".")] if os.path.isfile(_tpn) else []
-DATAS = [(SITE, "site"), (os.path.join(HERE, "native_home", "fonts"), os.path.join("native_home", "fonts"))] + NATIVE + EXTRA + [(os.path.join(HERE, "Read-HakchiSelection.ps1"), "."), (os.path.join(HERE, "Get-ProcessWindows.ps1"), "."), (os.path.join(HERE, "Close-Hakchi.ps1"), ".")]
+# the website's Store (site/store: curated seller links, Amazon Associates links once published) is never part of the application:
+# Amazon Associates forbids Special Links in installable client software, and the app opens https://classiccartstudio.com/store/ in the
+# browser instead. PyInstaller copies a data folder whole, so the site is bundled from a staging copy without store/ (hard links where
+# possible, plain copies otherwise); the staging folder lives until PyInstaller has collected it and is removed when the build exits.
+import shutil, tempfile, atexit
+SITE_EXCLUDE = {"store"}   # top-level folders of the site that never ship in the application
+def _stage_site(site):
+    if not os.path.isdir(site): return site   # no site: keep the original path so PyInstaller reports it as before
+    stage = os.path.join(tempfile.mkdtemp(prefix="ccs-site-"), "site"); atexit.register(shutil.rmtree, os.path.dirname(stage), True)
+    top = os.path.normcase(os.path.abspath(site))
+    def _ignore(d, names): return [n for n in names if os.path.normcase(os.path.abspath(d)) == top and n.lower() in SITE_EXCLUDE]
+    def _link_or_copy(src, dst):
+        try: os.link(src, dst)
+        except OSError: shutil.copy2(src, dst)
+        return dst
+    shutil.copytree(site, stage, ignore=_ignore, copy_function=_link_or_copy)
+    return stage
+SITE_BUNDLED = _stage_site(SITE)
+DATAS = [(SITE_BUNDLED, "site"), (os.path.join(HERE, "native_home", "fonts"), os.path.join("native_home", "fonts"))] + NATIVE + EXTRA + [(os.path.join(HERE, "Read-HakchiSelection.ps1"), "."), (os.path.join(HERE, "Get-ProcessWindows.ps1"), "."), (os.path.join(HERE, "Close-Hakchi.ps1"), ".")]
 # the installation's file list (every bundled file with its size and SHA-256): the installed application checks itself against it and
 # reports a missing or damaged component as an installation to repair (tools/companion/bundle_integrity.py)
 import sys, hashlib, json, tempfile
@@ -36,6 +54,8 @@ if RELEASE:   # a release build never ships without a required component
     if os.path.getsize(_hk) != _HP["size"] or BI.sha256(_hk) != _HP["sha256"]: raise SystemExit(f"release build: {_hk} is not the recorded Hakchi2 CE 3.9.3 package")
 _man = BI.build_manifest(DATAS)
 if RELEASE and _man["required_missing"]: raise SystemExit(f"release build: required components missing: {_man['required_missing']}")
+_excl = [f for f in _man["files"] if any(f.lower().startswith(f"site/{x}/") for x in SITE_EXCLUDE)]
+if _excl: raise SystemExit(f"the website's store must never be bundled in the application: {_excl[:5]}")
 _mdir = tempfile.mkdtemp(prefix="ccs-bundle-"); _mp = os.path.join(_mdir, BI.MANIFEST_NAME)
 json.dump(_man, open(_mp, "w", encoding="utf-8"), indent=0); DATAS.append((_mp, "."))
 a = Analysis([os.path.join(HERE, "companion_app.py")], pathex=[HERE, os.path.join(PROJECT, "tools", "rom-pipeline")],

@@ -1,0 +1,34 @@
+{
+  "schema": "ccs-store/1",
+  "_note": "TEST FIXTURE ONLY. Every product below is fake and every link points to example.com. The store page loads this file only from localhost (?data=store.sample.json); the public website never does.",
+  "published": true,
+  "updated": "2000-01-01",
+  "intro": "Fixture intro text for tests.",
+  "categories": [
+    {"id": "console", "name": "NES Classic Edition console"},
+    {"id": "controllers", "name": "Controllers"},
+    {"id": "power", "name": "Power and connectivity"},
+    {"id": "storage", "name": "Storage and protection"},
+    {"id": "setup", "name": "Optional setup accessories"}
+  ],
+  "products": [
+    {"id": "fx-console", "name": "Sample console (fixture)", "category": "console", "seller": "Sample seller A", "platform": "ebay",
+     "url": "https://example.com/fixture/console", "description": "Fixture description for the featured console.", "compatibility": "Fixture compatibility note.",
+     "image": "", "affiliate": false, "commission_note": "Fixture commission note.", "enabled": true, "featured": true, "recommendation": "Fixture label"},
+    {"id": "fx-controller", "name": "Sample controller (fixture)", "category": "controllers", "seller": "Sample seller B", "platform": "amazon",
+     "url": "https://example.com/fixture/controller", "description": "Fixture description for an affiliate card.", "compatibility": "",
+     "image": "", "affiliate": true, "commission_note": "", "enabled": true, "featured": false, "recommendation": ""},
+    {"id": "fx-power", "name": "Sample power adapter (fixture)", "category": "power", "seller": "Sample seller C", "platform": "other",
+     "url": "https://example.com/fixture/power", "description": "Fixture description for an other-platform card.", "compatibility": "Fixture <b>markup</b> must stay text.",
+     "image": "", "affiliate": false, "commission_note": "", "enabled": true, "featured": false, "recommendation": ""},
+    {"id": "fx-insecure", "name": "Sample insecure link (fixture)", "category": "storage", "seller": "Sample seller D", "platform": "other",
+     "url": "http://example.com/fixture/insecure", "description": "Must be skipped: not https.", "compatibility": "",
+     "image": "", "affiliate": false, "commission_note": "", "enabled": true, "featured": false, "recommendation": ""},
+    {"id": "fx-badimage", "name": "Sample bad image path (fixture)", "category": "storage", "seller": "Sample seller E", "platform": "other",
+     "url": "https://example.com/fixture/badimage", "description": "Must be skipped: image outside img/.", "compatibility": "",
+     "image": "../icon-192.png", "affiliate": false, "commission_note": "", "enabled": true, "featured": false, "recommendation": ""},
+    {"id": "fx-disabled", "name": "Sample disabled listing (fixture)", "category": "setup", "seller": "Sample seller F", "platform": "ebay",
+     "url": "https://example.com/fixture/disabled", "description": "Must not appear: disabled.", "compatibility": "",
+     "image": "", "affiliate": false, "commission_note": "", "enabled": false, "featured": false, "recommendation": ""}
+  ]
+}
