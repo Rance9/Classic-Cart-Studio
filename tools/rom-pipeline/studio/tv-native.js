@@ -35,7 +35,12 @@ async function tvnStart(theme){
  tvnSub(); await tvnFetchFrame(); tvnLoop(); $('tvStage').focus({preventScroll:true}); }
 // controls: presses and releases go to the native core (it repeats held directions with the console's timing)
 (function(){
- const _open=openTv, _close=closeTv, _press=tvPress, _release=tvReleaseAll, _save=tvSaveImage;
+ const _open=openTv, _close=closeTv, _press=tvPress, _release=tvReleaseAll, _save=tvSaveImage, _draw=tvDraw;
+ // the browser HOME still redraws underneath (its clock, collection changes): while the native renderer shows the picture, the
+ // labels around it (subtitle, theme buttons, the selected game, the footer) describe the native picture, not the hidden browser one
+ tvDraw=function(quiet){ if(!TVN.on) return _draw(quiet); _draw(true);
+  document.querySelectorAll('.tvtheme').forEach(x=>x.classList.toggle('active',x.dataset.theme===TVN.theme)); tvnSub();
+  try{ tvSide(TVN.focus?tvEntries().find(e=>e.id===TVN.focus)||null:null); }catch(e){} };
  openTv=function(opts){ _open(opts); if(tvNativeCapable()&&!(TV.model&&TV.model.sample)) tvnStart(opts&&opts.theme); };
  closeTv=function(){ if(TVN.on){ TVN.on=false; clearInterval(TVN.timer); TVN.timer=0; capi('/api/preview/stop',{method:'POST',body:{}}); const st=$('tvStage'); if(st) st.classList.remove('native'); } _close(); };
  tvPress=function(act){ if(!TVN.on) return _press(act); if(!TV.open) return; if(TV.held&&TV.held.act===act) return; if(TV.held) tvReleaseAll(); TV.held={act,t0:performance.now()}; tvnLoop();
