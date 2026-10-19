@@ -67,12 +67,20 @@ def theme_root() -> str:
     raise FileNotFoundError("the HOME theme assets (home-art.json) were not found")
 def package_root() -> str:
     return os.environ.get("CCS_NATIVE_HOME_ROOT") or (data_path("native-home") if FROZEN else os.path.join(WORK, "native-home"))
+RUNTIME_PROBLEM: str | None = None
 def runtime_binary() -> str | None:
-    """the native HOME runtime for the console (32-bit ARM Linux, static): bundled with the application, or the development build"""
-    for p in (os.environ.get("CCS_NATIVE_HOME_RUNTIME"), os.path.join(getattr(sys, "_MEIPASS", APP_ROOT), "native", "ccs-home-armv7") if FROZEN else None,
-              os.path.join(os.environ.get("CCS_SIM_BUILD_WIN") or os.path.join(WORK, "console-simulator", "build"), "arm-musl-device", "ccs-home-armv7")):
-        if p and os.path.isfile(p): return p
-    return None
+    """the native HOME runtime for the console (32-bit ARM Linux, static): the copy installed with the application (verified against
+    the installation's file list before use; a missing or damaged copy means the installation needs repair, RUNTIME_PROBLEM), or the
+    development build"""
+    global RUNTIME_PROBLEM; RUNTIME_PROBLEM = None
+    env = os.environ.get("CCS_NATIVE_HOME_RUNTIME")
+    if env and os.path.isfile(env): return env
+    if FROZEN:
+        import bundle_integrity as bi
+        try: return bi.require("native-runtime")[0]
+        except bi.ComponentError as e: RUNTIME_PROBLEM = str(e); return None
+    p = os.path.join(os.environ.get("CCS_SIM_BUILD_WIN") or os.path.join(WORK, "console-simulator", "build"), "arm-musl-device", "ccs-home-armv7")
+    return p if os.path.isfile(p) else None
 
 def _elf_info(p: str) -> dict:
     with open(p, "rb") as f: b = f.read(64)
@@ -229,7 +237,7 @@ class Builder:
         if rb:
             info = _elf_info(rb); runtime = {"file": self.put("bin/ccs-home-armv7", rb, "executable", "elf-executable", **info), **info, "protocol": "ccs-sim-core/1"}
             if not (info.get("machine") == "ARM" and info.get("class") == "32-bit"): self.blockers.append({"code": "runtime-arch", "text": f"the native runtime is {info.get('class')} {info.get('machine')}, not 32-bit ARM"})
-        elif cfg["mode"] == "deployment": self.blockers.append({"code": "runtime-missing", "text": "the native HOME runtime for the console (32-bit ARM) is not available in this installation"})
+        elif cfg["mode"] == "deployment": self.blockers.append({"code": "runtime-missing", "text": RUNTIME_PROBLEM or "the native HOME runtime for the console (32-bit ARM) is not available in this installation"})
         done += 1; tick("runtime")
         # the runtime index (pack.json, games.json) and the configuration snapshot
         pack = {"schema": PACK_SCHEMA, "stage": [1280, 720], "theme_default": cfg["theme"], "theme_apply": cfg.get("theme_apply_epoch"), "themes": themes, "icons": icons,

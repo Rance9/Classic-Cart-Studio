@@ -40,6 +40,7 @@ from __future__ import annotations
 import os, sys, json, secrets, time, re, mimetypes, http.server, socketserver, threading, webbrowser, argparse, hashlib, urllib.parse
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import hakchi_bridge as hb
+import bundle_integrity   # noqa: E402  the installation's integrity (nothing is ever downloaded to repair it)
 import hakchi_inspect as hi
 import personal as ps
 import console_runs as cr   # console engine runs (simulation tier; Gate G1 closed in code inside the worker)
@@ -294,7 +295,10 @@ class H(http.server.BaseHTTPRequestHandler):
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_get(self, path, qs)   # N3: TV Preview drawn by the native HOME renderer (desktop principal)
         if path == "/api/status":
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); wait = min(float(q.get("wait", "0") or 0), 30.0)
-            return self._json(200, {"ok": True, **status_payload(wait), "version": VERSION, "protocol": PROTOCOL, "dev_store": os.path.exists(hb.DB_PATH)})
+            return self._json(200, {"ok": True, **status_payload(wait), "bundle": bundle_integrity.check(), "version": VERSION, "protocol": PROTOCOL, "dev_store": os.path.exists(hb.DB_PATH)})
+        if path == "/api/bundle":   # the installation's integrity: every installed file present with its size; ?full=1 also checks every SHA-256
+            q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+            return self._json(200, {"ok": True, "bundle": bundle_integrity.check(full=q.get("full") == "1")})
         if path == "/api/import/status":
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); j = ps.job_status(q.get("job", ""))
             return self._json(200 if j else 404, {"ok": bool(j), "job": j, "error": None if j else "unknown job"})

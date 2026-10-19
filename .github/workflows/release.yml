@@ -66,16 +66,19 @@ jobs:
         run: python tools/publish/build_site_ci.py build/site
       - name: Scan the site
         run: python tools/publish/scan_prohibited.py build/site
+      - name: The application never downloads software at run time (static audit of the backend, desktop host and interface)
+        run: python tools/companion/test_offline_runtime.py
       - name: The official Hakchi2 CE 3.9.3 package with its console USB driver (downloaded, size and SHA-256 verified; bundled so setup needs no download)
         run: python tools/publish/fetch_hakchi_package.py build/packages
-      - name: Freeze the companion (PyInstaller, one-folder; bundles the native HOME runtime and the preview core)
+      - name: Freeze the companion (PyInstaller, one-folder; bundles every required component and fails without one)
         env:
           NES_SITE_DIR: ${{ github.workspace }}\build\site
           CCS_NATIVE_HOME_RUNTIME: ${{ github.workspace }}\build\native\arm-musl-device\ccs-home-armv7
           CCS_NATIVE_PREVIEW_CORE: ${{ github.workspace }}\build\native\windows-x86_64\ccs-sim-core.exe
           CCS_REQUIRE_NATIVE: "1"
+          CCS_RELEASE_BUILD: "1"
         run: python tools/publish/write_version_info.py tools/companion/version_info.txt; pyinstaller tools/companion/companion.spec --distpath build/dist --workpath build/work --noconfirm
-      - name: Release layout (the native runtime and the preview core are bundled; a native HOME package is prepared from the release folder alone)
+      - name: Release layout (every required component is bundled and verified; a native HOME package is prepared from the release folder alone)
         run: python tools/companion/test_release_layout.py build/dist/ClassicCartStudioBackend
       - name: Build Classic Cart Studio for Windows (WPF + WebView2 host, .NET Framework 4.8)
         shell: pwsh

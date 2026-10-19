@@ -158,9 +158,12 @@ namespace ClassicCartStudio
             var caps = v.Contains("\"capabilities\""); var desk = v.Contains("\"desktop\": true") || v.Contains("\"desktop\":true");
             var st = b.Call("GET", "/api/status", null, 5000) ?? "";
             var anon = AnonStatus(b.Base);
-            Console.WriteLine("desktop_principal=" + desk + " capabilities=" + caps + " status_ok=" + st.Contains("\"ok\": true") + " anonymous_status_refused=" + anon);
+            // every file installed with the application is present and intact (the installation's file list; nothing is ever downloaded)
+            var bundle = b.Call("GET", "/api/bundle?full=1", null, 120000) ?? ""; var bundleOk = bundle.Contains("\"bundle\": {\"ok\": true");
+            Console.WriteLine("desktop_principal=" + desk + " capabilities=" + caps + " status_ok=" + st.Contains("\"ok\": true") + " anonymous_status_refused=" + anon + " installation_complete=" + bundleOk);
+            if (!bundleOk) Console.WriteLine("installation check: " + (bundle.Length > 600 ? bundle.Substring(0, 600) : bundle));
             b.Stop();
-            var okAll = desk && caps && st.Contains("\"ok\": true") && anon;
+            var okAll = desk && caps && st.Contains("\"ok\": true") && anon && bundleOk;
             Console.WriteLine(okAll ? "RESULT: PASS" : "RESULT: FAIL"); return okAll ? 0 : 1;
         }
         static bool AnonStatus(string baseUrl)

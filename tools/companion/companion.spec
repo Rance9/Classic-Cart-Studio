@@ -16,16 +16,31 @@ NATIVE += [(_pv, "native")] if os.path.isfile(_pv) else []
 # report "Not ready: runtime missing" and fall back to the browser preview (N3.1)
 if os.environ.get("CCS_REQUIRE_NATIVE") and len(NATIVE) != 2:
     raise SystemExit(f"native HOME binaries missing for a release build: runtime {_rt!r} present={os.path.isfile(_rt)}, preview core {_pv!r} present={os.path.isfile(_pv)}")
-# offline first (0.5.0): the pinned Hakchi2 CE package (with its console USB driver) installed with the application when the build
-# provides it (tools/publish/build_windows_local.py sets CCS_HAKCHI_PACKAGE after verifying its SHA-256); otherwise it is downloaded on request
+# the pinned Hakchi2 CE package (console tools and the console USB driver) ships inside the application; it is never downloaded at run
+# time (tools/publish/fetch_hakchi_package.py or build_windows_local.py provide it and set CCS_HAKCHI_PACKAGE after verifying its SHA-256)
 _hk = os.path.abspath(os.environ["CCS_HAKCHI_PACKAGE"]) if os.environ.get("CCS_HAKCHI_PACKAGE") else ""
 EXTRA = [(_hk, "packages")] if os.path.isfile(_hk) else []
+RELEASE = bool(os.environ.get("CCS_RELEASE_BUILD") or os.environ.get("CCS_REQUIRE_NATIVE"))
 _tpn = os.path.join(PROJECT, "tools", "publish", "repo-files", "THIRD_PARTY_NOTICES.md")
 _tpn = _tpn if os.path.isfile(_tpn) else os.path.join(PROJECT, "THIRD_PARTY_NOTICES.md")   # the public repository keeps it at the root
 EXTRA += [(_tpn, ".")] if os.path.isfile(_tpn) else []
+DATAS = [(SITE, "site"), (os.path.join(HERE, "native_home", "fonts"), os.path.join("native_home", "fonts"))] + NATIVE + EXTRA + [(os.path.join(HERE, "Read-HakchiSelection.ps1"), "."), (os.path.join(HERE, "Get-ProcessWindows.ps1"), "."), (os.path.join(HERE, "Close-Hakchi.ps1"), ".")]
+# the installation's file list (every bundled file with its size and SHA-256): the installed application checks itself against it and
+# reports a missing or damaged component as an installation to repair (tools/companion/bundle_integrity.py)
+import sys, hashlib, json, tempfile
+sys.path[:0] = [HERE, os.path.join(PROJECT, "tools", "rom-pipeline")]
+import bundle_integrity as BI
+from hakchi_bridge import HAKCHI_PACKAGE as _HP
+if RELEASE:   # a release build never ships without a required component
+    if not os.path.isfile(_hk): raise SystemExit("release build: the Hakchi2 CE 3.9.3 package is missing (set CCS_HAKCHI_PACKAGE; tools/publish/fetch_hakchi_package.py)")
+    if os.path.getsize(_hk) != _HP["size"] or BI.sha256(_hk) != _HP["sha256"]: raise SystemExit(f"release build: {_hk} is not the recorded Hakchi2 CE 3.9.3 package")
+_man = BI.build_manifest(DATAS)
+if RELEASE and _man["required_missing"]: raise SystemExit(f"release build: required components missing: {_man['required_missing']}")
+_mdir = tempfile.mkdtemp(prefix="ccs-bundle-"); _mp = os.path.join(_mdir, BI.MANIFEST_NAME)
+json.dump(_man, open(_mp, "w", encoding="utf-8"), indent=0); DATAS.append((_mp, "."))
 a = Analysis([os.path.join(HERE, "companion_app.py")], pathex=[HERE, os.path.join(PROJECT, "tools", "rom-pipeline")],
-             binaries=[], datas=[(SITE, "site"), (os.path.join(HERE, "native_home", "fonts"), os.path.join("native_home", "fonts"))] + NATIVE + EXTRA + [(os.path.join(HERE, "Read-HakchiSelection.ps1"), "."), (os.path.join(HERE, "Get-ProcessWindows.ps1"), "."), (os.path.join(HERE, "Close-Hakchi.ps1"), ".")],
-             hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.ttk", "console_engine", "console_engine.worker", "console_engine.engine", "console_engine.plan", "console_engine.profiles", "console_engine.transport", "console_engine.journal", "console_engine.gate", "console_runs", "native_preview", "overrides", "mock_cover", "native_home", "native_home.package", "native_home.config", "native_home.derive", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont", "PIL.JpegImagePlugin", "PIL.PngImagePlugin"], hookspath=[], runtime_hooks=[], excludes=["matplotlib", "numpy", "pytest", "IPython"], noarchive=False)
+             binaries=[], datas=DATAS,
+             hiddenimports=["bundle_integrity", "tkinter", "tkinter.filedialog", "tkinter.ttk", "console_engine", "console_engine.worker", "console_engine.engine", "console_engine.plan", "console_engine.profiles", "console_engine.transport", "console_engine.journal", "console_engine.gate", "console_runs", "native_preview", "overrides", "mock_cover", "native_home", "native_home.package", "native_home.config", "native_home.derive", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont", "PIL.JpegImagePlugin", "PIL.PngImagePlugin"], hookspath=[], runtime_hooks=[], excludes=["matplotlib", "numpy", "pytest", "IPython"], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="ClassicCartStudioBackend", debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False,
           icon=ICON if os.path.exists(ICON) else None, version=os.path.join(HERE, "version_info.txt") if os.path.exists(os.path.join(HERE, "version_info.txt")) else None)

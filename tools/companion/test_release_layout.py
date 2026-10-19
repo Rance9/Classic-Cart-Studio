@@ -4,13 +4,17 @@ release layout alone: the bundled site data, the bundled runtime, no development
 
   python test_release_layout.py <dist folder: ...\ClassicCartStudioBackend>      Exit 0 = PASS.
 
-Checks: both binaries present in _internal\native (ELF 32-bit ARM, statically linked; a Windows PE executable), the bundled site;
+Checks: everything the installed application needs is inside the release folder (nothing is downloaded at run time): the Hakchi2
+CE 3.9.3 package with its console tools and USB driver (recorded size and SHA-256, required components inside), both native binaries
+in _internal\native (ELF 32-bit ARM, statically linked; a Windows PE executable), the bundled site, fonts, helper scripts and
+notices, and the installation's file list (bundle-manifest.json: every listed file present and matching its SHA-256);
 then, in a child process whose only inputs are the release folder (NES_STUDIO_SITE and CCS_NATIVE_HOME_RUNTIME point into it, the
 development build folder is pointed at an empty place), a 12-game deployment package with all four themes is built: ready, no
 blockers, the packaged runtime byte-identical to the release's; finally the release's Windows renderer loads that package."""
 from __future__ import annotations
-import hashlib, json, os, subprocess, sys, tempfile, shutil
-HERE = os.path.dirname(os.path.abspath(__file__))
+import hashlib, json, os, subprocess, sys, tempfile, shutil, zipfile
+HERE = os.path.dirname(os.path.abspath(__file__)); sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
+import bundle_integrity as BI   # noqa: E402
 
 def elf(p):
     b = open(p, "rb").read(4096)
@@ -40,6 +44,17 @@ def main(dist: str) -> int:
     ok("arm_runtime_bundled", e is not None, rt); ok("arm_runtime_is_32bit_arm_static", e and e["class"] == 1 and e["machine"] == 40 and e["interp"] is False, e)
     ok("preview_core_bundled", os.path.isfile(core) and open(core, "rb").read(2) == b"MZ", core)
     ok("site_bundled", os.path.isfile(os.path.join(site, "index.html")) and os.path.isfile(os.path.join(site, "catalog.json")), site)
+    from hakchi_bridge import HAKCHI_PACKAGE, HAKCHI_REQUIRED
+    hk = os.path.join(internal, "packages", HAKCHI_PACKAGE["name"])
+    ok("hakchi_package_bundled_and_verified", os.path.isfile(hk) and os.path.getsize(hk) == HAKCHI_PACKAGE["size"] and BI.sha256(hk) == HAKCHI_PACKAGE["sha256"], hk)
+    if os.path.isfile(hk):
+        names = set(zipfile.ZipFile(hk).namelist()); ok("hakchi_required_components_in_package", all(r in names for r in HAKCHI_REQUIRED), [r for r in HAKCHI_REQUIRED if r not in names])
+    man = BI.manifest(internal)
+    ok("installation_file_list_present", man is not None and not man.get("required_missing") and all(r in man["files"] for r in BI.REQUIRED_FILES),
+       (man or {}).get("required_missing") if man else "bundle-manifest.json missing")
+    full = BI.check(full=True, bundle=internal)
+    ok("installation_file_list_verified", full["ok"] and full["checked"] >= 1000, full["message"])
+    ok("fonts_and_scripts_bundled", os.path.isdir(os.path.join(internal, "native_home", "fonts")) and all(os.path.isfile(os.path.join(internal, n)) for n in ("Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1", "Close-Hakchi.ps1", "THIRD_PARTY_NOTICES.md")))
     if all(c[1] for c in checks):
         tmp = tempfile.mkdtemp(prefix="ccs-release-layout-")
         env = dict(os.environ, NES_STUDIO_SITE=site, CCS_NATIVE_HOME_RUNTIME=rt, CCS_SIM_BUILD_WIN=os.path.join(tmp, "no-dev-build"), NES_STUDIO_DATA=os.path.join(tmp, "data"),
