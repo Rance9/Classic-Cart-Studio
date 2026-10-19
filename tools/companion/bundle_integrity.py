@@ -83,7 +83,8 @@ def _report(problems: list[dict], checked: int, mode: str, dev: bool = False) ->
               "examples": [f"{x['path']} ({x['state']})" for x in v[:3]]} for k, v in comps.items()]
     ok = not problems
     msg = ("the installation is complete" if ok else
-           "Some files installed with Classic Cart Studio are missing or damaged: " + "; ".join(i["label"] for i in items) + ". " + REPAIR)
+           "Some files installed with Classic Cart Studio are missing or damaged: " + "; ".join(i["label"] for i in items) + ". To repair it, run the "
+           "Classic Cart Studio installer again (your games, collections and settings are kept). Nothing is downloaded to replace them.")
     return {"ok": ok, "mode": mode, "checked": checked, "components": items, "message": msg, "repair_required": not ok, "development": dev}
 
 
