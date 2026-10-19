@@ -26,8 +26,12 @@ except ImportError:  # art is optional
 
 HAKCHI_SHA256 = "8e1fe79585ae2aceacab21157d10a74e0b3e64456e1efdd750c1eb61e3391a2b"   # hakchi.exe 3.9.3.0 as installed (docs/research.md)
 HAKCHI_VERSION = "3.9.3"   # pinned build (docs/decisions.md D-01); the companion never installs or launches any other build
-HAKCHI_PACKAGE = {"name": "hakchi2-ce-3.9.3-portable.zip", "size": 75518132, "sha256": "46520c8b9a3c768b5ee7c2cb4878adc11e3da1869aae281000d75012b7e9f122", "entries": 914,
-                  "url": "https://github.com/TeamShinkansen/Hakchi2-CE/releases/download/v3.9.3/hakchi2-ce-3.9.3-portable.zip"}   # docs/research.md §2.3; URL re-downloaded and hash-matched 2026-10-09
+# the official portable package ships inside the Windows installer (_internal\packages); the application never downloads it
+# (the release build fetches and verifies it: tools/publish/fetch_hakchi_package.py). docs/research.md §2.3
+HAKCHI_PACKAGE = {"name": "hakchi2-ce-3.9.3-portable.zip", "size": 75518132, "sha256": "46520c8b9a3c768b5ee7c2cb4878adc11e3da1869aae281000d75012b7e9f122", "entries": 914}
+# what Classic Cart Studio's features need from the package (all inside the verified zip; checked again after extraction)
+HAKCHI_REQUIRED = ["hakchi.exe", "basehmods.tar", "driver/classic_driver.exe", "tools/arm/kexec.static", "tools/arm/mke2fs.static", "tools/arm/sfdisk.static",
+                   "tools/arm/unpackbootimg.static", "tools/arm/detached-fallback", "tools/mksquashfs", "data/desktop_entries.tar", "data/nescarts.xml"]
 DRIVER_EXE_SHA256 = "88a2c6bc3e296c81ca3544557a2e254e894c867ceb0d60e14c2fc2e5d610462d"   # driver\classic_driver.exe inside the package (execution log 1.3, 1.7)
 DRIVER_HWID = "USB\\VID_1F3A&PID_EFE8"   # NES Classic in FEL mode; the libwdi-generated INF carries it as signer name
 DRIVER_INF_NAME = "nintendo_classic.inf"
@@ -131,15 +135,17 @@ def file_version(path: str) -> str:
     if v: _ver_cache[key] = v
     return v
 
-def packages_dir(cfg: dict) -> str: return cfg.get("packages_dir") or (data_path("packages") if FROZEN else os.path.join(PROJECT, "packages"))
+def packages_dir(cfg: dict) -> str:
+    """where the pinned package lives: inside the installed application (_internal/packages) or, in a development checkout, the
+    project's packages folder (tests may point packages_dir elsewhere). Never a download location."""
+    if FROZEN: return os.path.join(getattr(sys, "_MEIPASS", ""), "packages")
+    return cfg.get("packages_dir") or os.path.join(PROJECT, "packages")
 def bundled_package() -> str | None:
-    """the pinned package installed with the application (offline first, 0.5.0: _internal/packages), so Hakchi setup and its console
-    driver need no download; verified like any other copy before use"""
+    """the pinned package installed with the application, so Hakchi setup and its console driver need no download"""
     p = os.path.join(getattr(sys, "_MEIPASS", ""), "packages", HAKCHI_PACKAGE["name"]) if FROZEN else ""
     return p if p and os.path.isfile(p) else None
 def package_path(cfg: dict) -> str:
-    pk = os.path.join(packages_dir(cfg), HAKCHI_PACKAGE["name"])
-    return pk if os.path.isfile(pk) else (bundled_package() or pk)
+    return os.path.join(packages_dir(cfg), HAKCHI_PACKAGE["name"])
 
 _pkg_cache: dict = {}
 def package_verified(path: str) -> bool:
@@ -154,7 +160,10 @@ def hakchi_install_status(cfg: dict) -> dict:
     hakchi.exe (never replaced automatically: the pin is an owner decision, D-01)."""
     exe = cfg["hakchi_exe"]; root = os.path.dirname(exe); pk = package_path(cfg)
     st = {"path": exe, "root": root, "pinned_version": HAKCHI_VERSION, "expected_sha256": HAKCHI_SHA256, "package_name": HAKCHI_PACKAGE["name"], "package_size": HAKCHI_PACKAGE["size"], "package_sha256": HAKCHI_PACKAGE["sha256"],
-          "package_url": cfg.get("hakchi_package_url") or HAKCHI_PACKAGE["url"], "package_local": os.path.isfile(pk), "package_bundled": bool(bundled_package()) and os.path.normcase(pk) == os.path.normcase(bundled_package() or ""), "package_local_verified": package_verified(pk) if os.path.isfile(pk) else None, "version": "", "sha256": "", "root_nonempty": False}
+          "package_source": "installed with Classic Cart Studio" if FROZEN else "development checkout (packages folder)", "package_local": os.path.isfile(pk), "package_bundled": FROZEN and os.path.isfile(pk),
+          "package_local_verified": package_verified(pk) if os.path.isfile(pk) else None, "version": "", "sha256": "", "root_nonempty": False}
+    st["package_state"] = "ok" if st["package_local_verified"] else ("damaged" if st["package_local"] else "missing")
+    if st["package_state"] != "ok": st["package_problem"] = package_problem(st["package_state"])
     if os.path.isfile(exe):
         st["sha256"] = sha256_file_cached(exe); st["version"] = file_version(exe); st["state"] = "ok" if st["sha256"] == HAKCHI_SHA256 else "different-version"
     else:
@@ -192,32 +201,27 @@ def driver_status(cfg: dict | None = None, pnputil_text: str | None = None) -> d
     st["state"] = "installed" if st["installed"] else ("missing" if st["installer_verified"] else "installer-unavailable")
     return st
 
+class PackageUnavailable(RuntimeError):
+    """the bundled Hakchi package cannot be used; the message tells the user how to repair the installation"""
+
+def package_problem(state: str) -> str:
+    what = "is missing" if state == "missing" else "is damaged (its size or SHA-256 does not match the recorded package)"
+    if FROZEN: return (f"The Hakchi2 CE 3.9.3 package installed with Classic Cart Studio {what}. Classic Cart Studio needs to be repaired: run the "
+                       "Classic Cart Studio installer again (your games, collections and settings are kept). Nothing is downloaded to replace it.")
+    return f"The Hakchi2 CE 3.9.3 package in the development checkout's packages folder {what}. Put the verified {HAKCHI_PACKAGE['name']} there (python tools/publish/fetch_hakchi_package.py packages)."
+
 def obtain_package(cfg: dict) -> dict:
-    """The verified 3.9.3 portable package: the copy in packages\\ when its size and SHA-256 match; otherwise the pinned release asset is
-    downloaded into packages\\ (.part file, size and SHA-256 verified, then renamed). A copy that fails verification is moved aside, never used."""
-    import urllib.request
-    pdir = packages_dir(cfg); os.makedirs(pdir, exist_ok=True); pk = os.path.join(pdir, HAKCHI_PACKAGE["name"]); url = cfg.get("hakchi_package_url") or HAKCHI_PACKAGE["url"]
-    if os.path.isfile(pk) and package_verified(pk): return {"path": pk, "source": "local", "sha256": HAKCHI_PACKAGE["sha256"]}
-    bp = bundled_package()
-    if bp and package_verified(bp): return {"path": bp, "source": "bundled with the application", "sha256": HAKCHI_PACKAGE["sha256"]}
-    if os.path.isfile(pk): os.replace(pk, pk + ".rejected-" + time.strftime("%Y%m%d-%H%M%S"))
-    part = pk + ".part"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "nes-classic-catalog-companion/1.0"})
-        with urllib.request.urlopen(req, timeout=60) as r, open(part, "wb") as f:
-            n = 0
-            while True:
-                chunk = r.read(1 << 20)
-                if not chunk: break
-                f.write(chunk); n += len(chunk)
-                if n > HAKCHI_PACKAGE["size"]: raise RuntimeError("download is larger than the recorded package size")
-        if os.path.getsize(part) != HAKCHI_PACKAGE["size"]: raise RuntimeError(f"downloaded size {os.path.getsize(part)} != recorded {HAKCHI_PACKAGE['size']}")
-        h = sha256_file(part)
-        if h != HAKCHI_PACKAGE["sha256"]: raise RuntimeError(f"downloaded SHA-256 {h[:16]}… != recorded {HAKCHI_PACKAGE['sha256'][:16]}…; the file was discarded")
-        os.replace(part, pk); _pkg_cache.clear(); return {"path": pk, "source": "download", "url": url, "sha256": h}
-    except Exception:
-        if os.path.exists(part): os.remove(part)
-        raise
+    """The pinned 3.9.3 portable package that ships with the application, verified by size and SHA-256 right before every use. There is
+    no other source: a missing or damaged package is reported as an installation that needs repair; nothing is downloaded or substituted."""
+    pk = package_path(cfg)
+    if not os.path.isfile(pk): raise PackageUnavailable(package_problem("missing"))
+    _pkg_cache.clear()   # always a fresh SHA-256 right before extraction
+    if not package_verified(pk): raise PackageUnavailable(package_problem("damaged"))
+    if FROZEN:   # and it is the file the installer put there (the installation's file list)
+        import bundle_integrity as bi
+        try: bi.require("hakchi")
+        except bi.ComponentError as e: raise PackageUnavailable(str(e)) from e
+    return {"path": pk, "source": "installed with Classic Cart Studio" if FROZEN else "development checkout", "sha256": HAKCHI_PACKAGE["sha256"]}
 
 def install_hakchi(cfg: dict, dry_run: bool = False) -> dict:
     """Set up the pinned Hakchi2 CE 3.9.3 portable build at the configured path from the verified package — only when nothing is there.
@@ -228,8 +232,11 @@ def install_hakchi(cfg: dict, dry_run: bool = False) -> dict:
     if st["state"] == "ok": res["message"] = f"Hakchi2 CE {HAKCHI_VERSION} is already present and verified at {st['path']}; nothing to do"; return res
     if st["state"] == "different-version": res["message"] = f"a different Hakchi build is present at {st['path']} (file version {st['version'] or 'unknown'}, SHA-256 {st['sha256'][:16]}…); the project pins {HAKCHI_VERSION} and never replaces an existing installation automatically"; return res
     if st["root_nonempty"]: res["message"] = f"{st['root']} exists and is not empty but has no hakchi.exe; move it aside first (nothing is deleted automatically)"; return res
-    if dry_run: res.update(ok=True, message=f"dry run: would obtain {HAKCHI_PACKAGE['name']} ({'local, verified' if st['package_local_verified'] else 'download from ' + st['package_url']}) and extract it to {st['root']}"); return res
-    pk = obtain_package(cfg); res["package"] = pk
+    if st["package_state"] != "ok": res.update(message=st["package_problem"], repair_required=FROZEN, package_state=st["package_state"]); return res
+    if dry_run: res.update(ok=True, message=f"dry run: would extract the verified {HAKCHI_PACKAGE['name']} ({st['package_source']}) to {st['root']}"); return res
+    try: pk = obtain_package(cfg)
+    except PackageUnavailable as e: res.update(message=str(e), repair_required=FROZEN, package_state="damaged"); return res
+    res["package"] = pk
     tmp = st["root"].rstrip("\\/") + ".installing"; shutil.rmtree(tmp, ignore_errors=True); os.makedirs(tmp)
     try:
         with zipfile.ZipFile(pk["path"]) as z:
@@ -239,6 +246,8 @@ def install_hakchi(cfg: dict, dry_run: bool = False) -> dict:
             z.extractall(tmp)
         if sha256_file(os.path.join(tmp, "hakchi.exe")) != HAKCHI_SHA256: raise RuntimeError("extracted hakchi.exe does not match the recorded hash")
         if sha256_file(os.path.join(tmp, "driver", "classic_driver.exe")) != DRIVER_EXE_SHA256: raise RuntimeError("extracted driver installer does not match the recorded hash")
+        missing = [r for r in HAKCHI_REQUIRED if not os.path.isfile(os.path.join(tmp, *r.split("/")))]
+        if missing: raise RuntimeError(f"the package lacks required components: {', '.join(missing)}")
         if os.path.isdir(st["root"]) and not os.listdir(st["root"]): os.rmdir(st["root"])
         os.makedirs(os.path.dirname(st["root"]), exist_ok=True)
         for attempt in range(6):   # a virus scanner or indexer may hold the freshly extracted folder for a moment
@@ -250,7 +259,7 @@ def install_hakchi(cfg: dict, dry_run: bool = False) -> dict:
         shutil.rmtree(tmp, ignore_errors=True); raise
     after = hakchi_install_status(cfg)
     res.update(ok=after["state"] == "ok", state_after=after["state"], entries=len(names), version=after["version"],
-               message=f"Hakchi2 CE {HAKCHI_VERSION} extracted to {st['root']} ({len(names)} entries; hakchi.exe and the driver installer verified by SHA-256; package from {pk['source']}). No configuration was written: Hakchi creates config\\config.json itself, and the first Open-in-Hakchi run writes only the fields it manages.")
+               message=f"Hakchi2 CE {HAKCHI_VERSION} extracted to {st['root']} ({len(names)} entries; the package, hakchi.exe and the driver installer verified by SHA-256, {len(HAKCHI_REQUIRED)} required components present; package {pk['source']}). No configuration was written: Hakchi creates config\\config.json itself, and the first Open-in-Hakchi run writes only the fields it manages.")
     return res
 
 def install_driver(cfg: dict, dry_run: bool = False) -> dict:

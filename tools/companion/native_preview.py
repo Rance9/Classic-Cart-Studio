@@ -23,12 +23,19 @@ from common import FROZEN, APP_ROOT, WORK, data_path   # noqa: E402
 BUTTONS = {"up", "down", "left", "right", "a", "b", "start", "select"}
 THEMES = ("arcade-grid", "box-art-showcase", "featured-shelf", "adventure-map")
 
+CORE_PROBLEM: str | None = None
 def core_binary() -> str | None:
-    """the native core for Windows: bundled with the application, or the development build"""
-    for p in (os.environ.get("CCS_NATIVE_PREVIEW_CORE"), os.path.join(getattr(sys, "_MEIPASS", APP_ROOT), "native", "ccs-sim-core.exe") if FROZEN else None,
-              os.path.join(os.environ.get("CCS_SIM_BUILD_WIN") or os.path.join(WORK, "console-simulator", "build"), "windows-x86_64", "ccs-sim-core.exe")):
-        if p and os.path.isfile(p): return p
-    return None
+    """the native core for Windows: the copy installed with the application (verified against the installation's file list before
+    use; a missing or damaged copy means the installation needs repair, CORE_PROBLEM), or the development build"""
+    global CORE_PROBLEM; CORE_PROBLEM = None
+    env = os.environ.get("CCS_NATIVE_PREVIEW_CORE")
+    if env and os.path.isfile(env): return env
+    if FROZEN:
+        import bundle_integrity as bi
+        try: return bi.require("preview-core")[0]
+        except bi.ComponentError as e: CORE_PROBLEM = str(e); return None
+    p = os.path.join(os.environ.get("CCS_SIM_BUILD_WIN") or os.path.join(WORK, "console-simulator", "build"), "windows-x86_64", "ccs-sim-core.exe")
+    return p if os.path.isfile(p) else None
 
 class Session:
     def __init__(self):
@@ -64,7 +71,7 @@ class Session:
     def start(self, manifest: dict, home: dict) -> dict:
         from native_home import package as P
         exe = core_binary()
-        if not exe: return {"ok": False, "error": "the native HOME renderer for Windows is not available in this installation"}
+        if not exe: return {"ok": False, "error": CORE_PROBLEM or "the native HOME renderer for Windows is not available in this installation", "repair_required": bool(CORE_PROBLEM)}
         t0 = time.time(); res = P.build(manifest, home, mode="preview")
         if not res.get("ok"): return {"ok": False, "status": res.get("status"), "error": res.get("error") or "; ".join(res.get("problems") or [])}
         with self.lock:
