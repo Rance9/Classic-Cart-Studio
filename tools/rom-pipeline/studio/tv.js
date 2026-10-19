@@ -204,7 +204,7 @@ async function tvSaveImage(){
   px+=tw+gap; }
  const g=ids.length?m.games.find(v=>v.id===ids[S.index]):null; if(g){ x.fillStyle='#fff'; x.font='700 48px "Segoe UI", system-ui, sans-serif'; x.textAlign='center'; x.fillText(g.title,W/2,ty+th*1.18+70); x.textAlign='left'; }
  x.fillStyle='#d6d4ce'; x.font='500 26px "Segoe UI", system-ui, sans-serif'; x.fillText('A launch · SELECT details · START menu · B back · Preview on TV · simulation',60,H-50);
- c.toBlob(b=>{ if(!b) { toast('The image could not be created'); return; } const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=(COLL.name||'collection').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')+'-tv-preview.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast('Preview image saved (1920×1080)'); },'image/png');
+ c.toBlob(async b=>{ if(!b) { toast('The image could not be created'); return; } const res=await ccsSaveFile(csSafeName(`${COLL.name||'Collection'} - Preview on TV`,'.png'), b, 'Preview Image'); if(res.ok) toast('Preview image saved to '+res.name+' (1920×1080)'); },'image/png');
 }
 // test hook: the same drawing as a data size without a download
 async function tvExportSize(){ const ids=TV.model?homeListing(TV.model,TV.S,tvSearch()).ids:[]; const c=document.createElement('canvas'); c.width=1920; c.height=1080; const x=c.getContext('2d'); x.fillStyle='#0b0b0e'; x.fillRect(0,0,1920,1080); return {w:c.width,h:c.height,entries:ids.length}; }

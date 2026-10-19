@@ -7,15 +7,18 @@ release layout alone: the bundled site data, the bundled runtime, no development
 Checks: everything the installed application needs is inside the release folder (nothing is downloaded at run time): the Hakchi2
 CE 3.9.3 package with its console tools and USB driver (recorded size and SHA-256, required components inside), both native binaries
 in _internal\native (ELF 32-bit ARM, statically linked; a Windows PE executable), the bundled site, fonts, helper scripts and
-notices, and the installation's file list (bundle-manifest.json: every listed file present and matching its SHA-256);
+notices, the website's Store left out (no site\store folder, no Amazon link in any bundled .html/.json/.js file), and the installation's file list (bundle-manifest.json: every listed file present and matching its SHA-256);
 then, in a child process whose only inputs are the release folder (NES_STUDIO_SITE and CCS_NATIVE_HOME_RUNTIME point into it, the
 development build folder is pointed at an empty place), a deployment package of all 30 factory games and four added ones with all four themes is built (every factory cover
 authentic, from the catalog art in the release site, Excitebike by name): ready, no
 blockers, the packaged runtime byte-identical to the release's; finally the release's Windows renderer loads that package."""
 from __future__ import annotations
-import hashlib, json, os, subprocess, sys, tempfile, shutil, zipfile
+import hashlib, json, os, re, subprocess, sys, tempfile, shutil, zipfile
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
 import bundle_integrity as BI   # noqa: E402
+
+# an Amazon host name (amazon.<tld>, amzn.<x>, any subdomain), not the word "Amazon." ending a sentence (game descriptions use it)
+AMAZON_HOST = re.compile(r"(?<![a-z0-9])(?:amazon|amzn)\.[a-z]{2,}", re.I)
 
 def elf(p):
     b = open(p, "rb").read(4096)
@@ -59,6 +62,15 @@ def main(dist: str) -> int:
        (man or {}).get("required_missing") if man else "bundle-manifest.json missing")
     full = BI.check(full=True, bundle=internal)
     ok("installation_file_list_verified", full["ok"] and full["checked"] >= 1000, full["message"])
+    # the website's Store (Amazon Associates links) is never part of the installable application (companion.spec bundles the site without store/)
+    ok("store_not_bundled", os.path.isdir(site) and not any(n.lower() == "store" for n in os.listdir(site)), site)
+    amz = []
+    for d, _, names in os.walk(site):
+        for n in names:
+            if os.path.splitext(n)[1].lower() in (".html", ".json", ".js"):
+                with open(os.path.join(d, n), encoding="utf-8", errors="replace") as f:
+                    if AMAZON_HOST.search(f.read()): amz.append(os.path.relpath(os.path.join(d, n), site))
+    ok("no_amazon_links_bundled", os.path.isdir(site) and not amz, amz[:5])
     ok("fonts_and_scripts_bundled", os.path.isdir(os.path.join(internal, "native_home", "fonts")) and all(os.path.isfile(os.path.join(internal, n)) for n in ("Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1", "Close-Hakchi.ps1", "THIRD_PARTY_NOTICES.md")))
     if all(c[1] for c in checks):
         tmp = tempfile.mkdtemp(prefix="ccs-release-layout-")

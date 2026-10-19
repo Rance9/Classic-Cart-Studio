@@ -1,0 +1,52 @@
+# Copy to wrangler.toml (same folder) and fill in the KV namespace id.
+# wrangler.toml holds no secrets; the manage tokens are generated per share
+# and only their SHA-256 hashes are stored.
+
+name = "classic-cart-studio-share"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# Share records (c:<id>), card images (img:<id>) and hourly abuse counters
+# (rl:<ip>:<hour>, rlu:<ip>:<hour>). Create with:
+#   npx wrangler@4 kv namespace create SHARES
+[[kv_namespaces]]
+binding = "SHARES"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Optional: if an R2 bucket is bound as SHARE_BUCKET, records and images are
+# stored there instead of KV (the hourly counters stay in KV).
+# [[r2_buckets]]
+# binding = "SHARE_BUCKET"
+# bucket_name = "classic-cart-studio-shares"
+
+# Optional: Workers Rate Limiting binding. When present, every publish calls
+# PUBLISH_LIMITER.limit({ key: <client IP> }) and returns 429 when the IP is
+# over the limit below (fast, per-location burst protection). The KV hourly
+# limit (20 publishes / IP / hour) always applies in addition.
+# namespace_id is any positive integer unique to this account; period is 10 or 60.
+# [[ratelimits]]
+# name = "PUBLISH_LIMITER"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 5
+#   period = 60
+#
+# Older wrangler syntax for the same binding:
+# [[unsafe.bindings]]
+# name = "PUBLISH_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1001"
+# simple = { limit = 5, period = 60 }
+
+[vars]
+SITE_ORIGIN = "https://classiccartstudio.com"
+SHARE_ORIGIN = "https://share.classiccartstudio.com"
+
+# Serve the Worker on share.classiccartstudio.com. A Custom Domain creates its
+# own DNS record for the subdomain only; the apex and www records that point at
+# GitHub Pages are not touched. You can use this block or add the domain in the
+# dashboard (Settings > Domains & Routes > Add > Custom Domain).
+# routes = [
+#   { pattern = "share.classiccartstudio.com", custom_domain = true }
+# ]

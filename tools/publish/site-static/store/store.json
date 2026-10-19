@@ -1,0 +1,30 @@
+{
+  "schema": "ccs-store/1",
+  "published": false,
+  "updated": "",
+  "intro": "Everything you need to get started with your NES Classic, from the console itself to controllers and useful accessories.",
+  "categories": [
+    {"id": "console", "name": "NES Classic Edition console"},
+    {"id": "controllers", "name": "Controllers"},
+    {"id": "power", "name": "Power and connectivity"},
+    {"id": "storage", "name": "Storage and protection"},
+    {"id": "setup", "name": "Optional setup accessories"}
+  ],
+  "_fields": {
+    "id": "Unique short id, lowercase letters, digits and dashes (for example console-ebay-1).",
+    "name": "Product name as it should appear on the card.",
+    "category": "One of the category ids above: console, controllers, power, storage, setup.",
+    "seller": "Who sells it, for example eBay or Amazon (shown as: Sold by <seller> on <platform>).",
+    "platform": "ebay, amazon or other.",
+    "url": "Full link to the listing. Must start with https:// or the product is skipped.",
+    "description": "One or two short sentences.",
+    "compatibility": "Compatibility notes; may be an empty string.",
+    "image": "Optional. A relative path under img/ only (for example img/console.jpg). Leave empty for no image.",
+    "affiliate": "true for Amazon Associates links (adds the Paid link label and the Amazon disclosure); false otherwise.",
+    "commission_note": "Optional note shown on non-affiliate cards, for example: I receive no commission on eBay purchases.",
+    "enabled": "true to show the product; false to hide it (for example a sold-out eBay listing).",
+    "featured": "true for the console listing shown in the featured section (category console).",
+    "recommendation": "Optional short label such as Personally used."
+  },
+  "products": []
+}

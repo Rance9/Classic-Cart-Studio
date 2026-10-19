@@ -1,0 +1,9 @@
+{
+  "name": "classic-cart-studio-share",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker that hosts shared Classic Cart Studio collections (share.classiccartstudio.com).",
+  "scripts": {
+    "test": "node test/worker.test.mjs"
+  }
+}

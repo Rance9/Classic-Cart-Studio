@@ -256,7 +256,7 @@ __STUDIO_CSS__
   <div>
    <img class="wordmark px" src="brand/oem/nes-wordmark.png" alt="Nintendo Entertainment System" width="137" height="15" onerror="this.style.display='none'">
    <h1>Classic Cart<span>Studio</span></h1>
-   <p class="lede">Browse NES games, build <b>My Collection</b>, and prepare it for your NES Classic.</p>
+   <p class="lede">Browse NES games, build <b>your collections</b>, share them, and prepare one for your NES Classic.</p>
    <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games</span><span class="pill"><b id="heroSel">0</b> selected</span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
   </div>
   <div class="hardware" aria-hidden="true">
@@ -293,55 +293,55 @@ __STUDIO_CSS__
 </header>
 <div class="toolbar" id="toolbar"><div class="in">
 <div class="row bar">
- <button class="btn howbtn" id="howBtn" title="Complete step-by-step guide to using Classic Cart Studio."><svg class="ico book" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H8v12H3.5A1.5 1.5 0 0 1 2 12.5zM14 3.5A1.5 1.5 0 0 0 12.5 2H8v12h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>Help &amp; User Guide</button>
- <button class="btn foldbtn" id="foldBtn" aria-expanded="true" aria-controls="toolsFold" title="Show or hide the tools: search, Filter &amp; Sort, Select, List or Grid, the alphabet jump, the storage figure and the connection status"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg><span class="fl">Search &amp; Tools</span><span class="badge" id="foldBadge" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
+ <div class="menuwrap"><button id="collBtn" class="btn collbtn" aria-haspopup="menu" title="My Collections: switch, create, import, export or share collections"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span class="cl"><span class="cap">My Collections</span><span id="collName">My Collection</span></span><span class="badge soft" id="collCount">0 games</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
+  <div class="menu wide" id="collMenu" role="menu" hidden><div class="mhead"><div class="nm" id="collNameHead"></div><div class="st"><span class="stt" id="collStatus"><i></i>new</span></div></div>
+   <div class="mlabel">Open a collection</div><div id="csQuick"></div>
+   <div class="sep"></div>
+   <button id="mNew" class="mi" role="menuitem"><b>New Collection…</b><span class="d">Start another collection; this one stays saved.</span></button>
+   <button id="mManage" class="mi" role="menuitem"><b>Manage Collections…</b><span class="d">Rename, duplicate, delete, export or share any of your collections.</span></button>
+   <button id="mShare" class="mi" role="menuitem"><b>Share Collection…</b><span class="d">Publish a read-only copy with a link anyone can open and save.</span></button>
+   <div class="sep"></div>
+   <button id="mImport" class="mi" role="menuitem"><b>Import Collection…</b><span class="d">Add a collection from a file. Nothing here is overwritten.</span></button>
+   <button id="mExport" class="mi" role="menuitem"><b>Export Collection…</b><span class="d">Save this collection as a portable file (no game files inside).</span></button>
+   <button id="mLoadLocal" class="mi" role="menuitem" hidden><b>Games Already on This Computer…</b><span class="d">Bring in the games set up on this computer before. Looking changes nothing.</span></button>
+   <button id="mRestore" class="mi" role="menuitem"><b>Restore Previous Version…</b><span class="d">Automatic recovery snapshots of earlier states.</span></button>
+   <div class="sep" id="mDesktopSep"></div>
+   <button id="mDesktop" class="mi" role="menuitem" hidden><b>Continue in Desktop App…</b><span class="d">Take one, several or all collections into Classic Cart Studio for Windows.</span></button>
+   <button id="mToWeb" class="mi" role="menuitem" hidden><b>Continue on the Website…</b><span class="d">Save your collections as one file to open on ClassicCartStudio.com.</span></button></div></div>
  <span style="flex:1"></span>
  <div class="actions">
- <div class="menuwrap right"><button id="collBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span id="collName">My Collection</span><svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
-  <div class="menu wide" id="collMenu" role="menu" hidden><div class="mhead"><div class="nm" id="collNameHead"></div><div class="st"><span class="stt" id="collStatus"><i></i>new</span></div></div>
-   <button id="mNew" class="mi" role="menuitem"><b>New Collection</b><span class="d">Start again with an empty collection. The current one stays recoverable.</span></button>
-   <div class="smwrap"><button id="mOpen" class="mi sub" role="menuitem" aria-haspopup="true" aria-expanded="false" aria-controls="smOpen"><b>Open <span class="chev">▸</span></b><span class="d">Games already on this computer, a saved file, or a previous version.</span></button>
-    <div class="submenu" id="smOpen" role="menu" hidden>
-     <button id="mLoadLocal" class="mi" role="menuitem"><b>Games already on this computer</b><span class="d">Continue from the games set up on this computer. Looking changes nothing.</span></button>
-     <button id="mLoadFile" class="mi" role="menuitem"><b>Saved collection file</b><span class="d">Open a collection you saved earlier.</span></button>
-     <button id="mRestore" class="mi" role="menuitem"><b>Restore a previous collection</b><span class="d">Automatic snapshots kept in this browser.</span></button>
-    </div></div>
-   <button id="mOwn" class="mi" role="menuitem"><b>Add Your Own Game</b><span class="d">Bring in a game file you own that is not in the Game Library.</span></button>
-   <button id="mTv" class="mi" role="menuitem"><b>Preview on TV</b><span class="d">See the menu this collection proposes for your NES Classic, the way it would look on the TV (16:9, a simulation).</span></button>
-<button id="mFolders" class="mi" role="menuitem"><b>Folders &amp; Console HOME…</b><span class="small">custom folders, map shortcuts, theme; sync with the simulated console in the Windows app</span></button>
-   <div class="smwrap"><button id="mMore" class="mi sub" role="menuitem" aria-haspopup="true" aria-expanded="false" aria-controls="smMore"><b>More <span class="chev">▸</span></b><span class="d">Collection information and the welcome screen.</span></button>
-    <div class="submenu" id="smMore" role="menu" hidden>
-     <button id="mInfo" class="mi" role="menuitem"><b>Collection information</b><span class="d">Name, counts, where it came from and how far it got.</span></button>
-     <button id="mWelcome" class="mi" role="menuitem"><b>Show the welcome screen</b><span class="d">The start-up screen with the three ways to begin. Its check box decides whether it opens on every start.</span></button>
-    </div></div>
-   <div class="sep" id="mDesktopSep"></div>
-   <button id="mDesktop" class="mi" role="menuitem" hidden><b>Continue in Desktop App</b><span class="d">Take this collection into Classic Cart Studio for Windows to find your game files and prepare it for your NES Classic.</span></button></div></div>
- <div class="menuwrap right"><button id="ioBtn" class="btn" aria-haspopup="menu"><img class="px ico" src="brand/oem/icon-disk.png" alt="" onerror="this.remove()">Save / Load<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
-  <div class="menu wide" id="ioMenu" role="menu" hidden>
-   <button id="export" class="mi" role="menuitem"><b>Save Collection to File</b><span class="d">Keep a copy of your game choices to restore or share later.</span></button>
-   <button id="importBtn" class="mi" role="menuitem"><b>Load Collection from File</b><span class="d">Open a collection you saved previously.</span></button>
-   <button id="sdExport" class="mi" role="menuitem"><b>Export Studio Data</b><span class="d">Favorites, snapshots, settings and the current collection in one file — to move to another browser or to the website.</span></button>
-   <button id="sdImport" class="mi" role="menuitem"><b>Import Studio Data</b><span class="d">Bring favorites, snapshots and settings back from a Studio data file.</span></button></div></div>
- <input type="file" id="sdFile" accept="application/json,.json" hidden>
- <span class="pair"><button id="trayBtn" class="btn tray"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
- <button class="btn hk" id="hkBtn" title="Check and prepare your collection; console installation is shown honestly"><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
+ <span class="pair"><button id="trayBtn" class="btn tray" title="The games selected in this collection"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
+ <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV: the HOME this collection proposes" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
+ <button class="btn" id="homeBtn" aria-label="HOME Setup" title="Console HOME for this collection: folders, theme and map shortcuts"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg>HOME Setup</button>
+ <button class="btn hk" id="hkBtn" title="Check and prepare this collection on this computer; console installation is shown honestly"><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
+ <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Menu: help, backup and restore" title="Help, Studio data backup and restore"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Menu</span></button>
+  <div class="menu wide" id="appMenu" role="menu" hidden>
+   <button id="howBtn" class="mi" role="menuitem"><b>Help &amp; User Guide</b><span class="d">The step-by-step guide to everything in the Studio.</span></button>
+   <div class="sep"></div>
+   <button id="sdExport" class="mi" role="menuitem"><b>Back Up Studio Data…</b><span class="d">All collections, favorites, settings and recovery snapshots in one file.</span></button>
+   <button id="sdImport" class="mi" role="menuitem"><b>Restore Studio Data…</b><span class="d">Add everything from a backup file. Nothing here is deleted.</span></button>
+   <div class="sep"></div>
+   <button id="mWelcome" class="mi" role="menuitem"><b>Show the Welcome Screen</b></button>
+   <button id="mLegal" class="mi" role="menuitem"><b>Legal &amp; Privacy</b></button>
+   <button id="mStore" class="mi" role="menuitem" hidden><b>Classic Cart Studio Store</b><span class="d">Hand-picked consoles and accessories from other sellers (opens the website).</span></button></div></div>
  </div>
- <input type="file" id="import" accept="application/json" hidden>
+ <button id="export" hidden></button><button id="importBtn" hidden></button><button id="foldBtn" hidden aria-expanded="true"></button><span id="foldBadge" hidden></span>
+ <input type="file" id="sdFile" accept="application/json,.json" hidden><input type="file" id="import" accept="application/json" hidden>
 </div>
 <div class="toolsfold" id="toolsFold">
 <div class="row tools">
  <input id="q" type="search" placeholder="Search games (dr mario, smb3, zelda 2, megaman…)" aria-label="Search games" title="Words in any order; punctuation, case and accents do not matter; roman numerals and digits are interchangeable; one typo is tolerated; publisher, year and genre are searched too">
  <button id="filtersBtn" class="btn" aria-haspopup="dialog"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h12M4 8h8M6 13h4"/></svg>Filter &amp; Sort<span class="badge" id="filtersBadge" hidden></span></button>
- <div class="menuwrap"><button id="selectBtn" class="btn" aria-haspopup="menu">Select<svg class="ico" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
-  <div class="menu" id="selectMenu" role="menu" hidden><button id="selVis" class="mi" role="menuitem">Select all visible</button><button id="unselVis" class="mi" role="menuitem">Unselect visible</button><button id="selKachi" class="mi" role="menuitem">Select visible kachikachi + verified</button><div class="sep"></div><button id="clear" class="mi danger" role="menuitem"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Clear selection</button></div></div>
+ <div class="menuwrap"><button id="selectBtn" class="btn" aria-haspopup="menu">Select <svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
+  <div class="menu" id="selectMenu" role="menu" hidden><button id="favView" class="mi fav" role="menuitem">★ Show Favorites</button><div class="sep"></div><button id="selVis" class="mi" role="menuitem">Select all visible</button><button id="unselVis" class="mi" role="menuitem">Unselect visible</button><button id="selKachi" class="mi" role="menuitem">Select visible kachikachi + verified</button><div class="sep"></div><button id="clear" class="mi danger" role="menuitem"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Clear selection</button></div></div>
  <div class="seg" role="group" aria-label="View"><button id="vList" class="btn active">List</button><button id="vGrid" class="btn">Grid</button></div>
- <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
+ <button id="ownBtn" class="btn" title="Add a game file you own that is not in the Game Library"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>Add Your Own Game</button>
  <span style="flex:1"></span>
  <span class="stats" id="stats"></span>
  <button class="conn" id="connPill" title="Connection to the companion on your computer"><span class="dot"></span>Checking the connection…</button>
 </div>
 <div class="row sub" id="subRow"><div class="letters" id="letters"></div><div class="chips" id="chips" hidden></div></div>
-<button class="foldhide" id="foldHide" type="button" aria-controls="toolsFold">▲ Hide Search &amp; Tools</button>
+<button class="foldhide" id="foldHide" type="button" hidden></button>
 </div>
 </div></div>
 </div>
@@ -351,8 +351,8 @@ __STUDIO_CSS__
 </main>
 <section class="howto"><div class="box"><span class="deco" aria-hidden="true">__HOWTO_CAST__</span><h2>How it works</h2><div class="steps">
 <div class="step"><span class="n">1</span><div><b>Choose.</b> Click any game to add it to <b>My Collection</b>; the 30 built-in games are in the Game Library like every other game, and a version chip lets you pick regions and revisions. Switch on the <b>Extended Library</b> for less-common titles.</div></div>
-<div class="step"><span class="n">2</span><div><b>Bring in what you have.</b> <b>My Collection ▾</b> loads games already set up on this computer or a saved collection file; <b>Add Your Own Game</b> brings in a game file you own.</div></div>
-<div class="step"><span class="n">3</span><div><b>Keep it.</b> Your draft is saved in this browser automatically; <b>Save / Load</b> keeps a portable file (no game files inside).</div></div>
+<div class="step"><span class="n">2</span><div><b>Bring in what you have.</b> <b>My Collections ▾</b> keeps as many named collections as you like and imports saved collection files; <b>Add Your Own Game</b> brings in a game file you own.</div></div>
+<div class="step"><span class="n">3</span><div><b>Keep it.</b> Every collection is saved automatically; <b>Export Collection</b> keeps a portable file (no game files inside) and <b>Share Collection</b> creates a link.</div></div>
 <div class="step"><span class="n">4</span><div><b>Install on NES Classic</b> checks and prepares the collection on this computer and shows, honestly, what the console steps are. <button class="btn sm secondary" type="button" data-guide="start">Open the full guide</button></div></div>
 </div><p class="small" style="margin:12px 0 0">Nothing here downloads games or changes your console. Hakchi2 CE provides the console-side technology — see <a href="#" data-guide="tech">About the Technology</a>.</p></div></section>
 <footer><div class="in"><div class="credits"><p class="small cap">Character credits · the pixel characters shown around the Studio; hover one for its game and origin</p><div class="castwrap"><div class="cast" aria-label="Character credits">__FOOTER_CAST__</div></div></div>
@@ -728,7 +728,7 @@ $('heroGames').textContent=DATA.games.length;
 const tb=$('stickyHead'); const setTb=()=>{ document.documentElement.style.setProperty('--tb-h',(getComputedStyle(tb).position==='sticky'?tb.offsetHeight:$('toolbar').offsetHeight)+'px'); if(window.VL&&VL.items.length) vlSchedule(); }; if(window.ResizeObserver) new ResizeObserver(setTb).observe(tb); setTb(); addEventListener('resize',setTb);
 // ---- collapsible tools section: search, filters, view, stats, connection, alphabet strip and storage fold away; Help, My Collection, Save / Load, Tray and Install stay.
 //      Narrow screens: collapsed until opened. Wide screens: open at the top of the page, collapsed automatically once the reader scrolls into the list; a click pins the choice until the page is scrolled back to the top.
-const FOLD={auto:true,pinned:false,cramped:false,narrow:()=>FOLD.cramped||matchMedia('(max-width:640px)').matches};   // pinned = the reader opened it: stays open until the reader closes it (owner rule)
+const FOLD={auto:false,pinned:true,cramped:false,narrow:()=>FOLD.cramped||matchMedia('(max-width:640px)').matches};   // pinned = the reader opened it: stays open until the reader closes it (owner rule)
 function foldOpen(){ return !$('toolsFold').classList.contains('collapsed'); }
 function setFold(open){ if(foldOpen()===!!open) return; $('toolsFold').classList.toggle('collapsed',!open); $('foldBtn').setAttribute('aria-expanded',String(open)); $('foldBtn').classList.toggle('on',open); setTb(); }
 function foldAuto(){ if(!FOLD.auto||FOLD.pinned) return; setFold(FOLD.narrow()?false:scrollY<=120); }
@@ -854,7 +854,7 @@ def main():
         cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
         return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
-    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js")
+    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
     foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}", "eager") for st, n, g in ROSTER)   # the credits strip walks, so its sprites load up front
     foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}", "eager") for st, n in WEB_ROSTER)

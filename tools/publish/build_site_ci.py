@@ -25,7 +25,7 @@ def main(out: str):
     shutil.copytree(os.path.join(REPO, "tools", "publish", "assets", "home"), os.path.join(out, "brand", "home"), dirs_exist_ok=True)
     subprocess.run([sys.executable, os.path.join(REPO, "tools", "rom-pipeline", "build_html.py"), "--public", "--out", out], check=True, env=dict(os.environ, NES_STUDIO_SITE=out, NES_PUBLIC_BUILD="1"))
     shutil.copy2(os.path.join(out, "nes-catalog.html"), os.path.join(out, "index.html"))
-    shutil.copytree(os.path.join(REPO, "tools", "publish", "site-static"), out, dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
+    shutil.copytree(os.path.join(REPO, "tools", "publish", "site-static"), out, ignore=shutil.ignore_patterns("README.md", "store.sample.json"), dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
     for n in ("favicon.ico", "icon-32.png", "apple-touch-icon.png", "icon-192.png"): shutil.copy2(os.path.join(os.path.join(REPO, "tools", "publish", "assets"), "app-32.png" if n == "icon-32.png" else n), os.path.join(out, n))   # browser tab / home-screen icons
     shutil.copy2(os.path.join(os.path.join(REPO, "tools", "publish", "assets"), "as-seen-on-tv.png"), os.path.join(out, "brand", "public", "as-seen-on-tv.png"))
     if os.path.isdir(os.path.join(REPO, "tools", "publish", "assets", "help")): shutil.copytree(os.path.join(REPO, "tools", "publish", "assets", "help"), os.path.join(out, "brand", "help"), dirs_exist_ok=True)   # Help & User Guide figures   # the Preview on TV badge (Wikimedia Commons PNG, public domain, see THIRD_PARTY_NOTICES)
