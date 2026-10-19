@@ -9,7 +9,8 @@ CE 3.9.3 package with its console tools and USB driver (recorded size and SHA-25
 in _internal\native (ELF 32-bit ARM, statically linked; a Windows PE executable), the bundled site, fonts, helper scripts and
 notices, and the installation's file list (bundle-manifest.json: every listed file present and matching its SHA-256);
 then, in a child process whose only inputs are the release folder (NES_STUDIO_SITE and CCS_NATIVE_HOME_RUNTIME point into it, the
-development build folder is pointed at an empty place), a 12-game deployment package with all four themes is built: ready, no
+development build folder is pointed at an empty place), a deployment package of all 30 factory games and four added ones with all four themes is built (every factory cover
+authentic, from the catalog art in the release site, Excitebike by name): ready, no
 blockers, the packaged runtime byte-identical to the release's; finally the release's Windows renderer loads that package."""
 from __future__ import annotations
 import hashlib, json, os, subprocess, sys, tempfile, shutil, zipfile
@@ -28,11 +29,15 @@ import json, os, sys, tempfile
 sys.path[:0] = [os.environ["CCS_T_HERE"], os.path.join(os.environ["CCS_T_HERE"], "..", "rom-pipeline")]
 from native_home import package as P
 import test_native_home_package as T
-ids = T.factory_ids()[:8] + T.added_ids(4)
+ids = T.factory_ids() + T.added_ids(4)   # all 30 factory games (each by the catalog row that stands for it) and four added ones
 man, home = T.studio_config(ids, theme="featured-shelf", folders=[{"id": "f:a", "name": "Favorites Shelf", "parent": None, "order": ids[:3]}])
 root = os.path.join(os.environ["CCS_T_TMP"], "pkgroot"); r = P.build(man, home, root=root)
 m = json.load(open(os.path.join(root, "current", "manifest.json"), encoding="utf-8")) if r.get("ok") else {}
-print(json.dumps({"ok": r.get("ok"), "error": r.get("error"), "problems": r.get("problems"), "blockers": m.get("blockers"), "status": r.get("status"), "runtime": P.runtime_binary(),
+import library_lookup as LL
+fac = {LL.factory_row(c)["game_id"]: c for c in [b["code"] for b in json.load(open(LL.site_path("builtin.json"), encoding="utf-8"))["games"]]}
+gj = json.load(open(os.path.join(root, "current", "games.json"), encoding="utf-8"))["games"] if r.get("ok") else []
+covers = {g["id"]: [fac.get(g["id"]), g.get("cover_kind"), g.get("cover_source"), (LL._catalog().get(g["id"]) or {}).get("art")] for g in gj if g["id"] in fac}
+print(json.dumps({"ok": r.get("ok"), "error": r.get("error"), "problems": r.get("problems"), "blockers": m.get("blockers"), "status": r.get("status"), "runtime": P.runtime_binary(), "covers": covers,
                   "themes": sorted((json.load(open(os.path.join(root, "current", "pack.json"), encoding="utf-8")).get("themes") or {}).keys()) if r.get("ok") else [], "package": os.path.join(root, "current")}))
 '''
 
@@ -65,6 +70,9 @@ def main(dist: str) -> int:
         ok("package_prepared_from_release_layout", res.get("ok") and not res.get("blockers"), {k: res.get(k) for k in ("error", "problems", "blockers", "status")})
         ok("runtime_comes_from_the_release", res.get("runtime") and os.path.normcase(os.path.abspath(res["runtime"])) == os.path.normcase(os.path.abspath(rt)), res.get("runtime"))
         ok("all_four_themes", res.get("themes") == sorted(["arcade-grid", "box-art-showcase", "featured-shelf", "adventure-map"]), res.get("themes"))
+        cov = res.get("covers") or {}; badc = {k: v for k, v in cov.items() if v[1] != "authentic" or not v[3] or v[2] != v[3]}
+        ok("factory_30_covers_authentic_from_the_release_site", len(cov) == 30 and not badc, badc or len(cov))
+        ok("excitebike_cover_authentic_from_the_release_site", any(v[0] == "CLV-P-NAAHE" and v[1] == "authentic" and v[2] == v[3] for v in cov.values()), [v for v in cov.values() if v[0] == "CLV-P-NAAHE"])
         if res.get("ok"):
             pr = os.path.join(res["package"], "bin", "ccs-home-armv7")
             ok("packaged_runtime_identical", os.path.isfile(pr) and hashlib.sha256(open(pr, "rb").read()).digest() == hashlib.sha256(open(rt, "rb").read()).digest(), pr)

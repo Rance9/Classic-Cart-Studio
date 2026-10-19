@@ -43,7 +43,9 @@ def studio_config(ids: list[str], theme: str = "arcade-grid", folders=None, favo
             "favorites": {"items": {i: {"on": True} for i in favorites}}, "settings": {"reduced_motion": False, "hints": True}, "sample": False}
     return man, home
 
-def factory_ids() -> list[str]: return sorted(k for k, g in CAT.items() if g.get("builtin_status") == "BUILT-IN: EXACT MATCH")
+def factory_ids() -> list[str]:   # all 30 factory games, each by the catalog row that stands for it (library_lookup.factory_row)
+    with open(LL.site_path("builtin.json"), encoding="utf-8") as f: codes = [b["code"] for b in json.load(f)["games"]]
+    return sorted(LL.factory_row(c)["game_id"] for c in codes)
 def added_ids(n: int) -> list[str]:
     return [k for k, g in sorted(CAT.items(), key=lambda kv: kv[1]["display_title"]) if not g.get("builtin_code") and g.get("art_hero")][:n // 2] + \
            [k for k, g in sorted(CAT.items(), key=lambda kv: kv[1]["display_title"]) if not g.get("builtin_code") and not g.get("art_hero")][:n - n // 2]

@@ -80,6 +80,11 @@ jobs:
         run: python tools/publish/write_version_info.py tools/companion/version_info.txt; pyinstaller tools/companion/companion.spec --distpath build/dist --workpath build/work --noconfirm
       - name: Release layout (every required component is bundled and verified; a native HOME package is prepared from the release folder alone)
         run: python tools/companion/test_release_layout.py build/dist/ClassicCartStudioBackend
+      - name: Artwork consistency (every game shows the same cover in the Game Library, Preview on TV and the console package; drawn by the native renderer)
+        env:
+          NES_STUDIO_SITE: ${{ github.workspace }}\build\site
+          CCS_NATIVE_PREVIEW_CORE: ${{ github.workspace }}\build\native\windows-x86_64\ccs-sim-core.exe
+        run: python tools/companion/test_artwork_consistency.py
       - name: Build Classic Cart Studio for Windows (WPF + WebView2 host, .NET Framework 4.8)
         shell: pwsh
         run: |
@@ -136,5 +141,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
+          # the Hakchi2 CE 3.9.3 source archive (tag v3.9.3 with its submodules) accompanies every release as a separate file; the same
+          # archive is carried over from the release that first attached it and verified by its SHA-256 (it is not part of the installer)
+          gh release download v0.6.0 --pattern hakchi2-ce-3.9.3-source.tar.gz --dir build/hakchi-source
+          $src = "build/hakchi-source/hakchi2-ce-3.9.3-source.tar.gz"
+          if ((Get-FileHash -Algorithm SHA256 $src).Hash.ToLower() -ne "dc6e6a4704a9bdb1ca8a0deb746dd41f660b4076ba99b84160af5164f36e5038") { throw "the Hakchi2 CE source archive does not match its recorded SHA-256" }
           python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --out build/release/NOTES.md
-          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/SHA256SUMS.txt build/release/build-info.json --title "Classic Cart Studio $env:APP_VERSION" --notes-file build/release/NOTES.md
+          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/SHA256SUMS.txt build/release/build-info.json $src --title "Classic Cart Studio $env:APP_VERSION" --notes-file build/release/NOTES.md

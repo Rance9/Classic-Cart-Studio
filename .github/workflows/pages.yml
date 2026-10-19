@@ -31,6 +31,10 @@ jobs:
         run: python tools/publish/scan_prohibited.py build/site
       - name: Page checks (structure, no external assets, no private paths, sub-path safe)
         run: python tools/rom-pipeline/test_public_site.py build/site
+      - name: Artwork consistency (the Game Library and Preview on TV show the same cover for every game, the 30 factory games included)
+        env:
+          NES_STUDIO_SITE: ${{ github.workspace }}/build/site
+        run: python tools/companion/test_artwork_consistency.py --no-render
       - name: Attach the latest companion release information for the download section
         env:
           GH_TOKEN: ${{ github.token }}

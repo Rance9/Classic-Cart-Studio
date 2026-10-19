@@ -25,6 +25,17 @@ def _catalog():
     cat = json.load(open(site_path("catalog.json"), encoding="utf-8"))["games"]
     return {g["game_id"]: g for g in cat}
 
+# the catalog row that represents a factory game (one per factory code): its exact factory version when the curated catalog has it,
+# else the catalog's revision of the same game, else an identity-only match. The Studio page uses the same rule (studio.js
+# factoryRowFor) for the collection, the Game Library and the Preview on TV sample, so every view shows the same game and cover.
+FACTORY_PRECEDENCE = ("BUILT-IN: EXACT MATCH", "BUILT-IN: DIFFERENT REVISION", "BUILT-IN: IDENTITY ONLY")
+def factory_row(code: str) -> dict | None:
+    rows = [g for g in _catalog().values() if g.get("builtin_code") == code]
+    for st in FACTORY_PRECEDENCE:
+        for g in rows:
+            if g.get("builtin_status") == st: return g
+    return None
+
 def title_id_for(version_id: str) -> str:
     """Logical title of a version (catalog rows carry no title_id of their own; the index does)."""
     v = _library()["versions"].get(version_id); return v["title_id"] if v else ""

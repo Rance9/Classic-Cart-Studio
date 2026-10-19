@@ -93,6 +93,20 @@ def _art_path(rel: str | None) -> str | None:
     if alias != rel.split("?")[0] and os.path.isfile(site_path(*alias.split("/"))): return site_path(*alias.split("/"))
     return None
 
+def cover_source(g: dict) -> dict:
+    """the one effective-cover rule for a resolved game record (the Studio's catalog view applies the same order: customize.js ovApply,
+    studio.js extRow): the user's replacement > authentic art (catalog art; Extended: the version's own scan, else its title family)
+    > the NES-style mock cover. {"kind": user|authentic|mock, "path": file to derive from, "rel": the site art path, "problem": text
+    when art is listed but cannot be found (the release checks treat that as a failure; at run time the mock cover is shown)}"""
+    u = g.get("art_user")
+    if u and u.get("path") and os.path.isfile(u["path"]): return {"kind": "user", "path": u["path"], "rel": None, "problem": None}
+    rel = g.get("art")
+    if rel and not g.get("cover_generated"):
+        p = _art_path(rel)
+        if p: return {"kind": "authentic", "path": p, "rel": rel.split("?")[0], "problem": None}
+        return {"kind": "mock", "path": None, "rel": rel, "problem": f"artwork listed but not found ({rel})"}
+    return {"kind": "mock", "path": None, "rel": None, "problem": None}
+
 def _extended(version_id: str) -> dict | None:
     lib = LL._library(); v = lib["versions"].get(version_id)
     if not v: return None

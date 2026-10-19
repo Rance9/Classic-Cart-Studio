@@ -83,7 +83,10 @@ function restoreMenu(){ const snaps=JSON.parse(localStorage.getItem(SKEY)||'[]')
 function loadExistingMenu(){ openColl('Load an Existing Collection','', `<div class="opts"><button class="opt" id="leLocal"><b>Games already on this computer</b><span>Find the games that were set up on this computer before (your existing console-management library) and bring them in. Nothing on this computer is changed by looking.</span></button><button class="opt" id="leFile"><b>Saved collection file</b><span>Open a collection you saved earlier with Save / Load → Save Collection to File.</span></button></div>${COMPANION.served?'':'<div class="msgbox warn">Reading games already on this computer needs the Studio started with <code>Start-Catalog.cmd</code> (this page was opened as a file).</div>'}`);
  $('leFile').onclick=()=>{ closeColl(); $('import').click(); }; $('leLocal').onclick=()=>loadLocalLibrary(); }
 // ---- local console-management library (read-only) ----
-function factoryRowFor(code){ return DATA.games.find(g=>g.builtin_code===code&&g.builtin_status==='BUILT-IN: EXACT MATCH')||DATA.games.find(g=>g.builtin_code===code&&g.builtin_status==='BUILT-IN: DIFFERENT REVISION'); }
+/* the one catalog row that stands for a factory game (collection, Game Library, Preview on TV sample): its exact factory version, else
+   the catalog's revision of the same game, else an identity-only match (library_lookup.factory_row keeps the same rule) */
+const FACTORY_PRECEDENCE=['BUILT-IN: EXACT MATCH','BUILT-IN: DIFFERENT REVISION','BUILT-IN: IDENTITY ONLY'];
+function factoryRowFor(code){ for(const st of FACTORY_PRECEDENCE){ const g=(DATA.games||[]).find(x=>x.builtin_code===code&&x.builtin_status===st); if(g) return g; } return null; }
 async function loadLocalLibrary(){ if(!COMPANION.ok){ await companionStatus(); if(!COMPANION.ok){ if(typeof desktopInvite==='function'&&desktopInvite('Reading the games already set up on this computer happens in Classic Cart Studio for Windows.')) return; openConnect('The Studio backend on this computer is not responding.'); return; } }
  openColl('Games already on this computer','reading…', '<div class="msgbox">Looking at the games set up on this computer…</div>');
  const r=await capi('/api/library/local');
