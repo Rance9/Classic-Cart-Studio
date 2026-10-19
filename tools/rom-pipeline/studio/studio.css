@@ -479,3 +479,5 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
  #hkBtn{grid-column:1/-1;order:2}
  #selectMenu{min-width:250px}
 }
+
+body.noshare .shareonly{display:none}

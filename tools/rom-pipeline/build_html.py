@@ -311,7 +311,7 @@ __STUDIO_CSS__
  <span style="flex:1"></span>
  <div class="actions">
  <span class="pair"><button id="trayBtn" class="btn tray" title="The games selected in this collection"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
- <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV: the HOME this collection proposes" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
+ <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
  <button class="btn" id="homeBtn" aria-label="HOME Setup" title="Console HOME for this collection: folders, theme and map shortcuts"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg>HOME Setup</button>
  <button class="btn hk" id="hkBtn" title="Check and prepare this collection on this computer; console installation is shown honestly"><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
  <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Menu: help, backup and restore" title="Help, Studio data backup and restore"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Menu</span></button>

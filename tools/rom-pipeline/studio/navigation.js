@@ -25,6 +25,9 @@
   const dk=$('mDesktop'); if(dk) dk.hidden=!(typeof desktopAvailable==='function'&&desktopAvailable());
   const sep=$('mDesktopSep'); if(sep) sep.hidden=!((tw&&!tw.hidden)||(dk&&!dk.hidden)); }
  caps(); setTimeout(caps,1500); setTimeout(caps,5000); document.addEventListener('visibilitychange',caps);
+ // Share Collection appears only when the sharing service is switched on (share-config.json); never a button that cannot work
+ const shareVis=on=>{ const m=$('mShare'); if(m) m.hidden=!on; document.body.classList.toggle('noshare',!on); };
+ shareVis(false); if(typeof shareConfig==='function') shareConfig().then(shareVis);
  // Continue in Desktop App: choose one, several or all collections (website); Continue on the Website (app)
  on('mDesktop',()=>{ closeMenus(); if(csList().length>1) csTransferPick(ids=>{ closeColl(); startHandoff(ids); }); else desktopInvite(); });
  on('mToWeb',()=>{ closeMenus(); csToWebsite(); });

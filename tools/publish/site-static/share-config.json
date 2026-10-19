@@ -1,0 +1,5 @@
+{
+ "schema": "ccs-share-config/1",
+ "enabled": false,
+ "api": "https://share.classiccartstudio.com"
+}
