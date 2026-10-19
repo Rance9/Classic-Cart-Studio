@@ -114,7 +114,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .hero-inner{position:relative;max-width:min(var(--maxw),2200px);margin:0 auto;padding:14px 28px 4px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr);gap:18px;align-items:center;z-index:1}
 .wordmark{height:22px;width:auto;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
 .hero h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,2.3vw,40px);line-height:1;letter-spacing:-.3px;margin:6px 0 5px;text-transform:uppercase;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.5),0 12px 40px rgba(0,0,0,.6);white-space:nowrap}
-.hero h1 span{color:var(--red3);font-weight:600;letter-spacing:3px;margin-left:8px}
+.hero h1 span{color:var(--red3);font-weight:inherit;letter-spacing:.07em;margin:0 -.07em 0 0}
 .hero p{max-width:680px;color:var(--ink2);font-size:13px;line-height:1.4;margin:0 0 8px}
 .pills{display:flex;flex-wrap:wrap;gap:6px}.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line2);font-size:11.5px;color:var(--ink2)}
 .pill b{font-family:var(--display);font-size:13px;color:#fff}.pill .led{width:8px;height:8px;border-radius:50%;background:var(--red3);box-shadow:0 0 8px var(--red3),0 0 2px #fff inset}
@@ -256,8 +256,8 @@ __STUDIO_CSS__
   <div>
    <img class="wordmark px" src="brand/oem/nes-wordmark.png" alt="Nintendo Entertainment System" width="137" height="15" onerror="this.style.display='none'">
    <h1>Classic Cart<span>Studio</span></h1>
-   <p class="lede">Browse NES games, build <b>your collections</b>, share them, and prepare one for your NES Classic.</p>
-   <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games</span><span class="pill"><b id="heroSel">0</b> selected</span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
+   <p class="lede">Browse NES games, build <b>your collections</b>, share them, and plan <b>NES Classic Loadouts</b> for your console.</p>
+   <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games</span><span class="pill"><b id="heroSel">0</b> <span id="heroSelL">in collection</span></span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
   </div>
   <div class="hardware" aria-hidden="true">
    <svg viewBox="0 0 558 192" xmlns="http://www.w3.org/2000/svg">
@@ -311,9 +311,10 @@ __STUDIO_CSS__
  <span style="flex:1"></span>
  <div class="actions">
  <span class="pair"><button id="trayBtn" class="btn tray" title="The games selected in this collection"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
- <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
- <button class="btn" id="homeBtn" aria-label="HOME Setup" title="Console HOME for this collection: folders, theme and map shortcuts"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg>HOME Setup</button>
- <button class="btn hk" id="hkBtn" title="Check and prepare this collection on this computer; console installation is shown honestly"><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
+ <div class="menuwrap right" id="loWrap"><button id="loBtn" class="btn lobtn" aria-haspopup="menu" title="NES Classic Loadouts: choose which games of this collection go on your NES Classic"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span class="cl"><span class="cap">NES Classic Loadouts</span><span>Prepare for NES Classic</span></span><span class="badge soft" id="loCount" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button><div class="menu wide" id="loMenu" role="menu" hidden></div></div>
+ <button class="tvbtn" id="tvBtn" type="button" hidden title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
+ <button class="btn" id="homeBtn" aria-label="HOME Setup" title="Console HOME for this NES Classic Loadout: folders, theme and map shortcuts" hidden><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg>HOME Setup</button>
+ <button class="btn hk" id="hkBtn" title="Check and prepare this NES Classic Loadout on this computer; console installation is shown honestly" hidden><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
  <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Menu: help, backup and restore" title="Help, Studio data backup and restore"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Menu</span></button>
   <div class="menu wide" id="appMenu" role="menu" hidden>
    <button id="howBtn" class="mi" role="menuitem"><b>Help &amp; User Guide</b><span class="d">The step-by-step guide to everything in the Studio.</span></button>
@@ -327,6 +328,11 @@ __STUDIO_CSS__
  </div>
  <button id="export" hidden></button><button id="importBtn" hidden></button><button id="foldBtn" hidden aria-expanded="true"></button><span id="foldBadge" hidden></span>
  <input type="file" id="sdFile" accept="application/json,.json" hidden><input type="file" id="import" accept="application/json" hidden>
+</div>
+<div class="row lob" id="loBand" hidden role="region" aria-label="NES Classic Loadout being edited">
+ <div class="lob-main"><span class="lob-k"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg>NES Classic Loadout</span><div class="menuwrap"><button id="loName" class="lob-name" aria-haspopup="menu" title="Switch, rename, duplicate or delete loadouts">Loadout <svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button><div class="menu wide" id="loMenu2" role="menu" hidden></div></div><span class="lob-from" id="loFrom"></span><span class="sp"></span><button class="btn" id="loBack" title="Back to the whole collection; this loadout stays saved"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5L5 8l4.5 4.5"/></svg>Back to Collection</button></div>
+ <div class="lob-fig"><span id="loFig"></span><button type="button" class="lob-why" id="loWhy">Will it fit?</button></div>
+ <div class="lob-hint">Checked games are in this loadout. Only games of the collection are listed; unchecking one removes it from this loadout only, the collection keeps it.</div>
 </div>
 <div class="toolsfold" id="toolsFold">
 <div class="row tools">
@@ -353,7 +359,7 @@ __STUDIO_CSS__
 <div class="step"><span class="n">1</span><div><b>Choose.</b> Click any game to add it to <b>My Collection</b>; the 30 built-in games are in the Game Library like every other game, and a version chip lets you pick regions and revisions. Switch on the <b>Extended Library</b> for less-common titles.</div></div>
 <div class="step"><span class="n">2</span><div><b>Bring in what you have.</b> <b>My Collections ▾</b> keeps as many named collections as you like and imports saved collection files; <b>Add Your Own Game</b> brings in a game file you own.</div></div>
 <div class="step"><span class="n">3</span><div><b>Keep it.</b> Every collection is saved automatically; <b>Export Collection</b> keeps a portable file (no game files inside) and <b>Share Collection</b> creates a link.</div></div>
-<div class="step"><span class="n">4</span><div><b>Install on NES Classic</b> checks and prepares the collection on this computer and shows, honestly, what the console steps are. <button class="btn sm secondary" type="button" data-guide="start">Open the full guide</button></div></div>
+<div class="step"><span class="n">4</span><div><b>Prepare for NES Classic</b> picks the games for your console in an <b>NES Classic Loadout</b>, with an estimate of the space they need; <b>Install on NES Classic</b> checks and prepares that loadout on this computer and shows, honestly, what the console steps are. <button class="btn sm secondary" type="button" data-guide="start">Open the full guide</button></div></div>
 </div><p class="small" style="margin:12px 0 0">Nothing here downloads games or changes your console. Hakchi2 CE provides the console-side technology — see <a href="#" data-guide="tech">About the Technology</a>.</p></div></section>
 <footer><div class="in"><div class="credits"><p class="small cap">Character credits · the pixel characters shown around the Studio; hover one for its game and origin</p><div class="castwrap"><div class="cast" aria-label="Character credits">__FOOTER_CAST__</div></div></div>
 <p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · Classic Cart Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
@@ -550,7 +556,7 @@ function render(){ const vis=visible(); const rel=!!searchQuery($('q').value)&&s
  $('heroGames').textContent=games.filter(g=>extOn||!g.ext).length;
  const chosen=window.selectedGames?selectedGames():games.filter(g=>sel.has(g.game_id)); const toInstall=chosen.filter(installRequired); const bytes=toInstall.reduce((a,g)=>a+g.payload_size+16,0); const mib=bytes/1048576; const over=capMiB&&mib>capMiB;
  const selB=[...sel].filter(id=>{ const g=byId[id]; return g&&g.builtin_status&&g.builtin_status.startsWith('BUILT-IN'); }).length;
- $('stats').innerHTML=`${vis.length} shown · <b>${sel.size} selected</b>${selB?` <span class="mut">(${selB} built-in + ${sel.size-selB} added)</span>`:''} · <span class="mut">${window.libCountText?libCountText():games.length+' games'}</span> · ${toInstall.length} to install · ~${fmt(bytes)}${over?` <span class="over">(exceeds the ${storageModel()==='measured'?'measured':'estimated'} space)</span>`:''} · ${fav.size} ★`; $('trayBadge').textContent=sel.size; $('trayBadge').classList.toggle('zero',!sel.size);
+ $('stats').innerHTML=window.statsHtml?statsHtml(vis.length,toInstall.length,bytes,over):`${vis.length} shown · <b>${sel.size} selected</b>${selB?` <span class="mut">(${selB} built-in + ${sel.size-selB} added)</span>`:''} · <span class="mut">${window.libCountText?libCountText():games.length+' games'}</span> · ${toInstall.length} to install · ~${fmt(bytes)}${over?` <span class="over">(exceeds the ${storageModel()==='measured'?'measured':'estimated'} space)</span>`:''} · ${fav.size} ★`; $('trayBadge').textContent=sel.size; $('trayBadge').classList.toggle('zero',!sel.size);
  $('heroSel').textContent=sel.size; $('heroFav').textContent=fav.size;
  const m=$('meter'); if(m){ m.classList.toggle('over',!!over); m.firstElementChild.style.width=(capMiB?Math.min(100,mib/capMiB*100):0).toFixed(1)+'%'; }
  $('storageUse').textContent=capMiB?`to install ~${fmt(bytes)} (${(mib/capMiB*100).toFixed(1)}%)`:'';
@@ -854,7 +860,7 @@ def main():
         cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
         return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
-    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js")
+    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js") + "\n" + part("loadouts.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
     foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}", "eager") for st, n, g in ROSTER)   # the credits strip walks, so its sprites load up front
     foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}", "eager") for st, n in WEB_ROSTER)

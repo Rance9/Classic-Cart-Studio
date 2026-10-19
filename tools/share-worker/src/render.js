@@ -34,6 +34,7 @@ h1{margin:0 0 12px;font-size:clamp(28px,4.4vw,44px);line-height:1.1;overflow-wra
 .stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;padding:0;list-style:none}
 .stats li{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 12px;color:var(--muted);font-size:14px}
 .stats b{color:var(--text);font-size:16px;margin-right:4px}
+.loadouts{margin:0 0 26px}.loadouts h2{font-size:18px;margin:0 0 4px}.loadouts h2 span{color:var(--muted);font-weight:500}.loadouts .note{color:var(--muted);margin:0 0 8px;font-size:14px}.loadouts ul{margin:0;padding:0 0 0 18px}.loadouts li{margin:2px 0}
 .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:8px;font-weight:700;text-decoration:none}
 .btn.primary{background:var(--red);color:#fff;box-shadow:0 4px 0 #8a0009}
@@ -130,6 +131,14 @@ function gameItem(g, siteOrigin, pageUrl) {
     `</div></li>`;
 }
 
+// the collection's NES Classic Loadouts: named sets of its games planned for an NES Classic
+function loadoutsBlock(snap) {
+  const list = Array.isArray(snap.loadouts) ? snap.loadouts : [];
+  if (!list.length) return '';
+  return `<section class="loadouts"><h2>NES Classic Loadouts <span>${list.length}</span></h2><p class="note">Sets of these games planned for an NES Classic. They come with the collection when you save it.</p><ul>` +
+    list.map((l) => `<li><b>${e(l.name)}</b> · ${l.games.length} game${l.games.length === 1 ? '' : 's'}</li>`).join('') + '</ul></section>\n';
+}
+
 export function renderSharePage(snap, { siteOrigin, shareOrigin }) {
   const pageUrl = `${shareOrigin}/c/${snap.id}`;
   const imageUrl = `${pageUrl}/card.png`;
@@ -179,7 +188,7 @@ ${when ? `<p class="when">Shared ${e(when)}</p>` : ''}
 </div>
 <figure class="card"><img src="/c/${e(snap.id)}/card.png" width="1200" height="630" alt="${e(imageAlt)}"></figure>
 </section>
-<section class="games">
+${loadoutsBlock(snap)}<section class="games">
 <h2>Games in this collection <span>${count}</span></h2>
 <ul class="grid">
 ${snap.games.map((g) => gameItem(g, siteOrigin, pageUrl)).join('\n')}

@@ -1,19 +1,27 @@
 // Strict validation of the ccs-share/2 publish payload. Every game of a
 // collection is accepted whatever its source (catalog, extended, personal,
 // unknown); nothing is dropped or truncated. Over-limit requests are rejected.
+// The limits are resource safeguards for the public service, not collection
+// sizes: the request body limit (worker.js) is the real bound; the counts below
+// sit far above any real NES collection (the whole known NES library is about
+// 4,500 versions) so that a complete library with personal games always fits.
+// A collection's NES Classic Loadouts (named subsets planned for a console)
+// travel with it: each lists ids of games in this snapshot.
 import { HttpError } from './util.js';
 
 export const SCHEMA = 'ccs-share/2';
-export const MAX_GAMES = 2000;
-export const MAX_THUMBS = 400;
+export const MAX_GAMES = 50000;
+export const MAX_THUMBS = 10000;
 export const MAX_THUMB_BYTES = 48 * 1024; // decoded JPEG size limit
 export const MAX_FOLDERS = 100;
 export const MAX_IMAGE_BYTES = 700 * 1024; // decoded PNG size limit
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
-export const MAX_STAT = 5000;
+export const MAX_STAT = 50000;
+export const MAX_LOADOUTS = 100;
 
-const TOP_KEYS = new Set(['schema', 'name', 'description', 'games', 'stats', 'home', 'image', 'thumbs']);
+const TOP_KEYS = new Set(['schema', 'name', 'description', 'games', 'stats', 'home', 'image', 'thumbs', 'loadouts']);
+const LOADOUT_KEYS = new Set(['name', 'games', 'home']);
 const GAME_KEYS = new Set(['id', 'title', 'version', 'year', 'publisher', 'source', 'art', 'thumb', 'content_sha256', 'file_sha256', 'size']);
 const STATS_KEYS = ['games', 'factory', 'added', 'personal', 'unavailable'];
 const HOME_KEYS = new Set(['theme', 'folders']);
@@ -118,9 +126,9 @@ function validateGame(g, i, thumbCount) {
   return out;
 }
 
-function validateHome(home, ids) {
-  if (!isPlainObject(home)) throw invalid('home must be an object.', 'bad_home');
-  checkKeys(home, HOME_KEYS, 'home');
+function validateHome(home, ids, at = 'home') {
+  if (!isPlainObject(home)) throw invalid(`${at} must be an object.`, 'bad_home');
+  checkKeys(home, HOME_KEYS, at);
   let theme = '';
   if (home.theme !== undefined) {
     if (typeof home.theme !== 'string' || !THEMES.has(home.theme)) {
@@ -133,7 +141,7 @@ function validateHome(home, ids) {
     if (!Array.isArray(home.folders)) throw invalid('home.folders must be an array.', 'bad_home');
     if (home.folders.length > MAX_FOLDERS) throw invalid(`home.folders must contain at most ${MAX_FOLDERS} folders.`, 'bad_home');
     home.folders.forEach((f, i) => {
-      const where = `home.folders[${i}]`;
+      const where = `${at}.folders[${i}]`;
       if (!isPlainObject(f)) throw invalid(`${where} must be an object.`, 'bad_home');
       checkKeys(f, FOLDER_KEYS, where);
       const name = text(f.name, `${where}.name`, 1, 60);
@@ -152,6 +160,27 @@ function validateHome(home, ids) {
     });
   }
   return { theme, folders };
+}
+
+function validateLoadouts(list, ids) {
+  if (!Array.isArray(list)) throw invalid('loadouts must be an array.', 'bad_loadout');
+  if (list.length > MAX_LOADOUTS) throw invalid(`A shared collection can include at most ${MAX_LOADOUTS} NES Classic Loadouts; this one has ${list.length}.`, 'too_many_loadouts');
+  return list.map((l, i) => {
+    const where = `loadouts[${i}]`;
+    if (!isPlainObject(l)) throw invalid(`${where} must be an object.`, 'bad_loadout');
+    checkKeys(l, LOADOUT_KEYS, where);
+    const name = text(l.name, `${where}.name`, 1, 60);
+    if (!Array.isArray(l.games)) throw invalid(`${where}.games must be an array.`, 'bad_loadout');
+    const seen = new Set();
+    l.games.forEach((id, j) => {
+      if (typeof id !== 'string' || !ids.has(id)) throw invalid(`${where}.games[${j}] is not the id of a game in this collection.`, 'bad_loadout');
+      if (seen.has(id)) throw invalid(`${where}.games[${j}] appears more than once.`, 'bad_loadout');
+      seen.add(id);
+    });
+    const out = { name, games: l.games.slice() };
+    if (l.home !== undefined) out.home = validateHome(l.home, ids, `${where}.home`);
+    return out;
+  });
 }
 
 export function validatePublish(body) {
@@ -189,6 +218,9 @@ export function validatePublish(body) {
   let home;
   if (body.home !== undefined) home = validateHome(body.home, ids);
 
+  let loadouts;
+  if (body.loadouts !== undefined) loadouts = validateLoadouts(body.loadouts, ids);
+
   let stats;
   if (body.stats !== undefined) {
     if (!isPlainObject(body.stats)) throw invalid('stats must be an object.');
@@ -208,6 +240,7 @@ export function validatePublish(body) {
   const snapshot = { schema: SCHEMA, name, description, games };
   if (stats) snapshot.stats = stats;
   if (home) snapshot.home = home;
+  if (loadouts && loadouts.length) snapshot.loadouts = loadouts;
   return { snapshot, png, thumbs };
 }
 

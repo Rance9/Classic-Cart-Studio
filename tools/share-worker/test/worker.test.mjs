@@ -352,8 +352,8 @@ async function main() {
   await bad('reject negative size', payload({ games: [{ id: 'abc', title: 'X', size: -1 }] }), 'invalid_payload');
   const dup = await bad('reject duplicate game id', payload({ games: [{ id: 'p_0123456789abcdef', title: 'A' }, { id: 'p_0123456789abcdef', title: 'B' }] }), 'duplicate_game');
   check('duplicate message names the id', ((await dup.json()).error || '').includes('p_0123456789abcdef'));
-  const over = await bad('reject 2001 games', payload({ games: Array.from({ length: 2001 }, (_, i) => ({ id: hex16(i), title: `G${i}` })) }), 'too_many_games');
-  check('2001 games message', (await over.json()).error === 'A shared collection can hold at most 2000 games; this one has 2001.');
+  const over = await bad('reject 50001 games (resource safeguard)', payload({ games: Array.from({ length: 50001 }, (_, i) => ({ id: hex16(i), title: `G${i}` })) }), 'too_many_games');
+  check('50001 games message', (await over.json()).error === 'A shared collection can hold at most 50000 games; this one has 50001.');
   await bad('reject thumb index past thumbs', payload({ games: [{ id: 'abc', title: 'X', thumb: 1 }], thumbs: [makeJpeg().toString('base64')] }), 'bad_thumb_index');
   await bad('reject thumb index with no thumbs', payload({ games: [{ id: 'abc', title: 'X', thumb: 0 }] }), 'bad_thumb_index');
   await bad('reject thumb index -2', payload({ games: [{ id: 'abc', title: 'X', thumb: -2 }], thumbs: [makeJpeg().toString('base64')] }), 'bad_thumb_index');
@@ -363,7 +363,7 @@ async function main() {
   await bad('reject thumb not base64', payload({ thumbs: ['***'] }), 'bad_thumb');
   await bad('reject thumb not a string', payload({ thumbs: [5] }), 'bad_thumb');
   await bad('reject thumb over 48 KB', payload({ thumbs: [makeJpeg(48 * 1024).toString('base64')] }), 'thumb_too_large');
-  await bad('reject 401 thumbs', payload({ thumbs: Array.from({ length: 401 }, () => makeJpeg(4).toString('base64')) }), 'too_many_thumbs');
+  await bad('reject 10001 thumbs', payload({ thumbs: Array.from({ length: 10001 }, () => makeJpeg(4).toString('base64')) }), 'too_many_thumbs');
   await bad('reject home folder with unknown game id', payload({ home: { theme: 'arcade-grid', folders: [{ name: 'F', order: ['a1b2c3d4e5f60718', 'nope'] }] } }), 'bad_home');
   await bad('reject home unknown key', payload({ home: { theme: '', layout: 1 } }), 'unknown_field');
   await bad('reject home folder unknown key', payload({ home: { folders: [{ name: 'F', order: [], color: 'red' }] } }), 'unknown_field');
@@ -378,7 +378,7 @@ async function main() {
   await bad('reject 121-char title', payload({ games: [{ id: hex16(1), title: 't'.repeat(121) }] }), 'invalid_payload');
   await bad('reject 9-char year', payload({ games: [{ id: hex16(1), title: 'X', year: '198501011' }] }), 'invalid_payload');
   await bad('reject wrong schema', payload({ schema: 'ccs-share/1' }), 'bad_schema');
-  await bad('reject stats out of range', payload({ stats: { games: 5001 } }), 'invalid_payload');
+  await bad('reject stats out of range', payload({ stats: { games: 50001 } }), 'invalid_payload');
   await bad('reject stats non-integer', payload({ stats: { games: 1.5 } }), 'invalid_payload');
   await bad('reject stats unknown key', payload({ stats: { games: 1, extra: 2 } }), 'unknown_field');
   await bad('reject games not array', payload({ games: {} }), 'invalid_payload');
@@ -394,21 +394,32 @@ async function main() {
   await bad('reject missing content type', JSON.stringify(payload()), 'unsupported_media_type', 415, { contentType: '' });
   await bad('reject invalid JSON', '{"schema":', 'invalid_json');
   await bad('reject JSON array body', [], 'invalid_payload');
-  const huge = JSON.stringify(payload({ description: 'x'.repeat(8_000_001) }));
+  const huge = JSON.stringify(payload({ description: 'x'.repeat(24_000_001) }));
   const big413 = await bad('oversized body (streamed) 413', huge, 'payload_too_large', 413);
-  check('413 message', (await big413.json()).error === 'The collection is too large to share (limit 8 MB).');
+  check('413 message', (await big413.json()).error === 'The shared copy is larger than the sharing service accepts in one request (limit 24 MB).');
   await bad('oversized Content-Length 413', huge, 'payload_too_large', 413, { extraHeaders: { 'content-length': String(Buffer.byteLength(huge)) } });
   const okCharset = await publish(env, payload(), { contentType: 'application/json; charset=utf-8' });
   check('accept application/json; charset=utf-8', okCharset.status === 201, `got ${okCharset.status}`);
   const okData = await publish(env, payload({ image: `data:image/png;base64,${GOOD_B64}`, name: 'N'.repeat(80), stats: undefined, description: undefined }));
   check('accept data: URL image, 80-char name, no stats/description', okData.status === 201, `got ${okData.status}`);
-  const max = await publish(env, payload({ games: Array.from({ length: 2000 }, (_, i) => ({ id: hex16(i), title: `Game ${i}`, thumb: i < 100 ? i : -1 })), thumbs: Array.from({ length: 100 }, () => makeJpeg(40 * 1024).toString('base64')) }));
-  check('accept exactly 2000 games with 100 x 40 KB thumbs (body under 8 MB)', max.status === 201, `got ${max.status}`);
-  const maxJ = await (await call(env, 'GET', `/api/c/${(await max.json()).id}`)).json();
-  check('2000-game snapshot returns all 2000 games', maxJ.games.length === 2000 && maxJ.games[1999].id === hex16(1999));
+  // a complete library with personal games: more games than the old 2,000 limit, with three NES Classic Loadouts
+  const big = Array.from({ length: 6000 }, (_, i) => ({ id: i < 5990 ? hex16(i) : `p_${hex16(i)}`, title: `Game ${i}`, source: i < 5990 ? 'catalog' : 'personal', thumb: i < 100 ? i : -1 }));
+  const los = [{ name: 'Family Favorites', games: big.slice(0, 35).map((g) => g.id) }, { name: 'Everything', games: big.map((g) => g.id), home: { theme: 'adventure-map', folders: [{ name: 'Mine', order: [big[5995].id] }] } }, { name: 'Personal', games: big.slice(5990).map((g) => g.id) }];
+  const max = await publish(env, payload({ games: big, thumbs: Array.from({ length: 100 }, () => makeJpeg(40 * 1024).toString('base64')), loadouts: los }));
+  check('accept 6000 games with 100 x 40 KB thumbs and 3 loadouts', max.status === 201, `got ${max.status}`);
+  const maxId = (await max.json()).id; const maxJ = await (await call(env, 'GET', `/api/c/${maxId}`)).json();
+  check('6000-game snapshot returns all 6000 games', maxJ.games.length === 6000 && maxJ.games[5999].id === big[5999].id);
+  check('snapshot returns every loadout with its exact games and HOME settings', JSON.stringify(maxJ.loadouts) === JSON.stringify([{ name: 'Family Favorites', games: los[0].games }, { name: 'Everything', games: los[1].games, home: los[1].home }, { name: 'Personal', games: los[2].games }]));
+  const maxPage = await (await call(env, 'GET', `/c/${maxId}`, { headers: { 'user-agent': 'Mozilla/5.0' } })).text();
+  check('share page lists the loadouts', maxPage.includes('NES Classic Loadouts') && maxPage.includes('Family Favorites') && maxPage.includes('35 games'));
+  await bad('reject loadout with a game not in the collection', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: [{ name: 'L', games: ['zzz'] }] }), 'bad_loadout');
+  await bad('reject loadout listing a game twice', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: [{ name: 'L', games: ['abc', 'abc'] }] }), 'bad_loadout');
+  await bad('reject loadout without a name', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: [{ games: ['abc'] }] }), 'invalid_payload');
+  await bad('reject unknown loadout field', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: [{ name: 'L', games: ['abc'], path: 'C:/x' }] }), 'unknown_field');
+  await bad('reject 101 loadouts', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: Array.from({ length: 101 }, (_, i) => ({ name: `L${i}`, games: ['abc'] })) }), 'too_many_loadouts');
   const t400 = await publish(env, payload({ games: [{ id: 'abc', title: 'X', thumb: 399 }], thumbs: Array.from({ length: 400 }, () => makeJpeg(8).toString('base64')) }));
   check('accept exactly 400 thumbs', t400.status === 201, `got ${t400.status}`);
-  check('stats up to 5000 accepted', (await publish(env, payload({ stats: { games: 5000, factory: 30, added: 4970, personal: 5000, unavailable: 0 } }))).status === 201);
+  check('stats up to 50000 accepted', (await publish(env, payload({ stats: { games: 50000, factory: 30, added: 49970, personal: 5000, unavailable: 0 } }))).status === 201);
 
   // --- CORS ---
   const pre = (origin) => call(env, 'OPTIONS', '/api/publish', { headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type' } });

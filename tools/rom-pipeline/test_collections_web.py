@@ -146,10 +146,14 @@ def main():
             ok("instagram_desktop_fallback_honest", "instagram.com" in ed.js("JSON.stringify(window.__opened)") and "caption" in ed.js("$('shHint').textContent"), ed.js("$('shHint').textContent"))
             closeall = ed.js("document.getElementById('savem')&&document.getElementById('savem').classList.remove('open'); 1")
             sender_before = sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{aid}'].sel)")))
-        # ---------------- sharing switched off (share-config.json as shipped): no Share Collection anywhere ----------------
+        # ---------------- without a test service: Share Collection follows share-config.json as shipped ----------------
         with EdgeSession(width=1280, height=900, profile=prof3) as ed:
             ed.navigate(f"{WEB}/index.html"); ed.wait_for(READY, timeout=120); time.sleep(1.5)
-            ok("share_hidden_when_service_off", ed.js("$('mShare').hidden&&SHARE_ON===false&&document.body.classList.contains('noshare')"))
+            cfg = {}
+            try: cfg = json.load(open(os.path.join(a.site, "share-config.json"), encoding="utf-8"))
+            except Exception: pass
+            if cfg.get("enabled") is True: ok("share_follows_share_config_on", ed.js("!$('mShare').hidden&&SHARE_ON===true&&SHARE_API===" + json.dumps(cfg.get("api"))))
+            else: ok("share_hidden_when_service_off", ed.js("$('mShare').hidden&&SHARE_ON===false&&document.body.classList.contains('noshare')"))
         # ---------------- session 2: the same profile after a browser restart ----------------
         with EdgeSession(width=1440, height=900, profile=prof) as ed:
             ed.navigate(URL); ed.wait_for(READY, timeout=120)
