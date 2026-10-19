@@ -23,8 +23,8 @@ import {
   clientIp,
 } from './util.js';
 
-export const MAX_BODY_BYTES = 8_000_000;
-const BODY_TOO_LARGE = 'The collection is too large to share (limit 8 MB).';
+export const MAX_BODY_BYTES = 24_000_000;   // the service's resource limit for one publish request (game list, loadouts, thumbnails, card image)
+const BODY_TOO_LARGE = 'The shared copy is larger than the sharing service accepts in one request (limit 24 MB).';
 export const PUBLISH_PER_HOUR = 20;
 export const UNPUBLISH_PER_HOUR = 60;
 const ID_PATTERN = /^[0-9A-Za-z]{10}$/;
@@ -180,6 +180,7 @@ function publicSnapshot(record, shareOrigin) {
   };
   if (record.stats) out.stats = record.stats;
   if (record.home) out.home = record.home;
+  if (Array.isArray(record.loadouts) && record.loadouts.length) out.loadouts = record.loadouts;
   out.created = record.created;
   out.url = url;
   out.image_url = `${url}/card.png`;

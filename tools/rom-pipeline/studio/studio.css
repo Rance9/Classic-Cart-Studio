@@ -96,7 +96,7 @@
 .stickyhead{position:sticky;top:0;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .toolbar{position:static;box-shadow:none}
 .hero-inner{padding:6px 20px 0;gap:14px;grid-template-columns:minmax(0,1fr) auto;align-items:center}
-.hero .wordmark{height:15px;width:137px}   /* the pixel-art wordmark at its natural 1x size: any other scale blurs it */.hero h1{font-size:clamp(20px,1.5vw,26px);margin:2px 0 2px}.hero h1 span{letter-spacing:2px;margin-left:6px}
+.hero .wordmark{height:15px;width:137px}   /* the pixel-art wordmark at its natural 1x size: any other scale blurs it */.hero h1{font-size:clamp(20px,1.5vw,26px);margin:2px 0 2px}
 .hero .lede{font-size:12px;line-height:1.3;margin:0 0 4px;max-width:none}
 .hero .pills{gap:5px;margin-bottom:4px}.pill{padding:2px 8px;font-size:11px}.pill b{font-size:12px}
 .hero .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -173,7 +173,7 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
  #filters .fgrid{grid-template-columns:1fr}#filters .mbox{width:100vw;max-width:100vw;border-radius:0}
  .hero-inner{padding:6px 12px 0}.hero h1{font-size:17px}.parade{height:46px}
 }
-@media (max-width:400px){.actions .btn,.row.tools .btn{font-size:12px;padding:8px 6px}.hero h1 span{letter-spacing:1px;margin-left:4px}}
+@media (max-width:400px){.actions .btn,.row.tools .btn{font-size:12px;padding:8px 6px}}
 /* ---- collapsible tools section ---- */
 .toolsfold{display:flex;flex-direction:column;gap:6px}.toolsfold.collapsed{display:none}
 .foldbtn{font-weight:600}.foldbtn .chev{width:10px;height:6px;margin-left:2px;transition:transform .2s var(--ease)}.foldbtn[aria-expanded="false"] .chev{transform:rotate(-90deg)}
@@ -367,7 +367,8 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 @media (max-width:640px){.row.sub{flex-direction:column;align-items:stretch}.row.sub .letters,.row.sub .chips{flex:0 0 auto;width:100%;justify-content:center}}
 .chips .none{font-size:12px;color:var(--muted);white-space:nowrap}
 /* the Classic Cart Studio logo (pixel-art cartridge) in the hero title, the welcome and the guide header */
-.hero h1{display:flex;align-items:center;flex-wrap:wrap;gap:0 .3em}.hero h1 .logo{height:1em;width:auto;margin:0;image-rendering:pixelated;flex:none}
+/* one horizontal logo: both words on one baseline, a word space apart, at every width */
+.hero h1{display:flex;align-items:baseline;flex-wrap:nowrap;gap:0 .27em}.hero h1 .logo{align-self:center;height:1em;width:auto;margin:0;image-rendering:pixelated;flex:none}
 #welcome h2{display:block;word-spacing:.35em;line-height:1.7}#welcome h2 .logo{height:1.5em;width:auto;margin:0 .5em 0 0;vertical-align:middle;image-rendering:pixelated;display:inline-block}#welcome h2 span{white-space:nowrap}
 #guide .ghd h2{word-spacing:.3em}
 #guide .ghd .logo{width:28px;height:28px;image-rendering:pixelated;flex:none}
@@ -482,3 +483,29 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 
 body.noshare .shareonly{display:none}
 .shg.away{opacity:.75}.shg .small.away{color:var(--gold,#f2b632)}.trmiss .tag{margin-right:6px}
+
+/* ---- NES Classic Loadouts: the collection bar entry, the loadout band shown while one is edited, dialogs ---- */
+.lobtn .cl{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;text-align:left}.lobtn .cl .cap{font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lobtn{border-color:rgba(228,0,15,.45)}.lobtn:hover{border-color:var(--red3)}
+.row.lob{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px 12px 9px;border:1px solid rgba(228,0,15,.55);border-left:5px solid var(--red3);border-radius:var(--r2);background:linear-gradient(90deg,rgba(228,0,15,.16),rgba(228,0,15,.04) 60%,rgba(255,255,255,.02))}
+.lob-main{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.lob-main .sp{flex:1}
+.lob-k{display:inline-flex;align-items:center;gap:6px;font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#fff;background:var(--red);border-radius:999px;padding:3px 10px 3px 8px}.lob-k svg{width:15px;height:15px}
+.lob-name{font:700 18px/1.15 var(--display);color:#fff;background:none;border:1px solid transparent;border-radius:8px;padding:2px 6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;max-width:min(52vw,520px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lob-name:hover,.lob-name:focus-visible{border-color:var(--line2);background:rgba(255,255,255,.05)}
+.lob-from{font-size:13px;color:var(--ink2)}.lob-from b{color:#fff}
+.lob-fig{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;font-size:13px;color:var(--ink2)}.lob-fig b{color:#fff}.lob-fig .dot{color:var(--dim);margin:0 2px}.lob-fig .mut{color:var(--muted)}
+.lob-fig .meter{display:inline-block;width:110px;height:8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line2);overflow:hidden;margin:0 4px}.lob-fig .meter i{display:block;height:100%;background:linear-gradient(90deg,var(--pipe),var(--gold))}.lob-fig .meter.bad i{background:var(--red)}.lob-fig .meter.warn i{background:var(--gold)}
+.lost{font-weight:700}.lost.ok{color:var(--ok)}.lost.warn{color:var(--gold)}.lost.bad{color:#ff6b73}.lost.na{color:var(--muted)}
+.lob-why{background:none;border:none;color:var(--ink2);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:0 2px;margin-left:4px}.lob-why:hover{color:#fff}
+.lob-hint{font-size:12px;color:var(--muted)}
+body.lomode .toolbar{box-shadow:inset 0 3px 0 var(--red3),0 8px 30px rgba(0,0,0,.45)}
+body:not(.lomode) [data-tvfocus]{display:none}
+.lohead{font-family:var(--display);font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
+.lolist{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}.lorow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--bg1)}.lorow .lon{flex:1;min-width:0;display:flex;flex-direction:column}.lorow .lon b{color:#fff}
+.lochoice{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px}.lochoice .lc{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--bg1);cursor:pointer}.lochoice .lc:has(input:checked){border-color:var(--red3);background:rgba(228,0,15,.08)}.lochoice .lc.off{opacity:.55;cursor:default}
+.lochoice .lc input[type=radio]{margin-top:3px;accent-color:var(--red3)}.lochoice .lc>span{display:flex;flex-direction:column;gap:2px}.lochoice .lc b{color:#fff}
+.menu .mempty{padding:8px 12px;color:var(--muted);max-width:340px}
+.lotray{margin-top:6px;padding:6px 8px;border-left:3px solid var(--red3);background:rgba(228,0,15,.07);border-radius:4px;color:var(--ink2)}.lotray .btn{margin-left:6px}
+.shlo{margin:8px 0;padding:8px 10px;border:1px solid var(--line2);border-radius:var(--r2)}.shlo ul{margin:4px 0 0 18px;padding:0}
+details.lotech summary{cursor:pointer;color:var(--ink2);font-size:12.5px;margin-top:8px}
+@media (max-width:640px){.lob-name{font-size:16px;max-width:100%}.lob-main .sp{display:none}.lob-main{gap:6px}#loBack{margin-left:auto}.lob-fig .meter{width:70px}.lobtn .cl .cap{display:none}.lob-hint{display:none}}
+.pv.lofit{width:100%}.pv.lofit td:first-child{width:auto;white-space:normal}.pv.lofit td:last-child{width:1%}
