@@ -295,8 +295,8 @@ class Builder:
     def _swap(self) -> str:
         """the validated staging tree replaces the current package in one rename; the previous package goes after the swap"""
         name = {"deployment": "current", "development": "development", "preview": "preview"}[self.cfg["mode"]]; final = os.path.join(self.root, name); old = None
-        if os.path.isdir(final): old = final + f".old-{uuid.uuid4().hex[:6]}"; os.replace(final, old)
-        os.replace(self.stage, final); self.stage = None
+        if os.path.isdir(final): old = final + f".old-{uuid.uuid4().hex[:6]}"; _replace_retry(final, old)
+        _replace_retry(self.stage, final); self.stage = None
         if old: self._remove_owned(old)
         return final
 
@@ -305,6 +305,14 @@ class Builder:
         d = os.path.abspath(d)
         if os.path.dirname(d) != os.path.abspath(self.root) or not os.path.isfile(os.path.join(d, OWNED)): raise RuntimeError(f"refusing to remove {d}: not a native HOME package directory")
         shutil.rmtree(d)
+
+def _replace_retry(src: str, dst: str, tries: int = 8):
+    """a folder rename that waits out a moment's lock (a virus scanner or the search indexer reading the freshly written files)"""
+    for i in range(tries):
+        try: os.replace(src, dst); return
+        except PermissionError:
+            if i == tries - 1: raise
+            time.sleep(0.25 * (i + 1))
 
 def next_apply_epoch(root: str) -> int:
     """each explicit "apply the Windows default theme" request gets a new number; the console applies a number once and then

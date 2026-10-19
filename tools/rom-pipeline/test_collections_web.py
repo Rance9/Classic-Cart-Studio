@@ -46,7 +46,7 @@ def main():
     web = serve(a.site); WEB = f"http://127.0.0.1:{web.server_address[1]}"
     sport = free_port(); SHARE = f"http://127.0.0.1:{sport}"
     node = shutil.which("node"); dev = subprocess.Popen([node, os.path.join(TOOLS, "share-worker", "test", "dev-server.mjs"), str(sport), WEB], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    prof = tempfile.mkdtemp(prefix="ccs-web-profile-"); prof2 = tempfile.mkdtemp(prefix="ccs-web-clean-")
+    prof = tempfile.mkdtemp(prefix="ccs-web-profile-"); prof2 = tempfile.mkdtemp(prefix="ccs-web-clean-"); prof3 = tempfile.mkdtemp(prefix="ccs-web-off-")
     URL = f"{WEB}/index.html?shareapi={SHARE}"
     READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csList==='function'&&document.readyState==='complete'"
     try:
@@ -66,6 +66,7 @@ def main():
             st = json.loads(st)
             ok("migration_keeps_the_existing_collection", st["n"] == 1 and st["name"] == "My Old Collection" and st["sel"] == ["e9f4c9d1b7c66c6a", "fcb6a0ef3a20c19b"] and st["dec"] == {"e9f4c9d1b7c66c6a": "factory"} and st["home"] == "adventure-map" and st["folders"] == 1 and "0.6.1" in st["src"] and st["keep"], st)
             ok("website_needs_no_backend", st["web"] == "web", st["web"])
+            ok("share_shown_when_the_service_is_configured", ed.js("!$('mShare').hidden&&SHARE_ON===true"))
             ed.navigate(URL); ed.wait_for(READY, timeout=120)
             ok("migration_is_idempotent", ed.js("csList().length") == 1)
             pick = json.loads(ed.js("JSON.stringify(DATA.games.filter(g=>!g.builtin_code).slice(0,6).map(g=>g.game_id))"))
@@ -145,6 +146,10 @@ def main():
             ok("instagram_desktop_fallback_honest", "instagram.com" in ed.js("JSON.stringify(window.__opened)") and "caption" in ed.js("$('shHint').textContent"), ed.js("$('shHint').textContent"))
             closeall = ed.js("document.getElementById('savem')&&document.getElementById('savem').classList.remove('open'); 1")
             sender_before = sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{aid}'].sel)")))
+        # ---------------- sharing switched off (share-config.json as shipped): no Share Collection anywhere ----------------
+        with EdgeSession(width=1280, height=900, profile=prof3) as ed:
+            ed.navigate(f"{WEB}/index.html"); ed.wait_for(READY, timeout=120); time.sleep(1.5)
+            ok("share_hidden_when_service_off", ed.js("$('mShare').hidden&&SHARE_ON===false&&document.body.classList.contains('noshare')"))
         # ---------------- session 2: the same profile after a browser restart ----------------
         with EdgeSession(width=1440, height=900, profile=prof) as ed:
             ed.navigate(URL); ed.wait_for(READY, timeout=120)
@@ -174,7 +179,7 @@ def main():
         ok("invalid_publish_rejected", rej)
     finally:
         dev.kill(); web.shutdown()
-        for p in (prof, prof2): shutil.rmtree(p, ignore_errors=True)
+        for p in (prof, prof2, prof3): shutil.rmtree(p, ignore_errors=True)
     bad = [k for k, v, _ in checks if not v]; print("RESULT:", "PASS" if not bad else "FAIL " + json.dumps(bad), f"({len(checks)} checks; screenshots in {shots})"); return 0 if not bad else 1
 
 if __name__ == "__main__":
