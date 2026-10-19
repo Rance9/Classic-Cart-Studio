@@ -1,7 +1,7 @@
 // Classic Cart Studio share service (Cloudflare Worker, ES module).
 // Routes: POST /api/publish, POST /api/unpublish, GET /api/c/<id>,
-//         GET /c/<id>, GET /c/<id>/card.png, GET / (redirect).
-import { getStore, getCounterStore } from './storage.js';
+//         GET /c/<id>, GET /c/<id>/card.png, GET /c/<id>/t/<n>.jpg, GET / (redirect).
+import { getStore, getCounterStore, inChunks } from './storage.js';
 import { validatePublish, validateUnpublish } from './validate.js';
 import { renderSharePage, renderMessagePage, htmlHeaders } from './render.js';
 import {
@@ -23,11 +23,13 @@ import {
   clientIp,
 } from './util.js';
 
-export const MAX_BODY_BYTES = 1_000_000;
+export const MAX_BODY_BYTES = 8_000_000;
+const BODY_TOO_LARGE = 'The collection is too large to share (limit 8 MB).';
 export const PUBLISH_PER_HOUR = 20;
 export const UNPUBLISH_PER_HOUR = 60;
 const ID_PATTERN = /^[0-9A-Za-z]{10}$/;
 const PAGE_CACHE = 'public, max-age=60';
+const IMAGE_CACHE = 'public, max-age=31536000, immutable';
 
 function config(env, request) {
   const siteOrigin = normalizeOrigin(env.SITE_ORIGIN, 'https://classiccartstudio.com');
@@ -45,7 +47,7 @@ function notFoundJson(extra = {}) {
 
 async function loadRecord(env, id) {
   if (!ID_PATTERN.test(id)) return null;
-  return getStore(env).getJSON(`c:${id}`);
+  return getStore(env).getRecord(id);
 }
 
 // ---- Abuse limits ----
@@ -96,15 +98,15 @@ async function handlePublish(request, env, cfg) {
   await edgeLimit(env, ip);
   const commit = await hourlyLimit(env, 'rl', ip, PUBLISH_PER_HOUR);
 
-  const body = await readJsonBody(request, MAX_BODY_BYTES);
-  const { snapshot, png } = validatePublish(body);
+  const body = await readJsonBody(request, MAX_BODY_BYTES, BODY_TOO_LARGE);
+  const { snapshot, png, thumbs } = validatePublish(body);
   await commit();
 
   const store = getStore(env);
   let id = null;
   for (let attempt = 0; attempt < 5 && !id; attempt++) {
     const candidate = randomId(10);
-    if (!(await store.getJSON(`c:${candidate}`))) id = candidate;
+    if (!(await store.getRecord(candidate))) id = candidate;
   }
   if (!id) throw new HttpError(503, 'id_unavailable', 'Could not allocate an id. Try again.');
 
@@ -113,14 +115,16 @@ async function handlePublish(request, env, cfg) {
     ...snapshot,
     id,
     created: new Date().toISOString(),
+    thumb_count: thumbs.length,
     token_hash: await sha256Hex(token),
   };
 
-  await store.putBytes(`img:${id}`, png, 'image/png');
   try {
-    await store.putJSON(`c:${id}`, record);
+    await store.putCard(id, png);
+    await inChunks(thumbs.map((bytes, n) => [n, bytes]), ([n, bytes]) => store.putThumb(id, n, bytes));
+    await store.putRecord(id, record);
   } catch (err) {
-    await store.delete(`img:${id}`).catch(() => {});
+    await store.deleteAssets(id, thumbs.length).catch(() => {});
     throw err;
   }
 
@@ -141,7 +145,7 @@ async function handleUnpublish(request, env, cfg) {
 
   const { id, token } = validateUnpublish(await readJsonBody(request, 4096));
   const store = getStore(env);
-  const record = await store.getJSON(`c:${id}`);
+  const record = await store.getRecord(id);
   if (!record) return notFoundJson();
   if (record.unpublished) return errorResponse(410, 'unpublished', 'This collection was already unpublished.');
 
@@ -150,10 +154,19 @@ async function handleUnpublish(request, env, cfg) {
     return errorResponse(403, 'forbidden', 'The manage token does not match.');
   }
 
-  await store.delete(`img:${id}`);
+  const thumbCount = Number.isInteger(record.thumb_count) ? record.thumb_count : 0;
+  await store.deleteAssets(id, thumbCount);
   const at = new Date().toISOString();
-  await store.putJSON(`c:${id}`, { unpublished: true, at });
+  await store.putRecord(id, { unpublished: true, at });
   return jsonResponse({ ok: true, id, unpublished: true, at });
+}
+
+export function thumbUrl(pageUrl, n) {
+  return `${pageUrl}/t/${n}.jpg`;
+}
+
+function publicGame(g, pageUrl) {
+  return Number.isInteger(g.thumb) && g.thumb >= 0 ? { ...g, thumb_url: thumbUrl(pageUrl, g.thumb) } : g;
 }
 
 function publicSnapshot(record, shareOrigin) {
@@ -163,9 +176,10 @@ function publicSnapshot(record, shareOrigin) {
     id: record.id,
     name: record.name,
     description: record.description,
-    games: record.games,
+    games: record.games.map((g) => publicGame(g, url)),
   };
   if (record.stats) out.stats = record.stats;
+  if (record.home) out.home = record.home;
   out.created = record.created;
   out.url = url;
   out.image_url = `${url}/card.png`;
@@ -184,7 +198,7 @@ async function handleSnapshotJson(env, cfg, id) {
 
 async function handlePage(env, cfg, id) {
   const record = await loadRecord(env, id);
-  const headers = htmlHeaders(cfg.siteOrigin);
+  const headers = htmlHeaders(cfg.siteOrigin, cfg.shareOrigin);
   if (!record || record.unpublished) {
     const status = record ? 410 : 404;
     return new Response(renderMessagePage(status, cfg), {
@@ -202,13 +216,28 @@ async function handleCard(env, id) {
   const record = await loadRecord(env, id);
   if (!record) return textResponse('Not found.', 404);
   if (record.unpublished) return textResponse('This collection was unpublished.', 410);
-  const bytes = await getStore(env).getBytes(`img:${id}`);
+  const bytes = await getStore(env).getCard(id);
+  return imageResponse(bytes, 'image/png');
+}
+
+async function handleThumb(env, id, nText) {
+  const record = await loadRecord(env, id);
+  if (!record) return textResponse('Not found.', 404);
+  if (record.unpublished) return textResponse('This collection was unpublished.', 410);
+  const n = Number(nText);
+  if (!/^(0|[1-9][0-9]{0,3})$/.test(nText) || !Number.isInteger(record.thumb_count) || n >= record.thumb_count) {
+    return textResponse('Not found.', 404);
+  }
+  return imageResponse(await getStore(env).getThumb(id, n), 'image/jpeg');
+}
+
+function imageResponse(bytes, contentType) {
   if (!bytes) return textResponse('Not found.', 404);
   return new Response(bytes, {
     status: 200,
     headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Content-Type': contentType,
+      'Cache-Control': IMAGE_CACHE,
       'X-Content-Type-Options': 'nosniff',
     },
   });
@@ -259,6 +288,11 @@ async function route(request, env) {
   if ((m = /^\/c\/([^/]+)\/card\.png$/.exec(path))) {
     if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed('GET, HEAD');
     return handleCard(env, m[1]);
+  }
+
+  if ((m = /^\/c\/([^/]+)\/t\/([0-9]+)\.jpg$/.exec(path))) {
+    if (method !== 'GET' && method !== 'HEAD') return methodNotAllowed('GET, HEAD');
+    return handleThumb(env, m[1], m[2]);
   }
 
   if ((m = /^\/c\/([^/]+)\/?$/.exec(path))) {

@@ -481,3 +481,4 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 }
 
 body.noshare .shareonly{display:none}
+.shg.away{opacity:.75}.shg .small.away{color:var(--gold,#f2b632)}.trmiss .tag{margin-right:6px}
