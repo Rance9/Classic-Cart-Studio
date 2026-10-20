@@ -575,8 +575,8 @@ async function main() {
   check('mixed page: "Personal game" label', (mHtml.match(/<span class="s">Personal game<\/span>/g) || []).length === 30);
   check('mixed page: unknown label', (mHtml.match(/<span class="s">Not in the Game Library<\/span>/g) || []).length === 29); // game 118 became a catalog version
   check('mixed page: version lines shown', mHtml.includes('<span class="v">v1.2 (hack)</span>') && mHtml.includes('USA (Rev 0)') && mHtml.includes('USA (Rev 1)'));
-  check('mixed page: stats use total games', mHtml.includes('<li><b>120</b>games</li>') && mHtml.includes('<li><b>30</b>personal</li>'));
-  check('mixed page: header count 120', mHtml.includes('Games in this collection <span>120</span>'));
+  check('mixed page: one summary line with total games and the nonzero counts', mHtml.includes('<p class="sum"><b>120 games</b> · 30 built-in · 90 added · 30 personal · Shared '));
+  check('mixed page: games heading', mHtml.includes('<h2>Games in this collection</h2>'));
   check('mixed page: no script but the hashed search', (mHtml.match(/<script/gi) || []).length === 1);
   // Unpublish removes card and thumbs; the tombstone answers 410.
   const mixUn = await call(mixEnv, 'POST', '/api/unpublish', { body: { id: mixId, token: mixJ.manage_token }, headers: { 'content-type': 'application/json', origin: SITE }, ip: freshIp() });
