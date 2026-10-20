@@ -293,7 +293,8 @@ __STUDIO_CSS__
 </header>
 <div class="toolbar" id="toolbar"><div class="in">
 <div class="row bar">
- <div class="menuwrap"><button id="collBtn" class="btn collbtn" aria-haspopup="menu" title="My Collections: switch, create, import, export or share collections"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span class="cl"><span class="cap">My Collections</span><span id="collName">My Collection</span></span><span class="badge soft" id="collCount">0 games</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
+ <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
+ <div class="menuwrap" id="collWrap"><button id="collBtn" class="btn collbtn" aria-haspopup="menu" title="My Collections: switch, create, import, export or share collections"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span class="cl"><span class="cap">My Collections</span><span id="collName">My Collection</span></span><span class="badge soft" id="collCount">0 games</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
   <div class="menu wide" id="collMenu" role="menu" hidden><div class="mhead"><div class="nm" id="collNameHead"></div><div class="st"><span class="stt" id="collStatus"><i></i>new</span></div></div>
    <div class="mlabel">Open a collection</div><div id="csQuick"></div>
    <div class="sep"></div>
@@ -312,7 +313,7 @@ __STUDIO_CSS__
  <div class="actions">
  <span class="pair"><button id="trayBtn" class="btn tray" title="The games selected in this collection"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
  <div class="menuwrap right" id="loWrap"><button id="loBtn" class="btn lobtn" aria-haspopup="menu" title="NES Classic Loadouts: choose which games of this collection go on your NES Classic"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span class="cl"><span class="cap">NES Classic Loadouts</span><span>Prepare for NES Classic</span></span><span class="badge soft" id="loCount" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button><div class="menu wide" id="loMenu" role="menu" hidden></div></div>
- <button class="tvbtn" id="tvBtn" type="button" hidden title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
+ 
  <button class="btn" id="homeBtn" aria-label="HOME Setup" title="Console HOME for this NES Classic Loadout: folders, theme and map shortcuts" hidden><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg>HOME Setup</button>
  <button class="btn hk" id="hkBtn" title="Check and prepare this NES Classic Loadout on this computer; console installation is shown honestly" hidden><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
  <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Menu: help, backup and restore" title="Help, Studio data backup and restore"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Menu</span></button>
@@ -331,7 +332,7 @@ __STUDIO_CSS__
 </div>
 <div class="row lob" id="loBand" hidden role="region" aria-label="NES Classic Loadout being edited">
  <div class="lob-main"><span class="lob-k"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg>NES Classic Loadout</span><div class="menuwrap"><button id="loName" class="lob-name" aria-haspopup="menu" title="Switch, rename, duplicate or delete loadouts">Loadout <svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button><div class="menu wide" id="loMenu2" role="menu" hidden></div></div><span class="lob-from" id="loFrom"></span><span class="sp"></span><button class="btn" id="loBack" title="Back to the whole collection; this loadout stays saved"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5L5 8l4.5 4.5"/></svg>Back to Collection</button></div>
- <div class="lob-fig"><span id="loFig"></span><button type="button" class="lob-why" id="loWhy">Will it fit?</button></div>
+ <div class="lob-fig"><span id="loFig"></span><span class="lob-sto"><span class="lob-lbl">NES Classic Storage</span><span class="lometer" id="loMeter" role="meter" aria-label="Estimated NES Classic storage used" aria-valuemin="0" aria-valuemax="100"><i></i></span><span id="loUse"></span><span id="loStat" class="lost"></span><button type="button" class="lob-why" id="loWhy">Will it fit?</button></span></div>
  <div class="lob-hint">Checked games are in this loadout. Only games of the collection are listed; unchecking one removes it from this loadout only, the collection keeps it.</div>
 </div>
 <div class="toolsfold" id="toolsFold">
@@ -493,6 +494,7 @@ function playersClass(g){ const p=g.players||''; if(!p) return '?'; if(p==='1') 
 __SEARCH_JS__
 __HOME_JS__
 const HOME_CSS_TEXT=__HOME_CSS__;
+const STORAGE_MODEL=__STORAGE_MODEL__;
 const HOME_ART=__HOME_ART__;
 function visible(){ const q=searchQuery($('q').value); const fz=q?searchFuzzy(q, games):false; const y=$('fYear').value,p=$('fPub').value,l=$('fLic').value,ge=$('fGenre').value,pl=$('fPlayers').value,e=$('fEmu').value,v=$('fVer').value,bi=$('fBuilt').value,s=$('fSel').value,rkf=$('fRank').value,inf=$('fInput').value;
  return games.filter(g=>{
@@ -811,6 +813,12 @@ def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title
     if not f: return ""
     return f'<img class="px {cls}" src="brand/{folder}/{stem}.png" width="{f["w"]*scale}" height="{f["h"]*scale}" alt="" title="{title}" loading="{loading}">'
 
+def _storage_model():
+    """the NES Classic storage model the installation plan uses (tools/companion/console_engine/storage_model.py), loaded by path"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ccs_storage_model", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "companion", "console_engine", "storage_model.py"))
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m.MODEL
+
 def main():
     data = json.load(open(os.path.join(SRC, "catalog.json"), encoding="utf-8"))
     bp = os.path.join(SRC, "builtin.json")
@@ -860,7 +868,7 @@ def main():
         cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
         return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
-    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js") + "\n" + part("loadouts.js")
+    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js") + "\n" + part("storage-model.js") + "\n" + part("loadouts.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
     foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}", "eager") for st, n, g in ROSTER)   # the credits strip walks, so its sprites load up front
     foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}", "eager") for st, n in WEB_ROSTER)
@@ -873,7 +881,7 @@ def main():
     except Exception as _e: print("placeholder covers skipped:", _e)
     html = (TEMPLATE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__HERO_CAST__", hero).replace("__FOOTER_CAST__", foot)
             .replace("__EMPTY_CAST__", empty).replace("__HOWTO_CAST__", howto).replace("__FILTERS_CAST__", filt)
-            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css") + "\n" + part("customize.css")).replace("__SEARCH_JS__", part("search.js")).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<\/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__HOME_ART__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-art.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
+            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css") + "\n" + part("customize.css")).replace("__SEARCH_JS__", part("search.js")).replace("__STORAGE_MODEL__", json.dumps(_storage_model())).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<\/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__HOME_ART__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-art.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
     css0, css1 = html.find("<style>") + 7, html.find("</style>"); html = html[:css1] + dock_twins(html[css0:css1]) + html[css1:]   # docked My Collection twins of every width rule
     if PUBLIC:
         html = (html.replace("<title>NES Classic Collection — Game Selection Catalog</title>", f"<title>{APP_NAME}</title><meta name=\"description\" content=\"{TAGLINE}\"><meta name=\"robots\" content=\"index,follow\"><meta property=\"og:title\" content=\"{APP_NAME}\"><meta property=\"og:description\" content=\"{TAGLINE}\">")

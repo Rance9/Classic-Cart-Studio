@@ -7,36 +7,28 @@
 //      Editing a loadout opens it in the working copy (selection, decisions, HOME settings) while the collection waits in LO
 //      (collections.js), so the Tray, Preview on TV, HOME Setup and Install on NES Classic all work on exactly that loadout.
 //      Opening, switching or importing a collection never opens a loadout; Back to Collection always returns.
-const LO_DEFAULT_NAME='Loadout', LO_MIGRATED_NAME='My NES Classic Setup';
+const LO_DEFAULT_NAME='My NES Classic Setup';
 function loList(r){ r=r||csActive(); return (r&&Array.isArray(r.loadouts))?r.loadouts:[]; }
 function loGet(lid, r){ return loList(r).find(l=>l.id===lid)||null; }
 function loCur(){ return LO?loGet(LO.lid):null; }
 function loNewId(){ return 'l'+csId().slice(1); }
-function loUniqueName(name, except){ const base=(name||LO_DEFAULT_NAME).trim().slice(0,56)||LO_DEFAULT_NAME; const have=new Set(loList().filter(l=>l.id!==except).map(l=>l.name.toLowerCase())); if(base===LO_DEFAULT_NAME){ for(let i=1;i<999;i++){ const n=`${base} ${i}`; if(!have.has(n.toLowerCase())) return n; } } if(!have.has(base.toLowerCase())) return base; for(let i=2;i<999;i++){ const n=`${base} ${i}`; if(!have.has(n.toLowerCase())) return n; } return base+' '+Date.now(); }
+function loUniqueName(name, except){ const base=(name||LO_DEFAULT_NAME).trim().slice(0,56)||LO_DEFAULT_NAME; const have=new Set(loList().filter(l=>l.id!==except).map(l=>l.name.toLowerCase())); if(!have.has(base.toLowerCase())) return base; for(let i=2;i<999;i++){ const n=`${base} ${i}`; if(!have.has(n.toLowerCase())) return n; } return base+' '+Date.now(); }
 const loPl=(n,w)=>`${n.toLocaleString('en-US')} ${w}${n===1?'':'s'}`;
-// ---- migration (idempotent): every existing collection keeps all its games; one that has games or HOME settings gets one loadout with all of
-//      them and a copy of its HOME settings, so the console set-up made before loadouts existed is still one click away. Nothing is removed. ----
-(function loMigrate(){ if(!CS||CS.loadoutsMigrated) return; const todo=Object.values(CS.items).filter(r=>!Array.isArray(r.loadouts)); if(todo.length){ try{ localStorage.setItem(CSKEY+'.before-loadouts', JSON.stringify({at:csNow(), store:CS})); }catch(e){} }
- let n=0; const now=csNow();
- todo.forEach(r=>{ r.loadouts=[]; const h=r.home; const homeSet=!!(h&&(((h.folders||[]).length)||h.theme||Object.keys((h.favorites||{}).items||{}).length)); if((r.sel||[]).length||homeSet){ r.loadouts.push({id:loNewId(), target:'nes-classic', name:LO_MIGRATED_NAME, created:now, modified:now, sel:(r.sel||[]).slice(), decisions:JSON.parse(JSON.stringify(r.decisions||{})), home:h?JSON.parse(JSON.stringify(h)):null, origin:'migrated'}); n++; } r.openLoadout=null; });
- CS.loadoutsMigrated={at:now, collections:todo.length, loadouts:n}; csWrite(); })();
-// ---- storage estimate: the existing NES Classic storage model (DATA.storage, studio "storage" notice), applied to one loadout ----
-//      needed = game files to add (built-in games already on the console add nothing) + artwork and menu data per added game + the native HOME
-//      package (measured when it was prepared for this loadout in the app, otherwise estimated); available = the reference model's game space
-//      (stock 2018 console, after Hakchi, RetroArch with its cores, a saves reserve and file-system slack). Unknown sizes are never counted as 0.
-const LO_NH_BASE=1.5*1048576, LO_NH_GAME=160*1024;   // native HOME estimate when no package is prepared, from a measured package (1.3 MB program, themes and fonts + 154 KB of covers, backdrops and texts per game), rounded up
-function loEstimate(ids, dec, opts){ const st=DATA.storage||{}; const o=st.overhead_estimates_mib||{}; const model=storageModel(); const cap=model==='unknown'?null:Math.round((st.conservative_usable_mib||0)*1048576);
- const d0=decisions; if(dec) decisions=dec; let rom=0, add=0, built=0; const unknown=[], noFile=[];
- try{ (ids||[]).forEach(id=>{ const g=byId[id]; if(g){ if(!installRequired(g)){ built++; return; } add++; if(g.source==='personal'&&g.file_present===false) noFile.push(g.display_title); if(g.payload_size>0) rom+=g.payload_size+16; else unknown.push(g.display_title); }
-   else { const x=csMissing(id); add++; noFile.push(x.title); if(x.size>0) rom+=x.size+16; else unknown.push(x.title); } }); } finally { decisions=d0; }
- const meta=add*(o.per_game_metadata_art_kib||80)*1024; let nh=LO_NH_BASE+(ids||[]).length*LO_NH_GAME, nhMeasured=false;
- try{ if(opts&&opts.open&&typeof NHP!=='undefined'&&NHP.result&&NHP.result.ok&&NHP.fp===nhFp()){ const S=(NHP.result.manifest||{}).sizes||{}; const b=S.total_with_manifest||S.total; if(b>0){ nh=b; nhMeasured=true; } } }catch(e){}
- const need=rom+meta+nh; const status=cap==null?'unknown':need>cap?'over':unknown.length?'unconfirmed':need>cap*0.9?'near':'fits';
- return {n:(ids||[]).length, add, built, rom, meta, nh, nhMeasured, need, cap, model, unknown, noFile, status}; }
-function loStatusText(e){ return e.status==='fits'?'Estimated to fit':e.status==='near'?'Close to the limit':e.status==='over'?`Too large: ~${fmt(e.need-e.cap)} over`:e.status==='unconfirmed'?`Fit not confirmed: ${loPl(e.unknown.length,'game size')} unknown`:'Free space unknown'; }
-function loStatusCls(e){ return {fits:'ok',near:'warn',over:'bad',unconfirmed:'warn',unknown:'na'}[e.status]; }
-function loEstimateFor(l){ if(LO&&l.id===LO.lid) return loEstimate([...sel], decisions, {open:true}); return loEstimate(l.sel||[], l.decisions||{}); }
-function loLine(l){ const e=loEstimateFor(l); return `${loPl(e.n,'game')} · ~${fmt(e.need)} · ${esc(loStatusText(e))}`; }
+// ---- storage: the one NES Classic storage model (studio/storage-model.js, the same calculation as the installation plan) applied to
+//      the loadout being edited. Inputs come from catalog metadata and what the Studio already knows (no file scanning): each game's file
+//      size (16-byte header included), whether it is a built-in game kept as it is, whether it needs RetroArch, the native HOME package
+//      when it has been prepared for this loadout on this computer. Shown only in the loadout editor. ----
+function loStorage(){ const games=[], unknownT=[], noFile=[]; let built=0;
+ sel.forEach(id=>{ const g=byId[id];
+  if(g){ const inst=installRequired(g); if(!inst){ built++; games.push({install:false}); return; } const b=g.payload_size>0?g.payload_size+16:null; if(b==null) unknownT.push(g.display_title); if(g.source==='personal'&&g.file_present===false) noFile.push(g.display_title); games.push({bytes:b, install:true, retroarch:g.recommended_emulator==='RetroArch'}); }
+  else { const x=csMissing(id); const b=x.size>0?x.size+16:null; if(b==null) unknownT.push(x.title); noFile.push(x.title); games.push({bytes:b, install:true, retroarch:false}); } });
+ let measured=null; try{ if(typeof NHP!=='undefined'&&NHP.result&&NHP.result.ok&&NHP.fp===nhFp()){ const S=(NHP.result.manifest||{}).sizes||{}; const b=S.total_with_manifest||S.total; if(b>0) measured=b; } }catch(e){}
+ const e=ccsStorageEstimate({games, home:{measured, games:sel.size}}, STORAGE_MODEL); e.n=sel.size; e.built=built; e.unknownTitles=unknownT; e.noFile=noFile; return e; }
+const loMB=b=>(b/1e6).toLocaleString('en-US',{maximumFractionDigits:b<1e7?1:0})+' MB';   // decimal megabytes for display; bytes everywhere else
+function loStatusText(e){ return e.status==='fits'?'Estimated to fit':e.status==='near'?`Close to capacity: about ${loMB(e.remaining)} remaining`:e.status==='over'?`Estimated to exceed available space by ${loMB(-e.remaining)}`:`Fit not confirmed: ${loPl(e.unknown,'game')} without a known size`; }
+function loStatusIcon(e){ return {fits:'✓', near:'!', over:'✕', unconfirmed:'?'}[e.status]; }
+function loStatusCls(e){ return {fits:'ok',near:'warn',over:'bad',unconfirmed:'warn'}[e.status]; }
+function loLine(l){ const n=(LO&&l.id===LO.lid)?sel.size:(l.sel||[]).length; return loPl(n,'game'); }
 // ---- open / close ----
 function loResetConsoleState(){ try{ if(typeof TV!=='undefined'){ if(TV.open&&typeof closeTv==='function') closeTv(); TV.model=null; TV.proj=null; } }catch(e){} try{ if(typeof INST!=='undefined'){ INST.manifest=null; INST.preview=null; INST.prepared=null; } if(typeof CONSOLE!=='undefined'){ CONSOLE.plan=null; CONSOLE.preflight=null; CONSOLE.result=null; } if(typeof NHP!=='undefined'){ NHP.result=null; NHP.fp=null; } }catch(e){} }
 function loWriteWorking(){ try{ localStorage.setItem(KEY, JSON.stringify([...sel])); localStorage.setItem(DKEY, JSON.stringify(decisions)); }catch(e){} try{ if(typeof desktopStateDirty==='function') desktopStateDirty(); }catch(e){} }
@@ -63,17 +55,17 @@ function loDelete(lid){ const rec=CS.items[CS.active]; const l=loGet(lid, rec); 
 // ---- the dialogs ----
 function loNameField(v){ return `<div class="fld"><label for="loNm">Loadout name</label><input type="text" id="loNm" maxlength="60" value="${esc(v)}" spellcheck="false"></div>`; }
 // Prepare for NES Classic: open a loadout or create one (all of the collection's games, or chosen ones); `then` continues the action that asked
-function loPrepare(opts){ opts=opts||{}; if(typeof closeVerPop==='function') closeVerPop(); document.querySelectorAll('.menu').forEach(x=>x.hidden=true); csSaveActiveNow(); const rec=CS.items[CS.active]; const list=loList(rec); const n=(rec.sel||[]).length; const all=loEstimate(rec.sel||[], rec.decisions||{});
+function loPrepare(opts){ opts=opts||{}; if(typeof closeVerPop==='function') closeVerPop(); document.querySelectorAll('.menu').forEach(x=>x.hidden=true); csSaveActiveNow(); const rec=CS.items[CS.active]; const list=loList(rec); const n=(rec.sel||[]).length;
  const mode=opts.mode||(n?'all':'choose'); const then=typeof opts.then==='function'?opts.then:null;
  openColl(opts.title||'Prepare for NES Classic', `from the collection "${rec.name}" · ${loPl(n,'game')}`, `${opts.lead?`<div class="msgbox">${esc(opts.lead)}</div>`:''}<p class="small">Games go on your NES Classic from an <b>NES Classic Loadout</b>: a named set of games from this collection that you plan to install. Your collection itself is never trimmed or changed, and a loadout is only a plan until it is installed.</p>
-  ${list.length&&!opts.newOnly?`<div class="lohead">Continue with a loadout</div><div class="lolist">${list.map(l=>{ const e=loEstimateFor(l); return `<div class="lorow"><div class="lon"><b>${esc(l.name)}</b><span class="small">${loPl(e.n,'game')} · ~${fmt(e.need)} · <span class="lost ${loStatusCls(e)}">${esc(loStatusText(e))}</span></span></div><button class="btn sm hk" data-lo-open="${esc(l.id)}">Open</button></div>`; }).join('')}</div><div class="lohead">Or create a new loadout</div>`:''}
+  ${!list.length&&!opts.newOnly?`<p class="small">This collection has no loadouts yet. Name one and choose how to start it.</p>`:''}${list.length&&!opts.newOnly?`<div class="lohead">Continue with a loadout</div><div class="lolist">${list.map(l=>{ return `<div class="lorow"><div class="lon"><b>${esc(l.name)}</b><span class="small">${loLine(l)} · changed ${esc(nowShort(l.modified))}</span></div><button class="btn sm hk" data-lo-open="${esc(l.id)}">Open</button></div>`; }).join('')}</div><div class="lohead">Or create a new loadout</div>`:''}
   ${loNameField(loUniqueName(LO_DEFAULT_NAME))}
   <div class="lochoice" role="radiogroup" aria-label="Start the loadout with">
-   <label class="lc${n?'':' off'}"><input type="radio" name="loMode" value="all" ${mode==='all'&&n?'checked':''} ${n?'':'disabled'}><span><b>Use all ${loPl(n,'collection game')}</b><span class="small">${n?`Start with every game of "${esc(rec.name)}" · ~${fmt(all.need)} · ${esc(loStatusText(all))}. Remove any you like afterwards.`:'This collection has no games yet.'}</span></span></label>
+   <label class="lc${n?'':' off'}"><input type="radio" name="loMode" value="all" ${mode==='all'&&n?'checked':''} ${n?'':'disabled'}><span><b>Use all ${loPl(n,'collection game')}</b><span class="small">${n?`Start with every game of "${esc(rec.name)}"; remove any you like afterwards.`:'This collection has no games yet.'}</span></span></label>
    <label class="lc"><input type="radio" name="loMode" value="choose" ${mode==='choose'||!n?'checked':''}><span><b>Choose games</b><span class="small">Start empty, then check the games from this collection that should go on the console.</span></span></label>
   </div>
   <div class="acts"><span class="sp"></span><button class="btn" id="loNo">Cancel</button><button class="btn hk" id="loGo">Create Loadout</button></div>`);
- const inp=$('loNm'); inp.onkeydown=e=>{ if(e.key==='Enter') $('loGo').click(); }; if(!list.length||opts.newOnly){ inp.focus(); inp.select(); }
+ const inp=$('loNm'); inp.onkeydown=e=>{ if(e.key==='Enter') $('loGo').click(); }; inp.focus(); inp.select();
  $('loNo').onclick=closeColl;
  $('loGo').onclick=()=>{ const nm=inp.value.trim(); if(!nm){ inp.focus(); return; } const m=(document.querySelector('input[name=loMode]:checked')||{}).value||'choose'; closeColl(); loCreate(nm, m); if(then) then(); };
  $('collBody').onclick=e=>{ const b=e.target.closest('[data-lo-open]'); if(!b) return; closeColl(); loOpen(b.dataset.loOpen); if(then) then(); }; }
@@ -86,19 +78,19 @@ function loDeleteDialog(lid){ const l=loGet(lid); if(!l) return; const rec=csAct
 function loManager(){ csSaveActiveNow(); const rec=csActive(); const list=loList(rec);
  openColl('NES Classic Loadouts', `in the collection "${rec.name}" · ${loPl((rec.sel||[]).length,'game')}`, `<p class="small">Each loadout is a plan for one NES Classic set-up, chosen from this collection. Loadouts are independent of each other: changing one never changes another or the collection.</p>
   <div class="csbar"><button class="btn hk" id="loNewB">New Loadout…</button></div>
-  ${list.length?`<div class="cslist" role="list">${list.map(l=>{ const on=LO&&LO.lid===l.id; const e=loEstimateFor(l); return `<div class="csrow${on?' on':''}" role="listitem" data-lid="${esc(l.id)}"><div class="csn"><b>${esc(l.name)}</b>${on?'<span class="tag">open</span>':''}<span class="small">${loPl(e.n,'game')} · ~${fmt(e.need)} of ~${e.cap!=null?fmt(e.cap):'?'} · <span class="lost ${loStatusCls(e)}">${esc(loStatusText(e))}</span> · changed ${esc(nowShort(l.modified))}</span></div>
+  ${list.length?`<div class="cslist" role="list">${list.map(l=>{ const on=LO&&LO.lid===l.id; return `<div class="csrow${on?' on':''}" role="listitem" data-lid="${esc(l.id)}"><div class="csn"><b>${esc(l.name)}</b>${on?'<span class="tag">open</span>':''}<span class="small">${loLine(l)} · changed ${esc(nowShort(l.modified))}</span></div>
    <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open">Open</button>`}<button class="btn sm" data-a="rename">Rename</button><button class="btn sm" data-a="dup">Duplicate</button><button class="btn sm danger" data-a="del">Delete</button></div></div>`; }).join('')}</div>`:'<p class="small">No loadouts yet.</p>'}`);
  $('loNewB').onclick=()=>loPrepare({newOnly:true, title:'New NES Classic Loadout'});
  $('collBody').onclick=e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const row=b.closest('[data-lid]'); if(!row) return; const lid=row.dataset.lid; const a=b.dataset.a;
   if(a==='open'){ closeColl(); loOpen(lid); } else if(a==='rename'){ loRenameDialog(lid); } else if(a==='dup'){ loDuplicate(lid); loManager(); } else if(a==='del'){ loDeleteDialog(lid); } }; }
-// what the estimate is made of, in plain words first; the reference model's figures on request
-function loStorageDetails(){ const l=loCur(); if(!l) return; const e=loEstimate([...sel], decisions, {open:true}); const st=DATA.storage||{}; const o=st.overhead_estimates_mib||{};
- const row=(a,b)=>`<tr><td>${a}</td><td style="text-align:right;white-space:nowrap">${b}</td></tr>`;
- openColl('Will it fit?', `NES Classic Loadout "${l.name}"`, `<div class="msgbox ${loStatusCls(e)}"><b>${esc(loStatusText(e))}.</b> This loadout needs about <b>${fmt(e.need)}</b>; a stock NES Classic has about <b>${e.cap!=null?fmt(e.cap):'an unknown amount'}</b> for games. ${e.status==='over'?'The loadout is saved as it is; remove games here (the collection keeps them) or make a smaller loadout to install it.':''}</div>
-  <table class="pv lofit"><tbody>${row(`Game files to add (${loPl(e.add,'game')}; ${e.built} built into the console need no space)`, '~'+fmt(e.rom))}${row(`Artwork and menu data for the added games (estimate, ${o.per_game_metadata_art_kib||80} KB each)`, '~'+fmt(e.meta))}${row(`Native HOME menu (${e.nhMeasured?'measured from the package prepared on this computer':'estimate; prepare it in Install on NES Classic to measure it'})`, '~'+fmt(e.nh))}${row('<b>Needed</b>', '<b>~'+fmt(e.need)+'</b>')}${e.cap!=null?row('<b>Available for games</b> (estimate for a stock NES Classic)', '<b>~'+fmt(e.cap)+'</b>'):''}</tbody></table>
-  ${e.unknown.length?`<div class="msgbox warn"><b>${loPl(e.unknown.length,'game')} without a known size</b> (not counted, so the total may be too low): ${esc(e.unknown.slice(0,12).join(', '))}${e.unknown.length>12?' …':''}</div>`:''}
-  ${e.noFile.length?`<div class="msgbox warn"><b>${loPl(e.noFile.length,'game file')} not on this computer</b>: ${esc(e.noFile.slice(0,12).join(', '))}${e.noFile.length>12?' …':''}. They stay in the loadout; add the files with Add Your Own Game before installing.</div>`:''}
-  <details class="lotech"><summary>Technical details</summary><p class="small">Available space comes from the Studio's reference model of a stock 2018 NES Classic Edition, not from your console: ${fmt(mibToMb(st.measured_free_mib_before_mod||0)*1e6)} free on its data partition before any change, minus ${fmt(mibToMb(st.root_reserved_mib||0)*1e6)} reserved by the file system, ~${o.hakchi_install||0} MiB for Hakchi, ~${o.retroarch_plus_cores||0} MiB for RetroArch and its cores, ~${o.saves_and_states_reserve||0} MiB for saves, and ${o.filesystem_slack_pct||0}% file-system slack. Games, modules or saves already added to your console by other tools are not known until the console is inspected, which this version does not do; the installation plan uses measured free space once inspection is approved.</p></details>
+// what the estimate is made of, in plain words first; the reference figures on request
+function loStorageDetails(){ const l=loCur(); if(!l) return; const e=loStorage(); const M=STORAGE_MODEL, R=M.reference;
+ const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`;
+ openColl('Will it fit?', `NES Classic Loadout "${l.name}"`, `<div class="msgbox ${loStatusCls(e)}"><b>${loStatusIcon(e)} ${esc(loStatusText(e))}.</b> This loadout needs about <b>${loMB(e.used)}</b> of the about <b>${loMB(e.available)}</b> a stock NES Classic has available. ${e.status==='over'?'The loadout is saved as it is; remove games here (the collection keeps them) to bring it under the limit.':''}${e.status==='unconfirmed'?' Sizes that are not known are not counted, so the total may be too low.':''}</div>
+  <table class="pv lofit"><tbody>${row(`Game files (${loPl(e.added,'game')} to add; ${e.built} built into the console need no game file)`, loMB(e.rom))}${row('Cover artwork and menu entries for the added games', loMB(e.files))}${row(`NES Classic HOME menu (${e.home_measured?'measured from the package prepared on this computer':'estimate; prepare it in Install on NES Classic to measure it'})`, loMB(e.home))}${row('Hakchi (needed once on a console that does not have it yet)', loMB(e.components.hakchi))}${row(`RetroArch and its emulator cores (${e.components.retroarch?'needed once by some of these games':'not needed by these games'})`, loMB(e.components.retroarch))}${row('Safety margin (file-system overhead)', loMB(e.margin))}${row('<b>Estimated use</b>', '<b>'+loMB(e.used)+'</b>')}${row('<b>Estimated available</b>', '<b>'+loMB(e.available)+'</b>')}${row(e.remaining>=0?'Estimated remaining':'Estimated excess', loMB(Math.abs(e.remaining)))}</tbody></table>
+  ${e.unknownTitles.length?`<div class="msgbox warn"><b>${loPl(e.unknownTitles.length,'game')} without a known size</b>: ${esc(e.unknownTitles.slice(0,12).join(', '))}${e.unknownTitles.length>12?' …':''}</div>`:''}
+  ${e.noFile.length?`<div class="msgbox warn"><b>${loPl(e.noFile.length,'game file')} not on this computer</b>: ${esc(e.noFile.slice(0,12).join(', '))}${e.noFile.length>12?' …':''}. They stay in the loadout${e.unknownTitles.length<e.noFile.length?'; their sizes are known and counted':''}. Add the files with Add Your Own Game before installing.</div>`:''}
+  <details class="lotech"><summary>Technical details</summary><p class="small">An estimate from the Studio's reference model of a stock 2018 NES Classic Edition (CLV-101), not a measurement of your console. Available: ${loMB(R.free_before_mod)} free on the console's data partition before any change, minus ${loMB(R.root_reserved)} the file system reserves and ${loMB(R.saves_reserve)} kept for save data. Each added game costs its file (16-byte header included) plus about ${loMB(M.per_game.desktop+M.per_game.cover+M.per_game.cover_small+M.per_game.metadata)} of cover art and menu files; the HOME menu estimate is ${loMB(M.home_estimate.base)} plus ${loMB(M.home_estimate.per_game)} per game; Hakchi and RetroArch are counted once each when needed (${loMB(M.components.hakchi)}, ${loMB(M.components.retroarch)}); the safety margin is ${loMB(M.margin.fixed)} plus ${Math.round(M.margin.fraction*100)}%. The installation plan uses this same calculation, and checks capacity and every file again before anything is installed. MB = 1,000,000 bytes.</p></details>
   <div class="acts"><span class="sp"></span><button class="btn" id="loWhyOk">Close</button></div>`); $('loWhyOk').onclick=closeColl; }
 // ---- removing a game from a collection while loadouts use it: an explicit choice, never a silent change ----
 // prev = the collection's games before the change: a version counts as a replacement only when it was just added
@@ -156,16 +148,19 @@ function loMenuClick(e){ const m=e.currentTarget; const q=e.target.closest('[dat
  if(act==='back') loClose(); else if(act==='manage') loManager(); else if(act==='rename'&&lid) loRenameDialog(lid); else if(act==='dup'&&lid){ const c=loDuplicate(lid); if(c) loOpen(c.id, true); } else if(act==='del'&&lid) loDeleteDialog(lid); }
 function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.body.classList.toggle('lomode', on);
  const list=loList(rec); const lc=$('loCount'); if(lc){ lc.textContent=list.length; lc.hidden=!list.length; }
- ['tvBtn','homeBtn','hkBtn'].forEach(id=>{ const b=$(id); if(b) b.hidden=!on; }); const w=$('loWrap'); if(w) w.hidden=on;
+ ['homeBtn','hkBtn'].forEach(id=>{ const b=$(id); if(b) b.hidden=!on; }); const tv=$('tvBtn'); if(tv){ tv.hidden=false; tv.title=on?`Preview on TV: the NES Classic menu of "${(loCur()||{}).name||''}"`:'Preview on TV: the NES Classic menu of one of this collection\'s loadouts'; } const w=$('loWrap'); if(w) w.hidden=on;
  const band=$('loBand'); if(band) band.hidden=!on;
- const l=loCur(); if(on&&l&&band){ const e=loEstimate([...sel], decisions, {open:true}); const pct=e.cap?Math.min(100, e.need/e.cap*100):0;
+ const l=loCur(); if(on&&l&&band){ const e=loStorage(); const pct=e.available>0?Math.min(100, e.used/e.available*100):100;
   $('loName').firstChild.nodeValue=l.name+' '; $('loFrom').innerHTML=`from the collection <b>${esc(rec.name)}</b>`;
-  $('loFig').innerHTML=`<b>${loPl(sel.size,'game')}</b> of ${csCollSel().size.toLocaleString('en-US')} in the collection<span class="dot">·</span><span class="meter ${loStatusCls(e)}" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span>~${fmt(e.need)} of ~${e.cap!=null?fmt(e.cap):'?'} <span class="mut">estimated space</span><span class="dot">·</span><span class="lost ${loStatusCls(e)}">${esc(loStatusText(e))}</span>`; }
+  $('loFig').innerHTML=`<b>${loPl(sel.size,'game')}</b> of ${csCollSel().size.toLocaleString('en-US')} in the collection`;
+  const m=$('loMeter'); m.className='lometer '+loStatusCls(e); m.setAttribute('aria-valuenow', String(Math.round(pct))); m.setAttribute('aria-valuetext', `${loMB(e.used)} of ${loMB(e.available)} estimated, ${loStatusText(e)}`); m.firstElementChild.style.width=pct.toFixed(1)+'%';
+  $('loUse').innerHTML=`Estimated: <b>${loMB(e.used)}</b> used / <b>${loMB(e.available)}</b> available`;
+  $('loStat').className='lost '+loStatusCls(e); $('loStat').textContent=loStatusIcon(e)+' '+loStatusText(e); }
  const hs=$('heroSelL'); if(hs) hs.textContent=on?'in loadout':'in collection';
  const sv=$('selVis'), us=$('unselVis'), sk=$('selKachi'), cl=$('clear'); const tgt=on?'this loadout':'the collection';
  if(sv) sv.textContent=`Add all shown to ${tgt}`; if(us) us.textContent=`Remove all shown from ${tgt}`; if(sk) sk.textContent=`Add shown kachikachi + verified games to ${tgt}`; if(cl) cl.lastChild.nodeValue=on?'Empty this loadout':'Remove every game from the collection';
  const th=$('trayHk'); if(th) th.textContent=on?'Install on NES Classic':'Prepare for NES Classic…'; const tx=$('trayExport'); if(tx) tx.hidden=on;
- const sto=$('storage'); if(sto) sto.hidden=!on;
+ const sto=$('storage'); if(sto) sto.hidden=true;
  const q=$('q'); if(q) q.placeholder=on?`Search the games of "${rec.name}"`:'Search games (dr mario, smb3, zelda 2, megaman…)';
  ['loMenu','loMenu2'].forEach(id=>{ const m=$(id); if(m&&!m.hidden) m.innerHTML=loMenuHtml(); }); }
 // the tray, stats and title say which one is being edited
@@ -192,3 +187,8 @@ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closes
 })();
 function loResume(){ const r=csActive(); if(r&&r.openLoadout&&loGet(r.openLoadout, r)&&!LO){ csLoadWorking(r); loOpen(r.openLoadout, true); } else loUi(); }
 loResume();
+// one storage display: the tray's older storage notice and line are not shown; the meter updates with every change that can move it
+storageTrayLine=function(){ return ''; };
+storageNote=function(){ return LO?'This loadout is empty: check games of the collection to add them.':''; };
+(function(){ if(typeof homeExtrasSave==='function'){ const h=homeExtrasSave; homeExtrasSave=function(){ const r=h.apply(this,arguments); try{ if(LO) loUi(); }catch(e){} return r; }; }
+ if(typeof nhDraw==='function'){ const d=nhDraw; nhDraw=function(){ const r=d.apply(this,arguments); try{ if(LO) loUi(); }catch(e){} return r; }; } })();

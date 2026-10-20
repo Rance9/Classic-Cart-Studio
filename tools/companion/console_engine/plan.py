@@ -18,7 +18,9 @@ CORE_MODULES = {
 MODULE_PINS = {   # SHA-256 placeholders are filled from the Stage 7 record when a module is actually obtained; unknown means "not cleared"
     "_km_retroarch_1910_ozone": None, "_km_fceumm_xtreme": None, "_km_nestopia": None,
 }
-ART_BYTES, ART_SMALL_BYTES, DESKTOP_BYTES, METADATA_BYTES = 40_000, 6_000, 700, 180
+from .storage_model import MODEL as STORAGE_MODEL, estimate as storage_estimate   # the one storage calculation (also the Loadout editor's meter)
+_PG = STORAGE_MODEL["per_game"]
+ART_BYTES, ART_SMALL_BYTES, DESKTOP_BYTES, METADATA_BYTES = _PG["cover"], _PG["cover_small"], _PG["desktop"], _PG["metadata"]
 
 
 def _bridge():
@@ -83,21 +85,25 @@ def build(manifest: dict, *, device: dict | None = None, foreign: dict | None = 
         st = dev["storage"]; total, used, free = st["total"], st["used"], st["free"]
         src = "simulated" if dev.get("simulated") else "measured"
     else:
-        from .profiles import STORAGE_REF
-        total = STORAGE_REF["total"]; used = None; free = None; src = "reference"
-    # the native HOME package (N3.1): its size is MEASURED from the package staged on this computer; when none is prepared it is
-    # reported as unknown, never invented. The margin covers the installation's own overhead (directories, metadata, rounding).
+        from .storage_model import capacity
+        total = None; used = None; free = None; src = "reference"
+    # the native HOME package (N3.1): MEASURED from the package staged on this computer; otherwise the model's estimate (labeled)
     nh = native_home if native_home is not None else _native_home_staged()
     nh_bytes = (nh or {}).get("bytes") if isinstance((nh or {}).get("bytes"), int) else None
-    required = add_bytes + (nh_bytes or 0)
-    margin = 8 * 1024 * 1024 + int(0.05 * required)
-    fits = None if free is None else (free - margin >= required)
-    if nh_bytes is None: warnings.append("the native HOME package is not prepared yet: its size is not part of the storage check (prepare it in Review Changes)")
-    if free is None: warnings.append("the console's free space is not known until it is inspected; the storage check uses a reference console and cannot say whether everything fits")
-    budget = {"source": src, "total": total, "used": used, "free": free, "proposed_add_bytes": add_bytes, "foreign_kept_bytes": keep_foreign_bytes, "margin": margin, "fits": fits,
-              "native_home_bytes": nh_bytes, "native_home": {"source": "measured: the package staged on this computer" if nh_bytes is not None else "not prepared", "files": (nh or {}).get("files"), "installable": (nh or {}).get("installable")},
+    per = sum(_PG.values())
+    sgames = [{"bytes": sum(e["files"].values()) - per, "install": True, "retroarch": bool(e.get("requires"))} for e in entries if e["action"] == "add"]         + [{"bytes": None, "install": True, "retroarch": False} for e in entries if e["kind"] == "unresolved"] + [{"install": False} for e in entries if e["action"] == "keep"]
+    shown = sum(1 for e in entries if e["action"] in ("add", "keep") or e["kind"] == "unresolved")
+    est = storage_estimate({"games": sgames, "home": {"measured": nh_bytes, "games": shown}, "free": free,
+                            "hakchi_present": dev.get("needs_first_time_setup") is False, "retroarch_present": "_km_retroarch_1910_ozone" in (dev.get("modules") or [])})
+    required = est["content"]; margin = est["margin"]
+    fits = est["used"] <= est["available"] if not est["unknown"] or est["remaining"] < 0 else None
+    if nh_bytes is None: warnings.append("the native HOME package is not prepared yet: its size is estimated (prepare it in Review Changes to measure it)")
+    if free is None: warnings.append("the console's free space is not known until it is inspected; the storage check uses the reference NES Classic model (an estimate)")
+    budget = {"source": src, "total": total, "used": used, "free": est["available"], "proposed_add_bytes": add_bytes, "foreign_kept_bytes": keep_foreign_bytes, "margin": margin, "fits": fits, "status": est["status"],
+              "native_home_bytes": nh_bytes, "native_home_estimate": None if nh_bytes is not None else est["home"], "components": est["components"], "estimate": est,
+              "native_home": {"source": "measured: the package staged on this computer" if nh_bytes is not None else "estimated (not prepared)", "files": (nh or {}).get("files"), "installable": (nh or {}).get("installable")},
               "required_bytes": required,
-              "text": {"reference": "estimated from a reference NES Classic, not your console", "simulated": "simulated console figures, not a real measurement", "measured": "measured on the connected console"}[src]}
+              "text": {"reference": "estimated from the reference NES Classic model, not your console", "simulated": "simulated console figures, not a real measurement", "measured": "measured on the connected console"}[src]}
     firmware = {"state": dev.get("firmware_state", "unknown"), "needs_first_time_setup": dev.get("needs_first_time_setup")}
     backup = {"state": dev.get("backup_state", "unknown"), "artifacts": dev.get("backup_artifacts", [])}
     if any(m["action"] == "install" and not m["cleared"] for m in modules): warnings.append("a required emulator module is not cleared for distribution; the Studio will not download it, you obtain it yourself (compliant route)")

@@ -107,9 +107,11 @@ class Engine:
         elif sc in ("fel", "outdated", "no-version"): blocks.append({"code": "first-time-setup-required", "text": "first-time setup (memboot, kernel flash) is a separate physical operation; disabled pending Gate G1"})
         elif sc == "clovershell-only": blocks.append({"code": "link-cannot-sync", "text": d.get("detail", sc)})
         if p["backup"]["state"] in ("missing", "invalid"): blocks.append({"code": "backup-" + p["backup"]["state"], "text": "the stock kernel backup on the console is " + p["backup"]["state"] + "; a write would not be allowed without a verified recovery path"})
-        if p["budget"]["fits"] is False: blocks.append({"code": "storage-insufficient", "text": f"not enough free space: {p['budget']['free']} free, {p['budget']['proposed_add_bytes']} needed plus a {p['budget']['margin']} margin"})
+        est = p["budget"].get("estimate") or {}
+        if p["budget"]["fits"] is False: blocks.append({"code": "storage-insufficient", "text": f"not enough free space: {est.get('available')} bytes available, {est.get('used')} needed including a {p['budget']['margin']} byte safety margin"})
+        if p["budget"]["fits"] is None: warns.append({"code": "storage-unconfirmed", "text": "the size of some games is not known, so the fit cannot be confirmed"})
         if p["budget"]["source"] == "reference": warns.append({"code": "storage-estimated", "text": "storage is a reference estimate, not a measurement of your console"})
-        if p["budget"]["fits"] is True and p["budget"]["free"] - p["budget"]["proposed_add_bytes"] < 2 * p["budget"]["margin"]: warns.append({"code": "storage-marginal", "text": "free space after the install would be small"})
+        if p["budget"]["fits"] is True and est.get("status") == "near": warns.append({"code": "storage-marginal", "text": "free space after the install would be small"})
         if p["summary"].get("foreign"): warns.append({"code": "foreign-kept", "text": f"{p['summary']['foreign']} existing game(s) on the console are not in this collection and are kept"})
         ok = not blocks and p["can_proceed"]
         r = {"ok": ok, "blocks": blocks, "warnings": warns, "state": "Ready for simulated rehearsal" if ok and d.get("simulated") else ("Collection incomplete" if any(b["code"] in ("unresolved-entry", "missing-file") for b in blocks) else ("Ready" if ok else "Blocked")),

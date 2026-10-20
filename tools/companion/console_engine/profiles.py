@@ -71,7 +71,7 @@ PROFILES: dict[str, dict] = {
     "ambiguous-vidpid": _p(name="ambiguous-vidpid", label="Something with 1F3A:EFE8 that is not an NES Classic (wrong FEL board id)", usb=USB_FEL, fel_board=0x00162500, shell=None),
     "md-partitioning": _p(name="md-partitioning", label="Mega Drive style partitioning (unsupported for NES flows)", usb=USB_RNDIS, shell="ssh", versions=dict(PINNED_VERSIONS), md_partitioning=True, system_code="md-usa", hwid=HWID_B),
     "storage-marginal": _p(name="storage-marginal", label="Compatible environment with little free space", usb=USB_RNDIS, shell="ssh", versions=dict(PINNED_VERSIONS),
-                           games=_games(60, size=3_460_300), storage={"total": STORAGE_REF["total"], "used_other": 60 * 1024 * 1024, "saves": 40 * 1024 * 1024}, backup2=True),   # about 12 MB free
+                           games=_games(58, size=3_460_300), storage={"total": STORAGE_REF["total"], "used_other": 60 * 1024 * 1024, "saves": 40 * 1024 * 1024}, backup2=True),   # about 16 MB free: a small collection fits, just
     "storage-insufficient": _p(name="storage-insufficient", label="Compatible environment with no room left", usb=USB_RNDIS, shell="ssh", versions=dict(PINNED_VERSIONS),
                                games=_games(90, size=2 * 1024 * 1024), storage={"total": STORAGE_REF["total"], "used_other": 90 * 1024 * 1024, "saves": 40 * 1024 * 1024}, backup2=True),
     "backup-missing": _p(name="backup-missing", label="Compatible environment whose stock kernel backup is absent", usb=USB_RNDIS, shell="ssh", versions=dict(PINNED_VERSIONS), backup2=False),

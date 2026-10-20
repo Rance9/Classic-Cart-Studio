@@ -388,8 +388,10 @@ async function main() {
   await bad('reject invalid base64', payload({ image: '***not-base64***' }), 'bad_image');
   await bad('reject truncated PNG', payload({ image: GOOD_PNG.subarray(0, GOOD_PNG.length - 12).toString('base64') }), 'bad_image');
   await bad('reject missing image', payload({ image: undefined }), 'bad_image');
-  const bigPng = makePng(1200, 630, { padBytes: 705 * 1024 });
-  await bad('reject PNG over 700 KB (body under 1 MB)', payload({ image: bigPng.toString('base64') }), 'image_too_large');
+  const bigPng = makePng(1200, 630, { padBytes: 3 * 1024 * 1024 + 5000 });
+  const cardPng = makePng(1200, 630, { padBytes: 1500 * 1024 });
+  check('accept a 1.5 MB card image (a mosaic of real box art)', (await publish(env, payload({ image: cardPng.toString('base64') }))).status === 201);
+  await bad('reject PNG over 3 MB', payload({ image: bigPng.toString('base64') }), 'image_too_large');
   await bad('reject wrong content type', JSON.stringify(payload()), 'unsupported_media_type', 415, { contentType: 'text/plain' });
   await bad('reject missing content type', JSON.stringify(payload()), 'unsupported_media_type', 415, { contentType: '' });
   await bad('reject invalid JSON', '{"schema":', 'invalid_json');
