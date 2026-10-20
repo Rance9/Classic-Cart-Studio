@@ -145,6 +145,10 @@ begin
   begin
     RemoveOwnValue('', 'ClassicCartStudio.Collection');
     RemoveOwnValue('Content Type', 'application/vnd.classiccartstudio.collection+zip');
+  end;
+  // after the uninstaller removed its own values: the .ccs keys go only when nothing else is left in them
+  if CurUninstallStep = usPostUninstall then
+  begin
     RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs\OpenWithProgids');
     RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs');
   end;
