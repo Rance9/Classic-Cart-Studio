@@ -471,11 +471,11 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 }
 @media (max-width:640px){
  .row.bar{grid-template-columns:repeat(4,1fr)!important}
- .row.bar>.menuwrap:first-child{grid-column:1/-1;order:0}
- .row.bar>.menuwrap:first-child .collbtn{width:100%;max-width:none;justify-content:flex-start}
- .row.bar>.menuwrap:first-child .collbtn .chev{margin-left:auto}
- #trayBtn,#tvBtn,#homeBtn,.row.bar .menuwrap.right{order:1}
- #tvBtn{justify-self:center;align-self:center}
+ #collWrap{grid-column:2/-1;order:0}
+ #collWrap .collbtn{width:100%;max-width:none;justify-content:flex-start}
+ #collWrap .collbtn .chev{margin-left:auto}
+ #tvBtn{grid-column:1;order:0;justify-self:center;align-self:center}
+ #trayBtn,#homeBtn,.row.bar .menuwrap.right{order:1}
  #homeBtn{font-size:0}
  #hkBtn{grid-column:1/-1;order:2}
  #selectMenu{min-width:250px}
@@ -509,3 +509,12 @@ body:not(.lomode) [data-tvfocus]{display:none}
 details.lotech summary{cursor:pointer;color:var(--ink2);font-size:12.5px;margin-top:8px}
 @media (max-width:640px){.lob-name{font-size:16px;max-width:100%}.lob-main .sp{display:none}.lob-main{gap:6px}#loBack{margin-left:auto}.lob-fig .meter{width:70px}.lobtn .cl .cap{display:none}.lob-hint{display:none}}
 .pv.lofit{width:100%}.pv.lofit td:first-child{width:auto;white-space:normal}.pv.lofit td:last-child{width:1%}
+/* the loadout editor's NES Classic storage meter (the only storage display) */
+.lob-fig{gap:6px 14px}.lob-sto{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
+.lob-lbl{font-family:var(--display);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink2);font-weight:700}
+.lometer{position:relative;display:inline-block;width:180px;height:12px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line2);overflow:hidden}
+.lometer i{display:block;height:100%;background:linear-gradient(90deg,var(--pipe),var(--ok));transition:width .25s ease}
+.lometer.warn i{background:linear-gradient(90deg,var(--gold),#ffb347)}.lometer.bad{border-color:#ff6b73}.lometer.bad i{background:repeating-linear-gradient(135deg,var(--red) 0 8px,#ff5a63 8px 16px)}
+#loUse{color:var(--ink2)}#loUse b{color:#fff}#loStat{font-weight:700}
+@media (max-width:640px){.lometer{width:120px}.lob-sto{width:100%}}
+.shg .ph.shph{width:44px;height:62px;flex:none;padding:0;font-size:7px;display:grid;place-content:center;border-radius:4px}

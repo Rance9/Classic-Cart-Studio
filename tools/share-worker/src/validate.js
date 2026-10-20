@@ -14,7 +14,7 @@ export const MAX_GAMES = 50000;
 export const MAX_THUMBS = 10000;
 export const MAX_THUMB_BYTES = 48 * 1024; // decoded JPEG size limit
 export const MAX_FOLDERS = 100;
-export const MAX_IMAGE_BYTES = 700 * 1024; // decoded PNG size limit
+export const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // decoded PNG size limit (above any 1200x630 card with real box art)
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
 export const MAX_STAT = 50000;
@@ -287,7 +287,7 @@ export function decodeCardImage(image) {
     field: 'image',
     code: 'bad_image',
     tooLargeCode: 'image_too_large',
-    tooLargeMessage: 'image must be at most 700 KB.',
+    tooLargeMessage: 'image must be at most 3 MB.',
   });
   checkPng(bytes);
   return bytes;
