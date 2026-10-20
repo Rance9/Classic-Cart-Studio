@@ -376,7 +376,8 @@ namespace ClassicCartStudio
 
         void DeliverPendingLink()
         {
-            if (!coreReady || !backend.Ready || recoveryShown) return;
+            // only once the website page itself has loaded: a link handed to the loading screen would be lost when the page replaces it
+            if (!coreReady || !backend.Ready || recoveryShown || !firstPageShown) return;
             if (!string.IsNullOrEmpty(pendingLink))
             {
                 var id = pendingLink; pendingLink = null;
