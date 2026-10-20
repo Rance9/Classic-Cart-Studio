@@ -108,15 +108,15 @@ def handoff_prune():
     while len(HANDOFF) > HANDOFF_MAX: HANDOFF.pop(min(HANDOFF, key=lambda k: HANDOFF[k].get("received", 0)), None)
 def handoff_validate(body: dict) -> tuple[dict | None, str]:
     oid = str(body.get("id") or "")
-    if not OFFER_ID.match(oid): return None, "offer id must be 8-64 letters, digits or dashes"
+    if not OFFER_ID.match(oid): return None, "The handoff could not be read. Reload the page and try again."
     man = body.get("collection")
-    if not isinstance(man, dict): return None, "collection must be an object"
-    if not isinstance(man.get("schema"), str) or not man["schema"].startswith("nes-classic-collection/"): return None, "unknown collection schema"
+    if not isinstance(man, dict): return None, "The collection could not be read. Reload the page and try again."
+    if not isinstance(man.get("schema"), str) or not man["schema"].startswith("nes-classic-collection/"): return None, "This collection comes from an unknown or newer version of Classic Cart Studio. Update the Windows app, then try again."
     games = man.get("selections") if isinstance(man.get("selections"), list) else man.get("games")   # schema 4 uses "selections"; older files "games"
-    if not isinstance(games, list) or len(games) > 2000: return None, "selections must be a list of at most 2000 entries"
+    if not isinstance(games, list) or len(games) > 2000: return None, "The collection has more than 2000 games, or could not be read. Use Export Collection (.ccs) instead."
     for g in games:
         gid = (g.get("version_id") or g.get("game_id")) if isinstance(g, dict) else None
-        if not isinstance(gid, str) or not gid or len(gid) > 128: return None, "every selection needs a version_id or game_id"
+        if not isinstance(gid, str) or not gid or len(gid) > 128: return None, "A game in the collection has no version. Reload the page and try again."
     name = str(man.get("name") or body.get("name") or "Collection")[:120]
     return {"id": oid, "name": name, "count": len(games), "schema": man["schema"], "collection": man, "fingerprint": hashlib.sha256(json.dumps(man, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}, ""
 
@@ -130,7 +130,7 @@ def native_package_start(manifest, home) -> dict:
     only; nothing is sent to a console). One build at a time; a second request while one runs returns that job."""
     with LOCK:
         run = next((j for j in NATIVE_JOBS.values() if j["state"] == "running"), None)
-        if run: return {"ok": False, "busy": True, "job": run["id"], "error": "a native HOME package is already being prepared"}
+        if run: return {"ok": False, "busy": True, "job": run["id"], "error": "A native HOME package is already being prepared. Wait for it to finish."}
         jid = secrets.token_hex(6); job = {"id": jid, "state": "running", "started": time.time(), "progress": {"stage": "configuration", "done": 0, "total": 0, "text": ""}, "result": None}
         NATIVE_JOBS.clear(); NATIVE_JOBS[jid] = job
     def progress(stage, done, total, text=""):
@@ -139,7 +139,7 @@ def native_package_start(manifest, home) -> dict:
         try:
             from native_home import package as nhp
             res = nhp.build(manifest, home, progress=progress)
-        except Exception as e: res = {"ok": False, "status": "failed", "ready": False, "error": f"the package could not be prepared: {e}"}
+        except Exception as e: res = {"ok": False, "status": "failed", "ready": False, "error": f"The native HOME package could not be prepared ({e}). Try again; your collection is unchanged."}
         with LOCK: job["result"] = res; job["state"] = "done"; job["finished"] = time.time()
     threading.Thread(target=run, daemon=True, name="native-home-package").start()
     return {"ok": True, "job": jid}
@@ -187,18 +187,18 @@ PAIR_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta
 .origin{display:inline-block;background:#111;border:1px solid #3a3c45;border-radius:8px;padding:6px 10px;font-family:Consolas,monospace;color:#fff;word-break:break-all}.row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 button{font:inherit;font-weight:600;padding:10px 18px;border-radius:9px;border:1px solid #3a3c45;background:#2a2b33;color:#fff;cursor:pointer}button.ok{background:#d4262c;border-color:#d4262c}button:disabled{opacity:.5;cursor:default}
 .code{font:700 34px/1 Consolas,monospace;letter-spacing:6px;background:#111;border-radius:10px;padding:14px;text-align:center;margin:12px 0}.small{font-size:13px;color:#9a9ba3}.bad{color:#ff8e8e}</style></head>
-<body><div class="card" id="card"><h1>Connect to this computer?</h1><p>The website <span class="origin" id="o"></span> is asking to use the Classic Cart Studio backend on this computer.</p>
-<p class="small">If you allow it, that website can read your games list, prepare collections and open Hakchi on this computer until the companion is closed or you disconnect. Nothing is sent to the console. Only click Allow if you opened that website yourself.</p>
-<div class="row"><button class="ok" id="allow">Allow</button><button id="deny">Don't allow</button></div><p class="small" id="msg"></p></div>
+<body><div class="card" id="card"><h1>Connect to this computer?</h1><p>The website <span class="origin" id="o"></span> wants to connect to Classic Cart Studio on this computer.</p>
+<p class="small">If you allow it, that website can read your game list, prepare collections and open Hakchi on this computer until Classic Cart Studio closes or you disconnect. Nothing is sent to the console. Allow only if you opened that website yourself.</p>
+<div class="row"><button class="ok" id="allow">Allow</button><button id="deny">Don't Allow</button></div><p class="small" id="msg"></p></div>
 <script>(function(){ const q=new URLSearchParams(location.search); const origin=(q.get('origin')||'').replace(/\/$/,''); const ok=__ALLOWED__.includes(origin); const $=i=>document.getElementById(i); $('o').textContent=origin||'(no website named)';
  const tok=(document.querySelector('meta[name="nes-companion-token"]')||{}).content||'';
- if(!ok){ $('card').innerHTML='<h1>Not allowed</h1><p class="bad">The website <span class="origin">'+(origin||'(none)').replace(/[<>&]/g,'')+'</span> is not on the companion\'s list of trusted websites, so it cannot be connected.</p><p class="small">Only the official Classic Cart Studio website ('+__PUBLIC__+') and local development addresses can connect. You can close this window.</p>'; return; }
+ if(!ok){ $('card').innerHTML='<h1>Not allowed</h1><p class="bad">The website <span class="origin">'+(origin||'(none)').replace(/[<>&]/g,'')+'</span> is not on Classic Cart Studio\'s list of trusted websites, so it cannot connect.</p><p class="small">Only the official Classic Cart Studio website ('+__PUBLIC__+') and local development addresses can connect. You can close this window.</p>'; return; }
  const say=(w,o)=>{ try{ if(window.opener&&!window.opener.closed) window.opener.postMessage(w,o); }catch(e){} };
  $('deny').onclick=()=>{ say({type:'nes-studio-pair',denied:true},origin); $('card').innerHTML='<h1>Not connected</h1><p>The website was not given access. You can close this window.</p>'; setTimeout(()=>window.close(),1200); };
  $('allow').onclick=async()=>{ $('allow').disabled=true; $('deny').disabled=true; let r; try{ r=await (await fetch('/api/pair/approve',{method:'POST',headers:{'Content-Type':'application/json','X-NES-Token':tok},body:JSON.stringify({origin})})).json(); }catch(e){ r={ok:false,error:String(e)}; }
   if(!r.ok){ $('msg').innerHTML='<span class="bad">Could not connect: '+String(r.error||'').replace(/[<>&]/g,'')+'</span>'; $('allow').disabled=false; $('deny').disabled=false; return; }
   const delivered=!!(window.opener&&!window.opener.closed); say({type:'nes-studio-pair',token:r.token,expires:r.expires,version:r.version,protocol:r.protocol},origin);
-  $('card').innerHTML='<h1>Connected</h1><p>You can go back to the website now'+(delivered?' and close this window.':'.')+'</p><p class="small">If the website still says it is not connected, enter this one-time code there (valid for 3 minutes):</p><div class="code" id="code">'+r.code+'</div><p class="small">The code works once, only for that website, and only while the companion is running.</p><div class="row"><button id="close">Close this window</button></div>'; $('close').onclick=()=>window.close(); };
+  $('card').innerHTML='<h1>Connected</h1><p>You can go back to the website now'+(delivered?' and close this window.':'.')+'</p><p class="small">If the website still says it is not connected, enter this one-time code there (valid for 3 minutes):</p><div class="code" id="code">'+r.code+'</div><p class="small">The code works once, only for that website, and only while Classic Cart Studio is running.</p><div class="row"><button id="close">Close</button></div>'; $('close').onclick=()=>window.close(); };
 })();</script></body></html>"""
 
 def save_manifest(man: dict) -> str:
@@ -289,8 +289,8 @@ class H(http.server.BaseHTTPRequestHandler):
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); origin = urllib.parse.unquote(q.get("origin", "")).rstrip("/")
             return self._html(200, PAIR_HTML.replace("__TOKEN__", TOKEN).replace("__ALLOWED__", json.dumps(sorted(ALLOWED))).replace("__PUBLIC__", json.dumps(PUBLIC_ORIGIN)))
         if path.startswith("/api/"):
-            if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "this companion is older than the website expects; please update it", "protocol": PROTOCOL, "version": VERSION})
-            if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "not connected: this website must be paired with the companion first", "pair_required": True})
+            if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "Classic Cart Studio for Windows on this computer is older than this website expects. Install the latest version from ClassicCartStudio.com/app.", "protocol": PROTOCOL, "version": VERSION})
+            if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "This website is not connected to Classic Cart Studio on this computer. Connect it first.", "pair_required": True})
         if path.startswith(("/api/overrides", "/overrides/")): import overrides as ov; return ov.handle_get(self, path, qs)   # N3 content customization (desktop principal; images like personal art)
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_get(self, path, qs)   # N3: TV Preview drawn by the native HOME renderer (desktop principal)
         if path == "/api/status":
@@ -301,46 +301,46 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(200, {"ok": True, "bundle": bundle_integrity.check(full=q.get("full") == "1")})
         if path == "/api/import/status":
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); j = ps.job_status(q.get("job", ""))
-            return self._json(200 if j else 404, {"ok": bool(j), "job": j, "error": None if j else "unknown job"})
+            return self._json(200 if j else 404, {"ok": bool(j), "job": j, "error": None if j else "That import is no longer running. Start it again."})
         if path == "/api/library/store":
             st = ps.load_store(); return self._json(200, {"ok": True, "store": {k: {"version_id": k, "present": os.path.exists(v["path"]), "format": v.get("format"), "file_size": v.get("file_size"), "source_name": v.get("source_name"), "added": v.get("added")} for k, v in st.items()}})
         if path == "/api/library/local":
             try: return self._json(200, {"ok": True, "library": ps.read_local_library(os.path.dirname(CFG["hakchi_exe"]))})
-            except Exception as e: return self._json(500, {"ok": False, "error": f"library read failed: {e}"})
+            except Exception as e: return self._json(500, {"ok": False, "error": f"Could not read the games set up in Hakchi on this computer ({e})."})
         if path == "/api/personal": return self._json(200, {"ok": True, "entries": [ps.public(e) for e in ps.load_index()["entries"].values()]})
         if path == "/api/handoff/pending":
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             with LOCK: handoff_prune(); items = sorted(HANDOFF.values(), key=lambda v: v.get("received", 0), reverse=True)
             return self._json(200, {"ok": True, "pending": [{k: v[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at") if k in v} for v in items]})
         if path in ("/api/package/preview", "/api/package/file"):   # .ccs packages staged on this computer: desktop application only
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             import package_api as pk; return pk.handle_get(self, path, qs, data_path)
         if path == "/api/desktop/state":
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             return self._json(200, {"ok": True, "state": desktop_state_load()})
         if path == "/api/home/state":   # console HOME model extras (folders, favorites, history, sorts, theme, shortcuts): desktop application only
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             return self._json(200, {"ok": True, "home": home_state_load()})
         if path == "/api/home/native-package":   # a build's progress and result, or (no job) the current staged package
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             q = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else ""); jid = re.sub(r"[^0-9a-f]", "", (q.get("job") or [""])[0])[:12]
             if jid:
-                st = native_package_status(jid); return self._json(200 if st else 404, {"ok": bool(st), **(st or {"error": "unknown job"})})
+                st = native_package_status(jid); return self._json(200 if st else 404, {"ok": bool(st), **(st or {"error": "That preparation is no longer running. Start it again."})})
             from native_home import package as nhp
             m = nhp.inspect()
             return self._json(200, {"ok": True, "package": m and {k: m.get(k) for k in ("mode", "installable", "not_installable_reason", "configuration", "sizes", "warnings", "blockers")}, "root": nhp.package_root()})
         if path == "/api/home/console":   # the MOCK console store (simulation; Gate G1 not approved, no device)
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             import home_sync as hs; return self._json(200, {"ok": True, "simulation": True, "console": hs.MockConsoleStore(data_path("mock-console.json")).load()})
         if path.startswith("/api/console/"):   # console engine (simulation tier): desktop application only; the website never sees these
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             if path == "/api/console/capabilities":
                 r = cr.call("capabilities", {}, timeout=60); return self._json(200 if r.get("event") == "result" else 500, {"ok": r.get("event") == "result", **({"capabilities": r.get("result")} if r.get("event") == "result" else {"error": r.get("text")})})
             if path == "/api/console/run":
@@ -348,7 +348,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 try: cur = int((q.get("cursor") or ["0"])[0])
                 except ValueError: cur = 0
                 r = cr.poll(re.sub(r"[^A-Za-z0-9-]", "", rid)[:40], max(0, cur))
-                return self._json(200 if r else 404, {"ok": bool(r), **(r or {"error": "unknown run"})})
+                return self._json(200 if r else 404, {"ok": bool(r), **(r or {"error": "That rehearsal is no longer running. Start it again."})})
             return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path.startswith("/api/"): return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path == "/": path = "/nes-catalog.html"
@@ -365,15 +365,15 @@ class H(http.server.BaseHTTPRequestHandler):
         self.send_response(200); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(data))); self.send_header("Cache-Control", "max-age=3600"); self.end_headers(); self.wfile.write(data)
     def _handoff_offer(self):
             o = self._origin()
-            if o not in ALLOWED or o in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"): return self._json(403, {"ok": False, "error": "origin not allowed"})   # the website's origin (or a listed dev origin), never this backend's own page
+            if o not in ALLOWED or o in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"): return self._json(403, {"ok": False, "error": "This website is not allowed to connect to Classic Cart Studio on this computer."})   # the website's origin (or a listed dev origin), never this backend's own page
             n = int(self.headers.get("Content-Length", "0") or 0)
-            if n > HANDOFF_MAX_BYTES: return self._json(413, {"ok": False, "error": "collection too large"})
+            if n > HANDOFF_MAX_BYTES: return self._json(413, {"ok": False, "error": "The collection is too large to hand over directly. Use Export Collection (.ccs) instead."})
             now = time.time(); _handoff_times[:] = [t for t in _handoff_times if now - t < 60]
-            if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "too many offers; wait a minute"})
+            if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "Too many requests in the last minute. Wait a minute and try again."})
             _handoff_times.append(now)
             self._body_read = True
             try: body = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
-            except Exception: return self._json(400, {"ok": False, "error": "invalid JSON"})
+            except Exception: return self._json(400, {"ok": False, "error": "The collection could not be read. Reload the page and try again."})
             item, err = handoff_validate(body if isinstance(body, dict) else {})
             if not item: return self._json(400, {"ok": False, "error": err})
             with LOCK:
@@ -389,42 +389,42 @@ class H(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if not path.startswith("/api/"): return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if not self._host_ok(): return self._json(403, {"ok": False, "error": "forbidden host"})
-        if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "this companion is older than the website expects; please update it", "protocol": PROTOCOL, "version": VERSION})
+        if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "Classic Cart Studio for Windows on this computer is older than this website expects. Install the latest version from ClassicCartStudio.com/app.", "protocol": PROTOCOL, "version": VERSION})
         if path == "/api/handoff/offer": return self._handoff_offer()
         if path == "/api/handoff/package":   # a .ccs the person chose on the website, handed to this app on this computer (never readable back by a website)
             o = self._origin()
-            if o not in ALLOWED or o in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"): return self._json(403, {"ok": False, "error": "origin not allowed"})
+            if o not in ALLOWED or o in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"): return self._json(403, {"ok": False, "error": "This website is not allowed to connect to Classic Cart Studio on this computer."})
             now = time.time(); _handoff_times[:] = [t for t in _handoff_times if now - t < 60]
-            if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "too many offers; wait a minute"})
+            if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "Too many requests in the last minute. Wait a minute and try again."})
             _handoff_times.append(now)
             import package_api as pk; return pk.handle_website_package(self, data_path)
         if path == "/api/pair/claim":   # allow-listed origin, no auth: exchange the one-time code shown by the pairing page for the token bound to that origin
             o = self._origin()
-            if o not in ALLOWED or not self._cross_site(): return self._json(403, {"ok": False, "error": "origin not allowed"})
+            if o not in ALLOWED or not self._cross_site(): return self._json(403, {"ok": False, "error": "This website is not allowed to connect to Classic Cart Studio on this computer."})
             try: body = self._body()
-            except Exception as e: return self._json(400, {"ok": False, "error": f"bad request: {e}"})
+            except Exception as e: return self._json(400, {"ok": False, "error": f"The request could not be read ({e})."})
             code = re.sub(r"\D", "", str(body.get("code") or ""))[:6]
             with LOCK:
                 v = CODES.get(code)
                 if not v or v["expires"] < time.time() or v["origin"] != o:
                     if v: v["tries"] += 1
                     if v and v["tries"] >= 5: CODES.pop(code, None)
-                    return self._json(403, {"ok": False, "error": "that code is not valid for this website (codes expire after 3 minutes and work once)"})
+                    return self._json(403, {"ok": False, "error": "That code is not valid for this website. Codes work once and expire after 3 minutes; get a new one and try again."})
                 CODES.pop(code, None); tok = v["token"]; exp = PAIRED.get(tok, {}).get("expires")
             return self._json(200, {"ok": True, "token": tok, "expires": int(exp or 0), "version": VERSION, "protocol": PROTOCOL})
         if not self._authed():
-            return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "not connected: this website must be paired with the companion first" if self._cross_site() else "request not authorized (token/origin)", "pair_required": self._cross_site()})
+            return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "This website is not connected to Classic Cart Studio on this computer. Connect it first." if self._cross_site() else "This request is not authorized. Reload the page and try again.", "pair_required": self._cross_site()})
         if path.startswith("/api/package/"):   # .ccs packages: desktop application only; before _body(): uploads stream to disk
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             import package_api as pk; return pk.handle_post(self, path, data_path, VERSION)
         if path.startswith("/api/overrides/"): import overrides as ov; return ov.handle_post(self, path, CFG, ps.pick_file)   # N3: before _body(): image uploads stream to disk
         try: body = self._body()
-        except Exception as e: return self._json(400, {"ok": False, "error": f"bad request: {e}"})
+        except Exception as e: return self._json(400, {"ok": False, "error": f"The request could not be read ({e})."})
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_post(self, path, body)   # N3: TV Preview (desktop principal)
         if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown") or path.startswith("/api/console/") or path.startswith("/api/home/"):
             b = self._bearer()
-            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             if path == "/api/shutdown":
                 self._json(200, {"ok": True, "stopping": True}); cr.shutdown(); srv = SERVER_REF.get("srv")
                 if srv: threading.Thread(target=srv.shutdown, daemon=True).start()
@@ -437,28 +437,28 @@ class H(http.server.BaseHTTPRequestHandler):
                 if op == "identify": r = cr.call("identify", {"profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "device": r.get("result"), "error": r.get("text")})
                 if op == "plan":
                     man = body.get("manifest")
-                    if not isinstance(man, dict): return self._json(400, {"ok": False, "error": "manifest required"})
+                    if not isinstance(man, dict): return self._json(400, {"ok": False, "error": "No collection was sent. Reload the page and try again."})
                     r = cr.call("plan", {"manifest": man, "profile": prof or None, "keep_foreign": bool(body.get("keep_foreign", True)), "approve_alternates": bool(CFG.get("approve_alternates", False))}, timeout=180)
                     if r.get("event") != "result": return self._json(400, {"ok": False, "error": r.get("text")})
                     pf = cr.call("preflight", {"plan_hash": r["result"]["plan"]["hash"]})
                     return self._json(200, {"ok": True, "plan": r["result"]["plan"], "preflight": pf.get("result") if pf.get("event") == "result" else {"ok": False, "blocks": [{"code": "preflight-failed", "text": pf.get("text")}], "warnings": []}})
                 h = re.sub(r"[^0-9a-f]", "", str(body.get("plan_hash") or ""))[:64]
                 if op == "simulate":
-                    if len(h) != 64 or not prof: return self._json(400, {"ok": False, "error": "plan_hash and profile required"})
+                    if len(h) != 64 or not prof: return self._json(400, {"ok": False, "error": "Choose a simulated console and review the plan again."})
                     rid = cr.start("simulate", {"plan_hash": h, "profile": prof}); return self._json(200, {"ok": True, "run": rid, "simulated": True})
                 if op == "verify":
                     r = cr.call("verify", {"plan_hash": h, "profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "verify": r.get("result"), "error": r.get("text")})
                 if op == "execute":
                     r = cr.call("execute", {"plan_hash": h, "transport": str(body.get("transport") or "ssh")})
                     res = r.get("result") if r.get("event") == "result" else {"code": r.get("code"), "state": r.get("text")}
-                    return self._json(403, {"ok": False, "error": (res or {}).get("state") or "physical installation disabled", "code": (res or {}).get("code") or "physical-disabled", "physical": False})
+                    return self._json(403, {"ok": False, "error": (res or {}).get("state") or "Installing on a real console is not available in this version.", "code": (res or {}).get("code") or "physical-disabled", "physical": False})
                 if op == "cancel": return self._json(200, {"ok": True, **cr.cancel(re.sub(r"[^A-Za-z0-9-]", "", str(body.get("run") or ""))[:40])})
                 if op == "recover": r = cr.call("recover", {"stage": re.sub(r"[^a-z-]", "", str(body.get("stage") or ""))[:20]}); return self._json(200, {"ok": True, **(r.get("result") or {})})
                 return self._json(404, {"ok": False, "error": "unknown console operation"})
             if path == "/api/home/native-package":   # prepare the native HOME package for the console (staged on this PC; never sent anywhere)
                 man = body.get("manifest") if isinstance(body, dict) else None; home = body.get("home") if isinstance(body, dict) else None
-                if not isinstance(man, dict) or not isinstance(home, dict): return self._json(400, {"ok": False, "error": "the collection and the HOME configuration are required"})
-                if len(json.dumps(body)) > 16_000_000: return self._json(413, {"ok": False, "error": "configuration too large"})
+                if not isinstance(man, dict) or not isinstance(home, dict): return self._json(400, {"ok": False, "error": "The collection or its HOME settings were not sent. Reload the page and try again."})
+                if len(json.dumps(body)) > 16_000_000: return self._json(413, {"ok": False, "error": "The collection and its HOME settings are too large to prepare (16 MB at most)."})
                 r = native_package_start(man, home); return self._json(200 if r["ok"] else 409, r)
             if path == "/api/home/folder-art":   # custom folder artwork: native picker (or a path in rehearsal configurations), validation, derivatives; or removal
                 import folder_art as fa
@@ -476,35 +476,35 @@ class H(http.server.BaseHTTPRequestHandler):
                         return self._json(200, {"ok": True, "art": fa.set_art(fid, chosen)})
                     return self._json(400, {"ok": False, "error": "unknown artwork operation"})
                 except ValueError as e: return self._json(400, {"ok": False, "error": str(e)})
-                except Exception as e: return self._json(500, {"ok": False, "error": f"artwork failed: {e}"})
+                except Exception as e: return self._json(500, {"ok": False, "error": f"The image could not be used ({e})."})
             if path == "/api/home/state":   # desktop application only (checked above with the other desktop routes)
                 st = body.get("home") if isinstance(body, dict) else None
-                if not isinstance(st, dict): return self._json(400, {"ok": False, "error": "home must be an object"})
-                if len(json.dumps(st)) > 8_000_000: return self._json(413, {"ok": False, "error": "home state too large"})
+                if not isinstance(st, dict): return self._json(400, {"ok": False, "error": "The HOME settings could not be read. Reload the page and try again."})
+                if len(json.dumps(st)) > 8_000_000: return self._json(413, {"ok": False, "error": "The HOME settings are too large to save (8 MB at most)."})
                 try: saved = home_state_save(st)
-                except Exception as e: return self._json(500, {"ok": False, "error": f"could not save: {e}"})
+                except Exception as e: return self._json(500, {"ok": False, "error": f"Could not save the HOME settings on this computer ({e})."})
                 return self._json(200, {"ok": True, "saved_at": saved.get("saved_at")})
             if path == "/api/home/sync":   # one sync round against the MOCK console store; never a device (Gate G1 not approved)
                 import home_sync as hs
                 man = body.get("manifest") if isinstance(body, dict) else None; st = body.get("state") if isinstance(body, dict) else None
-                if not isinstance(man, dict) or not isinstance(st, dict): return self._json(400, {"ok": False, "error": "manifest and state objects are required"})
-                if len(json.dumps(body)) > 16_000_000: return self._json(413, {"ok": False, "error": "sync payload too large"})
+                if not isinstance(man, dict) or not isinstance(st, dict): return self._json(400, {"ok": False, "error": "The collection or its HOME settings were not sent. Reload the page and try again."})
+                if len(json.dumps(body)) > 16_000_000: return self._json(413, {"ok": False, "error": "The collection and its HOME settings are too large to sync (16 MB at most)."})
                 try: res = hs.sync(hs.MockConsoleStore(data_path("mock-console.json")), man, st)
-                except Exception as e: return self._json(500, {"ok": False, "error": f"sync failed: {e}"})
+                except Exception as e: return self._json(500, {"ok": False, "error": f"Could not sync with the simulated console ({e})."})
                 if res.get("ok"):
                     try: cur = home_state_load(); cur["favorites"] = res["state"]["favorites"]; cur["history"] = res["state"]["history"]; home_state_save(cur)
                     except Exception: pass
                 return self._json(200 if res.get("ok") else 422, res)
             if path == "/api/desktop/state":   # body was parsed above (bounded by _body)
                 st = body.get("state") if isinstance(body, dict) else None
-                if isinstance(st, dict) and len(json.dumps(st)) > 4_000_000: return self._json(413, {"ok": False, "error": "state too large"})
-                if not isinstance(st, dict): return self._json(400, {"ok": False, "error": "state must be an object"})
+                if isinstance(st, dict) and len(json.dumps(st)) > 4_000_000: return self._json(413, {"ok": False, "error": "The app settings are too large to save (4 MB at most)."})
+                if not isinstance(st, dict): return self._json(400, {"ok": False, "error": "The app settings could not be read. Reload the page and try again."})
                 try: saved = desktop_state_save(st)
-                except Exception as e: return self._json(500, {"ok": False, "error": f"could not save: {e}"})
+                except Exception as e: return self._json(500, {"ok": False, "error": f"Could not save the app settings on this computer ({e})."})
                 return self._json(200, {"ok": True, "saved_at": saved.get("saved_at")})
             oid = str(body.get("id") or "")
             with LOCK: item = HANDOFF.get(oid)
-            if not item: return self._json(404, {"ok": False, "error": "no such offer (it may have expired)"})
+            if not item: return self._json(404, {"ok": False, "error": "That collection handoff was not found; it may have expired. Hand the collection over again from the website."})
             if path == "/api/handoff/discard":
                 with LOCK: HANDOFF.pop(oid, None); handoff_save()
                 return self._json(200, {"ok": True})
@@ -512,12 +512,12 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(200, {"ok": True, "offer": {k: item[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at", "collection")}})
         if path.startswith("/api/pair/"):
             if path == "/api/pair/approve":   # only the pairing page served by this companion (same origin + per-process token) may mint tokens
-                if not (self._same_origin() and secrets.compare_digest(self.headers.get("X-NES-Token", ""), TOKEN)): return self._json(403, {"ok": False, "error": "pairing is approved only from the companion's own pairing page"})
+                if not (self._same_origin() and secrets.compare_digest(self.headers.get("X-NES-Token", ""), TOKEN)): return self._json(403, {"ok": False, "error": "Connections can be approved only on the connection page of Classic Cart Studio on this computer."})
                 o = str(body.get("origin") or "").rstrip("/")
-                if o not in ALLOWED or o in {f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}: return self._json(403, {"ok": False, "error": "that website is not on the trusted list"})
+                if o not in ALLOWED or o in {f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}: return self._json(403, {"ok": False, "error": "That website is not on the trusted list, so it cannot connect."})
                 t = issue_token(o); sys.stderr.write(f"paired website {o} (token expires in {TOKEN_TTL // 3600} h)\n"); return self._json(200, {"ok": True, **t, "version": VERSION, "protocol": PROTOCOL})
             b = self._bearer()
-            if not b: return self._json(403, {"ok": False, "error": "no paired token"})
+            if not b: return self._json(403, {"ok": False, "error": "This website is not connected. Connect it again."})
             if path == "/api/pair/refresh":
                 with LOCK: PAIRED.pop(b["token"], None)
                 t = issue_token(b["origin"]); CODES.pop(t["code"], None); return self._json(200, {"ok": True, "token": t["token"], "expires": t["expires"], "version": VERSION, "protocol": PROTOCOL})
@@ -540,23 +540,23 @@ class H(http.server.BaseHTTPRequestHandler):
                 if path == "/api/import/cancel": return self._json(200, {"ok": ps.cancel_job(str(body.get("job") or ""))})
                 if path == "/api/library/locate":
                     vid = re.sub(r"[^0-9a-f]", "", str(body.get("version_id") or ""))[:16]
-                    if not ps.version_known(vid): return self._json(409, {"ok": False, "error": "unknown version"})
+                    if not ps.version_known(vid): return self._json(409, {"ok": False, "error": "This game version is not in the Game Library."})
                     f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else (ps.pick_files("Locate the game file for this version", [("NES ROMs and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")]) or [""])[0]
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.locate_version(vid, f)})
             except ValueError as e: return self._json(409, {"ok": False, "error": str(e)})
-            except Exception as e: return self._json(500, {"ok": False, "error": f"{path[5:]} failed: {e}"})
+            except Exception as e: return self._json(500, {"ok": False, "error": f"Could not complete this action ({e}). Try again."})
             return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path in ("/api/install-hakchi", "/api/install-driver"):
             # explicit owner click in the catalog; same live guards as staging (never while hakchi runs or the console is attached)
             if not CFG.get("rehearsal_tree"):
-                if hb.hakchi_running(): return self._json(409, {"ok": False, "error": "Hakchi is running; close it first"})
-                if hb.console_connected(): return self._json(409, {"ok": False, "error": "the console is connected over USB; disconnect it first"})
+                if hb.hakchi_running(): return self._json(409, {"ok": False, "error": "Hakchi2 CE is open. Close it, then try again."})
+                if hb.console_connected(): return self._json(409, {"ok": False, "error": "The console is connected over USB. Disconnect it, then try again."})
             try:
                 fn = hb.install_hakchi if path == "/api/install-hakchi" else hb.install_driver
                 res = fn(CFG, dry_run=bool(body.get("dry_run"))); diag_refresh(force=True); res["env"] = status_payload(wait=20)
                 return self._json(200 if res.get("ok") else 409, {"ok": bool(res.get("ok")), "error": None if res.get("ok") else res.get("message"), "result": res})
-            except Exception as e: return self._json(500, {"ok": False, "error": f"{path[5:]} failed: {e}"})
+            except Exception as e: return self._json(500, {"ok": False, "error": f"Could not complete this action ({e}). Try again."})
         if path.startswith("/api/personal/") or path == "/api/library/adopt":
             try:
                 root = os.path.dirname(CFG["hakchi_exe"]); eid = str(body.get("id") or "")
@@ -585,9 +585,9 @@ class H(http.server.BaseHTTPRequestHandler):
                     return self._json(200, {"ok": True, "dropped": n})
                 return self._json(404, {"ok": False, "error": "unknown endpoint"})
             except ValueError as e: return self._json(409, {"ok": False, "error": str(e)})
-            except Exception as e: return self._json(500, {"ok": False, "error": f"{path[5:]} failed: {e}"})
+            except Exception as e: return self._json(500, {"ok": False, "error": f"Could not complete this action ({e}). Try again."})
         man = body.get("manifest")
-        if not isinstance(man, dict): return self._json(400, {"ok": False, "error": "manifest missing"})
+        if not isinstance(man, dict): return self._json(400, {"ok": False, "error": "No collection was sent. Reload the page and try again."})
         # divergence check: the collection's import baseline (the console-management sets when it was loaded) vs the sets now
         conflict = None
         base = man.get("baseline") if isinstance(man.get("baseline"), dict) else None
@@ -596,7 +596,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 cur = hi.effective_collection(os.path.dirname(CFG["hakchi_exe"]))
                 d_o = sorted(set(cur["originals_enabled"]) ^ set(base.get("originals_enabled") or [])); d_c = sorted(set(cur["customs_enabled"]) ^ set(base.get("customs_enabled") or []))
                 if d_o or d_c: conflict = {"changed_factory": d_o, "changed_custom": d_c, "names": {c: cur["names"].get(c, c) for c in d_o + d_c}, "baseline_captured": base.get("captured")}
-            except Exception as e: conflict = {"error": f"could not compare with the current configuration: {e}"}
+            except Exception as e: conflict = {"error": f"Could not compare with the games set up in Hakchi on this computer ({e})."}
         if path == "/api/preview":
             try:
                 mf = save_manifest(man); pv = hb.plan(man, approve_alternates=bool(CFG.get("approve_alternates", False)))
@@ -609,14 +609,14 @@ class H(http.server.BaseHTTPRequestHandler):
                 except Exception: pass
                 env = status_payload(wait=20)
                 return self._json(200, {"ok": True, "manifest_file": os.path.basename(mf), "preview": pv_out, "env": env, "conflict": conflict})
-            except Exception as e: return self._json(500, {"ok": False, "error": f"preview failed: {e}"})
+            except Exception as e: return self._json(500, {"ok": False, "error": f"Could not check the collection ({e}). Try again."})
         if path == "/api/apply":
             mf = body.get("manifest_file") or ""
-            if not re.match(r"^[0-9]{8}-[0-9]{6}-selection(-\d+)?\.json$", mf): return self._json(400, {"ok": False, "error": "manifest_file must be a file name previously saved by /api/preview"})
+            if not re.match(r"^[0-9]{8}-[0-9]{6}-selection(-\d+)?\.json$", mf): return self._json(400, {"ok": False, "error": "Check the collection again, then apply it."})
             full = os.path.join(CFG["exports_dir"], mf); rel = os.path.relpath(full, hb.PROJECT); mf = full if rel.startswith("..") or FROZEN else rel
             saved = json.load(open(full, encoding="utf-8")) if os.path.exists(full) else None
-            if not saved or (saved.get("games") if saved.get("games") is not None else saved.get("selections")) != (man.get("games") if man.get("games") is not None else man.get("selections")): return self._json(409, {"ok": False, "error": "manifest changed since the preview; run the preview again"})
-            if conflict and not body.get("override_conflict"): return self._json(409, {"ok": False, "error": "the games set up on this computer changed since this collection was loaded; review the differences first", "conflict": conflict})
+            if not saved or (saved.get("games") if saved.get("games") is not None else saved.get("selections")) != (man.get("games") if man.get("games") is not None else man.get("selections")): return self._json(409, {"ok": False, "error": "The collection changed after it was checked. Check it again, then apply it."})
+            if conflict and not body.get("override_conflict"): return self._json(409, {"ok": False, "error": "The games set up in Hakchi on this computer changed since this collection was loaded. Review the differences first.", "conflict": conflict})
             res = hb.apply(man, mf, CFG, approve_alternates=bool(CFG.get("approve_alternates", False)), launch=bool(body.get("launch", True)))   # the Studio prepares without launching; "Verify" launches and reads the window
             if res.get("ok") and res.get("launched"):
                 try: res["ui_verification"] = ui_verify(res)

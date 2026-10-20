@@ -42,7 +42,7 @@ function methodNotAllowed(allow, extra = {}) {
 }
 
 function notFoundJson(extra = {}) {
-  return errorResponse(404, 'not_found', 'Not found.', extra);
+  return errorResponse(404, 'not_found', 'This shared collection was not found. It may have been removed already.', extra);
 }
 
 async function loadRecord(env, id) {
@@ -58,7 +58,7 @@ async function hourlyLimit(env, prefix, ip, max) {
   const key = `${prefix}:${ip}:${hour}`;
   const n = await counters.get(key);
   if (n >= max) {
-    throw new HttpError(429, 'rate_limited', 'Too many requests. Try again later.', { 'Retry-After': '3600' });
+    throw new HttpError(429, 'rate_limited', 'Too many requests from this connection in the last hour. Try again later.', { 'Retry-After': '3600' });
   }
   return async () => {
     try {
@@ -78,14 +78,14 @@ async function edgeLimit(env, key) {
     return; // fail open; the KV counter still applies
   }
   if (!outcome || !outcome.success) {
-    throw new HttpError(429, 'rate_limited', 'Too many requests. Try again later.', { 'Retry-After': '60' });
+    throw new HttpError(429, 'rate_limited', 'Too many requests from this connection. Wait a minute and try again.', { 'Retry-After': '60' });
   }
 }
 
 function rejectForeignOrigin(request, siteOrigin) {
   const origin = request.headers.get('origin');
   if (origin !== null && !isAllowedOrigin(origin, siteOrigin)) {
-    throw new HttpError(403, 'origin_not_allowed', 'This origin may not use the share service.');
+    throw new HttpError(403, 'origin_not_allowed', 'This website cannot use the Classic Cart Studio sharing service.');
   }
 }
 
@@ -108,7 +108,7 @@ async function handlePublish(request, env, cfg) {
     const candidate = randomId(10);
     if (!(await store.getRecord(candidate))) id = candidate;
   }
-  if (!id) throw new HttpError(503, 'id_unavailable', 'Could not allocate an id. Try again.');
+  if (!id) throw new HttpError(503, 'id_unavailable', 'Could not create a link this time. Try again.');
 
   const token = randomToken();
   const record = {
@@ -151,7 +151,7 @@ async function handleUnpublish(request, env, cfg) {
 
   const presented = await sha256Hex(token);
   if (!constantTimeEqual(presented, String(record.token_hash || ''))) {
-    return errorResponse(403, 'forbidden', 'The manage token does not match.');
+    return errorResponse(403, 'forbidden', 'The key saved for this link does not match, so the link was not unpublished.');
   }
 
   const thumbCount = Number.isInteger(record.thumb_count) ? record.thumb_count : 0;
@@ -314,7 +314,7 @@ export default {
         res = errorResponse(err.status, err.code, err.message, err.headers);
       } else {
         console.error('share-worker error', err && err.stack ? err.stack : err);
-        res = errorResponse(500, 'internal_error', 'Internal error.');
+        res = errorResponse(500, 'internal_error', 'The sharing service had a problem. Try again later.');
       }
     }
     if (request.method.toUpperCase() === 'HEAD' && res.body) {

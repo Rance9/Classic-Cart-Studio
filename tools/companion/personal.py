@@ -43,33 +43,33 @@ def parse_header(b: bytes) -> dict:
 
 def _read_candidate(path: str) -> tuple[bytes, str, str]:
     """Return (bytes, display file name, note) for a ROM file or the single ROM member of a ZIP. Untrusted input rules apply."""
-    if not os.path.isfile(path): raise ValueError("not a file")
-    if os.path.islink(path): raise ValueError("symbolic links are not accepted")
+    if not os.path.isfile(path): raise ValueError("The file was not found. Choose it again.")
+    if os.path.islink(path): raise ValueError("Links to files are not accepted. Choose the ROM file itself.")
     size = os.path.getsize(path); ext = os.path.splitext(path)[1].lower()
     if ext == ".zip":
-        if size > MAX_ZIP: raise ValueError(f"archive larger than {MAX_ZIP // (1024*1024)} MB")
+        if size > MAX_ZIP: raise ValueError(f"The ZIP file is larger than {MAX_ZIP // (1024*1024)} MB.")
         with zipfile.ZipFile(path) as z:
             members = [m for m in z.infolist() if not m.is_dir()]
-            if len(members) > 64: raise ValueError("archive has too many members")
+            if len(members) > 64: raise ValueError("The ZIP file holds too many files (64 at most).")
             roms = [m for m in members if os.path.splitext(m.filename)[1].lower() in ROM_EXT]
-            if not roms: raise ValueError("no ROM file (.nes/.unh/.bin/.fds) inside the archive")
-            if len(roms) > 1: raise ValueError("archive holds more than one ROM; extract the one you want first")
+            if not roms: raise ValueError("The ZIP file has no ROM file (.nes, .unh, .bin or .fds) in it.")
+            if len(roms) > 1: raise ValueError("The ZIP file holds more than one ROM file. Extract the one you want, then add it.")
             m = roms[0]; name = m.filename.replace("\\", "/")
-            if name.startswith("/") or ".." in name.split("/") or (len(name) > 1 and name[1] == ":"): raise ValueError("unsafe path inside the archive")
-            if m.file_size > MAX_FILE: raise ValueError("ROM inside the archive is larger than a NES ROM can be")
-            if m.compress_size and m.file_size / max(m.compress_size, 1) > 200: raise ValueError("suspicious compression ratio (decompression bomb guard)")
+            if name.startswith("/") or ".." in name.split("/") or (len(name) > 1 and name[1] == ":"): raise ValueError("The ZIP file contains an unsafe path, so it was not used.")
+            if m.file_size > MAX_FILE: raise ValueError("The ROM file in the ZIP file is larger than an NES ROM can be.")
+            if m.compress_size and m.file_size / max(m.compress_size, 1) > 200: raise ValueError("The ZIP file has an unsafe compression ratio, so it was not opened.")
             with z.open(m) as f: data = f.read(MAX_FILE + 1)
-            if len(data) > MAX_FILE: raise ValueError("ROM inside the archive is larger than a NES ROM can be")
+            if len(data) > MAX_FILE: raise ValueError("The ROM file in the ZIP file is larger than an NES ROM can be.")
             return data, os.path.basename(name), f"from archive {os.path.basename(path)}"
-    if ext in (".7z", ".rar"): raise ValueError("7z/rar archives are not supported; extract the ROM first")
-    if ext not in ROM_EXT: raise ValueError(f"unsupported file type {ext or '(none)'}")
-    if size > MAX_FILE: raise ValueError("file is larger than a NES ROM can be")
+    if ext in (".7z", ".rar"): raise ValueError("7z and RAR files are not supported. Extract the ROM file first.")
+    if ext not in ROM_EXT: raise ValueError(f"This is an unsupported file type ({ext or 'no extension'}). Choose an NES ROM file or a ZIP file.")
+    if size > MAX_FILE: raise ValueError("The file is larger than an NES ROM can be.")
     return open(path, "rb").read(), os.path.basename(path), ""
 
 MIN_CONTENT = 8192   # no NES program is smaller than one 8 KiB bank; anything smaller is not a game file
 def version_known(version_id: str) -> bool: return version_id in _lib()["by_id"]
 def identify_bytes(data: bytes) -> dict:
-    if len(data) - (16 if data[:4] == NES_MAGIC else 0) < MIN_CONTENT: raise ValueError("too small to be a NES game file")
+    if len(data) - (16 if data[:4] == NES_MAGIC else 0) < MIN_CONTENT: raise ValueError("The file is too small to be an NES ROM.")
     fmt = detect_format(data)
     if fmt == "unknown":
         fmt = "iNES" if data[:4] == NES_MAGIC else "headerless"
@@ -112,7 +112,7 @@ def ingest(path: str, origin: str = "file", local_code: str = "", local_name: st
     ext = ".nes" if ident["format"] != "headerless" else ".unh"; managed = os.path.join(FILES_DIR, eid + ext)
     if not (os.path.exists(managed) and sha256(open(managed, "rb").read()) == ident["file_sha256"]):
         tmp = managed + ".part"; open(tmp, "wb").write(data)
-        if sha256(open(tmp, "rb").read()) != ident["file_sha256"]: os.remove(tmp); raise ValueError("managed copy verification failed")
+        if sha256(open(tmp, "rb").read()) != ident["file_sha256"]: os.remove(tmp); raise ValueError("The copy saved on this computer did not match the original, so it was not kept. Try again.")
         os.replace(tmp, managed)
     hdr = ident["header"]; det = {"title": re.sub(r"\s*\(.*?\)|\s*\[.*?\]", "", os.path.splitext(fname)[0]).strip() or fname, **{k: hdr.get(k) for k in ("mapper", "submapper", "prg", "chr", "mirroring", "battery", "header_hex")}}
     if hdr:
@@ -138,7 +138,7 @@ def keep_known_copy(version_id: str, data: bytes, ident: dict, fname: str, src: 
     if rec and os.path.exists(rec["path"]) and rec.get("content_sha256") == ident["content_sha256"]: rec["seen"] = rec.get("seen", 1) + 1; st[version_id] = rec; save_store(st); return dict(rec, reused=True)
     os.makedirs(LIB_FILES_DIR, exist_ok=True); ext = ".nes" if ident["format"] != "headerless" else ".unh"; managed = os.path.join(LIB_FILES_DIR, version_id + ext)
     tmp = managed + ".part"; open(tmp, "wb").write(data)
-    if sha256(open(tmp, "rb").read()) != ident["file_sha256"]: os.remove(tmp); raise ValueError("managed copy verification failed")
+    if sha256(open(tmp, "rb").read()) != ident["file_sha256"]: os.remove(tmp); raise ValueError("The copy saved on this computer did not match the original, so it was not kept. Try again.")
     os.replace(tmp, managed)
     rec = {"version_id": version_id, "path": managed, "format": ident["format"], "file_sha256": ident["file_sha256"], "content_sha256": ident["content_sha256"], "file_size": ident["file_size"], "source_name": fname, "source_archive": os.path.basename(src) if note else "", "added": time.strftime("%Y-%m-%dT%H:%M:%S"), "seen": 1}
     st[version_id] = rec; save_store(st); return dict(rec, reused=False)
@@ -150,15 +150,15 @@ def public(e: dict) -> dict:
 
 def relink(entry_id: str, path: str) -> dict:
     idx = load_index(); e = idx["entries"].get(entry_id)
-    if not e: raise ValueError("unknown personal entry")
+    if not e: raise ValueError("That game is no longer among your own games.")
     data, fname, note = _read_candidate(path); ident = identify_bytes(data)
-    if ident["content_sha256"] != e["content_sha256"]: raise ValueError(f"this file is a different ROM (content hash {ident['content_sha256'][:16]}… ≠ expected {e['content_sha256'][:16]}…); nothing was changed")
+    if ident["content_sha256"] != e["content_sha256"]: raise ValueError("This file is a different ROM than the one this game was added with, so nothing was changed.")
     os.makedirs(FILES_DIR, exist_ok=True); managed = e.get("managed_copy") or os.path.join(FILES_DIR, entry_id + (".nes" if ident["format"] != "headerless" else ".unh"))
     tmp = managed + ".part"; open(tmp, "wb").write(data); os.replace(tmp, managed); e["managed_copy"] = managed; e["source_path"] = path; e["file_name"] = fname; save_index(idx); return {"entry": public(e)}
 
 def update_user(entry_id: str, user: dict) -> dict:
     idx = load_index(); e = idx["entries"].get(entry_id)
-    if not e: raise ValueError("unknown personal entry")
+    if not e: raise ValueError("That game is no longer among your own games.")
     allowed = ("title", "version_label", "description", "year", "publisher")
     for k in allowed:
         if k in user: e["user"][k] = str(user[k])[:200]
@@ -167,16 +167,16 @@ def update_user(entry_id: str, user: dict) -> dict:
 def set_art(entry_id: str, path: str) -> dict:
     from PIL import Image
     idx = load_index(); e = idx["entries"].get(entry_id)
-    if not e: raise ValueError("unknown personal entry")
+    if not e: raise ValueError("That game is no longer among your own games.")
     if (Image.MAX_IMAGE_PIXELS or 0) < 200_000_000: Image.MAX_IMAGE_PIXELS = 200_000_000   # no file-size limit (N3.1); only the decompression-bomb ceiling
     os.makedirs(ART_DIR, exist_ok=True); im = Image.open(path); im.verify(); im = Image.open(path)
-    if im.width * im.height > 200_000_000: raise ValueError("the image has more than 200 million pixels")
+    if im.width * im.height > 200_000_000: raise ValueError("The image is too large (more than 200 million pixels).")
     im = im.convert("RGB"); im.thumbnail((480, 640)); out = os.path.join(ART_DIR, entry_id + ".jpg"); im.save(out, "JPEG", quality=88)
     e["user"]["art"] = "personal/art/" + entry_id + ".jpg"; save_index(idx); return {"entry": public(e)}
 
 def remove(entry_id: str, delete_copy: bool = False) -> dict:
     idx = load_index(); e = idx["entries"].pop(entry_id, None)
-    if not e: raise ValueError("unknown personal entry")
+    if not e: raise ValueError("That game is no longer among your own games.")
     if delete_copy and e.get("managed_copy") and os.path.exists(e["managed_copy"]): os.remove(e["managed_copy"])
     save_index(idx); return {"removed": entry_id, "copy_deleted": bool(delete_copy)}
 
@@ -229,18 +229,18 @@ def _members(path: str):
     """Yield (bytes, display name, note) for every ROM candidate in a file: a ROM file itself, or each ROM member of a ZIP (bounded)."""
     ext = os.path.splitext(path)[1].lower()
     if ext == ".zip":
-        if os.path.getsize(path) > MAX_ZIP: raise ValueError(f"archive larger than {MAX_ZIP // (1024*1024)} MB")
+        if os.path.getsize(path) > MAX_ZIP: raise ValueError(f"The ZIP file is larger than {MAX_ZIP // (1024*1024)} MB.")
         with zipfile.ZipFile(path) as z:
             members = [m for m in z.infolist() if not m.is_dir()][:64]
             roms = [m for m in members if os.path.splitext(m.filename)[1].lower() in ROM_EXT]
-            if not roms: raise ValueError("no ROM file inside the archive")
+            if not roms: raise ValueError("The ZIP file has no ROM file in it.")
             for m in roms:
                 name = m.filename.replace("\\", "/")
-                if name.startswith("/") or ".." in name.split("/") or (len(name) > 1 and name[1] == ":"): raise ValueError(f"unsafe path inside the archive: {name}")
-                if m.file_size > MAX_FILE: raise ValueError(f"{name}: larger than a NES ROM can be")
-                if m.compress_size and m.file_size / max(m.compress_size, 1) > 200: raise ValueError(f"{name}: suspicious compression ratio")
+                if name.startswith("/") or ".." in name.split("/") or (len(name) > 1 and name[1] == ":"): raise ValueError(f"The ZIP file contains an unsafe path ({name}), so it was not used.")
+                if m.file_size > MAX_FILE: raise ValueError(f"{name} is larger than an NES ROM can be.")
+                if m.compress_size and m.file_size / max(m.compress_size, 1) > 200: raise ValueError(f"{name} has an unsafe compression ratio, so the ZIP file was not opened.")
                 with z.open(m) as f: data = f.read(MAX_FILE + 1)
-                if len(data) > MAX_FILE: raise ValueError(f"{name}: larger than a NES ROM can be")
+                if len(data) > MAX_FILE: raise ValueError(f"{name} is larger than an NES ROM can be.")
                 yield data, os.path.basename(name), f"from archive {os.path.basename(path)}"
         return
     data, fname, note = _read_candidate(path); yield data, fname, note
@@ -322,12 +322,12 @@ def locate_version(version_id: str, path: str) -> dict:
     """Locate Game File for a known version that has no file on this computer: accept the chosen file only when its content hash IS that
     version (exact identity; never a substitute), then keep a managed copy."""
     lib = _lib(); v = lib["by_id"].get(version_id)
-    if not v: raise ValueError("unknown version")
+    if not v: raise ValueError("This game version is not in the Game Library.")
     found = None
     for data, fname, note in _members(path):
         ident = identify_bytes(data)
         if ident["content_sha256"] == v.get("content_sha256", v["sha256"]) or ident["file_sha256"] == v["sha256"]:
             found = (data, ident, fname, note); break
-    if not found: raise ValueError(f"the chosen file is not this version ({v.get('name', version_id)}): its content hash differs, so it was not used")
+    if not found: raise ValueError(f"The chosen file is not this version ({v.get('name', version_id)}), so it was not used.")
     data, ident, fname, note = found; rec = keep_known_copy(version_id, data, ident, fname, path, note)
     return {"version_id": version_id, "name": v.get("name"), "library_copy": rec}

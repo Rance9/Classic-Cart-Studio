@@ -54,8 +54,8 @@ namespace ClassicCartStudio
             {
                 // something already listens: an older companion window (not ours: it does not know our token) or another program
                 ForeignOnPort = true;
-                LastError = probe.Value.Key ? ("A copy of the Studio companion (version " + probe.Value.Value + ") is already running on this computer. Close it, then choose Try Again.")
-                                            : ("Another program is using port " + Port + " on this computer, which the Studio needs. Close it, then choose Try Again.");
+                LastError = probe.Value.Key ? ("Another copy of Classic Cart Studio (version " + probe.Value.Value + ") is already running on this computer. Close it, then choose Try Again.")
+                                            : ("Another program is using port " + Port + ", which Classic Cart Studio needs. Close that program, then choose Try Again.");
                 App.Log("port busy: " + LastError); return false;
             }
             var exe = Path.Combine(App.AppDir, CompanionExe);
@@ -68,21 +68,21 @@ namespace ClassicCartStudio
                 if (string.IsNullOrEmpty(src) || !File.Exists(Path.Combine(src, "companion_app.py"))) { LastError = "Backend not found: set CCS_BACKEND_SOURCE to tools\\companion in development."; return false; }
                 psi.FileName = "python"; psi.Arguments = "-u \"" + Path.Combine(src, "companion_app.py") + "\" --headless --port " + Port; psi.WorkingDirectory = src;
             }
-            else { LastError = "The Studio backend (" + CompanionExe + ") is missing next to the application. Reinstall Classic Cart Studio."; App.Log(LastError); return false; }
+            else { LastError = "A program file of Classic Cart Studio is missing. Reinstall Classic Cart Studio; your collections are kept."; App.Log(LastError); return false; }
             psi.Environment["CCS_HOST_TOKEN"] = Token;
             psi.Environment["CCS_HOST_PID"] = Process.GetCurrentProcess().Id.ToString();
             psi.Environment["PYTHONIOENCODING"] = "utf-8";
             try { Process = Process.Start(psi); }
-            catch (Exception e) { LastError = "The Studio backend could not be started: " + e.Message; App.Log(LastError); return false; }
+            catch (Exception e) { LastError = "Classic Cart Studio could not start (" + e.Message + "). Choose Try Again, or reinstall Classic Cart Studio; your collections are kept."; App.Log(LastError); return false; }
             App.Log("backend started pid " + Process.Id + " port " + Port);
             var sw = Stopwatch.StartNew();
             while (sw.ElapsedMilliseconds < timeoutMs)
             {
-                if (Process.HasExited) { LastError = "The Studio backend stopped right after starting (exit code " + Process.ExitCode + "). See " + Path.Combine(App.DataRoot, "logs") + "."; App.Log(LastError); return false; }
+                if (Process.HasExited) { LastError = "Classic Cart Studio stopped right after starting (exit code " + Process.ExitCode + "). Choose Try Again; if it keeps happening, open Diagnostics or reinstall Classic Cart Studio."; App.Log(LastError); return false; }
                 if (Ping()) { var v = Version(); if (v != null && v.Value.Key) { BackendVersion = v.Value.Value; Ready = true; App.Log("backend ready version " + BackendVersion + " in " + sw.ElapsedMilliseconds + " ms"); return true; } }
                 Thread.Sleep(150);
             }
-            LastError = "The Studio backend did not answer within " + (timeoutMs / 1000) + " seconds."; App.Log(LastError); return false;
+            LastError = "Classic Cart Studio did not finish starting within " + (timeoutMs / 1000) + " seconds. Choose Try Again."; App.Log(LastError); return false;
         }
 
         KeyValuePair<bool, string>? Probe()

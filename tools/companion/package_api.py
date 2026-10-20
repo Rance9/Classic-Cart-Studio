@@ -46,13 +46,13 @@ def describe(i: str, path: str, origin: str = "") -> dict:
 
 def _read_raw_to(handler, path: str, limit: int) -> int:
     n = int(handler.headers.get("Content-Length", "0") or 0)
-    if n <= 0: raise ValueError("empty body")
-    if n > limit: raise OverflowError("too large")
+    if n <= 0: raise ValueError("The package is empty.")
+    if n > limit: raise OverflowError("The package is too large.")
     handler._body_read = True; left = n
     with open(path, "wb") as f:
         while left:
             chunk = handler.rfile.read(min(1 << 20, left))
-            if not chunk: raise ValueError("incomplete upload")
+            if not chunk: raise ValueError("The package did not arrive completely. Try again.")
             f.write(chunk); left -= len(chunk)
     return n
 
@@ -60,7 +60,7 @@ def handle_website_package(handler, data_path) -> None:
     """POST /api/handoff/package from the allow-listed website: stage only; the desktop window decides what happens with it"""
     d = stage_dir(data_path); _prune(d); i, p = _new_path(d)
     try: _read_raw_to(handler, p, MAX_UPLOAD)
-    except OverflowError: return handler._json(413, {"ok": False, "error": "package too large"})
+    except OverflowError: return handler._json(413, {"ok": False, "error": "The package is larger than 2 GB, so it cannot be opened."})
     except Exception as e:
         try: os.remove(p)
         except OSError: pass
@@ -97,23 +97,23 @@ def handle_post(handler, path: str, data_path, version: str) -> None:
     if path == "/api/package/stage":
         _prune(d); i, p = _new_path(d)
         try: _read_raw_to(handler, p, MAX_UPLOAD)
-        except OverflowError: return handler._json(413, {"ok": False, "error": "the package is larger than 2 GB"})
+        except OverflowError: return handler._json(413, {"ok": False, "error": "The package is larger than 2 GB, so it cannot be opened."})
         except Exception as e: return handler._json(400, {"ok": False, "error": str(e)})
         return handler._json(200, describe(i, p))
     body = handler._body()
     if path == "/api/package/open":
         src = str(body.get("path") or "")
-        if not src.lower().endswith(".ccs") or not os.path.isfile(src): return handler._json(400, {"ok": False, "error": "that is not a .ccs file on this computer"})
-        if os.path.getsize(src) > MAX_UPLOAD: return handler._json(413, {"ok": False, "error": "the package is larger than 2 GB"})
+        if not src.lower().endswith(".ccs") or not os.path.isfile(src): return handler._json(400, {"ok": False, "error": "That file is not a .ccs file on this computer."})
+        if os.path.getsize(src) > MAX_UPLOAD: return handler._json(413, {"ok": False, "error": "The package is larger than 2 GB, so it cannot be opened."})
         _prune(d); i, p = _new_path(d); shutil.copyfile(src, p)
         r = describe(i, p); r["file_name"] = os.path.basename(src); return handler._json(200, r)
     if path == "/api/package/import-roms":
         p = _path_for(d, str(body.get("id") or ""))
-        if not p: return handler._json(404, {"ok": False, "error": "that package is no longer staged; open the .ccs file again"})
+        if not p: return handler._json(404, {"ok": False, "error": "That package is no longer open. Open the .ccs file again."})
         acc = body.get("accept"); acc = [str(x) for x in acc] if isinstance(acc, list) else None
         try: r = cp.import_roms(p, acc)
         except cp.PackageError as e: return handler._json(400, {"ok": False, "error": str(e)})
-        except OSError as e: return handler._json(507, {"ok": False, "error": f"the game files could not be stored ({e.strerror or e}); nothing was imported"})
+        except OSError as e: return handler._json(507, {"ok": False, "error": f"The ROM files could not be saved on this computer ({e.strerror or e}). Nothing was imported."})
         return handler._json(200, dict(r, ok=True))
     if path == "/api/package/rom-check":   # which of the collection's game files are on this computer (before the person confirms what to package)
         avail, missing = [], []
@@ -124,7 +124,7 @@ def handle_post(handler, path: str, data_path, version: str) -> None:
         return handler._json(200, {"ok": True, "available": avail, "missing": missing})
     if path == "/api/package/export":
         coll = body.get("collection"); backup = body.get("backup")
-        if not isinstance(coll, dict) and not isinstance(backup, dict): return handler._json(400, {"ok": False, "error": "nothing to export"})
+        if not isinstance(coll, dict) and not isinstance(backup, dict): return handler._json(400, {"ok": False, "error": "There is nothing to export. Open a collection, then try again."})
         art = {}
         for k, v in (body.get("art") or {}).items():
             try: art[str(k)] = base64.b64decode(str(v).split(",", 1)[-1], validate=True)
@@ -135,19 +135,19 @@ def handle_post(handler, path: str, data_path, version: str) -> None:
                 vid = str((g or {}).get("version_id") or ""); title = str((g or {}).get("title") or vid)
                 src = _rom_source(vid) if re.fullmatch(r"[A-Za-z0-9_.:-]{1,96}", vid) else None
                 if src: roms.append({"version_id": vid, "path": src, "title": title})
-                else: missing.append({"version_id": vid, "title": title, "reason": "the game file is not on this computer"})
+                else: missing.append({"version_id": vid, "title": title, "reason": "The ROM file is not on this computer."})
         _prune(d); i, p = _new_path(d)
         try: man = cp.write(p, collection=coll if isinstance(coll, dict) else None, backup=backup if isinstance(backup, dict) and not isinstance(coll, dict) else None,
                             art=art, roms=roms, missing=missing, summary=body.get("summary") or {}, app_version=version)
         except cp.PackageError as e: return handler._json(400, {"ok": False, "error": str(e)})
-        except OSError as e: return handler._json(507, {"ok": False, "error": f"the package could not be written ({e.strerror or e})"})
+        except OSError as e: return handler._json(507, {"ok": False, "error": f"The package could not be saved on this computer ({e.strerror or e}). Check the free space, then try again."})
         return handler._json(200, {"ok": True, "id": i, "size": os.path.getsize(p), "included": man["roms"]["included"], "missing": man["roms"]["missing"]})
     return handler._json(404, {"ok": False, "error": "unknown package endpoint"})
 
 def handle_get(handler, path: str, qs: str, data_path) -> None:
     d = stage_dir(data_path); q = dict(x.split("=", 1) for x in qs.split("&") if "=" in x)
     p = _path_for(d, q.get("id", ""))
-    if not p: return handler._json(404, {"ok": False, "error": "that package is no longer staged"})
+    if not p: return handler._json(404, {"ok": False, "error": "That package is no longer open. Open the .ccs file again."})
     if path == "/api/package/preview": return handler._json(200, describe(q["id"], p))
     if path == "/api/package/file":
         n = os.path.getsize(p); handler.send_response(200); handler.send_header("Content-Type", "application/vnd.classiccartstudio.collection+zip"); handler.send_header("Content-Length", str(n)); handler.send_header("Cache-Control", "no-store"); handler.end_headers()

@@ -44,7 +44,7 @@ def main():
         flip = lambda items: [(i, (d[:-1] + bytes([d[-1] ^ 1])) if i.filename.startswith("roms/a") or i.filename == "roms/abcdef0123456789.nes" else d) for i, d in items]
         bad = expect_problem("changed_byte_detected", flip, "checksum does not match")
         expect_problem("missing_listed_file_detected", lambda items: [(i, d) for i, d in items if not i.filename.startswith("roms/p_")], "missing from the package")
-        expect_problem("unlisted_file_refused", lambda items: items + [(zipfile.ZipInfo("art/extra.jpg"), b"\xff\xd8x\xff\xd9")], "does not list")
+        expect_problem("unlisted_file_refused", lambda items: items + [(zipfile.ZipInfo("art/extra.jpg"), b"\xff\xd8x\xff\xd9")], "does not name")
         # ---- safety ----
         def raw(name, entries):
             dst = os.path.join(tmp, name + ".ccs")
@@ -63,14 +63,14 @@ def main():
         with zipfile.ZipFile(dup, "w") as z: z.writestr(cp.MANIFEST, good_man); z.writestr("collection.json", b"{}"); z.writestr("collection.json", b"{}")
         refused("duplicate_entries_refused", dup, "duplicate")
         ln = zipfile.ZipInfo("roms/link.nes"); ln.external_attr = (stat.S_IFLNK | 0o777) << 16
-        refused("symlink_refused", raw("link", [(cp.MANIFEST, good_man), (ln, b"/etc/passwd")]), "links")
+        refused("symlink_refused", raw("link", [(cp.MANIFEST, good_man), (ln, b"/etc/passwd")]), "a link")
         bomb = os.path.join(tmp, "bomb.ccs")
         with zipfile.ZipFile(bomb, "w", compression=zipfile.ZIP_DEFLATED) as z: z.writestr(cp.MANIFEST, good_man); z.writestr("collection.json", b"\0" * (40 * 1024 * 1024))
         refused("decompression_bomb_refused", bomb, "ratio")
         refused("wrong_format_refused", raw("fmt", [(cp.MANIFEST, json.dumps({"format": "other"}).encode())]), "not a Classic Cart Studio package")
         refused("newer_schema_refused", raw("schema", [(cp.MANIFEST, json.dumps({"format": cp.FORMAT, "schema": "ccs-package/9", "files": []}).encode())]), "newer")
-        refused("malformed_manifest_refused", raw("malformed", [(cp.MANIFEST, b"{not json")]), "not valid")
-        refused("not_a_zip_refused", (lambda p: (open(p, "wb").write(b"hello"), p)[1])(os.path.join(tmp, "plain.ccs")), "not a valid archive")
+        refused("malformed_manifest_refused", raw("malformed", [(cp.MANIFEST, b"{not json")]), "is damaged")
+        refused("not_a_zip_refused", (lambda p: (open(p, "wb").write(b"hello"), p)[1])(os.path.join(tmp, "plain.ccs")), "or it is damaged")
         # ---- ROM import ----
         calls = []
         def fake_ingest(data, fname, src, note, origin):

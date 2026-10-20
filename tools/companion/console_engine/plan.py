@@ -67,14 +67,14 @@ def build(manifest: dict, *, device: dict | None = None, foreign: dict | None = 
             it = custom_by_id[row["game_id"]]; g = it["game"]; code, size, crc = _code_for_custom(hb, it)
             exec_cmd, core = hb.exec_for(g, code, g.get("nointro_name") or "rom.nes")
             req = CORE_MODULES.get(core); kind2 = "factory-alternate" if kind.startswith("factory") else ("personal" if g.get("source") == "personal" else "added")
-            if req is None: problems.append(f"{row['title']}: emulator core {core!r} has no pinned module route"); req = ["?"]
+            if req is None: problems.append(f"{row['title']}: needs an emulator that Classic Cart Studio cannot set up in this version."); req = ["?"]
             for m in req: modules_needed[m] = modules_needed.get(m, 0) + 1
             entries.append({"code": code, "kind": kind2, "title": row["title"], "action": "add", "size": size, "sha256": g.get("payload_sha256"), "version_id": g.get("game_id"), "crc32": crc, "core": core, "exec": exec_cmd, "requires": req,
                             "files": {f"{code}/{code}.desktop": DESKTOP_BYTES, f"{code}/{code}.png": ART_BYTES, f"{code}/{code}_small.png": ART_SMALL_BYTES, f"{code}/metadata.json": METADATA_BYTES, f"{code}/{(g.get('nointro_name') or 'rom.nes').replace('/', '_')}.nes" if not (g.get('nointro_name') or '').endswith('.nes') else f"{code}/{g.get('nointro_name')}": size + (HEADER_LEN if g.get("headered_file") is False else 0)}})
         else:
             entries.append({"code": row.get("code") or "", "kind": "unresolved", "title": row["title"], "action": "none", "size": 0, "core": "", "requires": [], "detail": row.get("detail", ""), "statuses": st})
     for code, files in (foreign or {}).items():
-        entries.append({"code": code, "kind": "foreign-keep" if keep_foreign else "foreign-remove", "title": f"existing game {code} (not from this collection)", "action": "keep-unknown" if keep_foreign else "remove", "size": sum(files.values()), "core": "", "requires": [], "files": dict(files)})
+        entries.append({"code": code, "kind": "foreign-keep" if keep_foreign else "foreign-remove", "title": f"Game {code} already on the console (not from this collection)", "action": "keep-unknown" if keep_foreign else "remove", "size": sum(files.values()), "core": "", "requires": [], "files": dict(files)})
     installed = set((device or {}).get("modules") or [])
     modules = [{"name": m, "needed_by": n, "pinned_sha256": MODULE_PINS.get(m), "action": "present" if m in installed else ("install" if device else "unknown"), "cleared": MODULE_PINS.get(m) is not None}
                for m, n in sorted(modules_needed.items())]
@@ -97,16 +97,16 @@ def build(manifest: dict, *, device: dict | None = None, foreign: dict | None = 
                             "hakchi_present": dev.get("needs_first_time_setup") is False, "retroarch_present": "_km_retroarch_1910_ozone" in (dev.get("modules") or [])})
     required = est["content"]; margin = est["margin"]
     fits = est["used"] <= est["available"] if not est["unknown"] or est["remaining"] < 0 else None
-    if nh_bytes is None: warnings.append("the native HOME package is not prepared yet: its size is estimated (prepare it in Review Changes to measure it)")
-    if free is None: warnings.append("the console's free space is not known until it is inspected; the storage check uses the reference NES Classic model (an estimate)")
+    if nh_bytes is None: warnings.append("The native HOME package is not prepared yet, so its size is estimated. Prepare it in Review Changes to measure it.")
+    if free is None: warnings.append("The console's free space is not known until it is inspected, so the storage check is estimated from a standard NES Classic.")
     budget = {"source": src, "total": total, "used": used, "free": est["available"], "proposed_add_bytes": add_bytes, "foreign_kept_bytes": keep_foreign_bytes, "margin": margin, "fits": fits, "status": est["status"],
               "native_home_bytes": nh_bytes, "native_home_estimate": None if nh_bytes is not None else est["home"], "components": est["components"], "estimate": est,
               "native_home": {"source": "measured: the package staged on this computer" if nh_bytes is not None else "estimated (not prepared)", "files": (nh or {}).get("files"), "installable": (nh or {}).get("installable")},
               "required_bytes": required,
-              "text": {"reference": "estimated from the reference NES Classic model, not your console", "simulated": "simulated console figures, not a real measurement", "measured": "measured on the connected console"}[src]}
+              "text": {"reference": "estimated from a standard NES Classic, not your console", "simulated": "simulated console figures, not a real measurement", "measured": "measured on the connected console"}[src]}
     firmware = {"state": dev.get("firmware_state", "unknown"), "needs_first_time_setup": dev.get("needs_first_time_setup")}
     backup = {"state": dev.get("backup_state", "unknown"), "artifacts": dev.get("backup_artifacts", [])}
-    if any(m["action"] == "install" and not m["cleared"] for m in modules): warnings.append("a required emulator module is not cleared for distribution; the Studio will not download it, you obtain it yourself (compliant route)")
+    if any(m["action"] == "install" and not m["cleared"] for m in modules): warnings.append("A required emulator module is not cleared for distribution, so Classic Cart Studio will not download it. You need to provide it yourself.")
     plan = {"schema": SCHEMA, "created": time.strftime("%Y-%m-%dT%H:%M:%S"), "collection": {"name": manifest.get("name") or manifest.get("collection_name") or "", "schema": manifest.get("schema"), "games": pv["summary"]["collection"]},
             "device": dev, "entries": entries, "modules": modules, "budget": budget, "firmware": firmware, "backup": backup,
             "summary": {**pv["summary"], "adds": sum(1 for e in entries if e["action"] == "add"), "hides": sum(1 for e in entries if e["action"] == "hide"), "keeps": sum(1 for e in entries if e["action"] == "keep"),

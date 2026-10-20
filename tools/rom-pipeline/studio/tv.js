@@ -7,7 +7,14 @@
 //      the same small modal the toolbar badge opens; host keys and the on-screen pad are emulations of D-pad, A, B, START, SELECT.
 // Nothing here talks to a console, scans the computer or uploads anything. A launch is SIMULATED and labeled as such.
 const TV_KEY='studio-tv-v1', HOME_KEY='studio-home-v1';
-const TV_SAMPLE_NOTICE='Your tray is empty — this is a sample of the 30 built-in games the NES Classic ships with. Select games to preview your own menu.';
+const TV_SAMPLE_NOTICE='This is a sample: the 30 built-in games every NES Classic ships with. Add games to see your own menu.';
+// what the preview shows: the open NES Classic Loadout (from a collection, Preview on TV asks for one first), else the collection
+function tvLoadout(){ try{ return (typeof loCur==='function')?loCur():null; }catch(e){ return null; } }
+function tvPlanWord(){ return tvLoadout()?'loadout':'collection'; }
+function tvPlanName(){ const l=tvLoadout(); return l?l.name:COLL.name; }
+function tvPl(n,w){ return `${n} ${w}${n===1?'':'s'}`; }
+function tvCoreText(c){ const s=String(c||'unknown'); return /kachikachi/i.test(s)?"the console's own":/retroarch/i.test(s)?'RetroArch (add-on module)':s==='unknown'?'unknown':s; }
+const TV_SECTION_NAMES={allgames:'All Games',browse:'Browse',favorites:'Favorites',history:'Recently Played',search:'Search',settings:'Settings'};
 let TV={open:false,mode:'proposed',treatment:'clean',proj:null,returnTo:null,focusId:null,model:null,S:null,held:null,clock:0,repeatTimer:0,launching:null};
 function tvSortTitle(t){ t=String(t||'').toLowerCase().trim(); return t.startsWith('the ')?t.slice(4):t; }
 function tvFactoryTitle(code){ return (typeof FACTORY_TITLES!=='undefined'&&FACTORY_TITLES[code])||code; }
@@ -29,13 +36,13 @@ function tvProject(mode){
  const chosen=selectedGames(); const sample=chosen.length===0; const entries=sample?tvSampleEntries():chosen.map(tvEntryFor); entries.sort((a,b)=>a.sort<b.sort?-1:a.sort>b.sort?1:(a.id<b.id?-1:1));
  const hiddenCodes=sample?[]:FACTORY_CODES.filter(cd=>!chosen.some(g=>g.builtin_code===cd&&factoryVisible(g)));
  const assumptions=sample?[
-  {level:'known',text:'Your tray is empty, so this is a sample: the 30 built-in games every NES Classic ships with, in their factory versions. Nothing from your collection is shown. Select games in the library and the preview shows your own HOME instead.'},
-  {level:'unknown',text:'What is on the physical console right now is not verified by this preview.'}]:[
-  {level:'known',text:'Which games are in the plan, their exact versions and which built-in games the plan keeps come from your collection.'},
-  {level:'known',text:'All Games opens in your collection order; a sort chosen in the HOME is view-only and never changes that order.'},
-  {level:'estimated',text:`Unselected built-in games (${hiddenCodes.length}) are hidden by the plan; hiding is applied during preparation on this computer, not by the console itself.`},
-  {level:(typeof COMPANION!=='undefined'&&COMPANION.ok)?'known':'unknown',text:(typeof COMPANION!=='undefined'&&COMPANION.ok)?'Game file readiness comes from the Studio on this computer.':'Game files: unknown here (the website cannot see your computer); the desktop app shows which files are ready.'},
-  {level:'unknown',text:'What is on the physical console right now is not verified by this preview. Launching here is simulated; no game runs in the browser.'}];
+  {level:'known',text:`This ${tvPlanWord()} has no games yet, so this is a sample: the 30 built-in games every NES Classic ships with, in their factory versions. Add games to see your own HOME.`},
+  {level:'unknown',text:'What is on your console right now is not checked by this preview.'}]:[
+  {level:'known',text:`The games, their exact versions and the built-in games kept come from this ${tvPlanWord()}.`},
+  {level:'known',text:`All Games uses the ${tvPlanWord()}'s order; a sort chosen in the HOME changes only the view.`},
+  {level:'estimated',text:`${tvPl(hiddenCodes.length,'built-in game')} left out ${hiddenCodes.length===1?'is':'are'} hidden. Hiding is applied when the ${tvPlanWord()} is prepared on this computer, not by the console itself.`},
+  {level:(typeof COMPANION!=='undefined'&&COMPANION.ok)?'known':'unknown',text:(typeof COMPANION!=='undefined'&&COMPANION.ok)?'Game file status comes from this computer.':'Game files are unknown on the website; the Windows app shows which files are ready.'},
+  {level:'unknown',text:'What is on your console right now is not checked by this preview. Launches here are simulated; no game runs.'}];
  const proj={fp,mode,sample,entries,count:entries.length,hidden:hiddenCodes.map(cd=>({code:cd,title:tvFactoryTitle(cd)})),assumptions,
   counts:{builtin:entries.filter(e=>e.kind==='builtin').length,kept:entries.filter(e=>e.kind==='factory-kept').length,added:entries.filter(e=>e.kind==='added').length,alternate:entries.filter(e=>e.kind==='alternate').length,missing:entries.filter(e=>e.ready==='missing').length,ready:entries.filter(e=>e.ready==='ready').length,hardware:entries.filter(e=>e.hardware).length}};
  TV.proj=proj; return proj;
@@ -62,13 +69,13 @@ function tvEnsure(){
  const m=document.createElement('div'); m.id='tv'; m.className='tvmodal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-labelledby','tvTitle'); m.hidden=true;
  m.innerHTML=`<div class="tvbox">
   <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Preview on TV</h2><span class="small" id="tvSub"></span></div></div>
-   <div class="tvtools"><div class="seg" role="group" aria-label="Theme (host shortcut; on the console: START, Change Theme)">${HOME_THEME_META.map(t=>`<button class="btn sm tvtheme" data-theme="${t.id}" title="${esc(t.note)}">${esc(t.name)}</button>`).join('')}</div>
-   <div class="seg" role="group" aria-label="Display treatment"><button class="btn sm active" id="tvTrC" data-tr="clean">Clean</button><button class="btn sm" id="tvTrR" data-tr="retro" title="A cosmetic CRT-style look around the same 16:9 HOME">Retro</button></div>
-   <button class="btn sm" id="tvSave" title="Save the simulated TV surface as a 1920×1080 PNG">Save Preview Image</button></div></div>
+   <div class="tvtools"><div class="seg" role="group" aria-label="Theme (on the console: START, Change Theme)">${HOME_THEME_META.map(t=>`<button class="btn sm tvtheme" data-theme="${t.id}" title="${esc(t.note)}">${esc(t.name)}</button>`).join('')}</div>
+   <div class="seg" role="group" aria-label="Display treatment"><button class="btn sm active" id="tvTrC" data-tr="clean">Clean</button><button class="btn sm" id="tvTrR" data-tr="retro" title="A CRT-style look; the HOME stays 16:9">Retro</button></div>
+   <button class="btn sm" id="tvSave" title="Save the screen as a 1920 × 1080 PNG">Save Preview Image</button></div></div>
   <button class="tvclose" id="tvClose" type="button" aria-label="Close the preview" title="Close (Esc)">✕</button>
   <div class="tvmain">
    <div class="tvstagewrap"><div class="tvstage" id="tvStage" tabindex="0" aria-label="Simulated NES Classic HOME, 16 by 9" aria-describedby="tvLive"><div class="hmwrap" id="tvHome"></div><div class="tvsim" id="tvSim" hidden></div><div class="tvcrt" aria-hidden="true"></div></div>
-    <div class="tvpad" id="tvPad" aria-label="On-screen controls (the console has only these)"><div class="dpad"><button class="pb up" data-act="up" aria-label="Up">▲</button><button class="pb left" data-act="left" aria-label="Left">◀</button><button class="pb right" data-act="right" aria-label="Right">▶</button><button class="pb down" data-act="down" aria-label="Down">▼</button></div>
+    <div class="tvpad" id="tvPad" aria-label="On-screen controls"><div class="dpad"><button class="pb up" data-act="up" aria-label="Up">▲</button><button class="pb left" data-act="left" aria-label="Left">◀</button><button class="pb right" data-act="right" aria-label="Right">▶</button><button class="pb down" data-act="down" aria-label="Down">▼</button></div>
      <div class="ssh"><button class="pb sel" data-act="select" aria-label="SELECT, game details">SELECT</button><button class="pb start" data-act="start" aria-label="START, main menu">START</button></div>
      <div class="abh"><button class="pb b" data-act="b" aria-label="B, back">B</button><button class="pb a" data-act="a" aria-label="A, launch or choose">A</button></div>
      <div class="small tvhint">Arrows D-pad · Enter / Z = A · Backspace / X = B · S = SELECT · M = START · hold a key to repeat · Esc closes</div></div>
@@ -102,7 +109,7 @@ function openTv(opts){
  TV.S=homeReconcileState(TV.S,TV.model,tvSearch());
  const m=$('tv'); m.hidden=false; m.classList.add('open'); document.body.classList.add('tv-open'); document.body.style.overflow='hidden';
  tvApplyTreatment(); tvDraw(); $('tvStage').focus({preventScroll:true}); if(!TV.clock) TV.clock=setInterval(()=>{ if(TV.open&&!TV.held) tvDraw(true); },30000);
- if(opts.focus&&!TV.model.order.includes(opts.focus)){ const g=byId[opts.focus]; tvSay(`${g?g.display_title:'That game'} is not in the proposed HOME: it is not selected.`); $('tvSub').textContent=`${g?g.display_title:'That game'} is not part of the proposed HOME (not selected)`; }
+ if(opts.focus&&!TV.model.order.includes(opts.focus)){ const g=byId[opts.focus]; tvSay(`${g?g.display_title:'That game'} is not in this ${tvPlanWord()}, so it is not in this HOME.`); $('tvSub').textContent=`${g?g.display_title:'That game'} is not in this ${tvPlanWord()}, so the preview cannot show it`; }
  if(typeof hoLog==='function') hoLog('tv open n='+TV.model.order.length+' theme='+TV.S.theme);
 }
 function closeTv(){ const m=$('tv'); if(!m||!TV.open) return; tvReleaseAll(); TV.open=false; homeExtrasSave(); m.classList.remove('open'); m.hidden=true; document.body.classList.remove('tv-open'); document.body.style.overflow=''; const r=TV.returnTo; TV.returnTo=null; try{ if(r&&r.focus) r.focus({preventScroll:true}); }catch(e){} }
@@ -142,13 +149,13 @@ function tvApplyEffects(fx){ let persist=false; for(const f of fx){
  else if(f.type==='persist') persist=true; }
  if(persist) homeExtrasSave(); }
 // a launch is simulated: the console would start the game now; here a labeled interstitial shows, the launch is recorded in the history, and the HOME returns to the same spot
-function tvLaunchSim(id){ const g=TV.model.games.find(x=>x.id===id); if(!g) return; homeRecordLaunch(TV.model,id); homeExtrasSave(); TV.launching=id; const el=$('tvSim'); el.hidden=false; el.innerHTML=`<div class="box"><div class="k">SIMULATED LAUNCH</div><b>${esc(g.title)}</b><p>On the console the game would start now. Nothing runs in this browser. The launch was recorded in the preview's play history, as the console would record it.</p><span class="small">press any control to return</span></div>`; tvSay(`Simulated launch of ${g.title}. Press any control to return.`); if(TV.simTimer) clearTimeout(TV.simTimer); TV.simTimer=setTimeout(tvLaunchDone,2200); }
+function tvLaunchSim(id){ const g=TV.model.games.find(x=>x.id===id); if(!g) return; homeRecordLaunch(TV.model,id); homeExtrasSave(); TV.launching=id; const el=$('tvSim'); el.hidden=false; el.innerHTML=`<div class="box"><div class="k">SIMULATED LAUNCH</div><b>${esc(g.title)}</b><p>On the console, the game would start now. Nothing runs in this browser; the launch is recorded in the play history.</p><span class="small">Press any control to return</span></div>`; tvSay(`Simulated launch of ${g.title}. Press any control to return.`); if(TV.simTimer) clearTimeout(TV.simTimer); TV.simTimer=setTimeout(tvLaunchDone,2200); }
 function tvLaunchDone(){ if(!TV.launching) return; TV.launching=null; const el=$('tvSim'); if(el){ el.hidden=true; el.innerHTML=''; } if(TV.simTimer){ clearTimeout(TV.simTimer); TV.simTimer=0; } tvDraw(); }
 
 // ---- draw ----
 function tvDraw(quiet){
  if(!TV.open||!TV.model||!TV.S) return; const m=TV.model; const S=TV.S; const sub=$('tvSub'); const smp=m.sample;
- sub.textContent=smp?'Tray empty · sample of the 30 built-in games, not your collection · simulation, not a console capture':'Simulation of the HOME this collection proposes · '+(HOME_THEME_META.find(t=>t.id===S.theme)||{}).name+' · not a console capture';
+ sub.textContent=smp?`No games in this ${tvPlanWord()} · sample of the 30 built-in games · simulation`:`${tvPlanName()} · ${(HOME_THEME_META.find(t=>t.id===S.theme)||{}).name} · simulation, not a console capture`;
  document.querySelectorAll('.tvtheme').forEach(b=>b.classList.toggle('active',b.dataset.theme===S.theme));
  homeRender($('tvHome'),m,S,tvCtx());
  const L=homeListing(m,S,tvSearch()); const id=S.overlay&&S.overlay.type==='details'?S.overlay.id:(S.section.type==='search'?L.ids[S.resultIndex]:L.ids[S.index]); TV.focusId=id||null;
@@ -157,30 +164,30 @@ function tvDraw(quiet){
  tvKeepFocus();
 }
 function tvKeepFocus(){ const a=document.activeElement; const m=$('tv'); if(!m||!TV.open) return; if(!a||a===document.body||!m.contains(a)||!a.isConnected) { try{ $('tvStage').focus({preventScroll:true}); }catch(e){} } }
-function tvKindText(k){ return {builtin:'built-in game, kept as it is',"factory-kept":'built-in game kept in its factory version',added:'added game',alternate:'catalog version chosen over the factory version (needs approval at import)'}[k]||k; }
+function tvKindText(k){ return {builtin:'built-in game',"factory-kept":'built-in game, factory version',added:'added game',alternate:'Game Library version instead of the factory version (needs your approval)'}[k]||k; }
 function tvSide(e){
  const p=tvProject(TV.mode); const s=$('tvSide'); if(!s) return; const m=TV.model, S=TV.S;
  const lab=l=>`<span class="lv ${l}">${l}</span>`; const th=(HOME_THEME_META.find(t=>t.id===S.theme)||{}).name||S.theme;
- let h=p.sample?`<div class="tvs sample"><div class="lbl">Tray is empty</div><b>Sample: the 30 built-in games</b><div class="small">${esc(TV_SAMPLE_NOTICE)}</div></div>`:`<div class="tvs"><div class="lbl">Collection</div><b>${esc(COLL.name)}</b><div class="small">${p.count} game${p.count===1?'':'s'} in the proposed HOME · ${p.counts.builtin+p.counts.kept} built-in kept · ${p.counts.added+p.counts.alternate} added · ${p.hidden.length} built-in hidden by the plan ${lab('known')}</div></div>`;
- h+=`<div class="tvs"><div class="lbl">HOME</div><b>${esc(th)}</b><div class="small">${esc(S.section.type==='folder'?('Folder: '+((homeFolder(m,S.section.id)||{}).name||'')):S.section.type==='category'?('Category: '+((homeCategory(m,S.section.id)||{}).label||'')):S.section.type)} · ${(m.folders||[]).length} folder${(m.folders||[]).length===1?'':'s'} · ${homeFavorites(m).length} favorite${homeFavorites(m).length===1?'':'s'} · ${homeHistoryEvents(m).length} launch${homeHistoryEvents(m).length===1?'':'es'} recorded here ${lab('known')}</div><div class="small">Folders, favorites and the play history shown here live in this browser's preview until the console sync exists. START → Change Theme switches themes; the buttons above are a host shortcut.</div></div>`;
- if(e){ h+=`<div class="tvs"><div class="lbl">Selected</div><b>${esc(e.title)}</b><div class="small">${esc(e.version)}</div>
+ let h=p.sample?`<div class="tvs sample"><div class="lbl">No games yet</div><b>Sample: the 30 built-in games</b><div class="small">${esc(TV_SAMPLE_NOTICE)}</div></div>`:`<div class="tvs"><div class="lbl">${tvLoadout()?'NES Classic Loadout':'Collection'}</div><b>${esc(tvPlanName())}</b><div class="small">${tvPl(p.count,'game')} in this HOME · ${p.counts.builtin+p.counts.kept} built-in kept · ${p.counts.added+p.counts.alternate} added · ${p.hidden.length} built-in hidden ${lab('known')}</div></div>`;
+ h+=`<div class="tvs"><div class="lbl">HOME</div><b>${esc(th)}</b><div class="small">${esc(S.section.type==='folder'?('Folder: '+((homeFolder(m,S.section.id)||{}).name||'')):S.section.type==='category'?('Category: '+((homeCategory(m,S.section.id)||{}).label||'')):(TV_SECTION_NAMES[S.section.type]||S.section.type))} · ${tvPl((m.folders||[]).length,'folder')} · ${tvPl(homeFavorites(m).length,'favorite')} · ${homeHistoryEvents(m).length} launch${homeHistoryEvents(m).length===1?'':'es'} recorded ${lab('known')}</div><div class="small">Folders come from HOME Setup; favorites and play history are kept with this ${tvPlanWord()}. START → Change Theme switches themes; the buttons above are a shortcut.</div></div>`;
+ if(e){ h+=`<div class="tvs"><div class="lbl">Selected game</div><b>${esc(e.title)}</b><div class="small">${esc(e.version)}</div>
   <dl class="tvkv"><dt>Status</dt><dd>${esc(tvKindText(e.kind))} ${lab('known')}</dd>
-  <dt>Game file</dt><dd>${e.ready==='n/a'?'not needed (already on the console)':e.ready==='ready'?'ready on this computer':e.ready==='missing'?'missing on this computer (launch refused in the HOME)':'unknown here'} ${lab(e.ready==='unknown'?'unknown':'known')}</dd>
-  <dt>Planned core</dt><dd>${esc(e.core)} ${lab(e.core==='unknown'?'unknown':'known')}</dd>${e.hardware?`<dt>Controller</dt><dd>${esc(e.hardware)} ${lab('known')}</dd>`:''}${e.personal?'<dt>Source</dt><dd>your own game ${lab(\'known\')}</dd>':''}
-  <dt>Cover</dt><dd>${(()=>{ const g=m.games.find(x=>x.id===e.id); const pv=g&&g.art?g.art.provenance:'none'; if(typeof OVR!=='undefined'&&OVR.games&&OVR.games[e.id]&&OVR.games[e.id].art) return 'your replacement artwork (customized in this Studio)'; return pv==='generated'?'generated placeholder (marked GENERATED COVER)':pv==='authentic'?'catalog box art':pv==='uploaded'?'your own image':'none available'; })()} ${lab('known')}</dd></dl></div>`; }
- h+=`<div class="tvs"><div class="lbl">Controls</div><div class="small">The console has only the D-pad, A, B, START and SELECT. A launches at once, SELECT opens Game Details, START opens the menu. Launching here is a simulation ${lab('known')}.</div></div>`;
+  <dt>Game file</dt><dd>${e.ready==='n/a'?'not needed (built into the console)':e.ready==='ready'?'ready on this computer':e.ready==='missing'?'missing on this computer':'unknown on the website'} ${lab(e.ready==='unknown'?'unknown':'known')}</dd>
+  <dt>Emulator</dt><dd>${esc(tvCoreText(e.core))} ${lab(e.core==='unknown'?'unknown':'known')}</dd>${e.hardware?`<dt>Controller</dt><dd>${esc(e.hardware)} ${lab('known')}</dd>`:''}${e.personal?'<dt>Source</dt><dd>your own game ${lab(\'known\')}</dd>':''}
+  <dt>Cover</dt><dd>${(()=>{ const g=m.games.find(x=>x.id===e.id); const pv=g&&g.art?g.art.provenance:'none'; if(typeof OVR!=='undefined'&&OVR.games&&OVR.games[e.id]&&OVR.games[e.id].art) return 'your replacement artwork'; return pv==='generated'?'generated placeholder (marked GENERATED COVER)':pv==='authentic'?'Game Library box art':pv==='uploaded'?'your own image':'none'; })()} ${lab('known')}</dd></dl></div>`; }
+ h+=`<div class="tvs"><div class="lbl">Controls</div><div class="small">The console has only the D-pad, A, B, START and SELECT. A launches, SELECT opens the game's details, START opens the menu, B goes back. Launches here are a simulation ${lab('known')}.</div></div>`;
  h+=`<div class="tvs"><div class="lbl">How sure is this?</div><ul class="tvassume">${p.assumptions.map(a=>`<li>${lab(a.level)} ${esc(a.text)}</li>`).join('')}</ul></div>`;
- h+=p.sample?`<div class="tvs"><div class="lbl">Current vs proposed</div><div class="small">Nothing to compare while the tray is empty: the sample is not a plan.</div></div>`:tvCompareHtml();
+ h+=p.sample?`<div class="tvs"><div class="lbl">Compare</div><div class="small">Nothing to compare: the sample is not a plan.</div></div>`:tvCompareHtml();
  s.innerHTML=h; const sel=s.querySelector('#tvSnap'); if(sel) sel.onchange=()=>{ s.querySelector('#tvDiff').innerHTML=tvDiffHtml(sel.value); };
 }
-function tvFoot(){ const f=$('tvFoot'); if(!f) return; f.innerHTML=`<span><b>Simulation.</b> The approved HOME themes over your collection; the console build is pending hardware validation (Gate G1 not approved). Launches are simulated.</span><span class="r"><span class="lv known">known</span><span class="lv estimated">estimated</span><span class="lv unknown">unknown</span></span>`; }
+function tvFoot(){ const f=$('tvFoot'); if(!f) return; f.innerHTML=`<span><b>Simulation.</b> This ${tvPlanWord()}'s HOME as the console would show it. Launches are simulated; installing this HOME is not available in this version.</span><span class="r"><span class="lv known">known</span><span class="lv estimated">estimated</span><span class="lv unknown">unknown</span></span>`; }
 
 // ---- comparison (read-only, honest): no console facts are invented ----
 function tvCompareHtml(){
  let snaps=[]; try{ snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); }catch(e){}
  const opts=snaps.map((s,i)=>`<option value="${i}">${esc(nowShort(s.at))} · ${esc(s.name)} · ${(s.sel||[]).length} games</option>`).join('');
- return `<div class="tvs"><div class="lbl">Current vs proposed</div><div class="small"><span class="lv unknown">unknown</span> Current console state not verified: this preview never reads the console.</div>
-  ${snaps.length?`<div class="small" style="margin-top:6px">Saved snapshot vs proposed:</div><select id="tvSnap" class="tvsel"><option value="">choose a snapshot…</option>${opts}</select><div id="tvDiff"></div>`:'<div class="small" style="margin-top:6px">No saved snapshots yet (they are kept automatically when the collection changes).</div>'}</div>`;
+ return `<div class="tvs"><div class="lbl">Compare</div><div class="small"><span class="lv unknown">unknown</span> Current console state not verified: this preview never reads the console.</div>
+  ${snaps.length?`<div class="small" style="margin-top:6px">Compare with a snapshot:</div><select id="tvSnap" class="tvsel"><option value="">Choose a snapshot…</option>${opts}</select><div id="tvDiff"></div>`:'<div class="small" style="margin-top:6px">No snapshots yet. They are saved automatically before bigger changes.</div>'}</div>`;
 }
 function tvDiffHtml(i){
  if(i==='') return ''; let snaps=[]; try{ snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); }catch(e){} const s=snaps[+i]; if(!s) return '';
@@ -194,7 +201,7 @@ async function tvSaveImage(){
  const m=TV.model, S=TV.S; const L=homeListing(m,S,tvSearch()); const ids=L.ids; const W=1920,H=1080; const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
  const load=src=>new Promise(res=>{ const im=new Image(); if(/\/overrides\//.test(src)&&/^https?:/.test(src)&&!src.startsWith(location.origin)) im.crossOrigin='anonymous'; im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; });   // the person's images come from the backend with CORS, so the saved image stays exportable
  const bg=await load('brand/home/bg-'+S.theme+'.jpg'); if(bg) x.drawImage(bg,0,0,W,H); else { x.fillStyle='#0b0b0e'; x.fillRect(0,0,W,H); }
- x.fillStyle='rgba(0,0,0,.55)'; x.fillRect(0,0,W,H); x.fillStyle='#fff'; x.font='700 44px "Segoe UI", system-ui, sans-serif'; x.textBaseline='middle'; x.fillText('Classic Cart Studio',60,60); x.font='500 28px "Segoe UI", system-ui, sans-serif'; x.fillText((m.sample?'Sample of the 30 built-in games':COLL.name)+' · '+((HOME_THEME_META.find(t=>t.id===S.theme)||{}).name||S.theme)+' · simulation',60,112);
+ x.fillStyle='rgba(0,0,0,.55)'; x.fillRect(0,0,W,H); x.fillStyle='#fff'; x.font='700 44px "Segoe UI", system-ui, sans-serif'; x.textBaseline='middle'; x.fillText('Classic Cart Studio',60,60); x.font='500 28px "Segoe UI", system-ui, sans-serif'; x.fillText((m.sample?'Sample of the 30 built-in games':tvPlanName())+' · '+((HOME_THEME_META.find(t=>t.id===S.theme)||{}).name||S.theme)+' · simulation',60,112);
  const vis=7; let start=Math.max(0,Math.min(S.index-Math.floor(vis/2),ids.length-vis)); if(ids.length<=vis) start=0; const shown=ids.slice(start,start+vis); const tw=226, th=320, gap=24; const total=shown.length*tw+(shown.length-1)*gap; let px=(W-total)/2; const ty=H*0.30;
  for(let k=0;k<shown.length;k++){ const id=shown[k]; const g=m.games.find(v=>v.id===id); const selx=start+k===S.index; const sc=selx?1.18:1; const w=tw*sc, h=th*sc; const xx=px-(w-tw)/2, yy=ty+(th-h)/2;
   x.save(); if(selx){ x.shadowColor='rgba(0,0,0,.45)'; x.shadowBlur=30; x.shadowOffsetY=12; } x.fillStyle='#111'; x.fillRect(xx,yy,w,h); x.restore();
@@ -204,7 +211,7 @@ async function tvSaveImage(){
   px+=tw+gap; }
  const g=ids.length?m.games.find(v=>v.id===ids[S.index]):null; if(g){ x.fillStyle='#fff'; x.font='700 48px "Segoe UI", system-ui, sans-serif'; x.textAlign='center'; x.fillText(g.title,W/2,ty+th*1.18+70); x.textAlign='left'; }
  x.fillStyle='#d6d4ce'; x.font='500 26px "Segoe UI", system-ui, sans-serif'; x.fillText('A launch · SELECT details · START menu · B back · Preview on TV · simulation',60,H-50);
- c.toBlob(async b=>{ if(!b) { toast('The image could not be created'); return; } const res=await ccsSaveFile(csSafeName(`${COLL.name||'Collection'} - Preview on TV`,'.png'), b, 'Preview Image'); if(res.ok) toast('Preview image saved to '+res.name+' (1920×1080)'); },'image/png');
+ c.toBlob(async b=>{ if(!b) { toast('The preview image could not be created. Try again.'); return; } const res=await ccsSaveFile(csSafeName(`${tvPlanName()||'Collection'} - Preview on TV`,'.png'), b, 'Preview Image'); if(res.ok) toast(`Saved "${res.name}" (1920 × 1080)`); },'image/png');
 }
 // test hook: the same drawing as a data size without a download
 async function tvExportSize(){ const ids=TV.model?homeListing(TV.model,TV.S,tvSearch()).ids:[]; const c=document.createElement('canvas'); c.width=1920; c.height=1080; const x=c.getContext('2d'); x.fillStyle='#0b0b0e'; x.fillRect(0,0,1920,1080); return {w:c.width,h:c.height,entries:ids.length}; }
@@ -214,7 +221,7 @@ function tvWire(){
  const hb=$('tvBtn'); if(hb) hb.onclick=()=>openTv();
  const mi=$('mTv'); if(mi) mi.onclick=()=>{ document.querySelectorAll('.menu').forEach(x=>x.hidden=true); openTv(); };
  // the collection changes while the preview is open: rebuild the model (folders, favorites, history kept), keep the focused game by id
- const _r=window.render; window.render=function(){ const out=_r.apply(this,arguments); if(TV.open){ const cur=TV.focusId; TV.proj=null; homeExtrasSave(); TV.model=homeModelFromStudio(); const L=homeListing(TV.model,TV.S,tvSearch()); const k=cur?L.ids.indexOf(cur):-1; if(k>=0&&TV.S.section.type!=='search') TV.S.index=k; else if(cur&&k<0) tvSay('The collection changed; the preview was updated.'); TV.S=homeReconcileState(TV.S,TV.model,tvSearch()); tvDraw(); } return out; };
+ const _r=window.render; window.render=function(){ const out=_r.apply(this,arguments); if(TV.open){ const cur=TV.focusId; TV.proj=null; homeExtrasSave(); TV.model=homeModelFromStudio(); const L=homeListing(TV.model,TV.S,tvSearch()); const k=cur?L.ids.indexOf(cur):-1; if(k>=0&&TV.S.section.type!=='search') TV.S.index=k; else if(cur&&k<0) tvSay(`The ${tvPlanWord()} changed; the preview was updated.`); TV.S=homeReconcileState(TV.S,TV.model,tvSearch()); tvDraw(); } return out; };
  // details dialog: a button that opens the preview focused on that game (added when the dialog opens)
  document.body.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-tvfocus]'); if(b){ openTv({focus:b.dataset.tvfocus}); } });
 }

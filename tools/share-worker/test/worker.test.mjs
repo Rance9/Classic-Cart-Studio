@@ -573,7 +573,7 @@ async function main() {
   check('mixed page: catalog art cover from SITE_ORIGIN', mHtml.includes(`src="${SITE}/art/${hex16(0xa000)}.jpg"`));
   check('mixed page: fallback box for unknown without art', /<div class="cover"><div class="fb" aria-hidden="true"><i><\/i>Unknown Dump 2<\/div><\/div>/.test(mHtml));
   check('mixed page: "Personal game" label', (mHtml.match(/<span class="s">Personal game<\/span>/g) || []).length === 30);
-  check('mixed page: unknown label', (mHtml.match(/<span class="s">Not in the Classic Cart Studio library<\/span>/g) || []).length === 29); // game 118 became a catalog version
+  check('mixed page: unknown label', (mHtml.match(/<span class="s">Not in the Game Library<\/span>/g) || []).length === 29); // game 118 became a catalog version
   check('mixed page: version lines shown', mHtml.includes('<span class="v">v1.2 (hack)</span>') && mHtml.includes('USA (Rev 0)') && mHtml.includes('USA (Rev 1)'));
   check('mixed page: stats use total games', mHtml.includes('<li><b>120</b>games</li>') && mHtml.includes('<li><b>30</b>personal</li>'));
   check('mixed page: header count 120', mHtml.includes('Games in this collection <span>120</span>'));

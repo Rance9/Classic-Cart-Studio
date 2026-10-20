@@ -12,14 +12,14 @@ PHYSICAL_INSPECT_ENABLED = False   # Gate G1 NOT approved (2026-10-11): no read-
 PHYSICAL_WRITE_ENABLED = False     # Gate G1 NOT approved (2026-10-11): no console writes of any kind
 
 TIERS = ("simulate", "inspect", "install")
-GATE_STATE_TEXT = "Physical installation disabled pending G1 owner approval"
+GATE_STATE_TEXT = "Installing on a real console is not available in this version."   # Gate G1 not approved; shown in the interface
 
 
 class GateClosed(PermissionError):
     """Raised when an operation needs a tier that Gate G1 has not opened."""
     def __init__(self, tier: str, what: str = ""):
         self.tier = tier
-        super().__init__(f"{what or tier}: {GATE_STATE_TEXT} (tier '{tier}' is closed in code)")
+        super().__init__(f"{GATE_STATE_TEXT} ({what or tier}: tier '{tier}' is closed in code, Gate G1)")
 
 
 def allowed(tier: str) -> bool:

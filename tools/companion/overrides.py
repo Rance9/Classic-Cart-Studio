@@ -395,7 +395,7 @@ def _send_file(h, path: str, ctype: str, cache: str = "no-store", name: str | No
 def handle_get(h, path: str, qs: str):
     q = urllib.parse.parse_qs(qs or "")
     if path.startswith("/api/"):
-        if not _desktop(h): return h._json(403, {"ok": False, "error": "desktop application only"})
+        if not _desktop(h): return h._json(403, {"ok": False, "error": "this works only in the Windows app"})
         if path == "/api/overrides": return h._json(200, {"ok": True, **public()})
         if path == "/api/overrides/export":
             tmpdir = os.path.join(ROOT, "tmp"); os.makedirs(tmpdir, exist_ok=True)
@@ -441,7 +441,7 @@ def _stream_body(h) -> str:
     return tmp
 
 def handle_post(h, path: str, cfg: dict, pick_file=None):
-    if not _desktop(h): return h._json(403, {"ok": False, "error": "desktop application only"})
+    if not _desktop(h): return h._json(403, {"ok": False, "error": "this works only in the Windows app"})
     q = urllib.parse.parse_qs(h.path.split("?", 1)[1] if "?" in h.path else "")
     ctype = (h.headers.get("Content-Type") or "").split(";")[0].strip().lower()
     try:

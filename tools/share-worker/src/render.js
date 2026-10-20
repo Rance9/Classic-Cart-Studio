@@ -117,7 +117,7 @@ function formatDate(iso) {
 
 const SOURCE_LABELS = {
   personal: 'Personal game',
-  unknown: 'Not in the Classic Cart Studio library',
+  unknown: 'Not in the Game Library',
 };
 
 function coverUrl(g, siteOrigin, pageUrl) {
@@ -144,7 +144,7 @@ function loadoutsBlock(snap) {
   const list = Array.isArray(snap.loadouts) ? snap.loadouts : [];
   if (!list.length) return '';
   const title = new Map(snap.games.map((g) => [g.id, g.version ? `${g.title} (${g.version})` : g.title]));
-  return `<section class="loadouts"><h2>NES Classic Loadouts <span>${list.length}</span></h2><p class="note">Sets of these games planned for an NES Classic. They come with the collection when you save it.</p>` +
+  return `<section class="loadouts"><h2>NES Classic Loadouts <span>${list.length}</span></h2><p class="note">Plans for which of these games go on an NES Classic. Saving the collection saves its loadouts too.</p>` +
     list.map((l) => `<details><summary><b>${e(l.name)}</b> · ${l.games.length} game${l.games.length === 1 ? '' : 's'}</summary><ol>${l.games.map((id) => `<li>${e(title.get(id) || id)}</li>`).join('')}</ol></details>`).join('') + '</section>\n';
 }
 
@@ -178,7 +178,7 @@ export function renderSharePage(snap, { siteOrigin, shareOrigin }) {
 
   // The games total is always the number of games actually shared.
   const statItems = [`<li><b>${count}</b>${count === 1 ? 'game' : 'games'}</li>`];
-  if (Number.isInteger(stats.factory)) statItems.push(`<li><b>${stats.factory}</b>factory</li>`);
+  if (Number.isInteger(stats.factory)) statItems.push(`<li><b>${stats.factory}</b>built-in</li>`);
   if (Number.isInteger(stats.added)) statItems.push(`<li><b>${stats.added}</b>added</li>`);
   if (Number.isInteger(stats.personal) && stats.personal > 0) statItems.push(`<li><b>${stats.personal}</b>personal</li>`);
   const when = formatDate(snap.created);
@@ -193,14 +193,14 @@ export function renderSharePage(snap, { siteOrigin, shareOrigin }) {
 <a class="btn primary" href="${e(`${siteOrigin}/?share=${encodeURIComponent(snap.id)}`)}">Save to My Collections</a>
 <a class="btn ghost" href="${e(`classiccartstudio://share/${encodeURIComponent(snap.id)}`)}">Open in Windows App</a>
 </div>
-<p class="appnote">Open in Windows App needs Classic Cart Studio for Windows; your browser asks before it opens the app. Nothing opened? <a href="${e(`${siteOrigin}/app`)}">Download Classic Cart Studio</a>, install it, then come back to this page and choose Open in Windows App again. Collections never include game files.</p>
+<p class="appnote">Open in Windows App needs Classic Cart Studio for Windows; your browser asks before opening it. Nothing happened? <a href="${e(`${siteOrigin}/app`)}">Download Classic Cart Studio</a>, install it, then choose Open in Windows App again. Shared collections never include ROM files.</p>
 ${when ? `<p class="when">Shared ${e(when)}</p>` : ''}
 </div>
 <figure class="card"><img src="/c/${e(snap.id)}/card.png" width="1200" height="630" alt="${e(imageAlt)}"></figure>
 </section>
 ${loadoutsBlock(snap)}<section class="games">
 <h2>Games in this collection <span>${count}</span></h2>
-<div class="search"><input id="q" type="search" placeholder="Search these games" aria-label="Search the games of this collection"><span id="qn" aria-live="polite"></span></div>
+<div class="search"><input id="q" type="search" placeholder="Search these games" aria-label="Search the games in this collection"><span id="qn" aria-live="polite"></span></div>
 <ul class="grid">
 ${snap.games.map((g) => gameItem(g, siteOrigin, pageUrl)).join('\n')}
 </ul>
@@ -213,13 +213,13 @@ export function renderMessagePage(status, { siteOrigin }) {
   const gone = status === 410;
   const heading = gone ? 'This collection was unpublished' : 'Collection not found';
   const text = gone
-    ? 'The person who shared this collection has removed it.'
-    : 'This share link does not exist. Check the link or ask for a new one.';
+    ? 'The person who shared it removed the link. Ask them for a new one if you still want it.'
+    : 'This link does not match a shared collection. Check the link, or ask for a new one.';
   const body = `<section class="msg">
-<span class="code">${gone ? '410' : '404'}</span>
+<span class="code">${gone ? 'Link removed' : 'Link not found'}</span>
 <h1>${e(heading)}</h1>
 <p>${e(text)}</p>
-<div class="actions"><a class="btn primary" href="${e(siteOrigin)}">Open Classic Cart Studio</a></div>
+<div class="actions"><a class="btn primary" href="${e(siteOrigin)}">Go to Classic Cart Studio</a></div>
 </section>`;
   return shell({ title: `${heading} · Classic Cart Studio`, head: '', body, siteOrigin });
 }

@@ -22,10 +22,10 @@ namespace ClassicCartStudio
             var rawBox = new Border { Margin = new Thickness(0, 12, 0, 0), BorderBrush = (Brush)Application.Current.FindResource("B.Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Color.FromRgb(11, 11, 14)) };
             raw.BorderThickness = new Thickness(0); raw.Background = Brushes.Transparent; rawBox.Child = raw; Grid.SetRow(rawBox, 1); grid.Children.Add(rawBox);
             var acts = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) }; Grid.SetRow(acts, 2);
-            acts.Children.Add(Btn("Restart backend", "Btn.Ghost", (s, e) => { main.RestartBackend(); Refresh(); }));
-            acts.Children.Add(Btn("Open log", "Btn.Ghost", (s, e) => { try { if (File.Exists(App.LogPath)) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(App.LogPath) { UseShellExecute = true }); } catch { } }));
-            acts.Children.Add(Btn("Open data folder", "Btn.Ghost", (s, e) => { try { Directory.CreateDirectory(App.DataRoot); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + App.DataRoot + "\"") { UseShellExecute = true }); } catch { } }));
-            acts.Children.Add(Btn("Copy report", "Btn.Ghost", (s, e) => { try { Clipboard.SetText(report); } catch { } }));
+            acts.Children.Add(Btn("Restart Local Service", "Btn.Ghost", (s, e) => { main.RestartBackend(); Refresh(); }));
+            acts.Children.Add(Btn("Open Log", "Btn.Ghost", (s, e) => { try { if (File.Exists(App.LogPath)) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(App.LogPath) { UseShellExecute = true }); } catch { } }));
+            acts.Children.Add(Btn("Open Data Folder", "Btn.Ghost", (s, e) => { try { Directory.CreateDirectory(App.DataRoot); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + App.DataRoot + "\"") { UseShellExecute = true }); } catch { } }));
+            acts.Children.Add(Btn("Copy Report", "Btn.Ghost", (s, e) => { try { Clipboard.SetText(report); } catch { } }));
             acts.Children.Add(Btn("Refresh", "Btn", (s, e) => Refresh()));
             var close = Btn("Close", "Btn.Primary", (s, e) => Close()); close.IsDefault = true; acts.Children.Add(close);
             grid.Children.Add(acts);
@@ -44,14 +44,14 @@ namespace ClassicCartStudio
             var runtime = main.WebViewRuntime();
             Add("Application", "Classic Cart Studio " + App.Version, Good);
             Add("WebView2 runtime", runtime == "not found" ? "not found (install or repair Microsoft Edge)" : "version " + runtime, runtime == "not found" ? Bad : Good);
-            Add("Interface", "bundled, " + App.StartUrl + " — " + (main.WebsiteShown ? "loaded" : "not loaded") + " (" + main.LastNavigation + ")", main.WebsiteShown ? Good : Warn);
-            Add("Backend", ok ? ("running, version " + b.BackendVersion + " on 127.0.0.1:" + b.Port + " (pid " + b.Process.Id + ")") : ("not running" + (string.IsNullOrEmpty(b.LastError) ? "" : ": " + b.LastError)), ok ? Good : Bad);
-            Add("Compatibility", ok ? (desktop ? "the backend accepts this application's session" : "the backend did not accept the desktop session") + (proto.Success ? " · protocol " + proto.Groups[1].Value : "") + (caps.Success ? " · " + caps.Groups[1].Value.Replace("\"", "").Replace(" ", "") : "") : "unknown until the backend runs", ok && desktop ? Good : Warn);
+            Add("Interface", "installed copy, " + App.StartUrl + " — " + (main.WebsiteShown ? "loaded" : "not loaded") + " (" + main.LastNavigation + ")", main.WebsiteShown ? Good : Warn);
+            Add("Local service", ok ? ("running, version " + b.BackendVersion + " on 127.0.0.1:" + b.Port + " (process " + b.Process.Id + ")") : ("not running" + (string.IsNullOrEmpty(b.LastError) ? "" : ": " + b.LastError)), ok ? Good : Bad);
+            Add("Compatibility", ok ? (desktop ? "the local service accepts this app's session" : "the local service did not accept this app's session; choose Restart Local Service") + (proto.Success ? " · protocol " + proto.Groups[1].Value : "") + (caps.Success ? " · " + caps.Groups[1].Value.Replace("\"", "").Replace(" ", "") : "") : "unknown until the local service runs", ok && desktop ? Good : Warn);
             Add("Data folder", App.DataRoot, Neutral);
             Add("Log file", App.LogPath, Neutral);
             var tail = ""; try { if (File.Exists(App.LogPath)) { var lines = File.ReadAllLines(App.LogPath); var n = Math.Max(0, lines.Length - 12); tail = string.Join("\n", lines, n, lines.Length - n); } } catch { }
-            raw.Text = "/api/version\n" + Trim(ver, 1200) + "\n\n/api/status\n" + Trim(st, 2400) + "\n\nlog (last lines)\n" + tail;
-            report = "Classic Cart Studio " + App.Version + "\nWebView2 runtime: " + runtime + "\nInterface (bundled): " + App.StartUrl + " (" + main.LastNavigation + ")\nBackend: " + (ok ? b.BackendVersion + " on 127.0.0.1:" + b.Port : "not running " + b.LastError) + "\nData folder: " + App.DataRoot + "\n\n" + raw.Text;
+            raw.Text = "/api/version\n" + Trim(ver, 1200) + "\n\n/api/status\n" + Trim(st, 2400) + "\n\nLog (last lines)\n" + tail;
+            report = "Classic Cart Studio " + App.Version + "\nWebView2 runtime: " + runtime + "\nInterface (installed copy): " + App.StartUrl + " (" + main.LastNavigation + ")\nLocal service: " + (ok ? b.BackendVersion + " on 127.0.0.1:" + b.Port : "not running " + b.LastError) + "\nData folder: " + App.DataRoot + "\n\n" + raw.Text;
         }
 
         static readonly Color Good = Color.FromRgb(52, 209, 110), Warn = Color.FromRgb(240, 160, 48), Bad = Color.FromRgb(255, 90, 90), Neutral = Color.FromRgb(156, 154, 149);
