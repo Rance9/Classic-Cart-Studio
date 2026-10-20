@@ -261,6 +261,16 @@ function decodeBase64(value, { prefix, maxBytes, field, code, tooLargeCode, tooL
   return bytes;
 }
 
+// Game files never belong in a share: images that carry an iNES or FDS game header are refused at the service boundary too, whatever
+// the client did. (A share is metadata: every game field is a short text or a hash; images are the only binary content.)
+function carriesGameFile(bytes) {
+  for (let i = 0; i + 4 <= bytes.length; i++) {
+    if (bytes[i] === 0x4e && bytes[i + 1] === 0x45 && bytes[i + 2] === 0x53 && bytes[i + 3] === 0x1a) return true;   // "NES\x1A"
+    if (bytes[i] === 0x46 && bytes[i + 1] === 0x44 && bytes[i + 2] === 0x53 && bytes[i + 3] === 0x1a) return true;   // "FDS\x1A"
+  }
+  return false;
+}
+
 export function decodeThumb(value, i) {
   const field = `thumbs[${i}]`;
   if (typeof value !== 'string' || value.length === 0) throw invalid(`${field} must be a base64 JPEG string.`, 'bad_thumb');
@@ -276,6 +286,7 @@ export function decodeThumb(value, i) {
   if (n < 5 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff || bytes[n - 2] !== 0xff || bytes[n - 1] !== 0xd9) {
     throw invalid(`${field} must be a JPEG file.`, 'bad_thumb');
   }
+  if (carriesGameFile(bytes)) throw invalid(`${field} contains game data; shares never include game files.`, 'game_data_refused');
   return bytes;
 }
 
@@ -290,6 +301,7 @@ export function decodeCardImage(image) {
     tooLargeMessage: 'image must be at most 3 MB.',
   });
   checkPng(bytes);
+  if (carriesGameFile(bytes)) throw invalid('image contains game data; shares never include game files.', 'game_data_refused');
   return bytes;
 }
 

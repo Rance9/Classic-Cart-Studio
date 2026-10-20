@@ -518,3 +518,9 @@ details.lotech summary{cursor:pointer;color:var(--ink2);font-size:12.5px;margin-
 #loUse{color:var(--ink2)}#loUse b{color:#fff}#loStat{font-weight:700}
 @media (max-width:640px){.lometer{width:120px}.lob-sto{width:100%}}
 .shg .ph.shph{width:44px;height:62px;flex:none;padding:0;font-size:7px;display:grid;place-content:center;border-radius:4px}
+/* .ccs packages: the ROM acknowledgment modal (above every other dialog; the page behind is inert) and the drop target */
+.ccsack{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.72);backdrop-filter:blur(7px)}.ccsack.open{display:flex}
+.ccsackbox{max-width:620px;width:100%;border:2px solid var(--red3);box-shadow:0 30px 90px rgba(0,0,0,.7)}.ccsackbox h2{font-family:var(--display);font-size:20px;letter-spacing:1px;text-transform:uppercase;margin:0 0 10px}.ccsackbox p{margin:0 0 10px;color:var(--ink2)}
+.ccsackchk{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--bg1);color:#fff;font-weight:600;cursor:pointer}.ccsackchk input{margin-top:3px;flex:none}
+.ccsack .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}.ccsack .btn:disabled{opacity:.45;cursor:not-allowed}
+body.ccsdrop::after{content:'Drop the .ccs file to open it';position:fixed;inset:12px;z-index:299;border:3px dashed var(--red3);border-radius:16px;background:rgba(0,0,0,.55);color:#fff;font:700 22px var(--display);display:grid;place-content:center;pointer-events:none}

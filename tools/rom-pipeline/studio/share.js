@@ -116,6 +116,13 @@ async function shUnpublish(id){ const rec=csActive(); const s=(rec.shares||[]).f
 // ---- receiving a shared collection: /?share=<id> opens it read-only; Save to My Collections makes an independent copy ----
 // the fallback cover when a shared game has no image (or it cannot be loaded): the Studio's standard NES placeholder
 function shPh(){ const d=document.createElement('div'); d.className='ph shph'; d.innerHTML='<span>NES</span>'; return d; }
+// Open in Windows App: the installed app opens on this share (its id only; the app reads the collection from the sharing service and asks
+// before adding it). Browsers cannot tell whether an app is installed: the next step and the download are always shown.
+function shOpenInApp(id){ if(typeof ccsLaunch==='function') ccsLaunch('classiccartstudio://share/'+encodeURIComponent(id));
+ openColl('Open in Windows App','', `<div class="msgbox">If Classic Cart Studio for Windows is installed, your browser asks whether to open it; choose <b>Open</b>. The app shows this collection and asks before adding it to your collections.</div>
+  <p class="small"><b>Nothing opened?</b> Download and install Classic Cart Studio, then come back to this page (the link stays the same) and choose <b>Open in Windows App</b> again.</p>
+  <div class="msgbox" id="dl"><b>Download Classic Cart Studio</b><div class="small">Looking up the latest release…</div></div><div class="acts"><button class="btn ghost" id="srBack">Back to the collection</button><span class="sp"></span><button class="btn" id="srOk">Close</button></div>`);
+ if(typeof renderDownload==='function') renderDownload($('dl')); $('srOk').onclick=closeColl; $('srBack').onclick=()=>shReceive(id); }
 async function shReceive(id){ let r, d=null; try{ r=await fetch(SHARE_API+'/api/c/'+encodeURIComponent(id),{cache:'no-store'}); d=r.ok?await r.json():null; }catch(e){ r=null; }
  if(!d||!Array.isArray(d.games)){ openColl('Shared Collection','', `<div class="msgbox warn">${!r?'The shared collection could not be loaded right now (no connection to the sharing service).':r.status===410?'This shared collection was unpublished by its owner.':'This shared collection link is not valid.'}</div><div class="acts"><span class="sp"></span><button class="btn" id="srOk">OK</button></div>`); $('srOk').onclick=closeColl; return; }
  const here=d.games.filter(g=>byId[g.id]).length, away=d.games.length-here; const extNeeded=d.games.some(g=>byId[g.id]&&byId[g.id].ext);
@@ -125,7 +132,8 @@ async function shReceive(id){ let r, d=null; try{ r=await fetch(SHARE_API+'/api/
   ${Array.isArray(d.loadouts)&&d.loadouts.length?`<div class="shlo"><b>NES Classic Loadouts</b> <span class="small">(games planned for an NES Classic, chosen from this collection)</span><ul>${d.loadouts.map(l=>`<li><b>${esc(l.name)}</b> · ${(l.games||[]).length} game${(l.games||[]).length===1?'':'s'}</li>`).join('')}</ul></div>`:''}
   ${away?`<p class="small">${away} game${away===1?' is':'s are'} not available here; ${away===1?'it is':'they are'} saved in your copy all the same and can be matched later by adding the same game file.</p>`:''}
   <p class="small">Looking does not change your collections. Saving adds an independent copy of all ${d.games.length} games${Array.isArray(d.loadouts)&&d.loadouts.length?' and its NES Classic Loadouts':''} under <b>My Collections</b>; it does not change when the original does.</p>
-  <div class="acts"><button class="btn ghost" id="srNo">Close</button><span class="sp"></span><button class="btn hk" id="srSave">Save to My Collections</button></div>`);
+  <div class="acts"><button class="btn ghost" id="srNo">Close</button><span class="sp"></span>${CO&&CO.desktop?'':'<button class="btn" id="srApp">Open in Windows App</button>'}<button class="btn hk" id="srSave">${CO&&CO.desktop?'Add to My Collections':'Save to My Collections'}</button></div>`);
+ if($('srApp')) $('srApp').onclick=()=>shOpenInApp(id);
  $('srNo').onclick=closeColl;
  $('srSave').onclick=()=>{ const ids=[], missing={}; d.games.forEach(g=>{ if(!g||!g.id||ids.includes(g.id)) return; ids.push(g.id); if(!byId[g.id]) missing[g.id]={title:g.title, version:g.version||'', year:g.year||'', publisher:g.publisher||'', source:g.source||'unknown', art:g.art||'', thumb_url:g.thumb_url||'', content_sha256:g.content_sha256||'', file_sha256:g.file_sha256||'', size:g.size||0}; });
   const home=d.home&&Array.isArray(d.home.folders)?{v:1, theme:d.home.theme||undefined, folders:d.home.folders.map((f,i)=>({id:'f:s'+i, name:f.name, parent:null, pos:i, order:(f.order||[]).filter(x=>ids.includes(x))})), favorites:{items:{}}, history:{}}:null;
@@ -135,5 +143,4 @@ async function shReceive(id){ let r, d=null; try{ r=await fetch(SHARE_API+'/api/
   openColl('Saved to My Collections','', `<div class="msgbox ok">"${esc(r2.name)}" (${ids.length} game${ids.length===1?'':'s'}) is now one of your collections${loadouts.length?`, with ${loadouts.length} NES Classic Loadout${loadouts.length===1?'':'s'}`:''}.${away?` ${away} of them ${away===1?'is':'are'} kept as not available on this ${CO&&CO.desktop?'computer':'device'}.`:''}</div><div class="acts"><button class="btn ghost" id="srStay">Keep my current collection open</button><span class="sp"></span><button class="btn hk" id="srOpen">Open it now</button></div>`);
   $('srStay').onclick=closeColl; $('srOpen').onclick=()=>{ closeColl(); csSwitch(r2.id); }; }; }
 (async function(){ let id=null; try{ id=new URLSearchParams(location.search).get('share'); }catch(e){} if(!id||!/^[A-Za-z0-9]{6,32}$/.test(id)) return; await shareConfig();
- try{ const u=new URL(location.href); u.searchParams.delete('share'); history.replaceState(null,'',u.pathname+(u.search||'')+u.hash); }catch(e){}
  setTimeout(()=>{ try{ if(typeof doneWelcome==='function') doneWelcome(); }catch(e){} shReceive(id); }, 600); })();

@@ -192,7 +192,7 @@ function wireMenu(btnId, menuId){ const b=$(btnId), m=$(menuId); b.onclick=e=>{ 
 wireMenu('collBtn','collMenu'); wireMenu('appBtn','appMenu');
 document.addEventListener('click',e=>{ if(!e.target.closest('.menuwrap')) document.querySelectorAll('.menu').forEach(x=>x.hidden=true); });
 $('collMenu').addEventListener('click',e=>{ const q=e.target.closest('[data-cs]'); if(q){ $('collMenu').hidden=true; csSwitch(q.dataset.cs); return; } if(e.target.closest('[data-cs-all]')){ $('collMenu').hidden=true; csManager(); return; }
- const b=e.target.closest('.mi'); if(!b) return; $('collMenu').hidden=true; subCloseAll(); const act={mNew:()=>csNewDialog(),mManage:()=>csManager(),mShare:()=>openShare(),mImport:()=>csImportPick(),mExport:()=>csExport(),mLoadLocal:loadLocalLibrary,mRestore:restoreMenu}[b.id]; if(act) act(); });
+ const b=e.target.closest('.mi'); if(!b) return; $('collMenu').hidden=true; subCloseAll(); const act={mNew:()=>csNewDialog(),mManage:()=>csManager(),mShare:()=>ccsShareDialog(),mImport:()=>ccsImportPick(),mLoadLocal:loadLocalLibrary,mRestore:restoreMenu}[b.id]; if(act) act(); });
 $('appMenu').addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; $('appMenu').hidden=true; const act={mWelcome:()=>maybeWelcome(true),mLegal:()=>openGuide('legal'),sdExport:()=>csBackup(),sdImport:()=>csRestorePick()}[b.id]; if(act){ e.stopImmediatePropagation(); act(); } },true);
 $('howBtn').onclick=()=>openGuide('start');
 $('extToggle').onchange=()=>{ if(typeof updateFilterCount==='function') updateFilterCount(); }; $('extInfo').onclick=e=>{ e.preventDefault(); e.stopPropagation(); openGuide('extended'); };
