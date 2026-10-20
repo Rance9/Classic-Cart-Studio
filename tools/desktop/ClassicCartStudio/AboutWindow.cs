@@ -22,8 +22,6 @@ namespace ClassicCartStudio
             t.Inlines.Add(new System.Windows.Documents.Run("Studio") { Foreground = (Brush)Application.Current.FindResource("B.Red3") });
             titles.Children.Add(t);
             titles.Children.Add(Text("for Windows · version " + App.Version, "T.Muted", 13, new Thickness(0, 2, 0, 0)));
-            var backend = owner.backend.Ready ? ("Local service " + owner.backend.BackendVersion + " on port " + owner.backend.Port) : "Local service not running";
-            titles.Children.Add(Text(backend + " · WebView2 " + owner.WebViewRuntime(), "T.Muted", 12, new Thickness(0, 2, 0, 0)));
             head.Children.Add(titles);
             stack.Children.Add(head);
             stack.Children.Add(Text("An independent game collection manager for the NES Classic Edition. Everything it needs, including the Game Library and its artwork, is installed on this computer, so it works without an internet connection (sharing links needs one).", null, 13, new Thickness(0, 16, 0, 0)));

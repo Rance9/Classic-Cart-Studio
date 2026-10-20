@@ -140,6 +140,7 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var DataDir: String; ErrorCode: Integer;
 begin
   if CurUninstallStep = usUninstall then
   begin
@@ -152,6 +153,18 @@ begin
     RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs\OpenWithProgids');
     RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs');
   end;
+  // the data folder is kept on purpose: say where it is, and offer to open it (nothing is deleted or uploaded)
   if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
-    MsgBox('Classic Cart Studio was removed. Your collections and ROM files are still in ' + ExpandConstant('{localappdata}') + '\ClassicCartStudio. Delete that folder if you no longer need them.', mbInformation, MB_OK);
+  begin
+    DataDir := ExpandConstant('{localappdata}') + '\ClassicCartStudio';
+    if DirExists(DataDir) then
+    begin
+      if MsgBox('Classic Cart Studio was removed from this computer. Your collections, settings and imported ROM files were not deleted.' + #13#10#13#10 +
+                'They are still saved here:' + #13#10 + DataDir + #13#10#13#10 +
+                'Delete that folder yourself if you no longer need them. Open it now?', mbInformation, MB_YESNO) = IDYES then
+        ShellExec('open', DataDir, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+    end
+    else
+      MsgBox('Classic Cart Studio was removed from this computer.', mbInformation, MB_OK);
+  end;
 end;
