@@ -599,7 +599,7 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
  #t tr.pick>td:nth-child(4),#t tr.pick>td:nth-child(6),#t tr.pick>td:nth-child(7),#t tr.pick>td:nth-child(8){display:none!important}
  body:not(.techcols) #t tr.pick>td:nth-child(9),body:not(.techcols) #t tr.pick>td:nth-child(10),body:not(.techcols) #t tr.pick>td:nth-child(11),body:not(.techcols) #t tr.pick>td:nth-child(13){display:none!important}
  #t td:nth-child(3) .small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- #t tr.pick>td{background:transparent!important;box-shadow:none!important}#t tr.pick.sel{background:rgba(228,0,15,.10);box-shadow:inset 3px 0 0 var(--red)}
+ #t tr.pick>td{background:transparent!important;box-shadow:none!important}#t tr.pick.sel{background:rgba(228,0,15,.10)}
  main{padding:8px 8px 12px!important}
  .howto{padding:0 8px 20px}.howto .box{padding:14px}
  /* the bottom action bar */
@@ -642,3 +642,77 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
 .nomatch b{display:block;color:#fff;font-size:16px;margin-bottom:4px}
 .nomatch .nmacts{display:flex;gap:8px;justify-content:center;margin-top:12px}
 .nomatch .nmacts [hidden]{display:none}
+
+/* ==== Polish pass: one selection control per game card ==== */
+.card .cpick{position:absolute;left:0;top:0;z-index:3;width:44px;height:44px;display:grid;place-items:center;cursor:pointer;margin:0}
+.card .cpick input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.card .cpick::before{content:"";width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.8);box-sizing:border-box;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.card.sel .cpick::before{content:"✓";background:var(--red);border-color:#fff;color:#fff;font:700 14px/20px system-ui,sans-serif;text-align:center}
+.card .cpick:focus-within::before{outline:2px solid #fff;outline-offset:2px}
+.card.sel{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+.card .ctl .sp{flex:1}
+
+/* ==== Polish pass: Manage Collections (everyday actions first; Delete inside More) ==== */
+.csrow .csacts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+details.csmore{position:relative}
+details.csmore>summary{list-style:none;cursor:pointer}
+details.csmore>summary::-webkit-details-marker{display:none}
+details.csmore .csmenu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:170px;background:linear-gradient(180deg,#26262e,#1a1a20);border:1px solid var(--line2);border-radius:var(--r2);padding:4px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column}
+details.csmore .csmenu .mi{display:block;width:100%;text-align:left;background:none;border:0;color:#fff;padding:9px 12px;border-radius:7px;font:inherit;font-size:13.5px;cursor:pointer;min-height:40px}
+details.csmore .csmenu .mi:hover,details.csmore .csmenu .mi:focus-visible{background:rgba(255,255,255,.08)}
+details.csmore .csmenu .mi.del{color:#ff8a8a;border-top:1px solid var(--line,#2a2a2a);border-radius:0 0 7px 7px;margin-top:2px}
+@media (max-width:640px){ .csrow .csacts .btn{flex:0 0 auto} details.csmore .csmenu{right:0;left:auto} }
+
+/* ==== Polish pass: loadout band ==== */
+.lob-count,#loBack .bls{display:none}
+@media (max-width:640px){
+ .lob-count{display:block;grid-column:1;grid-row:1;justify-self:end;font-size:12.5px;color:var(--muted);white-space:nowrap}.lob-count b{color:#fff;font-size:13.5px}
+ #loBack{display:inline-flex;align-items:center;gap:4px}#loBack .bls{display:inline;font-size:13px;font-weight:600}
+}
+
+/* ==== Polish pass: a toast with no free space beside an open dialog is for screen readers only ==== */
+.toast.sr{position:fixed!important;width:1px!important;height:1px!important;padding:0!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;opacity:1}
+
+/* ==== Polish pass: Install on NES Classic ==== */
+.stepnow{display:none}
+#hkPhys.phys{opacity:.6}
+@media (max-width:640px){
+ .stepnow{display:flex;align-items:center;gap:8px;position:relative;padding:8px 10px 10px;margin:0 0 8px;border:1px solid var(--line2);border-radius:10px;background:rgba(255,255,255,.03);font-size:13.5px}
+ .stepnow>span{flex:1;min-width:0}.stepnow .stepall{flex:none;min-height:34px}
+ .stepnow>i{position:absolute;left:10px;right:auto;bottom:4px;height:3px;border-radius:2px;background:var(--red);max-width:calc(100% - 20px)}
+ #hkpanel .stepwrap:not(.all) .stepper{display:none}
+ #hkpanel .acts #hkDone,#hkpanel .acts #hkPhys{display:none}
+}
+
+/* ==== Polish pass: Help & User Guide ==== */
+.gmob{display:none}.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#guideArt .shot img,#guideArt .hero-fig img{cursor:zoom-in}
+#guideArt .shot img:focus-visible,#guideArt .hero-fig img:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media (max-width:1100px){
+ #guide .ghd{gap:8px;flex-wrap:nowrap}
+ #guide nav{display:none!important}#guide .gbody{grid-template-rows:1fr!important}
+ #guide .ghd .gkeys,#guide .ghd #guidePos{display:none!important}
+ #guide .ghd h2{white-space:nowrap;flex:none}#guide .ghd h2 span{display:none}#guide .ghd .logo{display:none}
+ .gmob{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+ .gmob .gsel{flex:1;min-width:0}.gmob select{width:100%;min-height:38px;font:inherit;font-size:14px;color:#fff;background:#1a1a20;border:1px solid var(--line2);border-radius:8px;padding:6px 8px;text-overflow:ellipsis}
+ .gmob .gstep{min-width:38px;min-height:38px;font-size:18px;line-height:1;padding:0}
+ .gmob .gstep:disabled{opacity:.35}
+ .gmob .gmt{display:none}
+}
+@media (max-width:640px){
+ #guide{padding:0!important}#guide .mbox{width:100vw!important;height:100%!important;max-height:100%!important;border-radius:0}
+ #guide .ghd{padding:8px 10px!important}#guide .ghd .logo,#guide .ghd h2{display:none}
+ .gmob .gmt{display:block;font-family:var(--pixel);font-size:10px;color:#fff;letter-spacing:1px}
+ #guideClose .kbd{display:none}#guideClose{min-height:38px}
+ #guide article{padding:16px 14px 32px!important}
+ #guide .deco{display:none}
+}
+#glight{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.92);display:none;flex-direction:column}
+#glight.open{display:flex}
+#glight .glbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#121216;border-bottom:1px solid var(--line2)}
+#glight .glcap{flex:1;min-width:0;font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#glight .glbar .btn{min-height:38px}
+#glight .glview{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:10px;-webkit-overflow-scrolling:touch}
+#glight img{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in;image-rendering:auto}
+#glight.actual .glview{display:block}
+#glight.actual img{max-width:none;max-height:none;width:auto;height:auto;cursor:zoom-out}

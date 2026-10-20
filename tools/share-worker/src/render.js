@@ -31,16 +31,16 @@ a{color:inherit}
 .top .wrap{display:flex;align-items:center;height:56px}
 .brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;letter-spacing:.02em}
 .brand svg{flex:none}
-.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:32px;align-items:center;padding:40px 0 32px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:32px;align-items:center;padding:36px 0 28px}
 .eyebrow{margin:0 0 8px;color:var(--red2);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
-h1{margin:0 0 12px;font-size:clamp(28px,4.4vw,44px);line-height:1.1;overflow-wrap:anywhere}
-.desc{margin:0 0 18px;color:#d9dbe1;font-size:17px;overflow-wrap:anywhere}
-.stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;padding:0;list-style:none}
-.stats li{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 12px;color:var(--muted);font-size:14px}
-.stats b{color:var(--text);font-size:16px;margin-right:4px}
-.loadouts{margin:0 0 26px}.loadouts h2{font-size:18px;margin:0 0 4px}.loadouts h2 span{color:var(--muted);font-weight:500}.loadouts .note{color:var(--muted);margin:0 0 8px;font-size:14px}.loadouts ul{margin:0;padding:0 0 0 18px}.loadouts li{margin:2px 0}
-.loadouts details{margin:4px 0}.loadouts summary{cursor:pointer}.loadouts ol{margin:6px 0 10px;padding-left:24px;color:var(--muted);columns:2 260px}
-.appnote{color:var(--muted);font-size:13px;margin:10px 0 0;max-width:620px}.appnote a{color:var(--text)}
+h1{margin:0 0 10px;font-size:clamp(28px,4.4vw,44px);line-height:1.1;overflow-wrap:anywhere}
+.sum{margin:0 0 6px;color:var(--muted);font-size:15px}.sum b{color:var(--text)}
+.desc{margin:0;color:#d9dbe1;font-size:16px;overflow-wrap:anywhere}
+.lead{margin:0 0 20px}
+.loadouts{margin:0 0 24px}.loadouts h2{font-size:17px;margin:0 0 2px}.loadouts h2 span{color:var(--muted);font-weight:500}.loadouts .note{color:var(--muted);margin:0 0 6px;font-size:13px}
+.loadouts details{margin:2px 0}.loadouts summary{cursor:pointer}.loadouts ol{margin:6px 0 10px;padding-left:24px;color:var(--muted);columns:2 260px}
+.appnote{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;color:var(--muted);font-size:13px;margin:12px 0 0;max-width:620px}.appnote a{color:var(--text)}
+.appnote summary{cursor:pointer;color:var(--text);text-decoration:underline;text-underline-offset:2px}.appnote details[open]{flex-basis:100%}.appnote details p{margin:4px 0 0}
 .search{display:flex;gap:10px;align-items:center;margin:0 0 14px}.search input{flex:1;max-width:420px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;font:inherit}#qn{color:var(--muted);font-size:13px}.game[hidden]{display:none}
 .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:8px;font-weight:700;text-decoration:none}
@@ -49,12 +49,10 @@ h1{margin:0 0 12px;font-size:clamp(28px,4.4vw,44px);line-height:1.1;overflow-wra
 .btn.primary:active{transform:translateY(2px);box-shadow:0 2px 0 #8a0009}
 .btn.ghost{border:2px solid var(--line);color:#e6e7ea}
 .btn.ghost:hover,.btn.ghost:focus-visible{border-color:var(--muted)}
-.when{margin:16px 0 0;color:var(--muted);font-size:13px}
 .card{margin:0}
 .card img{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:10px;border:1px solid var(--line);background:var(--panel);box-shadow:0 18px 40px rgba(0,0,0,.45)}
 .games{padding:8px 0 40px}
-.games h2{display:flex;align-items:center;gap:10px;margin:0 0 16px;font-size:20px}
-.games h2 span{background:var(--red);border-radius:999px;padding:0 10px;font-size:14px;line-height:24px}
+.games h2{margin:0 0 12px;font-size:20px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:16px;margin:0;padding:0;list-style:none}
 .game{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
 .cover{position:relative;aspect-ratio:5/7;background:repeating-linear-gradient(135deg,#23252c 0 10px,#202228 10px 20px)}
@@ -72,7 +70,8 @@ h1{margin:0 0 12px;font-size:clamp(28px,4.4vw,44px);line-height:1.1;overflow-wra
 .msg p{color:var(--muted);margin:0 auto 24px;max-width:520px}
 .msg .actions{justify-content:center}
 footer{border-top:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center;padding:20px 16px 28px}
-@media (max-width:820px){.hero{grid-template-columns:1fr;gap:24px;padding-top:24px}.card{order:-1}.grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}}
+@media (max-width:820px){.hero{gap:20px;padding-top:24px}.grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}}
+@media (max-width:640px){.hero{display:block;padding:20px 0 20px}.card{display:none}h1{margin-bottom:6px}.lead{margin-bottom:16px}.actions{gap:10px}.actions .btn{flex:1 1 200px;padding:0 14px}.loadouts{margin-bottom:20px}}
 `;
 
 const LOGO = `<svg width="28" height="20" viewBox="0 0 28 20" aria-hidden="true"><rect x="1" y="1" width="26" height="18" rx="3" fill="#2a2c33" stroke="#e4000f" stroke-width="2"/><rect x="6" y="6" width="16" height="6" rx="1" fill="#e4000f"/><rect x="5" y="14" width="3" height="3" fill="#fff"/><rect x="10" y="14" width="3" height="3" fill="#fff"/><rect x="15" y="14" width="3" height="3" fill="#fff"/><rect x="20" y="14" width="3" height="3" fill="#fff"/></svg>`;
@@ -144,7 +143,7 @@ function loadoutsBlock(snap) {
   const list = Array.isArray(snap.loadouts) ? snap.loadouts : [];
   if (!list.length) return '';
   const title = new Map(snap.games.map((g) => [g.id, g.version ? `${g.title} (${g.version})` : g.title]));
-  return `<section class="loadouts"><h2>NES Classic Loadouts <span>${list.length}</span></h2><p class="note">Plans for which of these games go on an NES Classic. Saving the collection saves its loadouts too.</p>` +
+  return `<section class="loadouts"><h2>NES Classic Loadouts <span>${list.length}</span></h2><p class="note">Plans for which games go on an NES Classic. Saving the collection saves them too.</p>` +
     list.map((l) => `<details><summary><b>${e(l.name)}</b> · ${l.games.length} game${l.games.length === 1 ? '' : 's'}</summary><ol>${l.games.map((id) => `<li>${e(title.get(id) || id)}</li>`).join('')}</ol></details>`).join('') + '</section>\n';
 }
 
@@ -176,30 +175,33 @@ export function renderSharePage(snap, { siteOrigin, shareOrigin }) {
     `<meta name="twitter:image:alt" content="${e(imageAlt)}">`,
   ].join('\n');
 
-  // The games total is always the number of games actually shared.
-  const statItems = [`<li><b>${count}</b>${count === 1 ? 'game' : 'games'}</li>`];
-  if (Number.isInteger(stats.factory)) statItems.push(`<li><b>${stats.factory}</b>built-in</li>`);
-  if (Number.isInteger(stats.added)) statItems.push(`<li><b>${stats.added}</b>added</li>`);
-  if (Number.isInteger(stats.personal) && stats.personal > 0) statItems.push(`<li><b>${stats.personal}</b>personal</li>`);
+  // One summary line. The games total is always the number of games actually shared; built-in and added appear only when
+  // the collection mixes both, personal only when there are some.
+  const factory = Number.isInteger(stats.factory) ? stats.factory : 0;
+  const parts = [`<b>${count} ${count === 1 ? 'game' : 'games'}</b>`];
+  if (factory > 0) parts.push(`${factory} built-in`);
+  if (factory > 0 && Number.isInteger(stats.added) && stats.added > 0) parts.push(`${stats.added} added`);
+  if (Number.isInteger(stats.personal) && stats.personal > 0) parts.push(`${stats.personal} personal`);
   const when = formatDate(snap.created);
+  if (when) parts.push(`Shared ${e(when)}`);
 
   const body = `<section class="hero">
 <div>
 <p class="eyebrow">Shared NES collection</p>
 <h1>${e(snap.name)}</h1>
-<p class="desc">${e(description)}</p>
-<ul class="stats">${statItems.join('')}</ul>
+<div class="lead"><p class="sum">${parts.join(' · ')}</p>
+${snap.description ? `<p class="desc">${e(snap.description)}</p>` : ''}</div>
 <div class="actions">
 <a class="btn primary" href="${e(`${siteOrigin}/?share=${encodeURIComponent(snap.id)}`)}">Save to My Collections</a>
 <a class="btn ghost" href="${e(`classiccartstudio://share/${encodeURIComponent(snap.id)}`)}">Open in Windows App</a>
 </div>
-<p class="appnote">Open in Windows App needs Classic Cart Studio for Windows; your browser asks before opening it. Nothing happened? <a href="${e(`${siteOrigin}/app`)}">Download Classic Cart Studio</a>, install it, then choose Open in Windows App again. Shared collections never include ROM files.</p>
-${when ? `<p class="when">Shared ${e(when)}</p>` : ''}
+<div class="appnote"><span>Don't have the Windows app? <a href="${e(`${siteOrigin}/app`)}">Download Classic Cart Studio</a></span>
+<details><summary>Nothing happened?</summary><p>Your browser asks before it opens Classic Cart Studio for Windows. If nothing opened, download and install the Windows app, then choose Open in Windows App again. Shared collections never include ROM files.</p></details></div>
 </div>
-<figure class="card"><img src="/c/${e(snap.id)}/card.png" width="1200" height="630" alt="${e(imageAlt)}"></figure>
+<figure class="card"><img src="/c/${e(snap.id)}/card.png" width="1200" height="630" alt="${e(imageAlt)}" loading="lazy" decoding="async"></figure>
 </section>
 ${loadoutsBlock(snap)}<section class="games">
-<h2>Games in this collection <span>${count}</span></h2>
+<h2>Games in this collection</h2>
 <div class="search"><input id="q" type="search" placeholder="Search these games" aria-label="Search the games in this collection"><span id="qn" aria-live="polite"></span></div>
 <ul class="grid">
 ${snap.games.map((g) => gameItem(g, siteOrigin, pageUrl)).join('\n')}

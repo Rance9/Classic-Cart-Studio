@@ -152,7 +152,7 @@ function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.b
  const band=$('loBand'); if(band) band.hidden=!on;
  const l=loCur(); if(on&&l&&band){ const e=loStorage(); const pct=e.available>0?Math.min(100, e.used/e.available*100):100;
   $('loName').firstChild.nodeValue=l.name+' '; $('loFrom').innerHTML=`from <b>${esc(rec.name)}</b>`;
-  $('loFig').innerHTML=`<b>${sel.size.toLocaleString('en-US')}</b> of ${loPl(csCollSel().size,'game')}`;
+  $('loFig').innerHTML=`<b>${sel.size.toLocaleString('en-US')}</b> of ${loPl(csCollSel().size,'game')}`; if($('loCountM')) $('loCountM').innerHTML=$('loFig').innerHTML;
   const m=$('loMeter'); m.className='lometer '+loStatusCls(e); m.setAttribute('aria-valuenow', String(Math.round(pct))); m.setAttribute('aria-valuetext', `${loMB(e.used)} of ${loMB(e.available)} estimated, ${loStatusText(e)}`); m.firstElementChild.style.width=pct.toFixed(1)+'%';
   $('loUse').innerHTML=`Estimated <b>${loMB(e.used)}</b> used of <b>${loMB(e.available)}</b> available`;
   $('loStat').className='lost '+loStatusCls(e); $('loStat').textContent=loStatusIcon(e)+' '+loStatusText(e); }
@@ -161,7 +161,7 @@ function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.b
  if(sv) sv.textContent=`Add All Shown to ${on?'Loadout':'Collection'}`; if(us) us.textContent=`Remove All Shown from ${on?'Loadout':'Collection'}`; if(sk) sk.textContent='Add Shown Console-Ready Games'; if(sk) sk.title=`Adds the shown games that are verified and run on the console's built-in emulator to ${tgt}`; if(cl) cl.lastChild.nodeValue=on?'Empty This Loadout':'Remove All Games…';
  const th=$('trayHk'); if(th) th.textContent=on?'Install on NES Classic':'Prepare for NES Classic…'; const tx=$('trayExport'); if(tx) tx.hidden=on;
  const sto=$('storage'); if(sto) sto.hidden=true;
- const q=$('q'); if(q) q.placeholder=on?`Search games in "${rec.name}"`:'Search games';
+ const q=$('q'); if(q) q.placeholder='Search games';
  ['loMenu','loMenu2'].forEach(id=>{ const m=$(id); if(m&&!m.hidden) m.innerHTML=loMenuHtml(); }); }
 // the tray, stats and title say which one is being edited
 (function(){ const _t=renderTray; renderTray=function(){ const r=_t.apply(this,arguments); try{ const sub=$('traySub'), ul=$('trayList'); const l=loCur();
