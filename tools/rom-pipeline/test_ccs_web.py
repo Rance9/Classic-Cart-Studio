@@ -131,7 +131,7 @@ def main():
             st = J(ed, "JSON.stringify({go:$('ccsGo').textContent, win:!!$('ccsWin'), body:$('collBody').innerText})")
             ok("H_rom_package_previewed_with_its_rom_count", st["go"] == "Save Collection Without ROMs" and st["win"] and "ROM files included\n3" in st["body"].replace("\t", "\n") or ("3 (" in st["body"] and st["win"]), st)
             shot(ed, "4-rom-package-on-the-website")
-            ed.js("$('ccsWin').click()"); ed.wait_for("$('collTitle').textContent==='Open the package in Classic Cart Studio'", timeout=30)
+            ed.js("$('ccsWin').click()"); ed.wait_for("$('collTitle').textContent==='Open in Windows App'&&$('collBody').textContent.includes('did not answer')", timeout=30)
             ok("H_open_in_windows_app_falls_back_clearly", ed.js("$('collBody').textContent.includes('did not answer')&&!!$('dl')") and ed.js("__launched.some(u=>u==='classiccartstudio://open')"))
             ed.js("closeColl(); ccsOpenFile(__F2)"); ed.wait_for("!!$('ccsGo')", timeout=30); ed.js("$('ccsGo').click()"); ed.wait_for("!!$('ccsOpen')", timeout=30); ed.js("$('ccsOpen').click()"); time.sleep(0.3)
             ok("H_saved_without_roms_keeps_every_game_and_loadout", J(ed, "JSON.stringify(csActive().sel)") == want["sel"] and J(ed, "JSON.stringify(csActive().loadouts.map(l=>[l.name,l.sel,(l.home||{}).theme||null]))") == want["L"])

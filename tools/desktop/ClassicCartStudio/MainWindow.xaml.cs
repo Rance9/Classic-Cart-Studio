@@ -125,7 +125,7 @@ namespace ClassicCartStudio
         void Menu_DataFolder(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; try { Directory.CreateDirectory(App.DataRoot); Process.Start(new ProcessStartInfo("explorer.exe", "\"" + App.DataRoot + "\"") { UseShellExecute = true }); } catch { } }
         void Menu_Diagnostics(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: diagnostics"); ShowDiagnostics(); }
         void Menu_Updates(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.OpenExternal(App.UpdateUrl); }
-        void Menu_About(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: about"); try { new AboutWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("about failed: " + ex); MessageDialog.Show(this, "About", "The About window could not be opened.", ex.Message); } }
+        void Menu_About(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: about"); try { new AboutWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("about failed: " + ex); MessageDialog.Show(this, "About", "The About window could not open. Try again.", ex.Message); } }
         void Menu_Exit(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; Close(); }
 
         // ---------------- loading state ----------------
@@ -188,10 +188,10 @@ namespace ClassicCartStudio
                 core.Settings.UserAgent = core.Settings.UserAgent + " ClassicCartStudio/" + App.Version;
                 core.NavigationStarting += OnNavigationStarting; core.NewWindowRequested += OnNewWindow; core.NavigationCompleted += OnNavigationCompleted;
                 core.WebMessageReceived += OnWebMessage; core.PermissionRequested += OnPermission;
-                core.ProcessFailed += (s, e) => { App.Log("webview process failed: " + e.ProcessFailedKind); ShowRecovery("The Studio window stopped responding.", "The web content process ended (" + e.ProcessFailedKind + "). Choose Try Again to reload.", e.ProcessFailedKind.ToString()); };
+                core.ProcessFailed += (s, e) => { App.Log("webview process failed: " + e.ProcessFailedKind); ShowRecovery("Classic Cart Studio stopped responding.", "Part of the window closed unexpectedly. Choose Try Again to reload it; your collections are kept.", e.ProcessFailedKind.ToString()); };
                 coreReady = true;
                 ShowLoadingPage(); HideLoading();
-                SetLoading("Starting the Studio backend…");
+                SetLoading("Getting things ready…");
                 // Start the backend first and give it a moment: a page that probes a port nobody listens on makes Chromium back off from
                 // that host for 10-60 s (measured), which would delay every later request. The page is told whether the backend is ready
                 // and otherwise waits for the host's signal instead of probing.
@@ -209,7 +209,7 @@ namespace ClassicCartStudio
                 App.Log("webview init failed: " + e);
                 blockTimer?.Stop();
                 loadingText.Text = "Microsoft Edge WebView2 is not available";
-                MessageDialog.Show(this, "WebView2 is needed", "Classic Cart Studio shows the Studio website through Microsoft Edge WebView2, which comes with Microsoft Edge on Windows 10 and 11. Install or repair Microsoft Edge, then start Classic Cart Studio again.", e.Message);
+                MessageDialog.Show(this, "WebView2 Needed", "Classic Cart Studio needs Microsoft Edge WebView2, which comes with Microsoft Edge on Windows 10 and 11. Install or repair Microsoft Edge, then start Classic Cart Studio again.", e.Message);
             }
         }
 
@@ -245,7 +245,7 @@ namespace ClassicCartStudio
 
         void ShowBackendProblem()
         {
-            var retry = MessageDialog.Show(this, "The Studio backend did not start", backend.LastError, null, "Try Again", "Continue without it");
+            var retry = MessageDialog.Show(this, "Startup Problem", backend.LastError, null, "Try Again", "Continue Anyway");
             if (retry) _ = Task.Run(() => StartBackend());
         }
 
@@ -402,7 +402,7 @@ namespace ClassicCartStudio
             foreach (var a in startupArgs) HandleLink(a);
         }
 
-        internal void ShowDiagnostics() { try { new DiagnosticsWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("diagnostics failed: " + ex); MessageDialog.Show(this, "Diagnostics", "The Diagnostics window could not be opened.", ex.Message); } }
+        internal void ShowDiagnostics() { try { new DiagnosticsWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("diagnostics failed: " + ex); MessageDialog.Show(this, "Diagnostics", "The Diagnostics window could not open. Try again.", ex.Message); } }
         internal string WebViewRuntime() { try { return CoreWebView2Environment.GetAvailableBrowserVersionString(); } catch { return "not found"; } }
         internal bool WebsiteShown => firstPageShown && !recoveryShown;
 

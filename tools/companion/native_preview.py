@@ -82,7 +82,7 @@ class Session:
             flags = 0x08000000 if os.name == "nt" else 0   # CREATE_NO_WINDOW
             self.proc = subprocess.Popen([exe, f"--state-dir={self.state_dir}"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0, creationflags=flags)
             threading.Thread(target=self._reader, args=(self.proc,), daemon=True).start()
-            if not self._wait("ready", 30): self._stop_proc(); return {"ok": False, "error": "the native renderer did not start"}
+            if not self._wait("ready", 30): self._stop_proc(); return {"ok": False, "error": "the TV preview did not start"}
             self._send(f"home {self.pkg}"); ev = self._wait(("home_loaded", "home_rejected"), 120)
             if not ev or ev.get("ev") != "home_loaded": self._stop_proc(); return {"ok": False, "error": (ev or {}).get("error") or "the preview package could not be loaded"}
             self.theme = ev.get("theme"); self._wait("home", 10)
@@ -143,7 +143,7 @@ def session() -> Session:
 def _desktop(h) -> bool:
     b = h._bearer(); return bool(b and b.get("desktop"))
 def handle_get(h, path: str, qs: str):
-    if not _desktop(h): return h._json(403, {"ok": False, "error": "desktop application only"})
+    if not _desktop(h): return h._json(403, {"ok": False, "error": "this works only in the Windows app"})
     s = session()
     if path == "/api/preview/state": return h._json(200, s.info())
     if path == "/api/preview/frame":
@@ -154,7 +154,7 @@ def handle_get(h, path: str, qs: str):
         h.send_header("Access-Control-Expose-Headers", "X-Preview-Seq, X-Preview-Focus, X-Preview-Theme"); h._cors(); h.end_headers(); h.wfile.write(data); return
     return h._json(404, {"ok": False, "error": "unknown preview endpoint"})
 def handle_post(h, path: str, body: dict):
-    if not _desktop(h): return h._json(403, {"ok": False, "error": "desktop application only"})
+    if not _desktop(h): return h._json(403, {"ok": False, "error": "this works only in the Windows app"})
     s = session(); body = body if isinstance(body, dict) else {}
     if path == "/api/preview/start":
         man, home = body.get("manifest"), body.get("home")

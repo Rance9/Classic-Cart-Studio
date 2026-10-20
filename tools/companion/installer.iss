@@ -61,9 +61,9 @@ VersionInfoProductName={#AppName}
 
 [Messages]
 WelcomeLabel1=Welcome to Classic Cart Studio
-WelcomeLabel2=This installs [name/ver] for your user account: the Studio window, its local backend and the Start menu shortcuts. No administrator rights are needed.%n%nYour game files and collections are never uploaded anywhere.
-FinishedHeadingLabel=Ready to play
-FinishedLabel=[name] is installed. Start it from the Start menu, or right now: it opens the Studio website in its own window.
+WelcomeLabel2=This installs [name/ver] for your Windows account. No administrator rights are needed.%n%nYour ROM files are never uploaded, and your collections stay on this computer unless you choose to share one.
+FinishedHeadingLabel=Classic Cart Studio is ready
+FinishedLabel=[name] is installed. Start it now, or later from the Start menu.
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -153,5 +153,5 @@ begin
     RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs');
   end;
   if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
-    MsgBox('Classic Cart Studio was removed. Your imported games, personal games and collections were kept in ' + ExpandConstant('{localappdata}') + '\ClassicCartStudio. Delete that folder yourself if you no longer want them.', mbInformation, MB_OK);
+    MsgBox('Classic Cart Studio was removed. Your collections and ROM files are still in ' + ExpandConstant('{localappdata}') + '\ClassicCartStudio. Delete that folder if you no longer need them.', mbInformation, MB_OK);
 end;

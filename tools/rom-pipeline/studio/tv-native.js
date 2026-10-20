@@ -7,7 +7,7 @@ const TVN={on:false,timer:0,inflight:false,url:null,focus:null,theme:null,staged
 function tvNativeCapable(){ return typeof COMPANION!=='undefined'&&COMPANION.ok&&COMPANION.desktop&&(COMPANION.capabilities||[]).includes('native-preview'); }
 function tvnHome(){ const m=homeModelFromStudio(); const h=(typeof nhHome==='function')?nhHome():{theme:m.theme,order:m.order,games:(m.games||[]).map(g=>({id:g.id,title:g.title,version_label:g.version_label,kind:g.kind})),folders:m.folders||[],favorites:m.favorites||{},settings:m.settings||{},sample:!!m.sample};
  h.map_shortcuts=m.map_shortcuts||[null,null]; return h; }
-function tvnLayer(){ let im=$('tvNative'); if(!im){ const st=$('tvStage'); im=document.createElement('img'); im.id='tvNative'; im.alt='The console HOME, drawn by its native renderer'; im.className='tvnative'; st.appendChild(im);
+function tvnLayer(){ let im=$('tvNative'); if(!im){ const st=$('tvStage'); im=document.createElement('img'); im.id='tvNative'; im.alt='The console HOME, drawn by the console’s own HOME program'; im.className='tvnative'; st.appendChild(im);
   const sty=document.createElement('style'); sty.textContent='#tvStage .tvnative{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;image-rendering:auto;z-index:2}#tvStage.native #tvHome{visibility:hidden}#tvStage .tvnmsg{position:absolute;left:12px;right:12px;bottom:12px;z-index:3;padding:10px 14px;border-radius:8px;background:rgba(0,0,0,.78);color:#e9e7e1;font-size:13px}'; document.head.appendChild(sty); }
  return im; }
 function tvnMsg(t){ const st=$('tvStage'); let m=st.querySelector('.tvnmsg'); if(!t){ if(m) m.remove(); return; } if(!m){ m=document.createElement('div'); m.className='tvnmsg'; st.appendChild(m); } m.textContent=t; }
@@ -20,16 +20,16 @@ async function tvnFetchFrame(){
    if(f!==TVN.focus){ TVN.focus=f; TV.focusId=f; try{ tvSide(f?tvEntries().find(e=>e.id===f)||null:null); }catch(e){} } }
  }catch(e){} finally{ TVN.inflight=false; } }
 function tvnLoop(){ clearInterval(TVN.timer); TVN.timer=setInterval(()=>{ if(!TV.open||!TVN.on){ clearInterval(TVN.timer); TVN.timer=0; return; } tvnFetchFrame(); },TV.held?60:200); }
-function tvnSub(){ const name=(HOME_THEME_META.find(t=>t.id===TVN.theme)||{}).name||''; $('tvSub').textContent='Drawn by the console’s native HOME renderer · '+name+' · on this computer, not a console capture'; tvnFoot(); }
+function tvnSub(){ const name=(HOME_THEME_META.find(t=>t.id===TVN.theme)||{}).name||''; $('tvSub').textContent='Drawn by the console’s own HOME program · '+name+' · on this computer, not a console capture'; tvnFoot(); }
 function tvnFoot(){ const f=$('tvFoot'); if(!f) return; const s=TVN.staged;
- f.innerHTML=`<span><b>Real preview.</b> This picture comes from the same native HOME program the console runs, with your games, order, artwork, descriptions and theme. Switch themes here or with START › Change Theme, exactly as on the console.</span><span class="small">Prepared installation package: <b>${s==='current'?'up to date':s==='outdated'?'out of date — prepare it again in Install on NES Classic':'not prepared yet'}</b>.</span>`; }
+ f.innerHTML=`<span><b>Real preview.</b> Drawn by the same HOME program the console runs, with this ${tvPlanWord()}'s games, order, artwork, descriptions and theme. Switch themes above or with START › Change Theme.</span><span class="small">Prepared installation package: <b>${s==='current'?'up to date':s==='outdated'?'out of date; prepare it again in Install on NES Classic':'not prepared yet'}</b>.</span>`; }
 async function tvnStart(theme){
- if(TVN.starting) return; TVN.starting=true; tvnMsg('Preparing the preview with the console’s renderer…');
+ if(TVN.starting) return; TVN.starting=true; tvnMsg('Preparing the preview…');
  const st=$('tvStage'); st.classList.add('native'); tvnLayer();
  let r; try{ r=await capi('/api/preview/start',{method:'POST',body:{manifest:buildManifest(),home:tvnHome()},timeout:180000}); }catch(e){ r={ok:false,error:String(e)}; }
  TVN.starting=false;
  if(!r.ok){ TVN.on=false; st.classList.remove('native'); const im=$('tvNative'); if(im) im.remove(); tvnMsg(null); TVN.error=r.error||'the preview could not start';
-  if(!(TV.model&&TV.model.sample)) tvSay('The native preview is not available: '+TVN.error); return; }
+  if(!(TV.model&&TV.model.sample)) tvSay('The real preview could not start, so the browser preview is shown: '+TVN.error); return; }
  TVN.on=true; TVN.theme=r.theme; TVN.staged=r.staged; tvnMsg(null);
  if(theme&&theme!==r.theme){ await capi('/api/preview/theme',{method:'POST',body:{theme}}); TVN.theme=theme; }
  tvnSub(); await tvnFetchFrame(); tvnLoop(); $('tvStage').focus({preventScroll:true}); }
@@ -46,7 +46,7 @@ async function tvnStart(theme){
  tvPress=function(act){ if(!TVN.on) return _press(act); if(!TV.open) return; if(TV.held&&TV.held.act===act) return; if(TV.held) tvReleaseAll(); TV.held={act,t0:performance.now()}; tvnLoop();
   capi('/api/preview/input',{method:'POST',body:{button:act,action:'press'}}).then(()=>tvnFetchFrame()); };
  tvReleaseAll=function(){ if(!TVN.on) return _release(); const h=TV.held; TV.held=null; if(h) capi('/api/preview/input',{method:'POST',body:{button:h.act,action:'release'}}).then(()=>{ tvnFetchFrame(); tvnLoop(); }); };
- tvSaveImage=async function(){ if(!TVN.on) return _save(); const im=$('tvNative'); if(!im||!im.src){ toast('No preview picture yet'); return; } const b=await (await fetch(im.src)).blob(); const name=(HOME_THEME_META.find(t=>t.id===TVN.theme)||{}).name||'HOME'; const res=await ccsSaveFile(csSafeName(`${COLL.name||'Collection'} - ${name} preview`,'.jpg'), b, 'Preview Picture'); if(res.ok) toast('Preview picture saved to '+res.name+' (1280×720, as the console draws it)'); };
+ tvSaveImage=async function(){ if(!TVN.on) return _save(); const im=$('tvNative'); if(!im||!im.src){ toast('No preview picture yet. Try again in a moment.'); return; } const b=await (await fetch(im.src)).blob(); const name=(HOME_THEME_META.find(t=>t.id===TVN.theme)||{}).name||'HOME'; const res=await ccsSaveFile(csSafeName(`${tvPlanName()||'Collection'} - ${name} preview`,'.jpg'), b, 'Preview Picture'); if(res.ok) toast(`Saved "${res.name}" (1280 × 720, as the console draws it)`); };
  // the theme buttons: in the native preview they switch the renderer's theme (the console's own choice is never touched)
  document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('.tvtheme'); if(!b||!TVN.on) return; e.stopImmediatePropagation(); e.preventDefault();
   capi('/api/preview/theme',{method:'POST',body:{theme:b.dataset.theme}}).then(r=>{ if(r.ok){ TVN.theme=b.dataset.theme; document.querySelectorAll('.tvtheme').forEach(x=>x.classList.toggle('active',x.dataset.theme===TVN.theme)); tvnSub(); tvnFetchFrame(); } }); $('tvStage').focus({preventScroll:true}); },true);

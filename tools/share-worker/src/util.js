@@ -131,7 +131,7 @@ export function constantTimeEqual(a, b) {
 export function requireJsonContentType(request) {
   const ct = (request.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
   if (ct !== 'application/json') {
-    throw new HttpError(415, 'unsupported_media_type', 'Content-Type must be application/json.');
+    throw new HttpError(415, 'unsupported_media_type', 'The collection could not be read. Try again, or update Classic Cart Studio.');
   }
 }
 
@@ -176,7 +176,7 @@ export async function readJsonBody(request, limit, tooLargeMessage) {
   try {
     return JSON.parse(textBody);
   } catch {
-    throw new HttpError(400, 'invalid_json', 'Request body is not valid JSON.');
+    throw new HttpError(400, 'invalid_json', 'The collection could not be read because it arrived damaged. Try again.');
   }
 }
 

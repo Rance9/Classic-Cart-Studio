@@ -53,7 +53,7 @@ def write(out_path: str, *, collection: dict | None = None, backup: dict | None 
     """Write a package. art: {name: jpeg/png bytes}; roms: [{"version_id", "path" (a local file), "title", "content_sha256"?}] (only the
     files the user chose); missing: [{"version_id", "title", "reason"}]. Written to a temporary file next to out_path, then renamed: a
     cancelled or failed export leaves nothing behind. Returns the manifest."""
-    if (collection is None) == (backup is None): raise PackageError("a package holds either one collection or a Studio backup")
+    if (collection is None) == (backup is None): raise PackageError("A package holds either one collection or one Classic Cart Studio backup, not both.")
     files, included = [], []
     body = json.dumps(collection if collection is not None else backup, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     main = "collection.json" if collection is not None else "studio-backup.json"
@@ -67,9 +67,9 @@ def write(out_path: str, *, collection: dict | None = None, backup: dict | None 
                 z.writestr(n, data); files.append({"path": n, "sha256": _sha(data), "size": len(data), "kind": "art"})
             seen = set()
             for r in roms or []:
-                if cancel(): raise PackageError("cancelled")
+                if cancel(): raise PackageError("Export canceled. No file was saved.")
                 data = open(r["path"], "rb").read()
-                if len(data) > MAX_ROM: raise PackageError(f"{r.get('title') or r['version_id']}: the game file is larger than a package allows")
+                if len(data) > MAX_ROM: raise PackageError(f"The ROM file of {r.get('title') or r['version_id']} is larger than a package allows (16 MB).")
                 ext = ".unh" if not data.startswith(b"NES\x1a") else ".nes"; n = f"roms/{r['version_id']}{ext}"
                 if n in seen or not ROM_RE.match(n): continue
                 seen.add(n); z.writestr(n, data, compress_type=zipfile.ZIP_DEFLATED)
@@ -90,58 +90,58 @@ def write(out_path: str, *, collection: dict | None = None, backup: dict | None 
 # ---------------- reading ----------------
 def _bounded_read(z: zipfile.ZipFile, info: zipfile.ZipInfo, limit: int) -> bytes:
     """read an entry, refusing more bytes than it declares (and than the limit): a decompression bomb stops early"""
-    if info.file_size > limit: raise PackageError(f"{info.filename}: larger than allowed")
+    if info.file_size > limit: raise PackageError(f"The package contains an entry larger than allowed ({info.filename[:60]}).")
     out = io.BytesIO()
     with z.open(info) as f:
         while True:
             chunk = f.read(65536)
             if not chunk: break
             out.write(chunk)
-            if out.tell() > min(limit, info.file_size): raise PackageError(f"{info.filename}: more data than declared")
+            if out.tell() > min(limit, info.file_size): raise PackageError(f"The package contains an entry with more data than it declares ({info.filename[:60]}).")
     return out.getvalue()
 
 def inspect(path: str, *, verify_roms: bool = True) -> dict:
     """Validate a package completely and describe it (never extracts anything). Raises PackageError with a plain reason."""
     try: size = os.path.getsize(path)
-    except OSError: raise PackageError("the file cannot be read")
-    if size > MAX_TOTAL: raise PackageError("the file is larger than a collection package can be")
+    except OSError: raise PackageError("The file could not be read. Check that it still exists, then try again.")
+    if size > MAX_TOTAL: raise PackageError("The file is larger than a collection package can be (4 GB).")
     try: z = zipfile.ZipFile(path)
-    except (zipfile.BadZipFile, OSError) as e: raise PackageError("this is not a Classic Cart Studio package (not a valid archive)") from e
+    except (zipfile.BadZipFile, OSError) as e: raise PackageError("This file is not a Classic Cart Studio package, or it is damaged.") from e
     with z:
         infos = z.infolist()
-        if len(infos) > MAX_ENTRIES: raise PackageError("the package has too many entries")
+        if len(infos) > MAX_ENTRIES: raise PackageError("The package has too many entries.")
         names = [i.filename for i in infos]
-        if len(set(names)) != len(names): raise PackageError("the package has duplicate entries")
+        if len(set(names)) != len(names): raise PackageError("The package has duplicate entries.")
         total = 0
         for i in infos:
-            if i.is_dir(): raise PackageError(f"unexpected folder entry {i.filename!r}")
-            if not safe_name(i.filename): raise PackageError(f"unsafe or unexpected entry name {i.filename[:80]!r}")
+            if i.is_dir(): raise PackageError(f"The package contains an unexpected folder entry ({i.filename[:60]}).")
+            if not safe_name(i.filename): raise PackageError(f"The package contains an unsafe or unexpected entry ({i.filename[:60]}).")
             mode = (i.external_attr >> 16) & 0xFFFF
-            if mode and stat.S_ISLNK(mode): raise PackageError(f"{i.filename}: links are not allowed in a package")
-            if i.flag_bits & 0x1: raise PackageError("encrypted packages are not supported")
-            if i.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED): raise PackageError("the package uses an unsupported compression method")
-            if i.compress_size and i.file_size / max(1, i.compress_size) > MAX_RATIO: raise PackageError(f"{i.filename}: suspicious compression ratio")
+            if mode and stat.S_ISLNK(mode): raise PackageError(f"The package contains a link, which is not allowed ({i.filename[:60]}).")
+            if i.flag_bits & 0x1: raise PackageError("Encrypted packages are not supported.")
+            if i.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED): raise PackageError("The package uses an unsupported compression method.")
+            if i.compress_size and i.file_size / max(1, i.compress_size) > MAX_RATIO: raise PackageError(f"The package contains an entry with a suspicious compression ratio ({i.filename[:60]}).")
             total += i.file_size
-        if total > MAX_TOTAL: raise PackageError("the package would unpack to more than a collection package can hold")
+        if total > MAX_TOTAL: raise PackageError("The package would unpack to more than a collection package can hold (4 GB).")
         by = {i.filename: i for i in infos}
-        if MANIFEST not in by: raise PackageError("this is not a Classic Cart Studio package (no ccs-manifest.json)")
+        if MANIFEST not in by: raise PackageError("This is not a Classic Cart Studio package.")
         try: man = json.loads(_bounded_read(z, by[MANIFEST], MAX_MANIFEST).decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as e: raise PackageError("the package manifest is not valid") from e
-        if not isinstance(man, dict) or man.get("format") != FORMAT: raise PackageError("this is not a Classic Cart Studio package")
-        if man.get("schema") != SCHEMA: raise PackageError(f"this package was made by a newer Classic Cart Studio ({str(man.get('schema'))[:40]}); update the app to open it")
+        except (UnicodeDecodeError, json.JSONDecodeError) as e: raise PackageError("The package contents list is damaged.") from e
+        if not isinstance(man, dict) or man.get("format") != FORMAT: raise PackageError("This is not a Classic Cart Studio package.")
+        if man.get("schema") != SCHEMA: raise PackageError("This package was made by a newer Classic Cart Studio; update to open it.")
         listed = man.get("files")
-        if not isinstance(listed, list) or not all(isinstance(f, dict) for f in listed): raise PackageError("the package manifest is not valid (files)")
+        if not isinstance(listed, list) or not all(isinstance(f, dict) for f in listed): raise PackageError("The package contents list is damaged.")
         lp = [f.get("path") for f in listed]
-        if len(set(lp)) != len(lp): raise PackageError("the package manifest lists a file twice")
+        if len(set(lp)) != len(lp): raise PackageError("The package contents list names a file twice.")
         extra = set(names) - set(lp) - {MANIFEST}
-        if extra: raise PackageError(f"the package contains files its manifest does not list ({sorted(extra)[0][:60]})")
+        if extra: raise PackageError(f"The package contains files its contents list does not name ({sorted(extra)[0][:60]}).")
         problems, roms, main = [], [], None
         for f in listed:
             p = f.get("path"); sha = f.get("sha256"); sz = f.get("size")
-            if not isinstance(p, str) or not safe_name(p) or p == MANIFEST: raise PackageError("the package manifest lists an unsafe file name")
-            if not (isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{64}", sha)) or not isinstance(sz, int) or sz < 0: raise PackageError(f"{p}: invalid checksum or size in the manifest")
-            if p not in by: problems.append({"path": p, "problem": "listed in the manifest but missing from the package"}); continue
-            if by[p].file_size != sz: problems.append({"path": p, "problem": "size differs from the manifest"}); continue
+            if not isinstance(p, str) or not safe_name(p) or p == MANIFEST: raise PackageError("The package contents list names an unsafe file.")
+            if not (isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{64}", sha)) or not isinstance(sz, int) or sz < 0: raise PackageError(f"The package contents list has an invalid checksum or size ({p}).")
+            if p not in by: problems.append({"path": p, "problem": "listed but missing from the package"}); continue
+            if by[p].file_size != sz: problems.append({"path": p, "problem": "size differs from the listed size"}); continue
             kind = "rom" if p.startswith("roms/") else "art" if p.startswith("art/") else FIXED[p]
             if kind == "rom" and not verify_roms: roms.append(dict(f, verified=None)); continue
             data = _bounded_read(z, by[p], MAX_ROM if kind == "rom" else MAX_ART if kind == "art" else MAX_COLLECTION)
@@ -149,9 +149,9 @@ def inspect(path: str, *, verify_roms: bool = True) -> dict:
             if kind == "rom": roms.append(dict(f, verified=True))
             if kind in ("collection", "backup"):
                 try: main = (kind, json.loads(data.decode("utf-8")))
-                except (UnicodeDecodeError, json.JSONDecodeError): raise PackageError("the collection inside the package is not valid")
-        if not main: raise PackageError("the package holds no collection")
-        if man.get("kind") != ("collection" if main[0] == "collection" else "backup"): raise PackageError("the package manifest does not match its contents")
+                except (UnicodeDecodeError, json.JSONDecodeError): raise PackageError("The collection inside the package is not valid.")
+        if not main: raise PackageError("The package holds no collection.")
+        if man.get("kind") != ("collection" if main[0] == "collection" else "backup"): raise PackageError("The package contents list does not match its files.")
         return {"manifest": man, "kind": man["kind"], "data": main[1], "roms": roms, "problems": problems, "size": size,
                 "ok": not problems, "rom_count": len(roms), "rom_bytes": sum(r["size"] for r in roms)}
 
@@ -160,7 +160,7 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None) -> d
     (personal.py identifies it by its own content; a known version gets the library copy, anything else a personal entry). Files already
     there are reused (deduplicated by content hash), never overwritten. Returns {"imported": [{version_id, stored_as, ...}], "rejected": [...]}"""
     info = inspect(path, verify_roms=True)
-    if not info["ok"]: raise PackageError("the package failed its integrity check: " + "; ".join(f"{p['path']}: {p['problem']}" for p in info["problems"][:3]))
+    if not info["ok"]: raise PackageError("Nothing was imported: the package failed its integrity check (" + "; ".join(f"{p['path']}: {p['problem']}" for p in info["problems"][:3]) + ").")
     if ingest is None:
         import personal as ps
         ingest = ps._ingest_bytes
@@ -170,10 +170,10 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None) -> d
             vid = r.get("version_id") or ""
             if want is not None and vid not in want: continue
             data = _bounded_read(z, z.getinfo(r["path"]), MAX_ROM)
-            if _sha(data) != r["sha256"]: rejected.append({"version_id": vid, "reason": "checksum does not match"}); continue
+            if _sha(data) != r["sha256"]: rejected.append({"version_id": vid, "reason": "The file is damaged or altered (checksum does not match)."}); continue
             res = ingest(data, os.path.basename(r["path"]), "package:" + os.path.basename(path), "from a Classic Cart Studio package", "package")
             got = (res.get("known") or {}).get("version_id") or (res.get("entry") or {}).get("id")
             exact = got == vid
             (imported if exact else rejected).append({"version_id": vid, "stored_as": got, "title": r.get("title", ""), "exact": exact,
-                                                       "reason": "" if exact else "the file is a different version than the package says; it was kept under its own identity"})
+                                                       "reason": "" if exact else "This file is a different version than the package says, so it was kept as its own game."})
     return {"imported": imported, "rejected": rejected}

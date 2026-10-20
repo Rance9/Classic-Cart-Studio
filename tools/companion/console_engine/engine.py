@@ -46,11 +46,11 @@ class Engine:
         if usb is None:
             d.update(state="Console not connected", state_code="no-device", detail="nothing answered on USB (a stock console shows nothing in normal mode)"); self.emit("identified", "identify", **d); return d
         if t.driver() != "ok":
-            d.update(state="Console detected but not identified", state_code="driver-" + t.driver(), detail={"missing": "the FEL/clovershell device needs the WinUSB driver (a separate, elevated step)", "wrong-binding": "a different driver is bound to the device"}[t.driver()])
+            d.update(state="Console detected but not identified", state_code="driver-" + t.driver(), detail={"missing": "The console's USB driver is not installed. Installing it is a separate step that needs administrator approval.", "wrong-binding": "A different USB driver is in use for the console."}[t.driver()])
             self.emit("identified", "identify", **d); return d
         if usb.get("mode") == "fel":
             board = t.fel_board(); d["fel_board"] = f"0x{board:08x}"
-            if board != FEL_BOARD_NES: d.update(state="Console detected but not identified", state_code="fel-wrong-board", detail="FEL answered with a board id that is not an NES/SNES Classic SoC")
+            if board != FEL_BOARD_NES: d.update(state="Console detected but not identified", state_code="fel-wrong-board", detail="The device in recovery (FEL) mode is not an NES Classic.")
             else: d.update(state="Console recognized, mode known", state_code="fel", mode="FEL (recovery)", firmware_state="stock-or-unknown", needs_first_time_setup=True, detail="FEL mode: no shell; first-time setup would memboot the custom kernel (physical, gated)")
             self.emit("identified", "identify", **d); return d
         try: t.open()
@@ -80,9 +80,9 @@ class Engine:
             d["foreign"] = {}
             for rel, size in t.fs.items():
                 code = rel.split("/")[0]; d["foreign"].setdefault(code, {})[rel] = size
-            if d["md_partitioning"]: d.update(state="Unknown or incompatible environment", state_code="md-partitioning", detail="Mega Drive style partitioning: not an NES flow")
-            elif d["system_code"] not in NES_SYSTEM_CODES: d.update(state="Unknown or incompatible environment", state_code="wrong-model", detail=f"this console reports {d['system_code']}; Classic Cart Studio supports the North American NES Classic (nes-usa)")
-            elif not d["can_sync"]: d.update(state="Console recognized, mode known", state_code="clovershell-only", detail="connected over legacy clovershell: upstream disables game sync on this link; the network (RNDIS) link is required")
+            if d["md_partitioning"]: d.update(state="Unknown or incompatible environment", state_code="md-partitioning", detail="This console uses a Mega Drive (Genesis) storage layout, which Classic Cart Studio does not support.")
+            elif d["system_code"] not in NES_SYSTEM_CODES: d.update(state="Unknown or incompatible environment", state_code="wrong-model", detail=f"This console reports itself as {d['system_code']}. Classic Cart Studio supports only the North American NES Classic.")
+            elif not d["can_sync"]: d.update(state="Console recognized, mode known", state_code="clovershell-only", detail="The console is connected through an older USB link (clovershell) that cannot install games. The network USB link is required.")
             else: d.update(state="Compatible modified environment already present", state_code="compatible", needs_first_time_setup=False)
         else:
             d.update(state="Unknown or incompatible environment" if d["firmware_state"] == "unknown" else "First-time setup required", state_code="outdated" if d["versions"] else "no-version",
@@ -94,25 +94,25 @@ class Engine:
     def preflight(self, p: dict) -> dict:
         self._checkpoint("preflight"); blocks, warns = [], []
         for e in p["entries"]:
-            if e["kind"] == "unresolved": blocks.append({"code": "unresolved-entry", "text": f"{e['title']}: {e.get('detail') or 'not resolvable'}"})
-            if e["action"] == "add" and not e.get("size"): blocks.append({"code": "missing-file", "text": f"{e['title']}: game file missing on this computer"})
-            if e["action"] == "add" and "?" in e.get("requires", []): blocks.append({"code": "unsupported-core", "text": f"{e['title']}: no module route for core {e.get('core')!r}"})
+            if e["kind"] == "unresolved": blocks.append({"code": "unresolved-entry", "text": f"{e['title']}: {e.get('detail') or 'could not be matched to a ROM file'}"})
+            if e["action"] == "add" and not e.get("size"): blocks.append({"code": "missing-file", "text": f"{e['title']}: the ROM file is not on this computer. Locate the file, or remove the game."})
+            if e["action"] == "add" and "?" in e.get("requires", []): blocks.append({"code": "unsupported-core", "text": f"{e['title']}: needs an emulator that Classic Cart Studio cannot set up in this version."})
         for m in p["modules"]:
-            if m["action"] == "install" and not m["cleared"]: blocks.append({"code": "module-not-cleared", "text": f"{m['name']}: required by {m['needed_by']} game(s), not cleared for distribution"})
+            if m["action"] == "install" and not m["cleared"]: blocks.append({"code": "module-not-cleared", "text": f"Emulator module {m['name']} is needed by {m['needed_by']} game{'' if m['needed_by'] == 1 else 's'} but is not included with Classic Cart Studio. You need to provide it yourself."})
         d = p["device"]; sc = d.get("state_code")
-        if d.get("source") == "none": blocks.append({"code": "no-device-state", "text": "no console state (not connected, or inspection not approved)"})
+        if d.get("source") == "none": blocks.append({"code": "no-device-state", "text": "The console has not been checked. Choose a simulated console; reading a real console is not available in this version."})
         elif sc in ("wrong-model", "md-partitioning", "fel-wrong-board"): blocks.append({"code": sc, "text": d.get("detail", sc)})
         elif sc in ("driver-missing", "driver-wrong-binding"): blocks.append({"code": sc, "text": d.get("detail", sc)})
-        elif sc in ("no-device",): blocks.append({"code": "no-device", "text": "console not connected"})
-        elif sc in ("fel", "outdated", "no-version"): blocks.append({"code": "first-time-setup-required", "text": "first-time setup (memboot, kernel flash) is a separate physical operation; disabled pending Gate G1"})
+        elif sc in ("no-device",): blocks.append({"code": "no-device", "text": "No console is connected."})
+        elif sc in ("fel", "outdated", "no-version"): blocks.append({"code": "first-time-setup-required", "text": "This console needs first-time setup, which is not available in this version."})
         elif sc == "clovershell-only": blocks.append({"code": "link-cannot-sync", "text": d.get("detail", sc)})
-        if p["backup"]["state"] in ("missing", "invalid"): blocks.append({"code": "backup-" + p["backup"]["state"], "text": "the stock kernel backup on the console is " + p["backup"]["state"] + "; a write would not be allowed without a verified recovery path"})
+        if p["backup"]["state"] in ("missing", "invalid"): blocks.append({"code": "backup-" + p["backup"]["state"], "text": "The console's original system backup is " + p["backup"]["state"] + ", so nothing can be written to the console without a verified way back."})
         est = p["budget"].get("estimate") or {}
-        if p["budget"]["fits"] is False: blocks.append({"code": "storage-insufficient", "text": f"not enough free space: {est.get('available')} bytes available, {est.get('used')} needed including a {p['budget']['margin']} byte safety margin"})
-        if p["budget"]["fits"] is None: warns.append({"code": "storage-unconfirmed", "text": "the size of some games is not known, so the fit cannot be confirmed"})
-        if p["budget"]["source"] == "reference": warns.append({"code": "storage-estimated", "text": "storage is a reference estimate, not a measurement of your console"})
-        if p["budget"]["fits"] is True and est.get("status") == "near": warns.append({"code": "storage-marginal", "text": "free space after the install would be small"})
-        if p["summary"].get("foreign"): warns.append({"code": "foreign-kept", "text": f"{p['summary']['foreign']} existing game(s) on the console are not in this collection and are kept"})
+        if p["budget"]["fits"] is False: blocks.append({"code": "storage-insufficient", "text": f"Not enough free space: {(est.get('available') or 0) / 1e6:.1f} MB available, {(est.get('used') or 0) / 1e6:.1f} MB needed, including a {(p['budget']['margin'] or 0) / 1e6:.1f} MB safety margin. Remove some games, then review again."})
+        if p["budget"]["fits"] is None: warns.append({"code": "storage-unconfirmed", "text": "Fit not confirmed: the size of some games is not known."})
+        if p["budget"]["source"] == "reference": warns.append({"code": "storage-estimated", "text": "Storage is estimated from a standard NES Classic, not measured on your console."})
+        if p["budget"]["fits"] is True and est.get("status") == "near": warns.append({"code": "storage-marginal", "text": "Close to capacity: little free space would remain after installing."})
+        if p["summary"].get("foreign"): warns.append({"code": "foreign-kept", "text": f"{p['summary']['foreign']} game{'' if p['summary']['foreign'] == 1 else 's'} already on the console {'is' if p['summary']['foreign'] == 1 else 'are'} not in this collection and will be kept."})
         ok = not blocks and p["can_proceed"]
         r = {"ok": ok, "blocks": blocks, "warnings": warns, "state": "Ready for simulated rehearsal" if ok and d.get("simulated") else ("Collection incomplete" if any(b["code"] in ("unresolved-entry", "missing-file") for b in blocks) else ("Ready" if ok else "Blocked")),
              "physical": gate.state()}

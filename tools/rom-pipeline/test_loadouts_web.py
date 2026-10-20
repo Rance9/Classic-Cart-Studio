@@ -22,7 +22,7 @@ from cdp_edge import EdgeSession as _Edge
 class EdgeSession(_Edge):
     """a session with a persistent profile, so a browser restart keeps local storage"""
     def __init__(self, profile=None, **kw):
-        super().__init__(**kw); self._p = profile
+        super().__init__(**{"start_timeout": 120.0, **kw}); self._p = profile
     def start(self):
         orig = cdp_edge.tempfile.mkdtemp; cdp_edge.tempfile.mkdtemp = (lambda *a, **k: self._p) if self._p else orig
         try: super().start()

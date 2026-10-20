@@ -38,6 +38,27 @@
   try{ const r=await fetch('store/store.json',{cache:'no-store'}); if(!r.ok) return; const d=await r.json(); const live=d&&d.published===true&&(d.products||[]).some(p=>p&&p.enabled); b.hidden=!live; }catch(e){} }
  on('mStore',()=>{ closeMenus(); window.open(location.protocol==='https:'?'store/':STORE_URL,'_blank','noopener'); });
  if(location.protocol!=='file:') setTimeout(storeCheck,1200);
+ // phones: the ⋯ menu of the library row (Favorites, add/remove all shown, list/grid, add your own game) uses the same controls
+ wireMenu('moreBtn','moreMenu');
+ const mm=$('moreMenu'); if(mm){ const vt=mm.querySelector('[data-view]'); const vtLabel=()=>{ if(vt) vt.textContent=view==='grid'?'List View':'Grid View'; };
+  $('moreBtn').addEventListener('click',()=>{ vtLabel(); const fv=mm.querySelector('[data-proxy=favView]'); if(fv&&$('favView')) fv.textContent=$('favView').textContent; ['selVis','unselVis'].forEach(id=>{ const b=mm.querySelector(`[data-proxy=${id}]`); if(b&&$(id)) b.textContent=$(id).textContent; }); });
+  mm.addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; mm.hidden=true; if(b.dataset.view){ (view==='grid'?$('vList'):$('vGrid')).click(); return; } const t=$(b.dataset.proxy); if(t) t.click(); }); }
+ // the phone action bar: the same actions as the top bar's buttons (collection view: Tray, Loadouts, Share, Menu; loadout editor: Tray, HOME, Install, Menu)
+ on('mbTray',()=>{ closeMenus(); $('trayBtn').click(); });
+ on('mbLo',e=>{ e.stopPropagation(); const m=$('loMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('loBtn').click(); });
+ on('mbShare',()=>{ closeMenus(); if(typeof ccsShareDialog==='function') ccsShareDialog(); });
+ on('mbHome',()=>{ closeMenus(); $('homeBtn').click(); });
+ on('mbInstall',()=>{ closeMenus(); $('hkBtn').click(); });
+ on('mbMenu',e=>{ e.stopPropagation(); const m=$('appMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('appBtn').click(); });
+ const _render=render; render=function(){ const r=_render.apply(this,arguments); try{ const n=$('mbTrayN'); if(n) n.textContent=$('trayBadge').textContent; }catch(e){} return r; };
+ // technical columns in the list (built-in status, ROM identity, emulator, size): off unless asked for in Filter & Sort
+ const TKEY='studio-techcols-v1'; const tc=$('techCols'); const techOn=v=>{ document.body.classList.toggle('techcols',!!v); try{ localStorage.setItem(TKEY,v?'1':'0'); }catch(e){} };
+ let t0=false; try{ t0=localStorage.getItem(TKEY)==='1'; }catch(e){} techOn(t0); if(tc){ tc.checked=t0; tc.onchange=()=>techOn(tc.checked); }
+ // phones open on covers (grid) unless the person chose a view before
+ try{ if(matchMedia('(max-width:640px)').matches&&!localStorage.getItem(VKEY)&&view!=='grid'){ $('vGrid').click(); } }catch(e){}
  // keyboard: the new menus behave like the existing ones (arrows, Escape)
- updateStatusLine(); csMenuRefresh();
+ // the no-results state: one tap back to games
+if($('nmSearch')) $('nmSearch').onclick=()=>{ $('q').value=''; render(); $('q').focus(); };
+if($('nmFilters')) $('nmFilters').onclick=()=>{ FILTERS.forEach(([id])=>$(id).value=FDEF[id]||''); render(); };
+updateStatusLine(); csMenuRefresh();
 })();
