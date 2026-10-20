@@ -168,7 +168,7 @@ def main():
             ok("recipient_sees_collection_without_change", ed.js("$('collTitle').textContent") == "Alpha" and ed.js("sel.size") == 0)
             ed.js("$('srSave').click()"); ed.wait_for("!!$('srOpen')", timeout=10); ed.js("$('srOpen').click()")
             ok("recipient_saved_independent_copy", ed.js("csActive().name") == "Alpha" and sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == sender_before and ed.js("csList().length") == 2)
-            ok("share_param_removed_from_address", "share=" not in ed.js("location.search"))
+            ok("share_id_kept_in_the_address_to_continue_after_installing", "share=" in ed.js("location.search"))
         # ---------------- unpublish and invalid input ----------------
         with EdgeSession(width=1280, height=900, profile=prof) as ed:
             ed.navigate(URL); ed.wait_for(READY, timeout=120)

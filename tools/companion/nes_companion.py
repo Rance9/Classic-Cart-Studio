@@ -76,7 +76,7 @@ def revoke_all():
 #      pairing ritual, but still an exact-origin, authenticated caller. The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["pairing", "library", "personal", "import", "locate", "prepare", "handoff", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
+CAPABILITIES = ["pairing", "library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -88,7 +88,7 @@ def _desktop_principal(auth: str, origin: str) -> dict | None:
 # ---- website -> desktop collection handoff: a bounded inbox of offered collections (the website may only ADD; only the desktop
 #      principal can list, take or discard). Non-destructive, idempotent by offer id, expires, capped. ----
 HANDOFF: dict = {}
-HANDOFF_MAX, HANDOFF_TTL, HANDOFF_MAX_BYTES, HANDOFF_RATE = 8, 20 * 60, 1_000_000, 30
+HANDOFF_MAX, HANDOFF_TTL, HANDOFF_MAX_BYTES, HANDOFF_RATE = 8, 20 * 60, 32_000_000, 30   # a complete library with loadouts fits
 _handoff_times: list = []
 OFFER_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 def handoff_path(): return data_path("handoff-inbox.json")
@@ -313,6 +313,10 @@ class H(http.server.BaseHTTPRequestHandler):
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
             with LOCK: handoff_prune(); items = sorted(HANDOFF.values(), key=lambda v: v.get("received", 0), reverse=True)
             return self._json(200, {"ok": True, "pending": [{k: v[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at") if k in v} for v in items]})
+        if path in ("/api/package/preview", "/api/package/file"):   # .ccs packages staged on this computer: desktop application only
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            import package_api as pk; return pk.handle_get(self, path, qs, data_path)
         if path == "/api/desktop/state":
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
@@ -387,6 +391,13 @@ class H(http.server.BaseHTTPRequestHandler):
         if not self._host_ok(): return self._json(403, {"ok": False, "error": "forbidden host"})
         if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "this companion is older than the website expects; please update it", "protocol": PROTOCOL, "version": VERSION})
         if path == "/api/handoff/offer": return self._handoff_offer()
+        if path == "/api/handoff/package":   # a .ccs the person chose on the website, handed to this app on this computer (never readable back by a website)
+            o = self._origin()
+            if o not in ALLOWED or o in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"): return self._json(403, {"ok": False, "error": "origin not allowed"})
+            now = time.time(); _handoff_times[:] = [t for t in _handoff_times if now - t < 60]
+            if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "too many offers; wait a minute"})
+            _handoff_times.append(now)
+            import package_api as pk; return pk.handle_website_package(self, data_path)
         if path == "/api/pair/claim":   # allow-listed origin, no auth: exchange the one-time code shown by the pairing page for the token bound to that origin
             o = self._origin()
             if o not in ALLOWED or not self._cross_site(): return self._json(403, {"ok": False, "error": "origin not allowed"})
@@ -403,6 +414,10 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(200, {"ok": True, "token": tok, "expires": int(exp or 0), "version": VERSION, "protocol": PROTOCOL})
         if not self._authed():
             return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "not connected: this website must be paired with the companion first" if self._cross_site() else "request not authorized (token/origin)", "pair_required": self._cross_site()})
+        if path.startswith("/api/package/"):   # .ccs packages: desktop application only; before _body(): uploads stream to disk
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "desktop application only"})
+            import package_api as pk; return pk.handle_post(self, path, data_path, VERSION)
         if path.startswith("/api/overrides/"): import overrides as ov; return ov.handle_post(self, path, CFG, ps.pick_file)   # N3: before _body(): image uploads stream to disk
         try: body = self._body()
         except Exception as e: return self._json(400, {"ok": False, "error": f"bad request: {e}"})

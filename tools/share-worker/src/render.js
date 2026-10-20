@@ -1,14 +1,18 @@
-// Server-rendered HTML for share pages. No scripts, no third-party requests.
+// Server-rendered HTML for share pages. No third-party requests; the only script is the game search below, allowed by its hash.
 import { escapeHtml as e } from './util.js';
 
 // img-src: 'self' (cards, thumbs), the share origin when it is addressed by
 // another host name, and SITE_ORIGIN (catalog cover art).
+// the game search on a share page: the only script, allowed by its SHA-256 (the tests check the hash matches the text)
+export const SEARCH_JS = "(function(){var q=document.getElementById('q'),n=document.getElementById('qn');if(!q)return;var li=[].slice.call(document.querySelectorAll('.grid .game'));q.addEventListener('input',function(){var s=q.value.toLowerCase().trim(),c=0;li.forEach(function(x){var h=s&&x.getAttribute('data-s').indexOf(s)<0;x.hidden=h;if(!h)c++;});n.textContent=s?c+' of '+li.length:'';});})();";
+export const SEARCH_JS_SHA256 = 'x31ZaD1xRsX5QN6tQ9f5YXUdcSwU3onVqLy1CouG6I4=';
+
 export function htmlHeaders(siteOrigin, shareOrigin) {
   const extra = shareOrigin && shareOrigin !== siteOrigin ? ` ${shareOrigin}` : '';
   return {
     'Content-Type': 'text/html; charset=utf-8',
     'Content-Security-Policy':
-      `default-src 'none'; img-src 'self'${extra} ${siteOrigin} data:; style-src 'unsafe-inline'; ` +
+      `default-src 'none'; img-src 'self'${extra} ${siteOrigin} data:; style-src 'unsafe-inline'; script-src 'sha256-${SEARCH_JS_SHA256}'; ` +
       `base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -35,6 +39,9 @@ h1{margin:0 0 12px;font-size:clamp(28px,4.4vw,44px);line-height:1.1;overflow-wra
 .stats li{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 12px;color:var(--muted);font-size:14px}
 .stats b{color:var(--text);font-size:16px;margin-right:4px}
 .loadouts{margin:0 0 26px}.loadouts h2{font-size:18px;margin:0 0 4px}.loadouts h2 span{color:var(--muted);font-weight:500}.loadouts .note{color:var(--muted);margin:0 0 8px;font-size:14px}.loadouts ul{margin:0;padding:0 0 0 18px}.loadouts li{margin:2px 0}
+.loadouts details{margin:4px 0}.loadouts summary{cursor:pointer}.loadouts ol{margin:6px 0 10px;padding-left:24px;color:var(--muted);columns:2 260px}
+.appnote{color:var(--muted);font-size:13px;margin:10px 0 0;max-width:620px}.appnote a{color:var(--text)}
+.search{display:flex;gap:10px;align-items:center;margin:0 0 14px}.search input{flex:1;max-width:420px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;font:inherit}#qn{color:var(--muted);font-size:13px}.game[hidden]{display:none}
 .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:8px;font-weight:700;text-decoration:none}
 .btn.primary{background:var(--red);color:#fff;box-shadow:0 4px 0 #8a0009}
@@ -87,6 +94,7 @@ ${head}
 <main class="wrap">
 ${body}
 </main>
+${body.includes('id="q"') ? `<script>${SEARCH_JS}</script>` : ''}
 <footer>Shared with Classic Cart Studio &middot; not affiliated with Nintendo</footer>
 </body>
 </html>
@@ -123,7 +131,7 @@ function gameItem(g, siteOrigin, pageUrl) {
   const src = coverUrl(g, siteOrigin, pageUrl);
   const img = src ? `<img src="${e(src)}" alt="" loading="lazy" decoding="async">` : '';
   const label = SOURCE_LABELS[g.source];
-  return `<li class="game"><div class="cover"><div class="fb" aria-hidden="true"><i></i>${e(g.title)}</div>${img}</div>` +
+  return `<li class="game" data-s="${e([g.title, g.version, g.publisher, g.year].filter(Boolean).join(' ').toLowerCase())}"><div class="cover"><div class="fb" aria-hidden="true"><i></i>${e(g.title)}</div>${img}</div>` +
     `<div class="meta"><span class="t">${e(g.title)}</span>` +
     (g.version ? `<span class="v">${e(g.version)}</span>` : '') +
     (sub ? `<span class="y">${e(sub)}</span>` : '') +
@@ -135,8 +143,9 @@ function gameItem(g, siteOrigin, pageUrl) {
 function loadoutsBlock(snap) {
   const list = Array.isArray(snap.loadouts) ? snap.loadouts : [];
   if (!list.length) return '';
-  return `<section class="loadouts"><h2>NES Classic Loadouts <span>${list.length}</span></h2><p class="note">Sets of these games planned for an NES Classic. They come with the collection when you save it.</p><ul>` +
-    list.map((l) => `<li><b>${e(l.name)}</b> · ${l.games.length} game${l.games.length === 1 ? '' : 's'}</li>`).join('') + '</ul></section>\n';
+  const title = new Map(snap.games.map((g) => [g.id, g.version ? `${g.title} (${g.version})` : g.title]));
+  return `<section class="loadouts"><h2>NES Classic Loadouts <span>${list.length}</span></h2><p class="note">Sets of these games planned for an NES Classic. They come with the collection when you save it.</p>` +
+    list.map((l) => `<details><summary><b>${e(l.name)}</b> · ${l.games.length} game${l.games.length === 1 ? '' : 's'}</summary><ol>${l.games.map((id) => `<li>${e(title.get(id) || id)}</li>`).join('')}</ol></details>`).join('') + '</section>\n';
 }
 
 export function renderSharePage(snap, { siteOrigin, shareOrigin }) {
@@ -182,14 +191,16 @@ export function renderSharePage(snap, { siteOrigin, shareOrigin }) {
 <ul class="stats">${statItems.join('')}</ul>
 <div class="actions">
 <a class="btn primary" href="${e(`${siteOrigin}/?share=${encodeURIComponent(snap.id)}`)}">Save to My Collections</a>
-<a class="btn ghost" href="${e(siteOrigin)}">Open Classic Cart Studio</a>
+<a class="btn ghost" href="${e(`classiccartstudio://share/${encodeURIComponent(snap.id)}`)}">Open in Windows App</a>
 </div>
+<p class="appnote">Open in Windows App needs Classic Cart Studio for Windows; your browser asks before it opens the app. Nothing opened? <a href="${e(`${siteOrigin}/app`)}">Download Classic Cart Studio</a>, install it, then come back to this page and choose Open in Windows App again. Collections never include game files.</p>
 ${when ? `<p class="when">Shared ${e(when)}</p>` : ''}
 </div>
 <figure class="card"><img src="/c/${e(snap.id)}/card.png" width="1200" height="630" alt="${e(imageAlt)}"></figure>
 </section>
 ${loadoutsBlock(snap)}<section class="games">
 <h2>Games in this collection <span>${count}</span></h2>
+<div class="search"><input id="q" type="search" placeholder="Search these games" aria-label="Search the games of this collection"><span id="qn" aria-live="polite"></span></div>
 <ul class="grid">
 ${snap.games.map((g) => gameItem(g, siteOrigin, pageUrl)).join('\n')}
 </ul>

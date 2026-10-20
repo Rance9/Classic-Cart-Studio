@@ -1,6 +1,6 @@
 // ---- Classic Cart Studio for Windows: website -> desktop collection handoff, durable desktop state and the first-run onboarding ----
 //      Website (Edge): "Continue in Desktop App" offers the current collection (schema 4 manifest, exact versions) to the backend on
-//      127.0.0.1 (exact origin, bounded, idempotent by offer id), then opens the app through nesstudio://handoff?offer=<id> (an id,
+//      127.0.0.1 (exact origin, bounded, idempotent by offer id), then opens the app through classiccartstudio://handoff?offer=<id> (an id,
 //      never data). Desktop (WebView2): the page asks the backend for pending offers (desktop principal), shows a confirmation, keeps
 //      the current collection as a snapshot, applies the manifest through the same code path as a collection file, and stores the
 //      browser-side state durably through the backend (desktop-state.json) so it survives WebView2 profile loss.
@@ -17,11 +17,11 @@ function desktopInvite(reason){ if(!desktopAvailable()) return false; const n=se
   <div class="acts"><button class="btn ghost" id="dvKeep">Keep Browsing</button><span class="sp"></span><button class="btn hk" id="dvGo">Continue in Desktop App</button></div>`);
  $('dvKeep').onclick=closeColl; $('dvGo').onclick=startHandoff; return true; }
 // no collection yet: open (or install) the app without a handoff
-function openAppOnly(){ let f=$('ccsLaunch'); if(!f){ f=document.createElement('iframe'); f.id='ccsLaunch'; f.setAttribute('aria-hidden','true'); f.style.cssText='display:none;width:0;height:0;border:0'; document.body.appendChild(f); } try{ f.src='nesstudio://open'; }catch(e){}
+function openAppOnly(){ let f=$('ccsLaunch'); if(!f){ f=document.createElement('iframe'); f.id='ccsLaunch'; f.setAttribute('aria-hidden','true'); f.style.cssText='display:none;width:0;height:0;border:0'; document.body.appendChild(f); } try{ f.src='classiccartstudio://open'; }catch(e){}
  openColl('Opening Classic Cart Studio for Windows','', `<div class="msgbox">If it is installed, Windows asks once whether to open it; choose <b>Open</b> and switch to its window. If nothing opens, it is not installed yet:</div><div class="msgbox" id="dl"><b>Get Classic Cart Studio</b><div class="small">Looking up the latest release…</div></div><div class="acts"><span class="sp"></span><button class="btn" id="hoClose">Close</button></div>`);
  renderDownload($('dl')); $('hoClose').onclick=closeColl; }
 async function offerCollection(body){ try{ const resp=await fetch(CO.base+'/api/handoff/offer',lnaInit({method:'POST',headers:{'Content-Type':'application/json','X-NES-Protocol':String(CO.REQ_PROTOCOL)},body:JSON.stringify(body),cache:'no-store'})); const j=await resp.json().catch(()=>({})); return {ok:resp.ok&&!!j.ok,status:resp.status,error:j.error,pending:j.pending}; }catch(e){ return {ok:false,unreachable:true,denied:await lnaDenied()}; } }
-function launchApp(id){ const u='nesstudio://handoff?offer='+encodeURIComponent(id); let f=$('ccsLaunch'); if(!f){ f=document.createElement('iframe'); f.id='ccsLaunch'; f.setAttribute('aria-hidden','true'); f.style.cssText='display:none;width:0;height:0;border:0'; document.body.appendChild(f); } try{ f.src=u; }catch(e){} }
+function launchApp(id){ const u='classiccartstudio://handoff?offer='+encodeURIComponent(id); let f=$('ccsLaunch'); if(!f){ f=document.createElement('iframe'); f.id='ccsLaunch'; f.setAttribute('aria-hidden','true'); f.style.cssText='display:none;width:0;height:0;border:0'; document.body.appendChild(f); } try{ f.src=u; }catch(e){} }
 window.HO_DBG=(()=>{ try{ return JSON.parse(sessionStorage.getItem('ccs-trace')||'[]'); }catch(e){ return []; } })(); function hoLog(x){ try{ HO_DBG.push([Date.now()%100000,x]); if(HO_DBG.length>80) HO_DBG.shift(); sessionStorage.setItem('ccs-trace',JSON.stringify(HO_DBG)); }catch(e){} }
 hoLog('page load nav='+((performance.getEntriesByType('navigation')[0]||{}).type||'?'));
 (function(){ const _o=openColl,_c=closeColl; window.openColl=function(t){ hoLog('openColl '+t); return _o.apply(this,arguments); }; window.closeColl=function(){ hoLog('closeColl from '+((new Error().stack||'').split(String.fromCharCode(10))[2]||'').trim().slice(0,80)); return _c.apply(this,arguments); }; window.addEventListener('beforeunload',()=>hoLog('unload')); })();

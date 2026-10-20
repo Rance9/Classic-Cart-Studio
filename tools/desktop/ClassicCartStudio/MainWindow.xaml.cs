@@ -25,6 +25,7 @@ namespace ClassicCartStudio
         readonly string[] startupArgs;
         bool coreReady, backendStarting, closing, recoveryShown, firstPageShown;
         string pendingLink;
+        readonly System.Collections.Generic.List<string[]> pendingActions = new System.Collections.Generic.List<string[]>();   // [kind, value] for the page: share, package, file
         int devtoolsPort;
         internal string LastNavigation = "not yet";
         DispatcherTimer blockTimer; int blockStep; bool hitLogged;
@@ -337,7 +338,13 @@ namespace ClassicCartStudio
             e.State = CoreWebView2PermissionState.Deny; App.Log("permission " + kind + " denied for " + origin);
         }
 
-        // nesstudio:// links: open (bring forward) and handoff?offer=<id> (tell the page to look at the pending collection). Nothing else.
+        // Links and files handed to the application (command line, or forwarded by a second instance):
+        //   classiccartstudio://open                      bring the window forward
+        //   classiccartstudio://share/<id>                a published collection (its share id only): the page fetches it and asks before adding it
+        //   classiccartstudio://handoff?offer=<id>        a collection the website offered (the existing inbox)
+        //   classiccartstudio://package?offer=<id>        a .ccs package the website handed to this computer's backend (staged there)
+        //   <path>.ccs                                    a collection package opened from File Explorer (double-click, Open With)
+        // nesstudio:// (earlier releases) is accepted the same way. Every value is validated; nothing in a link is ever run as a command.
         public void OnActivatedFromAnotherInstance(string payload)
         {
             App.Log("activated by another instance"); BringToFrontNow();
@@ -346,17 +353,40 @@ namespace ClassicCartStudio
 
         void HandleLink(string arg)
         {
-            if (string.IsNullOrEmpty(arg) || !arg.StartsWith("nesstudio:", StringComparison.OrdinalIgnoreCase)) return;
-            var m = Regex.Match(arg, @"^nesstudio://handoff\?(?:.*&)?offer=([A-Za-z0-9-]{8,64})", RegexOptions.IgnoreCase);
-            if (m.Success) { pendingLink = m.Groups[1].Value; App.Log("handoff link for offer " + pendingLink); DeliverPendingLink(); return; }
-            var safe = Regex.Replace(arg, "[^A-Za-z0-9:/?=&._-]", ""); App.Log("link ignored: " + safe.Substring(0, Math.Min(80, safe.Length)));
+            if (string.IsNullOrEmpty(arg)) return;
+            if (arg.EndsWith(".ccs", StringComparison.OrdinalIgnoreCase) && arg.IndexOf("://", StringComparison.Ordinal) < 0)
+            {
+                string full = null;
+                try { full = System.IO.Path.GetFullPath(arg); } catch { }
+                if (full != null && System.IO.File.Exists(full)) { App.Log("package file opened (" + System.IO.Path.GetFileName(full).Length + " characters)"); QueueAction("file", full); }
+                else App.Log("package file not found");
+                return;
+            }
+            var m = Regex.Match(arg, @"^(?:classiccartstudio|nesstudio)://([a-z]+)(?:/([A-Za-z0-9]{6,32}))?/?(?:\?(?:.*&)?(?:offer|id)=([A-Za-z0-9_-]{8,64}))?(?:&.*)?$", RegexOptions.IgnoreCase);
+            if (!m.Success) { if (arg.IndexOf("://", StringComparison.Ordinal) > 0) { var safe = Regex.Replace(arg, "[^A-Za-z0-9:/?=&._-]", ""); App.Log("link ignored: " + safe.Substring(0, Math.Min(80, safe.Length))); } return; }
+            var verb = m.Groups[1].Value.ToLowerInvariant(); var path = m.Groups[2].Value; var q = m.Groups[3].Value;
+            if (verb == "handoff" && q.Length > 0) { pendingLink = q; App.Log("handoff link for offer " + q); DeliverPendingLink(); return; }
+            if (verb == "share" && (path.Length > 0 || Regex.IsMatch(q, "^[A-Za-z0-9]{6,32}$"))) { QueueAction("share", path.Length > 0 ? path : q); return; }
+            if (verb == "package" && Regex.IsMatch(q, "^[A-Za-z0-9_-]{16,40}$")) { QueueAction("package", q); return; }
+            if (verb == "open") return;
+            App.Log("link ignored: " + verb);
         }
+
+        void QueueAction(string kind, string value) { pendingActions.Add(new[] { kind, value }); App.Log("link: " + kind); DeliverPendingLink(); }
 
         void DeliverPendingLink()
         {
-            if (string.IsNullOrEmpty(pendingLink) || !coreReady || !backend.Ready || recoveryShown) return;
-            var id = pendingLink; pendingLink = null;
-            _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsHandoff ? window.__ccsHandoff(" + App.JsString(id) + ") : (window.__ccsPendingOffer=" + App.JsString(id) + ")");
+            if (!coreReady || !backend.Ready || recoveryShown) return;
+            if (!string.IsNullOrEmpty(pendingLink))
+            {
+                var id = pendingLink; pendingLink = null;
+                _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsHandoff ? window.__ccsHandoff(" + App.JsString(id) + ") : (window.__ccsPendingOffer=" + App.JsString(id) + ")");
+            }
+            foreach (var a in pendingActions.ToArray())
+            {
+                _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsLink ? window.__ccsLink(" + App.JsString(a[0]) + "," + App.JsString(a[1]) + ") : (window.__ccsLinkQ=window.__ccsLinkQ||[]).push([" + App.JsString(a[0]) + "," + App.JsString(a[1]) + "])");
+            }
+            pendingActions.Clear();
         }
 
         void BringToFrontNow()

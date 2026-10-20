@@ -1,4 +1,4 @@
-// Classic Cart Studio for Windows — entry point: single instance, command line (nesstudio:// links, --version, --selftest), then the
+// Classic Cart Studio for Windows — entry point: single instance, command line (classiccartstudio:// links, .ccs files, --version, --selftest), then the
 // WPF application with the one main window. The window shows the live website; the Python backend is started and supervised by Backend.cs.
 using System;
 using System.IO.Pipes;
@@ -52,7 +52,7 @@ namespace ClassicCartStudio
                 using (var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out))
                 {
                     client.Connect(2000);
-                    var b = Encoding.UTF8.GetBytes(string.IsNullOrEmpty(payload) ? "nesstudio://open" : payload);
+                    var b = Encoding.UTF8.GetBytes(string.IsNullOrEmpty(payload) ? "classiccartstudio://open" : payload);
                     client.Write(b, 0, b.Length); client.Flush(); client.WaitForPipeDrain();
                 }
                 var shown = (payload ?? "").Replace('\n', ' ');

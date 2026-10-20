@@ -300,10 +300,9 @@ __STUDIO_CSS__
    <div class="sep"></div>
    <button id="mNew" class="mi" role="menuitem"><b>New Collection…</b><span class="d">Start another collection; this one stays saved.</span></button>
    <button id="mManage" class="mi" role="menuitem"><b>Manage Collections…</b><span class="d">Rename, duplicate, delete, export or share any of your collections.</span></button>
-   <button id="mShare" class="mi" role="menuitem"><b>Share Collection…</b><span class="d">Publish a read-only copy with a link anyone can open and save.</span></button>
+   <button id="mShare" class="mi" role="menuitem"><b>Share or Export Collection…</b><span class="d">A public link, or a .ccs file to pass on yourself.</span></button>
    <div class="sep"></div>
-   <button id="mImport" class="mi" role="menuitem"><b>Import Collection…</b><span class="d">Add a collection from a file. Nothing here is overwritten.</span></button>
-   <button id="mExport" class="mi" role="menuitem"><b>Export Collection…</b><span class="d">Save this collection as a portable file (no game files inside).</span></button>
+   <button id="mImport" class="mi" role="menuitem"><b>Import .ccs Collection…</b><span class="d">Add a collection from a .ccs file (or drop it on the page). Nothing here is overwritten.</span></button>
    <button id="mLoadLocal" class="mi" role="menuitem" hidden><b>Games Already on This Computer…</b><span class="d">Bring in the games set up on this computer before. Looking changes nothing.</span></button>
    <button id="mRestore" class="mi" role="menuitem"><b>Restore Previous Version…</b><span class="d">Automatic recovery snapshots of earlier states.</span></button>
    <div class="sep" id="mDesktopSep"></div>
@@ -868,7 +867,7 @@ def main():
         cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
         return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
-    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js") + "\n" + part("storage-model.js") + "\n" + part("loadouts.js")
+    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js") + "\n" + part("storage-model.js") + "\n" + part("loadouts.js") + "\n" + part("ccs.js")
     studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
     foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}", "eager") for st, n, g in ROSTER)   # the credits strip walks, so its sprites load up front
     foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}", "eager") for st, n in WEB_ROSTER)

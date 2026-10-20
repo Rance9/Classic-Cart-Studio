@@ -54,6 +54,7 @@ CloseApplications=yes
 RestartApplications=no
 UsePreviousAppDir=no
 UsePreviousGroup=no
+ChangesAssociations=yes
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription={#AppName} installer
 VersionInfoProductName={#AppName}
@@ -85,6 +86,26 @@ Root: HKCU; Subkey: "Software\Classes\nesstudio"; ValueType: string; ValueName: 
 Root: HKCU; Subkey: "Software\Classes\nesstudio"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\nesstudio\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"",0"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\nesstudio\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Flags: uninsdeletekey
+; classiccartstudio:// links (per user): the website opens the application on a published collection (classiccartstudio://share/<id>), on
+; a collection or a .ccs package it handed to this computer (handoff?offer=, package?offer=), or just brings it forward (open). The
+; application validates every link and accepts identifiers only, never commands, paths or data.
+Root: HKCU; Subkey: "Software\Classes\classiccartstudio"; ValueType: string; ValueName: ""; ValueData: "URL:Classic Cart Studio"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\classiccartstudio"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\classiccartstudio\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"",0"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\classiccartstudio\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Flags: uninsdeletekey
+; .ccs collection packages (per user). The file type shows the application's own icon (the icon resource of ClassicCartStudio.exe).
+; The extension's default is set only when none exists, so a default the person chose is never overridden; Classic Cart Studio is
+; always offered under Open With.
+Root: HKCU; Subkey: "Software\Classes\ClassicCartStudio.Collection"; ValueType: string; ValueName: ""; ValueData: "Classic Cart Studio Collection"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\ClassicCartStudio.Collection"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Classic Cart Studio Collection"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\ClassicCartStudio.Collection\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"",0"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\ClassicCartStudio.Collection\shell\open"; ValueType: string; ValueName: ""; ValueData: "Open with Classic Cart Studio"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\ClassicCartStudio.Collection\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\.ccs"; ValueType: string; ValueName: ""; ValueData: "ClassicCartStudio.Collection"; Flags: createvalueifdoesntexist
+Root: HKCU; Subkey: "Software\Classes\.ccs"; ValueType: string; ValueName: "Content Type"; ValueData: "application/vnd.classiccartstudio.collection+zip"; Flags: createvalueifdoesntexist
+Root: HKCU; Subkey: "Software\Classes\.ccs\OpenWithProgids"; ValueType: string; ValueName: "ClassicCartStudio.Collection"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\Applications\{#AppExe}\SupportedTypes"; ValueType: string; ValueName: ".ccs"; ValueData: ""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Applications\{#AppExe}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Start Classic Cart Studio now"; Flags: nowait postinstall skipifsilent
@@ -111,8 +132,22 @@ Type: filesandordirs; Name: "{localappdata}\Programs\NESClassicCollectionStudio"
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Code]
+// the .ccs default and content type are removed only when they are still Classic Cart Studio's (a choice the person made stays)
+procedure RemoveOwnValue(const Name, Ours: String);
+var V: String;
+begin
+  if RegQueryStringValue(HKCU, 'Software\Classes\.ccs', Name, V) and (V = Ours) then RegDeleteValue(HKCU, 'Software\Classes\.ccs', Name);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
+  if CurUninstallStep = usUninstall then
+  begin
+    RemoveOwnValue('', 'ClassicCartStudio.Collection');
+    RemoveOwnValue('Content Type', 'application/vnd.classiccartstudio.collection+zip');
+    RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs\OpenWithProgids');
+    RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs');
+  end;
   if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
     MsgBox('Classic Cart Studio was removed. Your imported games, personal games and collections were kept in ' + ExpandConstant('{localappdata}') + '\ClassicCartStudio. Delete that folder yourself if you no longer want them.', mbInformation, MB_OK);
 end;

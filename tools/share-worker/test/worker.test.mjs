@@ -266,7 +266,7 @@ async function main() {
   const escTitle = 'Best &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &#39;friends&#39;';
   check('page 200 text/html', page.status === 200 && page.headers.get('content-type').startsWith('text/html'));
   check('page escapes title in <h1>', html.includes(`<h1>${escTitle}</h1>`));
-  check('page contains no <script> at all', !/<script/i.test(html));
+  check('page has no script but the hashed search', (html.match(/<script/gi) || []).length === 1 && html.includes('<script>(function(){var q=document.getElementById'));
   check('page og:title escaped', html.includes(`<meta property="og:title" content="${escTitle}">`));
   check('page <title> escaped', html.includes(`<title>${escTitle} · Classic Cart Studio</title>`));
   check('page og:image absolute card URL', html.includes(`<meta property="og:image" content="${SHARE}/c/${id}/card.png">`));
@@ -280,7 +280,7 @@ async function main() {
   check('page meta description', html.includes('<meta name="description" content="A few favorites.">'));
   check('page robots noindex', html.includes('<meta name="robots" content="noindex">'));
   check('page Save to My Collections link', html.includes(`href="${SITE}/?share=${id}">Save to My Collections</a>`));
-  check('page Open Classic Cart Studio link', html.includes(`href="${SITE}">Open Classic Cart Studio</a>`));
+  check('page Open in Windows App link', html.includes('classiccartstudio://share/'));
   check('page cover art from SITE_ORIGIN', html.includes(`src="${SITE}/art/a1b2c3d4e5f60718.jpg"`));
   check('page shows version text', html.includes('USA (Rev 1)'));
   check('page empty art uses fallback box (no img)', /<div class="cover"><div class="fb" aria-hidden="true"><i><\/i>Homebrew Quest<\/div><\/div>/.test(html));
@@ -414,6 +414,22 @@ async function main() {
   check('snapshot returns every loadout with its exact games and HOME settings', JSON.stringify(maxJ.loadouts) === JSON.stringify([{ name: 'Family Favorites', games: los[0].games }, { name: 'Everything', games: los[1].games, home: los[1].home }, { name: 'Personal', games: los[2].games }]));
   const maxPage = await (await call(env, 'GET', `/c/${maxId}`, { headers: { 'user-agent': 'Mozilla/5.0' } })).text();
   check('share page lists the loadouts', maxPage.includes('NES Classic Loadouts') && maxPage.includes('Family Favorites') && maxPage.includes('35 games'));
+  check('share page lists each loadout with its games', maxPage.includes('<details><summary><b>Family Favorites</b>') && maxPage.includes('<li>Game 0</li>'));
+  check('share page offers Save, Open in Windows App and the download', maxPage.includes('/?share=' + maxId) && maxPage.includes('classiccartstudio://share/' + maxId) && maxPage.includes('/app">Download Classic Cart Studio'));
+  check('share page search script allowed by its hash only', maxPage.includes('id="q"') && maxPage.includes('<script>(function(){'));
+  {
+    const r = await call(env, 'GET', `/c/${maxId}`, { headers: { 'user-agent': 'Mozilla/5.0' }, ip: freshIp() });
+    const csp = r.headers.get('content-security-policy') || '';
+    const m = await import('../src/render.js');
+    check('CSP allows exactly the search script', csp.includes(`script-src 'sha256-${m.SEARCH_JS_SHA256}'`) && createHash('sha256').update(m.SEARCH_JS).digest('base64') === m.SEARCH_JS_SHA256 && !/script-src[^;]*unsafe/.test(csp), csp);
+  }
+  {
+    const rom = Buffer.concat([Buffer.from([0x4e, 0x45, 0x53, 0x1a]), randomBytes(2000)]);
+    const jpegWithRom = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), rom, Buffer.from([0xff, 0xd9])]);
+    await bad('refuse a thumbnail carrying a game file', payload({ games: [{ id: 'abc', title: 'X', thumb: 0 }], thumbs: [jpegWithRom.toString('base64')] }), 'game_data_refused');
+    await bad('refuse a roms field', payload({ roms: [rom.toString('base64')] }), 'unknown_field');
+    await bad('refuse a game with a file field', payload({ games: [{ id: 'abc', title: 'X', file: rom.toString('base64') }] }), 'unknown_field');
+  }
   await bad('reject loadout with a game not in the collection', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: [{ name: 'L', games: ['zzz'] }] }), 'bad_loadout');
   await bad('reject loadout listing a game twice', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: [{ name: 'L', games: ['abc', 'abc'] }] }), 'bad_loadout');
   await bad('reject loadout without a name', payload({ games: [{ id: 'abc', title: 'X' }], loadouts: [{ games: ['abc'] }] }), 'invalid_payload');
@@ -551,7 +567,7 @@ async function main() {
   await expectStatus('thumb for unknown share 404', call(mixEnv, 'GET', '/c/ZZZZZZZZZZ/t/0.jpg'), 404);
   check('POST thumb 405', (await call(mixEnv, 'POST', `/c/${mixId}/t/0.jpg`)).status === 405);
   const mHtml = await (await call(mixEnv, 'GET', `/c/${mixId}`)).text();
-  check('mixed page: lists all 120 games', (mHtml.match(/<li class="game">/g) || []).length === 120);
+  check('mixed page: lists all 120 games', (mHtml.match(/<li class="game"/g) || []).length === 120);
   check('mixed page: every title present (escaped)', mixed.every((g) => mHtml.includes(`<span class="t">${g.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`)));
   check('mixed page: thumb cover uses thumb_url', mHtml.includes(`src="${mixUrl}/t/0.jpg"`) && mHtml.includes(`src="${mixUrl}/t/4.jpg"`));
   check('mixed page: catalog art cover from SITE_ORIGIN', mHtml.includes(`src="${SITE}/art/${hex16(0xa000)}.jpg"`));
@@ -561,7 +577,7 @@ async function main() {
   check('mixed page: version lines shown', mHtml.includes('<span class="v">v1.2 (hack)</span>') && mHtml.includes('USA (Rev 0)') && mHtml.includes('USA (Rev 1)'));
   check('mixed page: stats use total games', mHtml.includes('<li><b>120</b>games</li>') && mHtml.includes('<li><b>30</b>personal</li>'));
   check('mixed page: header count 120', mHtml.includes('Games in this collection <span>120</span>'));
-  check('mixed page: no script', !/<script/i.test(mHtml));
+  check('mixed page: no script but the hashed search', (mHtml.match(/<script/gi) || []).length === 1);
   // Unpublish removes card and thumbs; the tombstone answers 410.
   const mixUn = await call(mixEnv, 'POST', '/api/unpublish', { body: { id: mixId, token: mixJ.manage_token }, headers: { 'content-type': 'application/json', origin: SITE }, ip: freshIp() });
   check('mixed: unpublish 200', mixUn.status === 200);
