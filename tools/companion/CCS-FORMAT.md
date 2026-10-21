@@ -76,6 +76,10 @@ There is no package size, ROM size or game count limit. Packages are not limited
 installing on the console). Genuine limits are the device's free space and memory and a destination app's own attachment limits;
 when a destination refuses a file, the complete package is kept and can be saved or sent another way.
 
+The Windows app makes a package as a background job with progress (checking ROM files, packaging *n* of *N* games, bytes written)
+and a Cancel that stops at the next 1 MB step. The package is written under a temporary name, checked, and only then given its
+final name; a canceled or failed export leaves no file behind.
+
 ## Reading rules (untrusted input)
 
 A package is refused when any of the following is true:
@@ -93,7 +97,9 @@ Decompression stops at the declared size of each entry. Nothing in a package is 
 
 - **Windows app:** the whole package is verified first. After the recipient confirms the import acknowledgment, each ROM goes to
   the app's managed game files, identified by its own content (a known version gets the library copy; anything else a personal
-  game); existing files are reused, never overwritten. **Import Without ROMs** adds the collection only.
+  game); existing files are reused, never overwritten. Each ROM is copied in 1 MB pieces while it is checked, so memory use does
+  not grow with the package. **Import Without ROMs** adds the collection only. Loose ROM files and ZIP archives added with Add Games
+  from Files follow the same path and have no size or count limit either (unsafe or damaged archives are refused).
 - **Website:** the package is verified completely in the browser (every checksum and identity). The collection is added to My
   Collections; the website does not keep ROM files, so to export or share again the person chooses the `.ccs` file (or the ROM
   files) when asked.

@@ -59,7 +59,7 @@ ALLOWED: set = set()
 #      an exact-origin, authenticated caller (the only one besides this server's own page). The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
+CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "package-jobs", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -71,6 +71,12 @@ def _desktop_principal(auth: str, origin: str) -> dict | None:
 # ---- website -> desktop collection handoff: a bounded inbox of offered collections (the website may only ADD; only the desktop
 #      principal can list, take or discard). Non-destructive, idempotent by offer id, expires, capped. ----
 HANDOFF: dict = {}
+# A connection that sends nothing for this long is closed: a stalled upload cannot hold a thread, a partial file or a socket. It is an
+# inactivity limit, not a duration limit: every received piece restarts it, so a large transfer that keeps arriving is never cut off.
+# 120 s covers real pauses on this computer (a sleeping drive spinning up, antivirus scanning, a cloud file still downloading) with room
+# to spare. CCS_HELPER_IDLE_TIMEOUT is for tests only (shorter waits); there is no user setting.
+try: IDLE_TIMEOUT = min(3600.0, max(1.0, float(os.environ.get("CCS_HELPER_IDLE_TIMEOUT") or 120)))
+except ValueError: IDLE_TIMEOUT = 120.0
 HANDOFF_MAX, HANDOFF_TTL, HANDOFF_MAX_BYTES, HANDOFF_RATE = 8, 20 * 60, 32_000_000, 30   # a complete library with loadouts fits
 _handoff_times: list = []
 OFFER_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
@@ -174,6 +180,7 @@ def save_manifest(man: dict) -> str:
 
 class H(http.server.BaseHTTPRequestHandler):
     server_version = "nes-companion/1.0"
+    timeout = IDLE_TIMEOUT          # per receive/send on this connection (socket timeout); see IDLE_TIMEOUT
     protocol_version = "HTTP/1.1"   # keep-alive: Chromium reuses the connection it opened for a CORS preflight for the actual request; an
                                     # HTTP/1.0 server closing after the preflight left those requests waiting until the page's timeout
     def log_message(self, fmt, *a):
@@ -232,11 +239,20 @@ class H(http.server.BaseHTTPRequestHandler):
     def _html(self, code: int, html: str):
         b = html.encode("utf-8"); self.send_response(code); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(b))); self.send_header("Cache-Control", "no-store")
         self.send_header("X-Frame-Options", "DENY"); self.send_header("Content-Security-Policy", "frame-ancestors 'none'; default-src 'self' 'unsafe-inline'"); self.send_header("Referrer-Policy", "no-referrer"); self.end_headers(); self.wfile.write(b)
+    def _recv(self, k: int) -> bytes:
+        """One read of the request body. Nothing for IDLE_TIMEOUT seconds ends the request: the connection is closed after the error
+        response and the caller removes what it had kept. The log records the route and the timing, never the content."""
+        try: return self.rfile.read(k)
+        except TimeoutError:
+            self._stalled = True; self.close_connection = True
+            try: sys.stderr.write(f"{self.address_string()} - request body stalled on {self.path.split('?')[0]}: nothing for {int(self.timeout)} s; connection closed\n")
+            except Exception: pass
+            raise ValueError(f"The request stopped arriving (nothing for {int(self.timeout)} seconds), so it was not used. Try again.")
     def _body(self) -> dict:
         n = int(self.headers.get("Content-Length", "0") or 0)
         if n > 20_000_000: raise ValueError("body too large")
         self._body_read = True
-        return json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+        return json.loads(self._recv(n).decode("utf-8") or "{}")
     def do_GET(self):
         path, _, qs = self.path.partition("?")
         if not self._host_ok(): return self._json(403, {"ok": False, "error": "forbidden host"})
@@ -327,8 +343,8 @@ class H(http.server.BaseHTTPRequestHandler):
             if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "Too many requests in the last minute. Wait a minute and try again."})
             _handoff_times.append(now)
             self._body_read = True
-            try: body = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
-            except Exception: return self._json(400, {"ok": False, "error": "The collection could not be read. Reload the page and try again."})
+            try: body = json.loads(self._recv(n).decode("utf-8") or "{}")
+            except Exception: return self._json(408 if getattr(self, "_stalled", False) else 400, {"ok": False, "error": "The collection could not be read. Reload the page and try again."})
             item, err = handoff_validate(body if isinstance(body, dict) else {})
             if not item: return self._json(400, {"ok": False, "error": err})
             with LOCK:
@@ -361,7 +377,7 @@ class H(http.server.BaseHTTPRequestHandler):
             import package_api as pk; return pk.handle_post(self, path, data_path, VERSION, CFG)
         if path.startswith("/api/overrides/"): import overrides as ov; return ov.handle_post(self, path, CFG, ps.pick_file)   # N3: before _body(): image uploads stream to disk
         try: body = self._body()
-        except Exception as e: return self._json(400, {"ok": False, "error": f"The request could not be read ({e})."})
+        except Exception as e: return self._json(408 if getattr(self, "_stalled", False) else 400, {"ok": False, "error": f"The request could not be read ({e})."})
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_post(self, path, body)   # N3: TV Preview (desktop principal)
         if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown") or path.startswith("/api/console/") or path.startswith("/api/home/"):
             b = self._bearer()

@@ -65,7 +65,8 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeVerPop(); });
 document.addEventListener('scroll',()=>closeVerPop(),true);
 // ---- generic studio modal ----
 function openColl(title, sub, body){ $('collTitle').textContent=title; $('collSub').textContent=sub||''; $('collBody').innerHTML=body; $('collm').classList.add('open'); const f=$('collm').querySelector('button:not(#collClose),input,textarea'); if(f) f.focus(); }
-function closeColl(){ $('collm').classList.remove('open'); }
+var COLL_ONCLOSE=null;   // one-shot: an export running in the dialog asks to be canceled when the dialog is closed
+function closeColl(){ const f=COLL_ONCLOSE; COLL_ONCLOSE=null; if(typeof f==='function') f(); $('collm').classList.remove('open'); }
 $('collClose').onclick=closeColl; $('collm').onclick=e=>{ if(e.target.id==='collm') closeColl(); };
 // ---- snapshots (recoverable previous collections) ----
 function snapshotNow(reason){ const snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); if(!sel.size&&!Object.keys(PERSONAL).length) return; snaps.unshift({at:new Date().toISOString(),reason,name:COLL.name,sel:[...sel],missing:COLL.missing||{},decisions,pref:COLL.pref,multi:COLL.multi,avail:COLL.avail,fav:[...fav],baseline:COLL.baseline,fp:collFingerprint()}); localStorage.setItem(SKEY, JSON.stringify(snaps.slice(0,12))); }

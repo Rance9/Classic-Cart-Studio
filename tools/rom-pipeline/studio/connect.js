@@ -17,7 +17,8 @@ async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.
  if(r.status===401&&!CO.served&&used===CO.bearer){ if(CO.desktop){ CO.ok=false; CO.state='error'; CO.error='the app could not connect to its own service'; } else { savePair(null,0); CO.ok=false; CO.state='unpaired'; } connPill(); }
  if(r.status===426){ CO.ok=false; CO.state='old'; CO.version=j.version||CO.version; CO.protocol=j.protocol||CO.protocol; connPill(); }
  if(!r.ok&&!j.error) j.error='HTTP '+r.status; j.status=r.status; return j; }
-async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}}); }
+const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink)|library\/locate|package\/(save|export))$/;   // these wait for a person in a Windows Open or Save dialog (or build a whole package), so 12 s is far too short
+async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}, timeout:HK_WAITS.test(path)?30*60000:undefined}); }
 async function lnaDenied(){ try{ if(navigator.permissions&&navigator.permissions.query){ const p=await navigator.permissions.query({name:'local-network-access'}); return p.state==='denied'; } }catch(e){} return false; }
 let STATUS_P=null;
 async function companionStatus(){ if(STATUS_P) return STATUS_P; STATUS_P=companionStatusOnce(); try{ return await STATUS_P; } finally{ STATUS_P=null; if(CO.forceRetry){ CO.forceRetry=false; clearTimeout(DESKT); setTimeout(()=>companionStatus(),50); } } }

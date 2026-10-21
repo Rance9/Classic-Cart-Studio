@@ -47,7 +47,7 @@ def main():
         ok("missing_roms_block_export_and_share", st["missing"] == 5 and st["exp"] is True and st["send"] is True and "5 of 5 games need their ROM file" in st["text"] and st["pick"], st)
         ok("desktop_label_send_to_phone", st["label"] == "Send to Phone", st["label"])
         st = J("""(async()=>{ await ccsAddRomSources(R.map(x=>x.file)); await ccsCheck(); return JSON.stringify({missing:CCS.missing.length, ready:CCS.ready.length, exp:$('ccsExp').disabled, text:$('collBody').innerText}); })()""")
-        ok("chosen_rom_files_make_every_game_ready", st["missing"] == 0 and st["ready"] == 5 and st["exp"] is False and "All 5 ROM files are ready" in st["text"], st)
+        ok("chosen_rom_files_make_every_game_ready", st["missing"] == 0 and st["ready"] == 5 and st["exp"] is False and "5 ROM files are ready" in st["text"] and "All " not in st["text"], st)
         pk = J("""(async()=>{ const b=await ccsBuild(CCS.parts); window.PKG=b; const i=await ccsInspect(b); const ids=(i.data.ccs_collection||{}).sel||[];
    return JSON.stringify({ok:i.ok, schema:i.manifest.schema, kind:i.manifest.kind, roms:i.roms.length, verified:i.roms.every(r=>r.verified), inc:(i.manifest.roms.included||[]).length, missingKey:'missing' in (i.manifest.roms||{}), games:ids.length, everyHasRom:ids.every(id=>i.roms.some(r=>r.version_id===id)), loadout:(i.data.ccs_collection.loadouts||[]).map(l=>l.sel.length), size:b.size, problems:i.problems}); })()""")
         ok("complete_package_every_game_has_a_verified_rom", pk["ok"] and pk["schema"] == "ccs-package/2" and pk["kind"] == "collection" and pk["roms"] == 5 and pk["verified"] and pk["inc"] == 5 and pk["games"] == 5 and pk["everyHasRom"] and not pk["missingKey"], pk)
@@ -130,9 +130,10 @@ def main():
         ed.call("Emulation.setUserAgentOverride", {"userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"})
         ed.navigate(URL); ed.wait_for(READY, timeout=120); time.sleep(1); ed.js(CALM); ed.js(ROMS)
         st = json.loads(ed.js(r"""(async()=>{ const x=await mkRom(1,true); sel.clear(); sel.add(x.id); persist(); render(); csSaveActiveNow(); await ccsAddRomSources([x.file]); ccsShareDialog(); await new Promise(r=>setTimeout(r,900));
-   return JSON.stringify({label:$('ccsSend').textContent, exp:$('ccsExp').textContent, overflow:document.documentElement.scrollWidth>innerWidth+1, inView:[...document.querySelectorAll('#collm .acts button')].every(b=>{ const r=b.getBoundingClientRect(); return r.right<=innerWidth+1&&r.bottom<=innerHeight+1; })}); })()"""))
+   return JSON.stringify({label:$('ccsSend').textContent, exp:$('ccsExp').textContent, ready:(document.querySelector('#collBody .msgbox.ok b')||{}).textContent||'', overflow:document.documentElement.scrollWidth>innerWidth+1, inView:[...document.querySelectorAll('#collm .acts button')].every(b=>{ const r=b.getBoundingClientRect(); return r.right<=innerWidth+1&&r.bottom<=innerHeight+1; })}); })()"""))
         ok("phone_label_share_games", st["label"] == "Share Games" and st["exp"] == "Export .ccs", st)
         ok("phone_dialog_fits", not st["overflow"] and st["inView"], st)
+        ok("one_game_reads_1_rom_file_is_ready", st["ready"] == "1 ROM file is ready", st["ready"])
         open(os.path.join(a.out, "phone-share-dialog.png"), "wb").write(ed.screenshot())
     bad = [k for k, v in checks if not v]; print("RESULT:", "PASS" if not bad else "FAIL " + json.dumps(bad), f"({len(checks)} checks; packages in {a.out})"); return 0 if not bad else 1
 
