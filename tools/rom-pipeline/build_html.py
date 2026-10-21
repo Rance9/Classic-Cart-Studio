@@ -114,7 +114,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .hero-inner{position:relative;max-width:min(var(--maxw),2200px);margin:0 auto;padding:14px 28px 4px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.9fr);gap:18px;align-items:center;z-index:1}
 .wordmark{height:22px;width:auto;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
 .hero h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,2.3vw,40px);line-height:1;letter-spacing:-.3px;margin:6px 0 5px;text-transform:uppercase;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.5),0 12px 40px rgba(0,0,0,.6);white-space:nowrap}
-.hero h1 span{color:var(--red3);font-weight:inherit;letter-spacing:.07em;margin:0 -.07em 0 0}
+.hero h1 span{color:var(--red3);font-weight:inherit;letter-spacing:inherit;margin:0}
 .hero p{max-width:680px;color:var(--ink2);font-size:13px;line-height:1.4;margin:0 0 8px}
 .pills{display:flex;flex-wrap:wrap;gap:6px}.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line2);font-size:11.5px;color:var(--ink2)}
 .pill b{font-family:var(--display);font-size:13px;color:#fff}.pill .led{width:8px;height:8px;border-radius:50%;background:var(--red3);box-shadow:0 0 8px var(--red3),0 0 2px #fff inset}
