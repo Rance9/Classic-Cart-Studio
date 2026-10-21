@@ -311,7 +311,7 @@ class H(http.server.BaseHTTPRequestHandler):
         if rel.startswith("..") or rel.startswith("/") or rel.startswith("rollback") or rel.startswith("exports") or rel.startswith("hakchi-staging") or rel.startswith("personal/files") or rel.startswith("personal/library") or rel.endswith(".json") and rel.startswith("personal/"): return self._json(403, {"ok": False, "error": "forbidden"})
         fp = os.path.join(DATA_ROOT if rel.startswith("personal/art/") else ROOT, rel)
         if not os.path.isfile(fp) and rel.startswith("art/"): fp = os.path.join(ROOT, art_alias(rel))   # the installed site keeps one copy of byte-identical covers
-        if not os.path.isfile(fp): self.send_response(404); self.end_headers(); return
+        if not os.path.isfile(fp): self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return   # keep-alive: an empty, complete response
         if rel == "nes-catalog.html":
             html = open(fp, encoding="utf-8").read().replace('<meta name="nes-companion-token" content="">', f'<meta name="nes-companion-token" content="{TOKEN}">', 1).encode("utf-8")
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(html))); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(html); return
