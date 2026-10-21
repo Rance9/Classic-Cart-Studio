@@ -1,26 +1,29 @@
-r"""Website checks for My Collections, the new navigation and Share Collection (headless Edge, no Windows app, no backend).
+r"""Website checks for My Collections, the new navigation and Share or Export (headless Edge, no Windows app, no backend).
 
-The built site is served on 127.0.0.1 (website mode: no desktop backend) and the share Worker runs locally with in-memory storage
-(tools/share-worker/test/dev-server.mjs). A persistent browser profile is used so "browser restarts" are real restarts.
+The built site is served on 127.0.0.1 (website mode: no desktop backend) and nothing else runs: public share links are retired, a collection
+is shared as a complete .ccs file made on this device. A persistent browser profile is used so "browser restarts" are real restarts.
 
   collections   migration of an existing single collection; three named collections with independent selections and exact
                 versions; switch; rename; duplicate; delete and restore; export / import round trip; persistence across a restart
-  favorites     Select → Show Favorites shows only favorites without changing the selection, and leaving it is one click
-  sharing       publish from the dialog, the share page's Open Graph / X card metadata in the first HTML response, the card image,
-                Save to My Collections in a clean profile (independent copy; the sender's collection unchanged), share actions'
-                generated URLs and text, unpublish (the link stops working), invalid payload rejected
+  favorites     Select -> Show Favorites shows only favorites without changing the selection, and leaving it is one click
+  sharing       Share or Export Collection from My Collections: a collection whose games have no ROM file here stays usable and is
+                not packaged (the dialog lists the games); a collection of synthetic sentinel ROMs is exported as a complete .ccs file,
+                unchanged by the export, and saved into My Collections in a clean profile (an independent new collection, exact versions);
+                an old ?share= address opens the Studio normally; a Studio data backup is a JSON file that restores in a clean profile;
+                no request leaves this computer, none goes to share.classiccartstudio.com, none carries ROM bytes
   layout        screenshots of the toolbar and its menus at 1440, 1024 and 390 px wide (saved for review), no horizontal scroll
+(The package contract itself is test_ccs_v2_web.py.)
 
   python test_collections_web.py <built site folder> [--shots DIR]      Exit 0 = PASS."""
 from __future__ import annotations
-import argparse, json, os, re, shutil, socket, subprocess, sys, tempfile, threading, time, urllib.request, urllib.error, http.server, functools
+import argparse, json, os, re, shutil, socket, sys, tempfile, threading, time, http.server, functools
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.dirname(HERE); sys.path.insert(0, HERE)
 import cdp_edge
 from cdp_edge import EdgeSession as _Edge
 class EdgeSession(_Edge):
     """the harness session with a persistent profile (a real browser restart keeps local storage); the profile is not deleted on close"""
     def __init__(self, profile=None, **kw):
-        kw.pop("extra_args", None); super().__init__(**kw); self._p = profile
+        kw.pop("extra_args", None); super().__init__(**{"start_timeout": 120.0, **kw}); self._p = profile
     def start(self):
         orig = cdp_edge.tempfile.mkdtemp; cdp_edge.tempfile.mkdtemp = (lambda *a, **k: self._p) if self._p else orig
         try: super().start()
@@ -39,35 +42,37 @@ def serve(folder):
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", free_port()), functools.partial(Q, directory=folder)); threading.Thread(target=srv.serve_forever, daemon=True).start(); return srv
 
 def main():
+    from test_loadouts_web import CCS_EXPORT_UI, page_file, page_bytes, net_take, net_report   # here: those modules import this one's neighbors
+    from test_ccs_v2_web import NET, ROMS
     ap = argparse.ArgumentParser(); ap.add_argument("site"); ap.add_argument("--shots", default=""); a = ap.parse_args()
     shots = a.shots or os.path.join(tempfile.gettempdir(), "ccs-web-shots"); os.makedirs(shots, exist_ok=True)
     checks = []
     def ok(k, v, n=""): checks.append((k, bool(v), n)); print(f"{k}={'PASS' if v else 'FAIL'}" + (f" ({str(n)[:300]})" if n and not v else ""), flush=True)
     web = serve(a.site); WEB = f"http://127.0.0.1:{web.server_address[1]}"
-    sport = free_port(); SHARE = f"http://127.0.0.1:{sport}"
-    node = shutil.which("node"); dev = subprocess.Popen([node, os.path.join(TOOLS, "share-worker", "test", "dev-server.mjs"), str(sport), WEB], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     prof = tempfile.mkdtemp(prefix="ccs-web-profile-"); prof2 = tempfile.mkdtemp(prefix="ccs-web-clean-"); prof3 = tempfile.mkdtemp(prefix="ccs-web-off-")
-    URL = f"{WEB}/index.html?shareapi={SHARE}"
-    READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csList==='function'&&document.readyState==='complete'"
+    URL = f"{WEB}/index.html?companion={free_port()}"   # a loopback port nothing listens on: website mode, whatever runs on this computer
+    READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csList==='function'&&typeof ccsShareDialog==='function'&&document.readyState==='complete'"
+    nets = []
+    def tools(ed): ed.js(NET); ed.js(ROMS); ed.js(CCS_EXPORT_UI)
     try:
-        for _ in range(40):
-            try: urllib.request.urlopen(SHARE + "/c/none", timeout=1)
-            except urllib.error.HTTPError: break
-            except Exception: time.sleep(0.25)
         # ---------------- session 1: an existing single-collection user (0.6.1 keys) ----------------
         with EdgeSession(width=1440, height=900, profile=prof) as ed:
             ed.navigate(WEB + "/robots.txt")
-            ids = None
             ed.js("""localStorage.setItem('nes-classic-selection-v1', JSON.stringify(['e9f4c9d1b7c66c6a','fcb6a0ef3a20c19b'])); localStorage.setItem('nes-classic-decisions-v1', JSON.stringify({'e9f4c9d1b7c66c6a':'factory'}));
                      localStorage.setItem('studio-collection-v1', JSON.stringify({name:'My Old Collection', created:'2026-10-01T10:00:00.000Z', modified:'2026-10-18T10:00:00.000Z', pref:{}, multi:{}, avail:[], placeholders:[]}));
                      localStorage.setItem('studio-home-v1', JSON.stringify({v:1, folders:[{id:'f:a', name:'Racing', parent:null, order:['e9f4c9d1b7c66c6a']}], theme:'adventure-map', favorites:{items:{}}, history:{}})); localStorage.setItem('studio-welcomed-v1','1'); 'ok'""")
-            ed.navigate(URL); ed.wait_for(READY, timeout=120)
+            ed.navigate(URL); ed.wait_for(READY, timeout=120); tools(ed)
             st = ed.js("JSON.stringify({n:csList().length, name:csActive().name, sel:csActive().sel.slice().sort(), dec:csActive().decisions, home:(csActive().home||{}).theme, folders:((csActive().home||{}).folders||[]).length, src:CS.migrated.from, keep:!!localStorage.getItem('nes-classic-selection-v1'), web:COMPANION.state})")
             st = json.loads(st)
             ok("migration_keeps_the_existing_collection", st["n"] == 1 and st["name"] == "My Old Collection" and st["sel"] == ["e9f4c9d1b7c66c6a", "fcb6a0ef3a20c19b"] and st["dec"] == {"e9f4c9d1b7c66c6a": "factory"} and st["home"] == "adventure-map" and st["folders"] == 1 and "0.6.1" in st["src"] and st["keep"], st)
             ok("website_needs_no_backend", st["web"] == "web", st["web"])
-            ok("share_shown_when_the_service_is_configured", ed.js("!$('mShare').hidden&&SHARE_ON===true"))
-            ed.navigate(URL); ed.wait_for(READY, timeout=120)
+            ed.js("try{ doneWelcome(); }catch(e){} $('collBtn').click(); 1"); time.sleep(0.3)
+            st = json.loads(ed.js("JSON.stringify({vis:!$('mShare').hidden, label:$('mShare').innerText, gone:['SHARE_ON','SHARE_API','openShare','shReceive','shPublish','shUnpublish','shareConfig'].filter(n=>typeof window[n]!=='undefined')})"))
+            ed.js("$('mShare').click()"); time.sleep(0.8)
+            st["dialog"] = ed.js("$('collm').classList.contains('open')&&$('collTitle').textContent"); ed.js("closeColl(); 1")
+            ok("share_or_export_in_my_collections", st["vis"] and "Share or Export Collection" in st["label"] and ".ccs" in st["label"] and st["dialog"] == "Share or Export Collection" and not st["gone"], st)
+            nets.append(net_take(ed))
+            ed.navigate(URL); ed.wait_for(READY, timeout=120); tools(ed)
             ok("migration_is_idempotent", ed.js("csList().length") == 1)
             pick = json.loads(ed.js("JSON.stringify(DATA.games.filter(g=>!g.builtin_code).slice(0,6).map(g=>g.game_id))"))
             alt = json.loads(ed.js("JSON.stringify((()=>{ const t=Object.values(TITLES).find(t=>t.versions&&t.versions.length>2&&t.versions.every(v=>byId[v])); return t?[t.versions[0],t.versions[2]]:[]; })())"))
@@ -103,7 +108,6 @@ def main():
             ok("favorites_view_keeps_selection", sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == before)
             ed.js("$('selectBtn').click(); $('favView').click()"); time.sleep(0.3)
             ok("favorites_view_one_click_to_leave", ed.js("$('fSel').value") == "" and ed.js("visible().length") > 100)
-            active_name = ed.js("csActive().name")
             # layout: the toolbar and menus at three widths
             ed.js("try{ doneWelcome(); }catch(e){} document.querySelectorAll('.modal.open').forEach(m=>m.classList.remove('open')); 1")
             for w, h in ((1440, 900), (1024, 768), (390, 844)):
@@ -118,74 +122,63 @@ def main():
                     open(os.path.join(shots, f"{w}-{name}.png"), "wb").write(ed.screenshot())
                 ed.js("document.querySelectorAll('.menu').forEach(x=>x.hidden=true)")
             ed.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": False})
-            # sharing: publish through the dialog
-            ed.js(f"csSwitch('{aid}')"); ed.js("openShare()"); ed.wait_for("!!$('shImg')&&$('shImg').naturalWidth>0", timeout=30)
-            open(os.path.join(shots, "share-dialog.png"), "wb").write(ed.screenshot())
-            ed.js("$('shDesc').value='Three of my favorites.'; $('shGo').click()"); ed.wait_for("!!(SH.pub&&SH.pub.url)", timeout=30)
-            pub = json.loads(ed.js("JSON.stringify(SH.pub)")); share_id = pub["id"]
-            ok("publish_from_dialog", re.match(r"^[A-Za-z0-9]{10}$", share_id) and pub["url"] == f"{SHARE}/c/{share_id}", pub)
-            open(os.path.join(shots, "share-published.png"), "wb").write(ed.screenshot())
-            tok = ed.js(f"csActive().shares.find(s=>s.id==='{share_id}').token"); ok("manage_token_kept_locally_not_in_link", bool(tok) and tok not in pub["url"])
-            page = urllib.request.urlopen(f"{SHARE}/c/{share_id}").read().decode()
-            ok("share_page_metadata_in_first_html", '<meta property="og:title" content="Alpha"' in page and f'{SHARE}/c/{share_id}/card.png' in page and 'twitter:card" content="summary_large_image"' in page and "Three of my favorites." in page, page[:400])
-            img = urllib.request.urlopen(f"{SHARE}/c/{share_id}/card.png").read(); ok("share_card_png_1200x630", img[:8] == b"\x89PNG\r\n\x1a\n" and int.from_bytes(img[16:20], "big") == 1200 and int.from_bytes(img[20:24], "big") == 630)
-            snapj = json.loads(urllib.request.urlopen(f"{SHARE}/api/c/{share_id}").read()); keys = {k for g in snapj["games"] for k in g}
-            ok("published_fields_allowlisted", keys <= {"id", "title", "version", "year", "publisher", "art", "source", "content_sha256", "file_sha256", "size", "thumb", "thumb_url"} and "token" not in json.dumps(snapj) and len(snapj["games"]) == 3, keys)
-            # share actions: generated URLs and text (the windows they open are not followed)
-            ed.js("window.__opened=[]; window.open=(u)=>{ window.__opened.push(String(u)); return null; }; navigator.clipboard.writeText=async t=>{ window.__clip=t; };")
-            for k in ("facebook", "x", "linkedin", "copy"): ed.js(f"shDest('{k}')"); time.sleep(0.3)
-            opened = json.loads(ed.js("JSON.stringify(window.__opened)")); E = urllib.parse.quote(pub["url"], safe="")
-            ok("share_facebook_url", any(u.startswith("https://www.facebook.com/sharer/sharer.php?u=" + E) for u in opened), opened)
-            ok("share_x_url_with_text", any(u.startswith("https://x.com/intent/post?text=") and ("url=" + E) in u and "Check%20out%20my%20Alpha" in u for u in opened), opened)
-            ok("share_linkedin_url", any(u == "https://www.linkedin.com/sharing/share-offsite/?url=" + E for u in opened), opened)
-            ok("copy_link", ed.js("window.__clip") == pub["url"])
-            ed.js("window.__loc=[]; Object.defineProperty(window,'__mail',{value:1}); const _sd=shDest; window.__hrefs=[]; const desc=Object.getOwnPropertyDescriptor(Location.prototype,'href');")
-            mail = ed.js("(()=>{ const p=SH.pub, u=p.url; const msg=$('shMsg').value; const E=encodeURIComponent; const subj=p.name+' · an NES Classic collection'; return 'mailto:?subject='+E(subj)+'&body='+E(msg.replace(u,'').trim()+'\\n\\n'+u); })()")
-            ok("email_mailto_prefilled_recipients_empty", mail.startswith("mailto:?subject=Alpha") and E in mail and "&to=" not in mail, mail[:120])
-            ed.js("window.showSaveFilePicker=undefined; shDest('instagram'); 1"); ed.wait_for("!!document.getElementById('savem')&&document.getElementById('savem').classList.contains('open')", timeout=10); ed.js("$('savemS').click()"); time.sleep(0.8)
-            ok("instagram_desktop_fallback_honest", "instagram.com" in ed.js("JSON.stringify(window.__opened)") and "caption" in ed.js("$('shHint').textContent"), ed.js("$('shHint').textContent"))
-            closeall = ed.js("document.getElementById('savem')&&document.getElementById('savem').classList.remove('open'); 1")
-            sender_before = sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{aid}'].sel)")))
-        # ---------------- without a test service: Share Collection follows share-config.json as shipped ----------------
+            # sharing a collection whose games have no ROM file here: it stays a collection, no package is made
+            ed.js(f"csSwitch('{aid}', true)")
+            st = json.loads(ed.js(f"(async()=>JSON.stringify(await ccsExportUi('{aid}', null)))()"))
+            open(os.path.join(shots, "share-dialog-roms-needed.png"), "wb").write(ed.screenshot())
+            titles = json.loads(ed.js(f"JSON.stringify({json.dumps(pick[:3])}.map(i=>byId[i].display_title))"))
+            ok("share_without_roms_lists_the_games_and_makes_nothing", st["exp"] and st["send"] and sorted(st["missing"]) == sorted(pick[:3]) and "3 of 3 games need their ROM file" in st["text"] and all(t in st["text"] for t in titles) and st["pick"] and not st.get("name"), st)
+            ed.js("closeColl(); 1")
+            ok("collection_without_roms_unchanged", sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{aid}'].sel)"))) == sorted(pick[:3]) and ed.js("csActive().name") == "Alpha")
+            # a collection of synthetic games with their ROM files: exported as a complete .ccs file through Share or Export
+            D = json.loads(ed.js(r"""(async()=>{ const G=[]; for(let i=0;i<4;i++) G.push(await mkRom('d'+i, i%2===0)); csNew('Delta'); G.forEach(x=>sel.add(x.id)); persist(); render(); csSaveActiveNow(); window.__D=G;
+              return JSON.stringify({id:CS.active, sel:csActive().sel.slice(), rec:JSON.stringify(csRecordOut(csActive()))}); })()"""))
+            st = json.loads(ed.js(f"(async()=>JSON.stringify(await ccsExportUi('{D['id']}', __D.map(x=>x.file))))()"))
+            ok("complete_package_exported_through_share_or_export", st.get("ready") == 4 and st.get("ack") == "Export Collection with ROM Files" and st.get("name") == "Delta.ccs", st)
+            pkg = page_bytes(ed, "window.__pkg")
+            ok("export_leaves_the_collection_unchanged", ed.js(f"JSON.stringify(csRecordOut(CS.items['{D['id']}']))") == D["rec"])
+            # Studio data backup: a JSON file (not a package)
+            bk = json.loads(ed.js("(async()=>{ window.__saved=null; ccsSaveFile=async(n,b)=>{ window.__saved={name:n, text:await b.text()}; return {ok:true,name:n}; }; await csBackup(); return JSON.stringify(window.__saved); })()"))
+            ok("studio_data_backup_is_a_json_file", bk["name"].endswith(".json") and json.loads(bk["text"]).get("schema") == "ccs-studio-backup/2", bk["name"])
+            ed.js(f"csSwitch('{aid}', true)"); sender_before = sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{aid}'].sel)")))
+            nets.append(net_take(ed))
+        # ---------------- an old public share address: the Studio opens normally, nothing is fetched from the retired service ----------------
         with EdgeSession(width=1280, height=900, profile=prof3) as ed:
-            ed.navigate(f"{WEB}/index.html"); ed.wait_for(READY, timeout=120); time.sleep(1.5)
-            cfg = {}
-            try: cfg = json.load(open(os.path.join(a.site, "share-config.json"), encoding="utf-8"))
-            except Exception: pass
-            if cfg.get("enabled") is True: ok("share_follows_share_config_on", ed.js("!$('mShare').hidden&&SHARE_ON===true&&SHARE_API===" + json.dumps(cfg.get("api"))))
-            else: ok("share_hidden_when_service_off", ed.js("$('mShare').hidden&&SHARE_ON===false&&document.body.classList.contains('noshare')"))
+            ed.navigate(f"{URL}&share=AbCdEf1234"); ed.wait_for(READY, timeout=120); ed.js(NET); time.sleep(1.5)
+            st = json.loads(ed.js("JSON.stringify({open:$('collm').classList.contains('open')?$('collTitle').textContent:'', sr:!!document.getElementById('srSave'), n:csList().length, games:visible().length, rows:document.querySelectorAll('#tb tr').length})"))
+            ok("old_share_address_opens_the_studio_normally", not st["sr"] and st["open"] in ("", "Shared Collection Links") and st["n"] == 1 and st["games"] > 100 and st["rows"] > 0, st)
+            nets.append(net_take(ed))
         # ---------------- session 2: the same profile after a browser restart ----------------
         with EdgeSession(width=1440, height=900, profile=prof) as ed:
-            ed.navigate(URL); ed.wait_for(READY, timeout=120)
+            ed.navigate(URL); ed.wait_for(READY, timeout=120); tools(ed)
             names = sorted(json.loads(ed.js("JSON.stringify(csList().map(r=>r.name))")))
-            ok("collections_persist_across_restart", names == sorted(["My Old Collection", "Alpha", "Bravo Renamed", "Alpha copy", "Alpha (2)", "Charlie"]), names)
+            ok("collections_persist_across_restart", names == sorted(["My Old Collection", "Alpha", "Bravo Renamed", "Alpha copy", "Alpha (2)", "Charlie", "Delta"]), names)
             ok("active_collection_persists", ed.js("csActive().name") == "Alpha" and sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == sender_before)
             ok("favorites_persist", sorted(json.loads(ed.js("JSON.stringify([...fav])"))) == sorted(pick[:2]))
+            ok("exported_collection_persists_with_exact_versions", json.loads(ed.js("JSON.stringify(csList().find(r=>r.name==='Delta').sel)")) == D["sel"])
+            nets.append(net_take(ed))
         # ---------------- session 3: a recipient in a clean browser ----------------
         with EdgeSession(width=1280, height=900, profile=prof2) as ed:
-            ed.navigate(f"{WEB}/index.html?shareapi={SHARE}&share={share_id}"); ed.wait_for(READY, timeout=120)
-            ed.wait_for("!!$('srSave')", timeout=30); open(os.path.join(shots, "share-received.png"), "wb").write(ed.screenshot())
-            ok("recipient_sees_collection_without_change", ed.js("$('collTitle').textContent") == "Alpha" and ed.js("sel.size") == 0)
-            ed.js("$('srSave').click()"); ed.wait_for("!!$('srOpen')", timeout=10); ed.js("$('srOpen').click()")
-            ok("recipient_saved_independent_copy", ed.js("csActive().name") == "Alpha" and sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == sender_before and ed.js("csList().length") == 2)
-            ok("share_id_kept_in_the_address_to_continue_after_installing", "share=" in ed.js("location.search"))
-        # ---------------- unpublish and invalid input ----------------
-        with EdgeSession(width=1280, height=900, profile=prof) as ed:
-            ed.navigate(URL); ed.wait_for(READY, timeout=120)
-            ed.js("window.confirm=()=>true"); ed.js(f"shUnpublish('{share_id}')"); time.sleep(1.5)
-            try: urllib.request.urlopen(f"{SHARE}/c/{share_id}"); gone = False
-            except urllib.error.HTTPError as e: gone = e.code == 410
-            ok("unpublish_stops_the_link", gone and ed.js(f"!!csActive().shares.find(s=>s.id==='{share_id}').unpublished"))
-            ok("sender_collection_unaffected", sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == sender_before)
-        req = urllib.request.Request(SHARE + "/api/publish", data=json.dumps({"schema": "ccs-share/2", "name": "x", "games": [{"id": "../etc", "title": "x"}], "image": ""}).encode(), headers={"Content-Type": "application/json", "Origin": WEB}, method="POST")
-        try: urllib.request.urlopen(req); rej = False
-        except urllib.error.HTTPError as e: rej = e.code == 400
-        ok("invalid_publish_rejected", rej)
+            ed.navigate(WEB + "/robots.txt"); ed.js("localStorage.setItem('studio-welcomed-v1','1'); 1")
+            ed.navigate(URL); ed.wait_for(READY, timeout=120); tools(ed); n0 = ed.js("csList().length")
+            page_file(ed, pkg, "Delta.ccs", "__P"); ed.js("ccsOpenFile(__P)"); ed.wait_for("!!$('ccsGo')", timeout=60)
+            open(os.path.join(shots, "ccs-received.png"), "wb").write(ed.screenshot())
+            st = json.loads(ed.js("JSON.stringify({go:$('ccsGo').textContent, body:$('collBody').innerText, sel:sel.size})"))
+            ok("recipient_sees_the_package_without_change", st["go"] == "Save to My Collections" and "4 verified" in st["body"] and st["sel"] == 0 and ed.js("csList().length") == n0, st)
+            ed.js("$('ccsGo').click()"); ed.wait_for("!!$('ccsOpen')", timeout=30); ed.js("$('ccsOpen').click()"); time.sleep(0.4)
+            ok("recipient_saved_independent_copy", ed.js("csActive().name") == "Delta" and json.loads(ed.js("JSON.stringify(csActive().sel)")) == D["sel"] and ed.js("csList().length") == n0 + 1)
+            # the sender's Studio data backup restores here (it adds; nothing here is replaced)
+            page_file(ed, bk["text"].encode("utf-8"), bk["name"], "__B"); ed.js("ccsOpenFile(__B)"); ed.wait_for("!!$('rsGo')", timeout=30); ed.js("$('rsGo').click()"); time.sleep(1.0); ed.js("try{ closeColl(); }catch(e){} 1")
+            names2 = json.loads(ed.js("JSON.stringify(csList().map(r=>r.name))"))
+            ok("studio_data_backup_restores_in_a_clean_browser", all(any(n == x or n.startswith(x) for n in names2) for x in ("Alpha", "Bravo Renamed", "Alpha copy", "Charlie", "My Old Collection")) and sorted(json.loads(ed.js("JSON.stringify([...fav])"))) == sorted(pick[:2]), names2)
+            nets.append(net_take(ed))
+        rep = net_report(nets)
+        ok("no_request_left_this_computer", not rep["remote"] and not rep["share"], rep)
+        ok("no_request_carried_rom_bytes", not rep["rom"], rep["rom"][:3])
     finally:
-        dev.kill(); web.shutdown()
+        web.shutdown()
         for p in (prof, prof2, prof3): shutil.rmtree(p, ignore_errors=True)
     bad = [k for k, v, _ in checks if not v]; print("RESULT:", "PASS" if not bad else "FAIL " + json.dumps(bad), f"({len(checks)} checks; screenshots in {shots})"); return 0 if not bad else 1
 
 if __name__ == "__main__":
-    import urllib.parse
     sys.exit(main())

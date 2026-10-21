@@ -300,7 +300,7 @@ __STUDIO_CSS__
    <div class="sep"></div>
    <button id="mNew" class="mi" role="menuitem"><b>New Collection…</b></button>
    <button id="mManage" class="mi" role="menuitem"><b>Manage Collections…</b></button>
-   <button id="mShare" class="mi" role="menuitem"><b>Share or Export Collection…</b><span class="d">A public link or a .ccs file.</span></button>
+   <button id="mShare" class="mi" role="menuitem"><b>Share or Export Collection…</b><span class="d">A complete .ccs file, every game with its ROM.</span></button>
    <div class="sep"></div>
    <button id="mImport" class="mi" role="menuitem"><b>Import .ccs Collection…</b><span class="d">Adds a new collection; nothing is replaced.</span></button>
    <button id="mLoadLocal" class="mi" role="menuitem" hidden><b>Games Already on This Computer…</b><span class="d">Bring in games set up here before.</span></button>

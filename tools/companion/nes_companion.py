@@ -59,7 +59,7 @@ ALLOWED: set = set()
 #      an exact-origin, authenticated caller (the only one besides this server's own page). The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
+CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -358,7 +358,7 @@ class H(http.server.BaseHTTPRequestHandler):
         if path.startswith("/api/package/"):   # .ccs packages: desktop application only; before _body(): uploads stream to disk
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
-            import package_api as pk; return pk.handle_post(self, path, data_path, VERSION)
+            import package_api as pk; return pk.handle_post(self, path, data_path, VERSION, CFG)
         if path.startswith("/api/overrides/"): import overrides as ov; return ov.handle_post(self, path, CFG, ps.pick_file)   # N3: before _body(): image uploads stream to disk
         try: body = self._body()
         except Exception as e: return self._json(400, {"ok": False, "error": f"The request could not be read ({e})."})
