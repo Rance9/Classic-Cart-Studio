@@ -174,7 +174,7 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
     Refuses (PackageError naming the games, details: missing/mismatched/unidentified) BEFORE writing anything when a game has no ROM, a
     ROM is a different version than its id, or an id has no content identity. ROM entries are streamed. Written to a temporary file
     next to out_path, then renamed: a cancelled or failed export leaves nothing behind. Returns the manifest.
-    stage("check" | "write") and rom_done(n, total) report what is happening for a progress display; cancel is checked every 1 MB."""
+    stage("check" | "write" | "roms") and rom_done(n, total) report what is happening for a progress display; cancel is checked every 1 MB."""
     if not isinstance(collection, dict): raise PackageError("There is nothing to export. Open a collection, then try again.")
     rom_total = sum(os.path.getsize(r["path"]) for r in roms or [] if isinstance(r, dict) and r.get("path") and os.path.isfile(r["path"]))
     body = json.dumps(collection, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -190,6 +190,7 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
                 n = "art/" + str(name)
                 if not ART_RE.match(n) or not isinstance(data, (bytes, bytearray)): continue
                 z.writestr(_zi(n, now, zipfile.ZIP_STORED), bytes(data)); files.append({"path": n, "sha256": _sha(data), "size": len(data), "kind": "art"})
+            stage("roms")
             for r in plan:
                 if cancel(): raise PackageError("Export canceled. No file was saved.")
                 n = f"roms/{r['version_id']}{r['ext']}"

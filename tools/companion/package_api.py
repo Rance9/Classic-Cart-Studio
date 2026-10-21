@@ -269,11 +269,11 @@ def _export_job(j: dict, coll: dict, ids: list, titles: dict, art: dict, summary
     total = sum(x["size"] for x in idents.values())
     _check_space(os.path.dirname(out) or ".", total + len(json.dumps(coll)) + sum(len(a) for a in art.values()), "make this package")
     j.update(phase="write", games_done=0, bytes_done=0, bytes_total=total); st = {"base": None}
-    def prog(done, _total):
+    def prog(done, _total):   # ROM bytes written: counting starts at the first ROM entry (collection.json, art and README are not ROM bytes)
+        st["last"] = done
         if st["base"] is not None: j["bytes_done"] = min(total, max(0, done - st["base"]))
-        else: st["last"] = done
     def stage(name):
-        if name == "write": st["base"] = st.get("last", 0)
+        if name == "roms": st["base"] = st.get("last", 0)
     man = cp.write(part, collection=coll, roms=roms, art=art, summary=summary, app_version=version, identities=idents, cancel=cancel, progress=prog, stage=stage,
                    rom_done=lambda n, t: j.update(games_done=n))
     j.update(phase="check", bytes_done=total)
