@@ -67,7 +67,7 @@ class IdentityHasher:
     """Streams a ROM file's bytes; computes the file SHA-256 and the content SHA-256 (the bytes after the iNES header and trainer),
     exactly as personal.identify_bytes does: a header is present when the file starts with NES<1A> and is at least 16 bytes long."""
     def __init__(self):
-        self.file = hashlib.sha256(); self.content = hashlib.sha256(); self.size = 0; self.content_size = 0
+        self.file = hashlib.sha256(); self.content = hashlib.sha256(); self.size = 0; self.content_size = 0; self.crc = 0; self.head = b""
         self._pre = bytearray(); self._skip = None; self._pos = 0; self.magic = False
     def update(self, b: bytes):
         if not b: return
@@ -75,19 +75,19 @@ class IdentityHasher:
         if self._skip is None:
             self._pre += b
             if len(self._pre) < 16: return
-            head = bytes(self._pre[:16]); self.magic = head[:4] == NES_MAGIC
+            head = self.head = bytes(self._pre[:16]); self.magic = head[:4] == NES_MAGIC
             self._skip = (16 + (512 if head[6] & 0x04 else 0)) if self.magic else 0
             b = bytes(self._pre); self._pre = bytearray()
         self._feed(b)
     def _feed(self, b: bytes):   # b starts at file offset self._pos
         start = self._pos; self._pos += len(b)
         if self._pos > self._skip:
-            part = b[max(0, self._skip - start):]; self.content.update(part); self.content_size += len(part)
+            part = b[max(0, self._skip - start):]; self.content.update(part); self.content_size += len(part); self.crc = zlib.crc32(part, self.crc)
     def finish(self) -> dict:
         if self._skip is None:   # shorter than 16 bytes: never a header (identify_bytes needs 16 bytes)
-            self.magic = bytes(self._pre[:4]) == NES_MAGIC; self._skip = 0; b = bytes(self._pre); self._pre = bytearray(); self._feed(b)
+            self.head = bytes(self._pre[:16]); self.magic = self.head[:4] == NES_MAGIC; self._skip = 0; b = bytes(self._pre); self._pre = bytearray(); self._feed(b)
         return {"sha256": self.file.hexdigest(), "content_sha256": self.content.hexdigest(), "size": self.size, "content_size": self.content_size,
-                "headered": self._skip > 0, "magic": self.magic}
+                "headered": self._skip > 0, "magic": self.magic, "content_crc32": self.crc & 0xFFFFFFFF, "head": self.head}
 
 def identify_file(path: str, cancel=lambda: False, progress=None) -> dict:
     h = IdentityHasher()
@@ -158,19 +158,21 @@ def check_complete(collection: dict, roms: list, *, cancel=lambda: False, progre
     return plan
 
 def write(out_path: str, *, collection: dict, roms: list | None = None, art: dict | None = None, summary: dict | None = None, app_version: str = "",
-          rom_compression: int = zipfile.ZIP_DEFLATED, cancel=lambda: False, progress=lambda done, total: None, identities: dict | None = None) -> dict:
+          rom_compression: int = zipfile.ZIP_DEFLATED, cancel=lambda: False, progress=lambda done, total: None, identities: dict | None = None,
+          stage=lambda name: None, rom_done=lambda n, total: None) -> dict:
     """Write a complete package. roms: [{"version_id", "path" (a local file), "title"}] covering every id in collection.ccs_collection.sel.
     Refuses (PackageError naming the games, details: missing/mismatched/unidentified) BEFORE writing anything when a game has no ROM, a
     ROM is a different version than its id, or an id has no content identity. ROM entries are streamed. Written to a temporary file
-    next to out_path, then renamed: a cancelled or failed export leaves nothing behind. Returns the manifest."""
+    next to out_path, then renamed: a cancelled or failed export leaves nothing behind. Returns the manifest.
+    stage("check" | "write") and rom_done(n, total) report what is happening for a progress display; cancel is checked every 1 MB."""
     if not isinstance(collection, dict): raise PackageError("There is nothing to export. Open a collection, then try again.")
     rom_total = sum(os.path.getsize(r["path"]) for r in roms or [] if isinstance(r, dict) and r.get("path") and os.path.isfile(r["path"]))
     body = json.dumps(collection, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     total = 2 * rom_total + len(body); done = [0]
     def tick(n): done[0] += n; progress(done[0], total)
-    plan = check_complete(collection, roms, cancel=cancel, progress=tick, identities=identities)
+    stage("check"); plan = check_complete(collection, roms, cancel=cancel, progress=tick, identities=identities)
     if len(body) > MAX_JSON: raise PackageError("The collection is too large to package (its description is over 1 GB).")
-    files, included = [], []; tmp = out_path + ".part"; now = time.localtime()[:6]
+    files, included = [], []; tmp = out_path + ".part"; now = time.localtime()[:6]; stage("write")
     try:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6, allowZip64=True) as z:
             z.writestr(_zi("collection.json", now, zipfile.ZIP_DEFLATED), body); files.append({"path": "collection.json", "sha256": _sha(body), "size": len(body), "kind": "collection"}); tick(len(body))
@@ -180,7 +182,7 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
                 z.writestr(_zi(n, now, zipfile.ZIP_STORED), bytes(data)); files.append({"path": n, "sha256": _sha(data), "size": len(data), "kind": "art"})
             for r in plan:
                 if cancel(): raise PackageError("Export canceled. No file was saved.")
-                n = f"roms/{r['version_id']}{r['ext']}"; zi = _zi(n, now, rom_compression if rom_compression == zipfile.ZIP_STORED or _deflate_ok(r["path"]) else zipfile.ZIP_STORED); zi.file_size = r["size"]; h = IdentityHasher()
+                n = f"roms/{r['version_id']}{r['ext']}"; zi = _zi(n, now, rom_compression if rom_compression == zipfile.ZIP_STORED or _deflate_ok(r["path"], cancel) else zipfile.ZIP_STORED); zi.file_size = r["size"]; h = IdentityHasher()
                 with open(r["path"], "rb") as f, z.open(zi, "w", force_zip64=r["size"] > 0x7FFFFFFF) as w:
                     while True:
                         if cancel(): raise PackageError("Export canceled. No file was saved.")
@@ -190,7 +192,7 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
                 got = h.finish()
                 if got["sha256"] != r["sha256"] or got["size"] != r["size"]: raise PackageError(f"The ROM file of {r['title'] or r['version_id']} changed while the package was being made. Nothing was saved. Try again.")
                 rec = {"path": n, "sha256": r["sha256"], "size": r["size"], "kind": "rom", "version_id": r["version_id"], "title": r["title"], "content_sha256": r["content_sha256"]}
-                files.append(rec); included.append({k: rec[k] for k in ("version_id", "title", "path", "sha256", "size", "content_sha256")})
+                files.append(rec); included.append({k: rec[k] for k in ("version_id", "title", "path", "sha256", "size", "content_sha256")}); rom_done(len(included), len(plan))
             readme = README.encode("utf-8")
             z.writestr(_zi("README.txt", now, zipfile.ZIP_DEFLATED), readme); files.append({"path": "README.txt", "sha256": _sha(readme), "size": len(readme), "kind": "readme"})
             summ = dict(summary or {}); summ.update(games=len(plan), roms=len(included), rom_bytes=sum(r["size"] for r in included))
@@ -205,13 +207,14 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
         except OSError: pass
         raise
 
-def _deflate_ok(path: str) -> bool:
+def _deflate_ok(path: str, cancel=lambda: False) -> bool:
     """A ROM that deflates past half the readers' bomb ratio (e.g. a mostly-padded image) is stored instead, so every package this
     writer makes is one every reader accepts. One streaming pass; nothing is kept."""
     import zlib
     c = zlib.compressobj(6, zlib.DEFLATED, -15); size = out = 0
     with open(path, "rb") as f:
         while True:
+            if cancel(): raise PackageError("Export canceled. No file was saved.")
             b = f.read(CHUNK)
             if not b: break
             size += len(b); out += len(c.compress(b))
@@ -357,23 +360,36 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
     there are reused (deduplicated by content hash), never overwritten. Returns {"imported": [{version_id, stored_as, ...}], "rejected": [...]}"""
     info = inspect(path, verify_roms=True, cancel=cancel)
     if not info["ok"]: raise PackageError("Nothing was imported: the package failed its integrity check (" + "; ".join(f"{p['path']}: {p['problem']}" for p in info["problems"][:3]) + ").")
-    if ingest is None:
+    ps = None
+    if ingest is None:   # the Studio's stores: each ROM is copied to a temporary file while it is checked (memory stays bounded)
         import personal as ps
-        ingest = ps._ingest_bytes
     want = set(accept) if accept is not None else None; imported, rejected = [], []; done = 0
     total = sum(r["size"] for r in info["roms"] if want is None or r["version_id"] in want)
+    src, note = "package:" + os.path.basename(path), "from a Classic Cart Studio package"
     with zipfile.ZipFile(path) as z:
         for r in info["roms"]:
-            vid = r["version_id"]
+            vid = r["version_id"]; fname = os.path.basename(r["path"])
             if want is not None and vid not in want: continue
-            buf = bytearray(); h = IdentityHasher()
-            def sink(b, buf=buf, h=h): buf.extend(b); h.update(b)
-            try: _stream(z, z.getinfo(r["path"]), sink, cancel)
-            except _DAMAGE: rejected.append({"version_id": vid, "title": r.get("title", ""), "reason": "The file is damaged (it could not be read)."}); continue
-            got = h.finish()
-            if got["sha256"] != r["sha256"] or not id_matches(vid, got["content_sha256"]): rejected.append({"version_id": vid, "title": r.get("title", ""), "reason": "The file is damaged or altered (checksum does not match)."}); continue
-            try: res = ingest(bytes(buf), os.path.basename(r["path"]), "package:" + os.path.basename(path), "from a Classic Cart Studio package", "package")
-            except ValueError as e: rejected.append({"version_id": vid, "title": r.get("title", ""), "reason": str(e)[:200]}); continue
+            bad = lambda reason, vid=vid, r=r: rejected.append({"version_id": vid, "title": r.get("title", ""), "reason": reason})
+            if ps is not None:
+                if cancel(): raise PackageError("Canceled. Nothing more was imported.")
+                zi = z.getinfo(r["path"])
+                try: tmp, ident = ps.spool(lambda zi=zi: z.open(zi), zi.file_size, fname, cancel)
+                except ValueError as e:
+                    if "free space" in str(e) or str(e) == "Canceled.": raise PackageError(str(e) if "free space" in str(e) else "Canceled. Nothing more was imported.")
+                    bad(str(e)[:200]); continue
+                if ident["file_sha256"] != r["sha256"] or not id_matches(vid, ident["content_sha256"]): ps._rm(tmp); bad("The file is damaged or altered (checksum does not match)."); continue
+                try: res = ps.adopt(tmp, ident, fname, src, note, "package")
+                except ValueError as e: bad(str(e)[:200]); continue
+            else:
+                buf = bytearray(); h = IdentityHasher()
+                def sink(b, buf=buf, h=h): buf.extend(b); h.update(b)
+                try: _stream(z, z.getinfo(r["path"]), sink, cancel)
+                except _DAMAGE: bad("The file is damaged (it could not be read)."); continue
+                got = h.finish()
+                if got["sha256"] != r["sha256"] or not id_matches(vid, got["content_sha256"]): bad("The file is damaged or altered (checksum does not match)."); continue
+                try: res = ingest(bytes(buf), fname, src, note, "package")
+                except ValueError as e: bad(str(e)[:200]); continue
             got_id = (res.get("known") or {}).get("version_id") or (res.get("entry") or {}).get("id") or ""
             exact = got_id.removeprefix("p_") == vid.removeprefix("p_") and got_id != ""
             (imported if exact else rejected).append({"version_id": vid, "stored_as": got_id, "title": r.get("title", ""), "exact": exact,

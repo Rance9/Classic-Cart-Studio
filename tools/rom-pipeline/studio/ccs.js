@@ -158,7 +158,7 @@ async function ccsCheck(){ const r=CS.items[CCS.cid]; if(!r) return; const p=awa
  ccsRender(); }
 function ccsRender(){ const r=CS.items[CCS.cid]; const n=CCS.ids.length, need=CCS.missing.length+CCS.mismatched.length, ok=!need&&n>0; const app=ccsAppPackages(); const t=id=>esc(CCS.titles[id]||id);
  const list=arr0=>{ const arr=arr0.slice().sort((x,y)=>(CCS_ID_RE.test(x)?1:0)-(CCS_ID_RE.test(y)?1:0)); return `<ul class="small ccsmiss">${arr.slice(0,12).map(id=>`<li>${t(id)}${CCS_ID_RE.test(id)?'':' <i>(file unknown)</i>'}</li>`).join('')}${arr.length>12?`<li>and ${arr.length-12} more</li>`:''}</ul>`; };   /* entries with no known file come first: they can never be packaged */
- $('collBody').innerHTML=(ok?`<div class="msgbox ok"><b>All ${n} ROM file${n===1?' is':'s are'} ready</b> (${fmt(CCS.bytes)}). The package is made on this ${app?'computer':'device'}; nothing is uploaded.</div>`
+ $('collBody').innerHTML=(ok?`<div class="msgbox ok"><b>${n.toLocaleString('en-US')} ROM file${n===1?' is':'s are'} ready</b> (${fmt(CCS.bytes)}). The package is made on this ${app?'computer':'device'}; nothing is uploaded.</div>`
    :!n?`<div class="msgbox warn">This collection has no games yet.</div>`
    :`<div class="msgbox warn"><b>${need} of ${n} game${n===1?'':'s'} ${need===1?'needs its':'need their'} ROM file.</b> A .ccs file always includes every game's ROM.${CCS.missing.length?list(CCS.missing):''}${CCS.mismatched.length?`<div class="small">A different version is on this computer for:</div>${list(CCS.mismatched)}`:''}</div>
     <div class="ccsfix">${app?'<button class="btn" id="ccsAdd">Add ROM Files…</button>':'<button class="btn" id="ccsPick">Choose ROM Files…</button>'}${!app&&typeof desktopAvailable==='function'&&desktopAvailable()?'<button class="btn ghost" id="ccsWinApp">Open in Windows App</button>':''}${CCS.ready.length?`<button class="btn ghost" id="ccsOnly">Share Only the ${CCS.ready.length} Ready Game${CCS.ready.length===1?'':'s'}</button>`:''}</div>
@@ -173,6 +173,14 @@ async function ccsMake(mode){ const r=CS.items[CCS.cid]; if(!r) return; const a=
  const sub=CCS.subset&&CCS.subset.length!==CCS.parts.ids.length; const rec=sub?ccsSubsetRecord(r, CCS.subset):r; const parts=sub?await ccsCollectionParts(rec):CCS.parts; const name=ccsName(r, sub?CCS.subset.length:0);
  CCS.cancel=false; $('collBody').innerHTML=`<div class="msgbox" id="ccsProg">Creating the package…</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsStop">Cancel</button></div>`; $('ccsStop').onclick=()=>{ CCS.cancel=true; closeColl(); toast('Canceled; nothing was saved'); };
  const prog=(d,t)=>{ const p=$('ccsProg'); if(p) p.textContent=`Creating the package… ${d.toLocaleString('en-US')} of ${t.toLocaleString('en-US')} ROM files`; };
+ if(ccsAppPackages()&&ccsAppJobs()){ const req={collection:parts.file, art:parts.artB64, roms:parts.ids.map(id=>({version_id:id, title:parts.titles[id]||id})), summary:parts.summary, job:true, save:mode==='export', name};
+  if(mode==='export') $('collBody').innerHTML=`<div class="msgbox" id="ccsProg">Choose where to save <b>${esc(name)}</b> in the Save dialog.</div>`;
+  const st=await hkPost('/api/package/export', req);
+  if(st.canceled){ closeColl(); toast('Canceled; nothing was saved'); return; } if(!st.ok) return ccsJobFail(st.error);
+  const j=await ccsWatch(st.job, 'Creating '+st.name);
+  if(j.phase==='canceled'){ closeColl(); toast('Export canceled; nothing was saved'); return; } if(j.phase!=='done') return ccsJobFail(j.error);
+  if(mode==='export'){ ccsMarkSaved(parts); return ccsSavedView(j, parts); }
+  return ccsDoneApp(mode, {id:j.stage_id, size:j.size}, name, parts); }
  if(ccsAppPackages()){ const ex=await hkPost('/api/package/export', {collection:parts.file, art:parts.artB64, roms:parts.ids.map(id=>({version_id:id, title:parts.titles[id]||id})), summary:parts.summary});
   if(CCS.cancel) return; if(!ex.ok){ $('collBody').innerHTML=`<div class="msgbox bad">The package was not created: ${esc(ex.error||'unknown error')}. Nothing was saved.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`; $('ccsOk').onclick=closeColl; return; }
   return ccsDoneApp(mode, ex, name, parts); }
@@ -188,13 +196,38 @@ async function ccsDoneWeb(mode, blob, name, parts){ const file=new File([blob], 
  $('ccsSave').onclick=async()=>{ const res=await ccsSaveFile(name, blob, 'Classic Cart Studio Package'); if(res.ok){ ccsMarkSaved(parts); closeColl(); toast(`Saved "${res.name}"`); } };
  if($('ccsShare')) $('ccsShare').onclick=async()=>{ try{ await navigator.share({files:[file], title:name}); closeColl(); }
   catch(e){ if(e&&e.name==='AbortError') return; $('ccsShareOut').innerHTML=`<div class="msgbox warn">The app you picked didn't take the file${blob.size>25e6?' (it may be too large for it)':''}. Your package is complete: save it, or share it with another app.</div>`; } }; }
+// ---- export jobs in the Windows app: progress from the Background Helper, Cancel honored at its next 1 MB checkpoint ----
+function ccsAppJobs(){ return ((COMPANION.info&&COMPANION.info.capabilities)||COMPANION.capabilities||[]).includes('package-jobs'); }
+function ccsShown(){ return $('collm').classList.contains('open'); }
+function ccsJobFail(err){ const m=String(err||'unknown error'); if(!ccsShown()){ toast('The package was not created'); return; }
+ $('collBody').innerHTML=`<div class="msgbox bad">The package was not created: ${esc(m.replace(/\.$/,''))}${/Nothing was saved/.test(m)?'.':'. Nothing was saved.'}</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`; $('ccsOk').onclick=closeColl; }
+function ccsJobDraw(j){ const L=$('ccsJobLine'), B=$('ccsJobBar'), Y=$('ccsJobBytes'); if(!L||!B||!Y) return; const n=x=>Number(x||0).toLocaleString('en-US'); let pct=null, line='Starting…', by='';
+ if(j.phase==='verify'){ line=`Checking ROM files: ${n(j.games_done)} of ${n(j.games)}`; pct=j.games?j.games_done/j.games:null; by=j.bytes_done?fmt(j.bytes_done)+' checked':''; }
+ else if(j.phase==='write'){ line=`Packaging games: ${n(j.games_done)} of ${n(j.games)}`; pct=j.bytes_total?j.bytes_done/j.bytes_total:null; by=`${fmt(j.bytes_done)} of ${fmt(j.bytes_total)}`; }
+ else if(j.phase==='check') line='Checking the finished package…';
+ else if(j.phase==='save'){ line='Saving the package…'; pct=j.bytes_total?j.bytes_done/j.bytes_total:null; by=`${fmt(j.bytes_done)} of ${fmt(j.bytes_total)}`; }
+ if(j.cancel_requested) line='Canceling…';
+ L.textContent=line; B.classList.toggle('ind', pct==null); B.firstElementChild.style.width=pct==null?'':Math.min(100, pct*100).toFixed(1)+'%'; Y.textContent=by||' '; }
+async function ccsWatch(job, title){ CCS.job=job;
+ $('collBody').innerHTML=`<div class="ccsjob" role="status" aria-live="polite"><b class="ccsjt">${esc(title)}</b><div id="ccsJobLine">Starting…</div><div class="pbar ind" id="ccsJobBar"><i></i></div><div class="small" id="ccsJobBytes">&nbsp;</div></div><div class="acts"><span class="sp"></span><button class="btn" id="ccsStop">Cancel</button></div>`;
+ const stop=()=>{ const b=$('ccsStop'); if(b){ b.disabled=true; b.textContent='Canceling…'; } hkPost('/api/package/cancel', {job}); };
+ $('ccsStop').onclick=stop; COLL_ONCLOSE=stop;   // closing the dialog cancels the export too; the result is reported only once the job confirms it
+ let j; for(;;){ const r=await hkPost('/api/package/job', {job}); if(!r.ok||!r.job){ j={phase:'error', error:r.error||'The Background Helper stopped answering'}; break; }
+  j=r.job; ccsJobDraw(j); if(j.phase==='done'||j.phase==='error'||j.phase==='canceled') break; await new Promise(res=>setTimeout(res, 300)); }
+ if(COLL_ONCLOSE===stop) COLL_ONCLOSE=null; CCS.job=null; return j; }
+function ccsSavedView(j, parts){ if(!ccsShown()){ toast(`Saved "${j.saved_name}" (${fmt(j.size)})`); return; }
+ $('collBody').innerHTML=`<div class="msgbox ok">Saved <b>${esc(j.saved_name)}</b>: ${ccsDoneMsg(parts, j.size)}</div><p class="small ccspath">${esc(j.saved_path||'')}</p><p class="small">${CCS_SEND_TIP}</p>
+  <div class="acts"><span class="sp"></span><button class="btn" id="ccsShow">Show in Folder</button><button class="btn hk" id="ccsOk">Done</button></div>`;
+ $('ccsOk').onclick=closeColl; $('ccsShow').onclick=async()=>{ const r=await hkPost('/api/package/reveal', {id:j.id}); if(!r.ok) toast(r.error||'File Explorer could not be opened'); }; }
 async function ccsDoneApp(mode, ex, name, parts){ let saved=null;
- const save=async()=>{ const s=await hkPost('/api/package/save', {id:ex.id, name}); if(s.ok){ saved=s; ccsMarkSaved(parts); return true; } if(!s.canceled) toast(s.error||'The package was not saved'); return false; };
+ const save=async()=>{ const s=await hkPost('/api/package/save', ccsAppJobs()?{id:ex.id, name, job:true}:{id:ex.id, name});
+  if(s.ok&&s.job){ const j=await ccsWatch(s.job, 'Saving '+s.name); if(j.phase==='done'){ saved={name:j.saved_name, path:j.saved_path}; ccsMarkSaved(parts); return true; } toast(j.phase==='canceled'?'Canceled; nothing was saved':(j.error||'The package was not saved')); return false; }
+  if(s.ok){ saved=s; ccsMarkSaved(parts); return true; } if(!s.canceled) toast(s.error||'The package was not saved'); return false; };
  if(mode==='export'){ closeColl(); if(await save()) toast(`Saved "${saved.name}" (${parts.ids.length} games, ${fmt(ex.size)})`); return; }
  const canShare=!!navigator.canShare;
  const draw=()=>{ $('collBody').innerHTML=`<div class="msgbox ok">The package is ready: ${ccsDoneMsg(parts, ex.size)}</div>${saved?`<div class="msgbox">Saved as <b>${esc(saved.name)}</b>. ${CCS_SEND_TIP} In File Explorer, right-click the file and choose <b>Share</b>.</div>`:`<p class="small">${CCS_SEND_AFTER}</p>`}<div id="ccsShareOut"></div>
    <div class="acts"><span class="sp"></span>${saved?'<button class="btn" id="ccsShow">Show in Folder</button>':'<button class="btn hk" id="ccsSave">Save .ccs…</button>'}${canShare?'<button class="btn" id="ccsShare">Share…</button>':''}<button class="btn" id="ccsOk">Done</button></div>`;
-  $('ccsOk').onclick=closeColl; if($('ccsSave')) $('ccsSave').onclick=async()=>{ if(await save()) draw(); }; if($('ccsShow')) $('ccsShow').onclick=()=>hkPost('/api/package/reveal', {id:ex.id});
+  $('ccsOk').onclick=closeColl; if($('ccsSave')) $('ccsSave').onclick=async()=>{ await save(); if(ccsShown()) draw(); }; if($('ccsShow')) $('ccsShow').onclick=()=>hkPost('/api/package/reveal', {id:ex.id});
   if($('ccsShare')) $('ccsShare').onclick=async()=>{ try{ const rr=await fetch(CO.base+'/api/package/file?id='+encodeURIComponent(ex.id), lnaInit({headers:hdrs(), cache:'no-store'})); if(!rr.ok) throw new Error('HTTP '+rr.status); const f=new File([await rr.blob()], name, {type:'application/vnd.classiccartstudio.collection+zip'});
     if(!navigator.canShare({files:[f]})) throw new Error('unsupported'); await navigator.share({files:[f], title:name}); }
    catch(e){ if(e&&e.name==='AbortError') return; $('ccsShareOut').innerHTML=`<div class="msgbox warn">That didn't work here${ex.size>25e6?' (the file may be too large for the app)':''}. Save the package and share it from File Explorer instead.</div>`; } }; };

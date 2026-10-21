@@ -431,7 +431,7 @@ def _stream_body(h) -> str:
     try:
         with os.fdopen(fd, "wb") as f:
             while left > 0:
-                b = h.rfile.read(min(left, 1 << 20))
+                b = getattr(h, "_recv", h.rfile.read)(min(left, 1 << 20))   # _recv: an upload that stops arriving ends here (IDLE_TIMEOUT)
                 if not b: raise ValueError("the upload was interrupted")
                 f.write(b); left -= len(b)
     except Exception:
