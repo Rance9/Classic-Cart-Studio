@@ -14,7 +14,7 @@ import os, sys, json, threading, time, webbrowser, urllib.request, urllib.parse,
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline"))
 from common import DATA_ROOT, SITE_ROOT, FROZEN
 import nes_companion as nc
-from version import VERSION, PROTOCOL, APP_ID, PUBLIC_ORIGIN, DEFAULT_PORT, SITE_URL
+from version import VERSION, PROTOCOL, APP_ID, DEFAULT_PORT, SITE_URL
 
 APP_NAME = "Classic Cart Studio backend"
 SITE_URL = SITE_URL

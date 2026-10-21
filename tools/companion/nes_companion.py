@@ -40,7 +40,7 @@ import bundle_integrity   # noqa: E402  the installation's integrity (nothing is
 import hakchi_inspect as hi
 import personal as ps
 import console_runs as cr   # console engine runs (simulation tier; Gate G1 closed in code inside the worker)
-from version import VERSION, PROTOCOL, APP_ID, PUBLIC_ORIGIN, SITE_ORIGINS, SITE_URL
+from version import VERSION, PROTOCOL, APP_ID, SITE_ORIGINS, SITE_URL
 from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path, art_alias
 
 CFG = hb.load_cfg(); TOKEN = secrets.token_urlsafe(24); ROOT = SITE_ROOT
@@ -50,7 +50,7 @@ ORIGIN_RE = re.compile(r"^https://[a-z0-9.-]+$|^http://(127\.0\.0\.1|localhost)(
 def allowed_origins(port: int) -> set:
     own = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
     extra = {o.rstrip("/") for o in (CFG.get("allowed_origins") or []) if isinstance(o, str) and ORIGIN_RE.match(o.rstrip("/"))}
-    return set(SITE_ORIGINS) | {PUBLIC_ORIGIN} | own | extra
+    return set(SITE_ORIGINS) | own | extra
 ALLOWED: set = set()
 
 
