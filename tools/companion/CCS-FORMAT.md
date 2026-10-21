@@ -80,6 +80,12 @@ The Windows app makes a package as a background job with progress (checking ROM 
 and a Cancel that stops at the next 1 MB step. The package is written under a temporary name, checked, and only then given its
 final name; a canceled or failed export leaves no file behind.
 
+How the Windows app stores each ROM (readers accept either method): three 256 KB samples (start, middle, end) are compressed first. A
+ROM they cannot shrink by 3 % is *stored* (compressing it would take most of the export time and save nothing). Other ROMs are
+compressed once, while they are written; if the finished entry is compressed beyond 200:1 (a mostly padded image the samples missed),
+it is taken back and stored, so every entry stays well inside the readers' 400:1 limit. Samples that shrink more than 20:1 make the
+writer measure the whole file before choosing. The website writes ROM entries stored, or copies them unchanged from another package.
+
 ## Reading rules (untrusted input)
 
 A package is refused when any of the following is true:

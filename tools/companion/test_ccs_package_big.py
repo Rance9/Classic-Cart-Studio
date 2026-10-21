@@ -24,7 +24,7 @@ def peak_mb() -> float:
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--games", type=int, default=70); ap.add_argument("--mb", type=int, default=64); a = ap.parse_args()
     os.makedirs(os.path.dirname(WORK), exist_ok=True); free = shutil.disk_usage(os.path.dirname(WORK)).free
-    if free < 12 * 1024 ** 3: print(f"SKIP: only {free / 1024 ** 3:.1f} GB free on the drive holding {WORK}; this test needs 12 GB."); return 0
+    if free < 12 * 10**9: print(f"SKIP: only {cp.fmt_size(free)} free on the drive holding {WORK}; this test needs 12 GB."); return 0
     checks = []; t = {}
     def ok(k, v, n=""): checks.append((k, bool(v))); print(f"{k}={'PASS' if v else 'FAIL'}" + (f" ({str(n)[:300]})" if n and not v else ""), flush=True)
     shutil.rmtree(WORK, ignore_errors=True); os.makedirs(os.path.join(WORK, "src"))
@@ -45,14 +45,14 @@ def main():
         pk = os.path.join(WORK, "big collection.ccs"); coll = collection(ids, {}, "Big collection")
         with NoNetwork() as nn:
             t0 = time.time(); man = cp.write(pk, collection=coll, roms=roms, rom_compression=zipfile.ZIP_STORED); t["write_s"] = round(time.time() - t0, 1)
-            n = os.path.getsize(pk); t["package_bytes"] = n; t["package_gb"] = round(n / 1024 ** 3, 2)
+            n = os.path.getsize(pk); t["package_bytes"] = n; t["package_size"] = cp.fmt_size(n)
             t0 = time.time(); info = cp.inspect(pk); t["inspect_verify_s"] = round(time.time() - t0, 1)
             t0 = time.time(); fast = cp.inspect(pk, verify_roms=False); t["inspect_listing_only_s"] = round(time.time() - t0, 2)
             seen = []
             def count_ingest(data, fname, *rest):
                 seen.append(len(data)); return {"entry": {"id": "p_" + cp.identify_bytes(data)["content_sha256"][:16]}}
             t0 = time.time(); imp = cp.import_roms(pk, None, ingest=count_ingest); t["import_s"] = round(time.time() - t0, 1)
-        ok("package_larger_than_4_gib", n > 4 * 1024 ** 3, n)
+        ok("package_larger_than_4_gib", n > 4 * 1024 ** 3, n)   # the ZIP32 boundary (2^32 bytes) is binary by definition
         ok("written_package_verifies_completely", info["ok"] and info["games"] == a.games and all(r["verified"] is True for r in info["roms"]) and info["rom_bytes"] == a.games * (size + 16))
         ok("listing_only_path_accepts_it", fast["ok"] and all(r["verified"] is None for r in fast["roms"]))
         ok("import_receives_every_exact_rom", len(imp["imported"]) == a.games and not imp["rejected"] and all(x["exact"] for x in imp["imported"]))
@@ -71,8 +71,8 @@ def main():
         except cp.PackageError: found = True
         t["inspect_tampered_s"] = round(time.time() - t0, 1)
         ok("tampered_byte_past_4_gib_detected", found)
-        t["peak_working_set_mb"] = round(peak_mb())
-        ok("peak_memory_far_below_package_size", 0 < t["peak_working_set_mb"] < 1024, t["peak_working_set_mb"])
+        t["peak_working_set"] = cp.fmt_size(int(peak_mb() * 1024 * 1024))
+        ok("peak_memory_far_below_package_size", 0 < peak_mb() * 1024 * 1024 < 10**9, t["peak_working_set"])
     finally:
         shutil.rmtree(WORK, ignore_errors=True)
         ok("work_folder_deleted", not os.path.exists(WORK))

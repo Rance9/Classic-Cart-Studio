@@ -12,7 +12,7 @@ const STAGE_LABEL={modules:'Adding required components', diff:'Comparing with th
 const STEP_TEXT={themes:'theme artwork', fonts:'fonts', runtime:'menu program', manifest:'package contents'};
 function stLabel(s){ return STAGE_LABEL[s]||'Working'; }
 function lv(l){ return `<span class="lv ${l}">${l}</span>`; }
-function fmtB(n){ if(n==null) return 'unknown'; const u=['B','KB','MB','GB']; let i=0; let v=n; while(v>=1024&&i<3){ v/=1024; i++; } return (i?v.toFixed(1):v)+' '+u[i]; }
+function fmtB(n){ return n==null?'unknown':fmt(n); }   // decimal, from the exact byte count (it divided by 1,024 under decimal labels before)
 function simBadge(){ return '<span class="simtag" title="A simulated console, not your NES Classic">SIMULATION</span>'; }
 function profileSelect(){ const opts=CONSOLE.profiles.map(p=>`<option value="${esc(p.name)}" ${p.name===CONSOLE.profile?'selected':''}>${esc(p.label)}</option>`).join('');
  return `<div class="msg sim"><b>Simulated console</b> ${simBadge()}<br><span class="small">Reading a real console is not available in this version. Choose a simulated console to rehearse the steps; nothing here touches your NES Classic.</span><br><select id="cProfile" style="margin-top:6px;max-width:100%"><option value="">— None —</option>${opts}</select></div>`; }
@@ -71,12 +71,12 @@ function nhHtml(){ const r=NHP.result; const stale=r&&NHP.fp!==nhFp();
   <span class="small">Starting theme: ${esc((HOME_THEME_META.find(t=>t.id===((m.configuration||{}).theme_default))||{}).name||'')}${(m.configuration||{}).theme_apply?' (applied at installation)':''}. Prepared on this computer; installing it on the console is not available in this version.</span>${btn}</div>`; }
 function nhDraw(){ const el=$('nhPkg'); if(!el){ clearInterval(NHP.timer); NHP.timer=null; return; } el.innerHTML=nhHtml(); const b=$('nhBuild'); if(b) b.onclick=nhStart;
  const ts=$('nhThemeSel'); if(ts) ts.onchange=()=>nhSetTheme(ts.value); const ap=$('nhApply'); if(ap) ap.onchange=()=>{ NHP.apply=ap.checked; nhDraw(); }; }
-async function nhStart(){ const b=$('nhBuild'); if(b) b.disabled=true; NHP.result=null; NHP.progress=null; NHP.fp=nhFp();
+async function nhStart(){ const b=$('nhBuild'); if(b) b.disabled=true; NHP.result=null; NHP.progress=null; NHP.fp=nhFp(); procSet('hkpanel','running');
  let r; try{ r=await hkPost('/api/home/native-package',{manifest:INST.manifest||buildManifest(), home:nhHome()}); }catch(e){ r={ok:false,error:String(e)}; }
- if(!r.ok&&!r.busy){ NHP.job=null; NHP.result={ok:false,status:'failed',error:r.error||'Could not start. Try again.'}; nhDraw(); return; }
+ if(!r.ok&&!r.busy){ procSet('hkpanel',null); NHP.job=null; NHP.result={ok:false,status:'failed',error:r.error||'Could not start. Try again.'}; nhDraw(); return; }
  NHP.job=r.job; nhDraw(); clearInterval(NHP.timer);
- NHP.timer=setInterval(async()=>{ if(!$('nhPkg')){ clearInterval(NHP.timer); NHP.timer=null; return; } try{ const q=await capi(`/api/home/native-package?job=${encodeURIComponent(NHP.job)}`); if(!q.ok){ clearInterval(NHP.timer); return; }
-  NHP.progress=q.progress; if(q.state==='done'){ clearInterval(NHP.timer); NHP.timer=null; NHP.result=q.result; NHP.job=null; } nhDraw(); }catch(e){} },300); }
+ NHP.timer=setInterval(async()=>{ if(!$('nhPkg')){ clearInterval(NHP.timer); NHP.timer=null; procSet('hkpanel',null); return; } try{ const q=await capi(`/api/home/native-package?job=${encodeURIComponent(NHP.job)}`); if(!q.ok){ clearInterval(NHP.timer); procSet('hkpanel',null); return; }
+  NHP.progress=q.progress; if(q.state==='done'){ clearInterval(NHP.timer); NHP.timer=null; NHP.result=q.result; NHP.job=null; procSet('hkpanel',null); } nhDraw(); }catch(e){} },300); }
 async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step; $('hkTitle').textContent='Install on NES Classic';
  if(!consoleCapable()){ $('hkSub').textContent=CSTEP[step]||''; body.innerHTML=stepperHtml()+`<div class="msg warn"><b>These steps need the latest Classic Cart Studio for Windows.</b> ${COMPANION.desktop?'This version does not include them: install the latest version from <a href="https://ClassicCartStudio.com/app">ClassicCartStudio.com/app</a>.':'Use <b>Open in Windows App</b>.'}</div><div class="acts"><button class="btn secondary" id="hkBack">Back</button><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button></div>`;
   $('hkDone').onclick=()=>$('hkpanel').classList.remove('open'); $('hkBack').onclick=()=>{ INST.step='connect'; renderInstall(); }; return; }
@@ -97,12 +97,13 @@ async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step
    <div id="cProgress"></div>`;
   wire('review','verify'); $('hkPhys').onclick=null;
   $('hkSim').onclick=async()=>{ $('hkSim').disabled=true; const r=await hkPost('/api/console/simulate',{plan_hash:p.hash, profile:CONSOLE.profile}); if(!r.ok){ $('cProgress').innerHTML=`<div class="msg bad">${esc(r.error||'Could not start the rehearsal. Try again.')}</div>`; $('hkSim').disabled=false; return; }
-   CONSOLE.run=r.run; CONSOLE.cursor=0; CONSOLE.events=[]; CONSOLE.result=null; $('hkSub').textContent='Rehearsing (simulation)…';
+   CONSOLE.run=r.run; CONSOLE.cursor=0; CONSOLE.events=[]; CONSOLE.result=null; $('hkSub').textContent='Rehearsing (simulation)…'; procSet('hkpanel','running'); ['hkBack','hkDone'].forEach(x=>{ if($(x)) $(x).disabled=true; });
    const bar=()=>{ const last=[...CONSOLE.events].reverse().find(e=>e.event==='progress'); const stages=CONSOLE.events.filter(e=>e.event==='stage').map(e=>e.stage); const pct=last&&last.total?Math.round(100*last.done/last.total):0;
      $('cProgress').innerHTML=`<div class="msg sim"><b>Rehearsal in progress</b> ${simBadge()} · ${esc(stages.length?stLabel(stages[stages.length-1]):'Starting')}<div class="pbar"><i style="width:${pct}%"></i></div><span class="small">${last?`${esc(stLabel(last.stage))}: ${fmtB(last.done)} of ${fmtB(last.total)}`:'Starting…'}</span><div class="acts" style="margin-top:6px"><span class="sp"></span><button class="btn sm secondary" id="cCancel" title="Stops at the next safe point">Cancel Safely</button></div></div>`;
-     $('cCancel').onclick=async()=>{ $('cCancel').disabled=true; await hkPost('/api/console/cancel',{run:CONSOLE.run}); }; };
+     if(PROC.hkpanel==='canceling'){ $('cCancel').disabled=true; $('cCancel').textContent='Canceling…'; }
+     $('cCancel').onclick=async()=>{ if(PROC.hkpanel==='canceling') return; procSet('hkpanel','canceling'); $('cCancel').disabled=true; $('cCancel').textContent='Canceling…'; await hkPost('/api/console/cancel',{run:CONSOLE.run}); }; };
    bar(); stopPoll(); CONSOLE.timer=setInterval(async()=>{ try{ const q=await capi(`/api/console/run?id=${encodeURIComponent(CONSOLE.run)}&cursor=${CONSOLE.cursor}`); if(!q.ok){ stopPoll(); return; } CONSOLE.events=CONSOLE.events.concat(q.events||[]); CONSOLE.cursor=q.cursor; bar();
-     if(q.done){ stopPoll(); CONSOLE.result=q.result; INST.step='verify'; renderInstall(); } }catch(e){} },400); };
+     if(q.done){ stopPoll(); procSet('hkpanel',null); CONSOLE.result=q.result; INST.step='verify'; renderInstall(); } }catch(e){} },400); };
   return; }
  if(step==='verify'){ const res=CONSOLE.result; const r=res&&res.event==='result'?res.result:null; const err=res&&res.event==='error'?res:null; $('hkSub').textContent='Verify (simulated)';
   let h='';

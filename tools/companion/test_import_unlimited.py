@@ -17,7 +17,7 @@ TMP = tempfile.mkdtemp(prefix="ccs-import-")
 os.environ["NES_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["NES_STUDIO_DATA"] = os.path.join(TMP, "studio-data")
 import ccs_package as cp, personal as ps
 from test_ccs_package import collection, NoNetwork
-MB = 1 << 20
+MB = 10**6   # decimal, like everything people see (12 MB > the old 8,388,608-byte cap; the 40 MB ZIP > the old 33,554,432-byte cap)
 
 def rom(seed, size: int, header: bool = True) -> bytes:
     content = random.Random(seed).randbytes(size)
@@ -92,7 +92,7 @@ def main():
             # ---- ZIPs of any size and with many ROMs ----
             big = rom("zip-40mb", 40 * MB); zp = zipped("Big archive.zip", [("Big Game (USA).nes", big)])
             tracemalloc.start(); r = ps.ingest(zp); peak_zip = tracemalloc.get_traced_memory()[1]; tracemalloc.stop()
-            ok("zip_above_8_and_32_mb_imports", (r.get("entry") or {}).get("id") == "p_" + ident(big)[:16] and os.path.getsize(zp) > 32 * MB and "from archive" in r["entry"]["note"], r.get("entry", {}).get("id"))
+            ok("zip_above_8_and_32_mb_imports", (r.get("entry") or {}).get("id") == "p_" + ident(big)[:16] and os.path.getsize(zp) > 32 * 1024 * 1024 and "from archive" in r["entry"]["note"], r.get("entry", {}).get("id"))
             many = [(f"Pack/Game {i:04d}.nes", rom(f"many-{i}", 16384)) for i in range(1000)]
             mz = zipped("Thousand games.zip", many, zipfile.ZIP_DEFLATED)
             st = wait_job(ps.start_import([mz]))
@@ -151,8 +151,8 @@ def main():
             # ---- identity and memory ----
             idx = ps.load_index()["entries"]
             ok("every_entry_is_its_exact_content", all(e["id"] == "p_" + e["content_sha256"][:16] and sha(e["managed_copy"]) == e["file_sha256"] for e in idx.values()), len(idx))
-            print(f"   peak Python memory: 64 MB file {peak_loose / MB:.1f} MB, 40 MB ZIP {peak_zip / MB:.1f} MB")
-            ok("memory_stays_bounded_for_large_files", peak_loose < 12 * MB and peak_zip < 12 * MB, {"64 MB file peak MB": round(peak_loose / MB, 1), "40 MB zip peak MB": round(peak_zip / MB, 1)})
+            print(f"   peak Python memory: 64 MB file {cp.fmt_size(peak_loose)}, 40 MB ZIP {cp.fmt_size(peak_zip)}")
+            ok("memory_stays_bounded_for_large_files", peak_loose < 12 * MB and peak_zip < 12 * MB, {"64 MB file peak": cp.fmt_size(peak_loose), "40 MB zip peak": cp.fmt_size(peak_zip)})
             # ---- .ccs packages (ZIP64) through the same streaming path ----
             rs = [rom("pkg-1", 12 * MB), rom("pkg-2", 16384), rom("pkg-3", 16384, header=False)]
             pids = ["p_" + ident(d)[:16] for d in rs]; files = [put(f"pkg{i}.{'nes' if i < 2 else 'unh'}", d) for i, d in enumerate(rs)]

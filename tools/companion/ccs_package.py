@@ -29,7 +29,7 @@ import hashlib, json, os, re, stat, time, zipfile, zlib
 
 FORMAT = "classic-cart-studio-package"; SCHEMA = "ccs-package/2"; MANIFEST = "ccs-manifest.json"; KIND = "collection"
 MEDIA_TYPE = "application/vnd.classiccartstudio.collection+zip"
-MAX_JSON = 1024 ** 3          # ccs-manifest.json and collection.json are parsed in memory
+MAX_JSON = 1024 ** 3          # ccs-manifest.json and collection.json are parsed in memory (shown to people as 1.07 GB: fmt_size)
 MAX_RATIO = 400               # decompression-bomb guard (per entry)
 CHUNK = 1 << 20
 NES_MAGIC = b"NES\x1a"
@@ -88,6 +88,16 @@ class IdentityHasher:
             self.head = bytes(self._pre[:16]); self.magic = self.head[:4] == NES_MAGIC; self._skip = 0; b = bytes(self._pre); self._pre = bytearray(); self._feed(b)
         return {"sha256": self.file.hexdigest(), "content_sha256": self.content.hexdigest(), "size": self.size, "content_size": self.content_size,
                 "headered": self._skip > 0, "magic": self.magic, "content_crc32": self.crc & 0xFFFFFFFF, "head": self.head}
+
+def fmt_size(n: int) -> str:
+    """Sizes for people: decimal units from the exact byte count (1 KB = 1,000 B), the same rule as the page's fmt(): bytes below 1,000,
+    then KB (1 decimal), MB/GB/TB (2 decimals); a value that would round to 1,000 of a unit is shown in the next one."""
+    n = max(0, int(n or 0))
+    if n < 1000: return f"{n:,} B"
+    units = [("KB", 10**3, 1), ("MB", 10**6, 2), ("GB", 10**9, 2), ("TB", 10**12, 2)]; i = 0
+    while i < len(units) - 1 and n >= units[i + 1][1]: i += 1
+    if i < len(units) - 1 and round(n / units[i][1], units[i][2]) >= 1000: i += 1
+    u, d, p = units[i]; return f"{n / d:,.{p}f}".rstrip("0").rstrip(".") + " " + u
 
 def identify_file(path: str, cancel=lambda: False, progress=None) -> dict:
     h = IdentityHasher()
@@ -171,7 +181,7 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
     total = 2 * rom_total + len(body); done = [0]
     def tick(n): done[0] += n; progress(done[0], total)
     stage("check"); plan = check_complete(collection, roms, cancel=cancel, progress=tick, identities=identities)
-    if len(body) > MAX_JSON: raise PackageError("The collection is too large to package (its description is over 1 GB).")
+    if len(body) > MAX_JSON: raise PackageError(f"The collection is too large to package (its description is over {fmt_size(MAX_JSON)}).")
     files, included = [], []; tmp = out_path + ".part"; now = time.localtime()[:6]; stage("write")
     try:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6, allowZip64=True) as z:
@@ -182,14 +192,15 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
                 z.writestr(_zi(n, now, zipfile.ZIP_STORED), bytes(data)); files.append({"path": n, "sha256": _sha(data), "size": len(data), "kind": "art"})
             for r in plan:
                 if cancel(): raise PackageError("Export canceled. No file was saved.")
-                n = f"roms/{r['version_id']}{r['ext']}"; zi = _zi(n, now, rom_compression if rom_compression == zipfile.ZIP_STORED or _deflate_ok(r["path"], cancel) else zipfile.ZIP_STORED); zi.file_size = r["size"]; h = IdentityHasher()
-                with open(r["path"], "rb") as f, z.open(zi, "w", force_zip64=r["size"] > 0x7FFFFFFF) as w:
-                    while True:
-                        if cancel(): raise PackageError("Export canceled. No file was saved.")
-                        b = f.read(CHUNK)
-                        if not b: break
-                        h.update(b); w.write(b); tick(len(b))
-                got = h.finish()
+                n = f"roms/{r['version_id']}{r['ext']}"
+                method, check = (zipfile.ZIP_STORED, False) if rom_compression == zipfile.ZIP_STORED else _rom_method(r["path"], r["size"], cancel)
+                start = z.fp.tell(); got = _write_rom(z, n, now, method, r, cancel, tick)
+                zi = z.filelist[-1]
+                if check and zi.compress_size and zi.file_size / zi.compress_size > MAX_RATIO / 2:
+                    # compressed further than readers accept (mostly padding that the samples missed): take the entry back, store it
+                    # (progress already counted these bytes once; it never moves backward, so the second write is not counted again)
+                    z.fp.seek(start); z.fp.truncate(); z.start_dir = start; z.filelist.pop(); z.NameToInfo.pop(n, None)
+                    got = _write_rom(z, n, now, zipfile.ZIP_STORED, r, cancel, lambda k: None)
                 if got["sha256"] != r["sha256"] or got["size"] != r["size"]: raise PackageError(f"The ROM file of {r['title'] or r['version_id']} changed while the package was being made. Nothing was saved. Try again.")
                 rec = {"path": n, "sha256": r["sha256"], "size": r["size"], "kind": "rom", "version_id": r["version_id"], "title": r["title"], "content_sha256": r["content_sha256"]}
                 files.append(rec); included.append({k: rec[k] for k in ("version_id", "title", "path", "sha256", "size", "content_sha256")}); rom_done(len(included), len(plan))
@@ -206,6 +217,33 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
         try: os.remove(tmp)
         except OSError: pass
         raise
+
+def _write_rom(z: zipfile.ZipFile, name: str, now, method: int, r: dict, cancel, tick) -> dict:
+    """One ROM entry, streamed 1 MB at a time and hashed as it is written; returns its identity."""
+    zi = _zi(name, now, method); zi.file_size = r["size"]; h = IdentityHasher()
+    with open(r["path"], "rb") as f, z.open(zi, "w", force_zip64=r["size"] > 0x7FFFFFFF) as w:
+        while True:
+            if cancel(): raise PackageError("Export canceled. No file was saved.")
+            b = f.read(CHUNK)
+            if not b: break
+            h.update(b); w.write(b); tick(len(b))
+    return h.finish()
+
+SAMPLE = 256 * 1024
+def _rom_method(path: str, size: int, cancel=lambda: False) -> tuple[int, bool]:
+    """How to store one ROM, from three 256 KB samples (start, middle, end) compressed once: (method, check the result afterwards).
+    A ROM the samples cannot shrink by 3 % is stored: compressing it would cost most of the export time and save nothing. An ordinary ROM
+    is compressed while it is written (one pass), and the written entry's ratio is checked. Samples that shrink more than 20:1 suggest a
+    mostly padded image, so the whole file is measured first (_deflate_ok), as every ROM was before."""
+    if not size: return zipfile.ZIP_STORED, False
+    seen = got = 0
+    with open(path, "rb") as f:
+        for o in sorted({0, max(0, (size - SAMPLE) // 2), max(0, size - SAMPLE)}):
+            f.seek(o); b = f.read(SAMPLE); seen += len(b); got += len(zlib.compress(b, 6))
+    ratio = got / max(1, seen)
+    if ratio >= 0.97: return zipfile.ZIP_STORED, False
+    if ratio < 0.05: return (zipfile.ZIP_DEFLATED if _deflate_ok(path, cancel) else zipfile.ZIP_STORED), False
+    return zipfile.ZIP_DEFLATED, True
 
 def _deflate_ok(path: str, cancel=lambda: False) -> bool:
     """A ROM that deflates past half the readers' bomb ratio (e.g. a mostly-padded image) is stored instead, so every package this
@@ -245,7 +283,7 @@ def _stream(z: zipfile.ZipFile, info: zipfile.ZipInfo, sink, cancel=lambda: Fals
     return n
 
 def _read_json_entry(z, info, what: str):
-    if info.file_size > MAX_JSON: raise PackageError(f"The package's {what} is larger than 1 GB, so it can't be opened.")
+    if info.file_size > MAX_JSON: raise PackageError(f"The package's {what} is larger than {fmt_size(MAX_JSON)}, so it can't be opened.")
     buf = bytearray(); _stream(z, info, buf.extend); return bytes(buf)
 
 def _verify_rom(z, info, cancel=lambda: False) -> dict:

@@ -17,7 +17,9 @@ async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.
  if(r.status===401&&!CO.served&&used===CO.bearer){ if(CO.desktop){ CO.ok=false; CO.state='error'; CO.error='the app could not connect to its own service'; } else { savePair(null,0); CO.ok=false; CO.state='unpaired'; } connPill(); }
  if(r.status===426){ CO.ok=false; CO.state='old'; CO.version=j.version||CO.version; CO.protocol=j.protocol||CO.protocol; connPill(); }
  if(!r.ok&&!j.error) j.error='HTTP '+r.status; j.status=r.status; return j; }
-const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink)|library\/locate|package\/(save|export))$/;   // these wait for a person in a Windows Open or Save dialog (or build a whole package), so 12 s is far too short
+// these wait for a person in a Windows Open or Save dialog, or do work that grows with the collection (checking, staging or importing a
+// package, preparing an installation), so the usual 12 s answer time is far too short for them
+const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink|art)|library\/locate|package\/(save|export|open|import-roms|rom-check)|overrides\/art|home\/(folder-art|native-package)|apply|console\/plan)$/;
 async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}, timeout:HK_WAITS.test(path)?30*60000:undefined}); }
 async function lnaDenied(){ try{ if(navigator.permissions&&navigator.permissions.query){ const p=await navigator.permissions.query({name:'local-network-access'}); return p.state==='denied'; } }catch(e){} return false; }
 let STATUS_P=null;
@@ -33,6 +35,9 @@ async function companionStatusOnce(){ CO.ok=false; CO.info=null; CO.error=''; if
  if(CO.hosted){ CO.ok=true; CO.state='ok'; connPill(); }
  const s=await capi('/api/status',{timeout:8000}); if(!s.ok){ if(s.timeout){ CO.ok=CO.hosted; CO.state=CO.hosted?'ok':'error'; CO.error='the status check timed out'; CO.diag={state:'delayed'}; } else if(!s.unreachable&&s.status!==401&&s.status!==426){ CO.state='error'; CO.error=s.error||''; CO.ok=false; } connPill(); return; }
  CO.info=s; CO.ok=true; CO.state='ok'; CO.version=s.version||CO.version; CO.protocol=s.protocol||CO.protocol; CO.devStore=!!s.dev_store; CO.diag=s.diag||{state:'ok'}; connPill(); bundleNotice(s.bundle);
+ // the page starts before the Windows app's Background Helper answers, so the first personal-games read used the browser's cached copy:
+ // read them again once the connection is up (otherwise games added elsewhere, or after the cache was cleared, showed as unknown entries)
+ if(!CO.personalSynced&&typeof refreshPersonal==='function'){ CO.personalSynced=true; refreshPersonal().then(()=>{ try{ games=titleRows(); render(); if(typeof updateStatusLine==='function') updateStatusLine(); }catch(e){} }); }
  capi('/api/library/store',{timeout:8000}).then(st=>{ CO.store=st.ok?(st.store||{}):{}; }).catch(()=>{ CO.store={}; });
  if(CO.diag&&CO.diag.state==='checking'){ diagFollow(); } }
 // Stage 4: background readiness — poll the cached diagnostics for a bounded time; the connection stays green either way
@@ -95,7 +100,7 @@ function renderDownload(el){ if(!el) return; releaseInfo().then(R=>{ if(!el.isCo
 // ---- Add Games from Files: bulk import through the companion (native picker on this computer, background job, progress, cancel) ----
 async function importGames(mode){ if(!CO.ok){ await companionStatus(); if(!CO.ok){ if(typeof desktopInvite==='function'&&desktopInvite('Adding ROM files needs the Windows app, which can read files on this computer.')) return; openConnect('Classic Cart Studio is not responding on this computer.'); return; } }
  openColl('Add Games from Files', mode==='folder'?'Choose a folder in the window that opened':'Choose files in the window that opened', `<div class="msgbox">${mode==='folder'?'Every ROM file and ZIP in the folder and its subfolders is checked.':'Choose ROM files (.nes, .unh, .bin, .fds) or ZIP archives; you can select several.'} Known versions are matched exactly; others become personal games. Your files are copied, never changed.</div>`);
- const r=await hkPost('/api/import/pick',{mode}); if((r.canceled||r.cancelled)){ closeColl(); return; } if(!r.ok){ $('collBody').innerHTML=`<div class="msgbox bad">${esc(r.error||'The import could not start. Try again.')}</div>`; return; }
+ procSet('collm','native'); const r=await hkPost('/api/import/pick',{mode}); procSet('collm',null); if((r.canceled||r.cancelled)){ closeColl(); return; } if(!r.ok){ $('collBody').innerHTML=`<div class="msgbox bad">${esc(r.error||'The import could not start. Try again.')}</div>`; return; }
  await watchImport(r.job); }
 function importRows(j){ return (j.items||[]).slice(-120).reverse().map(it=>`<div>${esc(it.file)}${it.member&&it.member!==it.file?' › '+esc(it.member):''} — <span class="${/^error/.test(it.result)?'bad':/^known/.test(it.result)?'okc':'mut'}">${esc(it.result)}</span></div>`).join(''); }
 async function watchImport(job){ let j=null; const body=$('collBody');
@@ -104,7 +109,8 @@ async function watchImport(job){ let j=null; const body=$('collBody');
   ${j.errors.length?`<div class="msgbox bad"><b>Could not be read:</b>${j.errors.slice(0,20).map(e=>`<div>${esc(e.file)}: ${esc(e.error)}</div>`).join('')}${j.errors.length>20?'<div>…</div>':''}</div>`:''}
   <div class="implist">${importRows(j)||'<div class="mut">Nothing checked yet.</div>'}</div>
   <div class="acts">${j.finished?'':'<button class="btn sm ghost" id="impCancel">Stop</button>'}<span class="sp"></span>${j.finished&&j.known?`<button class="btn hk" id="impSelect">Add ${j.known} Matched Game${j.known===1?'':'s'}</button>`:''}<button class="btn sm" id="impClose">${j.finished?'Close':'Run in Background'}</button></div>`;
-  if($('impCancel')) $('impCancel').onclick=()=>hkPost('/api/import/cancel',{job}); $('impClose').onclick=closeColl;
+  procSet('collm', j.finished?null:(j.canceled?'canceling':'running'));
+  if($('impCancel')) $('impCancel').onclick=()=>{ $('impCancel').disabled=true; $('impCancel').textContent='Stopping…'; procSet('collm','canceling'); hkPost('/api/import/cancel',{job}); }; $('impClose').onclick=closeColl;
   if($('impSelect')) $('impSelect').onclick=()=>{ let n=0; (j.items||[]).forEach(it=>{ if(it.version_id&&byId[it.version_id]&&!sel.has(it.version_id)){ sel.add(it.version_id); n++; } }); persist(); render(); toast(n?`Added ${n} game${n===1?'':'s'} to "${COLL.name}"`:'Those games were already in the collection'); closeColl(); }; };
  for(;;){ const s=await capi('/api/import/status?job='+encodeURIComponent(job)); if(!s.ok){ body.innerHTML=`<div class="msgbox bad">${esc(s.error||'Lost contact with the import. Check your collection, then try again.')}</div>`; return; } j=s.job; if(!$('collm').classList.contains('open')){ if(j.finished) break; await new Promise(r=>setTimeout(r,1500)); continue; } draw(); if(j.finished) break; await new Promise(r=>setTimeout(r,650)); }
  await refreshPersonal(); await companionStatus(); render(); if($('collm').classList.contains('open')) draw(); toast(`Import finished: ${j.known} matched, ${j.personal} personal, ${j.errors.length} error${j.errors.length===1?'':'s'}`); }

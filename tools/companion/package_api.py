@@ -51,7 +51,7 @@ def _path_for(d: str, i: str) -> str | None:
     p = os.path.join(d, i + ".ccs"); return p if os.path.isfile(p) else None
 
 def _gb(n: int) -> str:
-    return f"{n / 1024 ** 3:.1f} GB" if n >= 1024 ** 3 else f"{max(1, round(n / 1024 ** 2))} MB"
+    return cp.fmt_size(n)   # decimal units from the exact byte count (it divided by 1,024 under decimal labels before)
 
 def _check_space(folder: str, need: int, what: str):
     """Raise NoSpace with a plain message when the drive holding `folder` has less than need + a margin free."""
@@ -98,7 +98,7 @@ def _read_raw_to(handler, path: str) -> int:
 def _json_body(handler) -> dict:
     """The JSON request body (a collection with its artwork can be large; bounded like the package's own JSON files)."""
     n = int(handler.headers.get("Content-Length", "0") or 0)
-    if n > cp.MAX_JSON: raise ValueError("The request is larger than 1 GB.")
+    if n > cp.MAX_JSON: raise ValueError(f"The request is larger than {cp.fmt_size(cp.MAX_JSON)}.")
     handler._body_read = True; buf = bytearray(); left = n
     while left:
         b = getattr(handler, "_recv", handler.rfile.read)(min(1 << 20, left))
