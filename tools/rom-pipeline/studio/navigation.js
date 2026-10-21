@@ -82,22 +82,56 @@ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closes
  $('guideSel').onchange=()=>showChapter($('guideSel').value); $('gPrev').onclick=()=>guideStep(-1); $('gNext').onclick=()=>guideStep(1);
  const fill=()=>{ let html='', grp=null; GUIDE_CH.forEach(([k,l],n)=>{ if(GUIDE_GROUPS[n]){ if(grp) html+='</optgroup>'; grp=GUIDE_GROUPS[n]; html+=`<optgroup label="${esc(grp)}">`; } html+=`<option value="${k}">${String(n+1).padStart(2,'0')} · ${esc(l)}</option>`; }); if(grp) html+='</optgroup>'; $('guideSel').innerHTML=html; };
  const _open=openGuide; openGuide=function(ch){ if(!$('guideSel').options.length) fill(); _open(ch);
-  $('guideArt').querySelectorAll('.shot img, .hero-fig img').forEach(im=>{ if(im.dataset.zoom) return; im.dataset.zoom='1'; im.tabIndex=0; im.setAttribute('role','button'); im.title='Enlarge'; im.setAttribute('aria-label','Enlarge: '+(im.alt||'screenshot')); }); };
+  $('guideArt').querySelectorAll('.shot img, .hero-fig img, .hw .card img').forEach(im=>{ if(im.dataset.zoom) return; im.dataset.zoom='1'; im.tabIndex=0; im.setAttribute('role','button'); im.title='Enlarge'; im.setAttribute('aria-label','Enlarge: '+(im.alt||'screenshot')); }); };
  const _show=showChapter; showChapter=function(k){ _show(k); const s=$('guideSel'); if(s) s.value=k; const n=GUIDE_CH.findIndex(x=>x[0]===k); if($('gPrev')) $('gPrev').disabled=n<=0; if($('gNext')) $('gNext').disabled=n>=GUIDE_CH.length-1; };
- // the enlarged view: fit to the screen, or actual size with scrolling in both directions
- const lb=document.createElement('div'); lb.id='glight'; lb.setAttribute('role','dialog'); lb.setAttribute('aria-modal','true'); lb.setAttribute('aria-label','Enlarged screenshot');
- lb.innerHTML='<div class="glbar"><span class="glcap" id="glCap"></span><button type="button" class="btn sm" id="glSize">Actual Size</button><button type="button" class="btn sm" id="glClose">Close</button></div><div class="glview" id="glView"><img id="glImg" alt=""></div>';
- document.body.appendChild(lb); let back=null;
- const setFit=fit=>{ lb.classList.toggle('actual',!fit); $('glSize').textContent=fit?'Actual Size':'Fit to Screen'; };
- const openLb=im=>{ back=im; $('glImg').src=im.currentSrc||im.src; $('glImg').alt=im.alt||''; $('glCap').textContent=im.alt||''; lb.classList.add('open'); setFit(true); requestAnimationFrame(()=>{ if($('glImg').complete) autoSize(); }); $('glClose').focus(); };
- const autoSize=()=>{ const v=$('glView'), i=$('glImg'), w=i.naturalWidth||0, h=i.naturalHeight||0; if(w&&h&&Math.min(v.clientWidth/w, v.clientHeight/h)<0.45) setFit(false); };   /* a very wide figure starts at actual size, scrollable */
- $('glImg').addEventListener('load',()=>{ if(lb.classList.contains('open')) autoSize(); });
- const closeLb=()=>{ lb.classList.remove('open'); if(back&&back.focus) back.focus(); back=null; };
- $('glClose').onclick=closeLb; $('glSize').onclick=()=>setFit(lb.classList.contains('actual')); $('glImg').onclick=()=>setFit(lb.classList.contains('actual'));
- lb.addEventListener('click',e=>{ if(e.target===lb||e.target.id==='glView') closeLb(); });
- $('guideArt').addEventListener('click',e=>{ const im=e.target.closest('.shot img, .hero-fig img'); if(im){ e.preventDefault(); openLb(im); } });
- $('guideArt').addEventListener('keydown',e=>{ const im=e.target.closest&&e.target.closest('.shot img, .hero-fig img'); if(im&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); openLb(im); } });
- document.addEventListener('keydown',e=>{ if(!lb.classList.contains('open')) return; if(e.key==='Escape'){ e.stopImmediatePropagation(); e.preventDefault(); closeLb(); } else if(e.key==='ArrowLeft'||e.key==='ArrowRight') e.stopImmediatePropagation(); else if(e.key==='Tab'){ e.preventDefault(); (document.activeElement===$('glClose')?$('glSize'):$('glClose')).focus(); } }, true);
+ // ---- the screenshot viewer: Fit, 100% and zoom steps; pan by touch, drag or scroll; the original image file is shown unchanged ----
+ const lb=document.createElement('div'); lb.id='glight'; lb.setAttribute('role','dialog'); lb.setAttribute('aria-modal','true'); lb.setAttribute('aria-label','Screenshot viewer');
+ lb.innerHTML='<div class="glbar"><span class="glcap" id="glCap"></span><div class="glz" role="group" aria-label="Zoom"><button type="button" class="glb" id="glOut" aria-label="Zoom out">−</button><span class="glpct" id="glPct" aria-live="polite">100%</span><button type="button" class="glb" id="glIn" aria-label="Zoom in">+</button><button type="button" class="glb glm" id="glFit" aria-pressed="true">Fit</button><button type="button" class="glb glm" id="glOne" aria-pressed="false">100%</button></div><button type="button" class="glb glx" id="glClose">Close ✕</button></div><div class="glview" id="glView" tabindex="0" aria-label="Screenshot. Scroll or drag to move around."><img id="glImg" alt="" draggable="false"></div><div class="glhint" id="glHint" aria-hidden="true">Drag or scroll to see the rest</div>';
+ document.body.appendChild(lb);
+ const V=$('glView'), I=$('glImg'); const Z={scale:1, fit:1, mode:'fit', back:null};
+ const STEPS=[0.25,0.5,0.75,1,1.5,2,3];
+ const nat=()=>[I.naturalWidth||1, I.naturalHeight||1];
+ const fitScale=()=>{ const [w,h]=nat(); return Math.min(1, (V.clientWidth-16)/w, (V.clientHeight-16)/h); };
+ const over=()=>V.scrollWidth>V.clientWidth+2||V.scrollHeight>V.clientHeight+2;
+ function apply(scale, mode, anchor){ const [w]=nat(); const prev=Z.scale; Z.scale=Math.max(0.1, Math.min(4, scale)); Z.mode=mode;
+  // keep the point under the anchor (or the center) in place while zooming
+  const ax=anchor?anchor.x:V.clientWidth/2, ay=anchor?anchor.y:V.clientHeight/2; const fx=(V.scrollLeft+ax)/Math.max(1,V.scrollWidth), fy=(V.scrollTop+ay)/Math.max(1,V.scrollHeight);
+  I.style.width=Math.round(w*Z.scale)+'px'; I.style.height='auto';
+  $('glPct').textContent=Math.round(Z.scale*100)+'%'; $('glFit').setAttribute('aria-pressed', String(mode==='fit')); $('glOne').setAttribute('aria-pressed', String(mode==='one'));
+  $('glOut').disabled=Z.scale<=Math.min(Z.fit, STEPS[0])+1e-3; $('glIn').disabled=Z.scale>=STEPS[STEPS.length-1]-1e-3;
+  if(prev!==Z.scale){ V.scrollLeft=fx*V.scrollWidth-ax; V.scrollTop=fy*V.scrollHeight-ay; }
+  lb.classList.toggle('pan', over()); }
+ const step=(dir, anchor)=>{ const cur=Z.scale; const lo=Math.min(Z.fit, STEPS[0]); const next=dir>0?STEPS.find(x=>x>cur*1.25):[...STEPS].reverse().find(x=>x<cur/1.25);   /* each step is a visible change */
+  apply(next===undefined?(dir>0?cur:lo):Math.max(lo,next), Math.abs((next||0)-1)<1e-3?'one':'zoom', anchor); };
+ function initial(){ Z.fit=fitScale(); const [w,h]=nat();
+  // a very wide or very tall figure would be an unreadable strip when fitted: start at a readable size instead, at its beginning
+  const minSide=Math.min(w,h)*Z.fit, readable=Math.min(1.5, Math.max(Z.fit, 170/Math.min(w,h)));
+  if(Z.fit<0.75&&minSide<120&&readable>Z.fit*1.3){ apply(readable, Math.abs(readable-1)<1e-3?'one':'zoom'); V.scrollLeft=0; V.scrollTop=0; const hint=$('glHint'); hint.classList.add('show'); clearTimeout(hint._t); hint._t=setTimeout(()=>hint.classList.remove('show'), 2600); }
+  else apply(Z.fit, 'fit'); }
+ const openLb=im=>{ Z.back=im; I.removeAttribute('style'); I.onload=null; I.src=im.currentSrc||im.src; I.alt=im.alt||''; $('glCap').textContent=im.alt||''; lb.classList.add('open'); $('glHint').classList.remove('show');
+  const go=()=>requestAnimationFrame(initial); if(I.complete&&I.naturalWidth) go(); else I.onload=go; $('glClose').focus(); };
+ const closeLb=()=>{ lb.classList.remove('open'); $('glHint').classList.remove('show'); const b=Z.back; Z.back=null; if(b&&b.focus) b.focus({preventScroll:true}); };
+ $('glClose').onclick=closeLb; $('glFit').onclick=()=>apply(fitScale(),'fit'); $('glOne').onclick=()=>apply(1,'one'); $('glIn').onclick=()=>step(1); $('glOut').onclick=()=>step(-1);
+ addEventListener('resize',()=>{ if(!lb.classList.contains('open')) return; Z.fit=fitScale(); if(Z.mode==='fit') apply(Z.fit,'fit'); else lb.classList.toggle('pan', over()); });
+ // double-click or double-tap switches between Fit and 100% at that point
+ I.addEventListener('dblclick',e=>{ const r=V.getBoundingClientRect(); const a={x:e.clientX-r.left, y:e.clientY-r.top}; if(Z.mode==='fit') apply(1,'one',a); else apply(fitScale(),'fit',a); });
+ // mouse: drag to pan; Ctrl + wheel zooms (touch scrolling is native)
+ let drag=null; V.addEventListener('pointerdown',e=>{ if(e.pointerType!=='mouse'||e.button!==0||!over()) return; drag={x:e.clientX,y:e.clientY,l:V.scrollLeft,t:V.scrollTop}; V.setPointerCapture(e.pointerId); lb.classList.add('dragging'); e.preventDefault(); });
+ V.addEventListener('pointermove',e=>{ if(!drag) return; V.scrollLeft=drag.l-(e.clientX-drag.x); V.scrollTop=drag.t-(e.clientY-drag.y); });
+ const endDrag=()=>{ drag=null; lb.classList.remove('dragging'); }; V.addEventListener('pointerup',endDrag); V.addEventListener('pointercancel',endDrag);
+ V.addEventListener('wheel',e=>{ if(!e.ctrlKey) return; e.preventDefault(); const r=V.getBoundingClientRect(); step(e.deltaY<0?1:-1,{x:e.clientX-r.left,y:e.clientY-r.top}); },{passive:false});
+ lb.addEventListener('click',e=>{ if(e.target===lb) closeLb(); });
+ $('guideArt').addEventListener('click',e=>{ const im=e.target.closest('.shot img, .hero-fig img, .hw .card img'); if(im){ e.preventDefault(); openLb(im); } });
+ $('guideArt').addEventListener('keydown',e=>{ const im=e.target.closest&&e.target.closest('.shot img, .hero-fig img, .hw .card img'); if(im&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); openLb(im); } });
+ // keys while the viewer is open: Esc closes only the viewer; + and - zoom, 0 fits, 1 shows 100%; arrows move the image; Tab stays inside
+ document.addEventListener('keydown',e=>{ if(!lb.classList.contains('open')) return; const k=e.key; const stop=()=>{ e.preventDefault(); e.stopImmediatePropagation(); };
+  if(k==='Escape'){ stop(); closeLb(); return; }
+  if(k==='+'||k==='='){ stop(); step(1); return; }
+  if(k==='-'||k==='_'){ stop(); step(-1); return; }
+  if(k==='0'){ stop(); apply(fitScale(),'fit'); return; }
+  if(k==='1'){ stop(); apply(1,'one'); return; }
+  if(k.startsWith('Arrow')){ stop(); const d=80; V.scrollBy(k==='ArrowLeft'?-d:k==='ArrowRight'?d:0, k==='ArrowUp'?-d:k==='ArrowDown'?d:0); return; }
+  if(k==='Tab'){ const f=[...lb.querySelectorAll('button:not([disabled]), #glView')]; const i=f.indexOf(document.activeElement); stop(); f[(i+(e.shiftKey?-1:1)+f.length)%f.length].focus(); } }, true);
 })();
 updateStatusLine(); csMenuRefresh();
 })();

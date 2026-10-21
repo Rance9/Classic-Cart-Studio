@@ -17,20 +17,16 @@ with the API, and exposes three JSON endpoints that only the served page can cal
   POST /api/personal/remove   body {id, delete_copy?}
   POST /api/library/adopt     create personal entries for local custom games the inventory does not know (read-only towards Hakchi)
   POST /api/personal/ingest-path  body {path}  (rehearsal/test configurations only: no dialog)
-  GET  /api/version           public: app id, version, protocol number, whether this caller is paired (CORS for allow-listed origins only)
-  GET  /pair?origin=...       pairing page (served by the companion itself): the person approves or denies the named website
-  POST /api/pair/approve      (pairing page only, per-process token) -> short-lived bearer token bound to that origin + one-time code
-  POST /api/pair/claim        (allow-listed origin, no auth) body {code} -> token, when the popup could not deliver it
-  POST /api/pair/refresh|revoke  (bearer) extend / forget the caller's token
+  GET  /api/version           public: app id, version, protocol number, whether this caller is the desktop app (CORS for allow-listed origins only)
   POST /api/import/pick       body {mode: files|folder} -> native picker on this computer -> background import job {job}
   GET  /api/import/status?job=..  progress, per-file results, errors; POST /api/import/cancel {job}
   GET  /api/library/store     managed copies of known versions (files the person imported) — what can be prepared without the dev store
   POST /api/library/locate    body {version_id} -> picker; accepted only when the file's content hash is that version
 Security: binds 127.0.0.1 only and refuses any Host header other than 127.0.0.1/localhost (DNS rebinding). Two callers exist:
   * the page served by the companion itself (same origin): POSTs carry X-NES-Token = the per-process token embedded in the page;
-  * the public website (https://rance9.github.io) or an explicitly allow-listed loopback dev origin: CORS with an exact-origin
-    allow list, OPTIONS preflight (incl. Private Network Access), and Authorization: Bearer <token> where the token was issued
-    by the pairing page after the person clicked Allow, is bound to that origin, expires, and lives only in this process.
+  * Classic Cart Studio for Windows (its window shows the bundled site under an allow-listed origin): CORS with an exact-origin
+    allow list, OPTIONS preflight (incl. Private Network Access), and Authorization: Bearer <the per-run host token>.
+  The public website never authenticates: it may only hand over a collection or a .ccs package (handoff endpoints below).
 Tokens never appear in URLs or in the public page source; a request whose Origin is not allow-listed gets no CORS headers (the
 browser blocks the response) and a 403. No generic command or path parameters are accepted (the hakchi executable comes from
 companion.json and must hash-match the recorded 3.9.3 build); manifests are written only under the exports folder. It never
@@ -49,9 +45,6 @@ from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path, art_alias
 
 CFG = hb.load_cfg(); TOKEN = secrets.token_urlsafe(24); ROOT = SITE_ROOT
 mimetypes.add_type("application/json", ".json")
-TOKEN_TTL = 12 * 3600; CODE_TTL = 180
-PAIRED: dict = {}      # bearer token -> {origin, created, expires}
-CODES: dict = {}       # one-time pairing code -> {origin, token, expires, tries}
 LOCK = threading.Lock()
 ORIGIN_RE = re.compile(r"^https://[a-z0-9.-]+$|^http://(127\.0\.0\.1|localhost)(:\d+)?$")
 def allowed_origins(port: int) -> set:
@@ -60,23 +53,13 @@ def allowed_origins(port: int) -> set:
     return set(SITE_ORIGINS) | {PUBLIC_ORIGIN} | own | extra
 ALLOWED: set = set()
 
-def issue_token(origin: str) -> dict:
-    now = time.time(); tok = secrets.token_urlsafe(32); code = "%06d" % secrets.randbelow(1_000_000)
-    with LOCK:
-        for t in [t for t, v in PAIRED.items() if v["expires"] < now]: PAIRED.pop(t, None)
-        for c in [c for c, v in CODES.items() if v["expires"] < now]: CODES.pop(c, None)
-        PAIRED[tok] = {"origin": origin, "created": now, "expires": now + TOKEN_TTL}; CODES[code] = {"origin": origin, "token": tok, "expires": now + CODE_TTL, "tries": 0}
-    return {"token": tok, "code": code, "expires": int(now + TOKEN_TTL), "origin": origin}
-
-def revoke_all():
-    with LOCK: PAIRED.clear(); CODES.clear()
 
 # ---- desktop host channel: Classic Cart Studio for Windows starts this backend headless and hands it a per-run token through the
-#      environment. Requests carrying that token (Authorization: Bearer) from the website's origin are the "desktop" principal: no
-#      pairing ritual, but still an exact-origin, authenticated caller. The token never appears in URLs, logs or pages of other origins.
+#      environment. Requests carrying that token (Authorization: Bearer) from the website's origin are the "desktop" principal:
+#      an exact-origin, authenticated caller (the only one besides this server's own page). The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["pairing", "library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
+CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -181,25 +164,6 @@ def host_watchdog():
         if srv: threading.Thread(target=srv.shutdown, daemon=True).start()
     threading.Thread(target=run, daemon=True, name="host-watchdog").start()
 
-PAIR_HTML = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect to this computer</title>
-<meta name="nes-companion-token" content="__TOKEN__"><style>:root{color-scheme:dark}body{margin:0;background:#15161a;color:#f2f2f2;font:15px/1.5 Segoe UI,system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center}
-.card{background:#1f2026;border:1px solid #33353d;border-radius:14px;padding:28px 30px;max-width:520px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(0,0,0,.5)}h1{font-size:20px;margin:0 0 10px}p{margin:8px 0;color:#c9c9cf}
-.origin{display:inline-block;background:#111;border:1px solid #3a3c45;border-radius:8px;padding:6px 10px;font-family:Consolas,monospace;color:#fff;word-break:break-all}.row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
-button{font:inherit;font-weight:600;padding:10px 18px;border-radius:9px;border:1px solid #3a3c45;background:#2a2b33;color:#fff;cursor:pointer}button.ok{background:#d4262c;border-color:#d4262c}button:disabled{opacity:.5;cursor:default}
-.code{font:700 34px/1 Consolas,monospace;letter-spacing:6px;background:#111;border-radius:10px;padding:14px;text-align:center;margin:12px 0}.small{font-size:13px;color:#9a9ba3}.bad{color:#ff8e8e}</style></head>
-<body><div class="card" id="card"><h1>Connect to this computer?</h1><p>The website <span class="origin" id="o"></span> wants to connect to Classic Cart Studio on this computer.</p>
-<p class="small">If you allow it, that website can read your game list, prepare collections and open Hakchi on this computer until Classic Cart Studio closes or you disconnect. Nothing is sent to the console. Allow only if you opened that website yourself.</p>
-<div class="row"><button class="ok" id="allow">Allow</button><button id="deny">Don't Allow</button></div><p class="small" id="msg"></p></div>
-<script>(function(){ const q=new URLSearchParams(location.search); const origin=(q.get('origin')||'').replace(/\/$/,''); const ok=__ALLOWED__.includes(origin); const $=i=>document.getElementById(i); $('o').textContent=origin||'(no website named)';
- const tok=(document.querySelector('meta[name="nes-companion-token"]')||{}).content||'';
- if(!ok){ $('card').innerHTML='<h1>Not allowed</h1><p class="bad">The website <span class="origin">'+(origin||'(none)').replace(/[<>&]/g,'')+'</span> is not on Classic Cart Studio\'s list of trusted websites, so it cannot connect.</p><p class="small">Only the official Classic Cart Studio website ('+__PUBLIC__+') and local development addresses can connect. You can close this window.</p>'; return; }
- const say=(w,o)=>{ try{ if(window.opener&&!window.opener.closed) window.opener.postMessage(w,o); }catch(e){} };
- $('deny').onclick=()=>{ say({type:'nes-studio-pair',denied:true},origin); $('card').innerHTML='<h1>Not connected</h1><p>The website was not given access. You can close this window.</p>'; setTimeout(()=>window.close(),1200); };
- $('allow').onclick=async()=>{ $('allow').disabled=true; $('deny').disabled=true; let r; try{ r=await (await fetch('/api/pair/approve',{method:'POST',headers:{'Content-Type':'application/json','X-NES-Token':tok},body:JSON.stringify({origin})})).json(); }catch(e){ r={ok:false,error:String(e)}; }
-  if(!r.ok){ $('msg').innerHTML='<span class="bad">Could not connect: '+String(r.error||'').replace(/[<>&]/g,'')+'</span>'; $('allow').disabled=false; $('deny').disabled=false; return; }
-  const delivered=!!(window.opener&&!window.opener.closed); say({type:'nes-studio-pair',token:r.token,expires:r.expires,version:r.version,protocol:r.protocol},origin);
-  $('card').innerHTML='<h1>Connected</h1><p>You can go back to the website now'+(delivered?' and close this window.':'.')+'</p><p class="small">If the website still says it is not connected, enter this one-time code there (valid for 3 minutes):</p><div class="code" id="code">'+r.code+'</div><p class="small">The code works once, only for that website, and only while Classic Cart Studio is running.</p><div class="row"><button id="close">Close</button></div>'; $('close').onclick=()=>window.close(); };
-})();</script></body></html>"""
 
 def save_manifest(man: dict) -> str:
     os.makedirs(CFG["exports_dir"], exist_ok=True)
@@ -244,21 +208,15 @@ class H(http.server.BaseHTTPRequestHandler):
         if o: return not self._same_origin()
         return sfs not in ("", "same-origin", "none")
     def _bearer(self) -> dict | None:
-        """The paired website's token: must exist, be unexpired and be bound to exactly the requesting Origin."""
+        """The desktop host's per-run token, from an allow-listed Origin (the only bearer this server accepts)."""
         a = self.headers.get("Authorization", ""); o = self._origin()
         if not a.startswith("Bearer ") or not o or o not in ALLOWED: return None
-        d = _desktop_principal(a, o)
-        if d: return d
-        tok = a[7:].strip()
-        with LOCK:
-            v = PAIRED.get(tok)
-            if not v or v["expires"] < time.time() or v["origin"] != o: return None
-            return dict(v, token=tok)
+        return _desktop_principal(a, o)
     def _protocol_ok(self) -> bool:
         try: return int(self.headers.get("X-NES-Protocol") or PROTOCOL) <= PROTOCOL
         except ValueError: return False
     def _authed(self) -> bool:
-        """Same-origin page with the per-process token, or an allow-listed paired website with its bearer token."""
+        """Same-origin page with the per-process token, or the desktop app with its host token."""
         if not self._host_ok(): return False
         if self._same_origin() and secrets.compare_digest(self.headers.get("X-NES-Token", ""), TOKEN): return True
         return self._bearer() is not None
@@ -285,12 +243,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if path == "/api/ping": return self._json(200, {"ok": True})
         if path == "/api/version":   # public discovery endpoint: no local paths, no secrets
             b = self._bearer(); return self._json(200, {"ok": True, "app": APP_ID, "version": VERSION, "protocol": PROTOCOL, "paired": b is not None, "desktop": bool(b and b.get("desktop")), "expires": int(b["expires"]) if b else None, "pair_required": self._cross_site(), "frozen": FROZEN, "capabilities": CAPABILITIES, "handoff_pending": len(HANDOFF) if (b and b.get("desktop")) else None})
-        if path == "/pair":
-            q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); origin = urllib.parse.unquote(q.get("origin", "")).rstrip("/")
-            return self._html(200, PAIR_HTML.replace("__TOKEN__", TOKEN).replace("__ALLOWED__", json.dumps(sorted(ALLOWED))).replace("__PUBLIC__", json.dumps(PUBLIC_ORIGIN)))
         if path.startswith("/api/"):
             if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "Classic Cart Studio for Windows on this computer is older than this website expects. Install the latest version from ClassicCartStudio.com/app.", "protocol": PROTOCOL, "version": VERSION})
-            if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "This website is not connected to Classic Cart Studio on this computer. Connect it first.", "pair_required": True})
+            if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "Only Classic Cart Studio for Windows can use this. Open the Windows app on this computer.", "pair_required": True})
         if path.startswith(("/api/overrides", "/overrides/")): import overrides as ov; return ov.handle_get(self, path, qs)   # N3 content customization (desktop principal; images like personal art)
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_get(self, path, qs)   # N3: TV Preview drawn by the native HOME renderer (desktop principal)
         if path == "/api/status":
@@ -398,22 +353,8 @@ class H(http.server.BaseHTTPRequestHandler):
             if len(_handoff_times) >= HANDOFF_RATE: return self._json(429, {"ok": False, "error": "Too many requests in the last minute. Wait a minute and try again."})
             _handoff_times.append(now)
             import package_api as pk; return pk.handle_website_package(self, data_path)
-        if path == "/api/pair/claim":   # allow-listed origin, no auth: exchange the one-time code shown by the pairing page for the token bound to that origin
-            o = self._origin()
-            if o not in ALLOWED or not self._cross_site(): return self._json(403, {"ok": False, "error": "This website is not allowed to connect to Classic Cart Studio on this computer."})
-            try: body = self._body()
-            except Exception as e: return self._json(400, {"ok": False, "error": f"The request could not be read ({e})."})
-            code = re.sub(r"\D", "", str(body.get("code") or ""))[:6]
-            with LOCK:
-                v = CODES.get(code)
-                if not v or v["expires"] < time.time() or v["origin"] != o:
-                    if v: v["tries"] += 1
-                    if v and v["tries"] >= 5: CODES.pop(code, None)
-                    return self._json(403, {"ok": False, "error": "That code is not valid for this website. Codes work once and expire after 3 minutes; get a new one and try again."})
-                CODES.pop(code, None); tok = v["token"]; exp = PAIRED.get(tok, {}).get("expires")
-            return self._json(200, {"ok": True, "token": tok, "expires": int(exp or 0), "version": VERSION, "protocol": PROTOCOL})
         if not self._authed():
-            return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "This website is not connected to Classic Cart Studio on this computer. Connect it first." if self._cross_site() else "This request is not authorized. Reload the page and try again.", "pair_required": self._cross_site()})
+            return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "Only Classic Cart Studio for Windows can use this. Open the Windows app on this computer." if self._cross_site() else "This request is not authorized. Reload the page and try again.", "pair_required": self._cross_site()})
         if path.startswith("/api/package/"):   # .ccs packages: desktop application only; before _body(): uploads stream to disk
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
@@ -510,21 +451,6 @@ class H(http.server.BaseHTTPRequestHandler):
                 return self._json(200, {"ok": True})
             with LOCK: item["taken_at"] = item.get("taken_at") or time.strftime("%Y-%m-%dT%H:%M:%S"); handoff_save()
             return self._json(200, {"ok": True, "offer": {k: item[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at", "collection")}})
-        if path.startswith("/api/pair/"):
-            if path == "/api/pair/approve":   # only the pairing page served by this companion (same origin + per-process token) may mint tokens
-                if not (self._same_origin() and secrets.compare_digest(self.headers.get("X-NES-Token", ""), TOKEN)): return self._json(403, {"ok": False, "error": "Connections can be approved only on the connection page of Classic Cart Studio on this computer."})
-                o = str(body.get("origin") or "").rstrip("/")
-                if o not in ALLOWED or o in {f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"}: return self._json(403, {"ok": False, "error": "That website is not on the trusted list, so it cannot connect."})
-                t = issue_token(o); sys.stderr.write(f"paired website {o} (token expires in {TOKEN_TTL // 3600} h)\n"); return self._json(200, {"ok": True, **t, "version": VERSION, "protocol": PROTOCOL})
-            b = self._bearer()
-            if not b: return self._json(403, {"ok": False, "error": "This website is not connected. Connect it again."})
-            if path == "/api/pair/refresh":
-                with LOCK: PAIRED.pop(b["token"], None)
-                t = issue_token(b["origin"]); CODES.pop(t["code"], None); return self._json(200, {"ok": True, "token": t["token"], "expires": t["expires"], "version": VERSION, "protocol": PROTOCOL})
-            if path == "/api/pair/revoke":
-                with LOCK: PAIRED.pop(b["token"], None)
-                return self._json(200, {"ok": True})
-            return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path.startswith("/api/import/") or path == "/api/library/locate":
             try:
                 if path == "/api/import/pick":

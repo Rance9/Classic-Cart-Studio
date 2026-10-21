@@ -401,9 +401,8 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 #guide .hero-fig{position:relative;margin:0 0 16px;border-radius:14px;overflow:hidden;border:1px solid var(--line2);background:#0a0a0c}#guide .hero-fig img{display:block;width:100%;height:auto}#guide .hero-fig .lab{position:absolute;left:12px;bottom:10px;padding:4px 10px;border-radius:999px;background:rgba(10,10,12,.8);border:1px solid var(--line2);font-size:12px;color:var(--ink2)}
 #guide .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:12px 0}#guide .flow .node{flex:1 1 150px;padding:12px;border:1px solid var(--line2);border-radius:10px;background:#141418;text-align:center}#guide .flow .node b{display:block;color:#fff;font-size:13px}#guide .flow .node span{font-size:12px;color:var(--muted)}#guide .flow .node.hot{border-color:var(--red3);background:#2a1316}#guide .flow .node.off{border-style:dashed;opacity:.8}
 #guide .btnref{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--line2);border-radius:999px;background:#17171c;color:#fff;font-size:12.5px;vertical-align:middle;white-space:nowrap}#guide .btnref img{width:16px;height:16px;image-rendering:pixelated}
-/* guide figures zoom on click (lightbox) */
+/* guide figures open in the screenshot viewer on click */
 #guide .shot img,#guide .hero-fig img,#guide .hw .card img,#guide .duo .shot img{cursor:zoom-in}
-#glb{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}#glb.open{display:flex}#glb img{max-width:min(96vw,1800px);max-height:92vh;width:auto;height:auto;object-fit:contain;border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,.8)}#glb .cap{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:var(--ink2);font-size:13px;padding:0 24px}
 #guide .shot .cap .credit{display:block;margin-top:4px;font-size:11px;color:var(--muted)}#guide .shot .cap .credit a{color:#9cc0ff}
 /* ---- Folders & Console HOME editor ---- */
 .hf-grid{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:16px;min-height:360px}
@@ -707,12 +706,25 @@ details.csmore .csmenu .mi.del{color:#ff8a8a;border-top:1px solid var(--line,#2a
  #guide article{padding:16px 14px 32px!important}
  #guide .deco{display:none}
 }
-#glight{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.92);display:none;flex-direction:column}
+#glight{position:fixed;inset:0;z-index:120;background:#08080a;display:none;flex-direction:column;height:100vh;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);box-sizing:border-box}
 #glight.open{display:flex}
-#glight .glbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#121216;border-bottom:1px solid var(--line2)}
-#glight .glcap{flex:1;min-width:0;font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#glight .glbar .btn{min-height:38px}
-#glight .glview{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:10px;-webkit-overflow-scrolling:touch}
-#glight img{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in;image-rendering:auto}
-#glight.actual .glview{display:block}
-#glight.actual img{max-width:none;max-height:none;width:auto;height:auto;cursor:zoom-out}
+#glight .glbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#18181e;border-bottom:2px solid var(--red);flex:none}
+#glight .glcap{flex:1;min-width:0;font-size:13.5px;color:#e8e8ea;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#glight .glz{display:flex;align-items:center;gap:4px;flex:none}
+#glight .glb{min-width:40px;min-height:40px;padding:0 10px;border-radius:8px;border:1px solid #6a6a76;background:#2c2c35;color:#fff;font-weight:600;font-size:14px;line-height:1;cursor:pointer}
+#glight .glb:hover{background:#3a3a45}
+#glight .glb:focus-visible,#glight .glview:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#glight .glb:disabled{opacity:.4;cursor:default}
+#glight .glb[aria-pressed="true"]{background:var(--red);border-color:#ff8a8a}
+#glight #glIn,#glight #glOut{font-size:20px;padding:0}
+#glight .glpct{min-width:46px;text-align:center;font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
+#glight .glx{background:#fff;color:#111;border-color:#fff}
+#glight .glx:hover{background:#e6e6e6}
+#glight .glview{flex:1;min-height:0;overflow:auto;display:flex;padding:8px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+#glight .glview img{margin:auto;flex:none;max-width:none;max-height:none;display:block;user-select:none;-webkit-user-drag:none;box-shadow:0 0 0 1px #333}
+#glight.pan .glview{cursor:grab}
+#glight.dragging .glview{cursor:grabbing}
+#glight .glhint{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#111;font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#glight .glhint.show{opacity:.95}
+@media (max-width:640px){ #glight .glcap{display:none} #glight .glbar{justify-content:space-between;gap:6px;padding:8px} #glight .glz{gap:3px} #glight .glb{min-width:40px;padding:0 8px} }
+@media (max-width:340px){ #glight .glpct{min-width:38px;font-size:12px} #glight .glb{min-width:36px;padding:0 6px} }
