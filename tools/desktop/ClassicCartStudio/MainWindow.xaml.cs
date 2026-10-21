@@ -340,7 +340,7 @@ namespace ClassicCartStudio
 
         // Links and files handed to the application (command line, or forwarded by a second instance):
         //   classiccartstudio://open                      bring the window forward
-        //   classiccartstudio://share/<id>                a published collection (its share id only): the page fetches it and asks before adding it
+        //   classiccartstudio://share/<id>                a retired public share link: the page explains that collections are shared as .ccs files
         //   classiccartstudio://handoff?offer=<id>        a collection the website offered (the existing inbox)
         //   classiccartstudio://package?offer=<id>        a .ccs package the website handed to this computer's backend (staged there)
         //   <path>.ccs                                    a collection package opened from File Explorer (double-click, Open With)

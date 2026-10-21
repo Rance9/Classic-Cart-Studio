@@ -41,8 +41,9 @@ def parse_header(b: bytes) -> dict:
         if (f9 >> 4) != 0x0F: chr_ = ((f9 >> 4) << 8 | b[5]) * 8192
     return {"format": "NES 2.0" if nes2 else "iNES", "mapper": mapper, "submapper": sub, "prg": prg, "chr": chr_, "mirroring": "four-screen" if f6 & 0x08 else ("vertical" if f6 & 0x01 else "horizontal"), "battery": bool(f6 & 0x02), "trainer": bool(f6 & 0x04), "header_hex": b[:16].hex()}
 
-def _read_candidate(path: str) -> tuple[bytes, str, str]:
-    """Return (bytes, display file name, note) for a ROM file or the single ROM member of a ZIP. Untrusted input rules apply."""
+def _read_candidate(path: str, max_file: int | None = MAX_FILE) -> tuple[bytes, str, str]:
+    """Return (bytes, display file name, note) for a ROM file or the single ROM member of a ZIP. Untrusted input rules apply.
+    max_file guards loose files and ZIPs; ROMs from a verified .ccs package (checksums, declared sizes) are not capped (CCS-FORMAT.md)."""
     if not os.path.isfile(path): raise ValueError("The file was not found. Choose it again.")
     if os.path.islink(path): raise ValueError("Links to files are not accepted. Choose the ROM file itself.")
     size = os.path.getsize(path); ext = os.path.splitext(path)[1].lower()
@@ -63,7 +64,7 @@ def _read_candidate(path: str) -> tuple[bytes, str, str]:
             return data, os.path.basename(name), f"from archive {os.path.basename(path)}"
     if ext in (".7z", ".rar"): raise ValueError("7z and RAR files are not supported. Extract the ROM file first.")
     if ext not in ROM_EXT: raise ValueError(f"This is an unsupported file type ({ext or 'no extension'}). Choose an NES ROM file or a ZIP file.")
-    if size > MAX_FILE: raise ValueError("The file is larger than an NES ROM can be.")
+    if max_file and size > max_file: raise ValueError("The file is larger than an NES ROM can be.")
     return open(path, "rb").read(), os.path.basename(path), ""
 
 MIN_CONTENT = 8192   # no NES program is smaller than one 8 KiB bank; anything smaller is not a game file
@@ -103,9 +104,9 @@ def probable_relatives(name: str) -> list:
     stem = re.sub(r"\s*\(.*?\)|\s*\[.*?\]", "", os.path.splitext(name)[0]); key = re.sub(r"[^a-z0-9]+", " ", stem.lower()).strip()
     lib = _lib(); return [{"title_id": tid, "title": lib["titles"][tid]["title"], "curated": lib["titles"][tid]["curated"]} for tid in lib["by_norm"].get(key, [])][:5]
 
-def ingest(path: str, origin: str = "file", local_code: str = "", local_name: str = "") -> dict:
+def ingest(path: str, origin: str = "file", local_code: str = "", local_name: str = "", max_file: int | None = MAX_FILE) -> dict:
     """Identify a user file; return either {'known': ...} (exact content match) or the new/updated personal entry (managed copy made)."""
-    data, fname, note = _read_candidate(path); ident = identify_bytes(data)
+    data, fname, note = _read_candidate(path, max_file); ident = identify_bytes(data)
     known = match_known(ident["content_sha256"])
     if known: return {"known": known, "identity": ident, "file_name": fname, "note": note, "library_copy": keep_known_copy(known["version_id"], data, ident, fname, path, note)}
     idx = load_index(); eid = "p_" + ident["content_sha256"][:16]; os.makedirs(FILES_DIR, exist_ok=True)
@@ -249,7 +250,7 @@ def _ingest_bytes(data: bytes, fname: str, src: str, note: str, origin: str = "f
     ident = identify_bytes(data); known = match_known(ident["content_sha256"])
     if known: return {"known": known, "file_name": fname, "library_copy": keep_known_copy(known["version_id"], data, ident, fname, src, note), "content_sha256": ident["content_sha256"]}
     tmp = os.path.join(FILES_DIR, "_incoming_" + ident["content_sha256"][:16] + (".nes" if ident["format"] != "headerless" else ".unh")); os.makedirs(FILES_DIR, exist_ok=True); open(tmp, "wb").write(data)
-    try: r = ingest(tmp, origin=origin); r["entry"]["source_path"] = src; r["entry"]["note"] = note
+    try: r = ingest(tmp, origin=origin, max_file=None if origin == "package" else MAX_FILE); r["entry"]["source_path"] = src; r["entry"]["note"] = note
     finally:
         if os.path.exists(tmp): os.remove(tmp)
     idx = load_index(); e = idx["entries"].get(r["entry"]["id"])

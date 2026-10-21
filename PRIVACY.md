@@ -8,27 +8,25 @@ Classic Cart Studio has two parts: the website at https://classiccartstudio.com/
 
 - your collections, their NES Classic Loadouts, HOME Setup choices, version decisions and snapshots;
 - favorites and display settings (list or grid view, technical columns, the Extended Library switch, the Preview on TV look, the first-run flag);
-- the links of collections you shared, with the private key that lets you remove each one;
 - the identifier of the last collection handed to the Windows app (an identifier only).
 
-Clear the site's data in your browser to remove all of it. **Export** writes a collection to a `.ccs` file you keep; **Import** reads one back.
+Clear the site's data in your browser to remove all of it. The website does not store ROM files: when you share or export a collection, it reads the ROM files (or the `.ccs` file) you choose for that moment only.
 
 **Network requests the website makes:**
 
 - its own files from `https://classiccartstudio.com` (hosted by GitHub Pages; GitHub's privacy statement applies);
 - `release.json` from the same site and, as a fallback for the download section, the public GitHub Releases API at `https://api.github.com`;
-- the Classic Cart Studio sharing service at `https://share.classiccartstudio.com`, only when you publish a shared link, unpublish one, or open one someone shared with you (see below);
 - the Windows app on your own computer at `http://127.0.0.1:8765`, only when you choose **Open in Windows App** (see below).
 
 Nothing else is contacted. The project sets no cookies.
 
-## Sharing a collection link
+## Sharing and exporting (.ccs files)
 
-When you choose **Share** and publish a link, the website or the Windows app sends a read-only copy of the collection to the sharing service: its name and description, the game titles and versions, its loadouts and HOME Setup choices, a summary card image and the cover pictures of games you added yourself. **ROM files are never sent**, and the service refuses images that contain game data.
+A `.ccs` file is a complete collection: every game with its ROM file, plus the collection's loadouts, settings and your own artwork. **Export .ccs**, **Send to Phone** and **Share Games** make that file on your own device. Classic Cart Studio never uploads a `.ccs` file or any ROM file, and runs no service that receives, stores, relays or processes them, not even briefly.
 
-Anyone with the link can view that copy. You can choose **Unpublish…** in the Share dialog at any time; the service then deletes the copy and the link stops working. Copies that browsers or other sites already cached are outside our control.
+When you choose **Send to Phone** or **Share Games**, the file goes to the app you pick in your device's own share sheet (for example Messages, Mail, AirDrop, OneDrive, Phone Link or Nearby Share). That app sends it the way it normally does, under its own terms; Classic Cart Studio is not involved in that transfer. **Export .ccs** saves the file where you choose.
 
-The service is hosted on Cloudflare. It uses your connection's IP address only to limit how many links one connection can publish or unpublish per hour; those counters expire within an hour. It keeps no other record of who published a link. Opening a shared link reads the copy from the same service.
+Importing a `.ccs` file also happens entirely on your device: the website checks every ROM file in it and does not keep them; the Windows app adds them to its own folder only after you confirm.
 
 ## Open in Windows App (website → app)
 
@@ -49,7 +47,7 @@ The app's interface is installed with it and served from your own computer; it d
 
 The app reads the Hakchi2 CE folder only when you ask it to (Check, Prepare) and examines only the files or folders you pick for import. It does not scan your disk.
 
-**Network:** the app's local service listens only on `127.0.0.1` (your own computer) and never contacts the console. Hakchi2 CE 3.9.3 is included with the app and verified by SHA-256 before use. The app contacts the internet only when you ask it to: publishing, unpublishing or opening a shared link (the sharing service above), or **Check for Updates**, which opens the releases page in your browser. The app never checks for or installs updates by itself.
+**Network:** the app's local service listens only on `127.0.0.1` (your own computer) and never contacts the console. Hakchi2 CE 3.9.3 is included with the app and verified by SHA-256 before use. The app contacts the internet only when you ask it to: **Check for Updates**, which opens the releases page in your browser. Sharing a `.ccs` file uses the app you pick, as described above. The app never checks for or installs updates by itself.
 
 **Authorization:** the app's window talks to the local service with a session created when the app starts and discarded when it closes. A website in your normal browser can only hand over a collection or a package as described above, and only from `https://classiccartstudio.com`.
 
@@ -63,7 +61,7 @@ The storage figures in the loadout editor are estimates for a stock 2018 NES Cla
 
 ## Removal
 
-Uninstalling Classic Cart Studio (Windows Settings → Apps) removes the program and keeps the data folder above, so your imported ROM files and collections survive a reinstall. Delete `%LOCALAPPDATA%\ClassicCartStudio` yourself to remove them. Clear the site's data in your browser to remove what the website kept. Unpublish shared links before you clear that data, because the private key that removes a link is stored with your collection.
+Uninstalling Classic Cart Studio (Windows Settings → Apps) removes the program and keeps the data folder above, so your imported ROM files and collections survive a reinstall. Delete `%LOCALAPPDATA%\ClassicCartStudio` yourself to remove them. Clear the site's data in your browser to remove what the website kept.
 
 ## Contact
 

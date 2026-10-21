@@ -480,7 +480,6 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
  #selectMenu{min-width:250px}
 }
 
-body.noshare .shareonly{display:none}
 .shg.away{opacity:.75}.shg .small.away{color:var(--gold,#f2b632)}.trmiss .tag{margin-right:6px}
 
 /* ---- NES Classic Loadouts: the collection bar entry, the loadout band shown while one is edited, dialogs ---- */
@@ -728,3 +727,11 @@ details.csmore .csmenu .mi.del{color:#ff8a8a;border-top:1px solid var(--line,#2a
 #glight .glhint.show{opacity:.95}
 @media (max-width:640px){ #glight .glcap{display:none} #glight .glbar{justify-content:space-between;gap:6px;padding:8px} #glight .glz{gap:3px} #glight .glb{min-width:40px;padding:0 8px} }
 @media (max-width:340px){ #glight .glpct{min-width:38px;font-size:12px} #glight .glb{min-width:36px;padding:0 6px} }
+
+/* ==== Share or Export (complete .ccs packages) ==== */
+.ccsmiss{margin:6px 0 0;padding-left:20px;max-height:180px;overflow:auto}
+.ccsfix{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+@media (max-width:640px){ .ccsfix .btn{flex:1 1 auto} .ccsmiss{max-height:none} }
+
+/* disabled actions in dialogs look disabled (Share or Export before every ROM file is ready) */
+#collm .acts .btn:disabled,#collm .ccsfix .btn:disabled{opacity:.45;filter:saturate(.3);box-shadow:none;cursor:not-allowed}
