@@ -736,6 +736,8 @@ details.csmore .csmenu .mi.del{color:#ff8a8a;border-top:1px solid var(--line,#2a
 .ccsjob .pbar.ind i{width:30%;animation:ccsind 1.3s ease-in-out infinite}@keyframes ccsind{0%{margin-left:-30%}100%{margin-left:100%}}
 @media (prefers-reduced-motion:reduce){.ccsjob .pbar.ind i{animation:none;width:100%;opacity:.35}}
 .ccspath{color:var(--muted);overflow-wrap:anywhere;margin:6px 0}
+/* a dialog running an operation: its header Close is unavailable (only the operation's Cancel stops it) */
+#collClose:disabled,#hkClose:disabled{opacity:.35;filter:saturate(.3);box-shadow:none;cursor:not-allowed}
 @media (max-width:640px){ .ccsfix .btn{flex:1 1 auto} .ccsmiss{max-height:none} }
 
 /* disabled actions in dialogs look disabled (Share or Export before every ROM file is ready) */

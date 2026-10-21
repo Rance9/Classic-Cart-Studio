@@ -18,7 +18,7 @@ os.environ["NES_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["NES_
 import ccs_package as cp, package_api as pk, personal as ps
 from test_ccs_package import collection
 from test_package_api import FH
-MB = 1 << 20
+MB = 10**6   # decimal, like everything people see
 
 def rom(seed, size: int) -> bytes:
     return b"NES\x1a" + bytes([min(255, max(1, size // 16384)), 1, 0, 0]) + bytes(8) + random.Random(seed).randbytes(size)
@@ -84,10 +84,10 @@ def main():
         ok("large_export_shows_each_stage", [p for p in phases if p != "starting"] == ["verify", "write", "check", "done"], phases)
         ok("verification_progress_counts_games_and_bytes", vf and mono(vf, "games_done") and mono(vf, "bytes_done") and vf[-1]["games"] == 12 and len({x["games_done"] for x in vf}) >= 4, [(x["games_done"], x["bytes_done"]) for x in vf[::max(1, len(vf) // 8)]])
         ok("writing_progress_is_accurate_and_advances", wr and mono(wr, "bytes_done") and mono(wr, "games_done") and all(x["bytes_total"] == total and x["bytes_done"] <= total for x in wr) and len({x["bytes_done"] for x in wr}) >= 10 and len({x["games_done"] for x in wr}) >= 6,
-           [(x["games_done"], x["bytes_done"] // MB) for x in wr[::max(1, len(wr) // 10)]])
+           [(x["games_done"], cp.fmt_size(x["bytes_done"])) for x in wr[::max(1, len(wr) // 10)]])
         info = cp.inspect(dest, verify_roms=True)
         ok("large_export_passes_full_verification", j["phase"] == "done" and j["size"] == os.path.getsize(dest) and info["ok"] and info["rom_count"] == 12 and all(x["verified"] for x in info["roms"]) and clean(out, "Large Set") == ["Large Set.ccs"], (j.get("error"), info.get("problems")))
-        print(f"   large export: {total / MB:,.0f} MB of ROM files, package {os.path.getsize(dest) / MB:,.0f} MB, {t_job:.1f} s as a job, {len(s)} progress samples")
+        print(f"   large export: {cp.fmt_size(total)} of ROM files, package {cp.fmt_size(os.path.getsize(dest))}, {t_job:.1f} s as a job, {len(s)} progress samples")
         pk._IDENT.clear(); os.remove(dest); t0 = time.time()
         h = post("/api/package/export", body(large, "Large Set")); t_sync = time.time() - t0
         ok("progress_costs_little_time", h.code == 200 and t_job <= t_sync * 1.15 + 3, {"job_s": round(t_job, 1), "without_job_s": round(t_sync, 1)})
@@ -180,7 +180,7 @@ def http_checks(ok):
         # active: about 13 s in 1 MB pieces (three times the 4 s limit), never quiet for more than 0.2 s
         t0 = time.time(); code, _, _ = upload("/api/package/stage", desk, data, MB, 0.2); dur = time.time() - t0
         ok("long_active_upload_succeeds", code == 200 and dur > 3 * 4, {"status": code, "seconds": round(dur, 1)})
-        print(f"   active upload: {len(data) / MB:.0f} MB over {dur:.1f} s with an inactivity limit of 4 s")
+        print(f"   active upload: {cp.fmt_size(len(data))} over {dur:.1f} s with an inactivity limit of 4 s")
         code, _, _ = upload("/api/package/stage", desk, data, 16 * MB, 2.5)
         ok("pauses_shorter_than_the_limit_are_fine", code == 200, code)
         before = staged()

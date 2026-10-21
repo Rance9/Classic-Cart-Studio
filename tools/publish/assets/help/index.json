@@ -37,7 +37,7 @@
    1400,
    484
   ],
-  "bytes": 71392
+  "bytes": 49422
  },
  {
   "name": "grid-cards",
@@ -45,7 +45,7 @@
    1400,
    535
   ],
-  "bytes": 199945
+  "bytes": 206925
  },
  {
   "name": "list-rows",
@@ -85,7 +85,7 @@
    880,
    1404
   ],
-  "bytes": 80106
+  "bytes": 79463
  },
  {
   "name": "details",
@@ -93,23 +93,23 @@
    1400,
    1026
   ],
-  "bytes": 269792
+  "bytes": 269714
  },
  {
   "name": "my-collection-menu",
   "size": [
    656,
-   1144
+   968
   ],
-  "bytes": 54018
+  "bytes": 44554
  },
  {
   "name": "share-export",
   "size": [
    1400,
-   549
+   295
   ],
-  "bytes": 75031
+  "bytes": 50180
  },
  {
   "name": "loadout-band",
@@ -117,7 +117,7 @@
    1400,
    132
   ],
-  "bytes": 49644
+  "bytes": 49682
  },
  {
   "name": "will-it-fit",
@@ -125,7 +125,7 @@
    1400,
    795
   ],
-  "bytes": 91523
+  "bytes": 91692
  },
  {
   "name": "tv-preview",
@@ -133,7 +133,7 @@
    1600,
    943
   ],
-  "bytes": 331899
+  "bytes": 331982
  },
  {
   "name": "tv-pad",
@@ -157,7 +157,7 @@
    1400,
    787
   ],
-  "bytes": 271475
+  "bytes": 271579
  },
  {
   "name": "tv-search",
@@ -165,7 +165,7 @@
    1400,
    787
   ],
-  "bytes": 199616
+  "bytes": 199703
  },
  {
   "name": "desktop-invitation",
@@ -173,7 +173,7 @@
    1400,
    457
   ],
-  "bytes": 87858
+  "bytes": 88258
  },
  {
   "name": "install-check",
@@ -181,7 +181,7 @@
    1400,
    785
   ],
-  "bytes": 140495
+  "bytes": 140085
  },
  {
   "name": "install-connect",
@@ -189,7 +189,7 @@
    1400,
    755
   ],
-  "bytes": 106852
+  "bytes": 106972
  },
  {
   "name": "install-console-state",
@@ -197,7 +197,7 @@
    1400,
    874
   ],
-  "bytes": 141122
+  "bytes": 140499
  },
  {
   "name": "install-review",
@@ -205,15 +205,15 @@
    1400,
    959
   ],
-  "bytes": 168664
+  "bytes": 169282
  },
  {
   "name": "install-authorize",
   "size": [
    1400,
-   452
+   413
   ],
-  "bytes": 82288
+  "bytes": 74966
  },
  {
   "name": "install-verify",
@@ -221,7 +221,7 @@
    1400,
    552
   ],
-  "bytes": 91286
+  "bytes": 91446
  },
  {
   "name": "tv-sample",
@@ -229,7 +229,7 @@
    1400,
    787
   ],
-  "bytes": 389972
+  "bytes": 390082
  },
  {
   "name": "phone-toolbar",
@@ -237,6 +237,6 @@
    560,
    1212
   ],
-  "bytes": 193576
+  "bytes": 198934
  }
 ]

@@ -514,7 +514,11 @@ function visible(){ const q=searchQuery($('q').value); const fz=q?searchFuzzy(q,
   if(rkf){ const r=rankOf(g); const cons=r&&r.consensus||0, cnt=r&&r.count||0; if(rkf==='top10'&&!(cons&&cons<=10)) return false; if(rkf==='top25'&&!(cons&&cons<=25)) return false; if(rkf==='top50'&&!(cons&&cons<=50)) return false; if(rkf==='top100'&&!(cons&&cons<=100)) return false; if(rkf==='any'&&cnt<1) return false; if(rkf==='two'&&cnt<2) return false; if(rkf==='unranked'&&cnt>0) return false; }
   return true; }); }
 // user-facing sizes are decimal (1 KB = 1,000 B; 1 MB = 1,000,000 B; 1 GB = 1e9 B) computed from exact byte counts; internal byte and *_mib fields are untouched
-function fmt(n){ n=Number(n)||0; let v,u,d; if(n>=1e9){v=n/1e9;u='GB';d=2;} else if(n>=1e6){v=n/1e6;u='MB';d=2;} else {v=n/1e3;u='KB';d=1;} return v.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:d})+' '+u; }
+// the one size formatter of the page (website and Windows app; ccs_package.fmt_size is the same rule): bytes below 1,000, then KB/MB/GB/TB
+// with 1 or 2 decimals; a value that would round to 1,000 of a unit is shown in the next one (999,999 B = 1 MB); never "0" for a non-zero size
+const FMT_U=[['KB',1e3,1],['MB',1e6,2],['GB',1e9,2],['TB',1e12,2]];
+function fmt(n){ n=Math.max(0,Number(n)||0); if(n<1000) return Math.round(n).toLocaleString('en-US')+' B'; let i=0; while(i<FMT_U.length-1&&n>=FMT_U[i+1][1]) i++;
+ if(i<FMT_U.length-1&&Number((n/FMT_U[i][1]).toFixed(FMT_U[i][2]))>=1000) i++; const [u,d,p]=FMT_U[i]; return (n/d).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:p})+' '+u; }
 function emuTag(g){ return g.recommended_emulator==='kachikachi'?`<span class="tag k">kachikachi</span>`:g.recommended_emulator==='RetroArch'?`<span class="tag r">RetroArch ${esc(g.core||'')}</span>`:'<span class="tag u">unknown</span>'; }
 function idTag(g){ return g.nointro_match?'<span class="tag k" title="payload CRC32 found in the No-Intro database">identity: verified</span>':'<span class="tag r" title="matched only in a cartridge database">identity: cart-DB</span>'; }
 function hdrTag(g){ const h=g.header_validation_short; return h==='cross-validated'?'<span class="tag k" title="NesCartDB and Mesen/NES 2.0 DB agree">header: 2 sources</span>':h==='single-source'?'<span class="tag r" title="only one database has this cartridge">header: 1 source</span>':h==='conflict'?'<span class="tag u">header: conflict</span>':'<span class="tag u">header: none</span>'; }
@@ -604,7 +608,7 @@ document.body.addEventListener('mouseover',e=>{ const t=e.target; if(t.tagName==
 document.body.addEventListener('mousemove',e=>{ if(hv.style.display==='block') placeHover(e.clientX,e.clientY); });
 document.body.addEventListener('mouseout',e=>{ const t=e.target; if(t.tagName==='IMG'&&t.dataset.id) hv.style.display='none'; });
 document.addEventListener('scroll',()=>{ hv.style.display='none'; },true);
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('details').classList.remove('open'); $('tray').classList.remove('open'); $('filters').classList.remove('open'); $('hkpanel').classList.remove('open'); $('selectMenu').hidden=true; } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('details').classList.remove('open'); $('tray').classList.remove('open'); $('filters').classList.remove('open'); if(!(typeof PROC!=='undefined'&&PROC.hkpanel)) $('hkpanel').classList.remove('open'); $('selectMenu').hidden=true; } });   // an installation step that is running closes only through its own Cancel
 // ---- filters modal, select menu, active-filter chips ----
 const FILTERS=[['fYear','Year'],['fPub','Publisher'],['fLic','Licensed'],['fGenre','Genre'],['fPlayers','Players'],['fEmu','Emulator'],['fVer','Identity / header'],['fBuilt','Built-in'],['fSel','Selection'],['fInput','Controllers'],['fRank','Ranking']]; const FDEF={};
 if(!SRC.length){ $('fRankLabel').hidden=true; $('thRank').hidden=true; }
