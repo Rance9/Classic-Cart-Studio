@@ -194,8 +194,16 @@ class H(http.server.BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", o); self.send_header("Vary", "Origin"); self.send_header("Access-Control-Expose-Headers", "X-NES-Protocol, X-NES-Version")
         self.send_header("X-NES-Protocol", str(PROTOCOL)); self.send_header("X-NES-Version", VERSION)
     def _json(self, code: int, obj: dict):
-        try:   # an unread request body must not leak into the next request on a kept-alive connection
-            if int(self.headers.get("Content-Length", "0") or 0) > 0 and not getattr(self, "_body_read", False): self.close_connection = True
+        try:   # an unread request body must not leak into the next request on a kept-alive connection. A small one (a refused
+            # request's JSON) is read and dropped: closing a socket with unread bytes makes Windows reset the connection, and the client
+            # could lose this response. A large one is not read; the connection is closed after the response instead.
+            n = int(self.headers.get("Content-Length", "0") or 0)
+            if n > 0 and not getattr(self, "_body_read", False):
+                self._body_read = True
+                if n <= 1 << 20:
+                    try: self._recv(n)
+                    except Exception: self.close_connection = True
+                else: self.close_connection = True
         except ValueError: self.close_connection = True
         b = json.dumps(obj).encode("utf-8"); self.send_response(code); self.send_header("Content-Type", "application/json; charset=utf-8"); self.send_header("Content-Length", str(len(b)))
         self.send_header("Cache-Control", "no-store"); self.send_header("X-Content-Type-Options", "nosniff"); self._cors(); self.end_headers(); self.wfile.write(b)

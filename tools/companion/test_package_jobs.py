@@ -214,6 +214,14 @@ def http_checks(ok):
         code, j = req("POST", "/api/package/job", {"job": "x"}, headers={"Origin": SITE}); ok("jobs_are_desktop_only", code in (401, 403), code)
         code, _, _ = upload("/api/handoff/package", {"Origin": SITE}, data, 4 * MB, 0.0)
         ok("website_handoff_still_works", code == 200, code)
+        # a refused request's small body is read and dropped before the answer, so the connection closes cleanly (Windows resets a
+        # socket closed with unread bytes, and the client then lost the answer now and then)
+        errors = []
+        for _ in range(500):
+            for path, body, hdr in (("/api/pair/claim", {"code": "x"}, {}), ("/api/package/job", {"job": "x"}, {"Authorization": "Bearer " + "0" * 32, "Origin": SITE}), ("/api/package/cancel", {"job": "x"}, {"Origin": SITE})):
+                try: req("POST", path, body, hdr)
+                except Exception as e: errors.append((path, repr(e)[:120]))
+        ok("refused_requests_always_get_their_answer", not errors, f"{len(errors)} of 1500 lost: {errors[:3]}")
     finally:
         proc.terminate()
         try: proc.wait(10)
