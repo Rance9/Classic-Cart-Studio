@@ -13,6 +13,7 @@ with the API, and exposes three JSON endpoints that only the served page can cal
   POST /api/personal/pick     native file picker -> identify (exact content match or new personal entry with a managed copy)
   POST /api/personal/relink   body {id} -> picker; accepted only when the content hash matches the entry
   POST /api/personal/update   body {id, user:{title, version_label, description, year, publisher}}
+  POST /api/personal/merge    body {id, meta:{title, version_label, description, year, publisher}, art?: data:image/jpeg|png} (D-1 merge policy)
   POST /api/personal/art      body {id} -> picker (image) -> stored thumbnail
   POST /api/personal/remove   body {id, delete_copy?}
   POST /api/library/adopt     create personal entries for local custom games the inventory does not know (read-only towards Hakchi)
@@ -522,6 +523,12 @@ class H(http.server.BaseHTTPRequestHandler):
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.relink(eid, f)})
                 if path == "/api/personal/update": return self._json(200, {"ok": True, **ps.update_user(eid, body.get("user") or {})})
+                if path == "/api/personal/merge":   # a collection's kept details (and artwork) for a game whose ROM file is now here (merge policy in personal.py)
+                    art = None; a = str(body.get("art") or "")
+                    m = re.match(r"^data:image/(jpeg|png);base64,([A-Za-z0-9+/=]+)$", a)
+                    if m and len(m.group(2)) <= 1_400_000:
+                        import base64; art = base64.b64decode(m.group(2))
+                    return self._json(200, {"ok": True, **ps.merge_metadata(eid, body.get("meta") if isinstance(body.get("meta"), dict) else {}, art=art)})
                 if path == "/api/personal/art":
                     f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Choose artwork", [("Images", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")])
                     if not f: return self._json(200, {"ok": False, "canceled": True})

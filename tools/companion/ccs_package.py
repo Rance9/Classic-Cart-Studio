@@ -393,7 +393,51 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
         return {"manifest": man, "kind": KIND, "data": main, "roms": roms, "problems": problems, "size": size, "ok": not problems,
                 "rom_count": len(roms), "rom_bytes": sum(r["size"] for r in roms), "games": len(ids), "art": sorted(p for p in lp if p.startswith("art/"))}
 
-def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, cancel=lambda: False, progress=None) -> dict:
+MAX_ART = 1 << 20      # art entries are thumbnails; larger ones are left unused (the website reader's limit too)
+PERSONAL_RE = re.compile(r"^p_[0-9a-f]{16}$")
+_ROM_NAME = re.compile(r"^(p_)?[0-9a-f]{16}(\.(nes|unh|bin|fds|zip))?$", re.I)
+def generic_text(v: str) -> bool:
+    """an automatic value, not a description: blank, a game id, a package ROM file name, a ROM file name, 'Personal game'"""
+    s = str(v or "").strip(); return not s or bool(_ROM_NAME.match(s)) or s.lower() in ("personal game", "unknown") or bool(re.search(r"\.(nes|unh|bin|fds|zip)$", s, re.I))
+
+def package_metadata(data: dict, manifest: dict | None = None) -> dict:
+    """The descriptive details a package carries for each personal game (untrusted text; personal.merge_metadata cleans and bounds it),
+    field by field from the first location that has a real value: personal_library[].user, ccs_collection.coll.missing, selections,
+    personal_library[] itself, then the ROM listing's title. Automatic values (ids, file names) never count. {id: {field: text}}"""
+    d = data if isinstance(data, dict) else {}; cc = d.get("ccs_collection") if isinstance(d.get("ccs_collection"), dict) else {}
+    coll = cc.get("coll") if isinstance(cc.get("coll"), dict) else {}; miss = coll.get("missing") if isinstance(coll.get("missing"), dict) else {}
+    pl = {p["id"]: p for p in d.get("personal_library") or [] if isinstance(p, dict) and isinstance(p.get("id"), str)}
+    sels = {}
+    for s in d.get("selections") or []:
+        if isinstance(s, dict): sels.setdefault(str(s.get("version_id") or s.get("game_id") or ""), s)
+    rt = {}
+    for r in ((manifest or {}).get("roms") or {}).get("included") or [] if isinstance((manifest or {}).get("roms"), dict) else []:
+        if isinstance(r, dict) and isinstance(r.get("version_id"), str): rt[r["version_id"]] = r.get("title")
+    ids = [i for i in (_game_ids(d) or list(sels)) if PERSONAL_RE.match(i)]
+    out = {}
+    for i in ids:
+        p = pl.get(i) or {}; u = p.get("user") if isinstance(p.get("user"), dict) else {}; m = miss.get(i) if isinstance(miss.get(i), dict) else {}; s = sels.get(i) or {}
+        cand = {"title": (u.get("title"), m.get("title"), s.get("display_title"), s.get("title"), p.get("title"), rt.get(i)),
+                "version_label": (u.get("version_label"), m.get("version_label"), m.get("version"), s.get("version_label"), s.get("nointro_name"), p.get("version_label")),
+                "description": (u.get("description"), m.get("description"), s.get("description")),
+                "year": (u.get("year"), m.get("year"), s.get("year")), "publisher": (u.get("publisher"), m.get("publisher"), s.get("publisher"))}
+        rec = {}
+        for f, vs in cand.items():
+            for v in vs:
+                if isinstance(v, (str, int)) and not isinstance(v, bool) and not generic_text(str(v)) and str(v).strip() != i: rec[f] = str(v); break
+        out[i] = rec
+    return out
+
+def art_entry(z: zipfile.ZipFile, gid: str) -> bytes | None:
+    """a package's artwork for one game (art/<id>.jpg or .png), at most MAX_ART bytes; None when absent or too large"""
+    for ext in (".jpg", ".png"):
+        try: info = z.getinfo("art/" + gid + ext)
+        except KeyError: continue
+        if info.file_size > MAX_ART: return None
+        buf = bytearray(); _stream(z, info, buf.extend); return bytes(buf)
+    return None
+
+def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, cancel=lambda: False, progress=None, merge: bool = True) -> dict:
     """After the user accepted: verify the whole package again, then hand each accepted, verified ROM file to the Studio's managed stores
     (personal.py identifies it by its own content; a known version gets the library copy, anything else a personal entry). Files already
     there are reused (deduplicated by content hash), never overwritten. Returns {"imported": [{version_id, stored_as, ...}], "rejected": [...]}"""
@@ -405,6 +449,7 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
     want = set(accept) if accept is not None else None; imported, rejected = [], []; done = 0
     total = sum(r["size"] for r in info["roms"] if want is None or r["version_id"] in want)
     src, note = "package:" + os.path.basename(path), "from a Classic Cart Studio package"
+    meta = package_metadata(info["data"], info["manifest"]) if merge and ps is not None else {}; merged = []
     with zipfile.ZipFile(path) as z:
         for r in info["roms"]:
             vid = r["version_id"]; fname = os.path.basename(r["path"])
@@ -433,6 +478,11 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
             exact = got_id.removeprefix("p_") == vid.removeprefix("p_") and got_id != ""
             (imported if exact else rejected).append({"version_id": vid, "stored_as": got_id, "title": r.get("title", ""), "exact": exact,
                                                       "reason": "" if exact else "This file was stored under a different identity than the package says, so it was kept as its own game."})
+            if exact and merge and ps is not None and PERSONAL_RE.match(got_id):   # the package's details and artwork for a personal game (D-1)
+                try:
+                    mr = ps.merge_metadata(got_id, meta.get(vid) or {}, art=art_entry(z, vid))
+                    if mr["changed"]: merged.append({"version_id": vid, "fields": mr["changed"]})
+                except (ValueError, OSError) as e: merged.append({"version_id": vid, "fields": [], "problem": str(e)[:200]})
             done += r["size"]
             if progress: progress(done, total)
-    return {"imported": imported, "rejected": rejected}
+    return {"imported": imported, "rejected": rejected, "merged": merged}

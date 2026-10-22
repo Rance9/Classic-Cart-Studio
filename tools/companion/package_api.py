@@ -13,13 +13,15 @@ Desktop application only (the window's desktop principal):
   POST /api/package/stage         a package the user picked in the window (raw bytes) -> staged, verified, described
   POST /api/package/open          a package opened from Windows (file association; a local .ccs path) -> staged, verified, described
   GET  /api/package/preview?id=   the description of a staged package (also for one handed over by the website)
-  POST /api/package/import-roms   after the recipient accepted: verified ROM files into the managed stores
+  POST /api/package/import-roms   after the recipient accepted: verified ROM files into the managed stores; personal games get the
+                                  package's details and artwork (personal.merge_metadata policy)
+  POST /api/package/keep-art      {id} -> the package's artwork for its personal games kept in personal/art (with or without ROM files)
 The website (allow-listed origin only, like the collection offer) may only ADD a package to the staging folder:
   POST /api/handoff/package       raw bytes of a package the person chose on ClassicCartStudio.com; never readable back by any website
 There is no package size limit; a package is refused (HTTP 507) only when the drive lacks the free space for it. Staged packages expire
 after a day."""
 from __future__ import annotations
-import base64, json, os, re, secrets, shutil, sqlite3, subprocess, sys, threading, time
+import base64, json, os, re, secrets, shutil, sqlite3, subprocess, sys, threading, time, zipfile
 import ccs_package as cp
 
 STAGE_TTL = 24 * 3600; SPACE_MARGIN = 64 * 1024 ** 2
@@ -343,6 +345,21 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
         except cp.PackageError as e: return handler._json(400, {"ok": False, "error": str(e)})
         except OSError as e: return handler._json(507, {"ok": False, "error": f"The ROM files could not be saved on this computer ({e.strerror or e}). Nothing was imported."})
         return handler._json(200, dict(r, ok=True))
+    if path == "/api/package/keep-art":   # the package's artwork for its personal games, kept in personal/art (also when imported without ROM files)
+        p = _path_for(d, str(body.get("id") or ""))
+        if not p: return handler._json(404, {"ok": False, "error": "That package is no longer open. Open the .ccs file again."})
+        try: info = cp.inspect(p, verify_roms=False)
+        except cp.PackageError as e: return handler._json(400, {"ok": False, "error": str(e)})
+        if not info["ok"]: return handler._json(400, {"ok": False, "error": "The package is damaged, so its artwork was not used."})
+        import personal as ps
+        out = {}
+        with zipfile.ZipFile(p) as z:
+            for gid in (cp._game_ids(info["data"]) or []):
+                if not cp.PERSONAL_RE.match(gid): continue
+                data = cp.art_entry(z, gid)
+                rel = ps.keep_art(gid, data) if data else ""
+                if rel: out[gid] = rel
+        return handler._json(200, {"ok": True, "art": out})
     if path == "/api/package/rom-check":   # which of the games have their EXACT ROM file on this computer (never a substitute)
         out = {"available": [], "missing": [], "mismatched": []}; ctx = {}
         for g in body.get("games") or []:

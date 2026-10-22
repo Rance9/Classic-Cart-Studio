@@ -193,7 +193,7 @@ def _personal_entry(tmp: str, ident: dict, fname: str, src: str, note: str, orig
     else: det.update(emulator="unknown", core="", launch_command="", compat_notes="no header: the ROM's mapper is unknown, so it cannot be prepared for the console", compat_confidence="none")
     old = idx["entries"].get(eid, {})
     e = {"id": eid, "origin": old.get("origin") or origin, "added": old.get("added") or time.strftime("%Y-%m-%dT%H:%M:%S"), "file_name": fname, "source_path": src, "note": note, "format": ident["format"], "file_sha256": ident["file_sha256"], "file_size": ident["file_size"],
-         "content_sha256": ident["content_sha256"], "content_size": ident["content_size"], "content_crc32": ident["content_crc32"], "managed_copy": managed, "detected": det, "user": old.get("user") or {"title": local_name or det["title"], "version_label": "", "description": "", "year": "", "publisher": "", "art": ""},
+         "content_sha256": ident["content_sha256"], "content_size": ident["content_size"], "content_crc32": ident["content_crc32"], "managed_copy": managed, "detected": det, "user": old.get("user") or {"title": local_name or det["title"], "version_label": "", "description": "", "year": "", "publisher": "", "art": _kept_art(eid)},
          "local_code": local_code or old.get("local_code", ""), "relatives": probable_relatives(fname), "identity": "personal"}
     idx["entries"][eid] = e; save_index(idx); return {"entry": public(e), "content_sha256": ident["content_sha256"]}
 
@@ -232,10 +232,13 @@ def relink(entry_id: str, path: str) -> dict:
 def update_user(entry_id: str, user: dict) -> dict:
     idx = load_index(); e = idx["entries"].get(entry_id)
     if not e: raise ValueError("That game is no longer among your own games.")
-    allowed = ("title", "version_label", "description", "year", "publisher")
+    allowed = ("title", "version_label", "description", "year", "publisher"); edited = set(e["user"].get("edited") or [])
     for k in allowed:
-        if k in user: e["user"][k] = str(user[k])[:200]
-    save_index(idx); return {"entry": public(e)}
+        if k in user:
+            v = str(user[k])[:200]
+            if v != e["user"].get(k, ""): edited.add(k)   # a field the person changed: never replaced by a package's details
+            e["user"][k] = v
+    e["user"]["edited"] = sorted(edited); save_index(idx); return {"entry": public(e)}
 
 def set_art(entry_id: str, path: str) -> dict:
     from PIL import Image
@@ -245,7 +248,74 @@ def set_art(entry_id: str, path: str) -> dict:
     os.makedirs(ART_DIR, exist_ok=True); im = Image.open(path); im.verify(); im = Image.open(path)
     if im.width * im.height > 200_000_000: raise ValueError("The image is too large (more than 200 million pixels).")
     im = im.convert("RGB"); im.thumbnail((480, 640)); out = os.path.join(ART_DIR, entry_id + ".jpg"); im.save(out, "JPEG", quality=88)
-    e["user"]["art"] = "personal/art/" + entry_id + ".jpg"; save_index(idx); return {"entry": public(e)}
+    e["user"]["art"] = "personal/art/" + entry_id + ".jpg"; e["user"]["edited"] = sorted(set(e["user"].get("edited") or []) | {"art"}); save_index(idx); return {"entry": public(e)}
+
+# ------------------------------------------------------------------ details and artwork from .ccs packages (D-1)
+# Merge policy, field by field (title, version_label, description, year, publisher, artwork):
+#   1. a field the person edited here (update_user / set_art; listed in user.edited) is never changed;
+#   2. otherwise a local value that is a real description is kept: the first real value wins, so a second package or collection with
+#      other details for the same game changes nothing;
+#   3. an empty value, or an automatic one (the game id, a package ROM file name, the title derived from the file name it was added
+#      with), is replaced by the incoming value when that is a real description; automatic incoming values are ignored;
+#   4. artwork is set only when the game has none (or its file is gone); an image already kept for this game is used first.
+# Identity (content hashes, the id) and detection (header fields, compatibility) are never touched. Incoming text is untrusted: control
+# and formatting characters are removed and each field is bounded; images are checked and re-encoded as a JPEG thumbnail.
+META_LIMITS = {"title": 120, "version_label": 160, "description": 4000, "year": 8, "publisher": 80}
+PERSONAL_ID = re.compile(r"^p_[0-9a-f]{16}$")
+ART_MAX_PIXELS = 40_000_000
+
+def _clean_text(v, field: str) -> str:
+    import unicodedata
+    if not isinstance(v, (str, int)) or isinstance(v, bool): return ""
+    keep = "\n" if field == "description" else ""
+    s = "".join(c for c in str(v).replace("\r\n", "\n").replace("\t", " ") if c in keep or unicodedata.category(c) not in ("Cc", "Cf", "Cs", "Co"))
+    return s.strip()[:META_LIMITS[field]].strip()
+
+def _auto_title(t: str, e: dict) -> bool:
+    from ccs_package import generic_text
+    t = str(t or "").strip(); det = str((e.get("detected") or {}).get("title") or "").strip(); stem = re.sub(r"\s*\(.*?\)|\s*\[.*?\]", "", os.path.splitext(str(e.get("file_name") or ""))[0]).strip()
+    return generic_text(t) or t == e.get("id") or (bool(det) and t == det) or (bool(stem) and t == stem)
+
+def _art_file(entry_id: str) -> str: return os.path.join(ART_DIR, entry_id + ".jpg")
+def _kept_art(entry_id: str) -> str: return "personal/art/" + entry_id + ".jpg" if os.path.isfile(_art_file(entry_id)) else ""
+
+def keep_art(entry_id: str, data: bytes) -> str:
+    """Store a package's artwork for a personal game id as personal/art/<id>.jpg (a checked, re-encoded thumbnail). An image already kept
+    for that id is never replaced. Returns the relative path, or "" when the image was not usable (not a JPEG/PNG, too large, damaged)."""
+    from PIL import Image
+    from ccs_package import MAX_ART
+    if not PERSONAL_ID.match(entry_id or ""): raise ValueError("Artwork can be kept only for a personal game.")
+    if _kept_art(entry_id): return _kept_art(entry_id)
+    if not isinstance(data, (bytes, bytearray)) or not data or len(data) > MAX_ART: return ""
+    import io
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            if im.format not in ("JPEG", "PNG") or im.width * im.height > ART_MAX_PIXELS: return ""
+            im.verify()
+        with Image.open(io.BytesIO(data)) as im:
+            im = im.convert("RGB"); im.thumbnail((480, 640)); os.makedirs(ART_DIR, exist_ok=True); tmp = _art_file(entry_id) + f".{os.getpid()}.tmp"
+            im.save(tmp, "JPEG", quality=88)
+    except Exception: return ""
+    os.replace(tmp, _art_file(entry_id)); return "personal/art/" + entry_id + ".jpg"
+
+def merge_metadata(entry_id: str, meta: dict, art: bytes | None = None) -> dict:
+    """Apply a package's (or a collection's kept) details to a personal game under the merge policy above. {"entry", "changed": [fields]}"""
+    if not PERSONAL_ID.match(entry_id or ""): raise ValueError("Details can be merged only into a personal game.")
+    idx = load_index(); e = idx["entries"].get(entry_id)
+    if not e: raise ValueError("That game is not among your own games on this computer.")
+    from ccs_package import generic_text
+    u = e.setdefault("user", {}); edited = set(u.get("edited") or []); changed = []
+    for f in META_LIMITS:
+        v = _clean_text((meta or {}).get(f), f)
+        if not v or generic_text(v) or v == entry_id or f in edited: continue
+        cur = str(u.get(f) or "")
+        replace = _auto_title(cur, e) if f == "title" else (not cur.strip() or (f == "version_label" and generic_text(cur)))
+        if replace and v != cur: u[f] = v; changed.append(f)
+    if "art" not in edited and not (u.get("art") and os.path.isfile(os.path.join(ART_DIR, os.path.basename(str(u["art"]))))):
+        rel = _kept_art(entry_id) or (keep_art(entry_id, art) if art else "")
+        if rel: u["art"] = rel; changed.append("art")
+    if changed: save_index(idx)
+    return {"entry": public(e), "changed": changed}
 
 def remove(entry_id: str, delete_copy: bool = False) -> dict:
     idx = load_index(); e = idx["entries"].pop(entry_id, None)

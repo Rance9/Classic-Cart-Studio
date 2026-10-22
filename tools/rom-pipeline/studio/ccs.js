@@ -264,6 +264,7 @@ function ccsPreview(info, fname){ if(!info.ok){ ccsFail(fname, 'It is incomplete
   <div class="acts">${web&&typeof desktopAvailable==='function'&&desktopAvailable()?`<button class="btn" id="ccsWin">Open in Windows App</button>`:''}<span class="sp"></span><button class="btn" id="ccsNo">Cancel</button><button class="btn hk" id="ccsGo">${web?'Save to My Collections':canRoms?'Import…':'Import Collection'}</button></div>`);
  $('ccsNo').onclick=closeColl; if($('ccsWin')) $('ccsWin').onclick=()=>ccsToApp(info.file, fname);
  $('ccsGo').onclick=async()=>{ if(canRoms){ const a=await ccsAck(CCS_IMPORT_ACK); if(a==='cancel') return; if(a==='with'){ const ok=await ccsImportRoms(info); if(!ok) return; } }
+  if(info.source==='staged'&&info.id&&ccsAppPackages()){ const ka=await hkPost('/api/package/keep-art', {id:info.id}); if(ka&&ka.ok) info.art=ka.art||{}; }   /* the package's artwork for its personal games, kept in the app's own folder */
   if(web&&info.zip){ for(const x of info.roms) if(x.verified) ccsSrcAdd({name:x.path, ext:x.ext, sha256:x.sha256, content_sha256:x.content_sha256, size:x.size, raw:{blob:await info.zip.raw(x.entry), method:x.entry.method, crc:x.entry.crc, csize:x.entry.csize, usize:x.entry.usize}}); }
   closeColl(); const r=ccsSaveCollection(info); if(!r) return;
   openColl('Collection Imported', '', `<div class="msgbox ok">"${esc(r.name)}" (${(r.sel||[]).length} game${(r.sel||[]).length===1?'':'s'}${(r.loadouts||[]).length?`, ${(r.loadouts||[]).length} NES Classic Loadout${(r.loadouts||[]).length===1?'':'s'}`:''}) is in My Collections.${info._romResult?` ${info._romResult.imported.length} ROM file${info._romResult.imported.length===1?' was':'s were'} added to this computer.`:canRoms?' Saved without its ROM files.':''}</div>${info._romResult&&info._romResult.rejected.length?`<div class="msgbox warn">${info._romResult.rejected.length} file${info._romResult.rejected.length===1?' was':'s were'} not used: ${esc(info._romResult.rejected.map(x=>x.reason).join('; '))}</div>`:''}<div class="acts"><button class="btn ghost" id="ccsStay">Stay Here</button><span class="sp"></span><button class="btn hk" id="ccsOpen">Open It Now</button></div>`);
@@ -275,8 +276,13 @@ async function ccsImportRoms(info){ $('collBody').querySelectorAll('.acts button
 // a new, independent collection from a package (every entry kept; artwork of games not on this computer kept with their entries)
 function ccsSaveCollection(info){ const d=info.data||{}; const rec0=d.ccs_collection; if(!rec0||!Array.isArray(rec0.sel)){ csImportObject(d, 'package'); return csActive(); }
  const {rec}=csRecordFromFile(rec0, rec0.name); const sels=Object.fromEntries((d.selections||[]).map(s=>[s.version_id||s.game_id, s]));
- rec.sel.forEach(id=>{ if(byId[id]) { delete rec.coll.missing[id]; return; } const s=sels[id]; const m=rec.coll.missing[id]; if(s&&(!m||m.title===id)) rec.coll.missing[id]=csEntryFromSelection(s, d.personal_library); if(info.art&&info.art[id]&&rec.coll.missing[id]) rec.coll.missing[id].thumb_url=info.art[id]; });
- return csCreate(rec.name, rec); }
+ const kept=[]; const given=(rec0.coll&&typeof rec0.coll==='object'&&rec0.coll.missing&&typeof rec0.coll.missing==='object')?rec0.coll.missing:{};
+ rec.sel.forEach(id=>{ const s=sels[id]; let m=given[id]?csCleanMissing(given[id], id):null; if(s) m=csMergeEntry(m, csEntryFromSelection(s, d.personal_library), id); if(!m) m=rec.coll.missing[id]||null;
+  if(m&&info.art&&info.art[id]&&!m.thumb_url) m.thumb_url=csThumbOk(info.art[id]);
+  if(byId[id]){ if(m&&/^p_[0-9a-f]{16}$/.test(id)) kept.push([id, m]); delete rec.coll.missing[id]; return; }   /* on this computer: its details go to the personal store */
+  if(m) rec.coll.missing[id]=m; });
+ Object.keys(rec.coll.missing).forEach(id=>{ if(!rec.sel.includes(id)) delete rec.coll.missing[id]; });
+ const r=csCreate(rec.name, rec); if(kept.length) csMergePersonal(kept).then(n=>{ if(n) refreshPersonal().then(()=>{ if(typeof render==='function') render(); }); }); return r; }
 // the website hands a package to Classic Cart Studio on this computer (local only, allow-listed origin), then opens the app on it
 async function ccsToApp(file, fname){ if(!file){ ccsAppFallback(fname); return; }
  const post=()=>fetch(CO.base+'/api/handoff/package', lnaInit({method:'POST', headers:{'Content-Type':'application/octet-stream','X-NES-Protocol':String(CO.REQ_PROTOCOL)}, body:file, cache:'no-store'})).then(r=>r.json()).catch(()=>({ok:false, unreachable:true}));
