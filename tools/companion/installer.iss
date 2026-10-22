@@ -147,11 +147,16 @@ begin
     RemoveOwnValue('', 'ClassicCartStudio.Collection');
     RemoveOwnValue('Content Type', 'application/vnd.classiccartstudio.collection+zip');
   end;
-  // after the uninstaller removed its own values: the .ccs keys go only when nothing else is left in them
+  // after the uninstaller removed its own values and keys: the .ccs keys, and the parents of the Open With registration under
+  // Applications\{#AppExe} (its SupportedTypes and shell\open\command keys are removed above), go only when nothing else is left in
+  // them, deepest first; a key that still holds anything (another program's or the person's own values) is kept as it is
   if CurUninstallStep = usPostUninstall then
   begin
     RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs\OpenWithProgids');
     RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\.ccs');
+    RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\Applications\{#AppExe}\shell\open');
+    RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\Applications\{#AppExe}\shell');
+    RegDeleteKeyIfEmpty(HKCU, 'Software\Classes\Applications\{#AppExe}');
   end;
   // the data folder is kept on purpose: say where it is, and offer to open it (nothing is deleted or uploaded)
   if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then

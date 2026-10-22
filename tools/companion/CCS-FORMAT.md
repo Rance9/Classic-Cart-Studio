@@ -109,3 +109,32 @@ Decompression stops at the declared size of each entry. Nothing in a package is 
 - **Website:** the package is verified completely in the browser (every checksum and identity). The collection is added to My
   Collections; the website does not keep ROM files, so to export or share again the person chooses the `.ccs` file (or the ROM
   files) when asked.
+
+## Personal games: details and artwork
+
+A personal game's descriptive details are its title, version label, description, year and publisher, plus its artwork
+(`art/<id>.jpg` or `.png`). Writers put them in `personal_library[].user`, the selections and, for games without their file on the
+writer's device, `ccs_collection.coll.missing`. Readers take each field from the first of these that has a real value:
+`personal_library[].user`, `ccs_collection.coll.missing`, the selection, `personal_library[]` itself, then the ROM listing's title.
+Automatic values never count as details: a game id, a ROM file name, "Personal game".
+
+All of it is untrusted input. Control and formatting characters are removed and each field is bounded (title 120, version label
+160, description 4,000, year 8, publisher 80 characters). Artwork must be a JPEG or PNG of at most 1 MB and 40 million pixels. It is
+re-encoded as a JPEG thumbnail; an unusable image is ignored and never stops an import.
+
+How the details are merged into what this device already has for the same game, field by field:
+
+1. A field the person edited on this device is never changed.
+2. Otherwise a real local value is kept: the first real value wins, so importing another package or collection with different
+   details for the same game changes nothing.
+3. An empty or automatic local value (for example the title taken from the file name the game was added with) is replaced by the
+   package's real value.
+4. Artwork is added only when the game has none.
+
+The game's identity (content hashes, id) and the technical detection read from its file are never affected.
+
+In the Windows app, the details go to the personal game itself when its ROM file is imported. The artwork is kept in the app's
+own folder (`personal/art`), also when the collection is imported without its ROM files. When the exact ROM file is added later, the
+collection's details are merged the same way. Nothing depends on the imported `.ccs` file or on the app's staged copy of it (staged
+copies older than 24 hours are removed the next time a package is opened, staged or exported; there is no scheduled cleanup, and the
+uninstaller leaves the data folder, including any staged copies, in place).
