@@ -31,8 +31,9 @@ AppUpdatesURL={#RepoURL}/releases
 DefaultDirName={localappdata}\Programs\ClassicCartStudio
 DisableDirPage=yes
 DisableProgramGroupPage=yes
+; per-user only (owner decision): always the non-administrative install mode, with no install-mode dialog and no /ALLUSERS override
+; (PrivilegesRequiredOverridesAllowed is left at its default, none); program files, shortcuts and registrations are all per user
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
 OutputDir={#OutDir}
 OutputBaseFilename=ClassicCartStudio-Setup-{#AppVersion}
 SetupIconFile={#SourceDir}\_internal\site\brand\public\app.ico
