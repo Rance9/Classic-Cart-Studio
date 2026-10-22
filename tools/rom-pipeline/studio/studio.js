@@ -174,7 +174,10 @@ function techShow(from){ const m=$('tech'); if(!m.classList.contains('open')){ T
   TECH.inert=[...document.body.children].filter(x=>x!==m&&x.id!=='toast'&&!x.hasAttribute('inert')); TECH.inert.forEach(x=>x.setAttribute('inert','')); m.classList.add('open'); }
  const f=$('techTabs').querySelector('button.on')||$('techClose'); if(f) f.focus(); }
 function closeTech(){ const m=$('tech'); if(!m.classList.contains('open')) return; m.classList.remove('open'); TECH.inert.forEach(x=>x.removeAttribute('inert')); TECH.inert=[];
- const r=TECH.ret; TECH.ret=null; if(r&&r.isConnected&&r.focus) r.focus(); }
+ let r=TECH.ret; TECH.ret=null;
+ if(r&&!r.isConnected&&r.id){ const n=document.getElementById(r.id); if(n&&n.dataset.id===r.dataset.id) r=n; }   /* Game Details was redrawn while this was open (its details refreshed): the same game's button */
+ if(!(r&&r.isConnected&&r.focus)) return; r.focus();
+ if(document.activeElement!==r) requestAnimationFrame(()=>{ if(r.isConnected&&!m.classList.contains('open')&&document.activeElement!==r) r.focus(); }); }   /* the click that closed it can leave focus on the hidden dialog until the next frame */
 $('techClose').onclick=closeTech; $('tech').onclick=e=>{ if(e.target.id==='tech') closeTech(); };
 $('tech').addEventListener('keydown',e=>{ if(e.key!=='Tab') return; const f=[...$('tech').querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled&&x.offsetParent!==null);
  if(!f.length) return; const i=f.indexOf(document.activeElement); e.preventDefault(); f[(i<0?0:i+(e.shiftKey?-1:1)+f.length)%f.length].focus(); });
