@@ -19,7 +19,7 @@ function csWrite(){ try{ localStorage.setItem(CSKEY, JSON.stringify(CS)); }catch
 function csHomeRead(){ try{ return JSON.parse(localStorage.getItem(HOME_KEY)||'null'); }catch(e){ return null; } }
 function csCollFields(c){ const o={}; ['created','modified','savedToFile','prepared','baseline','pref','multi','avail','placeholders','missing'].forEach(k=>{ if(c&&c[k]!==undefined) o[k]=c[k]; }); return JSON.parse(JSON.stringify(o)); }
 // the working copy (the established keys) -> a record
-function csFromWorking(id, name){ const S=csCollSel(), D=LO?LO.collDecisions:decisions; const coll=csCollFields(COLL); const mi={}; [...S].forEach(x=>{ if(!byId[x]&&coll.missing&&coll.missing[x]) mi[x]=coll.missing[x]; }); coll.missing=mi; return {id, name:(name||COLL.name||'My Collection').slice(0,80), created:COLL.created||csNow(), modified:COLL.modified||csNow(), sel:[...S], decisions:JSON.parse(JSON.stringify(D||{})), coll, home:LO?LO.collHome:csHomeRead()}; }
+function csFromWorking(id, name){ const S=csCollSel(), D=LO?LO.collDecisions:decisions; const coll=csCollFields(COLL); const mi={}; [...S].forEach(x=>{ if(coll.missing&&coll.missing[x]&&(!byId[x]||csPendingPersonal(x, coll.missing[x]))) mi[x]=coll.missing[x]; });   /* a personal game's details stay until the store confirms them (csMergePersonal) */ coll.missing=mi; return {id, name:(name||COLL.name||'My Collection').slice(0,80), created:COLL.created||csNow(), modified:COLL.modified||csNow(), sel:[...S], decisions:JSON.parse(JSON.stringify(D||{})), coll, home:LO?LO.collHome:csHomeRead()}; }
 function csActive(){ return CS&&CS.items[CS.active]; }
 function csList(){ return CS?Object.values(CS.items).sort((a,b)=>(b.modified||'').localeCompare(a.modified||'')):[]; }
 // ---- migration (idempotent): the first start with this version turns the existing single collection into the first named one ----
@@ -199,18 +199,40 @@ function csCleanMissing(m, id){ m=(m&&typeof m==='object')?m:{}; const hx=v=>/^[
 // a package's (or collection's) entry and the selection describing the same game: field by field, the first real description wins
 function csMergeEntry(m, e, id){ if(!m) return e; if(!e) return m; const o=Object.assign({}, e, m); ['title','version','description','year','publisher'].forEach(k=>{ o[k]=csMeaningful(m[k], id)?m[k]:(csMeaningful(e[k], id)?e[k]:(m[k]||e[k]||'')); }); if(!csMeaningful(o.title, id)) o.title=String(id).slice(0,120); o.thumb_url=m.thumb_url||e.thumb_url||''; o.art=m.art||e.art||''; if(!o.personal&&e.personal) o.personal=e.personal; return o; }
 // personal games whose ROM file is on this computer keep their details in the app's personal store: a collection's kept details and
-// artwork are merged into it there (personal.merge_metadata: what the person edited and real local details always win), once per game
-// and session; the kept entry is dropped from the collection afterwards as before (csFromWorking)
-const CS_MERGED=new Set();
-async function csMergePersonal(list){ if(!(typeof COMPANION!=='undefined'&&COMPANION.ok)||typeof hkPost!=='function') return 0; let n=0;
- for(const [id, x] of list){ if(!/^p_[0-9a-f]{16}$/.test(id)||!PERSONAL[id]||!x) continue; const key=id+'|'+x.title+'|'+x.year+'|'+x.publisher+'|'+(x.thumb_url||'').length; if(CS_MERGED.has(key)) continue; CS_MERGED.add(key);
-  const art=/^data:image\/(jpeg|png);base64,/.test(x.thumb_url||'')?x.thumb_url:'';
-  try{ const r=await hkPost('/api/personal/merge', {id, meta:{title:x.title, version_label:x.version, description:x.description, year:x.year, publisher:x.publisher}, art}); if(r&&r.ok&&(r.changed||[]).length) n++; }catch(e){} }
- return n; }
-function csReconcilePersonal(){ const todo=new Map(); const scan=miss=>Object.entries(miss||{}).forEach(([id,x])=>{ if(/^p_[0-9a-f]{16}$/.test(id)&&PERSONAL[id]&&x&&csMeaningful(x.title, id)&&!todo.has(id)) todo.set(id, x); });
- scan(COLL.missing); Object.values((typeof CS!=='undefined'&&CS.items)||{}).forEach(r=>scan(r&&r.coll&&r.coll.missing)); return todo.size?csMergePersonal([...todo]):Promise.resolve(0); }
-(function(){ if(typeof refreshPersonal!=='function') return; const _rp=refreshPersonal; let busy=false; refreshPersonal=async function(){ const r=await _rp.apply(this, arguments); if(busy) return r; busy=true;
-  try{ if(await csReconcilePersonal()){ await _rp.apply(this, arguments); if(typeof render==='function') render(); } }catch(e){} finally{ busy=false; } return r; }; })();
+// artwork are merged into it there (personal.merge_metadata: what the person edited and real local details always win). The kept entry
+// stays in the collection (pending) until the store confirms the merge: a refused, failed or interrupted request keeps it through
+// autosaves, switching collections and restarts, and the next reconcile (every personal-games refresh, e.g. when the app connects or
+// after an import) sends it again. Only a request in flight is not sent twice; nothing is remembered as "done" without confirmation.
+function csHasDetails(x, id){ return !!x&&(['title','version','description','year','publisher'].some(k=>csMeaningful(x[k], id))||!!x.thumb_url); }
+function csPendingPersonal(id, x){ return /^p_[0-9a-f]{16}$/.test(id||'')&&csHasDetails(x, id); }
+function csMetaKey(id, x){ return id+'|'+JSON.stringify([x.title||'', x.version||'', x.description||'', x.year||'', x.publisher||'', x.thumb_url||'']); }
+// the store confirmed this exact entry: drop it from every collection that still holds the same details (others stay pending)
+function csSettlePersonal(id, key){ let n=0; const drop=m=>{ if(m&&m[id]&&csMetaKey(id, m[id])===key){ delete m[id]; n++; } };
+ drop(COLL.missing); Object.values((typeof CS!=='undefined'&&CS.items)||{}).forEach(r=>drop(r&&r.coll&&r.coll.missing)); if(n){ saveColl(); csWrite(); } }
+const CS_INFLIGHT=new Map();   // key -> the request's promise (a second call for the same details waits for it instead of sending again)
+async function csMergePersonal(list){ const res={sent:0, ok:0, changed:0, failed:[]}; if(!(typeof COMPANION!=='undefined'&&COMPANION.ok)||typeof hkPost!=='function') return res;
+ for(const [id, x] of list){ if(!/^p_[0-9a-f]{16}$/.test(id)||!PERSONAL[id]||!x) continue; const key=csMetaKey(id, x);
+  let p=CS_INFLIGHT.get(key);
+  if(!p){ const art=/^data:image\/(jpeg|png);base64,/.test(x.thumb_url||'')?x.thumb_url:''; res.sent++;
+   p=(async()=>{ try{ return await hkPost('/api/personal/merge', {id, meta:{title:x.title, version_label:x.version, description:x.description, year:x.year, publisher:x.publisher}, art}); }catch(e){ return {ok:false, error:String(e)}; } })();
+   CS_INFLIGHT.set(key, p); p.finally(()=>{ if(CS_INFLIGHT.get(key)===p) CS_INFLIGHT.delete(key); }); }
+  const r=await p;
+  if(r&&r.ok){ res.ok++; if((r.changed||[]).length) res.changed++; csSettlePersonal(id, key); } else res.failed.push(id); }
+ return res; }
+// every pending entry for a personal game that is on this computer (one request per distinct set of details)
+function csPendingList(){ const todo=new Map(); const scan=miss=>Object.entries(miss||{}).forEach(([id,x])=>{ if(PERSONAL[id]&&csPendingPersonal(id, x)){ const k=csMetaKey(id, x); if(!todo.has(k)) todo.set(k, [id, x]); } });
+ scan(COLL.missing); Object.values((typeof CS!=='undefined'&&CS.items)||{}).forEach(r=>scan(r&&r.coll&&r.coll.missing)); return [...todo.values()]; }
+function csReconcilePersonal(){ const l=csPendingList(); return l.length?csMergePersonal(l):Promise.resolve({sent:0, ok:0, changed:0, failed:[]}); }
+// while details are still pending, the game shows them where its own are only automatic (never over what the person edited)
+function csShowPending(){ csPendingList().forEach(([id, x])=>{ const g=byId[id], e=PERSONAL[id]; if(!g||!e||g.source!=='personal') return; const u=e.user||{}, ed=u.edited||[];
+  const auto=t=>!csMeaningful(t, id)||t===(e.detected||{}).title||t===String(e.file_name||'').replace(/\.[^.]*$/,'');
+  if(!ed.includes('title')&&auto(g.display_title)&&csMeaningful(x.title, id)) g.display_title=x.title;
+  if(!ed.includes('version_label')&&!u.version_label&&csMeaningful(x.version, id)) g.rev=g.nointro_name=x.version;
+  if(!ed.includes('year')&&!g.year&&x.year) g.year=x.year;
+  if(!ed.includes('publisher')&&!g.publisher&&x.publisher) g.publisher=x.publisher;
+  if(!ed.includes('art')&&!g.art&&x.thumb_url) g.art=ccsArtSrc(x.thumb_url); }); }
+(function(){ if(typeof refreshPersonal!=='function') return; const _rp=refreshPersonal; let busy=false; refreshPersonal=async function(){ const r=await _rp.apply(this, arguments); if(busy){ csShowPending(); return r; } busy=true;
+  try{ const m=await csReconcilePersonal(); if(m.changed) await _rp.apply(this, arguments); csShowPending(); if(typeof render==='function') render(); }catch(e){} finally{ busy=false; } return r; }; })();
 // a cover's address: catalog box art is part of the site (relative, the same on the website and in the app); other images (personal
 // artwork) are served by the app's backend (artUrl); full URLs and data/blob images as they are
 function ccsArtSrc(p){ p=String(p||''); if(!p) return ''; if(/^(https?:|data:|blob:)/.test(p)||/^art\/[0-9a-f]{16}\.jpg$/.test(p)) return p; return artUrl(p); }
@@ -223,6 +245,12 @@ window.csEntries=csEntries;
   [...sel].filter(id=>!byId[id]&&!have.has(id)).forEach(id=>{ const x=csMissing(id); m.selections.push({title_id:null, version_id:id, game_id:id, payload_sha256:x.payload_sha256||x.content_sha256||null, title:x.title, display_title:x.title, version_label:x.version||'', nointro_name:x.version||'', description:x.description||'', year:x.year||'', publisher:x.publisher||'', source:x.source||'unknown', available:false, content_sha256:x.content_sha256||null, file_sha256:x.file_sha256||null, size:x.size||0, art:x.art||'', thumb_url:x.thumb_url||'', revision_decision:decisions[id]||null, install_required:true, comparison_status:'unknown'});
    if(x.personal&&!m.personal_library.some(p=>p.id===id)) m.personal_library.push(Object.assign({identity:'personal', file_present:false}, x.personal)); });
   (m.personal_library||[]).forEach(p=>{ if(p&&p.file_name) p.file_name=String(p.file_name).split(/[\\/]/).pop(); delete p.path; delete p.source_path; });   /* a file name only: never where the file is */
+  /* details still pending for a game on this computer go out with the package as the store will have them (same rules as csShowPending) */
+  (m.personal_library||[]).forEach(p=>{ const x=p&&(COLL.missing||{})[p.id]; if(!csPendingPersonal(p.id, x)) return; const e=PERSONAL[p.id]||{}, ed=((e.user||{}).edited)||[]; const u=Object.assign({}, p.user||{});
+   const auto=t=>!csMeaningful(t, p.id)||t===(e.detected||{}).title||t===String(e.file_name||'').replace(/\.[^.]*$/,'');
+   if(!ed.includes('title')&&auto(u.title)&&csMeaningful(x.title, p.id)) u.title=p.title=x.title;
+   [['version_label','version'],['description','description'],['year','year'],['publisher','publisher']].forEach(([f,k])=>{ if(!ed.includes(f)&&!String(u[f]||'').trim()&&csMeaningful(x[k], p.id)){ u[f]=x[k]; if(f==='version_label') p.version_label=x[k]; } });
+   p.user=u; });
   m.count=m.selections.length; if(m.summary) m.summary.collection=m.selections.length; m.unavailable=[...sel].filter(id=>!byId[id]).length; return m; }; })();
 // the tray lists the entries whose file or library record is not here, below the others
 (function(){ if(typeof renderTray!=='function') return; const _rt=renderTray; renderTray=function(){ const r=_rt.apply(this,arguments); try{ const miss=[...sel].filter(id=>!byId[id]); const ul=$('trayList'); if(ul&&miss.length){

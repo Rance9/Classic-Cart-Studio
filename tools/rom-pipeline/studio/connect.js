@@ -7,7 +7,7 @@ const PKEY='studio-companion-v1', REPO='Rance9/Classic-Cart-Studio', RELEASES_AP
 function loadPair(){ if(CO.desktop){ CO.bearer=window.__CCS_DESKTOP.token; CO.expires=2147483647; return; } CO.bearer=null; CO.expires=0; try{ localStorage.removeItem(PKEY); }catch(e){} }   /* the website never holds a backend token: it hands collections to the desktop app instead */
 function savePair(t,exp){ if(CO.desktop) return; CO.bearer=null; CO.expires=0; }
 function hdrs(extra){ const h=Object.assign({'X-NES-Protocol':String(CO.REQ_PROTOCOL)},extra||{}); if(CO.served) h['X-NES-Token']=CO.token; else if(CO.bearer) h['Authorization']='Bearer '+CO.bearer; return h; }
-function artUrl(p){ return p?(CO.base?CO.base+'/'+p:p):''; }
+function artUrl(p){ if(!p) return ''; let b=''; try{ b=CO.base; }catch(e){} return b?b+'/'+p:p; }   // CO is created below: before that (the page's first personal-games pass) the relative path, rebuilt once the helper connects
 /* a secure (https) page may reach http://127.0.0.1 only when it declares the target address space (Chrome/Edge Local Network Access); older browsers ignore the option */
 function lnaInit(init){ if(CO.hosted) init.targetAddressSpace='loopback'; return init; }
 async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.method||'GET',headers:hdrs(opts.body?{'Content-Type':'application/json'}:{}),cache:'no-store'}); if(opts.body) init.body=JSON.stringify(opts.body);
