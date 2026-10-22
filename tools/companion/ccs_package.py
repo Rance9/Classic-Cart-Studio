@@ -482,7 +482,7 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
                 try:
                     mr = ps.merge_metadata(got_id, meta.get(vid) or {}, art=art_entry(z, vid))
                     if mr["changed"]: merged.append({"version_id": vid, "fields": mr["changed"]})
-                except (ValueError, OSError) as e: merged.append({"version_id": vid, "fields": [], "problem": str(e)[:200]})
+                except Exception as e: merged.append({"version_id": vid, "fields": [], "problem": str(e)[:200]})   # the ROM is imported either way; the page keeps the details and tries again
             done += r["size"]
             if progress: progress(done, total)
     return {"imported": imported, "rejected": rejected, "merged": merged}

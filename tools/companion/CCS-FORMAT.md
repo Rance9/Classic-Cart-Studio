@@ -135,6 +135,7 @@ The game's identity (content hashes, id) and the technical detection read from i
 
 In the Windows app, the details go to the personal game itself when its ROM file is imported. The artwork is kept in the app's
 own folder (`personal/art`), also when the collection is imported without its ROM files. When the exact ROM file is added later, the
-collection's details are merged the same way. Nothing depends on the imported `.ccs` file or on the app's staged copy of it (staged
+collection's details are merged the same way. The collection keeps its copy of the details until the app has confirmed saving
+them; if saving fails, the app tries again the next time it refreshes its games or starts. Nothing depends on the imported `.ccs` file or on the app's staged copy of it (staged
 copies older than 24 hours are removed the next time a package is opened, staged or exported; there is no scheduled cleanup, and the
 uninstaller leaves the data folder, including any staged copies, in place).
