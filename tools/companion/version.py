@@ -1,5 +1,5 @@
 """Single source of the companion / website protocol version (shipped in both; the website refuses older companions)."""
-VERSION = "0.7.2"
+VERSION = "0.7.3"
 PROTOCOL = 1
 APP_ID = "classic-cart-studio-backend"
 SITE_ORIGINS = ("https://classiccartstudio.com",)   # the only website origin the Background Helper trusts: www.classiccartstudio.com and the
