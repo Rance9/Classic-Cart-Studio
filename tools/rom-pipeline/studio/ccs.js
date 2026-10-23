@@ -105,7 +105,10 @@ async function ccsAddRomSources(files, progress){ let found=0, ignored=0;
    if(/\.(nes|unh)$/i.test(nm)){ const d=new Uint8Array(await f.arrayBuffer()); const rec=await ccsIdentifyBytes(d, nm); rec.file=f; ccsSrcAdd(rec); found++; continue; }
    ignored++; }catch(e){ ignored++; } if(progress) progress(); }
  return {found, ignored}; }
-function ccsPickRoms(){ return new Promise(res=>{ const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; inp.accept='.nes,.unh,.zip,.ccs'; inp.onchange=()=>res([...inp.files]); inp.addEventListener('cancel',()=>res([])); inp.click(); }); }
+// pickers that take Classic Cart Studio's own file types (.ccs, .nes, .unh) set no `accept` filter: it is only a hint, and a system
+// picker may map an unregistered extension to no type and gray every file out (suspected on iPhone, not confirmed). Every chosen file
+// is checked by its content.
+function ccsPickRoms(){ return new Promise(res=>{ const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; inp.onchange=()=>res([...inp.files]); inp.addEventListener('cancel',()=>res([])); inp.click(); }); }
 // ---- what a collection's package holds: its file (every game, loadouts, HOME settings) and thumbnails of its own artwork ----
 async function ccsCollectionParts(r){ const file=csFileFor(r); const games=csWithRecord(r, ()=>shGames()); const art={}, artB64={};
  for(const g of games){ if(!g.own_art||!/^[A-Za-z0-9_.-]{1,96}$/.test(g.id)) continue; const t=await shThumb(g.own_art); if(t){ artB64[g.id+'.jpg']=t; const bin=atob(t); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); art[g.id+'.jpg']=u; } }
@@ -242,8 +245,19 @@ async function ccsDoneApp(mode, ex, name, parts){ let saved=null;
    catch(e){ if(e&&e.name==='AbortError') return; $('ccsShareOut').innerHTML=`<div class="msgbox warn">That didn't work here${ex.size>25e6?' (the file may be too large for the app)':''}. Save the package and share it from File Explorer instead.</div>`; } }; };
  draw(); }
 // ---- Import .ccs Collection ----
-function ccsImportPick(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='.ccs,application/json,.json'; inp.onchange=()=>{ const f=inp.files[0]; if(f) ccsOpenFile(f); }; inp.click(); }
-async function ccsOpenFile(f){ if(/\.json$/i.test(f.name)){ const t=await f.text(); let o; try{ o=JSON.parse(t); }catch(e){ toast('That file is not a collection file'); return; } if(o&&o.schema===SBACKUP_SCHEMA){ csRestoreDialog(o, f.name); return; } csImportObject(o, f.name); return; }
+function ccsImportPick(){ const inp=document.createElement('input'); inp.type='file'; inp.onchange=()=>{ const f=inp.files[0]; if(f) ccsOpenFile(f); }; inp.click(); }
+// what a chosen file is comes from its content, not its name or type: a JSON object is a collection file or a Studio data backup, a ZIP
+// is checked as a .ccs package, anything else is refused at once (nothing is read further, uploaded or saved)
+// (read in small pieces: JSON may start with any amount of whitespace, and only the first byte that is not whitespace decides)
+async function ccsFileKind(f){ const STEP=65536; let pos=0, first=true;
+ try{ while(pos<f.size){ const b=new Uint8Array(await f.slice(pos, Math.min(f.size, pos+STEP)).arrayBuffer()); let i=0;
+   if(first){ first=false; if(b.length>=4&&b[0]===0x50&&b[1]===0x4b&&(b[2]===3||b[2]===5||b[2]===7)) return 'zip'; if(b[0]===0xef&&b[1]===0xbb&&b[2]===0xbf) i=3; }
+   while(i<b.length&&(b[i]===0x20||b[i]===0x09||b[i]===0x0a||b[i]===0x0d)) i++;
+   if(i<b.length) return b[i]===0x7b?'json':'other'; if(!b.length) break; pos+=b.length; } }catch(e){ return 'unreadable'; }
+ return 'other'; }
+async function ccsOpenFile(f){ const kind=await ccsFileKind(f);
+ if(kind!=='zip'&&kind!=='json'){ ccsFail(f.name, kind==='unreadable'?'The file could not be read. If it is stored online, download it to this device first.':'It is not a Classic Cart Studio package (.ccs) or collection file.', 'This file cannot be opened.'); return; }
+ if(kind==='json'){ const t=await f.text(); let o; try{ o=JSON.parse(t); }catch(e){ toast('That file is not a collection file'); return; } if(o&&o.schema===SBACKUP_SCHEMA){ csRestoreDialog(o, f.name); return; } csImportObject(o, f.name); return; }
  if(CO.desktop&&ccsAppPackages()){   // the app verifies the package (and its ROM files) in its own folder first
   const ac=new AbortController(); openColl('Import .ccs Collection', f.name, '<div class="msgbox">Checking the package…</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsStop">Cancel</button></div>');
   procSet('collm','running'); $('ccsStop').onclick=()=>{ ac.abort(); closeColl(); toast('Canceled; nothing was imported'); };   // the helper deletes a partly received package
@@ -254,7 +268,7 @@ async function ccsOpenFile(f){ if(/\.json$/i.test(f.name)){ const t=await f.text
  if(stop) return; procSet('collm',null); if(!info.ok){ ccsFail(f.name, 'It is incomplete or damaged: '+info.problems.slice(0,3).map(p=>`${p.path} ${p.problem}`).join('; ')+(info.problems.length>3?` (and ${info.problems.length-3} more)`:'')+'.'); return; }
  ccsPreview(Object.assign(info, {source:'file', file:f}), f.name); }
 function ccsFromStaged(d){ return {manifest:{created:d.created}, kind:d.kind, data:d.data, art:{}, roms:d.roms||[], problems:d.problems||[], size:d.size, ok:d.ok!==false&&!(d.problems||[]).length, romBytes:d.rom_bytes||0, source:'staged', id:d.id}; }
-function ccsFail(name, why){ openColl('Import .ccs Collection', name||'', `<div class="msgbox bad"><b>This package cannot be opened.</b> ${esc(why||'')}</div><p class="small">Nothing was imported.</p><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`); $('ccsOk').onclick=closeColl; }
+function ccsFail(name, why, head){ openColl('Import .ccs Collection', name||'', `<div class="msgbox bad"><b>${esc(head||'This package cannot be opened.')}</b> ${esc(why||'')}</div><p class="small">Nothing was imported.</p><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`); $('ccsOk').onclick=closeColl; }
 function ccsCounts(info){ const rec=(info.data&&info.data.ccs_collection)||{}; return {name:rec.name||info.data.name||'Imported collection', games:(rec.sel||[]).length||(info.data.selections||[]).length, loadouts:(rec.loadouts||[]).length}; }
 function ccsPreview(info, fname){ if(!info.ok){ ccsFail(fname, 'It is incomplete or damaged: '+(info.problems||[]).slice(0,3).map(p=>`${p.path} ${p.problem}`).join('; ')+'.'); return; }
  const c=ccsCounts(info); const roms=info.roms.length; const web=!CO.desktop; const canRoms=!web&&ccsAppPackages()&&info.source==='staged';
