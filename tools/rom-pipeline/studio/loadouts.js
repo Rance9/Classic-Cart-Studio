@@ -47,7 +47,7 @@ function loCreate(name, mode){ csSaveActiveNow(); const rec=CS.items[CS.active];
  const dec={}; if(all) Object.entries(rec.decisions||{}).forEach(([k,v])=>{ if(ids.includes(k)) dec[k]=v; });
  const l={id:loNewId(), target:'nes-classic', name:loUniqueName(name), created:now, modified:now, sel:ids, decisions:dec, home:null, origin:all?'all':'choose'};
  rec.loadouts=loList(rec).concat([l]); csWrite(); loOpen(l.id, true);
- toast(all?`Created "${l.name}" with all ${loPl(ids.length,'game')}`:`Created "${l.name}". Click games to add them.`); return l; }
+ toast(all?`Created "${l.name}" with all ${loPl(ids.length,'game')}`:`Created "${l.name}". ${clickWord(1)} games to add them.`); return l; }
 function loRename(lid, name){ const l=loGet(lid); if(!l) return; name=(name||'').trim().slice(0,60); if(!name) return; l.name=loUniqueName(name, lid); l.modified=csNow(); csWrite(); csDirty(); loUi(); }
 function loDuplicate(lid){ if(LO&&LO.lid===lid) csSaveActiveNow(); const rec=CS.items[CS.active]; const src=loGet(lid, rec); if(!src) return null; const now=csNow();
  const c=Object.assign(JSON.parse(JSON.stringify(src)), {id:loNewId(), name:loUniqueName(src.name+' copy'), created:now, modified:now, origin:'duplicate'}); const i=rec.loadouts.indexOf(src); rec.loadouts.splice(i+1, 0, c); csWrite(); loUi(); toast(`Duplicated as "${c.name}" (${loPl(c.sel.length,'game')})`); return c; }
@@ -66,7 +66,7 @@ function loPrepare(opts){ opts=opts||{}; if(typeof closeVerPop==='function') clo
   ${choose?`<div class="dsec" id="loListL">Your Loadouts</div><div class="lolist" role="group" aria-labelledby="loListL">${list.map(l=>miHtml({ic:'📺', label:esc(l.name), sub:`${loLine(l)} · changed ${esc(nowShort(l.modified))}`, role:'button', attrs:`data-lo-open="${esc(l.id)}"`, trail:'Open ›'})).join('')}</div><div class="dsec">Or Create a New One</div>`:''}
   <div class="${choose?'locreate':''}">${loNameField(loUniqueName(LO_DEFAULT_NAME))}
   <div class="lochoice" role="radiogroup" aria-label="Start the loadout with">
-   <label class="lc${n?'':' off'}"><input type="radio" name="loMode" value="all" ${mode==='all'?'checked':''} ${n?'':'disabled'}><span class="mic" aria-hidden="true">🎮</span><span><b>All ${loPl(n,'Collection Game')}</b><span class="small">${n?'Start with the whole collection, then remove games.':'This collection has no games yet, so a loadout starts empty.'}</span></span></label>
+   <label class="lc${n?'':' off'}"><input type="radio" name="loMode" value="all" ${mode==='all'?'checked':''} ${n?'':'disabled'}><span class="mic" aria-hidden="true">🎮</span><span><b>${n?`All ${loPl(n,'Collection Game')}`:'All Collection Games'}</b><span class="small">${n?'Start with the whole collection, then remove games.':'This collection has no games yet, so a loadout starts empty.'}</span></span></label>
    <label class="lc"><input type="radio" name="loMode" value="choose" ${mode==='choose'?'checked':''}><span class="mic" aria-hidden="true">👆</span><span><b>Choose Games</b><span class="small">Start empty, then add games from this collection.</span></span></label>
   </div>
   <div class="acts"><span class="sp"></span><button class="btn" id="loNo" data-cancel>Cancel</button><button class="btn hk" id="loGo">Create Loadout</button></div></div>`);
@@ -180,8 +180,9 @@ function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.b
 (function(){ const _t=renderTray; renderTray=function(){ const r=_t.apply(this,arguments); try{ const sub=$('traySub'), ul=$('trayList'); const l=loCur();
   if(ul) ul.querySelectorAll('[data-rm]').forEach(x=>x.title=l?'Remove from this loadout; it stays in the collection':'Remove from collection');
   if(!l&&sub){ const n=sel.size, own=[...sel].filter(id=>byId[id]&&byId[id].source==='personal').length, away=[...sel].filter(id=>!byId[id]).length, b=[...sel].filter(id=>byId[id]&&(byId[id].builtin_status||'').startsWith('BUILT-IN')).length; const nl=loList().length;
-   sub.innerHTML=n?`<div class="small"><b style="color:#fff;font-size:13px">${loPl(n,'game')} in this collection</b>${b?` · ${b} built into the NES Classic`:''}${own?` · ${own} personal`:''}${away?` · ${away} not on this computer`:''}</div><div class="lotray small">${nl?`This collection has ${loPl(nl,'NES Classic Loadout')}. `:'Choose what goes on the console in an <b>NES Classic Loadout</b>. '}<button type="button" class="btn sm" data-lo-prep="1"><span aria-hidden="true">📺</span> Choose a Loadout…</button></div>`:`<div class="small">No games yet. Click a game to add it.</div>`; }
+   sub.innerHTML=n?`<div class="small"><b style="color:#fff;font-size:13px">${loPl(n,'game')} in this collection</b>${b?` · ${b} built into the NES Classic`:''}${own?` · ${own} personal`:''}${away?` · ${away} ${typeof csAwayWord==='function'?csAwayWord():'not on this computer'}`:''}</div><div class="lotray small">${nl?`This collection has ${loPl(nl,'NES Classic Loadout')}. `:'Choose what goes on the console in an <b>NES Classic Loadout</b>. '}<button type="button" class="btn sm" data-lo-prep="1"><span aria-hidden="true">📺</span> Choose a Loadout…</button></div>`:''; }
   else if(l&&sub){ sub.insertAdjacentHTML('afterbegin', `<div class="lotray small">Planned for your NES Classic, from "${esc(COLL.name)}".</div>`); }
+  const none=!l&&!sel.size; ['trayExport','trayHk'].forEach(id=>{ const b=$(id); if(b){ b.disabled=none; if(none) b.title='Add games to this collection first'; else b.removeAttribute('title'); } });
  }catch(e){} return r; }; })();
 document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-lo-prep]'); if(!b) return; $('tray').classList.remove('open'); loPrepare(); });
 (function(){ const _u=updateStatusLine; updateStatusLine=function(){ const r=_u.apply(this,arguments); try{ const t=document.querySelector('#tray .ttl'); const l=loCur(); if(t&&l) t.lastChild.nodeValue=' NES Classic Loadout · '+l.name; }catch(e){} return r; }; })();
@@ -202,6 +203,6 @@ function loResume(){ const r=csActive(); if(r&&r.openLoadout&&loGet(r.openLoadou
 loResume();
 // one storage display: the tray's older storage notice and line are not shown; the meter updates with every change that can move it
 storageTrayLine=function(){ return ''; };
-storageNote=function(){ return LO?'This loadout is empty. Click games to add them.':''; };
+storageNote=function(){ return LO?'This loadout is empty. '+clickWord(1)+' games to add them.':''; };
 (function(){ if(typeof homeExtrasSave==='function'){ const h=homeExtrasSave; homeExtrasSave=function(){ const r=h.apply(this,arguments); try{ if(LO) loUi(); }catch(e){} return r; }; }
  if(typeof nhDraw==='function'){ const d=nhDraw; nhDraw=function(){ const r=d.apply(this,arguments); try{ if(LO) loUi(); }catch(e){} return r; }; } })();
