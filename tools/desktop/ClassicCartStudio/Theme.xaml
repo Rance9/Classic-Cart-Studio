@@ -132,7 +132,7 @@
     </Setter>
   </Style>
 
-  <!-- caption buttons (minimize / maximize / close) and the Studio menu button in the title bar -->
+  <!-- caption buttons (minimize / maximize / close) and the App tools button in the title bar -->
   <Style x:Key="Caption" TargetType="Button">
     <Setter Property="Width" Value="46"/>
     <Setter Property="Height" Value="36"/>
@@ -174,43 +174,57 @@
     </Setter>
   </Style>
 
-  <!-- the Studio menu: a dark popup with Fluent glyphs -->
+  <!-- App tools: the same menu anatomy as the website's menus (warm charcoal surface, a red top accent, a head with a badge, labeled
+       groups, rows of a 30 px icon box and a label, a red focus ring for the keyboard). Each row's glyph is its Tag. -->
+  <LinearGradientBrush x:Key="B.MenuSurface" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FF23242C" Offset="0"/><GradientStop Color="#FF1A1C23" Offset="1"/></LinearGradientBrush>
+  <SolidColorBrush x:Key="B.MenuEdge" Color="#FF4B414A"/>
+  <LinearGradientBrush x:Key="B.Accent" StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#FFFF616F" Offset="0"/><GradientStop Color="#FFC9334A" Offset="1"/></LinearGradientBrush>
+  <LinearGradientBrush x:Key="B.Badge" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#FF77313E" Offset="0"/><GradientStop Color="#FF402530" Offset="1"/></LinearGradientBrush>
+  <SolidColorBrush x:Key="B.IconBox" Color="#FF34313E"/>
+  <SolidColorBrush x:Key="B.GroupLabel" Color="#FFC0B7C1"/>
+  <SolidColorBrush x:Key="B.FocusRing" Color="#FFFF616F"/>
   <Style x:Key="MenuItemBtn" TargetType="Button">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
     <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="13.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
-    <Setter Property="Padding" Value="10,7"/>
+    <Setter Property="Padding" Value="6,5,10,5"/>
+    <Setter Property="MinHeight" Value="42"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}" Margin="4,1" SnapsToDevicePixels="True">
-            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+          <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1.5" CornerRadius="10" Padding="{TemplateBinding Padding}" Margin="8,1" SnapsToDevicePixels="True">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Border x:Name="ib" Width="30" Height="30" CornerRadius="8" Background="{StaticResource B.IconBox}" VerticalAlignment="Center">
+                <TextBlock Text="{TemplateBinding Tag}" FontFamily="{StaticResource F.Icons}" FontSize="15" Foreground="{StaticResource B.Ink}" FontWeight="Normal" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <ContentPresenter Grid.Column="1" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+            </Grid>
           </Border>
           <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/></Trigger>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#11FFFFFF"/></Trigger>
             <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Pressed}"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="Background" Value="#11FFFFFF"/><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/></Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
   </Style>
-  <Style x:Key="MenuGlyph" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-    <Setter Property="FontFamily" Value="{StaticResource F.Icons}"/>
-    <Setter Property="FontSize" Value="14"/>
-    <Setter Property="Foreground" Value="{StaticResource B.Ink2}"/>
-    <Setter Property="Width" Value="22"/>
-    <Setter Property="Margin" Value="0,0,8,0"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
+  <Style x:Key="MenuGroup" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="10.5"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="{StaticResource B.GroupLabel}"/>
+    <Setter Property="Margin" Value="18,10,12,4"/>
   </Style>
   <Style x:Key="MenuSep" TargetType="Border">
     <Setter Property="Height" Value="1"/>
-    <Setter Property="Background" Value="{StaticResource B.Line}"/>
-    <Setter Property="Margin" Value="10,4"/>
+    <Setter Property="Background" Value="#FF3A3C48"/>
+    <Setter Property="Margin" Value="14,8,14,6"/>
   </Style>
 
   <!-- dark scroll bars for the diagnostics text -->

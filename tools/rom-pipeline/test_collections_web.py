@@ -70,7 +70,7 @@ def main():
             st = json.loads(ed.js("JSON.stringify({vis:!$('mShare').hidden, label:$('mShare').innerText, gone:['SHARE_ON','SHARE_API','openShare','shReceive','shPublish','shUnpublish','shareConfig'].filter(n=>typeof window[n]!=='undefined')})"))
             ed.js("$('mShare').click()"); time.sleep(0.8)
             st["dialog"] = ed.js("$('collm').classList.contains('open')&&$('collTitle').textContent"); ed.js("closeColl(); 1")
-            ok("share_or_export_in_my_collections", st["vis"] and "Share or Export Collection" in st["label"] and ".ccs" in st["label"] and st["dialog"] == "Share or Export Collection" and not st["gone"], st)
+            ok("share_or_export_in_my_collections", st["vis"] and "Share or Export…" in st["label"] and ".ccs" in st["label"] and st["dialog"] == "Share or Export Collection" and not st["gone"], st)
             nets.append(net_take(ed))
             ed.navigate(URL); ed.wait_for(READY, timeout=120); tools(ed)
             ok("migration_is_idempotent", ed.js("csList().length") == 1)

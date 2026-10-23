@@ -43,7 +43,7 @@ This file holds a complete game collection made with Classic Cart Studio: every 
 its NES Classic Loadouts, HOME settings and artwork.
 
 Open it with Classic Cart Studio for Windows (double-click the file once the app is installed), or on the website:
-https://classiccartstudio.com  ->  My Collections  ->  Import .ccs Collection
+https://classiccartstudio.com  ->  My Collections  ->  Import Collection
 
 Classic Cart Studio does not provide or host game files. Whoever shares or receives game files is responsible for having the
 rights to copy, distribute and use them.

@@ -122,7 +122,7 @@ def main():
             ed.js("$('trayBtn').click()"); time.sleep(0.3); ok("D_no_meter_in_the_collection_tray", ed.js(METER_VISIBLE) is False); ed.js("$('trayClose').click()")
             ed.js("csManager()"); time.sleep(0.3); ok("D_no_meter_in_the_collection_manager", ed.js(METER_VISIBLE) is False); ed.js("closeColl()")
             shot(ed, "1-collection-view-1440")
-            ed.js("$('loBtn').click()"); time.sleep(0.2); ed.js("document.querySelector('#loMenu [data-lo-new=all]').click()"); ed.wait_for("!!$('loGo')", timeout=10)
+            ed.js("$('loBtn').click()"); time.sleep(0.2); ed.js("document.querySelector('#loMenu [data-lo-new]').click()"); ed.wait_for("!!$('loGo')", timeout=10)
             st = J(ed, "JSON.stringify({name:$('loNm').value, focused:document.activeElement===$('loNm'), meter:" + METER_VISIBLE + "})")
             ok("E_name_asked_with_an_editable_suggestion", st["name"] == "My NES Classic Setup" and st["focused"], st)
             ok("D_no_meter_in_the_prepare_dialog", st["meter"] is False)
