@@ -54,35 +54,42 @@ function loDuplicate(lid){ if(LO&&LO.lid===lid) csSaveActiveNow(); const rec=CS.
 function loDelete(lid){ const rec=CS.items[CS.active]; const l=loGet(lid, rec); if(!l) return; if(LO&&LO.lid===lid) loClose(true); const r2=CS.items[CS.active]; r2.loadouts=loList(r2).filter(x=>x.id!==lid); csWrite(); loUi(); toast(`Deleted loadout "${l.name}"; the collection is unchanged`); }
 // ---- the dialogs ----
 function loNameField(v){ return `<div class="fld"><label for="loNm">Loadout name</label><input type="text" id="loNm" maxlength="60" value="${esc(v)}" spellcheck="false"></div>`; }
-// Prepare for NES Classic: open a loadout or create one (all of the collection's games, or chosen ones); `then` continues the action that asked
+// one creation dialog (a name, then All N Collection Games or Choose Games) and the Choose a Loadout step of the console actions. A
+// loadout is created only by Create Loadout; opening, canceling or closing creates nothing. `then` (the action that asked: Preview on
+// TV, HOME Setup, Install on NES Classic) runs exactly once, for the loadout that was opened or created, and never after Cancel.
+// opts: {newOnly, mode:'all'|'choose' (caller's preselection), then, lead, back (where Cancel returns, e.g. the manager)}
 function loPrepare(opts){ opts=opts||{}; if(typeof closeVerPop==='function') closeVerPop(); document.querySelectorAll('.menu').forEach(x=>x.hidden=true); csSaveActiveNow(); const rec=CS.items[CS.active]; const list=loList(rec); const n=(rec.sel||[]).length;
- const mode=opts.mode||(n?'all':'choose'); const then=typeof opts.then==='function'?opts.then:null;
- openColl(opts.title||'Prepare for NES Classic', `"${rec.name}" · ${loPl(n,'game')}`, `${opts.lead?`<div class="msgbox">${esc(opts.lead)}</div>`:''}<p class="small">An <b>NES Classic Loadout</b> is a named plan of games from this collection for your console. The collection itself never changes.</p>
-  ${list.length&&!opts.newOnly?`<div class="lohead">Your loadouts</div><div class="lolist">${list.map(l=>{ return `<div class="lorow"><div class="lon"><b>${esc(l.name)}</b><span class="small">${loLine(l)} · changed ${esc(nowShort(l.modified))}</span></div><button class="btn sm hk" data-lo-open="${esc(l.id)}">Open</button></div>`; }).join('')}</div><div class="lohead">Or create a new one</div>`:''}
-  ${loNameField(loUniqueName(LO_DEFAULT_NAME))}
+ const mode=opts.mode==='all'&&n?'all':opts.mode==='choose'?'choose':(n?'all':'choose'); const then=typeof opts.then==='function'?opts.then:null; let done=false;
+ const once=f=>{ if(done) return; done=true; f(); if(then) then(); };
+ const choose=!opts.newOnly&&list.length;
+ openColl(opts.newOnly?'New NES Classic Loadout':'Choose a Loadout', `"${rec.name}" · ${loPl(n,'game')}`, `${opts.lead?`<div class="msgbox">${esc(opts.lead)}</div>`:''}${choose?'':'<p class="small">An <b>NES Classic Loadout</b> is a named plan of games from this collection for your console. The collection itself never changes.</p>'}
+  ${choose?`<div class="dsec" id="loListL">Your Loadouts</div><div class="lolist" role="group" aria-labelledby="loListL">${list.map(l=>miHtml({ic:'📺', label:esc(l.name), sub:`${loLine(l)} · changed ${esc(nowShort(l.modified))}`, role:'button', attrs:`data-lo-open="${esc(l.id)}"`, trail:'Open ›'})).join('')}</div><div class="dsec">Or Create a New One</div>`:''}
+  <div class="${choose?'locreate':''}">${loNameField(loUniqueName(LO_DEFAULT_NAME))}
   <div class="lochoice" role="radiogroup" aria-label="Start the loadout with">
-   <label class="lc${n?'':' off'}"><input type="radio" name="loMode" value="all" ${mode==='all'&&n?'checked':''} ${n?'':'disabled'}><span><b>All ${loPl(n,'Game')}</b><span class="small">${n?'Start with the whole collection, then remove games.':'This collection has no games yet.'}</span></span></label>
-   <label class="lc"><input type="radio" name="loMode" value="choose" ${mode==='choose'||!n?'checked':''}><span><b>Choose Games</b><span class="small">Start empty, then add games from this collection.</span></span></label>
+   <label class="lc${n?'':' off'}"><input type="radio" name="loMode" value="all" ${mode==='all'?'checked':''} ${n?'':'disabled'}><span class="mic" aria-hidden="true">🎮</span><span><b>All ${loPl(n,'Collection Game')}</b><span class="small">${n?'Start with the whole collection, then remove games.':'This collection has no games yet, so a loadout starts empty.'}</span></span></label>
+   <label class="lc"><input type="radio" name="loMode" value="choose" ${mode==='choose'?'checked':''}><span class="mic" aria-hidden="true">👆</span><span><b>Choose Games</b><span class="small">Start empty, then add games from this collection.</span></span></label>
   </div>
-  <div class="acts"><span class="sp"></span><button class="btn" id="loNo">Cancel</button><button class="btn hk" id="loGo">Create Loadout</button></div>`);
- const inp=$('loNm'); inp.onkeydown=e=>{ if(e.key==='Enter') $('loGo').click(); }; inp.focus(); inp.select();
- $('loNo').onclick=closeColl;
- $('loGo').onclick=()=>{ const nm=inp.value.trim(); if(!nm){ inp.focus(); return; } const m=(document.querySelector('input[name=loMode]:checked')||{}).value||'choose'; closeColl(); loCreate(nm, m); if(then) then(); };
- $('collBody').onclick=e=>{ const b=e.target.closest('[data-lo-open]'); if(!b) return; closeColl(); loOpen(b.dataset.loOpen); if(then) then(); }; }
-function loNameDialog(title, value, action, done, html){ openColl(title,'', `${html||''}${value!==null?loNameField(value):''}<div class="acts"><span class="sp"></span><button class="btn" id="loNo">Cancel</button><button class="btn ${action==='Delete'?'danger':'hk'}" id="loGo">${esc(action)}</button></div>`);
+  <div class="acts"><span class="sp"></span><button class="btn" id="loNo" data-cancel>Cancel</button><button class="btn hk" id="loGo">Create Loadout</button></div></div>`);
+ const inp=$('loNm'); inp.onkeydown=e=>{ if(e.key==='Enter') $('loGo').click(); }; if(!choose){ inp.focus(); inp.select(); }
+ $('loNo').onclick=()=>{ done=true; if(typeof opts.back==='function') opts.back(); else closeColl(); };
+ $('loGo').onclick=()=>{ const nm=inp.value.trim(); if(!nm){ inp.focus(); return; } const m=(document.querySelector('input[name=loMode]:checked')||{}).value||'choose'; once(()=>{ closeColl(); loCreate(nm, m); }); };
+ $('collBody').onclick=e=>{ const b=e.target.closest('[data-lo-open]'); if(!b) return; once(()=>{ closeColl(); loOpen(b.dataset.loOpen); }); }; }
+function loNameDialog(title, value, action, done, html, back){ openColl(title,'', `${html||''}${value!==null?loNameField(value):''}<div class="acts"><span class="sp"></span><button class="btn" id="loNo" data-cancel>Cancel</button><button class="btn ${action==='Delete'?'danger':'hk'}" id="loGo">${esc(action)}</button></div>`);
  const inp=$('loNm'); if(inp){ inp.focus(); inp.select(); inp.onkeydown=e=>{ if(e.key==='Enter') $('loGo').click(); }; }
- $('loNo').onclick=closeColl; $('loGo').onclick=()=>{ const v=inp?inp.value.trim():''; if(inp&&!v){ inp.focus(); return; } closeColl(); done(v); }; }
-function loRenameDialog(lid){ const l=loGet(lid); if(l) loNameDialog('Rename NES Classic Loadout', l.name, 'Rename', v=>loRename(lid, v)); }
-function loDeleteDialog(lid){ const l=loGet(lid); if(!l) return; const rec=csActive();
- loNameDialog(`Delete "${l.name}"?`, null, 'Delete', ()=>loDelete(lid), `<p class="small">The NES Classic Loadout "${esc(l.name)}" (${loPl((LO&&LO.lid===lid?sel.size:(l.sel||[]).length),'game')}) and its HOME settings will be deleted. The collection "${esc(rec.name)}" and its other loadouts stay as they are; nothing on a console changes.</p>`); }
+ $('loNo').onclick=()=>{ if(back) back(); else closeColl(); }; $('loGo').onclick=()=>{ const v=inp?inp.value.trim():''; if(inp&&!v){ inp.focus(); return; } closeColl(); done(v); if(back) back(); }; }
+function loRenameDialog(lid, back){ const l=loGet(lid); if(l) loNameDialog('Rename NES Classic Loadout', l.name, 'Rename', v=>loRename(lid, v), '', back); }
+function loDeleteDialog(lid, back){ const l=loGet(lid); if(!l) return; const rec=csActive();
+ loNameDialog(`Delete "${l.name}"?`, null, 'Delete', ()=>loDelete(lid), `<p class="small">The NES Classic Loadout "${esc(l.name)}" (${loPl((LO&&LO.lid===lid?sel.size:(l.sel||[]).length),'game')}) and its HOME settings will be deleted. The collection "${esc(rec.name)}" and its other loadouts stay as they are; nothing on a console changes.</p>`, back); }
+// Manage Loadouts: every loadout of the open collection as a card (Open; Rename, Duplicate and Delete in its ⋯ menu)
 function loManager(){ csSaveActiveNow(); const rec=csActive(); const list=loList(rec);
- openColl('NES Classic Loadouts', `"${rec.name}" · ${loPl((rec.sel||[]).length,'game')}`, `<p class="small">Each loadout is a separate plan for one NES Classic; changing one never changes another or the collection.</p>
-  <div class="csbar"><button class="btn hk" id="loNewB">New Loadout…</button></div>
-  ${list.length?`<div class="cslist" role="list">${list.map(l=>{ const on=LO&&LO.lid===l.id; return `<div class="csrow${on?' on':''}" role="listitem" data-lid="${esc(l.id)}"><div class="csn"><b>${esc(l.name)}</b>${on?'<span class="tag">open</span>':''}<span class="small">${loLine(l)} · changed ${esc(nowShort(l.modified))}</span></div>
-   <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open">Open</button>`}<button class="btn sm" data-a="rename">Rename…</button><button class="btn sm" data-a="dup">Duplicate</button><button class="btn sm danger" data-a="del">Delete…</button></div></div>`; }).join('')}</div>`:'<p class="small">No loadouts yet.</p>'}`);
- $('loNewB').onclick=()=>loPrepare({newOnly:true, title:'New NES Classic Loadout'});
- $('collBody').onclick=e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const row=b.closest('[data-lid]'); if(!row) return; const lid=row.dataset.lid; const a=b.dataset.a;
-  if(a==='open'){ closeColl(); loOpen(lid); } else if(a==='rename'){ loRenameDialog(lid); } else if(a==='dup'){ loDuplicate(lid); loManager(); } else if(a==='del'){ loDeleteDialog(lid); } }; }
+ openColl('Manage Loadouts', `"${rec.name}" · ${loPl(list.length,'loadout')}`, `<div class="dquick">${miHtml({ic:'✨', label:'New Loadout…', sub:(rec.sel||[]).length?`From the ${loPl((rec.sel||[]).length,'game')} in this collection`:'This collection has no games yet', cls:'new', attrs:'id="loNewB"'})}</div>
+  ${list.length?`<div class="cslist" role="list">${list.map(l=>{ const on=LO&&LO.lid===l.id; return `<div class="csrow${on?' on':''}" role="listitem" data-lid="${esc(l.id)}"><span class="mic" aria-hidden="true">📺</span><div class="csn"><b>${esc(l.name)}</b><span class="small">${loLine(l)} · changed ${esc(nowShort(l.modified))}</span></div>${on?'<span class="opentag"><span aria-hidden="true">✓</span> Editing</span>':''}
+   <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open" aria-label="Open ${esc(l.name)}">Open</button>`}<span class="grow"></span>${rowMore(l.name)}</div></div>`; }).join('')}</div>`:'<div class="mempty"><b>No loadouts yet.</b><br>A loadout is a named plan of games from this collection for one NES Classic.</div>'}
+  <p class="small">Each loadout is a separate plan for one NES Classic; changing one never changes another or the collection.</p>`);
+ $('loNewB').onclick=()=>loPrepare({newOnly:true, back:loManager});
+ rowMoreWire($('collBody'));
+ $('collBody').onclick=e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const row=b.closest('[data-lid]'); if(!row) return; const lid=row.dataset.lid; const a=b.dataset.a; if(['rename','dup','del'].includes(a)) ROW_RET=`.csrow[data-lid="${lid}"] details.csmore>summary`;
+  if(a==='open'){ closeColl(); loOpen(lid); } else if(a==='rename'){ loRenameDialog(lid, loManager); } else if(a==='dup'){ loDuplicate(lid); loManager(); } else if(a==='del'){ loDeleteDialog(lid, loManager); } }; }
 // what the estimate is made of, in plain words first; the reference figures on request
 function loStorageDetails(){ const l=loCur(); if(!l) return; const e=loStorage(); const M=STORAGE_MODEL, R=M.reference;
  const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`;
@@ -132,22 +139,23 @@ document.addEventListener('click',e=>{ if(LO||!CS) return; const t=e.target.clos
  const id=t.id, focus=t.dataset&&t.dataset.tvfocus; try{ $('details').classList.remove('open'); $('tray').classList.remove('open'); }catch(err){}
  const then=id==='tvBtn'||id==='mTv'||focus?()=>openTv(focus?{focus}:undefined):id==='homeBtn'?()=>{ if(typeof openFolders==='function') openFolders(); }:()=>openInstall();
  const what=id==='tvBtn'||id==='mTv'||focus?'Preview on TV shows':id==='homeBtn'?'HOME Setup arranges':'Install on NES Classic installs';
- loPrepare({then, lead:`${what} an NES Classic Loadout. Choose or create one.`}); }, true);
+ loPrepare({then, lead:`${what} an NES Classic Loadout. Choose one, or create one.`}); }, true);
 // ---- the interface ----
+const LO_ICON='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg>';
+// the saved loadouts (the one being edited is checked), ONE New Loadout… (the dialog asks All N Collection Games or Choose Games),
+// Manage Loadouts… for rename/duplicate/delete, and Back to Collection while one is open
 function loMenuHtml(){ const rec=csActive(); if(!rec) return ''; const list=loList(rec); const n=csCollSel().size;
- return `<div class="mhead"><div class="nm">NES Classic Loadouts</div><div class="small mut">Plans for your console from "${esc(rec.name)}"</div></div>
-  ${list.length?list.map(l=>{ const on=LO&&LO.lid===l.id; return `<button class="mi csq${on?' on':''}" role="menuitemradio" aria-checked="${!!on}" data-lo="${esc(l.id)}"><b>${on?'✓ ':''}${esc(l.name)}</b><span class="d">${loLine(l)}</span></button>`; }).join(''):`<div class="mempty small">No loadouts yet.</div>`}
-  <div class="sep"></div>
-  <button class="mi" role="menuitem" data-lo-new="all" ${n?'':'disabled'}><b>New Loadout with All ${loPl(n,'Game')}…</b></button>
-  <button class="mi" role="menuitem" data-lo-new="choose"><b>New Loadout, Choose Games…</b></button>
-  ${LO?`<div class="sep"></div><button class="mi" role="menuitem" data-lo-act="rename"><b>Rename This Loadout…</b></button><button class="mi" role="menuitem" data-lo-act="dup"><b>Duplicate This Loadout</b></button><button class="mi danger" role="menuitem" data-lo-act="del"><b>Delete This Loadout…</b></button><div class="sep"></div><button class="mi" role="menuitem" data-lo-act="back"><b>Back to Collection</b><span class="d">"${esc(rec.name)}" · ${loPl(n,'game')}</span></button>`:''}
-  ${list.length?`<button class="mi" role="menuitem" data-lo-act="manage"><b>Manage Loadouts…</b></button>`:''}`; }
+ return `<div class="mhead"><span class="mbadge" aria-hidden="true">${LO_ICON}</span><div class="mht"><b>NES Classic Loadouts</b><span>From "${esc(rec.name)}"</span></div><button type="button" class="mclose" aria-label="Close NES Classic Loadouts" title="Close">✕</button></div>
+  ${list.length?`<div class="mlabel">${LO?'Switch Loadout':'Your Saved Loadouts'}</div><div class="mlist" role="group">${(LO?[loCur()].concat(list.filter(l=>l.id!==LO.lid)):list).filter(Boolean).slice(0,6).map(l=>{ const on=LO&&LO.lid===l.id; return miHtml({ic:'📺', label:esc(l.name), sub:loLine(l)+(on?' · editing now':''), role:'menuitemradio', attrs:`aria-checked="${!!on}" data-lo="${esc(l.id)}"`, trail:on?'✓':'›'}); }).join('')}${list.length>6?miHtml({ic:'🗂️', label:`${list.length-6} more in Manage Loadouts…`, cls:'quiet', attrs:'data-lo-act="manage"'}):''}</div>`
+   :`<div class="mempty"><b>No loadouts yet.</b><br>${n?`Plan what goes on your NES Classic from the ${loPl(n,'game')} in this collection.`:'Add games to this collection, then plan what goes on your NES Classic.'}</div>`}
+  <div class="sep"></div>${miHtml({ic:'✨', label:'New Loadout…', cls:'feature', attrs:'data-lo-new="1"', trail:'+'})}${list.length?miHtml({ic:'🗂️', label:'Manage Loadouts…', attrs:'data-lo-act="manage"', trail:'›'}):''}
+  ${LO?`<div class="sep"></div>${miHtml({ic:'↩️', label:'Back to Collection', sub:`"${esc(rec.name)}" · ${loPl(n,'game')}`, attrs:'data-lo-act="back"'})}`:''}`; }
 function loMenuClick(e){ const m=e.currentTarget; const q=e.target.closest('[data-lo]'); if(q){ m.hidden=true; loOpen(q.dataset.lo); return; }
- const nw=e.target.closest('[data-lo-new]'); if(nw){ m.hidden=true; loPrepare({newOnly:true, mode:nw.dataset.loNew, title:'New NES Classic Loadout'}); return; }
- const a=e.target.closest('[data-lo-act]'); if(!a) return; m.hidden=true; const act=a.dataset.loAct; const lid=LO&&LO.lid;
- if(act==='back') loClose(); else if(act==='manage') loManager(); else if(act==='rename'&&lid) loRenameDialog(lid); else if(act==='dup'&&lid){ const c=loDuplicate(lid); if(c) loOpen(c.id, true); } else if(act==='del'&&lid) loDeleteDialog(lid); }
+ if(e.target.closest('[data-lo-new]')){ m.hidden=true; loPrepare({newOnly:true}); return; }
+ const a=e.target.closest('[data-lo-act]'); if(!a) return; m.hidden=true; const act=a.dataset.loAct;
+ if(act==='back') loClose(); else if(act==='manage') loManager(); }
 function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.body.classList.toggle('lomode', on);
- const list=loList(rec); const lc=$('loCount'); if(lc){ lc.textContent=list.length; lc.hidden=!list.length; }
+ const list=loList(rec); const cx=$('loCtx'); if(cx) cx.textContent=list.length?`${list.length.toLocaleString('en-US')} saved`:'Choose or create one';
  ['homeBtn','hkBtn'].forEach(id=>{ const b=$(id); if(b) b.hidden=!on; }); const tv=$('tvBtn'); if(tv){ tv.hidden=false; tv.title=on?`Preview the HOME menu of "${(loCur()||{}).name||''}"`:'Preview a loadout\'s HOME menu'; } const w=$('loWrap'); if(w) w.hidden=on;
  const band=$('loBand'); if(band) band.hidden=!on;
  const l=loCur(); if(on&&l&&band){ const e=loStorage(); const pct=e.available>0?Math.min(100, e.used/e.available*100):100;
@@ -158,8 +166,13 @@ function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.b
   $('loStat').className='lost '+loStatusCls(e); $('loStat').textContent=loStatusIcon(e)+' '+loStatusText(e); }
  const hs=$('heroSelL'); if(hs) hs.textContent=on?'in loadout':'in collection';
  const sv=$('selVis'), us=$('unselVis'), sk=$('selKachi'), cl=$('clear'); const tgt=on?'this loadout':'the collection';
- if(sv) sv.textContent=`Add All Shown to ${on?'Loadout':'Collection'}`; if(us) us.textContent=`Remove All Shown from ${on?'Loadout':'Collection'}`; if(sk) sk.textContent='Add Shown Console-Ready Games'; if(sk) sk.title=`Adds the shown games that are verified and run on the console's built-in emulator to ${tgt}`; if(cl) cl.lastChild.nodeValue=on?'Empty This Loadout':'Remove All Games…';
- const th=$('trayHk'); if(th) th.textContent=on?'Install on NES Classic':'Prepare for NES Classic…'; const tx=$('trayExport'); if(tx) tx.hidden=on;
+ // Game Library actions name their scope: the group label and each row's accessible name say collection or loadout
+ document.querySelectorAll('[data-libscope]').forEach(x=>x.textContent=on?'In This Loadout':'In This Collection');
+ document.querySelectorAll('[data-libfor]').forEach(x=>x.textContent=on?`For the loadout "${(l||{}).name||''}"`:`For "${(rec||{}).name||COLL.name}"`);
+ if(sv){ miLabel(sv,'Add All Shown'); sv.setAttribute('aria-label',`Add All Shown to ${tgt}`); } if(us){ miLabel(us,'Remove All Shown'); us.setAttribute('aria-label',`Remove All Shown from ${tgt}`); }
+ if(sk){ miLabel(sk,'Add Shown Console-Ready Games'); sk.setAttribute('aria-label',`Add Shown Console-Ready Games to ${tgt}`); sk.title=`Adds the shown games that are verified and run on the console's built-in emulator to ${tgt}`; }
+ if(cl) miLabel(cl, on?'Empty This Loadout':'Remove All Games…');
+ const th=$('trayHk'); if(th) th.textContent=on?'Install on NES Classic':'Install on NES Classic…'; const tx=$('trayExport'); if(tx) tx.hidden=on;
  const sto=$('storage'); if(sto) sto.hidden=true;
  const q=$('q'); if(q) q.placeholder='Search games';
  ['loMenu','loMenu2'].forEach(id=>{ const m=$(id); if(m&&!m.hidden) m.innerHTML=loMenuHtml(); }); }
@@ -167,7 +180,7 @@ function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.b
 (function(){ const _t=renderTray; renderTray=function(){ const r=_t.apply(this,arguments); try{ const sub=$('traySub'), ul=$('trayList'); const l=loCur();
   if(ul) ul.querySelectorAll('[data-rm]').forEach(x=>x.title=l?'Remove from this loadout; it stays in the collection':'Remove from collection');
   if(!l&&sub){ const n=sel.size, own=[...sel].filter(id=>byId[id]&&byId[id].source==='personal').length, away=[...sel].filter(id=>!byId[id]).length, b=[...sel].filter(id=>byId[id]&&(byId[id].builtin_status||'').startsWith('BUILT-IN')).length; const nl=loList().length;
-   sub.innerHTML=n?`<div class="small"><b style="color:#fff;font-size:13px">${loPl(n,'game')} in this collection</b>${b?` · ${b} built into the NES Classic`:''}${own?` · ${own} personal`:''}${away?` · ${away} not on this computer`:''}</div><div class="lotray small">${nl?`This collection has ${loPl(nl,'NES Classic Loadout')}. `:'Choose what goes on the console in an <b>NES Classic Loadout</b>. '}<button type="button" class="btn sm" data-lo-prep="1">Prepare for NES Classic…</button></div>`:`<div class="small">No games yet. Click a game to add it.</div>`; }
+   sub.innerHTML=n?`<div class="small"><b style="color:#fff;font-size:13px">${loPl(n,'game')} in this collection</b>${b?` · ${b} built into the NES Classic`:''}${own?` · ${own} personal`:''}${away?` · ${away} not on this computer`:''}</div><div class="lotray small">${nl?`This collection has ${loPl(nl,'NES Classic Loadout')}. `:'Choose what goes on the console in an <b>NES Classic Loadout</b>. '}<button type="button" class="btn sm" data-lo-prep="1"><span aria-hidden="true">📺</span> Choose a Loadout…</button></div>`:`<div class="small">No games yet. Click a game to add it.</div>`; }
   else if(l&&sub){ sub.insertAdjacentHTML('afterbegin', `<div class="lotray small">Planned for your NES Classic, from "${esc(COLL.name)}".</div>`); }
  }catch(e){} return r; }; })();
 document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-lo-prep]'); if(!b) return; $('tray').classList.remove('open'); loPrepare(); });

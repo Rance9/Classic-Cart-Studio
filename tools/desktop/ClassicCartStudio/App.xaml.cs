@@ -12,7 +12,7 @@ namespace ClassicCartStudio
             {
                 App.Log("unhandled: " + e.Exception);
                 e.Handled = true;
-                try { MessageDialog.Show(MainWindow, "Unexpected Problem", "Classic Cart Studio hit an unexpected problem but is still running. If the window looks wrong, choose Reload in the Studio menu; the details are in Diagnostics.", e.Exception.Message); } catch { }
+                try { MessageDialog.Show(MainWindow, "Unexpected Problem", "Classic Cart Studio hit an unexpected problem but is still running. If the window looks wrong, choose Reload in App Tools; the details are in Diagnostics.", e.Exception.Message); } catch { }
             };
         }
     }

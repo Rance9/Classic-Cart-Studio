@@ -1,4 +1,4 @@
-// The one application window: custom dark title bar (Studio menu, caption buttons with Snap Layouts), WebView2 showing the live
+// The one application window: custom dark title bar (App tools, caption buttons with Snap Layouts), WebView2 showing the live
 // Studio website, a branded loading state, the recovery screen when the website cannot load, the desktop token injection for the
 // approved origin only, navigation filtering (anything else opens in the user's browser) and the nesstudio:// link handling.
 using System;
@@ -43,7 +43,8 @@ namespace ClassicCartStudio
             Loaded += (s, e) => { try { HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc); } catch { } Native.ApplyTaskbarIcon(this); };   // second registration: last-added hooks run first; the icon again once the button exists
             // right-aligned under the menu button, in the window's own coordinates (independent of DPI, monitor position or maximize state)
             menuPopup.CustomPopupPlacementCallback = (size, target, offset) => new[] { new System.Windows.Controls.Primitives.CustomPopupPlacement(new Point(target.Width - size.Width, target.Height + 4), System.Windows.Controls.Primitives.PopupPrimaryAxis.Horizontal) };
-            menuPopup.Opened += (s, e) => { var first = ((menuPopup.Child as Border)?.Child as StackPanel)?.Children[0] as Button; first?.Focus(); };
+            // App tools: the first command takes keyboard focus; Escape closes it and returns focus to its button
+            menuPopup.Opened += (s, e) => { foreach (var c in menuItems.Children) if (c is Button b) { b.Focus(); break; } };
             Loaded += async (s, e) => { StartBlocks(); await InitAsync(); };
             Closing += OnClosingWindow;
             StateChanged += (s, e) => { UpdateMaxGlyph(); if (!closing) SavePlacement(); };
@@ -115,7 +116,7 @@ namespace ClassicCartStudio
         void OnPreviewKeyDown(object s, KeyEventArgs e)
         {
             // only shell-level keys; everything else belongs to the website in WebView2
-            if (e.Key == Key.Escape && menuPopup.IsOpen) { menuPopup.IsOpen = false; e.Handled = true; }
+            if (e.Key == Key.Escape && menuPopup.IsOpen) { menuPopup.IsOpen = false; menuBtn.Focus(); e.Handled = true; }
             else if (e.Key == Key.F10 && Keyboard.Modifiers == ModifierKeys.None) { menuPopup.IsOpen = !menuPopup.IsOpen; e.Handled = true; }
         }
 

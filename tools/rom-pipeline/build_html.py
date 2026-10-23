@@ -84,7 +84,10 @@ TEMPLATE = r"""<!doctype html>
  --red:#e4000f;--red2:#b8000c;--red3:#ff3b45;--glow:rgba(228,0,15,.38);--gold:#f2b632;--sky:#5c94fc;--pipe:#1fab4a;--info:#4a9bff;--warn:#f0a030;--bad:#ff5a5a;--ok:#39d37a;
  --r1:6px;--r2:10px;--r3:16px;--sh1:0 2px 6px rgba(0,0,0,.35);--sh2:0 10px 28px rgba(0,0,0,.5);--sh3:0 24px 60px rgba(0,0,0,.6);
  --font:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;--display:"Bahnschrift","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;--pixel:"Press Start 2P",monospace;
- --tb-h:160px;--maxw:4800px;--gap:12px;--ease:cubic-bezier(.2,.7,.2,1)}
+ --tb-h:160px;--maxw:4800px;--gap:12px;--ease:cubic-bezier(.2,.7,.2,1);
+ --sf1:#23242c;--sf2:#1a1c23;--sfl:#3a3c48;--sfe:#4b414a;--sfi:#34313e;--sfm:#b3b3c1;--sfk:#c0b7c1;--acc:#ff616f;--acc2:#c9334a;--hot1:#46272e;--hot2:#2c242c;--hotb:#76414c;--mint:#83dcb5;
+ --surface:linear-gradient(90deg,var(--acc),var(--acc2)) top/100% 3px no-repeat,linear-gradient(180deg,var(--sf1),var(--sf2));
+ --vvh:100dvh;--kb:0px;--mpt:clamp(10px,8vh,70px);--mpb:clamp(10px,2.5vh,18px)}   /* --vvh/--kb: the visible height and a software keyboard's overlap (navigation.js) */
 *{box-sizing:border-box}[hidden]{display:none!important}html{scroll-behavior:smooth}body{margin:0;font:14px/1.45 var(--font);background:var(--bg0);color:var(--ink);-webkit-font-smoothing:antialiased}
 a{color:var(--red3)}img{display:block}.px{image-rendering:pixelated;image-rendering:crisp-edges}
 .skip{position:absolute;left:-9999px;top:8px;background:var(--red);color:#fff;padding:8px 12px;border-radius:var(--r1);z-index:200}.skip:focus{left:8px}
@@ -138,13 +141,11 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .notice{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink2);white-space:nowrap;cursor:help}.notice b{color:#fff}.notice .meter{flex:none;width:120px;height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid var(--line2)}.notice .meter i{display:block;height:100%;background:linear-gradient(90deg,var(--pipe),var(--gold) 70%,var(--red3));width:0%;transition:width .3s}.notice .meter.over i{background:var(--red)}
 
 /* ---------- filters modal, select menu, chips, secondary line ---------- */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(5px);display:none;z-index:45;align-items:flex-start;justify-content:center;padding:70px 18px 18px}.modal.open{display:flex}
-.mbox{background:linear-gradient(180deg,#22222a,#15151a);border:1px solid var(--line2);border-radius:var(--r3);width:min(960px,100%);box-shadow:var(--sh3);padding:18px 20px 20px;animation:pop .2s var(--ease);max-height:88vh;overflow:auto}
-.mhd{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}.mhd h2{font-family:var(--display);font-size:22px;margin:0;letter-spacing:1px;text-transform:uppercase;flex:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(5px);display:none;z-index:45;align-items:flex-start;justify-content:center;padding:var(--mpt) 18px var(--mpb)}.modal.open{display:flex}
+.mbox{background:var(--surface);border:1px solid var(--sfe);border-radius:18px;width:min(960px,100%);box-shadow:var(--sh3);padding:18px 20px 20px;animation:pop .2s var(--ease);max-height:calc(var(--vvh) - var(--mpt) - var(--mpb));overflow:auto}
+.mhd{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--sfl)}.mhd h2{font-family:var(--display);font-size:21px;font-weight:700;line-height:1.2;margin:0;letter-spacing:.3px;flex:1;min-width:0;overflow-wrap:break-word}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 16px}.fgrid label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.4px;text-transform:uppercase}.fgrid select{width:100%;font-size:14px;text-transform:none;letter-spacing:0;font-weight:400}
 .badge{display:inline-grid;place-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--red);color:#fff;font-size:11px;font-weight:700;margin-left:2px}.badge.zero{background:rgba(255,255,255,.12);color:var(--silver)}
-.menuwrap{position:relative}.menu{position:absolute;left:0;top:calc(100% + 6px);min-width:290px;background:linear-gradient(180deg,#26262e,#1a1a20);border:1px solid var(--line2);border-radius:var(--r2);box-shadow:var(--sh2);padding:6px;z-index:35;display:flex;flex-direction:column;gap:2px}
-.menu .mi{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 10px;border:0;border-radius:7px;background:transparent;color:var(--ink);cursor:pointer;font:inherit}.menu .mi:hover{background:rgba(255,255,255,.08)}.menu .mi.danger{color:var(--red3)}.menu .mi.danger:hover{background:rgba(228,0,15,.15)}.menu .sep{height:1px;background:var(--line);margin:4px 2px}
 .chips{gap:6px}.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px 3px 10px;border-radius:999px;background:rgba(228,0,15,.12);border:1px solid rgba(255,59,69,.45);font-size:12px;color:var(--ink)}.chip b{color:var(--red3);font-weight:600}.chip .rm{cursor:pointer;color:var(--muted);font-weight:700;padding:0 2px;border-radius:50%}.chip .rm:hover{color:#fff;background:var(--red2)}.chips .lbl{font-family:var(--pixel);font-size:8px;color:var(--muted);letter-spacing:1px;margin-right:4px}
 .row.sub{justify-content:space-between;align-items:center;gap:14px}.row.sub .letters{display:flex;flex-wrap:wrap;align-items:center;gap:2px;flex:1;min-width:0}
 
@@ -215,8 +216,8 @@ button.det,button.star{font:inherit}
 :root{--dockw:440px}
 @media (min-width:1000px){body.dock{padding-right:var(--dockw)}body.dock .hero{margin-right:calc(-1*var(--dockw))}body.dock #tray{box-shadow:none;border-left:1px solid var(--line2)}}
 /* ---------- details ---------- */
-#details{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);display:none;z-index:50;align-items:center;justify-content:center;padding:18px}
-#details.open{display:flex}#details .box{background:linear-gradient(180deg,#22222a,#15151a);border:1px solid var(--line2);border-radius:var(--r3);max-width:1040px;width:100%;max-height:92vh;overflow:auto;padding:22px;display:grid;grid-template-columns:300px 1fr;gap:24px;box-shadow:var(--sh3);position:relative;animation:pop .22s var(--ease)}
+#details{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);display:none;z-index:50;align-items:center;justify-content:center;padding:var(--mpb)}
+#details.open{display:flex}#details .box{background:linear-gradient(180deg,#22222a,#15151a);border:1px solid var(--line2);border-radius:var(--r3);max-width:1040px;width:100%;max-height:calc(var(--vvh) - 2*var(--mpb));overflow:auto;padding:22px;display:grid;grid-template-columns:300px 1fr;gap:24px;box-shadow:var(--sh3);position:relative;animation:pop .22s var(--ease)}
 @keyframes pop{from{opacity:0;transform:scale(.97) translateY(8px)}to{opacity:1;transform:none}}
 #details img{width:100%;border-radius:var(--r2);background:#000;box-shadow:var(--sh2);border:1px solid var(--line2)}
 #details h2{font-family:var(--display);font-size:30px;line-height:1.05;margin:0 0 4px;color:#fff;letter-spacing:-.3px}
@@ -295,36 +296,16 @@ __STUDIO_CSS__
 <div class="row bar">
  <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
  <div class="menuwrap" id="collWrap"><button id="collBtn" class="btn collbtn" aria-haspopup="menu" title="My Collections"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span class="cl"><span class="cap">My Collections</span><span id="collName">My Collection</span></span><span class="badge soft" id="collCount">0 games</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
-  <div class="menu wide" id="collMenu" role="menu" hidden><div class="mhead"><div class="nm" id="collNameHead"></div><div class="st"><span class="stt" id="collStatus"><i></i>new</span></div></div>
-   <div class="mlabel">Your collections</div><div id="csQuick"></div>
-   <div class="sep"></div>
-   <button id="mNew" class="mi" role="menuitem"><b>New Collection…</b></button>
-   <button id="mManage" class="mi" role="menuitem"><b>Manage Collections…</b></button>
-   <button id="mShare" class="mi" role="menuitem"><b>Share or Export Collection…</b><span class="d">A complete .ccs file, every game with its ROM.</span></button>
-   <div class="sep"></div>
-   <button id="mImport" class="mi" role="menuitem"><b>Import .ccs Collection…</b><span class="d">Adds a new collection; nothing is replaced.</span></button>
-   <button id="mLoadLocal" class="mi" role="menuitem" hidden><b>Games Already on This Computer…</b><span class="d">Bring in games set up here before.</span></button>
-   <button id="mRestore" class="mi" role="menuitem"><b>Restore Previous Version…</b></button>
-   <div class="sep" id="mDesktopSep"></div>
-   <button id="mDesktop" class="mi" role="menuitem" hidden><b>Open in Windows App…</b></button>
-   <button id="mToWeb" class="mi" role="menuitem" hidden><b>Continue on the Website…</b><span class="d">Save your collections to open on ClassicCartStudio.com.</span></button></div></div>
+__M_COLL__</div>
  <span style="flex:1"></span>
  <div class="actions">
  <span class="pair"><button id="trayBtn" class="btn tray" title="Your games"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
- <div class="menuwrap right" id="loWrap"><button id="loBtn" class="btn lobtn" aria-haspopup="menu" title="Choose the games that go on your NES Classic"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span class="cl"><span class="cap">NES Classic Loadouts</span><span>Prepare for NES Classic</span></span><span class="badge soft" id="loCount" hidden>0</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button><div class="menu wide" id="loMenu" role="menu" hidden></div></div>
+ <div class="menuwrap right" id="loWrap"><button id="loBtn" class="btn lobtn" aria-haspopup="menu" title="Choose the games that go on your NES Classic"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span class="cl"><span class="lbn">NES Classic Loadouts</span><span class="lctx" id="loCtx">Choose or create one</span></span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button><div class="menu wide" id="loMenu" role="menu" hidden></div></div>
  
  <button class="btn" id="homeBtn" aria-label="HOME Setup" title="Folders, theme and shortcuts for the NES Classic HOME menu" hidden><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg>HOME Setup</button>
  <button class="btn hk" id="hkBtn" title="Check and prepare this loadout for your NES Classic" hidden><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
- <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Menu" title="Help, backup and restore"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Menu</span></button>
-  <div class="menu wide" id="appMenu" role="menu" hidden>
-   <button id="howBtn" class="mi" role="menuitem"><b>Help &amp; User Guide</b><span class="d">How everything works.</span></button>
-   <div class="sep"></div>
-   <button id="sdExport" class="mi" role="menuitem"><b>Back Up Studio Data…</b><span class="d">All collections and settings in one file.</span></button>
-   <button id="sdImport" class="mi" role="menuitem"><b>Restore Studio Data…</b><span class="d">Adds a backup; nothing is deleted.</span></button>
-   <div class="sep"></div>
-   <button id="mWelcome" class="mi" role="menuitem"><b>Show the Welcome Screen</b></button>
-   <button id="mLegal" class="mi" role="menuitem"><b>Legal &amp; Privacy</b></button>
-   <button id="mStore" class="mi" role="menuitem" hidden><b>Classic Cart Studio Store</b><span class="d">Consoles and accessories from other sellers.</span></button></div></div>
+ <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Studio menu" title="Help, backup and legal"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Studio</span></button>
+__M_APP__</div>
  </div>
  <button id="export" hidden></button><button id="importBtn" hidden></button><button id="foldBtn" hidden aria-expanded="true"></button><span id="foldBadge" hidden></span>
  <input type="file" id="sdFile" accept="application/json,.json" hidden><input type="file" id="import" accept="application/json" hidden>
@@ -339,9 +320,9 @@ __STUDIO_CSS__
  <input id="q" type="search" placeholder="Search games" aria-label="Search games" title="Title, publisher, year or genre. Abbreviations (smb3), roman numerals and small typos work.">
  <button id="filtersBtn" class="btn" aria-haspopup="dialog"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h12M4 8h8M6 13h4"/></svg><span class="fl">Filter &amp; Sort</span><span class="badge" id="filtersBadge" hidden></span></button>
  <div class="menuwrap right" id="moreWrap"><button id="moreBtn" class="btn iconbtn" aria-haspopup="menu" aria-label="More actions" title="More actions"><svg class="ico" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.6"/><circle cx="8" cy="8" r="1.6"/><circle cx="13" cy="8" r="1.6"/></svg></button>
-  <div class="menu" id="moreMenu" role="menu" hidden><button class="mi fav" role="menuitem" data-proxy="favView">★ Show Favorites</button><button class="mi" role="menuitem" data-proxy="selVis">Add All Shown</button><button class="mi" role="menuitem" data-proxy="unselVis">Remove All Shown</button><div class="sep"></div><button class="mi" role="menuitem" data-view="toggle">Grid View</button><button class="mi" role="menuitem" data-proxy="ownBtn">Add Your Own Game…</button></div></div>
+__M_MORE__</div>
  <div class="menuwrap"><button id="selectBtn" class="btn" aria-haspopup="menu">Select <svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
-  <div class="menu" id="selectMenu" role="menu" hidden><button id="favView" class="mi fav" role="menuitem">★ Show Favorites</button><div class="sep"></div><button id="selVis" class="mi" role="menuitem">Add All Shown to Collection</button><button id="unselVis" class="mi" role="menuitem">Remove All Shown from Collection</button><button id="selKachi" class="mi" role="menuitem">Add Shown Console-Ready Games</button><div class="sep"></div><button id="clear" class="mi danger" role="menuitem"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Remove Every Game</button></div></div>
+__M_SELECT__</div>
  <div class="seg" role="group" aria-label="View"><button id="vList" class="btn active">List</button><button id="vGrid" class="btn">Grid</button></div>
  <button id="ownBtn" class="btn" title="Add a ROM file you own that is not in the Game Library"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>Add Your Own Game</button>
  <span style="flex:1"></span>
@@ -366,7 +347,7 @@ __STUDIO_CSS__
 <footer><div class="in"><div class="credits"><p class="small cap">Character credits: hover or focus a character for its game</p><div class="castwrap"><div class="cast" aria-label="Character credits">__FOOTER_CAST__</div></div></div>
 <p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · Classic Cart Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
 <p class="legal">Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; see hakchi/LICENSE) — this Studio prepares collections for it and does not reimplement it. Personal, non-commercial fan project for one privately owned NES Classic Edition. Not affiliated with, sponsored or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and all character names and artwork are trademarks and copyrights of Nintendo or their respective owners; the pixel artwork, console lockup and interface icons shown here are Nintendo's own renderings read from this console's system backup and the box art is cached locally from community scans — none of it is redistributed with this file. Catalog <span id="gen"></span>.</p></div></footer>
-<div id="hkpanel" class="modal" role="dialog" aria-modal="true" aria-labelledby="hkTitle"><div class="mbox"><div class="mhd"><h2 id="hkTitle">Install on NES Classic</h2><span class="small" id="hkSub"></span><button class="btn sm" id="hkClose">Close</button></div><div id="hkBody"></div></div></div>
+<div id="hkpanel" class="modal" role="dialog" aria-modal="true" aria-labelledby="hkTitle"><div class="mbox"><div class="mhd"><h2 id="hkTitle">Install on NES Classic</h2><span class="small" id="hkSub"></span><button type="button" class="mclose" id="hkClose" aria-label="Close" title="Close">✕</button></div><div id="hkBody"></div></div></div>
 <div id="filters" class="modal" role="dialog" aria-modal="true" aria-labelledby="filtersTitle"><div class="mbox">
 <div class="mhd"><h2 id="filtersTitle">Filter &amp; Sort</h2><span class="deco" aria-hidden="true">__FILTERS_CAST__</span><span class="small" id="filtersCount"></span></div>
 <div class="fsec"><h3>Sort games</h3><div class="fgrid">
@@ -397,7 +378,7 @@ __STUDIO_CSS__
 <aside id="tray" aria-label="Selection tray"><div class="hd"><span class="ttl"><img class="px" src="brand/oem/icon-cartridge.png" alt="" width="20" height="20" onerror="this.remove()"> My Collection</span><span id="trayCount" class="small"></span><button id="trayClose" class="btn sm">Close</button></div>
 <button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button>
 <div class="sub" id="traySub"></div><ul id="trayList"></ul><div class="ft"><span class="sp"></span><button class="btn secondary sm" id="trayExport">Export…</button> <button class="btn hk sm" id="trayHk">Install on NES Classic</button></div></aside>
-<nav class="mbar" id="mbar" aria-label="Actions"><button type="button" id="mbTray"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8h8M6 11h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Tray</span><b class="mbadge" id="mbTrayN">0</b></button><button type="button" id="mbLo" class="co"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span>Loadouts</span></button><button type="button" id="mbShare" class="co"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 7l4-4 4 4"/><path d="M4 12v4h12v-4"/></svg><span>Share</span></button><button type="button" id="mbHome" class="lo"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg><span>HOME</span></button><button type="button" id="mbInstall" class="lo"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M4 16h12"/></svg><span>Install</span></button><button type="button" id="mbMenu"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"/></svg><span>Menu</span></button></nav>
+<nav class="mbar" id="mbar" aria-label="Actions"><button type="button" id="mbTray"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8h8M6 11h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Tray</span><b class="mbadge" id="mbTrayN">0</b></button><button type="button" id="mbLo" class="co"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span>Loadouts</span></button><button type="button" id="mbShare" class="co"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 7l4-4 4 4"/><path d="M4 12v4h12v-4"/></svg><span>Share</span></button><button type="button" id="mbHome" class="lo"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg><span>HOME</span></button><button type="button" id="mbInstall" class="lo"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M4 16h12"/></svg><span>Install</span></button><button type="button" id="mbMenu" aria-label="Studio menu"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"/></svg><span>Studio</span></button></nav>
 <div id="details" role="dialog" aria-modal="true"><div class="box" id="detailsBox"></div></div>
 __STUDIO_HTML__
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -633,7 +614,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('filters').class
 $('chips').addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('[data-cf],#chipsClear'); if(!t) return; if(t.dataset.cf==='sort'){ sortK='display_title'; sortDir=1; render(); } else if(t.dataset.cf==='ext'){ setExt(false); } else if(t.dataset.cf){ $(t.dataset.cf).value=FDEF[t.dataset.cf]||''; render(); } else if(t.id==='chipsClear'){ FILTERS.forEach(([id])=>$(id).value=FDEF[id]||''); sortK='display_title'; sortDir=1; if(extOn) setExt(false); else render(); } });   /* Clear all clears every active chip, the Extended Library switch included; clicks on a chip's inner text or icon count as the chip */
 $('selectBtn').onclick=e=>{ e.stopPropagation(); $('selectMenu').hidden=!$('selectMenu').hidden; };
 document.addEventListener('click',e=>{ if(!e.target.closest('.menuwrap')) $('selectMenu').hidden=true; });
-$('selectMenu').addEventListener('click',()=>{ $('selectMenu').hidden=true; });
+$('selectMenu').addEventListener('click',e=>{ if(e.target.closest('.mi')) $('selectMenu').hidden=true; });
 
 $('q').oninput=render; ['fYear','fPub','fLic','fGenre','fPlayers','fEmu','fVer','fBuilt','fSel','fRank','fInput'].forEach(id=>$(id).oninput=updateFilterCount);
 // ---- sort control (works for list and grid; column headers stay clickable) ----
@@ -782,7 +763,48 @@ __STUDIO_JS__
 render();
 </script></body></html>"""
 
-LEGAL_PRIVATE = TEMPLATE[TEMPLATE.index('<p class="legal">'):TEMPLATE.index("</p></div></footer>") + len("</p></div></footer>")]
+# ---- menus: one row anatomy (icon box, label, optional one-line detail, optional trail) shared with studio.js miHtml(); the library
+#      actions are ONE list rendered as the desktop Select menu (ids, real handlers) and the phone ⋯ menu (proxies that click them) ----
+def _mi(id_="", ic="", label="", sub="", cls="", attrs="", trail="", hidden=False, role="menuitem"):
+    return ('<button type="button"' + (f' id="{id_}"' if id_ else "") + f' class="mi{" " + cls if cls else ""}" role="{role}"' + (f" {attrs}" if attrs else "") + (" hidden" if hidden else "") + ">"
+            + f'<span class="mic" aria-hidden="true">{ic}</span><span class="mtx"><b>{label}</b>' + (f'<span class="d">{sub}</span>' if sub else "") + "</span>"
+            + (f'<span class="mtr" aria-hidden="true">{trail}</span>' if trail else "") + "</button>")
+def _mhead(badge, title, sub, sub_id="", close="Close menu"):
+    return (f'<div class="mhead"><span class="mbadge" aria-hidden="true">{badge}</span><div class="mht"><b>{title}</b><span' + (f' id="{sub_id}"' if sub_id else "") + f'>{sub}</span></div>'
+            f'<button type="button" class="mclose" aria-label="{close}" title="Close">✕</button></div>')
+CART_ICON = '<img class="px" src="brand/oem/icon-cartridge.png" alt="" width="24" height="24" onerror="this.remove()">'
+M_COLL = ('<div class="menu wide" id="collMenu" role="menu" aria-label="My Collections" hidden>' + _mhead(CART_ICON, "My Collections", "1 collection", "csTotal", "Close My Collections")
+    + '<div class="mcard" id="collCard"><span class="mic" aria-hidden="true">🎮</span><div class="mct"><b id="collNameHead"></b><span class="mmeta"><span id="collGames">0 games</span><span class="stt" id="collStatus"><i></i>new</span></span></div><span class="mstate">Open</span></div>'
+    + '<div class="mquick">' + _mi("mNew", "✨", "New Collection…", cls="q new") + _mi("mImport", "📂", "Import Collection…", cls="q") + "</div>"
+    + _mi("mShare", "📤", "Share or Export…", "A complete .ccs file, every game with its ROM", cls="feature", trail="›")
+    + '<div class="mlabel" id="csSwitchL">Switch Collection</div><div class="mlist" id="csQuick" role="group" aria-labelledby="csSwitchL"></div>'
+    + '<div class="sep"></div>' + _mi("mManage", "🗂️", "Manage Collections…", trail="›")
+    + _mi("mRestore", "🕘", "Restore Previous Version…", "Earlier states, saved before big changes", cls="quiet")
+    + _mi("mLoadLocal", "🖥️", "Games Already on This Computer…", "Bring in games set up here before", cls="quiet", hidden=True)
+    + '<div class="sep" id="mDesktopSep"></div>' + _mi("mDesktop", "💻", "Open in Windows App…", hidden=True, trail="↗")
+    + _mi("mToWeb", "🌐", "Continue on the Website…", "Save your collections to open on ClassicCartStudio.com", hidden=True) + "</div>")
+M_APP = ('<div class="menu wide" id="appMenu" role="menu" aria-label="Studio menu" hidden>' + _mhead('<img src="icon-192.png" alt="" width="26" height="26" onerror="this.remove()">', "Studio Menu", "Help, backup and legal", close="Close the Studio menu")
+    + '<div class="mlabel">Help &amp; Guidance</div>' + _mi("howBtn", "📖", "Help &amp; User Guide", "How everything works") + _mi("mWelcome", "👋", "Welcome Screen")
+    + '<div class="mlabel">Backup &amp; Recovery</div>' + _mi("sdExport", "💾", "Back Up Studio Data…", "Every collection and setting · JSON file") + _mi("sdImport", "🛟", "Restore Studio Data…", "Adds a backup; nothing is deleted")
+    + '<div class="mlabel">About</div>' + _mi("mLegal", "⚖️", "Legal &amp; Privacy") + _mi("mStore", "🛒", "Classic Cart Studio Store", "Consoles and accessories from other sellers", hidden=True, trail="↗") + "</div>")
+# (group, id, icon, label, where: both | phone, class)
+LIB_ACTIONS = [("view", "favView", "⭐", "Show Favorites", "both", "fav"), ("view", "vToggle", "▦", "Grid View", "phone", ""),
+    ("sel", "selVis", "✅", "Add All Shown", "both", ""), ("sel", "selKachi", "🎮", "Add Shown Console-Ready Games", "both", ""), ("sel", "unselVis", "➖", "Remove All Shown", "both", ""),
+    ("own", "ownBtn", "📂", "Add Your Own Game…", "phone", ""), ("danger", "clear", "🗑️", "Remove All Games…", "both", "danger")]
+def _lib_menu(phone):
+    out, grp = [], None
+    for g, id_, ic, label, where, cls in LIB_ACTIONS:
+        if where == "phone" and not phone: continue
+        if g != grp:
+            out.append({"view": '<div class="mlabel">View</div>', "sel": f'<div class="mlabel" data-libscope>In This Collection</div>'}.get(g, '<div class="sep"></div>')); grp = g
+        attrs = ('data-view="toggle"' if id_ == "vToggle" else f'data-proxy="{id_}"') if phone else ""
+        out.append(_mi("" if phone else id_, ic, label, cls=cls, attrs=attrs))
+    mid = "moreMenu" if phone else "selectMenu"
+    return (f'<div class="menu wide" id="{mid}" role="menu" aria-label="Game Library actions" hidden>' + _mhead("☑️", "Game Library Actions", "For My Collection", close="Close Game Library actions").replace("<span>For", '<span data-libfor>For')
+            + "".join(out) + "</div>")
+TEMPLATE = TEMPLATE.replace("__M_COLL__", M_COLL).replace("__M_APP__", M_APP).replace("__M_MORE__", _lib_menu(True)).replace("__M_SELECT__", _lib_menu(False))
+
+LEGAL_PRIVATE =TEMPLATE[TEMPLATE.index('<p class="legal">'):TEMPLATE.index("</p></div></footer>") + len("</p></div></footer>")]
 LEGAL_PUBLIC = ('<p class="legal">' + DISCLAIMER + ' Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; Classic Cart Studio for Windows sets it up from the unmodified official release package, with its license; this Studio prepares collections for it and does not reimplement it). '
     'The pixel artwork and interface icons are Nintendo\'s own renderings from the NES Classic Edition system software and documented community sprite rips (origins in the character credits above), and the box art comes from community thumbnail collections; they are shown to identify and present the games, and all rights remain with their owners. No game files or console software are distributed with this website. '
     'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>. Catalog <span id="gen"></span>.</p></div></footer>')

@@ -1,6 +1,7 @@
 // ---- top navigation (one implementation for the website and the Windows app): My Collections (left), the collection's console
-//      actions (Tray, Preview on TV, HOME Setup, Install), the Studio menu (help, backup and restore); the Game Library tools below
-//      (search, Filter & Sort, Select with Favorites, List/Grid, Add Your Own Game). Capability differences only hide what cannot work.
+//      actions (Tray, NES Classic Loadouts, Preview on TV, HOME Setup, Install), the Studio menu (help, backup, legal); the Game Library
+//      tools below (search, Filter & Sort, Select = Game Library actions, List/Grid, Add Your Own Game). Capability differences only hide
+//      what cannot work.
 (function(){
  const on=(id,fn)=>{ const b=$(id); if(b) b.onclick=fn; };
  const closeMenus=()=>document.querySelectorAll('.menu').forEach(x=>x.hidden=true);
@@ -10,14 +11,14 @@
  on('export',()=>csExport()); on('importBtn',()=>csImportPick());
  // Favorites from the Select menu: a view of the library (the Selection filter "Favorites only"); it never changes what is selected
  function favActive(){ const f=$('fSel'); return !!f&&f.value==='fav'; }
- function favLabel(){ const b=$('favView'); if(!b) return; const n=fav.size; b.textContent=favActive()?'Show All Games':`★ Show Favorites${n?` (${n})`:''}`; b.setAttribute('aria-pressed',String(favActive())); }
+ function favLabel(){ const b=$('favView'); if(!b) return; const n=fav.size; miLabel(b, favActive()?'Show All Games':`Show Favorites${n?` (${n})`:''}`); b.setAttribute('aria-pressed',String(favActive())); }
  window.showFavorites=function(onOff){ const f=$('fSel'); if(!f) return; f.value=onOff?'fav':''; try{ f.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){} render(); favLabel();
   if(onOff&&!fav.size) toast('No favorites yet: click the ★ on any game to add it'); };
  on('favView',e=>{ e.stopPropagation(); closeMenus(); window.showFavorites(!favActive()); });
- const sb=$('selectBtn'); if(sb) sb.addEventListener('click',favLabel);
+ wireMenu('selectBtn','selectMenu'); const sb=$('selectBtn'); if(sb) sb.addEventListener('click',favLabel);
  const fs=$('fSel'); if(fs) fs.addEventListener('change',favLabel); favLabel();
  // My Collections: the menu shows the open collection and the quick list each time it opens
- const cb=$('collBtn'); if(cb) cb.addEventListener('click',()=>{ csSaveActiveNow(); csMenuRefresh(); const h=$('collNameHead'); if(h) h.textContent=COLL.name; updateStatusLine(); });
+ const cb=$('collBtn'); if(cb) cb.addEventListener('click',()=>{ csSaveActiveNow(); csMenuRefresh(); updateStatusLine(); });
  // capability differences
  function caps(){ const desk=!!(CO&&CO.desktop), web=!!(CO&&CO.hosted&&!CO.desktop);
   const ll=$('mLoadLocal'); if(ll) ll.hidden=!(desk||(CO&&CO.served));
@@ -35,10 +36,12 @@
   try{ const r=await fetch('store/store.json',{cache:'no-store'}); if(!r.ok) return; const d=await r.json(); const live=d&&d.published===true&&(d.products||[]).some(p=>p&&p.enabled); b.hidden=!live; }catch(e){} }
  on('mStore',()=>{ closeMenus(); window.open(location.protocol==='https:'?'store/':STORE_URL,'_blank','noopener'); });
  if(location.protocol!=='file:') setTimeout(storeCheck,1200);
- // phones: the ⋯ menu of the library row (Favorites, add/remove all shown, list/grid, add your own game) uses the same controls
- wireMenu('moreBtn','moreMenu');
- const mm=$('moreMenu'); if(mm){ const vt=mm.querySelector('[data-view]'); const vtLabel=()=>{ if(vt) vt.textContent=view==='grid'?'List View':'Grid View'; };
-  $('moreBtn').addEventListener('click',()=>{ vtLabel(); const fv=mm.querySelector('[data-proxy=favView]'); if(fv&&$('favView')) fv.textContent=$('favView').textContent; ['selVis','unselVis'].forEach(id=>{ const b=mm.querySelector(`[data-proxy=${id}]`); if(b&&$(id)) b.textContent=$(id).textContent; }); });
+ // phones: the ⋯ menu of the library row is the same list of Game Library actions as Select (build_html.py LIB_ACTIONS), plus the
+ // controls a phone does not show (List/Grid, Add Your Own Game); each row clicks the real control, so labels and handlers never drift
+ const mm=$('moreMenu'); if(mm){ const vt=mm.querySelector('[data-view]');
+  $('moreBtn').addEventListener('click',()=>{ favLabel(); if(vt){ miLabel(vt, view==='grid'?'List View':'Grid View'); const ic=vt.querySelector('.mic'); if(ic) ic.textContent=view==='grid'?'☰':'▦'; }
+   mm.querySelectorAll('[data-proxy]').forEach(b=>{ const t=$(b.dataset.proxy); if(!t) return; const tb=t.querySelector('.mtx b'); if(tb) miLabel(b, tb.textContent); if(t.hasAttribute('aria-label')) b.setAttribute('aria-label', t.getAttribute('aria-label')); if(t.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', t.getAttribute('aria-pressed')); b.disabled=t.disabled; }); });
+  wireMenu('moreBtn','moreMenu');
   mm.addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; mm.hidden=true; if(b.dataset.view){ (view==='grid'?$('vList'):$('vGrid')).click(); return; } const t=$(b.dataset.proxy); if(t) t.click(); }); }
  // the phone action bar: the same actions as the top bar's buttons (collection view: Tray, Loadouts, Share, Menu; loadout editor: Tray, HOME, Install, Menu)
  on('mbTray',()=>{ closeMenus(); $('trayBtn').click(); });
@@ -132,3 +135,53 @@ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closes
 })();
 updateStatusLine(); csMenuRefresh();
 })();
+// ---- ordinary dialogs (the generic dialog #collm, Install on NES Classic, Filter & Sort, Game Details, the welcome screen, the browser
+//      save-name dialog): one keyboard model for all of them. Only the TOP open surface takes part. Focus enters it; Tab and Shift+Tab stay
+//      inside it (native ⋯ summaries and links included); Escape closes only it; closing returns focus to what opened it (a menu row
+//      counts as its menu's button; a control that was redrawn is found again, a removed one is not used). Surfaces that manage their own
+//      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, Preview on TV, the artwork editor) are left
+//      to it. A dialog running an operation (PROC) keeps its lock: Escape, the backdrop and the header Close do nothing until its Cancel. ----
+(function(){
+ const MANAGED={collm:{esc:()=>{ if(PROC.collm) return; const c=[...$('collBody').querySelectorAll('[data-cancel]')].find(x=>!x.disabled&&x.getClientRects().length); if(c) c.click(); else closeColl(); }},
+  hkpanel:{esc:()=>{ if(!PROC.hkpanel) $('hkpanel').classList.remove('open'); }}, filters:{esc:()=>{ if(typeof fcancel==='function') fcancel(); }},
+  details:{esc:()=>$('details').classList.remove('open')}, welcome:{esc:()=>doneWelcome()}, savem:{esc:null}};
+ const SELF=['tech','ccsAck','guide','glight','tv','ovArt'];
+ const isOpen=el=>!!el&&el.classList.contains('open')&&!el.hidden;
+ const z=el=>{ const v=parseInt(getComputedStyle(el).zIndex,10); return isNaN(v)?0:v; };
+ function topSurface(){ const all=Object.keys(MANAGED).concat(SELF).map(id=>document.getElementById(id)).filter(isOpen); if(!all.length) return null;
+  return all.reduce((a,b)=>z(b)>z(a)||(z(b)===z(a)&&(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING))?b:a); }
+ window.dlgTop=topSurface;
+ const visible=el=>!!el&&el.isConnected&&el.getClientRects().length>0&&getComputedStyle(el).visibility!=='hidden'&&!el.closest('[inert],[hidden]');
+ function focusables(root){ return [...root.querySelectorAll('a[href],button,input,select,textarea,summary,[tabindex]')].filter(x=>x.tabIndex>=0&&!x.disabled&&visible(x)&&!(x.type==='radio'&&!x.checked&&root.querySelector(`input[type=radio][name="${x.name}"]:checked`))
+  &&!(x.closest('details:not([open])')&&x.tagName!=='SUMMARY')&&!(x.tagName==='SUMMARY'&&x.parentElement.closest('details:not([open])')&&x.parentElement.closest('details:not([open])')!==x.parentElement)); }
+ window.dlgFocusables=focusables;
+ // the element that should get focus back: a menu row stands for the menu's button; a redrawn control is found again by id or data key
+ const KEYS=['data-id','data-g','data-cs','data-lid','data-lo','data-a'];
+ function reattach(el){ if(!el) return null; if(el.isConnected) return el; if(el.id){ const n=document.getElementById(el.id); if(n) return n; }
+  for(const k of KEYS){ const v=el.getAttribute&&el.getAttribute(k); if(v){ const n=[...document.querySelectorAll(`${el.tagName.toLowerCase()}[${k}="${CSS.escape(v)}"]`)].find(visible); if(n) return n; } } return null; }
+ function opener(el){ const m=el&&el.closest&&el.closest('.menu'); if(m) return m._opener||null; return el; }
+ let cur=null, prev=null; document.addEventListener('focusin',e=>{ if(e.target!==cur){ prev=cur; cur=e.target; } }, true);
+ const RET={};
+ function settle(id){ const m=document.getElementById(id); if(!m) return;
+  if(isOpen(m)){ if(!(id in RET)||RET[id]===undefined){ const was=cur&&m.contains(cur)?prev:cur; RET[id]=opener(was)||null; }
+   if(!m.contains(document.activeElement)){ const f=focusables(m)[0]; if(f) f.focus({preventScroll:true}); } }
+  else if(id in RET){ const r=RET[id]; delete RET[id]; const a=document.activeElement;
+   if(a&&a!==document.body&&!m.contains(a)&&visible(a)) return;   // something else (the next dialog, the editor) already took focus
+   const t=topSurface(); if(t&&t!==m){ if(!t.contains(document.activeElement)){ const f=focusables(t)[0]; if(f) f.focus({preventScroll:true}); } return; }
+   const back=[reattach(r), $('collBtn')].find(visible); if(back) back.focus({preventScroll:true}); } }
+ new MutationObserver(ms=>{ const ids=new Set(); ms.forEach(x=>{ if(x.target.id in MANAGED) ids.add(x.target.id); }); ids.forEach(settle); })
+  .observe(document.body,{subtree:true, attributes:true, attributeFilter:['class']});
+ // wireMenu remembers who opened a menu (a phone bar button opens the same menu through the toolbar button)
+ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[aria-haspopup="menu"],#mbLo,#mbMenu'); if(!b) return; setTimeout(()=>{ document.querySelectorAll('.menu:not([hidden])').forEach(m=>{ m._opener=b; }); },0); }, true);
+ document.addEventListener('keydown',e=>{ if(e.key!=='Tab'&&e.key!=='Escape') return; if(document.querySelector('.menu:not([hidden])')) return;   // an open menu handles its own keys
+  if(e.key==='Escape'&&document.querySelector('#tip.open,#verpop.open')) return;   // a pinned tooltip or the version popover is above the dialog: Escape closes it first (their own handlers)
+  const t=topSurface(); if(!t||SELF.includes(t.id)) return; const cfg=MANAGED[t.id];
+  if(e.key==='Escape'){ if(e.target.closest&&e.target.closest('details.csmore[open]')) return; e.preventDefault(); e.stopImmediatePropagation(); if(cfg.esc) cfg.esc(); else if(t.onkeydown) t.onkeydown(e); return; }
+  const f=focusables(t); if(!f.length) return; const i=f.indexOf(document.activeElement); e.preventDefault();
+  (i<0?(e.shiftKey?f[f.length-1]:f[0]):f[(i+(e.shiftKey?-1:1)+f.length)%f.length]).focus(); }, true);
+})();
+// ---- dialogs fit the window that is actually visible (short landscape windows, a software keyboard): --vvh is the visible height and
+//      --kb what a keyboard covers at the bottom; studio.css sizes dialogs with them, and a focused field is kept in view ----
+(function(){ const vv=window.visualViewport; const set=()=>{ const h=vv?vv.height:innerHeight; document.documentElement.style.setProperty('--vvh', Math.round(h)+'px'); document.documentElement.style.setProperty('--kb', Math.max(0, Math.round(innerHeight-h-(vv?vv.offsetTop:0)))+'px'); };
+ set(); (vv||window).addEventListener('resize',set); addEventListener('resize',set);
+ document.addEventListener('focusin',e=>{ const t=e.target; if(t&&t.matches&&t.matches('.modal.open input,.modal.open textarea,.modal.open select')) setTimeout(()=>{ try{ t.scrollIntoView({block:'nearest'}); }catch(err){} },250); }); })();

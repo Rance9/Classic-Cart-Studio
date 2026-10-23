@@ -27,7 +27,7 @@
         <TextBlock x:Name="stateText" Margin="10,0,0,1" FontSize="12" VerticalAlignment="Center" Foreground="{StaticResource B.Muted}" Text=""/>
       </StackPanel>
       <StackPanel Grid.Column="2" Orientation="Horizontal">
-        <Button x:Name="menuBtn" Style="{StaticResource Caption}" Content="&#xE712;" FontSize="14" ToolTip="Studio menu" AutomationProperties.Name="Studio menu" Click="MenuBtn_Click"/>
+        <Button x:Name="menuBtn" Style="{StaticResource Caption}" Content="&#xE713;" FontSize="14" ToolTip="App tools (F10)" AutomationProperties.Name="App tools" Click="MenuBtn_Click"/>
         <Button x:Name="minBtn" Style="{StaticResource Caption}" Content="&#xE921;" ToolTip="Minimize" AutomationProperties.Name="Minimize" Click="Min_Click"/>
         <Button x:Name="maxBtn" Style="{StaticResource Caption}" Content="&#xE922;" ToolTip="Maximize" AutomationProperties.Name="Maximize" Click="Max_Click"/>
         <Button x:Name="closeBtn" Style="{StaticResource Caption.Close}" Content="&#xE8BB;" ToolTip="Close" AutomationProperties.Name="Close" Click="Close_Click"/>
@@ -55,20 +55,32 @@
       </StackPanel>
     </Grid>
 
-    <!-- Studio menu (popup under the menu button) -->
+    <!-- App tools (popup under the title-bar button): the Windows app's own commands, grouped like the website's menus (head, labeled
+         groups, 30 px icon boxes, Exit set apart). The page's Studio menu is a different menu: help, backup and legal for the Studio. -->
     <!-- opaque popup on purpose: WebView2's child window shows through layered (transparent) popups -->
     <Popup x:Name="menuPopup" PlacementTarget="{Binding ElementName=menuBtn}" Placement="Custom" StaysOpen="False" AllowsTransparency="False" PopupAnimation="None">
-      <Border Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Line2}" BorderThickness="1" Padding="4,6" Width="300">
-        <StackPanel>
-          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Reload" AutomationProperties.Name="Reload"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE72C;"/><TextBlock Text="Reload"/></StackPanel></Button>
-          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_OpenSite" AutomationProperties.Name="Open ClassicCartStudio.com in your browser"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE774;"/><TextBlock Text="Open Website"/></StackPanel></Button>
+      <Border Background="{StaticResource B.MenuSurface}" BorderBrush="{StaticResource B.MenuEdge}" BorderThickness="1" Width="312">
+        <StackPanel x:Name="menuItems" KeyboardNavigation.DirectionalNavigation="Cycle" KeyboardNavigation.TabNavigation="Cycle" AutomationProperties.Name="App tools">
+          <Border Height="3" Background="{StaticResource B.Accent}"/>
+          <Grid Margin="12,10,12,6">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Border Width="36" Height="36" CornerRadius="10" Background="{StaticResource B.Badge}"><Image Source="pack://application:,,,/app.ico" Width="22" Height="22" RenderOptions.BitmapScalingMode="HighQuality"/></Border>
+            <StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center">
+              <TextBlock Text="App Tools" FontSize="15" FontWeight="Bold"/>
+              <TextBlock Text="Classic Cart Studio for Windows" Style="{StaticResource T.Muted}" FontSize="12"/>
+            </StackPanel>
+          </Grid>
+          <TextBlock Style="{StaticResource MenuGroup}" Text="WINDOW"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Reload" AutomationProperties.Name="Reload" Tag="&#xE72C;" Content="Reload"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_OpenSite" AutomationProperties.Name="Open ClassicCartStudio.com in your browser" Tag="&#xE774;" Content="Open Website"/>
+          <TextBlock Style="{StaticResource MenuGroup}" Text="TOOLS"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_DataFolder" AutomationProperties.Name="Open Data Folder" Tag="&#xE8B7;" Content="Open Data Folder"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Diagnostics" AutomationProperties.Name="Diagnostics" Tag="&#xE9D9;" Content="Diagnostics"/>
+          <TextBlock Style="{StaticResource MenuGroup}" Text="UPDATES &amp; ABOUT"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Updates" AutomationProperties.Name="Check for Updates" Tag="&#xE896;" Content="Check for Updates"/>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_About" AutomationProperties.Name="About Classic Cart Studio" Tag="&#xE946;" Content="About Classic Cart Studio"/>
           <Border Style="{StaticResource MenuSep}"/>
-          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_DataFolder" AutomationProperties.Name="Open Data Folder"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE8B7;"/><TextBlock Text="Open Data Folder"/></StackPanel></Button>
-          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Diagnostics" AutomationProperties.Name="Diagnostics"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE9D9;"/><TextBlock Text="Diagnostics"/></StackPanel></Button>
-          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Updates" AutomationProperties.Name="Check for Updates"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE896;"/><TextBlock Text="Check for Updates"/></StackPanel></Button>
-          <Border Style="{StaticResource MenuSep}"/>
-          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_About" AutomationProperties.Name="About Classic Cart Studio"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE946;"/><TextBlock Text="About Classic Cart Studio"/></StackPanel></Button>
-          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Exit" AutomationProperties.Name="Exit"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource MenuGlyph}" Text="&#xE7E8;"/><TextBlock Text="Exit"/></StackPanel></Button>
+          <Button Style="{StaticResource MenuItemBtn}" Click="Menu_Exit" AutomationProperties.Name="Exit" Tag="&#xE7E8;" Content="Exit" Margin="0,0,0,6"/>
         </StackPanel>
       </Border>
     </Popup>

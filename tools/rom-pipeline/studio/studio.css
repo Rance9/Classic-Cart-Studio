@@ -2,10 +2,6 @@
 .brand .nm small{letter-spacing:1.5px}
 .btn.ghosty{background:transparent;border-color:transparent;color:var(--ink2)}.btn.ghosty:hover{border-color:var(--line2);color:#fff}
 .btn.howbtn{gap:6px}.btn.howbtn .q{display:inline-grid;place-content:center;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-family:var(--pixel);font-size:9px}
-.menu.wide{min-width:360px;max-width:420px}.menu.wide .mi{flex-direction:column;align-items:flex-start;gap:1px}.menu .mi .d{display:block;font-size:11.5px;color:var(--muted);font-weight:400;margin-top:1px;line-height:1.4}.menu .mi b{font-weight:600}.menu .mi .ico{width:16px;height:16px;flex:none}.menu .mhead{padding:8px 10px 6px;border-bottom:1px solid var(--line);margin-bottom:4px}
-.menu .mhead .nm{font-family:var(--display);font-size:14px;color:#fff;letter-spacing:.5px}.menu .mhead .st{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.4}.menu .mi:focus-visible{outline:2px solid var(--red3);outline-offset:-2px}
-.menu .sub{padding:2px 0 2px 26px}.menu .sub .mi{padding:6px 10px}
-.menuwrap.right .menu{left:auto;right:0}
 .stt{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)}.stt i{width:7px;height:7px;border-radius:50%;background:var(--muted)}.stt.browser i{background:var(--info)}.stt.file i{background:var(--gold)}.stt.prepared i{background:var(--ok)}.stt.console i{background:var(--red3)}
 .row.tools .ext{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink2);padding:5px 9px;border:1px solid var(--line2);border-radius:8px;cursor:pointer;user-select:none;background:rgba(255,255,255,.03)}.row.tools .ext input{accent-color:var(--red);margin:0}.row.tools .ext.on{border-color:rgba(255,59,69,.5);color:#fff}
 .row.tools .ext .info{display:inline-grid;place-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--muted);font-family:var(--pixel);font-size:7px;cursor:help;padding:0}.row.tools .ext .info:hover{color:#fff;border-color:#fff}
@@ -57,7 +53,7 @@
 #hkpanel .msg.na{opacity:.85;border-style:dashed}
 .badgeP{display:inline-block;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(92,148,252,.14);color:#9cc0ff;border:1px solid rgba(92,148,252,.4);margin-left:6px;vertical-align:middle}.badgeE{display:inline-block;font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(242,182,50,.12);color:var(--gold);border:1px solid rgba(242,182,50,.4);margin-left:6px;vertical-align:middle}
 .row.tools .avail{font-size:11.5px;color:var(--muted)}
-@media (max-width:1400px){.row.bar{flex-wrap:wrap}.actions{width:100%;justify-content:flex-start}.brand .nm small{display:none}.menuwrap.right .menu{left:0;right:auto}.menu.wide{min-width:300px;max-width:min(420px,calc(100vw - 24px))}}
+@media (max-width:1400px){.row.bar{flex-wrap:wrap}.actions{width:100%;justify-content:flex-start}.brand .nm small{display:none}}
 @media (max-width:900px){#welcome .mbox{padding:18px}#welcome h2{font-size:13px}#tech dl{grid-template-columns:1fr}#tech dt{margin-top:6px}}
 /* narrow windows: fewer list columns (rank, mapper, identity) and the list scrolls inside its own box — the page itself never scrolls sideways */
 @media (max-width:1060px){th:nth-child(4),td:nth-child(4),th:nth-child(10),td:nth-child(10),th:nth-child(11),td:nth-child(11){display:none}#listView{overflow-x:auto;max-width:100%}main{overflow-x:hidden}}
@@ -89,7 +85,6 @@
 .conn{transition:transform .16s var(--ease),border-color .16s,box-shadow .22s,background .16s}.conn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.7);background:rgba(255,255,255,.09);box-shadow:0 0 16px rgba(255,255,255,.16)}
 .conn.ok:hover{box-shadow:0 0 18px rgba(57,211,122,.5)}.conn.warn:hover{box-shadow:0 0 18px rgba(240,160,48,.5)}.conn.bad:hover{box-shadow:0 0 18px rgba(255,90,90,.5)}
 .letters a{transition:transform .12s,background .12s,border-color .12s,color .12s}.letters a:hover{transform:translateY(-1px) scale(1.12);background:rgba(255,255,255,.12);box-shadow:0 4px 10px rgba(0,0,0,.4)}
-.menu .mi{transition:background .12s,transform .12s}.menu .mi:hover{transform:translateX(3px)}
 #welcome .ch{transition:transform .18s var(--ease),border-color .18s,box-shadow .22s}#welcome .ch:hover,#welcome .ch:focus-visible{transform:translateY(-3px);box-shadow:0 0 0 2px rgba(255,59,69,.4),0 14px 34px rgba(228,0,15,.28)}
 .sbox .opt{transition:transform .18s var(--ease),border-color .18s,box-shadow .22s,background .18s}.sbox .opt:hover,.sbox .opt:focus-visible{transform:translateY(-2px);background:rgba(255,255,255,.06);box-shadow:0 0 0 2px rgba(255,59,69,.3),0 10px 26px rgba(0,0,0,.45)}
 /* ---- compact persistent header: hero + controls stick together (desktop); on small screens only the controls stick ---- */
@@ -375,14 +370,6 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 #welcome .ft{align-items:center;gap:10px;flex-wrap:wrap}
 #welcome .ft .wevery{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);cursor:pointer;white-space:nowrap}
 #welcome .ft .wevery input{accent-color:var(--red);margin:0}
-/* layered submenus in the My Collection menu */
-.menu .mi.sub b .chev{display:inline-block;margin-left:6px;font-size:11px;color:var(--muted);transition:transform .15s var(--ease)}
-.menu .mi.sub.open b .chev{transform:rotate(90deg)}
-.menu .mi.sub.open{background:rgba(255,255,255,.05)}
-.menu .submenu{margin:2px 0 4px 14px;padding-left:10px;border-left:2px solid rgba(255,59,69,.45)}
-.menu .submenu .mi{padding:6px 10px}
-.menu .submenu .mi b{font-weight:600;font-size:12.5px}
-@media (prefers-reduced-motion:reduce){.menu .mi.sub b .chev{transition:none}}
 /* console steps (Install on NES Classic): simulation marking, progress bar */
 .simtag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#2a2a31;border:1px solid var(--line2);color:#ffb3b7;font-family:var(--display);font-size:9.5px;letter-spacing:1px;vertical-align:middle}
 #hkpanel .msg.sim{border-color:rgba(255,59,69,.5)}
@@ -422,21 +409,7 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .collbtn #collName{font-weight:700;color:#fff;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge.soft{background:rgba(255,255,255,.1);color:var(--ink2);font-weight:600;font-size:11.5px;height:20px;padding:0 8px;white-space:nowrap}
 .appbtn .fl{margin-left:2px}
-.menu .mlabel{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:6px 10px 2px;font-weight:700}
-#csQuick{max-height:min(320px,42vh);overflow:auto}
-.menu .mi.csq.on b{color:#fff}
-.menu .mi.fav{color:var(--gold,#f2b632);font-weight:600}
 .btn.danger{background:linear-gradient(180deg,#b3141e,#7d0a12);border-color:#e4000f;color:#fff}
-.csbar{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 12px}
-.cslist{display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow:auto;padding-right:2px}
-.csrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:rgba(255,255,255,.03)}
-.csrow.on{border-color:rgba(228,0,15,.7);background:rgba(228,0,15,.07)}
-.csn{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;flex:1;min-width:220px}
-.csn b{color:#fff;font-size:14.5px}
-.csn .small{flex-basis:100%}
-.csn .tag{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;padding:1px 7px;border:1px solid rgba(255,255,255,.25);border-radius:999px;color:var(--ink2)}
-.csn .tag.pub{border-color:rgba(92,148,252,.5);color:#9cc0ff}
-.csacts{display:flex;gap:6px;flex-wrap:wrap}
 .cspick{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto;margin:10px 0}
 .cspick label{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
 .fld input[type=text],.fld textarea{width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid var(--line2);background:#101014;color:var(--ink);font:inherit;resize:vertical}
@@ -461,8 +434,7 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .shg div{display:flex;flex-direction:column;min-width:0}
 .shg b{color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:900px){ .collbtn #collName{max-width:150px} #homeBtn{font-size:0;gap:0} #homeBtn .ico{width:16px;height:16px} .appbtn .fl{display:none} }
-@media (max-width:640px){ .collbtn{max-width:100%} .collbtn .badge.soft{display:none} .shlink{flex-direction:column} .csacts .btn{flex:1} }
-@media (min-width:641px){ .menuwrap.right #appMenu{left:auto;right:0} }
+@media (max-width:640px){ .collbtn{max-width:100%} .collbtn .badge.soft{display:none} .shlink{flex-direction:column} }
 @media (min-width:641px){
  .toolsfold.stack:not(.measuring) .row.tools>input[type=search]{flex:1 1 260px!important;width:auto!important}
  .toolsfold.stack:not(.measuring) .row.tools>#filtersBtn,.toolsfold.stack:not(.measuring) .row.tools>.menuwrap,.toolsfold.stack:not(.measuring) .row.tools>#ownBtn,.toolsfold.stack:not(.measuring) .row.tools .seg{flex:0 0 auto!important;width:auto!important}
@@ -477,13 +449,11 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
  #trayBtn,#homeBtn,.row.bar .menuwrap.right{order:1}
  #homeBtn{font-size:0}
  #hkBtn{grid-column:1/-1;order:2}
- #selectMenu{min-width:250px}
 }
 
 .shg.away{opacity:.75}.shg .small.away{color:var(--gold,#f2b632)}.trmiss .tag{margin-right:6px}
 
 /* ---- NES Classic Loadouts: the collection bar entry, the loadout band shown while one is edited, dialogs ---- */
-.lobtn .cl{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;text-align:left}.lobtn .cl .cap{font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600}
 .lobtn{border-color:rgba(228,0,15,.45)}.lobtn:hover{border-color:var(--red3)}
 .row.lob{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px 12px 9px;border:1px solid rgba(228,0,15,.55);border-left:5px solid var(--red3);border-radius:var(--r2);background:linear-gradient(90deg,rgba(228,0,15,.16),rgba(228,0,15,.04) 60%,rgba(255,255,255,.02))}
 .lob-main{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.lob-main .sp{flex:1}
@@ -497,11 +467,6 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .lob-hint{font-size:12px;color:var(--muted)}
 body.lomode .toolbar{box-shadow:inset 0 3px 0 var(--red3),0 8px 30px rgba(0,0,0,.45)}
 body:not(.lomode) [data-tvfocus]{display:none}
-.lohead{font-family:var(--display);font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
-.lolist{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}.lorow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--bg1)}.lorow .lon{flex:1;min-width:0;display:flex;flex-direction:column}.lorow .lon b{color:#fff}
-.lochoice{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px}.lochoice .lc{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--bg1);cursor:pointer}.lochoice .lc:has(input:checked){border-color:var(--red3);background:rgba(228,0,15,.08)}.lochoice .lc.off{opacity:.55;cursor:default}
-.lochoice .lc input[type=radio]{margin-top:3px;accent-color:var(--red3)}.lochoice .lc>span{display:flex;flex-direction:column;gap:2px}.lochoice .lc b{color:#fff}
-.menu .mempty{padding:8px 12px;color:var(--muted);max-width:340px}
 .lotray{margin-top:6px;padding:6px 8px;border-left:3px solid var(--red3);background:rgba(228,0,15,.07);border-radius:4px;color:var(--ink2)}.lotray .btn{margin-left:6px}
 .shlo{margin:8px 0;padding:8px 10px;border:1px solid var(--line2);border-radius:var(--r2)}.shlo ul{margin:4px 0 0 18px;padding:0}
 details.lotech summary{cursor:pointer;color:var(--ink2);font-size:12.5px;margin-top:8px}
@@ -610,11 +575,10 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
  body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
  .toast{bottom:calc(70px + env(safe-area-inset-bottom))!important}
  #tray{z-index:42;width:100vw!important}#tray .ft{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
- /* menus open as sheets above the bar */
- .menu:not([hidden]){position:fixed!important;left:8px!important;right:8px!important;top:auto!important;bottom:calc(62px + env(safe-area-inset-bottom))!important;width:auto!important;min-width:0!important;max-width:none!important;max-height:70vh;overflow:auto;z-index:46;border-radius:14px}
  /* dialogs as bottom sheets: the content scrolls, the buttons stay visible */
- .modal:not(#guide):not(#filters){align-items:flex-end!important;padding:0!important}
- .modal:not(#guide):not(#filters)>.mbox{width:100%!important;max-width:100%!important;max-height:92dvh!important;border-radius:16px 16px 0 0!important;padding:14px 14px 0!important;overflow:auto!important;box-sizing:border-box}
+ .modal:not(#guide):not(#filters){align-items:flex-end!important;padding:0 0 var(--kb)!important}
+ .modal:not(#guide):not(#filters)>.mbox{width:100%!important;max-width:100%!important;max-height:min(92dvh,calc(var(--vvh) - 8px))!important;border-radius:16px 16px 0 0!important;padding:14px 14px 0!important;box-sizing:border-box}
+ .modal:not(#guide):not(#filters):not(#collm)>.mbox{overflow:auto!important}
  .modal:not(#guide):not(#filters)>.mbox .acts{position:sticky;bottom:0;z-index:2;margin:10px -14px 0;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(21,21,26,.85),#15151a 40%)}
  .mhd{flex-wrap:wrap;gap:6px 10px!important}.mhd h2{font-size:17px!important;line-height:1.25}.mhd .small{order:3;flex:1 1 100%}
  #filters{padding:0!important;align-items:stretch!important}#filters>.mbox{width:100vw!important;max-width:100vw!important;height:100dvh;max-height:100dvh!important;border-radius:0!important;overflow:auto;padding:12px 14px 0!important;box-sizing:border-box}
@@ -624,8 +588,8 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
  #welcome .ch{min-height:0!important;padding:12px 14px!important}#welcome .ch .px{width:28px;height:28px}#welcome .mbox{padding:14px!important}#welcome .ft{flex-wrap:wrap;gap:8px}
  .ccsack{align-items:flex-end!important;padding:0!important}.ccsackbox{border-radius:16px 16px 0 0!important;max-height:92dvh;overflow:auto;padding:16px 14px calc(14px + env(safe-area-inset-bottom))!important}.ccsack .acts{position:sticky;bottom:0;background:#15151a;padding-top:8px}
  .ccsack .acts .btn{flex:1 1 auto}
- #details{align-items:flex-end!important;padding:0!important}
- #details .box{border-radius:16px 16px 0 0!important;max-height:94dvh!important;padding:14px!important;display:block!important}
+ #details{align-items:flex-end!important;padding:0 0 var(--kb)!important}
+ #details .box{border-radius:16px 16px 0 0!important;max-height:min(94dvh,calc(var(--vvh) - 8px))!important;padding:14px!important;display:block!important}
  #details .side{display:grid!important;grid-template-columns:104px minmax(0,1fr);gap:4px 12px;align-items:start;margin-bottom:6px}
  #details .side .dcover{grid-row:1/8;width:104px}#details .side #dArtCap{display:none}
  #details .side>*:not(.dcover){grid-column:2}
@@ -650,16 +614,6 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
 .card.sel{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
 .card .ctl .sp{flex:1}
 
-/* ==== Polish pass: Manage Collections (everyday actions first; Delete inside More) ==== */
-.csrow .csacts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-details.csmore{position:relative}
-details.csmore>summary{list-style:none;cursor:pointer}
-details.csmore>summary::-webkit-details-marker{display:none}
-details.csmore .csmenu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:170px;background:linear-gradient(180deg,#26262e,#1a1a20);border:1px solid var(--line2);border-radius:var(--r2);padding:4px;box-shadow:0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column}
-details.csmore .csmenu .mi{display:block;width:100%;text-align:left;background:none;border:0;color:#fff;padding:9px 12px;border-radius:7px;font:inherit;font-size:13.5px;cursor:pointer;min-height:40px}
-details.csmore .csmenu .mi:hover,details.csmore .csmenu .mi:focus-visible{background:rgba(255,255,255,.08)}
-details.csmore .csmenu .mi.del{color:#ff8a8a;border-top:1px solid var(--line,#2a2a2a);border-radius:0 0 7px 7px;margin-top:2px}
-@media (max-width:640px){ .csrow .csacts .btn{flex:0 0 auto} details.csmore .csmenu{right:0;left:auto} }
 
 /* ==== Polish pass: loadout band ==== */
 .lob-count,#loBack .bls{display:none}
@@ -742,3 +696,121 @@ details.csmore .csmenu .mi.del{color:#ff8a8a;border-top:1px solid var(--line,#2a
 
 /* disabled actions in dialogs look disabled (Share or Export before every ROM file is ready) */
 #collm .acts .btn:disabled,#collm .ccsfix .btn:disabled{opacity:.45;filter:saturate(.3);box-shadow:none;cursor:not-allowed}
+
+/* ==== Menus and dialogs: one visual system for the website and the Windows app (tokens --sf*, --acc, --hot* in the page :root) ====
+   Anatomy: a contextual head (badge, title, one line of context, Close); an optional active-object card; a compact primary area;
+   labeled groups of rows (32 px icon box, label, optional one-line detail, optional trail); recovery and destructive rows set apart.
+   Desktop: anchored to the trigger and bounded (studio.js menuFit). Phones: bottom sheets above the action bar. */
+.menuwrap{position:relative}
+.menu{position:absolute;left:0;top:calc(100% + 8px);z-index:35;display:flex;flex-direction:column;gap:2px;min-width:300px;max-width:min(400px,calc(100vw - 24px));padding:10px;border:1px solid var(--sfe);border-radius:16px;background:var(--surface);box-shadow:0 18px 50px rgba(0,0,0,.62),0 0 0 1px rgba(0,0,0,.35);overflow:auto;overscroll-behavior:contain;color:var(--ink);text-align:left}
+.menu.wide{width:384px}
+.menuwrap.right .menu{left:auto;right:0}
+.mhead{display:flex;align-items:center;gap:12px;padding:4px 2px 10px}
+.mbadge{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#77313e,#402530);box-shadow:inset 0 1px 0 rgba(255,255,255,.12);font-size:20px;line-height:1;color:#fff}
+.mbadge img{width:24px;height:24px;image-rendering:pixelated}.mbadge img[src$="icon-192.png"]{width:28px;height:28px;image-rendering:auto;border-radius:6px}.mbadge svg{width:22px;height:22px}
+.mht{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.mht b{font:700 16px/1.2 var(--font);color:#fff;overflow-wrap:break-word}.mht span{font-size:12.5px;color:var(--sfm);overflow-wrap:break-word}
+.mclose{flex:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--sfl);background:rgba(255,255,255,.04);color:var(--ink2);font:600 14px/1 var(--font);cursor:pointer;display:inline-grid;place-items:center;padding:0;transition:background .12s,color .12s,border-color .12s}
+.mclose:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35);color:#fff}.mclose:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.mi{display:flex;align-items:center;gap:12px;width:100%;min-height:46px;padding:8px 10px 8px 7px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--ink);font:inherit;font-size:14px;line-height:1.25;text-align:left;cursor:pointer;transition:background .12s,border-color .12s}
+.mi:hover{background:rgba(255,255,255,.065)}.mi:focus-visible{outline:2px solid var(--acc);outline-offset:-2px;background:rgba(255,255,255,.065)}
+.mi:disabled{opacity:.48;cursor:not-allowed}.mi:disabled:hover{background:transparent}
+.mic{flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--sfi);font-size:17px;line-height:1;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",var(--font)}
+.mic img{width:20px;height:20px;image-rendering:pixelated}.mic svg{width:18px;height:18px}
+.mtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.mtx b{font-weight:650;color:#fff;overflow-wrap:break-word}.mtx .d{font-size:12px;color:var(--sfm);font-weight:400;line-height:1.35}
+.mtr{flex:none;color:var(--sfm);font-size:16px;line-height:1}.mtr.txt{font-size:13px;font-weight:600;color:var(--ink2)}
+.mlist .mtx b,.mcard .mct b,.lolist .mtx b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mpill{flex:none;font-size:11.5px;font-weight:600;color:var(--ink2);padding:3px 8px;border-radius:999px;border:1px solid var(--sfl);background:rgba(255,255,255,.05);white-space:nowrap}
+.mi.danger .mtx b{color:#ffa0a8}.mi.danger .mic{background:rgba(255,97,111,.16)}.mi.danger:hover{background:rgba(255,97,111,.1)}
+.mi.quiet .mtx b{color:var(--ink2);font-weight:600}
+.mi.feature{background:linear-gradient(90deg,rgba(124,87,170,.24),rgba(255,255,255,.03));border-color:rgba(160,130,210,.3);margin:2px 0}.mi.feature:hover{border-color:rgba(190,160,235,.5)}
+.mi[aria-checked=true]{background:rgba(255,97,111,.1);border-color:rgba(255,97,111,.32)}
+.mlabel{font-size:10.5px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--sfk);padding:10px 8px 4px}
+.menu .sep{height:1px;background:var(--sfl);margin:6px 4px;flex:none}
+.mcard{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--hotb);border-radius:13px;background:linear-gradient(135deg,var(--hot1),var(--hot2));box-shadow:inset 3px 0 0 var(--acc)}
+.mcard .mic{width:36px;height:36px;font-size:19px;background:rgba(0,0,0,.28)}
+.mct{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}.mct b{font:700 15px/1.25 var(--font);color:#fff;overflow-wrap:break-word}
+.mmeta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:12.5px;color:var(--ink2)}
+.mstate{flex:none;align-self:flex-start;font:700 10.5px/1 var(--font);letter-spacing:1px;text-transform:uppercase;color:#ffb3bb;padding-top:2px}
+.mquick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 4px}
+.mquick .mi{min-height:58px;border-color:var(--sfl);background:rgba(255,255,255,.045)}.mquick .mi:hover{border-color:rgba(255,255,255,.3)}
+.mquick .mi.new{background:linear-gradient(135deg,#482a34,#322731);border-color:#6e3b48}.mquick .mi.new:hover{border-color:#a4566a}
+.mlist{display:flex;flex-direction:column;gap:2px;flex:none}
+.mempty{margin:4px 2px;padding:14px 12px;border:1px dashed var(--sfl);border-radius:12px;color:var(--sfm);font-size:13px;line-height:1.45;text-align:center}
+.mempty b{color:#fff}
+.lobtn .cl{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;text-align:left}.lobtn .lbn{font-weight:700;color:#fff}.lobtn .lctx{font-size:11.5px;color:var(--sfm);font-weight:500}
+/* dialogs: one header (badge, title, context, Close), choice cards, collection and loadout cards with a contextual ⋯ menu */
+.mhd .hbadge{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#77313e,#402530);font-size:19px;line-height:1}
+.mhd .hbadge:empty{display:none}
+.mhdt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}.mhdt h2{flex:none}.mhdt .small:empty{display:none}
+/* the generic dialog fits the visible window: its header stays, its content scrolls, its last action row stays reachable at the bottom */
+#collm>.mbox{display:flex;flex-direction:column;overflow:hidden}
+#collm>.mbox>.mhd{flex:none}
+#collBody{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;margin:0 -8px;padding:0 8px 2px;scroll-padding:8px 0 76px}   /* the sticky action row never covers a field brought into view */
+@media (max-width:640px){ #collBody{margin:0 -14px;padding:0 14px} }
+#collBody>.acts:last-child{position:sticky;bottom:0;z-index:3;margin-top:12px;padding:12px 0 2px;background:linear-gradient(180deg,rgba(26,28,35,0),var(--sf2) 14px)}
+@media (max-height:520px){ .mhd{margin-bottom:10px;padding-bottom:10px;gap:10px} .mhd .hbadge{width:34px;height:34px;font-size:17px} .mhd h2{font-size:19px} .mbox{padding:14px 16px 14px} .mhd .mclose{width:40px;height:40px} }
+.mhd .small{color:var(--sfm)}
+.mhd .mclose{margin-left:auto}
+.msgbox{border-left-width:3px}
+.dsec{font-size:10.5px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--sfk);margin:16px 0 6px}
+.dquick{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:2px 0 6px}
+.dquick .mi{min-height:56px;border-color:var(--sfl);background:rgba(255,255,255,.045)}.dquick .mi:hover{border-color:rgba(255,255,255,.3)}
+.dquick .mi.new{background:linear-gradient(135deg,#482a34,#322731);border-color:#6e3b48}
+.dlinks{display:flex;flex-wrap:wrap;gap:4px 6px;margin:0 0 12px}
+.dlinks .mi{width:auto;min-height:40px;padding:4px 10px 4px 6px;font-size:13px}.dlinks .mi .mic{width:28px;height:28px;font-size:15px;background:transparent}
+.dlinks .mi .mtx b{color:var(--ink2);font-weight:600}
+.cslist{display:flex;flex-direction:column;gap:10px;max-height:56vh;overflow:auto;padding:2px}
+.csrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px 12px;padding:12px;border:1px solid var(--sfl);border-radius:14px;background:rgba(255,255,255,.03)}
+.csrow.on{border-color:var(--hotb);background:linear-gradient(135deg,var(--hot1),var(--hot2));box-shadow:inset 3px 0 0 var(--acc)}
+.csrow>.mic{width:42px;height:42px;font-size:21px;border-radius:11px}
+.csn{min-width:0;display:flex;flex-direction:column;gap:3px}.csn b{color:#fff;font-size:15px;overflow-wrap:break-word}.csn .small{color:var(--ink2)}
+.opentag{align-self:start;display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;border:1px solid rgba(131,220,181,.45);background:rgba(131,220,181,.1);color:var(--mint);font-size:12px;font-weight:700;white-space:nowrap}
+.csacts{grid-column:1/-1;display:flex;gap:8px;align-items:center}
+.csacts .btn{justify-content:center;min-height:36px}.csacts .grow{flex:1;min-width:0}
+details.csmore{position:relative;flex:none}
+details.csmore>summary{list-style:none;cursor:pointer;width:40px;min-height:36px;justify-content:center;padding:0;font-size:18px;letter-spacing:1px}
+details.csmore>summary::-webkit-details-marker{display:none}
+details.csmore[open]>summary{border-color:var(--acc)}
+.csmenu{position:fixed;z-index:60;min-width:210px;display:flex;flex-direction:column;gap:2px;padding:6px;border:1px solid var(--sfe);border-radius:13px;background:var(--surface);box-shadow:0 14px 36px rgba(0,0,0,.65)}
+.csmenu .mi{min-height:44px;font-size:13.5px}.csmenu .mi .mic{width:28px;height:28px;font-size:15px}
+.csmenu .sep{height:1px;background:var(--sfl);margin:4px 2px}
+.lochoice{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px}
+.lochoice .lc{display:flex;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--sfl);border-radius:12px;background:rgba(255,255,255,.035);cursor:pointer;transition:border-color .12s,background .12s}
+.lochoice .lc:hover{border-color:rgba(255,255,255,.3)}
+.lochoice .lc:has(input:checked){border-color:#da6879;background:#3b2731}
+.lochoice .lc:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
+.lochoice .lc.off{opacity:.55;cursor:not-allowed}
+.lochoice .lc input[type=radio]{flex:none;width:18px;height:18px;margin:0;accent-color:var(--acc)}
+.lochoice .lc>span:not(.mic){display:flex;flex-direction:column;gap:2px;min-width:0}.lochoice .lc b{color:#fff}.lochoice .lc .mic{width:30px;height:30px;font-size:16px}
+.lolist{display:flex;flex-direction:column;gap:4px;margin:2px 0 6px}
+.lolist .mi{border-color:var(--sfl);background:rgba(255,255,255,.03)}
+.locreate{padding:12px 14px 4px;border:1px solid var(--sfl);border-radius:14px;background:rgba(255,255,255,.025)}
+.locreate .fld{margin-top:0}
+.sbox .opt{display:grid;grid-template-columns:auto 1fr;align-items:start;gap:4px 12px;border-radius:12px;border-color:var(--sfl)}
+.sbox .opt>.mic{grid-row:1/3;width:36px;height:36px;font-size:19px}.sbox .opt>b{align-self:end}
+.snaps{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto;margin-top:10px}
+.sbox .snap{gap:12px;padding:10px 12px;border-color:var(--sfl);border-radius:12px;background:rgba(255,255,255,.03);margin:0;font-size:13px}
+.snapt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.snapt b{color:#fff;overflow-wrap:break-word}
+.filecard{display:flex;align-items:center;gap:12px;padding:12px;margin:0 0 10px;border:1px solid var(--sfl);border-radius:14px;background:rgba(255,255,255,.035)}
+.filecard .mic{width:40px;height:40px;font-size:20px}.filecard b{display:block;color:#fff;overflow-wrap:break-word}.filecard .small{color:var(--sfm)}
+/* action icons on dialog buttons whose text other code reads: CSS content with empty alternative text (not part of the name) */
+#ccsExp::before{content:"💾" / "";margin-right:2px}#ccsSend::before{content:"📲" / "";margin-right:2px}#ccsOpen::before{content:"✅" / "";margin-right:2px}
+@media (prefers-reduced-motion:reduce){.mi,.mclose,.lochoice .lc{transition:none}.mbox{animation:none}}
+@media (max-width:640px){
+ .menu:not([hidden]){position:fixed!important;left:8px!important;right:8px!important;top:auto!important;bottom:calc(64px + env(safe-area-inset-bottom))!important;width:auto!important;min-width:0!important;max-width:none!important;max-height:calc(100dvh - 128px - env(safe-area-inset-bottom));z-index:46;border-radius:18px;padding:0 12px 12px}
+ .menu .mhead{position:sticky;top:0;z-index:2;margin:0 -12px 2px;padding:14px 12px 10px;background:linear-gradient(90deg,var(--acc),var(--acc2)) top/100% 3px no-repeat,var(--sf1);border-bottom:1px solid var(--sfl)}
+ .mclose{width:44px;height:44px;font-size:16px}
+ .mi{min-height:48px}.mquick .mi{min-height:60px}.mlist{max-height:none}
+ body:has(.menu:not([hidden]))::after{content:"";position:fixed;left:0;right:0;top:0;bottom:calc(58px + env(safe-area-inset-bottom));z-index:29;background:rgba(6,6,10,.6)}
+ .csrow{grid-template-columns:auto minmax(0,1fr)}.csrow .opentag{grid-column:2;justify-self:start}
+ .dquick{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.dquick .mi{min-height:56px}
+ details.csmore>summary{width:44px;min-height:44px}.csacts .btn{min-height:44px}
+ /* touch targets in dialogs, the tray and Filter & Sort: 44 px */
+ .mbox .btn,.ccsackbox .btn,#tray .btn,#details .btn,#filters select,.sbox .snap .btn{min-height:44px}
+}
+/* short windows (phones in landscape: no bottom bar): a menu is a panel at the side, the window's full height, scrolling inside */
+@media (max-height:500px) and (max-width:1000px){
+ .menu:not([hidden]){position:fixed!important;top:8px!important;bottom:8px!important;left:auto!important;right:max(8px,env(safe-area-inset-right))!important;width:min(400px,calc(100vw - 16px))!important;min-width:0!important;max-width:none!important;max-height:none!important;z-index:46;border-radius:16px;padding:0 12px 12px}
+ .menu .mhead{position:sticky;top:0;z-index:2;margin:0 -12px 2px;padding:12px 12px 8px;background:linear-gradient(90deg,var(--acc),var(--acc2)) top/100% 3px no-repeat,var(--sf1);border-bottom:1px solid var(--sfl)}
+ body:has(.menu:not([hidden]))::after{content:"";position:fixed;inset:0;z-index:29;background:rgba(6,6,10,.6)}
+}
