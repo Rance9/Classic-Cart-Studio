@@ -57,7 +57,7 @@ function openVerPop(btn){ const t=TITLES[btn.dataset.ver]; if(!t) return; const 
 function closeVerPop(){ vp.classList.remove('open'); }
 function chooseVersion(tid, vid){ const t=TITLES[tid]; const g=byId[vid]; if(!t||!g) return; const had=t.versions.filter(v=>sel.has(v));
  if(had.length){ if(COLL.multi[tid]){ if(sel.has(vid)) { if(had.length>1) sel.delete(vid); } else sel.add(vid); } else { had.forEach(v=>sel.delete(v)); sel.add(vid); } toast(`${t.title}: ${COLL.multi[tid]?'versions updated':'version set to '+shortVer(g)}`); }
- else { COLL.pref[tid]=vid; toast(`${t.title}: showing ${shortVer(g)}. Click the game to add it.`); }
+ else { COLL.pref[tid]=vid; toast(`${t.title}: showing ${shortVer(g)}. ${clickWord(1)} the game to add it.`); }
  persist(); render(); }
 vp.addEventListener('click',e=>{ const b=e.target.closest('[data-pick]'); if(b){ chooseVersion(vp.dataset.title, b.dataset.pick); closeVerPop(); return; } if(e.target.id==='vpMulti'){ COLL.multi[vp.dataset.title]=e.target.checked; if(!e.target.checked){ const t=TITLES[vp.dataset.title]; const had=t.versions.filter(v=>sel.has(v)); had.slice(1).forEach(v=>sel.delete(v)); } persist(); render(); return; } if(e.target.id==='vpHelp'){ closeVerPop(); openGuide('versions'); } });
 document.addEventListener('click',e=>{ const b=e.target.closest('button.ver'); if(b){ e.stopPropagation(); e.preventDefault(); if(vp.classList.contains('open')&&vp.dataset.title===b.dataset.ver) closeVerPop(); else openVerPop(b); return; } if(!e.target.closest('#verpop')) closeVerPop(); }, true);
@@ -205,7 +205,7 @@ document.addEventListener('click',e=>{ const a=e.target.closest('[data-guide]');
 function maybeWelcome(force){ if(!force&&localStorage.getItem(WKEY)==='off') return; if($('wEvery')) $('wEvery').checked=localStorage.getItem(WKEY)!=='off'; $('welcome').classList.add('open'); if(COMPANION.ok){ capi('/api/library/local').then(r=>{ if(r.ok&&r.library.summary.custom_total){ const S=r.library.summary; $('wFound').hidden=false; $('wFound').innerHTML=`Found <b>${S.custom_total} game${S.custom_total===1?'':'s'}</b> already set up on this computer. Choose <b>Open My Collections</b> to bring them in; nothing changes until you do.`; } }).catch(()=>{}); } }
 function doneWelcome(){ localStorage.setItem(WKEY, ($('wEvery')&&!$('wEvery').checked)?'off':'on'); $('welcome').classList.remove('open'); if(typeof desktopStateDirty==='function') desktopStateDirty(); }
 $('welcome').addEventListener('click',e=>{ if(e.target===$('welcome')) doneWelcome(); });   // a click on the backdrop is the same as Just browse (the box's own choice is kept)
-$('wNew').onclick=()=>{ doneWelcome(); if(sel.size||csList().length>1) csNewDialog(); else toast('Click any game to add it to your collection'); }; $('wLoad').onclick=()=>{ doneWelcome(); csManager(); }; $('wHow').onclick=()=>{ doneWelcome(); openGuide('start'); }; $('wSkip').onclick=doneWelcome;
+$('wNew').onclick=()=>{ doneWelcome(); if(sel.size||csList().length>1) csNewDialog(); else toast(clickWord(1)+' any game to add it to your collection'); }; $('wLoad').onclick=()=>{ doneWelcome(); csManager(); }; $('wHow').onclick=()=>{ doneWelcome(); openGuide('start'); }; $('wSkip').onclick=doneWelcome;
 // ---- menus ----
 // one row anatomy for every menu and dialog list (build_html.py _mi() renders the static menus the same way): icon box (decorative),
 // label, optional one-line detail, optional trail; miLabel() changes a row's label without touching its icon
