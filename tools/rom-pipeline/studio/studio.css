@@ -820,3 +820,69 @@ details.csmore[open]>summary{border-color:var(--acc)}
 /* every dialog header stays in view: the title and its buttons (Close) stick to the top of the dialog while its content scrolls */
 .mbox>.mhd{position:sticky;top:calc(-1 * var(--mbpt,18px));z-index:5;margin-top:calc(-1 * var(--mbpt,18px));margin-left:calc(-1 * var(--mbpx,20px));margin-right:calc(-1 * var(--mbpx,20px));padding-top:var(--mbpt,18px);padding-left:var(--mbpx,20px);padding-right:var(--mbpx,20px);background:linear-gradient(90deg,var(--acc),var(--acc2)) top/100% 3px no-repeat,var(--sf1)}
 @media (max-width:640px){ #details .dframe{max-height:min(94dvh,calc(var(--vvh) - 8px))} #details .close{top:8px;right:10px} }
+/* the branding is the Home link: the same words and look, a 44 px target, a visible keyboard focus */
+.hero h1 .brandhome{display:inline-flex;align-items:center;gap:0 .25em;padding:2px 0;margin:-2px 0;color:inherit;text-decoration:none;border-radius:8px;-webkit-tap-highlight-color:rgba(255,255,255,.08)}
+.hero h1 .brandhome span{margin:0}
+.hero h1 .brandhome:focus-visible{outline:3px solid #fff;outline-offset:4px}
+/* touch screens: text fields, lists and search at 16 px or more, so focusing one never makes the page zoom (pinch zoom stays available) */
+@media (hover:none) and (pointer:coarse){
+ .hero h1 .brandhome{min-height:44px}   /* a full-size touch target for Home */
+ html body input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=button]):not([type=submit]),html body textarea,html body select{font-size:16px!important}
+}
+/* short windows and phones held sideways (500 px or less tall, wider than a phone): the title band scrolls away and only the toolbar stays
+   at the top, as compact as on a phone; the jump letters are not shown and the loadout band is one compact line, so the games keep most
+   of the height. Every action stays in the toolbar. */
+@media (max-height:500px) and (min-width:641px){
+ .stickyhead{position:static!important;box-shadow:none!important;display:contents!important}
+ .toolbar{position:sticky!important;top:0;z-index:30;box-shadow:0 6px 18px rgba(0,0,0,.45)!important}
+ .toolbar .in{padding-top:4px!important;padding-bottom:4px!important;gap:4px!important}
+ #subRow .letters{display:none!important}.row.sub:has(.chips[hidden]){display:none!important}
+ .row.tools .stats{display:none!important}
+ /* the loadout band on one line: label, name, count, meter, status, Will it fit?, Back */
+ .row.lob:not([hidden]){display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;padding:4px 10px!important;gap:8px!important}
+ .lob-main{display:contents!important}
+ .lob-k{order:1;font-size:9px!important;padding:1px 7px!important;letter-spacing:1px!important;flex:none}.lob-k svg{width:11px!important;height:11px!important}
+ .lob-main>.menuwrap{order:2;min-width:0;flex:0 1 auto}.lob-name{font-size:15px!important;padding:0!important;max-width:220px!important}
+ .lob-fig{order:3;display:flex!important;align-items:center;gap:8px;flex:1 1 auto;min-width:0;flex-wrap:nowrap}
+ .lob-sto{display:flex!important;align-items:center;gap:8px;flex:1;min-width:0}
+ #loBack{order:4;flex:none;height:34px;padding:0 10px}#loBack .bl{display:none!important}#loBack .bls{display:inline!important}
+ .lob-from,.lob-main>.sp,.lob-hint,.lob-lbl,#loUse{display:none!important}
+ .lometer{flex:0 1 110px;min-width:50px;height:8px!important}
+ #loStat{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}#loWhy{flex:none;white-space:nowrap}
+}
+/* phones, the loadout band in the editor: the status and Will it fit? share one line (the meter and Will it fit? carry the figures; the
+   meter's accessible text keeps them) */
+@media (max-width:640px){ #loUse{display:none!important} #loWhy{margin-left:auto} }
+/* touch screens (phones, also held sideways): every header and loadout action is a target of at least 44 x 44 CSS px. Mouse-only
+   desktop styling stays compact. */
+@media (hover:none) and (pointer:coarse){
+ #toolbar .row.bar .btn,#toolbar .row.tools .btn,#toolbar .row.tools .seg button,#collBtn,#tvBtn,#q,#loBack{min-height:44px!important}
+ #tvBtn,#appBtn,#homeBtn,#filtersBtn,#moreBtn,#loBack,#toolbar .row.tools .seg button{min-width:44px!important}
+ #loName{min-height:44px!important;min-width:44px!important;display:inline-flex!important;align-items:center;gap:6px;padding:0 4px!important}
+ #loWhy{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
+}
+/* phones: the loadout band is two 44 px rows. Row 1: the name (with the NES Classic Loadout label above it, which does not take taps)
+   and Back. Row 2: the count and status over the meter, and Will it fit? */
+@media (max-width:640px){
+ .toolbar .in{padding-top:4px!important;padding-bottom:4px!important;gap:4px!important}
+ .row.lob{padding:2px 10px!important;gap:0!important}
+ .mbar button{min-height:48px}body{padding-bottom:calc(54px + env(safe-area-inset-bottom))}
+ .lob-main{display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px}
+ .lob-k{grid-column:1!important;grid-row:1!important;align-self:start;justify-self:start;z-index:1;pointer-events:none;margin:2px 0 0 4px!important;font-size:8.5px!important;padding:1px 6px!important}
+ .lob-main>.menuwrap{grid-column:1!important;grid-row:1!important;min-width:0}
+ .lob-name{padding:13px 4px 0!important;align-items:center!important;width:100%;justify-content:flex-start}   /* the whole row up to Back opens the loadout menu */
+ #loName .chev{width:10px!important;height:6px!important;flex:none}
+ #loBack{grid-column:2!important;grid-row:1!important}
+ .row.lob .lob-count{display:none!important}
+ .lob-fig{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;column-gap:8px;row-gap:1px}
+ .lob-sto{display:contents!important}
+ .row.lob #loFig{display:block!important;grid-column:1;grid-row:1;font-size:12.5px;white-space:nowrap}
+ #loStat{grid-column:2;grid-row:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+ .lometer{grid-column:1/3;grid-row:2;width:auto!important;margin:0!important;height:6px!important}
+ #loWhy{grid-column:3;grid-row:1/3;margin-left:0!important}
+}
+/* short viewports on touch: tighter row spacing keeps the 44 px rows within the content budget */
+@media (max-height:500px) and (min-width:641px) and (hover:none) and (pointer:coarse){
+ .toolbar .in{padding-top:2px!important;padding-bottom:2px!important;gap:2px!important}
+ .row.lob:not([hidden]){padding:0 10px!important}
+}

@@ -141,6 +141,27 @@ updateStatusLine(); csMenuRefresh();
 //      counts as its menu's button; a control that was redrawn is found again, a removed one is not used). Surfaces that manage their own
 //      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, Preview on TV, the artwork editor) are left
 //      to it. A dialog running an operation (PROC) keeps its lock: Escape, the backdrop and the header Close do nothing until its Cancel. ----
+// ---- the branding is Home, on every device: the Game Library at the top. A loadout being edited is saved and closed (Back to Collection);
+//      menus, panels and dialogs close. A running operation keeps its lock and unsaved text asks first, as their own Close does. The website
+//      goes to its plain root "/" when it is on another address (a test page keeps only its companion port); the Windows app stays in its
+//      own window and never navigates. Modified clicks on the website open "/" as a normal link. ----
+(function(){ const a=$('brandHome'); if(!a) return;
+ const target=()=>{ if(CO.desktop) return null; const keep=new URLSearchParams(location.search).get('companion'); const want='/'+(keep?'?companion='+encodeURIComponent(keep):''); return (location.pathname+location.search+location.hash)===want?null:want; };
+ window.goHome=function(){
+  if(PROC.collm||PROC.hkpanel){ toast('Finish or cancel the current operation first'); return false; }
+  if(typeof ovTextDirty==='function'&&ovTextDirty()){ if(!confirm(OV_DISCARD)) return false; try{ OVED=null; }catch(e){} }
+  if(typeof OVA!=='undefined'&&OVA&&typeof ovArtClose==='function'&&ovArtClose()===false) return false;
+  document.querySelectorAll('.menu').forEach(m=>m.hidden=true); if(typeof closeVerPop==='function') closeVerPop();
+  try{ if($('tech').classList.contains('open')&&typeof closeTech==='function') closeTech(); }catch(e){}
+  try{ if(typeof TV!=='undefined'&&TV.open&&typeof closeTv==='function') closeTv(); }catch(e){}
+  try{ if($('guide').classList.contains('open')&&typeof closeGuide==='function') closeGuide(); }catch(e){}
+  try{ if($('filters').classList.contains('open')&&typeof fcancel==='function') fcancel(); }catch(e){}
+  ['details','hkpanel','tray','glight'].forEach(id=>{ const x=$(id); if(x) x.classList.remove('open'); });
+  if($('collm').classList.contains('open')) closeColl();
+  if(typeof LO!=='undefined'&&LO&&typeof loClose==='function') loClose();
+  const go=target(); if(go){ location.assign(go); return true; }
+  window.scrollTo({top:0, left:0, behavior:'instant'}); return true; };
+ a.addEventListener('click', e=>{ if(e.button>0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey){ if(CO.desktop) e.preventDefault(); return; } e.preventDefault(); goHome(); }); })();
 (function(){
  const MANAGED={collm:{esc:()=>{ if(PROC.collm) return; const c=[...$('collBody').querySelectorAll('[data-cancel]')].find(x=>!x.disabled&&x.getClientRects().length); if(c) c.click(); else closeColl(); }},
   hkpanel:{esc:()=>{ if(!PROC.hkpanel) $('hkpanel').classList.remove('open'); }}, filters:{esc:()=>{ if(typeof fcancel==='function') fcancel(); }},
