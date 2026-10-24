@@ -143,10 +143,10 @@ updateStatusLine(); csMenuRefresh();
 //      to it. A dialog running an operation (PROC) keeps its lock: Escape, the backdrop and the header Close do nothing until its Cancel. ----
 // ---- the branding is Home, on every device: the Game Library at the top. A loadout being edited is saved and closed (Back to Collection);
 //      menus, panels and dialogs close. A running operation keeps its lock and unsaved text asks first, as their own Close does. The website
-//      goes to its plain root "/" when it is on another address (a test page keeps only its companion port); the Windows app stays in its
+//      goes to its root page ("./": the plain "/" in production, sub-path safe) when it is on another address (a test page keeps only its companion port); the Windows app stays in its
 //      own window and never navigates. Modified clicks on the website open "/" as a normal link. ----
 (function(){ const a=$('brandHome'); if(!a) return;
- const target=()=>{ if(CO.desktop) return null; const keep=new URLSearchParams(location.search).get('companion'); const want='/'+(keep?'?companion='+encodeURIComponent(keep):''); return (location.pathname+location.search+location.hash)===want?null:want; };
+ const target=()=>{ if(CO.desktop) return null; const keep=new URLSearchParams(location.search).get('companion'); const want=new URL('./', location.href).pathname+(keep?'?companion='+encodeURIComponent(keep):''); return (location.pathname+location.search+location.hash)===want?null:want; };
  window.goHome=function(){
   if(PROC.collm||PROC.hkpanel){ toast('Finish or cancel the current operation first'); return false; }
   if(typeof ovTextDirty==='function'&&ovTextDirty()){ if(!confirm(OV_DISCARD)) return false; try{ OVED=null; }catch(e){} }
