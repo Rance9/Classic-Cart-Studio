@@ -107,12 +107,12 @@ function openTv(opts){
  if(opts.focus){ TV.S.section={type:'allgames'}; TV.S.zone='games'; const L=homeListing(TV.model,TV.S,tvSearch()); const k=L.ids.indexOf(opts.focus); if(k>=0) TV.S.index=k; }
  if(opts.theme&&HOME_THEMES.includes(opts.theme)){ TV.model.theme=opts.theme; TV.S.theme=opts.theme; }
  TV.S=homeReconcileState(TV.S,TV.model,tvSearch());
- const m=$('tv'); m.hidden=false; m.classList.add('open'); document.body.classList.add('tv-open'); document.body.style.overflow='hidden';
+ const m=$('tv'); m.hidden=false; m.classList.add('open'); document.body.classList.add('tv-open');
  tvApplyTreatment(); tvDraw(); $('tvStage').focus({preventScroll:true}); if(!TV.clock) TV.clock=setInterval(()=>{ if(TV.open&&!TV.held) tvDraw(true); },30000);
  if(opts.focus&&!TV.model.order.includes(opts.focus)){ const g=byId[opts.focus]; tvSay(`${g?g.display_title:'That game'} is not in this ${tvPlanWord()}, so it is not in this HOME.`); $('tvSub').textContent=`${g?g.display_title:'That game'} is not in this ${tvPlanWord()}, so the preview cannot show it`; }
  if(typeof hoLog==='function') hoLog('tv open n='+TV.model.order.length+' theme='+TV.S.theme);
 }
-function closeTv(){ const m=$('tv'); if(!m||!TV.open) return; tvReleaseAll(); TV.open=false; homeExtrasSave(); m.classList.remove('open'); m.hidden=true; document.body.classList.remove('tv-open'); document.body.style.overflow=''; const r=TV.returnTo; TV.returnTo=null; try{ if(r&&r.focus) r.focus({preventScroll:true}); }catch(e){} }
+function closeTv(){ const m=$('tv'); if(!m||!TV.open) return; tvReleaseAll(); TV.open=false; homeExtrasSave(); m.classList.remove('open'); m.hidden=true; document.body.classList.remove('tv-open'); const r=TV.returnTo; TV.returnTo=null; try{ if(r&&r.focus) r.focus({preventScroll:true}); }catch(e){} }
 function tvSetMode(mode){ tvDraw(); }
 function tvSetTreatment(t){ TV.treatment=t; tvPersist(); tvApplyTreatment(); }
 function tvApplyTreatment(){ const st=$('tvStage'); if(!st) return; st.classList.toggle('retro',TV.treatment==='retro'); $('tvTrC').classList.toggle('active',TV.treatment==='clean'); $('tvTrR').classList.toggle('active',TV.treatment==='retro'); }
