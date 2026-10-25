@@ -141,6 +141,60 @@ updateStatusLine(); csMenuRefresh();
 //      counts as its menu's button; a control that was redrawn is found again, a removed one is not used). Surfaces that manage their own
 //      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, Preview on TV, the artwork editor) are left
 //      to it. A dialog running an operation (PROC) keeps its lock: Escape, the backdrop and the header Close do nothing until its Cancel. ----
+// ---- the page stays still behind every blocking surface (website and Windows app, phone to desktop). One lock, derived from what is
+//      open: any open dialog or full-screen panel (and, where menus and the tray are sheets over a dimmed page, those too). Two layers:
+//      (1) the root element stops scrolling (overflow:hidden on <html>, never on <body>, so the sticky toolbar and the game list keep
+//      their place; the scroll offset is kept, the scrollbar's width is padded so nothing reflows); (2) a touch/wheel guard for browsers
+//      that still move the page under a finger (iPhone Safari): a gesture is cancelled unless something inside the topmost surface can
+//      scroll that way (also at either end of its content). Two-finger pinch zoom is never touched. Closing the last surface releases it.
+//      Operation locks (PROC), focus containment and Escape are separate and unchanged. ----
+(function(){
+ const BLOCK=['#collm','#hkpanel','#filters','#details','#welcome','#savem','#tech','#guide','#glight','#tv','#ovArt','.ccsack'];
+ const SHEETS=matchMedia('(max-width:640px), (max-height:500px) and (max-width:1000px)'), PHONE=matchMedia('(max-width:640px)');
+ const open=el=>!!el&&el.classList.contains('open')&&!el.hidden&&getComputedStyle(el).display!=='none';
+ const z=el=>{ const v=parseInt(getComputedStyle(el).zIndex,10); return isNaN(v)?0:v; };
+ function surfaces(){ const list=[]; BLOCK.forEach(s=>document.querySelectorAll(s).forEach(el=>{ if(open(el)) list.push(el); }));
+  if(SHEETS.matches) document.querySelectorAll('.menu:not([hidden])').forEach(m=>{ if(m.getClientRects().length) list.push(m); });
+  if(PHONE.matches){ const t=$('tray'); if(t&&t.classList.contains('open')) list.push(t); }
+  return list; }
+ function top(list){ return list.reduce((a,b)=>!a||z(b)>z(a)||(z(b)===z(a)&&(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING))?b:a, null); }
+ let locked=false, pad=null, topEl=null;
+ const mode=()=>window.__lockTestMode||'full';   // test hook: 'css' or 'guard' exercises one layer alone
+ function sync(){ const list=surfaces(); topEl=top(list); const on=list.length>0; const h=document.documentElement, b=document.body;
+  const css=on&&mode()!=='guard';
+  if(css&&!h.classList.contains('page-locked')){ const sw=innerWidth-h.clientWidth; pad=b.style.paddingRight; if(sw>0) b.style.paddingRight=((parseFloat(getComputedStyle(b).paddingRight)||0)+sw)+'px'; h.classList.add('page-locked'); }
+  else if(!css&&h.classList.contains('page-locked')){ h.classList.remove('page-locked'); b.style.paddingRight=pad||''; pad=null; }
+  locked=on; }
+ // would this gesture scroll something inside the topmost surface? dx/dy: the content movement (finger direction)
+ // the browser scrolls the NEAREST scrollable element on the gesture's axis (and carries on to the page from there), so only that one counts
+ function scrollsInside(target, dx, dy){ if(!topEl||!target||!topEl.contains(target)) return false; const vert=Math.abs(dy)>=Math.abs(dx);
+  for(let el=target; el&&el!==document.body; el=el.parentElement){ const cs=getComputedStyle(el);
+   if(vert&&/(auto|scroll)/.test(cs.overflowY)&&el.scrollHeight>el.clientHeight+1) return dy<0?el.scrollTop+el.clientHeight<el.scrollHeight-1:dy>0?el.scrollTop>0:false;
+   if(!vert&&/(auto|scroll)/.test(cs.overflowX)&&el.scrollWidth>el.clientWidth+1) return dx<0?el.scrollLeft+el.clientWidth<el.scrollWidth-1:dx>0?el.scrollLeft>0:false;
+   if(el===topEl) break; }
+  return false; }
+ // a gesture that starts on a form control or editable text (a slider drag, caret or selection) or inside an element that handles its own
+ // touch (touch-action none, e.g. the box-art crop frame) is that control's; the browser does not scroll the page for it, so it is left alone
+ function ownsTouch(target){ if(!topEl||!target||!topEl.contains(target)) return false;
+  if(target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])')) return true;
+  for(let el=target; el&&el!==document.body; el=el.parentElement){ if(/^(none|pinch-zoom)$/.test(getComputedStyle(el).touchAction)) return true; if(el===topEl) break; }
+  return false; }
+ // one-finger gesture state. Each move is judged by its CURRENT direction (since the previous move), so a finger that reaches the end
+ // of a list and turns back without lifting scrolls the list again. A second finger (pinch zoom) ends tracking until a new touch starts.
+ let g=null;
+ document.addEventListener('touchstart',e=>{ const t=e.touches[0]; g=e.touches.length===1?{id:t.identifier, x:t.clientX, y:t.clientY, stop:false}:null; },{capture:true, passive:true});
+ const lift=()=>{ g=null; };
+ document.addEventListener('touchend',lift,{capture:true, passive:true}); document.addEventListener('touchcancel',lift,{capture:true, passive:true});
+ document.addEventListener('touchmove',e=>{ if(!g) return; if(e.touches.length!==1||e.touches[0].identifier!==g.id){ g=null; return; } const t=e.touches[0];
+  const dx=t.clientX-g.x, dy=t.clientY-g.y;
+  if(Math.abs(dx)<1&&Math.abs(dy)<1){ if(g.stop&&e.cancelable) e.preventDefault(); return; }   // no real movement yet: keep the last decision
+  g.x=t.clientX; g.y=t.clientY;
+  if(!locked||mode()==='css'||!e.cancelable){ g.stop=false; return; }
+  g.stop=!ownsTouch(e.target)&&!scrollsInside(e.target, dx, dy); if(g.stop) e.preventDefault(); },{capture:true, passive:false});
+ document.addEventListener('wheel',e=>{ if(!locked||mode()==='css'||e.ctrlKey||!e.cancelable) return; if(!scrollsInside(e.target, -e.deltaX, -e.deltaY)) e.preventDefault(); },{capture:true, passive:false});
+ new MutationObserver(sync).observe(document.body,{subtree:true, attributes:true, attributeFilter:['class','hidden']});
+ [SHEETS, PHONE].forEach(m=>{ try{ m.addEventListener('change', sync); }catch(e){ m.addListener(sync); } });
+ window.pageLock={sync, state:()=>({locked, css:document.documentElement.classList.contains('page-locked'), top:topEl&&(topEl.id||topEl.className)})}; sync(); })();
 // ---- the branding is Home, on every device: the Game Library at the top. A loadout being edited is saved and closed (Back to Collection);
 //      menus, panels and dialogs close. A running operation keeps its lock and unsaved text asks first, as their own Close does. The website
 //      goes to its root page ("./": the plain "/" in production, sub-path safe) when it is on another address (a test page keeps only its companion port); the Windows app stays in its

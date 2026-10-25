@@ -886,3 +886,6 @@ details.csmore[open]>summary{border-color:var(--acc)}
  .toolbar .in{padding-top:2px!important;padding-bottom:2px!important;gap:2px!important}
  .row.lob:not([hidden]){padding:0 10px!important}
 }
+/* the page lock while a blocking surface is open (navigation.js): the root stops scrolling, no scroll chaining from dialog content */
+html.page-locked{overflow:hidden!important;overscroll-behavior:none}
+#collBody,.modal .mbox,#details .box,#tech .mbox,#tray,#trayList,.menu,#tv .tvmain,#glight #glView,#guide #guideArt,#guide #guideNav{overscroll-behavior:contain}
