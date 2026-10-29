@@ -8,7 +8,7 @@ function consoleCapable(){ return !!(COMPANION.ok&&COMPANION.desktop&&(COMPANION
 async function consoleCaps(){ if(CONSOLE.profiles.length) return true; try{ const r=await capi('/api/console/capabilities'); if(r.ok){ CONSOLE.available=true; CONSOLE.profiles=r.capabilities.profiles||[]; CONSOLE.tiers=r.capabilities.tiers||null; return true; } }catch(e){} return false; }
 const GATE_TEXT='Not available in this version';
 // progress labels for the engine's stage ids (console_engine/engine.py) and the HOME package build (native_home/package.py); ids stay internal
-const STAGE_LABEL={modules:'Adding required components', diff:'Comparing with the console', transfer:'Updating game files', link:'Confirming the connection', config:'Updating the HOME menu', verify:'Checking the result', configuration:'Reading HOME Setup', assemble:'Building the HOME menu'};
+const STAGE_LABEL={modules:'Adding required components', diff:'Comparing with the console', transfer:'Updating game files', link:'Confirming the connection', config:'Updating the HOME menu', verify:'Checking the result', configuration:'Reading Console Menu Setup', assemble:'Building the HOME menu'};
 const STEP_TEXT={themes:'theme artwork', fonts:'fonts', runtime:'menu program', manifest:'package contents'};
 function stLabel(s){ return STAGE_LABEL[s]||'Working'; }
 function lv(l){ return `<span class="lv ${l}">${l}</span>`; }
@@ -57,7 +57,7 @@ function nhHome(){ const m=homeModelFromStudio(); return {schema:m.schema, theme
  folders:(m.folders||[]).map(f=>({id:f.id,name:f.name,parent:f.parent||null,order:f.order||[],art:f.art&&f.art.src?{src:f.art.src}:null})), favorites:m.favorites||{}, settings:m.settings||{}, sample:!!m.sample, map_shortcuts:m.map_shortcuts||[null,null], apply_theme:!!NHP.apply}; }
 function nhFp(){ try{ const m=homeModelFromStudio(); return collFingerprint()+'|'+m.theme+'|'+(NHP.apply?'apply':'')+'|'+JSON.stringify(m.map_shortcuts||[])+'|'+(typeof OV!=='undefined'&&OV&&OV.stamp?OV.stamp:'')+'|'+JSON.stringify((m.folders||[]).map(f=>[f.id,f.name,f.order]))+'|'+JSON.stringify(m.favorites&&m.favorites.items||{}); }catch(e){ return ''; } }
 function nhHtml(){ const r=NHP.result; const stale=r&&NHP.fp!==nhFp();
- const head=`<b>Console HOME menu</b> <span class="small">· built from this collection and its HOME Setup</span>`+nhThemeHtml();
+ const head=`<b>Console HOME menu</b> <span class="small">· built from this collection and its Console Menu Setup</span>`+nhThemeHtml();
  if(NHP.job&&!r){ const p=NHP.progress||{}; const pct=p.total?Math.round(100*p.done/p.total):0;
   return `<div class="msg sim">${head}<div class="pbar"><i style="width:${pct}%"></i></div><span class="small">${p.stage?esc(stLabel(p.stage)):'Starting'}${p.text?' · '+esc(STEP_TEXT[p.text]||p.text):''}${p.total?` (${p.done} of ${p.total})`:''}</span></div>`; }
  const btn=`<div class="acts" style="margin-top:6px"><span class="sp"></span><button class="btn sm ${r&&!stale?'secondary':'hk'}" id="nhBuild">${r?'Prepare Again':'Prepare HOME Menu'}</button></div>`;
@@ -65,7 +65,7 @@ function nhHtml(){ const r=NHP.result; const stale=r&&NHP.fp!==nhFp();
  if(!r.ok) return `<div class="msg bad">${head}<br><b>Not prepared:</b> ${esc(r.error||r.status||'failed')}${btn}</div>`;
  const m=r.manifest||{}; const S=m.sizes||{}; const by=S.by_category||{}; const ready=r.ready&&!stale;
  const rows=NH_CAT.map(([k,l])=>`<tr><td>${esc(l)}</td><td style="text-align:right">${fmtB(by[k]||0)}</td></tr>`).join('');
- return `<div class="msg ${ready?'ok':'warn'}">${head}<br><b>${stale?'Out of date: the collection or HOME Setup changed. Prepare again.':ready?'Ready':'Not ready'}</b>${ready?` · ${r.games} games · <b>${fmtB(S.total_with_manifest||S.total)}</b> · ${r.files} files checked`:''}
+ return `<div class="msg ${ready?'ok':'warn'}">${head}<br><b>${stale?'Out of date: the collection or its Console Menu Setup changed. Prepare again.':ready?'Ready':'Not ready'}</b>${ready?` · ${r.games} games · <b>${fmtB(S.total_with_manifest||S.total)}</b> · ${r.files} files checked`:''}
   ${(m.blockers||[]).length?`<ul>${m.blockers.map(b=>`<li>${esc(b.text)}</li>`).join('')}</ul>`:''}${(m.warnings||[]).length?`<ul class="small">${m.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
   <details class="small" style="margin-top:6px"><summary>Size Details</summary><table class="small" style="margin-top:6px;min-width:300px"><tbody>${rows}<tr><td><b>Total</b> (ROM files not included)</td><td style="text-align:right"><b>${fmtB(S.total_with_manifest||S.total)}</b></td></tr></tbody></table></details>
   <span class="small">Starting theme: ${esc((HOME_THEME_META.find(t=>t.id===((m.configuration||{}).theme_default))||{}).name||'')}${(m.configuration||{}).theme_apply?' (applied at installation)':''}. Prepared on this computer; installing it on the console is not available in this version.</span>${btn}</div>`; }

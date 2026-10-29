@@ -96,7 +96,7 @@ async function ccsInspect(blob, opt){ opt=opt||{}; let z; try{ z=await ccsUnzip(
 // ---- ROM files available to this page (website): chosen by the person (ROM files, ZIPs of ROMs, or .ccs packages), kept for this visit
 //      only as references to those files (nothing is copied into storage or sent anywhere) ----
 const ROMSRC=new Map();   // game id -> {name, ext, sha256, content_sha256, size, raw:{blob, method, crc, csize, usize} | file}
-function ccsSrcAdd(rec){ const k=rec.content_sha256.slice(0,16); [k, 'p_'+k].forEach(id=>{ if(!ROMSRC.has(id)) ROMSRC.set(id, rec); }); }
+function ccsSrcAdd(rec){ const k=rec.content_sha256.slice(0,16); [k, 'p_'+k].forEach(id=>{ if(!ROMSRC.has(id)) ROMSRC.set(id, rec); }); if(typeof keptAvailChanged==='function') keptAvailChanged(); }   // cards of games kept without a library record follow (collections.js)
 async function ccsIdentifyBytes(u8, name){ const sha=await ccsSha(u8); return {name, ext:ccsRomExt(u8), sha256:sha, content_sha256:await ccsSha(ccsRomContent(u8)), size:u8.length}; }
 async function ccsAddRomSources(files, progress){ let found=0, ignored=0;
  for(const f of files){ const nm=f.name||'';
@@ -158,7 +158,7 @@ async function ccsCheck(){ const r=CS.items[CCS.cid]; if(!r) return; const p=awa
   if(!chk.ok){ $('collBody').innerHTML=`<div class="msgbox bad">${esc(chk.error||'The ROM files could not be checked. Try again.')}</div>`; return; }
   CCS.ready=(chk.available||[]).map(g=>g.version_id); CCS.bytes=(chk.available||[]).reduce((a,g)=>a+(g.size||0),0); CCS.missing=(chk.missing||[]).map(g=>g.version_id); CCS.mismatched=(chk.mismatched||[]).map(g=>g.version_id); }
  else { CCS.ready=ids.filter(id=>ROMSRC.has(id)); CCS.missing=ids.filter(id=>!ROMSRC.has(id)); CCS.mismatched=[]; CCS.bytes=CCS.ready.reduce((a,id)=>a+ROMSRC.get(id).size,0); }
- ccsRender(); }
+ if(typeof keptAvailNoted==='function') keptAvailNoted(CCS.ready, CCS.missing.concat(CCS.mismatched)); ccsRender(); }   /* a file of a different version is not this game's ROM file */
 function ccsRender(){ const r=CS.items[CCS.cid]; const n=CCS.ids.length, need=CCS.missing.length+CCS.mismatched.length, ok=!need&&n>0; const app=ccsAppPackages(); const t=id=>esc(CCS.titles[id]||id);
  const list=arr0=>{ const arr=arr0.slice().sort((x,y)=>(CCS_ID_RE.test(x)?1:0)-(CCS_ID_RE.test(y)?1:0)); return `<ul class="small ccsmiss">${arr.slice(0,12).map(id=>`<li>${t(id)}${CCS_ID_RE.test(id)?'':' <i>(file unknown)</i>'}</li>`).join('')}${arr.length>12?`<li>and ${arr.length-12} more</li>`:''}</ul>`; };   /* entries with no known file come first: they can never be packaged */
  $('collBody').innerHTML=(ok?`<div class="msgbox ok"><b>${n.toLocaleString('en-US')} ROM file${n===1?' is':'s are'} ready</b> (${fmt(CCS.bytes)}). The package is made on this ${app?'computer':'device'}; nothing is uploaded.</div>`
