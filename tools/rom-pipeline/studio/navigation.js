@@ -1,5 +1,5 @@
 // ---- top navigation (one implementation for the website and the Windows app): My Collections (left), the collection's console
-//      actions (Tray, NES Classic Loadouts, Preview on TV, HOME Setup, Install), the Studio menu (help, backup, legal); the Game Library
+//      actions (Tray, NES Classic Loadouts, Preview on TV, Console Menu Setup, Install), the Studio menu (Home, help, backup, legal); the Game Library
 //      tools below (search, Filter & Sort, Select = Game Library actions, List/Grid, Add Your Own Game). Capability differences only hide
 //      what cannot work.
 (function(){
@@ -43,7 +43,9 @@
    mm.querySelectorAll('[data-proxy]').forEach(b=>{ const t=$(b.dataset.proxy); if(!t) return; const tb=t.querySelector('.mtx b'); if(tb) miLabel(b, tb.textContent); if(t.hasAttribute('aria-label')) b.setAttribute('aria-label', t.getAttribute('aria-label')); if(t.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', t.getAttribute('aria-pressed')); b.disabled=t.disabled; }); });
   wireMenu('moreBtn','moreMenu');
   mm.addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; mm.hidden=true; if(b.dataset.view){ (view==='grid'?$('vList'):$('vGrid')).click(); return; } const t=$(b.dataset.proxy); if(t) t.click(); }); }
- // the phone action bar: the same actions as the top bar's buttons (collection view: Tray, Loadouts, Share, Menu; loadout editor: Tray, HOME, Install, Menu)
+ // the phone action bar: Home first, then the top bar's actions (collection view: Tray, Loadouts, Share, Studio; loadout editor: Tray,
+ // Console Menu (Setup), Install, Studio). Home is the title link's action (D-62): an open loadout is saved and closed, the library at the top
+ on('mbGoHome',()=>{ closeMenus(); goHome(); }); on('mGoHome',()=>{ closeMenus(); goHome(); });
  on('mbTray',()=>{ closeMenus(); $('trayBtn').click(); });
  on('mbLo',e=>{ e.stopPropagation(); const m=$('loMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('loBtn').click(); });
  on('mbShare',()=>{ closeMenus(); if(typeof ccsShareDialog==='function') ccsShareDialog(); });
@@ -108,9 +110,10 @@ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closes
   const minSide=Math.min(w,h)*Z.fit, readable=Math.min(1.5, Math.max(Z.fit, 170/Math.min(w,h)));
   if(Z.fit<0.75&&minSide<120&&readable>Z.fit*1.3){ apply(readable, Math.abs(readable-1)<1e-3?'one':'zoom'); V.scrollLeft=0; V.scrollTop=0; const hint=$('glHint'); hint.classList.add('show'); clearTimeout(hint._t); hint._t=setTimeout(()=>hint.classList.remove('show'), 2600); }
   else apply(Z.fit, 'fit'); }
- const openLb=im=>{ Z.back=im; I.removeAttribute('style'); I.onload=null; I.src=im.currentSrc||im.src; I.alt=im.alt||''; $('glCap').textContent=im.alt||''; lb.classList.add('open'); $('glHint').classList.remove('show');
+ const openLb=(im, label)=>{ lb.setAttribute('aria-label', label||'Screenshot viewer'); Z.back=im; I.removeAttribute('style'); I.onload=null; I.src=im.currentSrc||im.src; I.alt=im.alt||''; $('glCap').textContent=im.alt||''; lb.classList.add('open'); $('glHint').classList.remove('show');
   const go=()=>requestAnimationFrame(initial); if(I.complete&&I.naturalWidth) go(); else I.onload=go; $('glClose').focus(); };
  const closeLb=()=>{ lb.classList.remove('open'); $('glHint').classList.remove('show'); const b=Z.back; Z.back=null; if(b&&b.focus) b.focus({preventScroll:true}); };
+ window.openImageViewer=(im, label, back)=>{ if(!im) return; openLb(im, label); if(back) Z.back=back; };   // also the full box art from Game Details (D-61): Close returns focus to its button
  $('glClose').onclick=closeLb; $('glFit').onclick=()=>apply(fitScale(),'fit'); $('glOne').onclick=()=>apply(1,'one'); $('glIn').onclick=()=>step(1); $('glOut').onclick=()=>step(-1);
  addEventListener('resize',()=>{ if(!lb.classList.contains('open')) return; Z.fit=fitScale(); if(Z.mode==='fit') apply(Z.fit,'fit'); else lb.classList.toggle('pan', over()); });
  // double-click or double-tap switches between Fit and 100% at that point
@@ -142,28 +145,30 @@ updateStatusLine(); csMenuRefresh();
 //      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, Preview on TV, the artwork editor) are left
 //      to it. A dialog running an operation (PROC) keeps its lock: Escape, the backdrop and the header Close do nothing until its Cancel. ----
 // ---- the page stays still behind every blocking surface (website and Windows app, phone to desktop). One lock, derived from what is
-//      open: any open dialog or full-screen panel (and, where menus and the tray are sheets over a dimmed page, those too). Two layers:
+//      open: any open dialog or full-screen panel, the open Tray at every width (a phone sheet or a docked right pane alike), and menus
+//      where they are sheets over a dimmed page (a desktop dropdown is not blocking). Two layers:
 //      (1) the root element stops scrolling (overflow:hidden on <html>, never on <body>, so the sticky toolbar and the game list keep
-//      their place; the scroll offset is kept, the scrollbar's width is padded so nothing reflows); (2) a touch/wheel guard for browsers
+//      their place; the scroll offset is kept, the scrollbar's width is padded on <html> so nothing reflows and the docked Tray's own
+//      padding on <body> is untouched); (2) a touch/wheel guard for browsers
 //      that still move the page under a finger (iPhone Safari): a gesture is cancelled unless something inside the topmost surface can
 //      scroll that way (also at either end of its content). Two-finger pinch zoom is never touched. Closing the last surface releases it.
 //      Operation locks (PROC), focus containment and Escape are separate and unchanged. ----
 (function(){
  const BLOCK=['#collm','#hkpanel','#filters','#details','#welcome','#savem','#tech','#guide','#glight','#tv','#ovArt','.ccsack'];
- const SHEETS=matchMedia('(max-width:640px), (max-height:500px) and (max-width:1000px)'), PHONE=matchMedia('(max-width:640px)');
+ const SHEETS=matchMedia('(max-width:640px), (max-height:500px) and (max-width:1000px)');
  const open=el=>!!el&&el.classList.contains('open')&&!el.hidden&&getComputedStyle(el).display!=='none';
  const z=el=>{ const v=parseInt(getComputedStyle(el).zIndex,10); return isNaN(v)?0:v; };
  function surfaces(){ const list=[]; BLOCK.forEach(s=>document.querySelectorAll(s).forEach(el=>{ if(open(el)) list.push(el); }));
   if(SHEETS.matches) document.querySelectorAll('.menu:not([hidden])').forEach(m=>{ if(m.getClientRects().length) list.push(m); });
-  if(PHONE.matches){ const t=$('tray'); if(t&&t.classList.contains('open')) list.push(t); }
+  const t=$('tray'); if(t&&t.classList.contains('open')) list.push(t);   // every width and orientation (D-60): the library behind stays still
   return list; }
  function top(list){ return list.reduce((a,b)=>!a||z(b)>z(a)||(z(b)===z(a)&&(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING))?b:a, null); }
  let locked=false, pad=null, topEl=null;
  const mode=()=>window.__lockTestMode||'full';   // test hook: 'css' or 'guard' exercises one layer alone
  function sync(){ const list=surfaces(); topEl=top(list); const on=list.length>0; const h=document.documentElement, b=document.body;
   const css=on&&mode()!=='guard';
-  if(css&&!h.classList.contains('page-locked')){ const sw=innerWidth-h.clientWidth; pad=b.style.paddingRight; if(sw>0) b.style.paddingRight=((parseFloat(getComputedStyle(b).paddingRight)||0)+sw)+'px'; h.classList.add('page-locked'); }
-  else if(!css&&h.classList.contains('page-locked')){ h.classList.remove('page-locked'); b.style.paddingRight=pad||''; pad=null; }
+  if(css&&!h.classList.contains('page-locked')){ const sw=innerWidth-h.clientWidth; pad=h.style.paddingRight; if(sw>0) h.style.paddingRight=sw+'px'; h.classList.add('page-locked'); }
+  else if(!css&&h.classList.contains('page-locked')){ h.classList.remove('page-locked'); h.style.paddingRight=pad||''; pad=null; }
   locked=on; }
  // would this gesture scroll something inside the topmost surface? dx/dy: the content movement (finger direction)
  // the browser scrolls the NEAREST scrollable element on the gesture's axis (and carries on to the page from there), so only that one counts
@@ -193,7 +198,7 @@ updateStatusLine(); csMenuRefresh();
   g.stop=!ownsTouch(e.target)&&!scrollsInside(e.target, dx, dy); if(g.stop) e.preventDefault(); },{capture:true, passive:false});
  document.addEventListener('wheel',e=>{ if(!locked||mode()==='css'||e.ctrlKey||!e.cancelable) return; if(!scrollsInside(e.target, -e.deltaX, -e.deltaY)) e.preventDefault(); },{capture:true, passive:false});
  new MutationObserver(sync).observe(document.body,{subtree:true, attributes:true, attributeFilter:['class','hidden']});
- [SHEETS, PHONE].forEach(m=>{ try{ m.addEventListener('change', sync); }catch(e){ m.addListener(sync); } });
+ [SHEETS].forEach(m=>{ try{ m.addEventListener('change', sync); }catch(e){ m.addListener(sync); } });
  window.pageLock={sync, state:()=>({locked, css:document.documentElement.classList.contains('page-locked'), top:topEl&&(topEl.id||topEl.className)})}; sync(); })();
 // ---- the branding is Home, on every device: the Game Library at the top. A loadout being edited is saved and closed (Back to Collection);
 //      menus, panels and dialogs close. A running operation keeps its lock and unsaved text asks first, as their own Close does. The website
@@ -214,6 +219,7 @@ updateStatusLine(); csMenuRefresh();
   if($('collm').classList.contains('open')) closeColl();
   if(typeof LO!=='undefined'&&LO&&typeof loClose==='function') loClose();
   const go=target(); if(go){ location.assign(go); return true; }
+  try{ if(typeof VL!=='undefined'&&VL.hold){ VL.hold=false; clearTimeout(VL.holdT); } }catch(e){}   // a list restore still settling never pulls Home back down
   window.scrollTo({top:0, left:0, behavior:'instant'}); return true; };
  a.addEventListener('click', e=>{ if(e.button>0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey){ if(CO.desktop) e.preventDefault(); return; } e.preventDefault(); goHome(); }); })();
 (function(){
@@ -231,7 +237,7 @@ updateStatusLine(); csMenuRefresh();
   &&!(x.closest('details:not([open])')&&x.tagName!=='SUMMARY')&&!(x.tagName==='SUMMARY'&&x.parentElement.closest('details:not([open])')&&x.parentElement.closest('details:not([open])')!==x.parentElement)); }
  window.dlgFocusables=focusables;
  // the element that should get focus back: a menu row stands for the menu's button; a redrawn control is found again by id or data key
- const KEYS=['data-id','data-g','data-cs','data-lid','data-lo','data-a'];
+ const KEYS=['data-id','data-g','data-open','data-cs','data-lid','data-lo','data-a'];   // data-open: a game's title (the Game Details button)
  function reattach(el){ if(!el) return null; if(el.isConnected) return el; if(el.id){ const n=document.getElementById(el.id); if(n) return n; }
   for(const k of KEYS){ const v=el.getAttribute&&el.getAttribute(k); if(v){ const n=[...document.querySelectorAll(`${el.tagName.toLowerCase()}[${k}="${CSS.escape(v)}"]`)].find(visible); if(n) return n; } } return null; }
  function opener(el){ const m=el&&el.closest&&el.closest('.menu'); if(m) return m._opener||null; return el; }

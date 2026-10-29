@@ -1,4 +1,4 @@
-// ---- HOME Setup (folders, map shortcuts and theme for the console HOME; the console only browses them) ------------------------
+// ---- Console Menu Setup (folders, map shortcuts and theme for the console HOME; the console only browses them) ------------------------
 // Custom folders (up to five levels), per-folder game order, Adventure Map shortcuts, the default theme, and the mock console
 // sync. Edits live in the same HOME extras Preview on TV uses (localStorage studio-home-v1); in Classic Cart Studio for Windows
 // they can also be saved to the backend and synchronized with the MOCK console store (no device; Gate G1 not approved).
@@ -6,7 +6,7 @@ const HF={fid:null};
 function hfModel(){ if(TV.open&&TV.model) return TV.model; TV.proj=null; TV.model=homeModelFromStudio(); if(!TV.S) TV.S=homeInitialState(TV.model.theme); return TV.model; }
 function hfSave(){ homeExtrasSave(); if(TV.open) tvDraw(); try{ dispatchEvent(new CustomEvent('ccs-content-changed',{detail:{what:'folders'}})); }catch(e){} hfRender(); }
 function hfSelectedIds(){ return selectedGames().map(g=>g.game_id); }
-function openFolders(fid){ hfModel(); HF.fid=fid||HF.fid||((homeTopFolders(TV.model)[0]||{}).id||null); openColl('HOME Setup',`"${typeof tvPlanName==='function'?tvPlanName():COLL.name}" · folders, Adventure Map shortcuts and theme for the console HOME`,`<div id="hfBody"></div>`); hfRender(); }
+function openFolders(fid){ hfModel(); HF.fid=fid||HF.fid||((homeTopFolders(TV.model)[0]||{}).id||null); openColl('Console Menu Setup',`"${typeof tvPlanName==='function'?tvPlanName():COLL.name}" · folders, Adventure Map shortcuts and theme for the console HOME`,`<div id="hfBody"></div>`); hfRender(); }
 function hfRender(){
  const m=TV.model; const box=$('hfBody'); if(!box) return; const f=HF.fid?homeFolder(m,HF.fid):null; const by=id=>m.games.find(g=>g.id===id);
  const tree=(parent,depth)=>(parent?homeChildFolders(m,parent):homeTopFolders(m)).map(x=>`<div class="hf-f${x.id===HF.fid?' on':''}" data-f="${esc(x.id)}" style="padding-left:${8+depth*18}px">${esc(x.name)} <span class="small">${homeFolderGames(m,x.id).length}</span>${m.map_shortcuts[0]===x.id?' <span class="tag b">map 1</span>':''}${m.map_shortcuts[1]===x.id?' <span class="tag b">map 2</span>':''}</div>`+tree(x.id,depth+1)).join('');

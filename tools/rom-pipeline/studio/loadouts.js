@@ -5,14 +5,14 @@
 //      (folders, theme, HOME favorites); it references the collection's games and never copies game files. Loadouts are stored inside
 //      their collection's record (`loadouts`), so exports, transfers, backups and shares carry them.
 //      Editing a loadout opens it in the working copy (selection, decisions, HOME settings) while the collection waits in LO
-//      (collections.js), so the Tray, Preview on TV, HOME Setup and Install on NES Classic all work on exactly that loadout.
+//      (collections.js), so the Tray, Preview on TV, Console Menu Setup and Install on NES Classic all work on exactly that loadout.
 //      Opening, switching or importing a collection never opens a loadout; Back to Collection always returns.
 const LO_DEFAULT_NAME='My NES Classic Setup';
 function loList(r){ r=r||csActive(); return (r&&Array.isArray(r.loadouts))?r.loadouts:[]; }
 function loGet(lid, r){ return loList(r).find(l=>l.id===lid)||null; }
 function loCur(){ return LO?loGet(LO.lid):null; }
 function loNewId(){ return 'l'+csId().slice(1); }
-function loUniqueName(name, except){ const base=(name||LO_DEFAULT_NAME).trim().slice(0,56)||LO_DEFAULT_NAME; const have=new Set(loList().filter(l=>l.id!==except).map(l=>l.name.toLowerCase())); if(!have.has(base.toLowerCase())) return base; for(let i=2;i<999;i++){ const n=`${base} ${i}`; if(!have.has(n.toLowerCase())) return n; } return base+' '+Date.now(); }
+function loUniqueName(name, except){ const base=(name||LO_DEFAULT_NAME).trim().slice(0,60)||LO_DEFAULT_NAME; return csCopyName(base, new Set(loList().filter(l=>l.id!==except).map(l=>l.name.toLowerCase())), 60); }   // "Name (Copy 1)" on a collision (D-63, csCopyName)
 const loPl=(n,w)=>`${n.toLocaleString('en-US')} ${w}${n===1?'':'s'}`;
 // ---- storage: the one NES Classic storage model (studio/storage-model.js, the same calculation as the installation plan) applied to
 //      the loadout being edited. Inputs come from catalog metadata and what the Studio already knows (no file scanning): each game's file
@@ -47,16 +47,16 @@ function loCreate(name, mode){ csSaveActiveNow(); const rec=CS.items[CS.active];
  const dec={}; if(all) Object.entries(rec.decisions||{}).forEach(([k,v])=>{ if(ids.includes(k)) dec[k]=v; });
  const l={id:loNewId(), target:'nes-classic', name:loUniqueName(name), created:now, modified:now, sel:ids, decisions:dec, home:null, origin:all?'all':'choose'};
  rec.loadouts=loList(rec).concat([l]); csWrite(); loOpen(l.id, true);
- toast(all?`Created "${l.name}" with all ${loPl(ids.length,'game')}`:`Created "${l.name}". ${clickWord(1)} games to add them.`); return l; }
+ toast(all?`Created "${l.name}" with all ${loPl(ids.length,'game')}`:`Created "${l.name}". Check the box on a game to add it.`); return l; }
 function loRename(lid, name){ const l=loGet(lid); if(!l) return; name=(name||'').trim().slice(0,60); if(!name) return; l.name=loUniqueName(name, lid); l.modified=csNow(); csWrite(); csDirty(); loUi(); }
 function loDuplicate(lid){ if(LO&&LO.lid===lid) csSaveActiveNow(); const rec=CS.items[CS.active]; const src=loGet(lid, rec); if(!src) return null; const now=csNow();
- const c=Object.assign(JSON.parse(JSON.stringify(src)), {id:loNewId(), name:loUniqueName(src.name+' copy'), created:now, modified:now, origin:'duplicate'}); const i=rec.loadouts.indexOf(src); rec.loadouts.splice(i+1, 0, c); csWrite(); loUi(); toast(`Duplicated as "${c.name}" (${loPl(c.sel.length,'game')})`); return c; }
+ const c=Object.assign(JSON.parse(JSON.stringify(src)), {id:loNewId(), name:loUniqueName(src.name), created:now, modified:now, origin:'duplicate'}); const i=rec.loadouts.indexOf(src); rec.loadouts.splice(i+1, 0, c); csWrite(); loUi(); toast(`Duplicated as "${c.name}" (${loPl(c.sel.length,'game')})`); return c; }
 function loDelete(lid){ const rec=CS.items[CS.active]; const l=loGet(lid, rec); if(!l) return; if(LO&&LO.lid===lid) loClose(true); const r2=CS.items[CS.active]; r2.loadouts=loList(r2).filter(x=>x.id!==lid); csWrite(); loUi(); toast(`Deleted loadout "${l.name}"; the collection is unchanged`); }
 // ---- the dialogs ----
 function loNameField(v){ return `<div class="fld"><label for="loNm">Loadout name</label><input type="text" id="loNm" maxlength="60" value="${esc(v)}" spellcheck="false"></div>`; }
 // one creation dialog (a name, then All N Collection Games or Choose Games) and the Choose a Loadout step of the console actions. A
 // loadout is created only by Create Loadout; opening, canceling or closing creates nothing. `then` (the action that asked: Preview on
-// TV, HOME Setup, Install on NES Classic) runs exactly once, for the loadout that was opened or created, and never after Cancel.
+// TV, Console Menu Setup, Install on NES Classic) runs exactly once, for the loadout that was opened or created, and never after Cancel.
 // opts: {newOnly, mode:'all'|'choose' (caller's preselection), then, lead, back (where Cancel returns, e.g. the manager)}
 function loPrepare(opts){ opts=opts||{}; if(typeof closeVerPop==='function') closeVerPop(); document.querySelectorAll('.menu').forEach(x=>x.hidden=true); csSaveActiveNow(); const rec=CS.items[CS.active]; const list=loList(rec); const n=(rec.sel||[]).length;
  const mode=opts.mode==='all'&&n?'all':opts.mode==='choose'?'choose':(n?'all':'choose'); const then=typeof opts.then==='function'?opts.then:null; let done=false;
@@ -133,12 +133,12 @@ function loAdopt(){ if(!LO) return; const extra=[...sel].filter(id=>!LO.collSel.
  // the installation plan and the native HOME package name the loadout they were made from
  const _bm=buildManifest; buildManifest=function(){ const m=_bm.apply(this,arguments); const l=CS_COLLVIEW?null:loCur(); if(l&&csActive()){ m.loadout={id:l.id, target:'nes-classic', name:l.name, collection:csActive().name}; m.name=`${l.name} (${csActive().name})`; } return m; };
 })();
-// ---- console actions need a loadout: Preview on TV, HOME Setup and Install on NES Classic work on the open loadout; from the collection
+// ---- console actions need a loadout: Preview on TV, Console Menu Setup and Install on NES Classic work on the open loadout; from the collection
 //      they ask which loadout (or create one) first, so a collection is never prepared for the console by accident ----
 document.addEventListener('click',e=>{ if(LO||!CS) return; const t=e.target.closest&&e.target.closest('#hkBtn,#trayHk,#tvBtn,#mTv,#homeBtn,[data-tvfocus]'); if(!t) return; e.preventDefault(); e.stopImmediatePropagation();
  const id=t.id, focus=t.dataset&&t.dataset.tvfocus; try{ $('details').classList.remove('open'); $('tray').classList.remove('open'); }catch(err){}
  const then=id==='tvBtn'||id==='mTv'||focus?()=>openTv(focus?{focus}:undefined):id==='homeBtn'?()=>{ if(typeof openFolders==='function') openFolders(); }:()=>openInstall();
- const what=id==='tvBtn'||id==='mTv'||focus?'Preview on TV shows':id==='homeBtn'?'HOME Setup arranges':'Install on NES Classic installs';
+ const what=id==='tvBtn'||id==='mTv'||focus?'Preview on TV shows':id==='homeBtn'?'Console Menu Setup arranges':'Install on NES Classic installs';
  loPrepare({then, lead:`${what} an NES Classic Loadout. Choose one, or create one.`}); }, true);
 // ---- the interface ----
 const LO_ICON='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg>';
@@ -203,6 +203,6 @@ function loResume(){ const r=csActive(); if(r&&r.openLoadout&&loGet(r.openLoadou
 loResume();
 // one storage display: the tray's older storage notice and line are not shown; the meter updates with every change that can move it
 storageTrayLine=function(){ return ''; };
-storageNote=function(){ return LO?'This loadout is empty. '+clickWord(1)+' games to add them.':''; };
+storageNote=function(){ return LO?'This loadout is empty. Check the box on a game to add it.':''; };
 (function(){ if(typeof homeExtrasSave==='function'){ const h=homeExtrasSave; homeExtrasSave=function(){ const r=h.apply(this,arguments); try{ if(LO) loUi(); }catch(e){} return r; }; }
  if(typeof nhDraw==='function'){ const d=nhDraw; nhDraw=function(){ const r=d.apply(this,arguments); try{ if(LO) loUi(); }catch(e){} return r; }; } })();

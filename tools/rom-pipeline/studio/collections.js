@@ -38,8 +38,8 @@ function csDirty(){ if(!CS) return; clearTimeout(CS_T); CS_T=setTimeout(csSaveAc
  if(typeof homeExtrasSave==='function'){ const h=homeExtrasSave; homeExtrasSave=function(){ const r=h.apply(this,arguments); try{ csDirty(); }catch(e){} return r; }; }
  addEventListener('beforeunload',()=>{ try{ if(CS_T) csSaveActiveNow(); }catch(e){} }); document.addEventListener('visibilitychange',()=>{ if(document.hidden&&CS_T) csSaveActiveNow(); }); })();
 // ---- switching: store the current collection, then load the other one into the working copy ----
-function csLoadWorking(r){ LO=null; window.LO_PREV={cid:r.id, sel:new Set(r.sel||[])}; sel=new Set(r.sel||[]); decisions=JSON.parse(JSON.stringify(r.decisions||{}));
- COLL=Object.assign({name:r.name, created:r.created, modified:r.modified, savedToFile:null, prepared:null, baseline:null, pref:{}, multi:{}, avail:[], placeholders:[], missing:{}, personalCache:(COLL&&COLL.personalCache)||{}}, JSON.parse(JSON.stringify(r.coll||{})), {name:r.name});
+function csLoadWorking(r){ LO=null; KEPT_OFF=null; window.LO_PREV={cid:r.id, sel:new Set(r.sel||[])}; sel=new Set(r.sel||[]); decisions=JSON.parse(JSON.stringify(r.decisions||{}));
+ COLL=Object.assign({name:r.name, created:r.created, modified:r.modified, savedToFile:null, prepared:null, baseline:null, pref:{}, multi:{}, avail:[], placeholders:[], missing:{}, personalCache:(COLL&&COLL.personalCache)||{}}, csCollFields(r.coll||{}), {name:r.name}); if(r.coll&&r.coll.personalCache){ COLL.missing=csCacheIntoKept(COLL.missing, r.coll.personalCache, r.sel||[]); setTimeout(()=>{ try{ if(CS&&CS.active===r.id) csSaveActiveNow(); }catch(e){} }, 0); }   /* the record is saved once without its cache */
  try{ if(r.home) localStorage.setItem(HOME_KEY, JSON.stringify(r.home)); else localStorage.removeItem(HOME_KEY); }catch(e){}
  localStorage.setItem(KEY, JSON.stringify([...sel])); localStorage.setItem(DKEY, JSON.stringify(decisions)); localStorage.setItem(CKEY, JSON.stringify(COLL));
  if((r.sel||[]).some(id=>byId[id]&&byId[id].ext)&&typeof setExt==='function') setExt(true);
@@ -48,11 +48,18 @@ function csLoadWorking(r){ LO=null; window.LO_PREV={cid:r.id, sel:new Set(r.sel|
  render(); updateStatusLine(); try{ hkLabelUpdate(); }catch(e){} csMenuRefresh(); try{ if(typeof loUi==='function') loUi(); }catch(e){} }
 function csSwitch(id, quiet){ if(!CS||!CS.items[id]) return; if(id===CS.active){ if(!quiet) toast(`"${CS.items[id].name}" is already open`); return; }
  csSaveActiveNow(); const was=CS.items[CS.active]; if(was) was.openLoadout=null; CS.active=id; CS.items[id].openLoadout=null; csWrite(); csLoadWorking(CS.items[id]); if(!quiet) toast(`Opened "${CS.items[id].name}" · ${sel.size} game${sel.size===1?'':'s'}`); }
-function csUniqueName(name){ const base=(name||'My Collection').trim().slice(0,72)||'My Collection'; const have=new Set(csList().map(r=>r.name.toLowerCase())); if(!have.has(base.toLowerCase())) return base; for(let i=2;i<999;i++){ const n=`${base} (${i})`; if(!have.has(n.toLowerCase())) return n; } return base+' '+Date.now(); }
+// D-63: an automatically generated name for a copy or a name collision reads "Name (Copy 1)", "Name (Copy 2)"... (the first free number,
+// unique ignoring case, within the field's length). A free name is kept as asked; a name that already ends in a generated "(Copy n)" is
+// not stacked ("Name (Copy 1)" copies to "Name (Copy 2)"). Stored names are never changed by this (only new names are generated)
+function csCopyName(name, taken, max){ const want=String(name||'').trim().slice(0, max); if(want&&!taken.has(want.toLowerCase())) return want;
+ const root=want.replace(/\s*\(Copy \d+\)$/i,'').trim()||want;
+ for(let i=1;i<1000;i++){ const suf=` (Copy ${i})`; const n=root.slice(0, Math.max(1, max-suf.length)).trimEnd()+suf; if(!taken.has(n.toLowerCase())) return n; }
+ return root.slice(0, max-14)+' '+Date.now(); }
+function csUniqueName(name){ const base=(name||'My Collection').trim().slice(0,72)||'My Collection'; return csCopyName(base, new Set(csList().map(r=>r.name.toLowerCase())), 72); }
 function csCreate(name, rec){ csSaveActiveNow(); const id=csId(); const now=csNow(); const r=Object.assign({sel:[],decisions:{},coll:{},home:null,loadouts:[]}, rec||{}, {id, name:csUniqueName(name), created:(rec&&rec.created)||now, modified:now, shares:[], openLoadout:null}); CS.items[id]=r; csWrite(); return r; }
 function csNew(name){ const r=csCreate(name||'New Collection'); csSwitch(r.id, true); toast(`Created "${r.name}"`); return r; }
 function csRename(id, name){ const r=CS.items[id]; if(!r) return; name=(name||'').trim().slice(0,80); if(!name) return; if(id===CS.active){ COLL.name=name; saveColl(); updateStatusLine(); csSaveActiveNow(); } else { r.name=name; r.modified=csNow(); csWrite(); } csMenuRefresh(); }
-function csDuplicate(id){ if(id===CS.active) csSaveActiveNow(); const src=CS.items[id]; if(!src) return null; const copy=JSON.parse(JSON.stringify(src)); delete copy.shares; const r=csCreate(src.name+' copy', copy); toast(`Duplicated as "${r.name}"`); return r; }
+function csDuplicate(id){ if(id===CS.active) csSaveActiveNow(); const src=CS.items[id]; if(!src) return null; const copy=JSON.parse(JSON.stringify(src)); delete copy.shares; const r=csCreate(src.name, copy);   /* the copy's name: "Name (Copy 1)" (csUniqueName) */ toast(`Duplicated as "${r.name}"`); return r; }
 function csDelete(id){ const r=CS.items[id]; if(!r) return; if(id===CS.active&&LO&&typeof loClose==='function') loClose(true); if(typeof snapshotNow==='function'&&id===CS.active) snapshotNow('before deleting "'+r.name+'"');
  else { try{ const snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); if((r.sel||[]).length) snaps.unshift({at:csNow(),reason:'before deleting "'+r.name+'"',name:r.name,sel:r.sel,decisions:r.decisions||{},pref:(r.coll||{}).pref||{},multi:(r.coll||{}).multi||{},avail:(r.coll||{}).avail||[],fav:[...fav],baseline:(r.coll||{}).baseline||null,fp:null}); localStorage.setItem(SKEY, JSON.stringify(snaps.slice(0,12))); }catch(e){} }
  delete CS.items[id];
@@ -93,8 +100,37 @@ async function csExport(id){ id=id||CS.active; const r=CS.items[id]; if(!r) retu
  toast(`Exported "${r.name}" (${m.count} game${m.count===1?'':'s'}) to ${res.name}`); }
 // ---- Import Collection: always a new collection (never overwrites); duplicates get a distinct name ----
 function csRecordFromFile(rec, fallbackName){ const ids=[...new Set((rec.sel||[]).filter(id=>typeof id==='string'&&id&&id.length<=128))]; const missing=ids.filter(id=>!byId[id]); const dec={}; Object.entries(rec.decisions||{}).forEach(([k,v])=>{ if(ids.includes(k)&&(v==='factory'||v==='alternate')) dec[k]=v; });
- const coll=(rec.coll&&typeof rec.coll==='object')?JSON.parse(JSON.stringify(rec.coll)):{}; coll.missing=Object.assign({}, coll.missing||{}); missing.forEach(id=>{ if(!coll.missing[id]) coll.missing[id]={title:id, source:'unknown'}; });
+ const coll=csCleanColl(rec.coll, ids); missing.forEach(id=>{ if(!coll.missing[id]) coll.missing[id]={title:id, source:'unknown'}; });
  return {rec:{name:String(rec.name||fallbackName||'Imported collection').slice(0,80), created:rec.created||csNow(), sel:ids, decisions:dec, coll, home:(rec.home&&typeof rec.home==='object')?rec.home:null, loadouts:csLoadoutsIn(rec.loadouts, ids)}, missing}; }
+// a collection's own fields read from a file (collection file, Studio backup): known fields only, each of its type; kept details through
+// csCleanMissing; never another device's personal-games cache or anything else the file carries
+function csCleanColl(c, ids){ c=(c&&typeof c==='object'&&!Array.isArray(c))?c:{}; const ob=v=>(v&&typeof v==='object'&&!Array.isArray(v))?v:{}; const idOk=v=>typeof v==='string'&&!!v&&v.length<=128;
+ const mark=v=>(v&&typeof v==='object'&&typeof v.at==='string'&&(typeof v.fp==='string'||v.fp===null))?{at:v.at.slice(0,40), fp:v.fp}:null; const o={pref:{}, multi:{}, missing:{}};
+ Object.entries(ob(c.pref)).forEach(([k,v])=>{ if(idOk(k)&&idOk(v)) o.pref[k]=v; }); Object.entries(ob(c.multi)).forEach(([k,v])=>{ if(idOk(k)&&v===true) o.multi[k]=true; });
+ o.avail=(Array.isArray(c.avail)?c.avail:[]).filter(idOk).slice(0,20000);
+ o.placeholders=(Array.isArray(c.placeholders)?c.placeholders:[]).filter(p=>p&&typeof p==='object').slice(0,20000).map(p=>({code:csCleanText(p.code, 40), name:csCleanText(p.name, csLim().title), checked:p.checked===true})).filter(p=>p.code);
+ ['created','modified'].forEach(k=>{ if(typeof c[k]==='string') o[k]=c[k].slice(0,40); }); o.savedToFile=mark(c.savedToFile); o.prepared=mark(c.prepared); o.baseline=c.baseline&&typeof c.baseline==='object'&&!Array.isArray(c.baseline)?JSON.parse(JSON.stringify(c.baseline)):null;
+ Object.entries(ob(c.missing)).forEach(([k,v])=>{ if(idOk(k)&&ids.includes(k)) o.missing[k]=csCleanMissing(v, k); }); o.missing=csCacheIntoKept(o.missing, c.personalCache, ids); return o; }
+// a legacy Studio backup (nes-classic-studio-data/1 saved the whole working collection) and stores written by 0.7.5 carry the details of
+// their selected personal games only in personalCache. Those details (never the cache itself, never other cached games) become the kept
+// details of the selected ids: the selected key is the identity, every value goes through csCleanPersonal, file-presence claims are
+// ignored, and details the collection already keeps win (the cache only fills what they leave empty)
+function csCacheIntoKept(missing, cache, ids){ const out=Object.assign({}, missing||{}); if(!cache||typeof cache!=='object'||Array.isArray(cache)) return out;
+ (ids||[]).forEach(id=>{ if(typeof id!=='string'||!/^p_[0-9a-f]{16}$/.test(id)||!Object.prototype.hasOwnProperty.call(cache, id)) return; const e=csFromCache(cache[id], id); if(!e) return;
+  const m=out[id]&&typeof out[id]==='object'?csCleanMissing(out[id], id):null; out[id]=m?csKeptFallback(m, e, id):e; }); return out; }
+function csFromCache(p, id){ if(!p||typeof p!=='object'||Array.isArray(p)) return null; const pc=csCleanPersonal(p, id), u=pc.user, d=pc.detected||{}; const L=csLim();
+ const art=p.user&&typeof p.user==='object'&&p.user.art==='personal/art/'+id+'.jpg'?p.user.art:'';   /* the app's own artwork copy for this id: a reference, never a file */
+ return {title:csFirst(id, [u.title, pc.title, d.title], L.title)||String(id).slice(0,120), version:csFirst(id, [u.version_label, pc.version_label], L.version), description:csFirst(id, [u.description], L.description, true),
+  year:csFirst(id, [u.year], L.year), publisher:csFirst(id, [u.publisher], L.publisher), source:'personal', content_sha256:pc.content_sha256, file_sha256:pc.file_sha256, payload_sha256:'', size:pc.content_size||0, art:'', thumb_url:art, personal:pc}; }
+// kept details m with e as the fallback: m's meaningful text wins (csMergeEntry), and e fills only empty values, also inside personal
+function csKeptFallback(m, e, id){ const o=csMergeEntry(m, e, id); ['content_sha256','file_sha256','payload_sha256'].forEach(k=>{ o[k]=m[k]||e[k]||''; }); o.size=m.size||e.size||0; if(m.source==='unknown'&&e.source) o.source=e.source;
+ if(m.personal&&e.personal){ const p=Object.assign({}, m.personal), q=e.personal, empty=v=>v==null||v===''||v===0;   /* top-level personal fields: text, or a size where 0 means unknown (csInt||0) */
+  Object.keys(q).forEach(k=>{ if(k==='user'||k==='detected') return; if(empty(p[k])) p[k]=q[k]; });
+  p.user=Object.assign({}, p.user||{}); const top={title:'title', version_label:'version', description:'description', year:'year', publisher:'publisher'};   /* the collection's own top-level value counts as filled */
+  Object.entries(q.user||{}).forEach(([k,v])=>{ if(!csMeaningful(p.user[k], id)&&!(top[k]&&csMeaningful(m[top[k]], id))&&csMeaningful(v, id)) p.user[k]=v; });
+  if(q.detected){ p.detected=Object.assign({}, p.detected||{}); const unset=v=>v==null||v===''; Object.entries(q.detected).forEach(([k,v])=>{ if(unset(p.detected[k])||(k==='emulator'&&p.detected[k]==='unknown')||(k==='compat_confidence'&&p.detected[k]==='none')) p.detected[k]=v; }); }   /* header values: 0 (mapper, submapper, CHR RAM) and false are values; only absent/invalid ones (null) or empty text are filled */
+  o.personal=p; }
+ return o; }
 function csNotCollection(fileName){ if(typeof ccsFail==='function') ccsFail(fileName||'', 'It is not a Classic Cart Studio package (.ccs) or collection file.', 'This file cannot be opened.'); else toast('That file is not a collection file'); }
 async function csImportObject(obj, fileName){ if(!obj||typeof obj!=='object'){ csNotCollection(fileName); return 0; }
  if(obj.schema===SBACKUP_SCHEMA||obj.schema==='nes-classic-studio-data/1'){ csRestoreDialog(obj, fileName); return 0; }
@@ -188,7 +224,8 @@ restoreSnapshot=function(i){ const snaps=JSON.parse(localStorage.getItem(SKEY)||
 //      any other entry, and become ordinary entries as soon as the matching file is added (personal ids come from the file's content hash)
 // descriptive details from packages and collection files are untrusted text: control/formatting characters removed, each field bounded;
 // automatic values (a game id, a ROM file name, "Personal game") never count as a description (same rule as ccs_package.generic_text)
-const CS_META_LIM={title:120, version:160, description:4000, year:8, publisher:80};
+var CS_META_LIM;   // a hoisted var set on first use: the start-up render cleans kept details (keptRow) before this line runs
+function csLim(){ return CS_META_LIM=CS_META_LIM||{title:120, version:160, description:4000, year:8, publisher:80}; }
 function csMeaningful(v, id){ const s=String(v==null?'':v).trim(); return !!s&&s!==id&&!/^(p_)?[0-9a-f]{16}(\.(nes|unh|bin|fds|zip))?$/i.test(s)&&!/\.(nes|unh|bin|fds|zip)$/i.test(s)&&!/^(personal game|unknown)$/i.test(s); }
 function csCleanText(v, n, multi){ if(v==null||typeof v==='object'||typeof v==='boolean') return ''; const s=String(v).replace(/\r\n/g,'\n').replace(/\t/g,' ');
  return (multi?s.replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯﻿]/g,''):s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯﻿]/g,'')).trim().slice(0,n).trim(); }
@@ -197,20 +234,31 @@ function csFirst(id, vals, n, multi){ for(const v of vals){ const c=csCleanText(
 function csThumbOk(u){ u=String(u||''); return (/^https:\/\/[^\s"'<>]+$/.test(u)&&u.length<2048)||(/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(u)&&u.length<=1400000)||/^personal\/art\/p_[0-9a-f]{16}\.jpg$/.test(u)?u:''; }
 function csEntryFromSelection(s, plib){ const id=s.version_id||s.game_id; const p=(plib||[]).find(x=>x&&x.id===id)||null; const pu=(p&&p.user&&typeof p.user==='object')?p.user:{};
  const src=s.source==='personal'||/^p_/.test(id||'')?'personal':s.source==='extended'?'extended':s.source==='catalog'?'catalog':(s.source||'unknown');
- const o={title:csFirst(id, [s.display_title, s.title, pu.title, p&&p.title], CS_META_LIM.title)||String(id).slice(0,120), version:csFirst(id, [s.version_label, s.nointro_name, s.version, pu.version_label, p&&p.version_label], CS_META_LIM.version),
-  description:csFirst(id, [s.description, pu.description], CS_META_LIM.description, true), year:csFirst(id, [s.year, pu.year], CS_META_LIM.year), publisher:csFirst(id, [s.publisher, pu.publisher], CS_META_LIM.publisher), source:src,
+ const o={title:csFirst(id, [s.display_title, s.title, pu.title, p&&p.title], csLim().title)||String(id).slice(0,120), version:csFirst(id, [s.version_label, s.nointro_name, s.version, pu.version_label, p&&p.version_label], csLim().version),
+  description:csFirst(id, [s.description, pu.description], csLim().description, true), year:csFirst(id, [s.year, pu.year], csLim().year), publisher:csFirst(id, [s.publisher, pu.publisher], csLim().publisher), source:src,
   content_sha256:/^[0-9a-f]{64}$/.test((p&&p.content_sha256)||s.content_sha256||'')?((p&&p.content_sha256)||s.content_sha256):'', file_sha256:/^[0-9a-f]{64}$/.test((p&&p.file_sha256)||s.file_sha256||'')?((p&&p.file_sha256)||s.file_sha256):'',
   payload_sha256:/^[0-9a-f]{64}$/.test(s.payload_sha256||'')?s.payload_sha256:'', size:Number((p&&p.content_size)||s.size||0)||0, art:/^art\/[0-9a-f]{16}\.jpg$/.test(s.art||'')?s.art:'', thumb_url:/^https:\/\//.test(s.thumb_url||'')?csThumbOk(s.thumb_url):''};
  if(p) o.personal=csCleanPersonal(p, id);
  return o; }
 // the personal-game record a kept entry carries for packages and collection files (portable fields only; never a path)
-function csCleanPersonal(p, id){ const u=(p.user&&typeof p.user==='object')?p.user:{}; const hx=v=>/^[0-9a-f]{64}$/.test(v||'')?v:''; const num=v=>Math.max(0, Number(v)||0);
- return {id, title:csCleanText(p.title, CS_META_LIM.title), version_label:csCleanText(p.version_label, CS_META_LIM.version), content_sha256:hx(p.content_sha256), file_sha256:hx(p.file_sha256), content_size:num(p.content_size), file_size:num(p.file_size),
-  format:csCleanText(p.format, 16), file_name:csCleanText(String(p.file_name||'').split(/[\\/]/).pop(), 200), user:{title:csCleanText(u.title, CS_META_LIM.title), version_label:csCleanText(u.version_label, CS_META_LIM.version), description:csCleanText(u.description, CS_META_LIM.description, true), year:csCleanText(u.year, CS_META_LIM.year), publisher:csCleanText(u.publisher, CS_META_LIM.publisher)}}; }
+function csCleanPersonal(p, id){ const u=(p.user&&typeof p.user==='object')?p.user:{}; const hx=v=>/^[0-9a-f]{64}$/.test(v||'')?v:''; const num=v=>csInt(v, 4e9)||0;
+ const o={id, title:csCleanText(p.title, csLim().title), version_label:csCleanText(p.version_label, csLim().version), content_sha256:hx(p.content_sha256), file_sha256:hx(p.file_sha256), content_size:num(p.content_size), file_size:num(p.file_size),
+  format:csCleanText(p.format, 16), file_name:csCleanText(String(p.file_name||'').split(/[\\/]/).pop(), 200), note:csCleanText(p.note, 200), content_crc32:/^[0-9A-Fa-f]{8}$/.test(p.content_crc32||'')?String(p.content_crc32).toUpperCase():'',
+  user:{title:csCleanText(u.title, csLim().title), version_label:csCleanText(u.version_label, csLim().version), description:csCleanText(u.description, csLim().description, true), year:csCleanText(u.year, csLim().year), publisher:csCleanText(u.publisher, csLim().publisher)}};
+ const d=csCleanDetected(p.detected); if(d) o.detected=d; return o; }
+// a whole non-negative number (a number, or a string of digits) up to max; anything else is unknown (null)
+function csInt(v, max){ const n=typeof v==='number'?v:(typeof v==='string'&&/^\s*\d{1,13}\s*$/.test(v)?Number(v):NaN); return Number.isSafeInteger(n)&&n>=0&&n<=max?n:null; }
+// what the app read from a personal game's iNES / NES 2.0 header and its compatibility rules (personal.py): header numbers within their
+// ranges, fixed vocabularies, bounded text; anything else becomes unknown (never shown as it came)
+function csCleanDetected(d){ if(!d||typeof d!=='object'||Array.isArray(d)) return null; const one=(v, list, dflt)=>list.includes(v)?v:dflt;
+ const o={title:csCleanText(d.title, csLim().title), mapper:csInt(d.mapper, 4095), submapper:csInt(d.submapper, 15), prg:csInt(d.prg, 1e9), chr:csInt(d.chr, 1e9), mirroring:one(d.mirroring, ['horizontal','vertical','four-screen'], ''),
+  header_hex:/^[0-9a-f]{32}$/.test(typeof d.header_hex==='string'?d.header_hex:'')?d.header_hex:'', emulator:one(d.emulator, ['kachikachi','RetroArch','unknown'], 'unknown'), core:csCleanText(d.core, 40), launch_command:csCleanText(d.launch_command, 400),
+  compat_notes:csCleanText(d.compat_notes, 400), compat_confidence:one(d.compat_confidence, ['none','low','medium','high'], 'none')};
+ if(typeof d.battery==='boolean') o.battery=d.battery; if(typeof d.trainer==='boolean') o.trainer=d.trainer; return o; }
 // a kept entry read from a package or collection file: known fields only, bounded and checked
 function csCleanMissing(m, id){ m=(m&&typeof m==='object')?m:{}; const hx=v=>/^[0-9a-f]{64}$/.test(v||'')?v:'';
- const o={title:csCleanText(m.title, CS_META_LIM.title)||String(id).slice(0,120), version:csCleanText(m.version, CS_META_LIM.version), description:csCleanText(m.description, CS_META_LIM.description, true), year:csCleanText(m.year, CS_META_LIM.year), publisher:csCleanText(m.publisher, CS_META_LIM.publisher),
-  source:['catalog','extended','personal','unknown'].includes(m.source)?m.source:(/^p_/.test(id)?'personal':'unknown'), content_sha256:hx(m.content_sha256), file_sha256:hx(m.file_sha256), payload_sha256:hx(m.payload_sha256), size:Math.max(0, Number(m.size)||0), art:/^art\/[0-9a-f]{16}\.jpg$/.test(m.art||'')?m.art:'', thumb_url:csThumbOk(m.thumb_url)};
+ const o={title:csCleanText(m.title, csLim().title)||String(id).slice(0,120), version:csCleanText(m.version, csLim().version), description:csCleanText(m.description, csLim().description, true), year:csCleanText(m.year, csLim().year), publisher:csCleanText(m.publisher, csLim().publisher),
+  source:['catalog','extended','personal','unknown'].includes(m.source)?m.source:(/^p_/.test(id)?'personal':'unknown'), content_sha256:hx(m.content_sha256), file_sha256:hx(m.file_sha256), payload_sha256:hx(m.payload_sha256), size:csInt(m.size, 4e9)||0, art:/^art\/[0-9a-f]{16}\.jpg$/.test(m.art||'')?m.art:'', thumb_url:csThumbOk(m.thumb_url)};
  if(m.personal&&typeof m.personal==='object') o.personal=csCleanPersonal(m.personal, id);
  return o; }
 // a package's (or collection's) entry and the selection describing the same game: field by field, the first real description wins
@@ -224,7 +272,7 @@ function csHasDetails(x, id){ return !!x&&(['title','version','description','yea
 function csPendingPersonal(id, x){ return /^p_[0-9a-f]{16}$/.test(id||'')&&csHasDetails(x, id); }
 function csMetaKey(id, x){ return id+'|'+JSON.stringify([x.title||'', x.version||'', x.description||'', x.year||'', x.publisher||'', x.thumb_url||'']); }
 // the store confirmed this exact entry: drop it from every collection that still holds the same details (others stay pending)
-function csSettlePersonal(id, key){ let n=0; const drop=m=>{ if(m&&m[id]&&csMetaKey(id, m[id])===key){ delete m[id]; n++; } };
+function csSettlePersonal(id, key){ let n=0; const drop=m=>{ if(m&&m[id]&&typeof m[id]==='object'&&csMetaKey(id, csKept(m[id], id))===key){ delete m[id]; n++; } };
  drop(COLL.missing); Object.values((typeof CS!=='undefined'&&CS.items)||{}).forEach(r=>drop(r&&r.coll&&r.coll.missing)); if(n){ saveColl(); csWrite(); } }
 const CS_INFLIGHT=new Map();   // key -> the request's promise (a second call for the same details waits for it instead of sending again)
 async function csMergePersonal(list){ const res={sent:0, ok:0, changed:0, failed:[]}; if(!(typeof COMPANION!=='undefined'&&COMPANION.ok)||typeof hkPost!=='function') return res;
@@ -237,7 +285,7 @@ async function csMergePersonal(list){ const res={sent:0, ok:0, changed:0, failed
   if(r&&r.ok){ res.ok++; if((r.changed||[]).length) res.changed++; csSettlePersonal(id, key); } else res.failed.push(id); }
  return res; }
 // every pending entry for a personal game that is on this computer (one request per distinct set of details)
-function csPendingList(){ const todo=new Map(); const scan=miss=>Object.entries(miss||{}).forEach(([id,x])=>{ if(PERSONAL[id]&&csPendingPersonal(id, x)){ const k=csMetaKey(id, x); if(!todo.has(k)) todo.set(k, [id, x]); } });
+function csPendingList(){ const todo=new Map(); const scan=miss=>Object.entries(miss||{}).forEach(([id,x])=>{ x=x&&typeof x==='object'?csKept(x, id):null; if(x&&PERSONAL[id]&&csPendingPersonal(id, x)){ const k=csMetaKey(id, x); if(!todo.has(k)) todo.set(k, [id, x]); } });
  scan(COLL.missing); Object.values((typeof CS!=='undefined'&&CS.items)||{}).forEach(r=>scan(r&&r.coll&&r.coll.missing)); return [...todo.values()]; }
 function csReconcilePersonal(){ const l=csPendingList(); return l.length?csMergePersonal(l):Promise.resolve({sent:0, ok:0, changed:0, failed:[]}); }
 // while details are still pending, the game shows them where its own are only automatic (never over what the person edited)
@@ -253,7 +301,60 @@ function csShowPending(){ csPendingList().forEach(([id, x])=>{ const g=byId[id],
 // a cover's address: catalog box art is part of the site (relative, the same on the website and in the app); other images (personal
 // artwork) are served by the app's backend (artUrl); full URLs and data/blob images as they are
 function ccsArtSrc(p){ p=String(p||''); if(!p) return ''; if(/^(https?:|data:|blob:)/.test(p)||/^art\/[0-9a-f]{16}\.jpg$/.test(p)) return p; return artUrl(p); }
-function csMissing(id){ return (COLL.missing||{})[id]||{title:id, source:'unknown'}; }
+// a kept entry's details as the page uses them: always through csCleanMissing, whatever stored them (an import, a backup, an older
+// version); cached per stored object (entries are replaced, never changed in place)
+function csKept(m, id){ const w=csKept.w=csKept.w||new WeakMap(); let c=w.get(m); if(!c||c.id!==id){ c={id, v:csCleanMissing(m, id)}; w.set(m, c); } return c.v; }
+function csMissing(id){ const m=(COLL.missing||{})[id]; return m&&typeof m==='object'?csKept(m, id):{title:String(id).slice(0,120), source:'unknown'}; }
+// ---- kept entries in the Game Library: an entry of the open collection that this device cannot resolve (a personal game whose ROM file
+//      is not here, which is always so on the website, or a game this Game Library does not know) still shows as a game card, from the
+//      details kept with the collection (title, year, publisher, its own cover), with the checkbox of the open collection or loadout and
+//      its Game Details; it says plainly that its ROM file is not on this device. It is never added to byId: export, the Tray's list of
+//      entries without a file and storage still treat it exactly as before (iPhone finding: they used to disappear from the grid) ----
+var KEPT;   // id -> {m, row}: rebuilt only when the kept details change. A hoisted var made on first use: the start-up render reaches keptRow() before this line runs
+function keptRow(id){ const m0=(COLL.missing||{})[id]; if(!m0||typeof m0!=='object'||byId[id]) return null; KEPT=KEPT||new Map(); const c=KEPT.get(id); if(c&&c.m===m0) return c.row; const m=csKept(m0, id);
+ const pr=m.personal&&typeof m.personal==='object'?m.personal:{}; const u=Object.assign({}, pr.user||{});
+ [['title','title'],['year','year'],['publisher','publisher'],['description','description'],['version','version_label']].forEach(([k,f])=>{ if(!csMeaningful(u[f], id)&&csMeaningful(m[k], id)) u[f]=m[k]; });
+ if(!csMeaningful(u.title, id)) u.title=m.source==='personal'||/^p_/.test(id)?'Personal game':'Unknown game';
+ const row=perRow(Object.assign({}, pr, {id, user:u, file_present:false, content_size:pr.content_size||m.size||0, file_name:pr.file_name||''}));
+ const cover=[m.thumb_url, m.art].find(x=>x&&/^(https:|data:image\/(jpeg|png);base64,|art\/[0-9a-f]{16}\.jpg$)/.test(x)&&csThumbOk(x)||/^art\/[0-9a-f]{16}\.jpg$/.test(x||''));
+ Object.assign(row, {art:cover?ccsArtSrc(cover):'', art_source:cover?'kept':'', kept:true, file_present:false, source:m.source==='personal'||/^p_/.test(id)?'personal':(m.source||'unknown'), kind:m.source==='personal'||/^p_/.test(id)?'personal':'kept', identity:'kept details (no ROM file here)', identity_verification:'details kept with the collection; the ROM file is not on this device'});
+ KEPT.set(id, {m:m0, row}); return row; }
+// the kept entries in the current scope: the open loadout's collection, or the open collection
+function keptRows(){ if(!COLL||!COLL.missing) return []; const lo=typeof LO!=='undefined'&&LO, scope=lo?LO.collSel:sel; const out=[]; scope.forEach(id=>{ const r=keptRow(id); if(r) out.push(r); });
+ if(!lo&&KEPT_OFF) KEPT_OFF.forEach(id=>{ if(!scope.has(id)){ const r=keptRow(id); if(r) out.push(r); } }); return out; }
+// a kept entry unchecked in the collection view stays on screen, unchecked, for the rest of this visit, so the uncheck can be undone like a
+// Game Library game's (its kept details stay in the collection data); cleared when another collection opens
+var KEPT_OFF;
+function keptOff(id, off){ KEPT_OFF=KEPT_OFF||new Set(); if(off) KEPT_OFF.add(id); else KEPT_OFF.delete(id); }
+// ---- whether a kept entry's ROM file is available right now, from the same sources Share or Export uses (never inferred from "not in
+//      byId"): the website holds the files chosen in this visit (ROMSRC: references only, nothing is stored, gone after a reload); the
+//      Windows app checks this computer (the Share or Export ROM check). States: visit | here | none | checking | unknown ----
+var KEPT_AV, KEPT_AVQ;   // app: id -> true/false (null: the check failed); ids already asked
+function keptAvail(id){ if(typeof ccsAppPackages==='function'&&ccsAppPackages()){ KEPT_AV=KEPT_AV||new Map(); if(!KEPT_AV.has(id)){ keptAvailAsk(id); return 'checking'; } const v=KEPT_AV.get(id); return v===null?'unknown':v?'here':'none'; }
+ let held=false; try{ held=ROMSRC.has(id); }catch(e){}   // ROMSRC is a const of ccs.js: the start-up render can reach this before that line has run (and typeof throws then)
+ return held?'visit':'none'; }
+function keptAvailAsk(id){ KEPT_AVQ=KEPT_AVQ||new Set(); if(KEPT_AVQ.has(id)) return; KEPT_AVQ.add(id); clearTimeout(keptAvailAsk.t);
+ keptAvailAsk.t=setTimeout(async()=>{ const ids=[...KEPT_AVQ].filter(x=>!KEPT_AV.has(x)); if(!ids.length) return; let chk=null;
+  try{ chk=await hkPost('/api/package/rom-check', {games:ids.map(x=>({version_id:x, title:csMissing(x).title||x}))}); }catch(e){}
+  const yes=new Set(((chk&&chk.ok&&chk.available)||[]).map(g=>g.version_id)); ids.forEach(x=>KEPT_AV.set(x, chk&&chk.ok?yes.has(x):null)); keptAvailChanged(); }, 60); }
+// a Share or Export check (either source) is the newest word on the games it checked
+function keptAvailNoted(ready, missing){ if(typeof ccsAppPackages==='function'&&ccsAppPackages()){ KEPT_AV=KEPT_AV||new Map(); (ready||[]).forEach(x=>KEPT_AV.set(x, true)); (missing||[]).forEach(x=>KEPT_AV.set(x, false)); } keptAvailChanged(); }
+// cards and an open Game Details follow the new state
+function keptAvailChanged(){ clearTimeout(keptAvailChanged.t); keptAvailChanged.t=setTimeout(()=>{ if(!keptRows().length) return; render();
+ const box=$('detailsBox'), n=box&&box.querySelector('.keptnote'); if(n&&$('details').classList.contains('open')&&n.dataset.id){ const k=keptNote(n.dataset.id); n.className='msgbox keptnote'+(k.warn?' warn':''); n.innerHTML=k.html; } }, 30); }
+function keptNote(id){ const a=keptAvail(id), app=csAwayHere(), kept="This game's details are kept with the collection, and it stays in the collection and its loadouts.";
+ if(a==='visit') return {html:'<b>ROM file held for this visit.</b> Ready to share or export. After reloading or closing this page, choose the ROM or .ccs package again. Game details stay saved.'};
+ if(a==='here') return {html:`<b>ROM file on this computer.</b> This game is not in the Game Library, but its ROM file is on this computer, so it can be exported with the collection. ${kept}`};
+ if(a==='checking') return {html:`<b>Checking this computer for its ROM file…</b> ${kept}`};
+ if(a==='unknown') return {warn:true, html:`<b>Its ROM file could not be checked.</b> ${kept}`};
+ return {warn:true, html:`<b>No ROM file here.</b> ${app?'The ROM file is not on this computer':'The website keeps no ROM files'}. ${kept} ${app?'Add its ROM file with <b>Add Your Own Game</b> to install it.':'To share or export it from here, choose its ROM file in <b>Share or Export</b>. To install it, open the collection in Classic Cart Studio for Windows and add its ROM file there.'}`}; }
+// the card/row mark: [text, tooltip, held (true when the file can be exported now)]
+function keptBadge(id){ const a=keptAvail(id); return a==='visit'?['ROM held for this visit','Its ROM file was chosen in this browser visit. The website does not keep it: after a reload, choose it again.',true]
+ :a==='here'?['ROM file on this computer','Its ROM file is on this computer. This game is not in the Game Library.',true]:a==='checking'?['Checking ROM file…','Checking this computer for its ROM file',false]
+ :a==='unknown'?['ROM file not checked','Its ROM file could not be checked',false]:['No ROM file here',(csAwayHere()?'The ROM file is not on this computer':'The website keeps no ROM files')+': its details are kept with this collection',false]; }
+// Game Details of a kept entry say so first
+(function(){ const _d=openDetails; openDetails=function(id){ const r=_d.apply(this, arguments); const g=!byId[id]&&keptRow(id), box=$('detailsBox'); if(!g||!box) return r; const h=box.querySelector('h2');
+ if(h&&!box.querySelector('.keptnote')){ const k=keptNote(id); h.insertAdjacentHTML('afterend', `<div class="msgbox keptnote${k.warn?' warn':''}" data-id="${esc(id)}">${k.html}</div>`); } return r; }; })();
 // where the games of a collection that are not in this Game Library are: the Windows app keeps ROM files on this computer; the website keeps none
 function csAwayHere(){ return typeof CO!=='undefined'&&!!(CO.ok||CO.desktop); }
 function csAwayWord(){ return csAwayHere()?'not on this computer':'not in the Game Library'; }
@@ -274,4 +375,4 @@ window.csEntries=csEntries;
   m.count=m.selections.length; if(m.summary) m.summary.collection=m.selections.length; m.unavailable=[...sel].filter(id=>!byId[id]).length; return m; }; })();
 // the tray lists the entries whose file or library record is not here, below the others
 (function(){ if(typeof renderTray!=='function') return; const _rt=renderTray; renderTray=function(){ const r=_rt.apply(this,arguments); try{ const miss=[...sel].filter(id=>!byId[id]); const ul=$('trayList'); if(ul&&miss.length){ ul.querySelectorAll('li.empty').forEach(x=>x.remove());
-   ul.insertAdjacentHTML('beforeend', `<li class="trmiss-h"><div class="small"><b>${miss.length} game${miss.length===1?'':'s'} ${csAwayWord()}</b> · ${csAwayHere()?'add their ROM files with Add Your Own Game':'their details are kept with this collection; the website does not keep ROM files'}</div></li>`+miss.map(id=>{ const x=csMissing(id); const img=x.art?ccsArtSrc(x.art):ccsArtSrc(x.thumb_url||''); return `<li class="trmiss">${img?`<img loading="lazy" src="${esc(img)}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ph" style="width:36px;height:51px;padding:0;font-size:7px"><span style="border:none">NES</span></div>'}<div style="min-width:0;flex:1"><b class="tl">${esc(x.title)}</b><div class="small">${[x.version, x.year, x.publisher].filter(Boolean).map(v=>esc(String(v))).join(' · ')}</div><div class="small"><span class="tag">${x.source==='personal'?'personal game':'not in this Game Library'}</span></div></div><span class="x" data-rm="${esc(id)}" title="Remove from collection" role="button" tabindex="0">✕</span></li>`; }).join('')); } }catch(e){} return r; }; })();
+   ul.insertAdjacentHTML('beforeend', `<li class="trmiss-h"><div class="small"><b>${miss.length} game${miss.length===1?'':'s'} ${csAwayWord()}</b> · ${csAwayHere()?'add their ROM files with Add Your Own Game':'their details are kept with this collection; the website does not keep ROM files'}</div></li>`+miss.map(id=>{ const x=csMissing(id); const img=x.art?ccsArtSrc(x.art):ccsArtSrc(x.thumb_url||''); return `<li class="trmiss">${img?`<img loading="lazy" src="${esc(img)}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ph" style="width:36px;height:51px;padding:0;font-size:7px"><span style="border:none">NES</span></div>'}<div style="min-width:0;flex:1"><button type="button" class="tl topen" data-id="${esc(id)}" data-open="${esc(id)}">${esc(x.title)}</button><div class="small">${[x.version, x.year, x.publisher].filter(Boolean).map(v=>esc(String(v))).join(' · ')}</div><div class="small"><span class="tag">${x.source==='personal'?'personal game':'not in this Game Library'}</span></div></div><span class="x" data-rm="${esc(id)}" title="Remove from collection" role="button" tabindex="0">✕</span></li>`; }).join('')); } }catch(e){} return r; }; })();
