@@ -30,15 +30,22 @@ function loStatusIcon(e){ return {fits:'✓', near:'!', over:'✕', unconfirmed:
 function loStatusCls(e){ return {fits:'ok',near:'warn',over:'bad',unconfirmed:'warn'}[e.status]; }
 function loLine(l){ const n=(LO&&l.id===LO.lid)?sel.size:(l.sel||[]).length; return loPl(n,'game'); }
 // ---- open / close ----
-function loResetConsoleState(){ try{ if(typeof TV!=='undefined'){ if(TV.open&&typeof closeTv==='function') closeTv(); TV.model=null; TV.proj=null; } }catch(e){} try{ if(typeof INST!=='undefined'){ INST.manifest=null; INST.preview=null; INST.prepared=null; } if(typeof CONSOLE!=='undefined'){ CONSOLE.plan=null; CONSOLE.preflight=null; CONSOLE.result=null; } if(typeof NHP!=='undefined'){ NHP.result=null; NHP.fp=null; } }catch(e){} }
+function loResetConsoleState(){ try{ if(typeof techCancel==='function') techCancel(); }catch(e){} try{ if(typeof TV!=='undefined'){ if(TV.open&&typeof closeTv==='function') closeTv(); TV.model=null; TV.proj=null; } }catch(e){} try{ if(typeof INST!=='undefined'){ INST.manifest=null; INST.preview=null; INST.prepared=null; } if(typeof CONSOLE!=='undefined'){ CONSOLE.plan=null; CONSOLE.preflight=null; CONSOLE.result=null; } if(typeof NHP!=='undefined'){ NHP.result=null; NHP.fp=null; } }catch(e){} }
 function loWriteWorking(){ try{ localStorage.setItem(KEY, JSON.stringify([...sel])); localStorage.setItem(DKEY, JSON.stringify(decisions)); }catch(e){} try{ if(typeof desktopStateDirty==='function') desktopStateDirty(); }catch(e){} }
-function loOpen(lid, quiet){ if(!CS) return; if(LO&&LO.lid===lid){ loUi(); return; } csSaveActiveNow(); const rec=CS.items[CS.active]; const l=loGet(lid, rec); if(!rec||!l) return;
+// opening a loadout from the menu, Manage Loadouts, the chooser or creation shows its editor from the top; `resume` (the loadout that was
+// open at start, or the app's saved state arriving later) leaves the page where it is. Only this entry moves the page: renders, saves and
+// refreshes never scroll it, and the person's own scrolling, tapping or keys in the meantime win.
+function loTop(){ try{ if(typeof VL!=='undefined'){ if(VL.hold){ VL.hold=false; clearTimeout(VL.holdT); } VL.pin=null; } }catch(e){}   // a list restore still settling never pulls the editor back down
+ window.scrollTo({top:0, left:0, behavior:'instant'});
+ let moved=false; const ev=['wheel','touchstart','pointerdown','keydown'], stop=()=>{ moved=true; }; ev.forEach(t=>addEventListener(t,stop,{capture:true, passive:true}));
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{ ev.forEach(t=>removeEventListener(t,stop,{capture:true})); if(!moved&&scrollY>0) window.scrollTo({top:0, left:0, behavior:'instant'}); })); }   // once more after the editor's layout has settled
+function loOpen(lid, quiet, resume){ if(!CS) return; if(LO&&LO.lid===lid){ loUi(); return; } csSaveActiveNow(); const rec=CS.items[CS.active]; const l=loGet(lid, rec); if(!rec||!l) return;
  const coll=new Set(rec.sel||[]);
  LO={cid:rec.id, lid, collSel:coll, collDecisions:JSON.parse(JSON.stringify(rec.decisions||{})), collHome:rec.home?JSON.parse(JSON.stringify(rec.home)):null};
  sel=new Set((l.sel||[]).filter(id=>coll.has(id))); decisions=JSON.parse(JSON.stringify(l.decisions||{}));
  try{ if(l.home) localStorage.setItem(HOME_KEY, JSON.stringify(l.home)); else localStorage.removeItem(HOME_KEY); }catch(e){}
  rec.openLoadout=lid; csWrite(); loWriteWorking(); loResetConsoleState();
- render(); updateStatusLine(); try{ hkLabelUpdate(); }catch(e){} csMenuRefresh(); loUi(); if(!quiet) toast(`Editing NES Classic Loadout "${l.name}" · ${loPl(sel.size,'game')}`); }
+ render(); updateStatusLine(); try{ hkLabelUpdate(); }catch(e){} csMenuRefresh(); loUi(); if(!resume) loTop(); if(!quiet) toast(`Editing NES Classic Loadout "${l.name}" · ${loPl(sel.size,'game')}`); }
 function loClose(quiet){ if(!LO) return; csSaveActiveNow(); const rec=CS.items[CS.active]; if(!rec){ LO=null; return; } rec.openLoadout=null; csWrite(); loResetConsoleState(); csLoadWorking(rec); loWriteWorking(); if(!quiet) toast(`Back to "${rec.name}" · ${loPl(sel.size,'game')}`); }
 // the whole collection, also while a loadout is open (collection-level actions)
 function loAsCollection(fn){ if(!LO) return fn(); const s0=sel, d0=decisions; CS_COLLVIEW++; try{ sel=new Set(LO.collSel); decisions=LO.collDecisions; return fn(); } finally { sel=s0; decisions=d0; CS_COLLVIEW--; } }
@@ -199,7 +206,7 @@ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closes
  // the app's durable copy can arrive after start (a new WebView2 profile): reopen the loadout that was open
  if(typeof desktopApplyState==='function'){ const _da=desktopApplyState; desktopApplyState=function(){ const r=_da.apply(this,arguments); try{ loResume(); }catch(e){} return r; }; }
 })();
-function loResume(){ const r=csActive(); if(r&&r.openLoadout&&loGet(r.openLoadout, r)&&!LO){ csLoadWorking(r); loOpen(r.openLoadout, true); } else loUi(); }
+function loResume(){ const r=csActive(); if(r&&r.openLoadout&&loGet(r.openLoadout, r)&&!LO){ csLoadWorking(r); loOpen(r.openLoadout, true, true); } else loUi(); }
 loResume();
 // one storage display: the tray's older storage notice and line are not shown; the meter updates with every change that can move it
 storageTrayLine=function(){ return ''; };
