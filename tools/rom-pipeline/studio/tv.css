@@ -9,16 +9,24 @@
 .toolsfold.stack:not(.measuring) .row.tools #filtersBtn,.toolsfold.stack:not(.measuring) .row.tools .menuwrap,.toolsfold.stack:not(.measuring) .row.tools .seg{flex:1 1 calc((100% - 52px - 24px) / 3)}
 .vis-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* the preview workspace: a dialog that uses the available height sensibly and never scrolls the page behind it */
-.tvmodal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:14px}
+/* the preview workspace: a dialog that uses the available height sensibly and never scrolls the page behind it. It is laid out in the
+   visible page (--vpt/--vph: the visual viewport's top and height, held during pinch zoom; navigation.js), not in the taller layout
+   viewport that a fixed layer can stay attached to while browser bars or a keyboard cover part of it. The dimmed backdrop still covers
+   everything; a safe-area inset replaces the margin where it is larger (max, never added on top) */
+.tvmodal{position:fixed;left:0;right:0;top:var(--vpt,0px);height:var(--vph,100dvh);z-index:60;display:none;align-items:center;justify-content:center;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+.tvmodal::before{content:"";position:fixed;inset:0;z-index:-1;background:rgba(0,0,0,.78)}
 .tvmodal.open{display:flex}
-.tvbox{position:relative;width:min(1600px,100%);max-height:calc(100vh - 28px);display:flex;flex-direction:column;background:linear-gradient(180deg,#1b1b22,#121216);border:1px solid var(--line2);border-radius:14px;box-shadow:0 40px 100px rgba(0,0,0,.75);overflow:hidden}
-.tvhd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 56px 10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tvbox{position:relative;width:min(1600px,100%);max-height:100%;display:flex;flex-direction:column;background:linear-gradient(180deg,#1b1b22,#121216);border:1px solid var(--line2);border-radius:14px;box-shadow:0 40px 100px rgba(0,0,0,.75);overflow:hidden}
+.tvhd{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 56px 10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .tvt{display:flex;align-items:center;gap:10px;min-width:0}.tvt h2{margin:0;font-family:var(--display);font-size:16px;letter-spacing:.5px;text-transform:uppercase}
 .tvtools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.tvmain{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 14px;min-height:0;overflow:hidden;flex:1}
+.tvmain{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 14px;min-height:0;overflow-x:hidden;overflow-y:auto;flex:1}
 .tvstagewrap{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
-.tvstage{position:relative;aspect-ratio:16/9;width:min(100%,calc((100vh - 230px) * 16 / 9));flex:none;margin:0 auto;background:#000;border-radius:8px;overflow:hidden;outline:none;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 20px 50px rgba(0,0,0,.6)}
+/* wide layout: the stage's height leaves room for the rest of the box (margins, header, footer, padding, the pad and its hint: about
+   320 px). On a short page that reserve would leave no usable stage, so the stage keeps 320 x 180 (less only when the page is too short
+   to show that whole below the header: --tvfit) and the area between the header and the footer scrolls instead (.tvmain; on a very
+   short page the box itself, below) */
+.tvstage{--tvfit:calc(var(--vph,100dvh) - 150px);position:relative;aspect-ratio:16/9;width:min(100%,max(min(320px,var(--tvfit) * 16 / 9),calc((var(--vph,100dvh) - 320px) * 16 / 9)));flex:none;margin:0 auto;background:#000;border-radius:8px;overflow:hidden;outline:none;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 20px 50px rgba(0,0,0,.6)}
 .tvstage:focus-visible{box-shadow:0 0 0 2px var(--red3),0 20px 50px rgba(0,0,0,.6)}
 .tvscreen{position:absolute;inset:0;background:linear-gradient(180deg,#eef0f3,#c9ced5);color:#1b1b20;font-family:"Segoe UI",system-ui,sans-serif;container-type:size}
 .tvcrt{position:absolute;inset:0;pointer-events:none;display:none}
@@ -61,8 +69,12 @@
 .tvpad .abh{display:flex;gap:8px;align-items:center}
 .ssh{display:flex;gap:8px;align-items:flex-end;align-self:flex-end;margin-bottom:6px}.pb.sel,.pb.start{width:auto;height:18px;padding:0 10px;border-radius:999px;font-size:9px;letter-spacing:1px;background:#2a2a31;border:1px solid var(--line2);color:var(--ink)}.tvpad .pb.a,.tvpad .pb.b{width:40px;height:40px;border-radius:50%;background:var(--red);border-color:#ff5a63;font-size:14px}.tvpad .pb.b{background:#8a0008}.tvpad .pb.home{padding:0 12px;border-radius:999px;font-size:11px;letter-spacing:1px}
 .tvhint{width:100%;text-align:center;color:var(--muted)}
-/* side panel */
-.tvside{overflow:auto;min-height:0;padding-right:4px}
+/* side panel: in the wide layout it scrolls by itself, as tall as the stage's column (max-height 100%). When that column (the stage, the
+   pad and its hint) does not fit below the header, whatever the reason (a short page, a wrapped header, a taller footer; tv.js measures
+   it and sets #tv.tvflow), it is as tall as its content instead and scrolls with the area below the header: one scroll area, never two
+   scroll bars side by side; on a very short page the box scrolls, as before */
+.tvside{overflow:auto;min-height:0;padding-right:4px;align-self:start;max-height:100%}
+#tv.tvflow .tvside{max-height:none}
 .tvs{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
 .tvs .lbl{font-family:var(--pixel);font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
 .tvkv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:8px 0 0;font-size:12.5px}.tvkv dt{color:var(--muted)}.tvkv dd{margin:0}
@@ -72,9 +84,10 @@
 .tvsel{width:100%;margin-top:6px;background:#0b0b0e;color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:6px;font:inherit;font-size:12px}
 .tvdiff{margin-top:8px}.tvdiff .mut{color:var(--muted)}
 .tvfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2);flex-wrap:wrap}.tvfoot .r{display:flex;gap:6px}
-/* responsive: the side panel goes below the stage on narrower screens; the stage stays 16:9 and uncropped */
+/* responsive: the side panel goes below the stage on narrower screens; the stage stays 16:9 and uncropped; on a phone the four theme
+   buttons wrap onto rows that fill the width instead of running past the edge (1 px gaps show the divider color) */
 @media (max-width:1100px){.tvmain{display:block;overflow:auto}.tvstagewrap{display:block}.tvpad{margin:10px 0 12px}.tvside{max-height:none;overflow:visible}.tvstage{width:100%;height:auto}}
-@media (max-width:640px){.tvmodal{padding:6px}.tvbox{max-height:calc(100vh - 12px);border-radius:10px}.tvhd{padding:8px 10px}.tvt h2{font-size:14px}.tvmain{padding:8px 10px}.tvpad{gap:14px}.tvtools .btn{padding:6px 8px;font-size:12px}}
+@media (max-width:640px){.tvmodal{padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))}.tvbox{border-radius:10px}.tvtools .seg:first-child{flex-wrap:wrap;gap:1px;background:var(--line2)}.tvtools .seg:first-child .btn{flex:1 1 auto;border-left:0}.tvhd{padding:8px 10px}.tvt h2{font-size:14px}.tvmain{padding:8px 10px}.tvpad{gap:14px}.tvtools .btn{padding:6px 8px;font-size:12px}}
 @media (prefers-reduced-motion:reduce){.tvtile,.tvbtn{transition:none}.tvtile.sel.pop{animation:none}}
 .tvmodal .btn.active{border-color:var(--red3);color:#fff;background:rgba(228,0,15,.15)}
 /* ---- HOME runtime host: the stage fills the 16:9 surface; the simulated-launch interstitial sits above it ---- */
@@ -84,7 +97,14 @@
 .tvsim .k{font-family:"Press Start 2P",monospace;font-size:11px;color:#ffb3b7;letter-spacing:1px;margin-bottom:10px}
 .tvsim b{display:block;font-size:22px;margin-bottom:8px}.tvsim p{margin:0 0 8px;font-size:14px;line-height:1.5;color:#d6d4ce}
 .tvtools .tvtheme.active{background:#e4000f;color:#fff;border-color:#ff3b47}
-/* ---- the close control: always the top right corner of the modal, large, obvious ---- */
+/* a very short visible page (html.vp-short, 300 px or less: a keyboard or picker over a small phone, a short landscape window): the
+   header and the footer legend cannot both stay fixed beside a usable stage, so the panel itself scrolls (stage, pad, side panel,
+   footer) under its pinned, opaque header (a one-line subtitle, tighter padding), which holds Close; the wide stage may then use what
+   fits whole below that shorter header */
+html.vp-short .tvbox{overflow-y:auto;overscroll-behavior:contain}html.vp-short .tvhd{position:sticky;top:0;z-index:4;background:#1b1b22;padding-top:6px;padding-bottom:6px}html.vp-short .tvmain{flex:none;overflow:visible}
+html.vp-short .tvstage{--tvfit:calc(var(--vph,100dvh) - 105px)}
+html.vp-short .tvt>div{min-width:0}html.vp-short #tvSub{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---- the close control: always the top right corner of the modal (inside the header), large, obvious ---- */
 .tvclose{position:absolute;top:8px;right:10px;z-index:20;width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:#1b1b22;color:#fff;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.5)}
 .tvclose:hover,.tvclose:focus-visible{background:var(--red);border-color:var(--red3);outline:none;box-shadow:0 0 0 3px rgba(228,0,15,.35)}
 @media (max-width:640px){.tvclose{top:6px;right:6px;width:36px;height:36px}.tvhd{padding-right:48px}}

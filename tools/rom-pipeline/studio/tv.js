@@ -71,8 +71,8 @@ function tvEnsure(){
   <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Preview on TV</h2><span class="small" id="tvSub"></span></div></div>
    <div class="tvtools"><div class="seg" role="group" aria-label="Theme (on the console: START, Change Theme)">${HOME_THEME_META.map(t=>`<button class="btn sm tvtheme" data-theme="${t.id}" title="${esc(t.note)}">${esc(t.name)}</button>`).join('')}</div>
    <div class="seg" role="group" aria-label="Display treatment"><button class="btn sm active" id="tvTrC" data-tr="clean">Clean</button><button class="btn sm" id="tvTrR" data-tr="retro" title="A CRT-style look; the HOME stays 16:9">Retro</button></div>
-   <button class="btn sm" id="tvSave" title="Save the screen as a 1920 × 1080 PNG">Save Preview Image</button></div></div>
-  <button class="tvclose" id="tvClose" type="button" aria-label="Close the preview" title="Close (Esc)">✕</button>
+   <button class="btn sm" id="tvSave" title="Save the screen as a 1920 × 1080 PNG">Save Preview Image</button></div>
+   <button class="tvclose" id="tvClose" type="button" aria-label="Close the preview" title="Close (Esc)">✕</button></div>
   <div class="tvmain">
    <div class="tvstagewrap"><div class="tvstage" id="tvStage" tabindex="0" aria-label="Simulated NES Classic HOME, 16 by 9" aria-describedby="tvLive"><div class="hmwrap" id="tvHome"></div><div class="tvsim" id="tvSim" hidden></div><div class="tvcrt" aria-hidden="true"></div></div>
     <div class="tvpad" id="tvPad" aria-label="On-screen controls"><div class="dpad"><button class="pb up" data-act="up" aria-label="Up">▲</button><button class="pb left" data-act="left" aria-label="Left">◀</button><button class="pb right" data-act="right" aria-label="Right">▶</button><button class="pb down" data-act="down" aria-label="Down">▼</button></div>
@@ -94,8 +94,20 @@ function tvEnsure(){
  $('tvHome').addEventListener('click',e=>{ const t=(e.composedPath?e.composedPath():[e.target]).find(x=>x&&x.dataset&&x.dataset.id); if(!t||!TV.S||TV.S.overlay) return; const L=homeListing(TV.model,TV.S,tvSearch()); const i=L.ids.indexOf(t.dataset.id); if(i<0) return; if(TV.S.zone==='games'&&i===TV.S.index) tvAct('a'); else { TV.S.index=i; TV.S.zone='games'; tvDraw(); } });
  m.addEventListener('keydown',tvKey); m.addEventListener('keyup',tvKeyUp); m.addEventListener('click',e=>{ if(e.target===m) closeTv(); });
  if(window.ResizeObserver) new ResizeObserver(()=>homeFit($('tvHome'))).observe($('tvStage'));
+ // one scroll area: re-measured whenever the area below the header, the stage or the pad changes size (window, header wrap, footer)
+ if(window.ResizeObserver){ const ro=new ResizeObserver(tvFlowSoon); [m.querySelector('.tvmain'),$('tvStage'),$('tvPad')].forEach(e=>ro.observe(e)); }
  try{ const s=JSON.parse(localStorage.getItem(TV_KEY)||'{}'); if(s.treatment) TV.treatment=s.treatment; }catch(e){}
 }
+// who scrolls: the side panel by itself while the stage's column fits below the header; otherwise (#tv.tvflow, tv.css) the side panel
+// flows and the area below the header is the only scroll area. Measured from the layout, after it settles (next frame), and always as
+// the side panel scrolling by itself: switching adds or removes this area's scroll bar, which changes the stage's width and so the
+// column's height, so a fit measured in the state it chose could undo the choice, frame after frame (Codex NF7-F1)
+function tvFlowSoon(){ if(TV.flowRaf) return; TV.flowRaf=requestAnimationFrame(()=>{ TV.flowRaf=0; tvFlow(); }); }
+function tvFlow(){ const m=$('tv'); if(!m||!TV.open) return; const main=m.querySelector('.tvmain'), wrap=m.querySelector('.tvstagewrap'); if(!main||!wrap) return;
+ const was=m.classList.contains('tvflow'), y=main.scrollTop; if(was) m.classList.remove('tvflow');
+ const cs=getComputedStyle(main), room=main.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom), top=wrap.getBoundingClientRect().top;
+ const need=[...wrap.children].reduce((b,c)=>Math.max(b,c.getBoundingClientRect().bottom-top),0), flow=need>room+1;
+ m.classList.toggle('tvflow', flow); if(was&&flow) main.scrollTop=y; }   // no paint in between; the reader's place is kept
 function tvPersist(){ try{ localStorage.setItem(TV_KEY,JSON.stringify({treatment:TV.treatment})); }catch(e){} }
 function tvSearch(){ return {searchQuery,searchFuzzy,searchScore,searchNorm}; }
 function tvCtx(){ return {search:tvSearch(),assetBase:'brand/home/',clock:()=>{ const d=new Date(); return {time:d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}),date:d.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}).toUpperCase()}; }}; }
@@ -108,7 +120,7 @@ function openTv(opts){
  if(opts.theme&&HOME_THEMES.includes(opts.theme)){ TV.model.theme=opts.theme; TV.S.theme=opts.theme; }
  TV.S=homeReconcileState(TV.S,TV.model,tvSearch());
  const m=$('tv'); m.hidden=false; m.classList.add('open'); document.body.classList.add('tv-open');
- tvApplyTreatment(); tvDraw(); $('tvStage').focus({preventScroll:true}); if(!TV.clock) TV.clock=setInterval(()=>{ if(TV.open&&!TV.held) tvDraw(true); },30000);
+ tvApplyTreatment(); tvDraw(); tvFlowSoon(); $('tvStage').focus({preventScroll:true}); if(!TV.clock) TV.clock=setInterval(()=>{ if(TV.open&&!TV.held) tvDraw(true); },30000);
  if(opts.focus&&!TV.model.order.includes(opts.focus)){ const g=byId[opts.focus]; tvSay(`${g?g.display_title:'That game'} is not in this ${tvPlanWord()}, so it is not in this HOME.`); $('tvSub').textContent=`${g?g.display_title:'That game'} is not in this ${tvPlanWord()}, so the preview cannot show it`; }
  if(typeof hoLog==='function') hoLog('tv open n='+TV.model.order.length+' theme='+TV.S.theme);
 }

@@ -211,7 +211,7 @@ updateStatusLine(); csMenuRefresh();
   if(typeof ovTextDirty==='function'&&ovTextDirty()){ if(!confirm(OV_DISCARD)) return false; try{ OVED=null; }catch(e){} }
   if(typeof OVA!=='undefined'&&OVA&&typeof ovArtClose==='function'&&ovArtClose()===false) return false;
   document.querySelectorAll('.menu').forEach(m=>m.hidden=true); if(typeof closeVerPop==='function') closeVerPop();
-  try{ if($('tech').classList.contains('open')&&typeof closeTech==='function') closeTech(); }catch(e){}
+  try{ if(typeof closeTech==='function') closeTech(); }catch(e){}   // also cancels a Technical Details open still waiting for its data
   try{ if(typeof TV!=='undefined'&&TV.open&&typeof closeTv==='function') closeTv(); }catch(e){}
   try{ if($('guide').classList.contains('open')&&typeof closeGuide==='function') closeGuide(); }catch(e){}
   try{ if($('filters').classList.contains('open')&&typeof fcancel==='function') fcancel(); }catch(e){}
@@ -262,7 +262,14 @@ updateStatusLine(); csMenuRefresh();
   (i<0?(e.shiftKey?f[f.length-1]:f[0]):f[(i+(e.shiftKey?-1:1)+f.length)%f.length]).focus(); }, true);
 })();
 // ---- dialogs fit the window that is actually visible (short landscape windows, a software keyboard): --vvh is the visible height and
-//      --kb what a keyboard covers at the bottom; studio.css sizes dialogs with them, and a focused field is kept in view ----
-(function(){ const vv=window.visualViewport; const set=()=>{ const h=vv?vv.height:innerHeight; document.documentElement.style.setProperty('--vvh', Math.round(h)+'px'); document.documentElement.style.setProperty('--kb', Math.max(0, Math.round(innerHeight-h-(vv?vv.offsetTop:0)))+'px'); };
- set(); (vv||window).addEventListener('resize',set); addEventListener('resize',set);
+//      --kb what a keyboard covers at the bottom; studio.css sizes dialogs with them, and a focused field is kept in view.
+//      --vph/--vpt: the visible page area (height, and its top within the layout) for full-height panels (the Tray, the guide, Preview on
+//      TV). A phone browser's toolbar appearing or hiding, rotation and a keyboard change it; pinch zoom does not (the last unzoomed
+//      measurement stands, so zooming in enlarges the panel instead of shrinking it). Safe-area padding stays inside the panels.
+//      html.vp-short: that visible page is 300 px tall or less (compact panel headers, build_html.py). ----
+(function(){ const vv=window.visualViewport, st=document.documentElement.style; const last={};
+ const put=(k,v)=>{ if(last[k]!==v){ last[k]=v; st.setProperty(k, v); } };
+ const set=()=>{ const h=vv?vv.height:innerHeight; put('--vvh', Math.round(h)+'px'); put('--kb', Math.max(0, Math.round(innerHeight-h-(vv?vv.offsetTop:0)))+'px');
+  if(!vv||vv.scale<=1.01){ put('--vph', Math.round(h)+'px'); put('--vpt', Math.max(0, Math.round(vv?vv.offsetTop:0))+'px'); document.documentElement.classList.toggle('vp-short', Math.round(h)<=300); } };
+ set(); (vv||window).addEventListener('resize',set); if(vv) vv.addEventListener('scroll',set); addEventListener('resize',set);
  document.addEventListener('focusin',e=>{ const t=e.target; if(t&&t.matches&&t.matches('.modal.open input,.modal.open textarea,.modal.open select')) setTimeout(()=>{ try{ t.scrollIntoView({block:'nearest'}); }catch(err){} },250); }); })();
