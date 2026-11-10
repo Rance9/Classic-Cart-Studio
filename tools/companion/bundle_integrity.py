@@ -23,17 +23,22 @@ REPAIR = ("Classic Cart Studio needs to be repaired: run the Classic Cart Studio
 # required components: key -> (label, published paths or prefixes inside the bundle). Every path listed in the manifest belongs to one.
 COMPONENTS = {
     "hakchi": ("Hakchi2 CE 3.9.3 package (console tools and the console USB driver)", ["packages/hakchi2-ce-3.9.3-portable.zip"]),
-    "native-runtime": ("Native HOME runtime for the console (32-bit ARM)", ["native/ccs-home-armv7"]),
+    "native-runtime": ("Native HOME runtime and game player for the console (32-bit ARM)", ["native/ccs-home-armv7", "native/ccs-player-armv7"]),
+    "startup": ("Console startup images", ["startup/"]),
     "preview-core": ("Native HOME renderer for Preview on TV (Windows)", ["native/ccs-sim-core.exe"]),
+    "player": ("Game player for Play on PC (Windows)", ["player/"]),
     "interface": ("Interface, game library and artwork", ["site/"]),
     "fonts": ("HOME fonts", ["native_home/fonts/"]),
     "scripts": ("Hakchi helper scripts", ["Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1", "Close-Hakchi.ps1"]),
     "notices": ("License notices", ["THIRD_PARTY_NOTICES.md"]),
+    "console-worker": ("Console transport worker (its real connections are closed in this version)", ["console-worker/"]),
 }
 # files that must be in every release build (companion.spec refuses to build without them)
-REQUIRED_FILES = ["packages/hakchi2-ce-3.9.3-portable.zip", "native/ccs-home-armv7", "native/ccs-sim-core.exe", "site/index.html", "site/catalog.json",
+REQUIRED_FILES = ["packages/hakchi2-ce-3.9.3-portable.zip", "native/ccs-home-armv7", "native/ccs-player-armv7", "startup/startup-images.json", "native/ccs-sim-core.exe", "site/index.html", "site/catalog.json",
                   "site/library.json", "site/builtin.json", "site/brand/home/home-art.json", "Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1",
-                  "Close-Hakchi.ps1", "THIRD_PARTY_NOTICES.md"]
+                  "Close-Hakchi.ps1", "THIRD_PARTY_NOTICES.md", "player/ccs-player.exe", "player/fonts/sans400_17.ccsf",
+                  "console-worker/ccs-console-worker.exe", "console-worker/CcsWorker.dll", "console-worker/BUILD-INFO.json", "console-worker/NOTICE",
+                  "console-worker/SOURCE.md"]
 
 
 def sha256(path: str) -> str:

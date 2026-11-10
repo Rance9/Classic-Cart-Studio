@@ -279,43 +279,119 @@ def _auto_title(t: str, e: dict) -> bool:
 def _art_file(entry_id: str) -> str: return os.path.join(ART_DIR, entry_id + ".jpg")
 def _kept_art(entry_id: str) -> str: return "personal/art/" + entry_id + ".jpg" if os.path.isfile(_art_file(entry_id)) else ""
 
-def keep_art(entry_id: str, data: bytes) -> str:
-    """Store a package's artwork for a personal game id as personal/art/<id>.jpg (a checked, re-encoded thumbnail). An image already kept
-    for that id is never replaced. Returns the relative path, or "" when the image was not usable (not a JPEG/PNG, too large, damaged)."""
+def thumb(data: bytes) -> bytes | None:
+    """a package's or backup's image as the JPEG thumbnail this computer keeps (checked, re-encoded in memory); None when not usable
+    (not a JPEG/PNG, too large, damaged)"""
     from PIL import Image
     from ccs_package import MAX_ART
-    if not PERSONAL_ID.match(entry_id or ""): raise ValueError("Artwork can be kept only for a personal game.")
-    if _kept_art(entry_id): return _kept_art(entry_id)
-    if not isinstance(data, (bytes, bytearray)) or not data or len(data) > MAX_ART: return ""
+    if not isinstance(data, (bytes, bytearray)) or not data or len(data) > MAX_ART: return None
     import io
     try:
         with Image.open(io.BytesIO(data)) as im:
-            if im.format not in ("JPEG", "PNG") or im.width * im.height > ART_MAX_PIXELS: return ""
+            if im.format not in ("JPEG", "PNG") or im.width * im.height > ART_MAX_PIXELS: return None
             im.verify()
         with Image.open(io.BytesIO(data)) as im:
-            im = im.convert("RGB"); im.thumbnail((480, 640)); os.makedirs(ART_DIR, exist_ok=True); tmp = _art_file(entry_id) + f".{os.getpid()}.tmp"
-            im.save(tmp, "JPEG", quality=88)
-    except Exception: return ""
+            im = im.convert("RGB"); im.thumbnail((480, 640)); out = io.BytesIO(); im.save(out, "JPEG", quality=88); return out.getvalue()
+    except Exception: return None
+
+def keep_art(entry_id: str, data: bytes) -> str:
+    """Store a package's artwork for a personal game id as personal/art/<id>.jpg (a checked, re-encoded thumbnail). An image already kept
+    for that id is never replaced. Returns the relative path, or "" when the image was not usable (not a JPEG/PNG, too large, damaged)."""
+    if not PERSONAL_ID.match(entry_id or ""): raise ValueError("Artwork can be kept only for a personal game.")
+    if _kept_art(entry_id): return _kept_art(entry_id)
+    b = thumb(data)
+    if not b: return ""
+    try:
+        os.makedirs(ART_DIR, exist_ok=True); tmp = _art_file(entry_id) + f".{os.getpid()}.tmp"
+        with open(tmp, "wb") as f: f.write(b)
+    except OSError: return ""
     os.replace(tmp, _art_file(entry_id)); return "personal/art/" + entry_id + ".jpg"
 
-def merge_metadata(entry_id: str, meta: dict, art: bytes | None = None) -> dict:
-    """Apply a package's (or a collection's kept) details to a personal game under the merge policy above. {"entry", "changed": [fields]}"""
+# The person's own edits in a Studio backup (D-80): user.edited names the fields the person chose here (a blank one is a deliberate
+# clear). Studio backups carry it; ordinary packages and collection files never use it (their details merge as in rule 3 above).
+EDITABLE = ("title", "version_label", "description", "year", "publisher", "art")
+def portable_edits(user) -> dict | None:
+    """The person's own edits a backup's personal record names, strictly checked: user.edited must be a list of distinct names from
+    EDITABLE and each edited text field's value text (or absent: blank). {"fields": {field: cleaned text, "" included}, "art": bool};
+    None when it names none; ValueError when the list or a value is not valid (the edits are then not used, the details still are)."""
+    if not isinstance(user, dict) or user.get("edited") is None: return None
+    ed = user["edited"]
+    if not isinstance(ed, list) or len(ed) > len(EDITABLE) or not all(isinstance(x, str) and x in EDITABLE for x in ed) or len(set(ed)) != len(ed):
+        raise ValueError("its record of the person's own edits is damaged")
+    fields = {}
+    for f in ed:
+        if f == "art": continue
+        v = user.get(f)
+        if v is not None and not isinstance(v, str): raise ValueError("an edited value in it is not text")
+        fields[f] = _clean_text(v or "", f)
+    return {"fields": fields, "art": "art" in ed} if ed else None
+
+def _free(f: str, cur: str, e: dict) -> bool:
+    """rule 3: this computer's value is empty or automatic, so a real incoming value may take its place"""
+    from ccs_package import generic_text
+    return _auto_title(cur, e) if f == "title" else (not cur.strip() or (f == "version_label" and generic_text(cur)))
+
+def plan_details(e: dict, meta: dict, edits: dict | None = None, replace: bool = False) -> tuple[dict, dict]:
+    """The merge policy above on a COPY of a personal game's details (artwork apart); nothing is written. edits (portable_edits): each
+    field the backup's person chose is taken where this computer's value is empty or automatic (a blank one too) and marked as edited here;
+    this computer's own edit or real value is kept unless replace. Returns (new user, {field: "added" | "marked" | "replaced" | "kept"})."""
+    from ccs_package import generic_text
+    u = dict(e.get("user") or {}); edited = set(u.get("edited") or []); out = {}; ex = (edits or {}).get("fields") or {}
+    for f in META_LIMITS:
+        cur = str(u.get(f) or "")
+        if f in ex:
+            v = ex[f]
+            if v == cur:
+                if f not in edited: edited.add(f); out[f] = "marked"
+            elif f in edited:
+                if replace: u[f] = v; out[f] = "replaced"
+                else: out[f] = "kept"
+            elif _free(f, cur, e): u[f] = v; edited.add(f); out[f] = "added"
+            elif replace: u[f] = v; edited.add(f); out[f] = "replaced"
+            else: out[f] = "kept"
+            continue
+        v = _clean_text((meta or {}).get(f), f)
+        if not v or generic_text(v) or v == e.get("id") or f in edited: continue
+        if _free(f, cur, e) and v != cur: u[f] = v; out[f] = "added"
+    if ex and edited != set(u.get("edited") or []): u["edited"] = sorted(edited)
+    return u, out
+
+def merge_metadata(entry_id: str, meta: dict, art: bytes | None = None, edits: dict | None = None) -> dict:
+    """Apply a package's (or a collection's kept) details to a personal game under the merge policy above. edits: a Studio backup's own
+    edits kept with a collection (portable_edits; keep-current: never over an edit or a real value here). {"entry", "changed": [fields]}"""
     if not PERSONAL_ID.match(entry_id or ""): raise ValueError("Details can be merged only into a personal game.")
     idx = load_index(); e = idx["entries"].get(entry_id)
     if not e: raise ValueError("That game is not among your own games on this computer.")
-    from ccs_package import generic_text
-    u = e.setdefault("user", {}); edited = set(u.get("edited") or []); changed = []
-    for f in META_LIMITS:
-        v = _clean_text((meta or {}).get(f), f)
-        if not v or generic_text(v) or v == entry_id or f in edited: continue
-        cur = str(u.get(f) or "")
-        replace = _auto_title(cur, e) if f == "title" else (not cur.strip() or (f == "version_label" and generic_text(cur)))
-        if replace and v != cur: u[f] = v; changed.append(f)
+    u, out = plan_details(e, meta, edits); changed = [f for f in META_LIMITS if out.get(f) in ("added", "marked")]; edited = set(u.get("edited") or [])
     if "art" not in edited and not (u.get("art") and os.path.isfile(os.path.join(ART_DIR, os.path.basename(str(u["art"]))))):
-        rel = _kept_art(entry_id) or (keep_art(entry_id, art) if art else "")
-        if rel: u["art"] = rel; changed.append("art")
-    if changed: save_index(idx)
+        kept = _kept_art(entry_id); rel = kept or (keep_art(entry_id, art) if art else "")
+        if rel:
+            u["art"] = rel; changed.append("art")
+            if edits and edits.get("art") and not kept: u["edited"] = sorted(edited | {"art"})   # the backup's own chosen image, now kept here
+    if changed: e["user"] = u; save_index(idx)
     return {"entry": public(e), "changed": changed}
+
+def add_copy(tmp: str, ident: dict, fname: str, src: str, note: str) -> dict:
+    """A Full Studio Backup's ROM file: added only where this computer does not have it. Nothing already here changes: an existing game's
+    details, its record and its file stay exactly as they are (a managed copy that is missing is put back at the record's own path in
+    this computer's own folders); a new game gets a new record (automatic details; the restore's transaction applies the backup's).
+    The temporary file is always consumed. {"known" | "entry", "state": "added" | "present" | "file_added" | "different"}"""
+    try:
+        known = match_known(ident["content_sha256"])
+        if known:
+            rec = load_store().get(known["version_id"])
+            if not isinstance(rec, dict): return {"known": known, "state": "added", "library_copy": keep_known_copy(known["version_id"], tmp, ident, fname, src, note)}
+            return {"known": known, "state": _fill_copy(tmp, rec.get("path"), rec.get("content_sha256") == ident["content_sha256"], ident, LIB_FILES_DIR)}
+        eid = "p_" + ident["content_sha256"][:16]; e = load_index()["entries"].get(eid)
+        if not isinstance(e, dict): return dict(_personal_entry(tmp, ident, fname, src, note, "package", "", ""), state="added")
+        return {"entry": public(e), "state": _fill_copy(tmp, e.get("managed_copy"), e.get("content_sha256") == ident["content_sha256"], ident, FILES_DIR)}
+    finally: _rm(tmp)
+
+def _fill_copy(tmp: str, path, same: bool, ident: dict, folder: str) -> str:
+    if not same or not isinstance(path, str) or not path: return "different"
+    if os.path.exists(path): return "present" if _file_sha(path) == ident["file_sha256"] else "different"
+    if os.path.normcase(os.path.dirname(os.path.abspath(path))) != os.path.normcase(os.path.abspath(folder)): return "different"   # never a place outside this computer's own folders
+    os.makedirs(folder, exist_ok=True); _place(tmp, path, ident["file_sha256"]); return "file_added"
 
 def remove(entry_id: str, delete_copy: bool = False) -> dict:
     idx = load_index(); e = idx["entries"].pop(entry_id, None)

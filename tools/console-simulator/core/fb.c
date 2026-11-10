@@ -6,6 +6,7 @@
 #include <string.h>
 #include <ctype.h>
 
+int ccs_scale = 1;
 int fb_init(framebuffer *fb, int w, int h) { fb->w = w; fb->h = h; fb->rgb = calloc((size_t)w * h * 3, 1); return fb->rgb ? 0 : -1; }
 void fb_free(framebuffer *fb) { free(fb->rgb); fb->rgb = NULL; }
 void fb_clear(framebuffer *fb, uint8_t r, uint8_t g, uint8_t b) { for (size_t i = 0, n = (size_t)fb->w * fb->h; i < n; i++) { fb->rgb[i * 3] = r; fb->rgb[i * 3 + 1] = g; fb->rgb[i * 3 + 2] = b; } }

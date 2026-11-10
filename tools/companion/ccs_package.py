@@ -37,6 +37,12 @@ LIB_ID = re.compile(r"^[0-9a-f]{16}$"); PERSONAL_ID = re.compile(r"^p_[0-9a-f]{1
 ROM_RE = re.compile(r"^roms/((?:p_)?[0-9a-f]{16})\.(nes|unh)$"); ART_RE = re.compile(r"^art/[A-Za-z0-9_.-]{1,96}\.(jpg|png)$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 FIXED = {MANIFEST: "manifest", "collection.json": "collection", "README.txt": "readme"}
+# Full Studio Backup (kind "studio", the same format): studio.json instead of collection.json, every listed game's ROM as above, and the
+# Windows app's saved progress and custom content as plain hashed files. Released readers refuse this kind ("not a collection package").
+KIND_STUDIO = "studio"; STUDIO_SCHEMA = "ccs-studio-archive/1"; KINDS = (KIND, KIND_STUDIO)
+PROG_RE = re.compile(r"^progress/[0-9a-f]{64}/(cart\.sav|slot[1-4]\.ccsstate|last-used\.json|continue\.ccsstate|game\.json|cart-set-aside-[0-9]{1,20}(-[0-9]{1,3})?\.sav)$")
+CUSTOM_RE = re.compile(r"^custom/[A-Za-z0-9_.-]{1,64}(/[A-Za-z0-9_.-]{1,96}){0,3}$")
+FIXED_STUDIO = {MANIFEST: "manifest", "studio.json": "studio", "README.txt": "readme"}
 README = """Classic Cart Studio collection package (.ccs)
 
 This file holds a complete game collection made with Classic Cart Studio: every game in it with its ROM file (exact versions),
@@ -45,8 +51,20 @@ its NES Classic Loadouts, HOME settings and artwork.
 Open it with Classic Cart Studio for Windows (double-click the file once the app is installed), or on the website:
 https://classiccartstudio.com  ->  My Collections  ->  Import Collection
 
-Classic Cart Studio does not provide or host game files. Whoever shares or receives game files is responsible for having the
-rights to copy, distribute and use them.
+Classic Cart Studio does not provide or host game files. You are responsible for having the rights to copy and use the game files
+in this backup. Creating a backup does not grant permission to redistribute copyrighted games.
+"""
+README_STUDIO = """Classic Cart Studio Full Studio Backup (.ccs)
+
+This file holds everything needed to rebuild a Classic Cart Studio: every collection with every listed game's ROM file (exact
+versions), loadouts, HOME settings, favorites and Game Settings, and from the Windows app also its saved games, Play on PC Settings,
+controller setups and custom artwork and text.
+
+Restore it with Classic Cart Studio (My Collections -> Import Collection, or double-click the file in the Windows app). Versions of
+Classic Cart Studio before this kind of backup existed say that it is not a collection package.
+
+Classic Cart Studio does not provide or host game files. You are responsible for having the rights to copy and use the game files
+in this backup. Creating a backup does not grant permission to redistribute copyrighted games.
 """
 
 class PackageError(ValueError):
@@ -113,9 +131,10 @@ def identify_file(path: str, cancel=lambda: False, progress=None) -> dict:
 def identify_bytes(data: bytes) -> dict:
     h = IdentityHasher(); h.update(data); return h.finish()
 
-def safe_name(n: str) -> bool:
+def safe_name(n: str, kind: str = KIND) -> bool:
     if not isinstance(n, str) or not n or len(n) > 200 or n.startswith(("/", "\\")) or "\\" in n or ":" in n or any(ord(c) < 32 or ord(c) == 127 for c in n): return False
     if any(p in ("", ".", "..") for p in n.split("/")): return False
+    if kind == KIND_STUDIO: return n in FIXED_STUDIO or bool(ROM_RE.match(n)) or bool(ART_RE.match(n)) or bool(PROG_RE.match(n)) or bool(CUSTOM_RE.match(n))
     return n in FIXED or bool(ROM_RE.match(n)) or bool(ART_RE.match(n))
 
 def _names(ids: list, titles: dict, n: int = 6) -> str:
@@ -123,6 +142,10 @@ def _names(ids: list, titles: dict, n: int = 6) -> str:
     return ", ".join(shown) + (f" and {len(ids) - n} more" if len(ids) > n else "")
 
 def _game_ids(collection) -> list:
+    if isinstance(collection, dict) and collection.get("schema") == STUDIO_SCHEMA:   # a Full Studio Backup: every game any collection lists
+        g = collection.get("games")
+        if not isinstance(g, list) or not all(isinstance(x, str) for x in g): return None
+        return list(dict.fromkeys(g))
     cc = collection.get("ccs_collection") if isinstance(collection, dict) else None
     sel = cc.get("sel") if isinstance(cc, dict) else None
     if not isinstance(sel, list) or not all(isinstance(x, str) for x in sel): return None
@@ -169,12 +192,14 @@ def check_complete(collection: dict, roms: list, *, cancel=lambda: False, progre
 
 def write(out_path: str, *, collection: dict, roms: list | None = None, art: dict | None = None, summary: dict | None = None, app_version: str = "",
           rom_compression: int = zipfile.ZIP_DEFLATED, cancel=lambda: False, progress=lambda done, total: None, identities: dict | None = None,
-          stage=lambda name: None, rom_done=lambda n, total: None) -> dict:
+          stage=lambda name: None, rom_done=lambda n, total: None, kind: str = KIND, extra: list | None = None) -> dict:
     """Write a complete package. roms: [{"version_id", "path" (a local file), "title"}] covering every id in collection.ccs_collection.sel.
     Refuses (PackageError naming the games, details: missing/mismatched/unidentified) BEFORE writing anything when a game has no ROM, a
     ROM is a different version than its id, or an id has no content identity. ROM entries are streamed. Written to a temporary file
     next to out_path, then renamed: a cancelled or failed export leaves nothing behind. Returns the manifest.
-    stage("check" | "write" | "roms") and rom_done(n, total) report what is happening for a progress display; cancel is checked every 1 MB."""
+    stage("check" | "write" | "roms") and rom_done(n, total) report what is happening for a progress display; cancel is checked every 1 MB.
+    kind "studio": collection is the studio.json object (schema ccs-studio-archive/1, its games every listed id); extra: [(name, kind,
+    a local file path or bytes)] for progress/ and custom/ entries, each hashed as written."""
     if not isinstance(collection, dict): raise PackageError("There is nothing to export. Open a collection, then try again.")
     rom_total = sum(os.path.getsize(r["path"]) for r in roms or [] if isinstance(r, dict) and r.get("path") and os.path.isfile(r["path"]))
     body = json.dumps(collection, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -185,7 +210,13 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
     files, included = [], []; tmp = out_path + ".part"; now = time.localtime()[:6]; stage("write")
     try:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6, allowZip64=True) as z:
-            z.writestr(_zi("collection.json", now, zipfile.ZIP_DEFLATED), body); files.append({"path": "collection.json", "sha256": _sha(body), "size": len(body), "kind": "collection"}); tick(len(body))
+            main = "studio.json" if kind == KIND_STUDIO else "collection.json"
+            z.writestr(_zi(main, now, zipfile.ZIP_DEFLATED), body); files.append({"path": main, "sha256": _sha(body), "size": len(body), "kind": "studio" if kind == KIND_STUDIO else "collection"}); tick(len(body))
+            for name, fkind, src in extra or []:   # saved progress and custom content (Full Studio Backup): small files, read whole
+                if cancel(): raise PackageError("Export canceled. No file was saved.")
+                if not safe_name(name, kind) or name in FIXED_STUDIO: raise PackageError(f"An unexpected file name ({str(name)[:60]}) was not added. Nothing was saved.")
+                data = src if isinstance(src, (bytes, bytearray)) else open(src, "rb").read()
+                z.writestr(_zi(name, now, zipfile.ZIP_DEFLATED), bytes(data)); files.append({"path": name, "sha256": _sha(data), "size": len(data), "kind": fkind})
             for name, data in sorted((art or {}).items()):
                 n = "art/" + str(name)
                 if not ART_RE.match(n) or not isinstance(data, (bytes, bytearray)): continue
@@ -205,12 +236,12 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
                 if got["sha256"] != r["sha256"] or got["size"] != r["size"]: raise PackageError(f"The ROM file of {r['title'] or r['version_id']} changed while the package was being made. Nothing was saved. Try again.")
                 rec = {"path": n, "sha256": r["sha256"], "size": r["size"], "kind": "rom", "version_id": r["version_id"], "title": r["title"], "content_sha256": r["content_sha256"]}
                 files.append(rec); included.append({k: rec[k] for k in ("version_id", "title", "path", "sha256", "size", "content_sha256")}); rom_done(len(included), len(plan))
-            readme = README.encode("utf-8")
+            readme = (README_STUDIO if kind == KIND_STUDIO else README).encode("utf-8")
             z.writestr(_zi("README.txt", now, zipfile.ZIP_DEFLATED), readme); files.append({"path": "README.txt", "sha256": _sha(readme), "size": len(readme), "kind": "readme"})
             summ = dict(summary or {}); summ.update(games=len(plan), roms=len(included), rom_bytes=sum(r["size"] for r in included))
-            summ.setdefault("name", str((collection.get("ccs_collection") or {}).get("name") or collection.get("name") or "")[:200])
+            summ.setdefault("name", str((collection.get("ccs_collection") or {}).get("name") or collection.get("name") or ("Full Studio Backup" if kind == KIND_STUDIO else ""))[:200])
             summ.setdefault("personal", sum(1 for r in plan if r["version_id"].startswith("p_")))
-            man = {"format": FORMAT, "schema": SCHEMA, "kind": KIND, "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            man = {"format": FORMAT, "schema": SCHEMA, "kind": kind, "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                    "app": {"name": "Classic Cart Studio", "version": app_version}, "summary": summ, "files": files, "roms": {"included": included}}
             z.writestr(_zi(MANIFEST, now, zipfile.ZIP_DEFLATED), json.dumps(man, ensure_ascii=False, indent=1).encode("utf-8"))
         os.replace(tmp, out_path); return man
@@ -323,9 +354,10 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
         if int(m.group(1)) == 1: raise PackageError("This .ccs file uses an older format that doesn't always include its ROM files, so it can't be opened. Ask for a new .ccs file.")
         if int(m.group(1)) > 2: raise PackageError("This package was made by a newer version of Classic Cart Studio. Update the app to open it.")
         if man.get("kind") == "backup": raise PackageError("This .ccs file is an old Studio backup, not a collection package, so it can't be opened.")
-        if man.get("kind") != KIND: raise PackageError("This .ccs file is not a collection package, so it can't be opened.")
+        if man.get("kind") not in KINDS: raise PackageError("This .ccs file is not a collection package, so it can't be opened.")
+        kind = man["kind"]; main_name = "studio.json" if kind == KIND_STUDIO else "collection.json"
         for i in infos:
-            if not safe_name(i.filename): raise PackageError(f"The package contains an unsafe or unexpected entry ({i.filename[:60]}).")
+            if not safe_name(i.filename, kind): raise PackageError(f"The package contains an unsafe or unexpected entry ({i.filename[:60]}).")
         listed = man.get("files"); rl = man.get("roms")
         if not isinstance(listed, list) or not all(isinstance(f, dict) for f in listed): raise PackageError("The package contents list is damaged.")
         if not isinstance(rl, dict) or not isinstance(rl.get("included"), list) or not all(isinstance(r, dict) for r in rl["included"]): raise PackageError("The package contents list is damaged.")
@@ -334,11 +366,11 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
         if len(set(lp)) != len(lp): raise PackageError("The package contents list names a file twice.")
         for f in listed:
             p, sha, sz = f.get("path"), f.get("sha256"), f.get("size")
-            if not isinstance(p, str) or not safe_name(p) or p == MANIFEST: raise PackageError("The package contents list names an unsafe file.")
+            if not isinstance(p, str) or not safe_name(p, kind) or p == MANIFEST: raise PackageError("The package contents list names an unsafe file.")
             if not (isinstance(sha, str) and HEX64.match(sha)) or not isinstance(sz, int) or isinstance(sz, bool) or sz < 0: raise PackageError(f"The package contents list has an invalid checksum or size ({p[:60]}).")
         extra = set(names) - set(lp) - {MANIFEST}
         if extra: raise PackageError(f"The package contains files its contents list does not name ({sorted(extra)[0][:60]}).")
-        for req in ("collection.json", "README.txt"):
+        for req in (main_name, "README.txt"):
             if req not in lp: raise PackageError("The package contents list is incomplete (it does not name " + req + ").")
         # ---- the ROM listing: one per game, exact identity ----
         lmap = {f["path"]: f for f in listed}; inc_ids = []; rom_recs = []
@@ -360,7 +392,7 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
             if by[p].file_size != sz: problems.append({"path": p, "problem": "size differs from the listed size"}); continue
             if p.startswith("roms/"): continue
             try:
-                if p == "collection.json":
+                if p == main_name:
                     data = _read_json_entry(z, by[p], "collection")
                     if _sha(data) != sha: problems.append({"path": p, "problem": "checksum does not match (damaged or altered)"}); continue
                     try: main = json.loads(data.decode("utf-8"))
@@ -372,6 +404,7 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
         if main is None:
             if problems: raise PackageError("The collection inside the package is damaged, so nothing can be imported.")
             raise PackageError("The package holds no collection.")
+        if kind == KIND_STUDIO and (not isinstance(main, dict) or main.get("schema") != STUDIO_SCHEMA): raise PackageError("The backup's contents are not valid.")
         ids = _game_ids(main)
         if ids is None: raise PackageError("The collection inside the package has no game list.")
         unidentified = [i for i in ids if not is_identity_id(i)]
@@ -390,8 +423,9 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
             if got["content_sha256"] != r["content_sha256"]: problems.append({"path": r["path"], "problem": "the ROM is not the version its game names"}); roms.append(dict(rec, verified=False)); continue
             roms.append(dict(rec, verified=True))
         order = {v: n for n, v in enumerate(ids)}; roms.sort(key=lambda r: order.get(r["version_id"], 0))
-        return {"manifest": man, "kind": KIND, "data": main, "roms": roms, "problems": problems, "size": size, "ok": not problems,
-                "rom_count": len(roms), "rom_bytes": sum(r["size"] for r in roms), "games": len(ids), "art": sorted(p for p in lp if p.startswith("art/"))}
+        return {"manifest": man, "kind": kind, "data": main, "roms": roms, "problems": problems, "size": size, "ok": not problems,
+                "rom_count": len(roms), "rom_bytes": sum(r["size"] for r in roms), "games": len(ids), "art": sorted(p for p in lp if p.startswith("art/")),
+                "progress": sorted(p for p in lp if p.startswith("progress/")), "custom": sorted(p for p in lp if p.startswith("custom/"))}
 
 MAX_ART = 1 << 20      # art entries are thumbnails; larger ones are left unused (the website reader's limit too)
 PERSONAL_RE = re.compile(r"^p_[0-9a-f]{16}$")
@@ -403,10 +437,20 @@ def generic_text(v: str) -> bool:
 def package_metadata(data: dict, manifest: dict | None = None) -> dict:
     """The descriptive details a package carries for each personal game (untrusted text; personal.merge_metadata cleans and bounds it),
     field by field from the first location that has a real value: personal_library[].user, ccs_collection.coll.missing, selections,
-    personal_library[] itself, then the ROM listing's title. Automatic values (ids, file names) never count. {id: {field: text}}"""
+    personal_library[] itself, then the ROM listing's title (a Full Studio Backup: its "personal" records in the place of personal_library,
+    and the kept details of any of its collections in the place of coll.missing). Automatic values (ids, file names) never count.
+    {id: {field: text}}"""
     d = data if isinstance(data, dict) else {}; cc = d.get("ccs_collection") if isinstance(d.get("ccs_collection"), dict) else {}
     coll = cc.get("coll") if isinstance(cc.get("coll"), dict) else {}; miss = coll.get("missing") if isinstance(coll.get("missing"), dict) else {}
     pl = {p["id"]: p for p in d.get("personal_library") or [] if isinstance(p, dict) and isinstance(p.get("id"), str)}
+    if d.get("schema") == STUDIO_SCHEMA:   # a Full Studio Backup: its personal-game records (the key is the identity), then any collection's kept details
+        pm = d.get("personal") if isinstance(d.get("personal"), dict) else {}
+        pl = {k: v for k, v in pm.items() if isinstance(k, str) and isinstance(v, dict)}; miss = {}
+        sd = d.get("studio_data") if isinstance(d.get("studio_data"), dict) else {}
+        for c in sd.get("collections") or [] if isinstance(sd.get("collections"), list) else []:
+            m = ((c.get("coll") or {}).get("missing") if isinstance(c, dict) and isinstance(c.get("coll"), dict) else None) or {}
+            for k, v in m.items() if isinstance(m, dict) else []:
+                if isinstance(k, str) and isinstance(v, dict): miss.setdefault(k, v)
     sels = {}
     for s in d.get("selections") or []:
         if isinstance(s, dict): sels.setdefault(str(s.get("version_id") or s.get("game_id") or ""), s)
@@ -440,16 +484,29 @@ def art_entry(z: zipfile.ZipFile, gid: str) -> bytes | None:
 def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, cancel=lambda: False, progress=None, merge: bool = True) -> dict:
     """After the user accepted: verify the whole package again, then hand each accepted, verified ROM file to the Studio's managed stores
     (personal.py identifies it by its own content; a known version gets the library copy, anything else a personal entry). Files already
-    there are reused (deduplicated by content hash), never overwritten. Returns {"imported": [{version_id, stored_as, ...}], "rejected": [...]}"""
+    there are reused (deduplicated by content hash), never overwritten. Returns {"imported": [{version_id, stored_as, ...}], "rejected": [...]}
+    A Full Studio Backup (kind "studio") only ADDS ROM files: what this computer already has (a game's record, its details and artwork,
+    its file) is never changed here, and the backup's details and artwork are applied inside the restore's own verified transaction
+    (studio_backup.restore), so a restore that stops later leaves them as they were. Each imported entry says its state (added, present,
+    file_added: a missing managed copy put back, different: another file of that game is kept here)."""
     info = inspect(path, verify_roms=True, cancel=cancel)
     if not info["ok"]: raise PackageError("Nothing was imported: the package failed its integrity check (" + "; ".join(f"{p['path']}: {p['problem']}" for p in info["problems"][:3]) + ").")
     ps = None
     if ingest is None:   # the Studio's stores: each ROM is copied to a temporary file while it is checked (memory stays bounded)
         import personal as ps
-    want = set(accept) if accept is not None else None; imported, rejected = [], []; done = 0
+    additive = info["kind"] == KIND_STUDIO; merge = merge and not additive
+    want = set(accept) if accept is not None else None; imported, rejected = [], []
     total = sum(r["size"] for r in info["roms"] if want is None or r["version_id"] in want)
     src, note = "package:" + os.path.basename(path), "from a Classic Cart Studio package"
     meta = package_metadata(info["data"], info["manifest"]) if merge and ps is not None else {}; merged = []
+    try: _import_each(path, info, want, ps, ingest, cancel, progress, merge, meta, src, note, imported, rejected, merged, total)
+    except (PackageError, OSError) as e:   # stopped part way: the files already added stay (each is a complete, verified copy) and are named
+        msg = str(e) if isinstance(e, PackageError) else f"The ROM files could not be saved on this computer ({e.strerror or e})."
+        raise PackageError(msg, imported=imported, rejected=rejected, merged=merged) from e
+    return {"imported": imported, "rejected": rejected, "merged": merged}
+
+def _import_each(path, info, want, ps, ingest, cancel, progress, merge, meta, src, note, imported, rejected, merged, total):
+    done = 0
     with zipfile.ZipFile(path) as z:
         for r in info["roms"]:
             vid = r["version_id"]; fname = os.path.basename(r["path"])
@@ -463,7 +520,7 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
                     if "free space" in str(e) or str(e) == "Canceled.": raise PackageError(str(e) if "free space" in str(e) else "Canceled. Nothing more was imported.")
                     bad(str(e)[:200]); continue
                 if ident["file_sha256"] != r["sha256"] or not id_matches(vid, ident["content_sha256"]): ps._rm(tmp); bad("The file is damaged or altered (checksum does not match)."); continue
-                try: res = ps.adopt(tmp, ident, fname, src, note, "package")
+                try: res = ps.add_copy(tmp, ident, fname, src, note) if info["kind"] == KIND_STUDIO else ps.adopt(tmp, ident, fname, src, note, "package")
                 except ValueError as e: bad(str(e)[:200]); continue
             else:
                 buf = bytearray(); h = IdentityHasher()
@@ -476,7 +533,7 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
                 except ValueError as e: bad(str(e)[:200]); continue
             got_id = (res.get("known") or {}).get("version_id") or (res.get("entry") or {}).get("id") or ""
             exact = got_id.removeprefix("p_") == vid.removeprefix("p_") and got_id != ""
-            (imported if exact else rejected).append({"version_id": vid, "stored_as": got_id, "title": r.get("title", ""), "exact": exact,
+            (imported if exact else rejected).append({"version_id": vid, "stored_as": got_id, "title": r.get("title", ""), "exact": exact, **({"state": res["state"]} if res.get("state") else {}),
                                                       "reason": "" if exact else "This file was stored under a different identity than the package says, so it was kept as its own game."})
             if exact and merge and ps is not None and PERSONAL_RE.match(got_id):   # the package's details and artwork for a personal game (D-1)
                 try:
@@ -485,4 +542,3 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
                 except Exception as e: merged.append({"version_id": vid, "fields": [], "problem": str(e)[:200]})   # the ROM is imported either way; the page keeps the details and tries again
             done += r["size"]
             if progress: progress(done, total)
-    return {"imported": imported, "rejected": rejected, "merged": merged}

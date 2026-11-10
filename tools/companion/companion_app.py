@@ -109,7 +109,8 @@ def main():
             LOG.error("console worker: no stdio pipes (%s)", e); return
         from console_engine.worker import main as worker_main
         root = sys.argv[sys.argv.index("--root") + 1] if "--root" in sys.argv[1:] else os.path.join(DATA_ROOT, "console")
-        worker_main(["--root", root]); return
+        from native_home import package as nhp   # the console package this app staged (its own folder, never a client's)
+        worker_main(["--root", root, "--console-package", os.path.join(nhp.package_root(), "console", "current")]); return
     if "--headless" in sys.argv[1:]:
         if "--port" in sys.argv[1:]:
             try: port = int(sys.argv[sys.argv.index("--port") + 1])

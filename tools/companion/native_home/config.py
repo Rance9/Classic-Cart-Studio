@@ -22,7 +22,7 @@ Rules (the Studio's own, not new ones):
                 switchable on the console); "apply" asks the console to switch to it once, over its saved choice
 """
 from __future__ import annotations
-import hashlib, json, os, sys
+import base64, hashlib, json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.normpath(os.path.join(HERE, "..", ".."))
 for p in (os.path.join(TOOLS, "rom-pipeline"), os.path.join(TOOLS, "companion")):
     if p not in sys.path: sys.path.insert(0, p)
@@ -145,6 +145,42 @@ def resolve_game(gid: str, descriptions: dict, library_overviews: dict | None = 
         x["texts"] = {"official": off, "overview": ov} if (ov or off) else None; x["overview_source"] = "curated-title" if sib else ("library" if ov else None)
     return x
 
+def _kept_text(v, n: int = 200) -> str | None:
+    return v.strip()[:n] if isinstance(v, str) and v.strip() else None
+
+KEPT_ART_MAX = 4_000_000
+def _kept_art(src) -> tuple[str | None, dict | None]:
+    """a kept entry's cover: a site art path, or an embedded JPEG/PNG (a data: URL from the collection; validated, at most 4 MB) stored
+    once by its content hash in the data folder. Anything else (remote URLs, other types) is ignored: the runtime's title placeholder"""
+    if not isinstance(src, str) or not src: return None, None
+    if re.fullmatch(r"art/[0-9a-f]{16}\.jpg", src): return src, None
+    m = re.fullmatch(r"data:image/(?:jpeg|png);base64,([A-Za-z0-9+/=]+)", src)
+    if not m or len(m.group(1)) > KEPT_ART_MAX * 4 // 3 + 8: return None, None
+    try: raw = base64.b64decode(m.group(1), validate=True)
+    except Exception: return None, None
+    png = raw[:8] == bytes.fromhex("89504e470d0a1a0a")
+    if len(raw) > KEPT_ART_MAX or not (raw[:3] == bytes.fromhex("ffd8ff") or png): return None, None
+    h = hashlib.sha256(raw).hexdigest(); d = data_path("kept-art"); os.makedirs(d, exist_ok=True)
+    p = os.path.join(d, h + (".png" if png else ".jpg"))
+    if not os.path.isfile(p):
+        tmp = p + ".part"
+        with open(tmp, "wb") as f: f.write(raw)
+        os.replace(tmp, p)
+    return None, {"path": p, "crop": None, "sha256": h}
+
+def kept_game(h: dict) -> dict | None:
+    """an entry the collection keeps without a library record on this computer (an imported game: M2-4): the HOME model's sanitized
+    details as plain text (the page cleaned them with csCleanMissing; lengths are bounded again here). No ROM is implied by it."""
+    k = h.get("kept") if isinstance(h, dict) and isinstance(h.get("kept"), dict) else None
+    if k is None: return None
+    rel, user = _kept_art(k.get("art")); desc = _kept_text(k.get("description"), 4000)
+    rec = {"source": "kept", "title": _kept_text(h.get("title"), 120) or "Unknown game", "version_label": _kept_text(h.get("version_label"), 120),
+           "year": _kept_text(k.get("year"), 16), "players": _kept_text(k.get("players"), 16), "genre": _kept_text(k.get("genre"), 60),
+           "publisher": _kept_text(k.get("publisher"), 120), "developer": None, "art": rel, "hero": None, "hero_title": None,
+           "texts": {"description": desc} if desc else None, "builtin_code": None, "title_id": None}
+    if user: rec["art_user"] = user
+    return rec
+
 def fingerprint(obj) -> str: return hashlib.sha256(json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 def resolve(manifest: dict, home: dict) -> dict:
@@ -164,13 +200,14 @@ def resolve(manifest: dict, home: dict) -> dict:
     hg = {g.get("id"): g for g in home.get("games") or [] if isinstance(g, dict)}
     by_sel = {(s.get("game_id") or s.get("version_id")): s for s in sels}; D = _descriptions(); LO = _library_overviews(); games = []; unknown = []
     for gid in order:
-        rec = resolve_game(gid, D, LO)
+        rec = resolve_game(gid, D, LO); h = hg.get(gid) or {}
+        if rec is None and (by_sel[gid].get("source") == "kept"): rec = kept_game(h)   # an imported game this computer cannot resolve
         if rec is None: unknown.append(gid); continue
-        s = by_sel[gid]; h = hg.get(gid) or {}
+        s = by_sel[gid]
         rec["id"] = gid; rec["title"] = h.get("title") or s.get("display_title") or rec["title"]; rec["version_label"] = h.get("version_label") if h.get("version_label") is not None else rec.get("version_label")
         rec["home_kind"] = h.get("kind") or ("factory" if s.get("builtin_code") and not s.get("install_required") else ("personal" if s.get("source") == "personal" else "added"))
         rec["builtin_code"] = s.get("builtin_code") or rec.get("builtin_code"); rec["install_required"] = bool(s.get("install_required"))
-        games.append(effective(gid, rec))
+        games.append(rec if rec.get("source") == "kept" else effective(gid, rec))
     if unknown: raise ConfigError(f"{len(unknown)} selected game(s) are not in this library: {', '.join(unknown[:5])}")
     installed = set(order)
     folders = [{"id": f.get("id"), "name": f.get("name"), "parent": f.get("parent"), "pos": f.get("pos") or 0, "order": [x for x in f.get("order") or [] if x in installed], "art": bool((f.get("art") or {}).get("src"))}

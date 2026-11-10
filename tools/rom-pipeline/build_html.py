@@ -7,73 +7,40 @@ thumbnails from reports/art/, standardized hover preview, click-anywhere row/car
 localStorage persistence keyed by stable game_id (payload SHA-256 prefix), and JSON manifest export compatible with
 import_selected.py (schema nes-classic-selection/1).
 
-Visual theme (2026-10-09 redesign): dark "NES hardware" design system with Nintendo-red accents. Decorative artwork comes
-only from local files: Nintendo's own pixel-art character renderings and UI atlas crops exported from the owner's verified
-console backup (reports/brand/oem/, git-ignored, not redistributed) and the OFL-licensed Press Start 2P font
-(reports/brand/fonts/). No CDN, no runtime network access. Rollback snapshot: reports/rollback/2026-10-09_catalog-v1/.
+Visual theme: dark "retro hardware" design system with red accents. Decorative artwork is Classic Cart Studio's own cast, drawn in code
+by tools/publish/make_ccs_cast.py (site-data/brand/ccs/: characters with two walking frames, items, interface icons, the walkway tile),
+and the OFL-licensed Press Start 2P font (brand/fonts/). Box art identifies the games. No CDN, no runtime network access.
 """
 from __future__ import annotations
 import os, sys, json, re, shutil
 sys.path.insert(0, os.path.dirname(__file__))
 from common import REPORTS
 
-BRAND = os.path.join(REPORTS, "brand", "oem")
-WEB = os.path.join(REPORTS, "brand", "web")      # characters obtained online (provenance.json records every source)
+CCS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "site-data", "brand", "ccs")   # the CCS cast (make_ccs_cast.py)
 # ---- PUBLIC build (--public --out <site>): the SAME approved visual presentation as the private build (owner directive 2026-10-10:
 #      hero, 27-character parade, interface icons, wordmark, box art). Only the data source (sanitized copies in <site>), the page
-#      title/meta and the legal paragraph differ. tools/publish/build_public_repo.py copies brand/oem, brand/web, fonts and art into <site>. ----
+#      title/meta and the legal paragraph differ. tools/publish/build_site_ci.py copies brand/ccs, fonts and art into <site>. ----
 PUBLIC = "--public" in sys.argv
 OUT = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else REPORTS
 SRC = OUT if PUBLIC else REPORTS
-if PUBLIC: BRAND = os.path.join(OUT, "brand", "oem"); WEB = os.path.join(OUT, "brand", "web")
+if PUBLIC and os.path.isdir(os.path.join(OUT, "brand", "ccs")): CCS = os.path.join(OUT, "brand", "ccs")
 APP_NAME = "Classic Cart Studio"
 TAGLINE = "An independent game collection manager for the Nintendo NES Classic Edition."
 DISCLAIMER = "Classic Cart Studio is an independent project. It is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles and publisher names are used only to identify games. Console-side technology by the Hakchi2 CE project."
 
-# Hero ensemble: Nintendo characters only (file stem in reports/brand/oem, pixel scale, css class). Order = left to right.
-HERO = [   # (folder, file stem, pixel scale, css class) — compact hero, NES-era sprites only, 2x (Little Mac 1x)
-    ("oem", "px-question-block-0", 2, "float f1"), ("oem", "px-mario-walk-1", 2, ""), ("oem", "px-luigi-walk-1", 2, ""), ("web", "toad", 2, ""), ("web", "peach", 2, ""),
-    ("web", "goomba", 2, ""), ("web", "koopa-troopa", 2, ""), ("web", "bowser", 2, "lg"), ("web", "piranha-plant", 2, "lg"),
-    ("oem", "px-link", 2, ""), ("web", "zelda", 2, ""), ("web", "octorok", 2, "lg"), ("web", "ganon", 2, "lg"),
-    ("oem", "px-samus", 2, ""), ("web", "ridley", 2, "lg"), ("oem", "px-metroid", 2, "float f3"),
-    ("oem", "px-kirby", 2, ""), ("web", "king-dedede", 2, "lg"), ("oem", "px-pit", 2, ""), ("web", "donkey-kong", 2, ""), ("oem", "px-donkey-kong-jr", 2, "lg"),
-    ("oem", "px-little-mac", 1, ""), ("oem", "px-popo", 2, "lg"), ("oem", "px-nana", 2, "lg"), ("oem", "px-balloon-fighter", 2, "float f1 lg"),
-    ("oem", "px-excitebike-rider-red", 2, "lg"), ("web", "yoshi", 2, "lg"),
-]
+# The header parade: the Classic Cart Studio cast (folder, file stem, pixel scale, css class), left to right. Characters walk (two frames);
+# items float. "lg" ones are hidden on narrow headers.
+HERO = [("ccs", "star", 2, "float f1"), ("ccs", "carty-0", 2, ""), ("ccs", "padd-0", 2, ""), ("ccs", "hero-0", 2, ""), ("ccs", "astro-0", 2, ""), ("ccs", "gem", 2, "float f3"),
+    ("ccs", "boltbot-0", 2, ""), ("ccs", "wizzy-0", 2, ""), ("ccs", "knightly-0", 2, "lg"), ("ccs", "dino-0", 2, ""), ("ccs", "coin", 2, "float f2"), ("ccs", "slimo-0", 2, "lg"),
+    ("ccs", "ghosty-0", 2, "lg"), ("ccs", "batty-0", 2, "float f2 lg"), ("ccs", "racer-0", 2, "lg"), ("ccs", "heart", 2, "float f1 lg")]
 # Secondary decorations: tray empty state, how-to panel, filters dialog (folder, stem, scale)
-EMPTY_CAST = [("oem", "px-mario-walk-1", 3), ("web", "peach", 3), ("oem", "px-link", 3), ("web", "toad", 3), ("oem", "px-kirby", 3)]
-HOWTO_CAST = [("web", "king-hippo", 1), ("web", "eggplant-wizard", 1), ("web", "mr-game-and-watch", 1)]
-FILTERS_CAST = [("web", "rob", 2), ("web", "octorok", 2)]
-# Character roster for the footer parade and the report: (file stem, display name, game).
-ROSTER = [
-    ("px-mario-walk-1", "Mario", "Super Mario Bros."), ("px-luigi-walk-1", "Luigi", "Super Mario Bros."), ("px-raccoon-mario", "Raccoon Mario", "Super Mario Bros. 3"),
-    ("px-mario-kuribo-shoe", "Mario in Kuribo's Shoe", "Super Mario Bros. 3"), ("px-jumpman-mario-hammer", "Mario (Jumpman) with hammer", "Donkey Kong"),
-    ("px-mario-bros-mario", "Mario", "Mario Bros."), ("px-super-mushroom", "Super Mushroom", "Super Mario Bros."), ("px-fire-flower", "Fire Flower", "Super Mario Bros."),
-    ("px-question-block-0", "? Block", "Super Mario Bros."), ("px-shy-guy", "Shy Guy", "Super Mario Bros. 2"), ("px-birdo", "Birdo", "Super Mario Bros. 2"),
-    ("px-shellcreeper", "Shellcreeper", "Mario Bros."), ("px-pauline", "Pauline", "Donkey Kong"), ("px-donkey-kong-jr", "Donkey Kong Jr.", "Donkey Kong Jr."),
-    ("px-banana", "Banana", "Donkey Kong Jr."), ("px-link", "Link", "The Legend of Zelda"), ("px-zelda-old-man", "Old Man", "The Legend of Zelda"),
-    ("px-link-zelda2", "Link", "Zelda II: The Adventure of Link"), ("px-zelda2-knight", "Iron Knuckle", "Zelda II: The Adventure of Link"),
-    ("px-samus", "Samus Aran", "Metroid"), ("px-metroid", "Metroid", "Metroid"), ("px-kirby", "Kirby", "Kirby's Adventure"), ("px-parasol-waddle-dee", "Parasol Waddle Dee", "Kirby's Adventure"),
-    ("px-pit", "Pit", "Kid Icarus"), ("px-kid-icarus-monoeye", "Monoeye", "Kid Icarus"), ("px-little-mac", "Little Mac", "Punch-Out!! Featuring Mr. Dream"),
-    ("px-boxing-glove", "Boxing glove", "Punch-Out!! Featuring Mr. Dream"), ("px-popo", "Popo", "Ice Climber"), ("px-nana", "Nana", "Ice Climber"),
-    ("px-balloon-fighter", "Balloon Fighter", "Balloon Fight"), ("px-balloon-bird", "Balloon Bird", "Balloon Fight"), ("px-excitebike-rider-red", "Excitebike rider", "Excitebike"),
-    ("px-excitebike-rider-purple", "Excitebike rival", "Excitebike"), ("px-dr-mario-viruses", "Viruses", "Dr. Mario"), ("px-dr-mario-pills", "Megavitamins", "Dr. Mario"),
-    ("px-mike-jones", "Mike Jones", "StarTropics"), ("px-startropics-enemy", "StarTropics creature", "StarTropics"),
-    ("px-mega-man", "Mega Man", "Mega Man 2"), ("px-arthur", "Arthur", "Ghosts'n Goblins"), ("px-ff-fighter", "Fighter", "Final Fantasy"), ("px-bub", "Bub", "Bubble Bobble"),
-    ("px-pac-man", "Pac-Man", "Pac-Man"), ("px-galaga-fighter", "Galaga fighter", "Galaga"), ("px-simon-belmont", "Simon Belmont", "Castlevania"), ("px-vic-viper", "Vic Viper", "Gradius"),
-    ("px-super-c-soldier", "Bill Rizer", "Super C"), ("px-simon-belmont-2", "Simon Belmont", "Castlevania II: Simon's Quest"), ("px-ryu-hayabusa", "Ryu Hayabusa", "Ninja Gaiden"),
-    ("px-tecmo-bowl-player", "Tecmo Bowl player", "Tecmo Bowl"), ("px-double-dragon-lee", "Billy Lee", "Double Dragon II: The Revenge"),
-]
-# Characters obtained online (reports/brand/web/provenance.json); shown in the footer parade with their documented origin.
-WEB_ROSTER = [("peach", "Princess Peach"), ("bowser", "Bowser"), ("toad", "Toad"), ("goomba", "Goomba"), ("koopa-troopa", "Koopa Troopa"), ("piranha-plant", "Piranha Plant"),
-    ("zelda", "Princess Zelda"), ("ganon", "Ganon"), ("octorok", "Octorok"), ("ridley", "Ridley"), ("donkey-kong", "Donkey Kong"), ("king-dedede", "King Dedede"),
-    ("eggplant-wizard", "Eggplant Wizard"), ("king-hippo", "King Hippo"), ("duck-hunt-dog", "Duck Hunt dog"), ("duck-hunt-duck", "Duck Hunt duck"), ("rob", "R.O.B."),
-    ("mr-game-and-watch", "Mr. Game & Watch"), ("yoshi", "Yoshi")]
-NINTENDO_FIRST_PARTY = 37  # first N roster entries are Nintendo characters/items; the rest are third-party icons from the built-in library
+EMPTY_CAST = [("ccs", "carty-0", 3), ("ccs", "padd-0", 3), ("ccs", "hero-0", 3), ("ccs", "astro-0", 3), ("ccs", "wizzy-0", 3)]
+HOWTO_CAST = [("ccs", "boltbot-0", 2), ("ccs", "wizzy-0", 2), ("ccs", "carty-0", 2)]
+FILTERS_CAST = [("ccs", "knightly-0", 2), ("ccs", "slimo-0", 2)]
 
 TEMPLATE = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" sizes="32x32" href="icon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"><meta name="theme-color" content="#101014">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" sizes="32x32" href="icon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#101014">
 <title>NES Classic Collection — Game Selection Catalog</title>
 <meta name="nes-companion-token" content="">
 <style>
@@ -96,7 +63,7 @@ button,select,input{font:inherit;color:inherit}
 .btn{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--line2);border-radius:var(--r2);background:linear-gradient(180deg,var(--s3),var(--s1));color:var(--ink);cursor:pointer;line-height:1.2;box-shadow:var(--sh1);transition:transform .08s,border-color .15s,background .15s,box-shadow .15s;white-space:nowrap}
 .btn:hover{border-color:rgba(255,255,255,.3);box-shadow:var(--sh2)}.btn:active{transform:translateY(1px);box-shadow:none}.btn.active{background:linear-gradient(180deg,#3a3a44,#2a2a32);border-color:var(--silver);color:#fff}
 .btn.primary{background:linear-gradient(180deg,#ff2a36,var(--red2));border-color:#ff5a63;color:#fff;font-weight:600;box-shadow:0 2px 10px var(--glow)}.btn.primary:hover{box-shadow:0 4px 18px var(--glow)}
-.btn.ghost{background:transparent;box-shadow:none}.btn .ico{width:14px;height:14px}.btn.sm{padding:5px 9px;font-size:12.5px}
+.btn.ghost{background:transparent;box-shadow:none}.btn .ico{width:12px;height:12px}.btn.sm{padding:5px 9px;font-size:12.5px}
 .seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r2);overflow:hidden;box-shadow:var(--sh1)}.seg .btn{border:0;border-radius:0;box-shadow:none}.seg .btn+.btn{border-left:1px solid var(--line2)}
 select,input[type=search]{padding:7px 10px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--s1);color:var(--ink);box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
 select{appearance:none;-webkit-appearance:none;padding-right:28px;background:var(--s1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239c9a95'/%3E%3C/svg%3E") no-repeat right 10px center;cursor:pointer}
@@ -125,7 +92,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .hardware{position:relative;display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-end;gap:12px;filter:drop-shadow(0 18px 24px rgba(0,0,0,.7))}
 .hardware svg{width:100%;max-width:250px;height:auto}.hardware .pad{max-width:140px;margin:0 0 6px}
 .parade{position:relative;height:86px;margin-top:0}
-.parade .ground{position:absolute;left:0;right:0;bottom:0;height:22px;background:url("brand/oem/tile-ground.png") repeat-x;background-size:22px 22px;image-rendering:pixelated;border-top:2px solid rgba(0,0,0,.4);box-shadow:0 -12px 24px rgba(0,0,0,.35)}
+.parade .ground{position:absolute;left:0;right:0;bottom:0;height:22px;background:url("brand/ccs/ground.png") repeat-x;background-size:22px 22px;image-rendering:pixelated;border-top:2px solid rgba(0,0,0,.4);box-shadow:0 -12px 24px rgba(0,0,0,.35)}
 .parade .cast{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,1.1vw,22px);padding:0 16px;overflow:hidden}
 .parade .cast img{flex:none;filter:drop-shadow(0 3px 0 rgba(0,0,0,.35))}.parade .cast img.float{margin-bottom:18px}.parade .cast img.f2{margin-bottom:30px}.parade .cast img.f3{margin-bottom:10px}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}.parade .cast img.float{animation:bob 3.2s ease-in-out infinite}.parade .cast img.f2{animation-duration:4.1s}.parade .cast img.f3{animation-duration:2.6s}
@@ -162,7 +129,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .sortsel{max-width:220px}
 #details .ranks{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:6px 0 8px}#details .ranks .rb{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--r2);padding:8px 10px}#details .ranks .rb b{display:block;font-family:var(--display);font-size:20px;color:#fff}#details .ranks .rb.top b{color:var(--gold)}#details .ranks .rb span{font-size:11.5px;color:var(--muted)}
 #tray li.empty{flex-direction:column;align-items:center;text-align:center;padding:26px 22px 22px;border-bottom:0;gap:6px}#tray li.empty .scene{position:relative;width:100%;max-width:330px;height:150px;margin:0 auto 6px;border-radius:var(--r3);background:radial-gradient(260px 120px at 50% 100%,rgba(228,0,15,.22),transparent 70%),linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));border:1px solid var(--line);overflow:hidden}
-#tray li.empty .scene svg{position:absolute;left:50%;top:10px;transform:translateX(-50%);width:120px;height:auto;filter:drop-shadow(0 10px 16px rgba(0,0,0,.6))}#tray li.empty .scene .cast{position:absolute;left:0;right:0;bottom:16px;display:flex;justify-content:center;align-items:flex-end;gap:14px}#tray li.empty .scene .ground{position:absolute;left:0;right:0;bottom:0;height:16px;background:url("brand/oem/tile-ground.png") repeat-x;background-size:16px 16px;image-rendering:pixelated}
+#tray li.empty .scene svg{position:absolute;left:50%;top:10px;transform:translateX(-50%);width:120px;height:auto;filter:drop-shadow(0 10px 16px rgba(0,0,0,.6))}#tray li.empty .scene .cast{position:absolute;left:0;right:0;bottom:16px;display:flex;justify-content:center;align-items:flex-end;gap:14px}#tray li.empty .scene .ground{position:absolute;left:0;right:0;bottom:0;height:16px;background:url("brand/ccs/ground.png") repeat-x;background-size:16px 16px;image-rendering:pixelated}
 #tray li.empty h3{margin:4px 0 0;font-family:var(--display);font-size:18px;letter-spacing:1.5px;text-transform:uppercase;color:#fff}#tray li.empty p{margin:0;color:var(--ink2);font-size:13px;max-width:300px}#tray li.empty .hint{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--line2);background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
 #tray .dec{font-size:12px;padding:3px 24px 3px 8px;margin-top:4px;max-width:100%}
 .howto .box{position:relative;padding-right:150px}.howto .deco{position:absolute;right:18px;bottom:14px;display:flex;gap:12px;align-items:flex-end;opacity:.9}.mhd .deco{display:flex;gap:8px;align-items:flex-end;margin-right:4px}
@@ -171,7 +138,7 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .policy{margin-top:6px;padding:7px 9px;border-radius:var(--r2);border:1px solid rgba(74,155,255,.35);background:rgba(74,155,255,.07);font-size:12px;color:var(--ink2)}.policy b{color:#fff}.policy .pend{display:block;margin-top:3px;color:var(--muted);font-size:11.5px}
 .hwwarn{margin-top:6px;padding:6px 9px;border-radius:var(--r2);border:1px solid rgba(197,139,255,.45);background:rgba(197,139,255,.08);font-size:12px;color:var(--ink2)}
 /* ---------- Open in Hakchi ---------- */
-.btn.hk{background:linear-gradient(180deg,#ff2a36,var(--red2));border-color:#ff5a63;color:#fff;font-weight:700;letter-spacing:.3px;box-shadow:0 2px 12px var(--glow);padding:8px 14px}.btn.hk .ico,.btn.tray .ico{width:15px;height:15px}.btn.hk.off{background:linear-gradient(180deg,#3a3a44,#2a2a32);border-color:var(--line2);color:var(--silver);box-shadow:none}.btn.hk .cnt{font-family:var(--display);font-size:14px;margin:0 2px}
+.btn.hk{background:linear-gradient(180deg,#ff2a36,var(--red2));border-color:#ff5a63;color:#fff;font-weight:700;letter-spacing:.3px;box-shadow:0 2px 12px var(--glow);padding:8px 14px}.btn.hk .ico,.btn.tray .ico{width:12px;height:12px}.btn.hk.off{background:linear-gradient(180deg,#3a3a44,#2a2a32);border-color:var(--line2);color:var(--silver);box-shadow:none}.btn.hk .cnt{font-family:var(--display);font-size:14px;margin:0 2px}
 .btn.secondary{background:transparent;border-color:var(--line2);color:var(--ink2)}
 #hkpanel .mbox{width:min(1100px,100%)}#hkpanel .sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:6px 0 12px}#hkpanel .sum .sb{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--r2);padding:8px 10px}#hkpanel .sum .sb b{display:block;font-family:var(--display);font-size:22px;color:#fff}#hkpanel .sum .sb span{font-size:11.5px;color:var(--muted)}#hkpanel .sum .sb.warn b{color:var(--warn)}#hkpanel .sum .sb.bad b{color:var(--bad)}#hkpanel .sum .sb.ok b{color:var(--ok)}#hkpanel .sum .sb.info b{color:var(--info)}
 #hkpanel table.pv{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}#hkpanel table.pv th{font-family:var(--display);font-size:11.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--silver);text-align:left;padding:5px 8px;border-bottom:1px solid var(--line2);position:sticky;top:0;background:#1d1d24}#hkpanel table.pv td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -259,15 +226,20 @@ __STUDIO_CSS__
 @font-face{font-family:"Pixelify Sans";src:url("brand/home/fonts/PixelifySans.ttf") format("truetype");font-weight:400 700;font-display:swap}
 @font-face{font-family:"Space Mono";src:url("brand/home/fonts/SpaceMono-Regular.ttf") format("truetype");font-weight:400;font-display:swap}
 @font-face{font-family:"Space Mono";src:url("brand/home/fonts/SpaceMono-Bold.ttf") format("truetype");font-weight:700;font-display:swap}
+@font-face{font-family:"CCS HD Sans";src:url("brand/home/hd/fonts/Barlow-Regular.ttf") format("truetype");font-weight:100 500;font-display:swap}
+@font-face{font-family:"CCS HD Sans";src:url("brand/home/hd/fonts/Barlow-SemiBold.ttf") format("truetype");font-weight:600;font-display:swap}
+@font-face{font-family:"CCS HD Sans";src:url("brand/home/hd/fonts/Barlow-Bold.ttf") format("truetype");font-weight:700 900;font-display:swap}
+@font-face{font-family:"CCS HD px";src:url("brand/home/hd/fonts/Barlow-Bold.ttf") format("truetype");font-weight:100 900;size-adjust:143%;font-display:swap}
+@font-face{font-family:"CCS HD silk";src:url("brand/home/hd/fonts/Barlow-SemiBold.ttf") format("truetype");font-weight:100 900;size-adjust:90%;font-display:swap}
+@font-face{font-family:"CCS HD vt";src:url("brand/home/hd/fonts/Barlow-Regular.ttf") format("truetype");font-weight:100 900;size-adjust:80%;font-display:swap}
 </style></head><body>
 <a class="skip" href="#main">Skip to catalog</a>
 <div class="stickyhead" id="stickyHead">
 <header class="hero" id="hero">
  <div class="hero-inner">
   <div>
-   <img class="wordmark px" src="brand/oem/nes-wordmark.png" alt="Nintendo Entertainment System" width="137" height="15" onerror="this.style.display='none'">
    <h1><a class="brandhome" id="brandHome" href="./" aria-label="Classic Cart Studio, home" title="Home">Classic Cart<span>Studio</span></a></h1>
-   <p class="lede">Browse NES games, build <b>your collections</b>, share them, and plan <b>NES Classic Loadouts</b> for your console.</p>
+   <p class="lede">Browse NES games, build <b>your collections</b>, back them up, and plan <b>NES Classic Loadouts</b> for your console.</p>
    <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games</span><span class="pill"><b id="heroSel">0</b> <span id="heroSelL">in collection</span></span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
   </div>
   <div class="hardware" aria-hidden="true">
@@ -276,7 +248,7 @@ __STUDIO_CSS__
     <path d="M0 86 L558 86 L544 184 Q543 190 537 190 L21 190 Q15 190 14 184 Z" fill="url(#gBase)"/><path d="M0 86 L558 86 L557 92 L1 92 Z" fill="#000" opacity=".18"/>
     <path d="M26 3 Q27 0 31 0 L527 0 Q531 0 532 3 L558 86 L0 86 Z" fill="url(#gFace)"/>
     <rect x="72" y="6" width="314" height="68" rx="3" fill="url(#gPanel)"/><rect x="72" y="74" width="314" height="5" rx="1.5" fill="#a9a7a2"/><rect x="300" y="80" width="44" height="3" rx="1.5" fill="#9f9d98"/>
-    <text x="90" y="40" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="800" font-style="italic" font-size="24" fill="#e4000f">Nintendo</text><text x="90" y="56" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="700" font-size="10.5" letter-spacing="1.6" fill="#e4000f">ENTERTAINMENT SYSTEM</text>
+    <text x="90" y="40" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="800" font-style="italic" font-size="24" fill="#e4000f">Classic Cart</text><text x="90" y="56" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="700" font-size="10.5" letter-spacing="1.6" fill="#e4000f">STUDIO</text>
     <path d="M392 0 L486 0 L494 86 L384 86 Z" fill="#1b1b1e"/><g stroke="#4a4a4f" stroke-width="2"><path d="M390 12 L490 12"/><path d="M390 24 L490 24"/><path d="M390 36 L490 36"/></g>
     <path d="M384 86 L494 86 L488 190 L390 190 Z" fill="#101013"/>
     <text x="411" y="98" text-anchor="middle" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="700" font-size="9" fill="#e4000f">1</text><text x="465" y="98" text-anchor="middle" font-family="Bahnschrift,Segoe UI,Arial,sans-serif" font-weight="700" font-size="9" fill="#e4000f">2</text>
@@ -304,16 +276,16 @@ __STUDIO_CSS__
 </header>
 <div class="toolbar" id="toolbar"><div class="in">
 <div class="row bar">
- <button class="tvbtn" id="tvBtn" type="button" title="Preview on TV" aria-label="Preview on TV"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"></button>
- <div class="menuwrap" id="collWrap"><button id="collBtn" class="btn collbtn" aria-haspopup="menu" title="My Collections"><img class="px ico" src="brand/oem/icon-cartridge.png" alt="" onerror="this.remove()"><span class="cl"><span class="cap">My Collections</span><span id="collName">My Collection</span></span><span class="badge soft" id="collCount">0 games</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
+ <button class="tvbtn" id="tvBtn" type="button" title="See the game menu your HOME shows, and play from it"><img src="brand/public/as-seen-on-tv.png" alt="" width="48" height="38"><span class="tvbl"><b>Preview Your Game Menu</b><small>See it, and play from it</small></span></button>
+ <div class="menuwrap" id="collWrap"><button id="collBtn" class="btn collbtn" aria-haspopup="menu" title="My Collections"><img class="px ico" src="brand/ccs/icon-cartridge.png" alt="" onerror="this.remove()"><span class="cl"><span class="cap">My Collections</span><span id="collName">My Collection</span></span><span class="badge soft" id="collCount">0 games</span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
 __M_COLL__</div>
  <span style="flex:1"></span>
  <div class="actions">
- <span class="pair"><button id="trayBtn" class="btn tray" title="Your games"><img class="px ico" src="brand/oem/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
+ <span class="pair"><button id="trayBtn" class="btn tray" title="Your games"><img class="px ico" src="brand/ccs/icon-b.png" alt="" onerror="this.remove()">Tray<span class="badge" id="trayBadge">0</span></button>
  <div class="menuwrap right" id="loWrap"><button id="loBtn" class="btn lobtn" aria-haspopup="menu" title="Choose the games that go on your NES Classic"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span class="cl"><span class="lbn">NES Classic Loadouts</span><span class="lctx" id="loCtx">Choose or create one</span></span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button><div class="menu wide" id="loMenu" role="menu" hidden></div></div>
  
  <button class="btn" id="homeBtn" aria-label="Console Menu Setup" title="Folders, theme and shortcuts for the NES Classic's own menu (its HOME screen)" hidden><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z"/></svg>Console Menu Setup</button>
- <button class="btn hk" id="hkBtn" title="Check and prepare this loadout for your NES Classic" hidden><img class="px ico" src="brand/oem/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
+ <button class="btn hk" id="hkBtn" title="Check and prepare this loadout for your NES Classic" hidden><img class="px ico" src="brand/ccs/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on NES Classic</span></button></span>
  <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Studio menu" title="Help, backup and legal"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Studio</span></button>
 __M_APP__</div>
  </div>
@@ -351,12 +323,12 @@ __M_SELECT__</div>
 </main>
 <section class="howto"><div class="box"><span class="deco" aria-hidden="true">__HOWTO_CAST__</span><h2>How it works</h2><div class="steps">
 <div class="step"><span class="n">1</span><div><b>Collect.</b> Check the box on a game to add it to the open collection; <span class="w-ptr">click</span><span class="w-tch">tap</span> a game for its details. The version chip picks regions and revisions; the Extended Library adds every known release.</div></div>
-<div class="step"><span class="n">2</span><div><b>Organize and share.</b> Keep as many collections as you like under <b>My Collections</b>. Share or export one as a .ccs file.</div></div>
+<div class="step"><span class="n">2</span><div><b>Organize and back up.</b> Keep as many collections as you like under <b>My Collections</b>. Back one up as a complete .ccs file.</div></div>
 <div class="step"><span class="n">3</span><div><b>Plan your NES Classic.</b> Make an <b>NES Classic Loadout</b> from a collection, check that it fits, and prepare it in Classic Cart Studio for Windows. <button class="btn sm secondary" type="button" data-guide="start">Open the guide</button></div></div>
 </div><p class="small" style="margin:12px 0 0">Classic Cart Studio never downloads games. <a href="#" data-guide="tech">About the technology</a></p></div></section>
 <footer><div class="in"><div class="credits"><p class="small cap">Character credits: hover or focus a character for its game</p><div class="castwrap"><div class="cast" aria-label="Character credits">__FOOTER_CAST__</div></div></div>
-<p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · Classic Cart Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
-<p class="legal">Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; see hakchi/LICENSE) — this Studio prepares collections for it and does not reimplement it. Personal, non-commercial fan project for one privately owned NES Classic Edition. Not affiliated with, sponsored or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and all character names and artwork are trademarks and copyrights of Nintendo or their respective owners; the pixel artwork, console lockup and interface icons shown here are Nintendo's own renderings read from this console's system backup and the box art is cached locally from community scans — none of it is redistributed with this file. Catalog <span id="gen"></span>.</p></div></footer>
+<p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://classic-cart-studio.printful.me/" target="_blank" rel="noopener" class="merchlink" title="Classic Cart Studio merch on Printful (opens in a new tab)"><span aria-hidden="true">👕</span>Merch</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · Classic Cart Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
+<p class="legal">Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; see hakchi/LICENSE) — this Studio prepares collections for it and does not reimplement it. Personal, non-commercial fan project for one privately owned NES Classic Edition. Not affiliated with, sponsored or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo; game names and box art belong to their respective owners. The characters, icons and walkway are Classic Cart Studio's own pixel art; the box art is cached locally from community scans. Catalog <span id="gen"></span>.</p></div></footer>
 <div id="hkpanel" class="modal" role="dialog" aria-modal="true" aria-labelledby="hkTitle"><div class="mbox"><div class="mhd"><h2 id="hkTitle">Install on NES Classic</h2><span class="small" id="hkSub"></span><button type="button" class="mclose" id="hkClose" aria-label="Close" title="Close">✕</button></div><div id="hkBody"></div></div></div>
 <div id="filters" class="modal" role="dialog" aria-modal="true" aria-labelledby="filtersTitle"><div class="mbox">
 <div class="mhd"><h2 id="filtersTitle">Filter &amp; Sort</h2><span class="deco" aria-hidden="true">__FILTERS_CAST__</span><span class="small" id="filtersCount"></span></div>
@@ -385,10 +357,10 @@ __M_SELECT__</div>
 </div></details>
 <div class="acts facts"><button class="btn sm ghost" id="filtersReset" title="No filters, Title A–Z, curated library">Reset</button><span class="small">Filters change what is shown, never your collection.</span><span class="sp"></span><button class="btn sm secondary" id="filtersCancel">Cancel</button><button class="btn primary sm" id="filtersDone">Apply</button></div>
 </div></div>
-<aside id="tray" aria-label="Selection tray"><div class="hd"><span class="ttl"><img class="px" src="brand/oem/icon-cartridge.png" alt="" width="20" height="20" onerror="this.remove()"> My Collection</span><span id="trayCount" class="small"></span><button id="trayClose" class="btn sm">Close</button></div>
+<aside id="tray" aria-label="Selection tray"><div class="hd"><span class="ttl"><img class="px" src="brand/ccs/icon-cartridge.png" alt="" width="24" height="24" onerror="this.remove()"> My Collection</span><span id="trayCount" class="small"></span><button id="trayClose" class="btn sm">Close</button></div>
 <button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button>
-<div class="sub" id="traySub"></div><ul id="trayList"></ul><div class="ft"><span class="sp"></span><button class="btn secondary sm" id="trayExport">Export…</button> <button class="btn hk sm" id="trayHk">Install on NES Classic</button></div></aside>
-<nav class="mbar" id="mbar" aria-label="Actions"><button type="button" id="mbGoHome" aria-label="Home: the game library, from the top"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg><span>Home</span></button><button type="button" id="mbTray"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8h8M6 11h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Tray</span><b class="mbadge" id="mbTrayN">0</b></button><button type="button" id="mbLo" class="co"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span>Loadouts</span></button><button type="button" id="mbShare" class="co"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 7l4-4 4 4"/><path d="M4 12v4h12v-4"/></svg><span>Share</span></button><button type="button" id="mbHome" class="lo" aria-label="Console Menu Setup"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z"/></svg><span>Console Menu</span></button><button type="button" id="mbInstall" class="lo"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M4 16h12"/></svg><span>Install</span></button><button type="button" id="mbMenu" aria-label="Studio menu"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"/></svg><span>Studio</span></button></nav>
+<div class="sub" id="traySub"></div><ul id="trayList"></ul><div class="ft"><span class="sp"></span><button class="btn secondary sm" id="trayExport">Back Up…</button> <button class="btn hk sm" id="trayHk">Install on NES Classic</button></div></aside>
+<nav class="mbar" id="mbar" aria-label="Actions"><button type="button" id="mbGoHome" aria-label="Home: the game library, from the top"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg><span>Home</span></button><button type="button" id="mbTray"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8h8M6 11h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Tray</span><b class="mbadge" id="mbTrayN">0</b></button><button type="button" id="mbLo" class="co"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg><span>Loadouts</span></button><button type="button" id="mbShare" class="co"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3.5h10l3 3v10h-13z"/><path d="M6.5 3.5v4h6v-4"/><path d="M6.5 16.5v-5h7v5"/></svg><span>Back Up</span></button><button type="button" id="mbHome" class="lo" aria-label="Console Menu Setup"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z"/></svg><span>Console Menu</span></button><button type="button" id="mbInstall" class="lo"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M4 16h12"/></svg><span>Install</span></button><button type="button" id="mbMenu" aria-label="Studio menu"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"/></svg><span>Studio</span></button></nav>
 <div id="details" role="dialog" aria-modal="true"><div class="dframe" id="detailsFrame"><span class="close" id="dClose" role="button" tabindex="0" aria-label="Close">✕</span><div class="box" id="detailsBox"></div></div></div>
 __STUDIO_HTML__
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -491,6 +463,7 @@ __HOME_JS__
 const HOME_CSS_TEXT=__HOME_CSS__;
 const STORAGE_MODEL=__STORAGE_MODEL__;
 const HOME_ART=__HOME_ART__;
+const HOME_HD=__HOME_HD__;
 function visible(){ const all=window.keptRows?games.concat(keptRows()):games;   /* plus the collection's kept entries this device cannot resolve (collections.js) */
  const q=searchQuery($('q').value); const fz=q?searchFuzzy(q, all):false; const y=$('fYear').value,p=$('fPub').value,l=$('fLic').value,ge=$('fGenre').value,pl=$('fPlayers').value,e=$('fEmu').value,v=$('fVer').value,bi=$('fBuilt').value,s=$('fSel').value,rkf=$('fRank').value,inf=$('fInput').value;
  return all.filter(g=>{
@@ -572,7 +545,10 @@ function render(){ if(FSNAP&&!FSHOWN&&JSON.stringify(fsnapshot().f)!==JSON.strin
  const vis=visible(); const rel=!!searchQuery($('q').value)&&sortK==='display_title'; vis.sort((a,b)=>{ if(rel&&a._ss!==b._ss) return a._ss-b._ss; if(sortK.startsWith('rank:')){ const x=rankKey(a,sortK), y=rankKey(b,sortK); if(x==null&&y==null) return a.display_title.localeCompare(b.display_title); if(x==null) return 1; if(y==null) return -1; return (x-y)*sortDir; } let x=a[sortK],y=b[sortK]; if(sortK==='sel'){x=sel.has(a.game_id)?1:0;y=sel.has(b.game_id)?1:0;} if(typeof x==='string'){x=x.toLowerCase();y=(y||'').toLowerCase();} return (x>y?1:x<y?-1:0)*sortDir; });
  if(!$('filters').classList.contains('open')){ $('sortSel').value=sortK; $('sortDir').value=((sortK==='sel')?sortDir>0:sortDir<0)?'desc':'asc'; }
  if(view==='list'){ $('listView').hidden=false; $('gridView').hidden=true; } else { $('listView').hidden=true; $('gridView').hidden=false; }
- vlReset(vis); vlReflow(true); { const nm=$('noMatch'); if(nm){ const q=!!$('q').value.trim(), f=activeFilters().length>0; nm.hidden=vis.length>0; $('nmSearch').hidden=!q; $('nmFilters').hidden=!f; $('noMatchWhy').textContent=q&&f?'Try a different search, or clear the filters.':q?'Try a different spelling or a shorter search.':f?'Clear the filters to see more games.':''; } } document.documentElement.dataset.rows=vis.length; document.documentElement.dataset.ready='1';
+ // measured row heights stay valid while the same games are listed in the same order and view (a check or uncheck changes neither): only a
+ // different list starts from estimates again. Clearing them on every render moved the rows on screen by the gap between the estimate and the
+ // real heights above them (a row's height on a phone; M2-5)
+ const vsig=view+'|'+vis.length+'|'+vis.map(g=>g.game_id).join('|'), vsame=VL.sig===vsig; VL.sig=vsig; vlReset(vis); vlReflow(!vsame); { const nm=$('noMatch'); if(nm){ const q=!!$('q').value.trim(), f=activeFilters().length>0; nm.hidden=vis.length>0; $('nmSearch').hidden=!q; $('nmFilters').hidden=!f; $('noMatchWhy').textContent=q&&f?'Try a different search, or clear the filters.':q?'Try a different spelling or a shorter search.':f?'Clear the filters to see more games.':''; } } document.documentElement.dataset.rows=vis.length; document.documentElement.dataset.ready='1';
  $('heroGames').textContent=games.filter(g=>extOn||!g.ext).length;
  const chosen=window.selectedGames?selectedGames():games.filter(g=>sel.has(g.game_id)); const toInstall=chosen.filter(installRequired); const bytes=toInstall.reduce((a,g)=>a+g.payload_size+16,0); const mib=bytes/1048576; const over=capMiB&&mib>capMiB;
  const selB=[...sel].filter(id=>{ const g=byId[id]; return g&&g.builtin_status&&g.builtin_status.startsWith('BUILT-IN'); }).length;
@@ -813,11 +789,11 @@ def _mi(id_="", ic="", label="", sub="", cls="", attrs="", trail="", hidden=Fals
 def _mhead(badge, title, sub, sub_id="", close="Close menu"):
     return (f'<div class="mhead"><span class="mbadge" aria-hidden="true">{badge}</span><div class="mht"><b>{title}</b><span' + (f' id="{sub_id}"' if sub_id else "") + f'>{sub}</span></div>'
             f'<button type="button" class="mclose" aria-label="{close}" title="Close">✕</button></div>')
-CART_ICON = '<img class="px" src="brand/oem/icon-cartridge.png" alt="" width="24" height="24" onerror="this.remove()">'
+CART_ICON = '<img class="px" src="brand/ccs/icon-cartridge.png" alt="" width="24" height="24" onerror="this.remove()">'
 M_COLL = ('<div class="menu wide" id="collMenu" role="menu" aria-label="My Collections" hidden>' + _mhead(CART_ICON, "My Collections", "1 collection", "csTotal", "Close My Collections")
     + '<div class="mcard" id="collCard"><span class="mic" aria-hidden="true">🎮</span><div class="mct"><b id="collNameHead"></b><span class="mmeta"><span id="collGames">0 games</span><span class="stt" id="collStatus"><i></i>new</span></span></div><span class="mstate">Open</span></div>'
     + '<div class="mquick">' + _mi("mNew", "✨", "New Collection…", cls="q new") + _mi("mImport", "📂", "Import Collection…", cls="q") + "</div>"
-    + _mi("mShare", "📤", "Share or Export…", "A complete .ccs file, every game with its ROM", cls="feature", trail="›")
+    + _mi("mShare", "💾", "Back Up Collection…", "A complete .ccs file, every game with its ROM", cls="feature", trail="›")
     + '<div class="mlabel" id="csSwitchL">Switch Collection</div><div class="mlist" id="csQuick" role="group" aria-labelledby="csSwitchL"></div>'
     + '<div class="sep"></div>' + _mi("mManage", "🗂️", "Manage Collections…", trail="›")
     + _mi("mRestore", "🕘", "Restore Previous Version…", "Earlier states, saved before big changes", cls="quiet")
@@ -826,9 +802,14 @@ M_COLL = ('<div class="menu wide" id="collMenu" role="menu" aria-label="My Colle
     + _mi("mToWeb", "🌐", "Continue on the Website…", "Save your collections to open on ClassicCartStudio.com", hidden=True) + "</div>")
 M_APP = ('<div class="menu wide" id="appMenu" role="menu" aria-label="Studio menu" hidden>' + _mhead('<img src="icon-192.png" alt="" width="26" height="26" onerror="this.remove()">', "Studio Menu", "Help, backup and legal", close="Close the Studio menu")
     + '<div class="mlabel">Go To</div>' + _mi("mGoHome", "🏠", "Home", "The game library, from the top")
-    + '<div class="mlabel">Help &amp; Guidance</div>' + _mi("howBtn", "📖", "Help &amp; User Guide", "How everything works") + _mi("mWelcome", "👋", "Welcome Screen")
-    + '<div class="mlabel">Backup &amp; Recovery</div>' + _mi("sdExport", "💾", "Back Up Studio Data…", "Every collection and setting · JSON file") + _mi("sdImport", "🛟", "Restore Studio Data…", "Adds a backup; nothing is deleted")
-    + '<div class="mlabel">About</div>' + _mi("mLegal", "⚖️", "Legal &amp; Privacy") + _mi("mStore", "🛒", "Classic Cart Studio Store", "Consoles and accessories from other sellers", hidden=True, trail="↗") + "</div>")
+    + '<div class="mlabel" id="mPlayL" hidden>Play on PC</div>' + _mi("mPlaySet", "🎮", "Play on PC Settings…", "Keys, controllers and display", hidden=True)
+    + '<div class="mlabel">Help &amp; Guidance</div>' + _mi("howBtn", "📖", "Help &amp; User Guide", "How everything works")
+    + '<div class="mlabel" id="mDevL" hidden>This Device</div>' + _mi("mInstall", "📲", "Install as an App…", "Add it to this device; open it without the internet", hidden=True) + _mi("mUpdate", "⬆️", "Update Ready…", "Restart to use the new version", hidden=True)
+    + '<div class="mlabel">Backup &amp; Recovery</div>' + _mi("mBackupAll", "🗄️", "Back Up Everything…", "Every collection, game file and setting · .ccs") + _mi("sdExport", "📝", "Save Lists and Settings…", "No game files · JSON file") + _mi("sdImport", "🛟", "Restore Lists and Settings…", "Adds them; nothing is deleted")
+    + '<div class="mlabel">About</div>' + _mi("mLegal", "⚖️", "Legal &amp; Privacy")
+    + _mi("mUsage", "📊", "Usage Reporting…", "Optional · you choose on or off")
+    + _mi("mMerch", "👕", "Classic Cart Studio Merch", "Shirts and more · opens the Printful store", trail="↗")
+    + _mi("mStore", "🛒", "Classic Cart Studio Store", "Consoles and accessories from other sellers", hidden=True, trail="↗") + "</div>")
 # (group, id, icon, label, where: both | phone, class)
 LIB_ACTIONS = [("view", "favView", "⭐", "Show Favorites", "both", "fav"), ("view", "vToggle", "▦", "Grid View", "phone", ""),
     ("sel", "selVis", "✅", "Add All Shown", "both", ""), ("sel", "selKachi", "🎮", "Add Shown Console-Ready Games", "both", ""), ("sel", "unselVis", "➖", "Remove All Shown", "both", ""),
@@ -848,11 +829,11 @@ TEMPLATE = TEMPLATE.replace("__M_COLL__", M_COLL).replace("__M_APP__", M_APP).re
 
 LEGAL_PRIVATE =TEMPLATE[TEMPLATE.index('<p class="legal">'):TEMPLATE.index("</p></div></footer>") + len("</p></div></footer>")]
 LEGAL_PUBLIC = ('<p class="legal">' + DISCLAIMER + ' Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; Classic Cart Studio for Windows sets it up from the unmodified official release package, with its license; this Studio prepares collections for it and does not reimplement it). '
-    'The pixel artwork and interface icons are Nintendo\'s own renderings from the NES Classic Edition system software and documented community sprite rips (origins in the character credits above), and the box art comes from community thumbnail collections; they are shown to identify and present the games, and all rights remain with their owners. No game files or console software are distributed with this website. '
+    'The characters, icons and walkway are Classic Cart Studio\'s own pixel art. The box art comes from community thumbnail collections and the game illustrations behind the HOME are fan art; they are shown to identify and present the games, and all rights in the games remain with their owners. No game files or console software are distributed with this website. '
     'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>. Catalog <span id="gen"></span>.</p></div></footer>')
 
 DOCK_W = 440   # width of the docked My Collection panel (keep in sync with --dockw in the CSS)
-DOCK_SKIP = (".hero", "#hero", ".parade", ".hardware", ".stickyhead", "#tray", "body.dock", "#guide", "#welcome", "#tech", "#hkpanel", "#details", "#filters", ".modal", ".tvmodal", ".tvbox", ".tvhd", ".tvt", ".tvmain", ".tvstage", ".tvpad", ".tvside", ".tvtools", "#verpop", "#glb", "#tip", "#hover", ".toast", "#collm")
+DOCK_SKIP = (".hero", "#hero", ".parade", ".hardware", ".stickyhead", "#tray", "body.dock", "#guide", "#tech", "#hkpanel", "#details", "#filters", ".modal", ".tvmodal", ".tvbox", ".tvhd", ".tvt", ".tvmain", ".tvstage", ".tvpad", ".tvside", ".tvtools", "#verpop", "#glb", "#tip", "#hover", ".toast", "#collm")
 
 def dock_twins(css: str) -> str:
     """Mirror every width media query for the docked state: the content beside the panel is laid out at (viewport - DOCK_W),
@@ -885,8 +866,9 @@ def dock_twins(css: str) -> str:
 
 def sprite(folder: str, stem: str, scale: int, index: dict, cls: str = "", title: str = "", loading: str = "lazy") -> str:
     f = index.get((folder, stem + ".png"))
-    if not f: return ""
-    return f'<img class="px {cls}" src="brand/{folder}/{stem}.png" width="{f["w"]*scale}" height="{f["h"]*scale}" alt="" title="{title}" loading="{loading}">'
+    if not f: raise SystemExit(f"missing artwork: brand/{folder}/{stem}.png")   # never a silently missing picture
+    walk = f' data-walk="brand/{folder}/{f["walk"]}"' if f.get("walk") else ""   # a character's second walking frame (cast.js)
+    return f'<img class="px {cls}" src="brand/{folder}/{stem}.png"{walk} width="{f["w"]*scale}" height="{f["h"]*scale}" style="width:{f["w"]*scale}px;height:{f["h"]*scale}px" alt="" title="{title}" loading="{loading}">'
 
 def _storage_model():
     """the NES Classic storage model the installation plan uses (tools/companion/console_engine/storage_model.py), loaded by path"""
@@ -904,17 +886,11 @@ def main():
     if os.path.exists(rp):
         rk = json.load(open(rp, encoding="utf-8"))
         data["rankings"] = rk["games"]; data["ranking_sources"] = rk["sources"]; data["ranking_method"] = rk.get("method_summary", "")
-    index = {}
-    ip = os.path.join(BRAND, "index.json")
-    if PUBLIC: assert os.path.exists(ip), "public site is missing brand/oem: run tools/publish/build_public_repo.py (it copies the approved artwork into the site)"
-    if os.path.exists(ip):
-        for f in json.load(open(ip, encoding="utf-8"))["files"]: index[("oem", f["file"])] = f
-    web_prov = {}
-    wp = os.path.join(WEB, "provenance.json")
-    if os.path.exists(wp):
-        for f in json.load(open(wp, encoding="utf-8")):
-            if os.path.exists(os.path.join(WEB, f["slug"] + ".png")):
-                index[("web", f["slug"] + ".png")] = {"w": f["width"], "h": f["height"]}; web_prov[f["slug"]] = f
+    index = {}; ccs_index = json.load(open(os.path.join(CCS, "index.json"), encoding="utf-8"))
+    for c in ccs_index["characters"]:
+        for fn in c["frames"]: index[("ccs", fn)] = {"w": c["size"][0], "h": c["size"][1], "walk": c["frames"][1] if fn == c["frames"][0] else None}
+    for k in ("items", "icons", "tiles"):
+        for it in ccs_index[k]: index[("ccs", it["file"])] = {"w": it["size"][0], "h": it["size"][1]}
     hero = "".join(sprite(d, st, sc, index, cls) for d, st, sc, cls in HERO)
     # ---- Studio partials + compact library index (titles + non-curated versions; curated rows already carry full data) ----
     sdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studio")
@@ -925,28 +901,14 @@ def main():
     LIBC = {"generated": lib.get("generated", ""), "counts": lib.get("counts", {}), "titles": [{k: t[k] for k in tkeep if t.get(k) not in ("", None, [])} for t in lib["titles"]], "versions": [{k: v[k] for k in vkeep if v.get(k) not in ("", None, [], False)} for v in lib["versions"] if not v["curated"]]}
     for t in LIBC["titles"]: t.setdefault("curated", False)
     data["lib_counts"] = {"titles": len(lib["titles"]), "versions": len(lib["versions"]), "curated": sum(1 for t in lib["titles"] if t["curated"])}
-    welcome_cast = "".join(sprite(d, st, sc, index) for d, st, sc in [("oem", "px-mario-walk-1", 2), ("oem", "px-link", 2), ("oem", "px-samus", 2), ("oem", "px-kirby", 2), ("oem", "px-pit", 2), ("web", "toad", 2)])
-    GUIDE_CAST = {"start": [("oem", "px-mario-walk-1"), ("oem", "px-question-block-0"), ("web", "goomba")], "buy": [("oem", "px-super-mushroom"), ("oem", "px-fire-flower"), ("oem", "px-banana")],
-        "app": [("oem", "px-dr-mario-pills"), ("oem", "px-pac-man"), ("oem", "px-galaga-fighter")], "website": [("web", "rob"), ("oem", "px-mike-jones"), ("oem", "px-vic-viper")],
-        "getapp": [("oem", "px-dr-mario-viruses"), ("oem", "px-mega-man"), ("oem", "px-metroid")], "desktop": [("oem", "px-mario-walk-2"), ("oem", "px-luigi-walk-2"), ("web", "rob")], "choose": [("oem", "px-kirby"), ("oem", "px-pit"), ("web", "toad")],
-        "versions": [("oem", "px-mario-walk-0"), ("oem", "px-raccoon-mario"), ("oem", "px-jumpman-mario-hammer")], "extended": [("oem", "px-link"), ("oem", "px-link-zelda2"), ("web", "zelda")],
-        "loading": [("oem", "px-luigi-walk-1"), ("oem", "px-shy-guy"), ("web", "yoshi")], "own": [("oem", "px-balloon-fighter"), ("oem", "px-balloon-bird"), ("oem", "px-parasol-waddle-dee")],
-        "import": [("oem", "px-excitebike-rider-red"), ("oem", "px-excitebike-rider-purple"), ("oem", "px-tecmo-bowl-player")], "missing": [("oem", "px-zelda-old-man"), ("web", "octorok"), ("oem", "px-kid-icarus-monoeye")],
-        "rights": [("oem", "px-simon-belmont"), ("oem", "px-ryu-hayabusa"), ("oem", "px-double-dragon-lee")], "saveload": [("oem", "px-samus"), ("oem", "px-metroid"), ("web", "ridley")],
-        "connect": [("web", "rob"), ("oem", "px-little-mac"), ("web", "king-hippo")], "prep": [("oem", "px-mario-bros-mario"), ("oem", "px-shellcreeper"), ("oem", "px-mario-kuribo-shoe")],
-        "install": [("oem", "px-donkey-kong-jr"), ("web", "donkey-kong"), ("oem", "px-pauline")], "update": [("oem", "px-popo"), ("oem", "px-nana"), ("oem", "px-startropics-enemy")],
-        "sync": [("oem", "px-ff-fighter"), ("oem", "px-super-c-soldier"), ("oem", "px-arthur")], "emu": [("oem", "px-bub"), ("oem", "px-pac-man"), ("oem", "px-galaga-fighter")],
-        "controllers": [("web", "duck-hunt-dog"), ("oem", "px-boxing-glove"), ("web", "rob-alt-kdl3")], "backup": [("oem", "px-zelda2-knight"), ("web", "ganon"), ("oem", "px-link")],
-        "tech": [("oem", "px-vic-viper"), ("oem", "px-mega-man"), ("oem", "px-dr-mario-viruses")], "legal": [("oem", "px-zelda-old-man"), ("oem", "px-simon-belmont-2"), ("web", "eggplant-wizard")],
-        "credits": [("web", "mr-game-and-watch"), ("web", "king-dedede"), ("oem", "px-kirby")], "trouble": [("oem", "px-dr-mario-viruses"), ("web", "piranha-plant"), ("web", "bowser")]}
+    GUIDE_CAST = {"start": [("ccs", "carty-0"), ("ccs", "star"), ("ccs", "padd-0")], "buy": [("ccs", "padd-0"), ("ccs", "coin"), ("ccs", "carty-0")], "app": [("ccs", "boltbot-0"), ("ccs", "carty-0"), ("ccs", "gem")], "website": [("ccs", "astro-0"), ("ccs", "padd-0"), ("ccs", "star")], "getapp": [("ccs", "boltbot-0"), ("ccs", "chest"), ("ccs", "carty-0")], "desktop": [("ccs", "padd-0"), ("ccs", "boltbot-0"), ("ccs", "coin")], "choose": [("ccs", "hero-0"), ("ccs", "gem"), ("ccs", "dino-0")], "versions": [("ccs", "wizzy-0"), ("ccs", "carty-0"), ("ccs", "carty-1")], "extended": [("ccs", "wizzy-0"), ("ccs", "star"), ("ccs", "ghosty-0")], "loading": [("ccs", "slimo-0"), ("ccs", "coin"), ("ccs", "dino-0")], "own": [("ccs", "hero-0"), ("ccs", "chest"), ("ccs", "astro-0")], "import": [("ccs", "racer-0"), ("ccs", "carty-0"), ("ccs", "gem")], "missing": [("ccs", "ghosty-0"), ("ccs", "chest"), ("ccs", "batty-0")], "rights": [("ccs", "knightly-0"), ("ccs", "heart"), ("ccs", "wizzy-0")], "saveload": [("ccs", "wizzy-0"), ("ccs", "chest"), ("ccs", "carty-0")], "play": [("ccs", "hero-0"), ("ccs", "padd-0"), ("ccs", "star")], "connect": [("ccs", "boltbot-0"), ("ccs", "padd-0"), ("ccs", "carty-0")], "prep": [("ccs", "carty-0"), ("ccs", "chest"), ("ccs", "boltbot-0")], "tv": [("ccs", "astro-0"), ("ccs", "star"), ("ccs", "padd-0")], "install": [("ccs", "knightly-0"), ("ccs", "carty-0"), ("ccs", "gem")], "update": [("ccs", "dino-0"), ("ccs", "coin"), ("ccs", "racer-0")], "sync": [("ccs", "racer-0"), ("ccs", "padd-0"), ("ccs", "boltbot-0")], "emu": [("ccs", "padd-0"), ("ccs", "hero-0"), ("ccs", "slimo-0")], "controllers": [("ccs", "padd-0"), ("ccs", "padd-1"), ("ccs", "heart")], "backup": [("ccs", "knightly-0"), ("ccs", "chest"), ("ccs", "carty-0")], "tech": [("ccs", "boltbot-0"), ("ccs", "gem"), ("ccs", "astro-0")], "legal": [("ccs", "knightly-0"), ("ccs", "wizzy-0"), ("ccs", "heart")], "credits": [("ccs", "carty-0"), ("ccs", "heart"), ("ccs", "padd-0")], "about": [("ccs", "carty-0"), ("ccs", "heart"), ("ccs", "star")], "trouble": [("ccs", "boltbot-0"), ("ccs", "ghosty-0"), ("ccs", "slimo-0")]}
     def guide_band(m):
         cast = "".join(sprite(d, st, 3, index) for d, st in GUIDE_CAST.get(m.group(1), GUIDE_CAST["start"]))
         return m.group(0) + '<div class="deco" aria-hidden="true">' + cast + '</div>'
     guide_html = re.sub(r'<section data-ch="([a-z-]+)"[^>]*>', guide_band, part("guide.html")).replace('<div class="deco">__G_START__</div>\n', '').replace('<div class="deco">__G_START__</div>', '')
-    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js") + "\n" + part("storage-model.js") + "\n" + part("loadouts.js") + "\n" + part("ccs.js")
-    studio_html = part("studio.html").replace("__WELCOME_CAST__", welcome_cast).replace("__GUIDE_SECTIONS__", guide_html)
-    foot = "".join(sprite("oem", st, 2, index, "", f"{n} — {g}", "eager") for st, n, g in ROSTER)   # the credits strip walks, so its sprites load up front
-    foot += "".join(sprite("web", st, 2, index, "", f"{n} — {web_prov.get(st, {}).get('game_or_origin', '')}", "eager") for st, n in WEB_ROSTER)
+    studio_js = part("studio.js").replace("__LIB__", json.dumps(LIBC, separators=(",", ":")).replace("</", "<\\/")) + "\n" + part("connect.js") + "\n" + part("desktop.js") + "\n" + part("tv.js") + "\n" + part("home-folders.js") + "\n" + part("install.js") + "\n" + part("mock-cover.js") + "\n" + part("customize.js") + "\n" + part("tv-native.js") + "\n" + part("collections.js") + "\n" + part("share.js") + "\n" + part("navigation.js") + "\n" + part("storage-model.js") + "\n" + part("loadouts.js") + "\n" + part("ccs.js") + "\n" + part("play.js") + "\n" + part("game-settings.js") + "\n" + part("tv-landscape.js") + "\n" + part("full-backup.js") + "\n" + part("cast.js") + "\n" + part("home-music.js") + "\n" + part("ccs-play.js") + "\n" + part("tv-player.js") + "\n" + part("pwa.js") + "\n" + part("metrics.js").replace("__CCS_VERSION__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "VERSION"), encoding="utf-8").read().strip())   # optional usage counts (D-123): the release version they report
+    studio_html = part("studio.html").replace("__GUIDE_SECTIONS__", guide_html)
+    foot = "".join(sprite("ccs", c["frames"][0][:-4], 2, index, "", f"{c['name']}: {c['role']}", "eager") for c in ccs_index["characters"])   # the cast strip walks, so its sprites load up front
     howto_loading = "eager"
     empty = "".join(sprite(d, st, sc, index) for d, st, sc in EMPTY_CAST)
     howto = "".join(sprite(d, st, sc, index, "", "", "eager") for d, st, sc in HOWTO_CAST)
@@ -956,13 +918,13 @@ def main():
     except Exception as _e: print("placeholder covers skipped:", _e)
     html = (TEMPLATE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__HERO_CAST__", hero).replace("__FOOTER_CAST__", foot)
             .replace("__EMPTY_CAST__", empty).replace("__HOWTO_CAST__", howto).replace("__FILTERS_CAST__", filt)
-            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css") + "\n" + part("customize.css")).replace("__SEARCH_JS__", part("search.js")).replace("__STORAGE_MODEL__", json.dumps(_storage_model())).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<\/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__HOME_ART__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-art.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
+            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css") + "\n" + part("customize.css")).replace("__SEARCH_JS__", part("search.js")).replace("__STORAGE_MODEL__", json.dumps(_storage_model())).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<\/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__HOME_ART__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-art.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__HOME_HD__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-hd.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
     css0, css1 = html.find("<style>") + 7, html.find("</style>"); html = html[:css1] + dock_twins(html[css0:css1]) + html[css1:]   # docked My Collection twins of every width rule
     if PUBLIC:
         html = (html.replace("<title>NES Classic Collection — Game Selection Catalog</title>", f"<title>{APP_NAME}</title><meta name=\"description\" content=\"{TAGLINE}\"><meta name=\"robots\" content=\"index,follow\"><meta property=\"og:title\" content=\"{APP_NAME}\"><meta property=\"og:description\" content=\"{TAGLINE}\">")
                 .replace(LEGAL_PRIVATE, LEGAL_PUBLIC))
-        # regression guard (owner directive 2026-10-10): the public page must carry the approved visuals — 27-sprite hero, wordmark, box art
-        assert LEGAL_PUBLIC in html and hero.count("<img") == len(HERO) == 27 and "brand/oem/nes-wordmark.png" in html and sum(1 for g in data["games"] if g.get("art")) >= 740, "public build lost the approved visuals"   # 741 since N3.1: five scans that visibly show another region's box are hidden (art_audit.py)
+        # regression guard: the public page carries the CCS cast (every hero sprite present), no console-software or community sprite, and the box art
+        assert LEGAL_PUBLIC in html and hero.count("<img") == len(HERO) and "brand/ccs/" in html and "brand/oem/" not in html and "brand/web/" not in html and sum(1 for g in data["games"] if g.get("art")) >= 740, "public build lost the approved visuals"   # 741 since N3.1: five scans that visibly show another region's box are hidden (art_audit.py)
     out = os.path.join(OUT, "nes-catalog.html")
     open(out, "w", encoding="utf-8").write(html)
     help_src = os.path.join(SRC_TOOLS, "publish", "assets", "help") if "SRC_TOOLS" in globals() else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "help")
@@ -970,7 +932,7 @@ def main():
     if os.path.isdir(home_src): shutil.copytree(home_src, os.path.join(REPORTS, "brand", "home"), dirs_exist_ok=True)   # console HOME theme scenery (from the approved masters): brand/home
     if os.path.isdir(help_src):   # Help & User Guide figures (screenshots and project illustrations) travel with the page: brand/help
         import shutil as _sh; _sh.copytree(help_src, os.path.join(os.path.dirname(out), "brand", "help"), dirs_exist_ok=True)
-    print("wrote", out, "games:", len(data["games"]), "bytes:", len(html), "hero sprites:", hero.count("<img"), "footer sprites:", foot.count("<img"), "web sprites:", len(web_prov), "rankings:", len(data.get("rankings", {})))
+    print("wrote", out, "games:", len(data["games"]), "bytes:", len(html), "hero sprites:", hero.count("<img"), "footer sprites:", foot.count("<img"), "ccs pictures:", len(index), "rankings:", len(data.get("rankings", {})))
 
 if __name__ == "__main__":
     main()

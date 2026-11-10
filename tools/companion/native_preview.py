@@ -7,15 +7,18 @@ tools/console-simulator/core, the same C code the console runs), and relays the 
 buttons go to the core; frames come back as JPEG. Nothing is installed or sent anywhere; the preview's theme changes stay in a
 throwaway state folder, so they never touch the console's saved choice.
 
-  POST /api/preview/start  {manifest, home}  -> {ok, theme, games, seconds, fingerprint, staged: current|outdated|none}
+  POST /api/preview/start  {manifest, home, appearance?, focus?}  -> {ok, theme, games, seconds, fingerprint, staged, appearance, size}
+       appearance "console" (default for old callers): the console's own preview package at 1280 x 720 (the console's appearance);
+       "browser": the computer's high-resolution HOME (the play package's high-resolution files, its own package folder, 2560 x 1440)
   GET  /api/preview/frame                    -> image/jpeg (X-Preview-Seq, X-Preview-Focus headers)
   POST /api/preview/input  {button, action}  -> {ok, state}
   POST /api/preview/theme  {theme}           -> {ok, state}
+  POST /api/preview/music  {music: on|off}   -> {ok, state}   (HOME Music, D-81: what the core's own Settings shows; the core never plays sound)
   GET  /api/preview/state                    -> {ok, running, state, theme, fingerprint, staged}
   POST /api/preview/stop
 """
 from __future__ import annotations
-import io, json, os, queue, shutil, subprocess, sys, tempfile, threading, time
+import atexit, io, json, os, queue, shutil, subprocess, sys, tempfile, threading, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path: sys.path.insert(0, HERE)
 from common import FROZEN, APP_ROOT, WORK, data_path   # noqa: E402
@@ -41,6 +44,11 @@ class Session:
     def __init__(self):
         self.lock = threading.RLock(); self.proc = None; self.q: queue.Queue = queue.Queue(); self.state: dict = {}; self.seq = 0; self.frame: bytes | None = None
         self.t_last = None; self.pkg = None; self.state_dir = None; self.fingerprint = None; self.theme = None; self.tmp = tempfile.mkdtemp(prefix="ccs-preview-")
+        atexit.register(self.close)   # the session's throwaway folder (frames, state, the high-resolution package) goes when the backend exits
+    def close(self):
+        try: self._stop_proc()
+        except Exception: pass
+        shutil.rmtree(self.tmp, ignore_errors=True)
 
     # ---- the core process (line protocol: commands on stdin, JSON events on stdout) ----
     def _reader(self, proc):
@@ -68,29 +76,35 @@ class Session:
             except Exception: self.proc.kill()
         self.proc = None
 
-    def start(self, manifest: dict, home: dict) -> dict:
+    def start(self, manifest: dict, home: dict, appearance: str = "console", focus_id: str | None = None, music: str | None = None) -> dict:
         from native_home import package as P
         exe = core_binary()
         if not exe: return {"ok": False, "error": CORE_PROBLEM or "the native HOME renderer for Windows is not available in this installation", "repair_required": bool(CORE_PROBLEM)}
-        t0 = time.time(); res = P.build(manifest, home, mode="preview")
+        hd = appearance == "browser"; t0 = time.time()
+        # the high-resolution package stays in its own folder (Play This HOME on PC may be running from the main one) but shares the
+        # main folder's derivation cache, so it is derived once per computer instead of once per session
+        res = P.build(manifest, home, mode="play", root=os.path.join(self.tmp, "hd-package"), cache_root=os.path.join(P.package_root(), "cache")) if hd else P.build(manifest, home, mode="preview")
         if not res.get("ok"): return {"ok": False, "status": res.get("status"), "error": res.get("error") or "; ".join(res.get("problems") or [])}
         with self.lock:
-            self._stop_proc(); focus = self.state.get("id")
+            self._stop_proc(); focus = self.state.get("id") or focus_id
             self.pkg = res["package_dir"]; self.fingerprint = (res.get("manifest") or {}).get("configuration", {}).get("content_fingerprint")
             self.state_dir = os.path.join(self.tmp, "state"); shutil.rmtree(self.state_dir, ignore_errors=True)   # the preview never keeps theme choices
             self.q = queue.Queue(); self.state = {}
             flags = 0x08000000 if os.name == "nt" else 0   # CREATE_NO_WINDOW
-            self.proc = subprocess.Popen([exe, f"--state-dir={self.state_dir}"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0, creationflags=flags)
+            self.proc = subprocess.Popen([exe, f"--state-dir={self.state_dir}"] + (["--scale=2"] if hd else []), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0, creationflags=flags)
             threading.Thread(target=self._reader, args=(self.proc,), daemon=True).start()
             if not self._wait("ready", 30): self._stop_proc(); return {"ok": False, "error": "the TV preview did not start"}
             self._send(f"home {self.pkg}"); ev = self._wait(("home_loaded", "home_rejected"), 120)
             if not ev or ev.get("ev") != "home_loaded": self._stop_proc(); return {"ok": False, "error": (ev or {}).get("error") or "the preview package could not be loaded"}
             self.theme = ev.get("theme"); self._wait("home", 10)
+            if music in ("on", "off"): self._send(f"home-music {music}"); self._wait("home", 10)   # HOME Music (D-81): the core's own Settings shows this computer's choice; it never plays
             if focus:   # keep the focused game across a rebuild (by identity)
                 ids = [g["id"] for g in json.load(open(os.path.join(self.pkg, "games.json"), encoding="utf-8"))["games"]]
                 if focus in ids: self._send(f"home-select {ids.index(focus)}"); self._wait("home", 10)
             self.t_last = time.time(); self.frame = None
-        return {"ok": True, "theme": self.theme, "games": res.get("games"), "seconds": round(time.time() - t0, 2), "fingerprint": self.fingerprint, "staged": staged_status(self.fingerprint), "cache": res.get("cache")}
+            self.appearance = "browser" if hd else "console"
+        return {"ok": True, "theme": self.theme, "games": res.get("games"), "seconds": round(time.time() - t0, 2), "fingerprint": self.fingerprint, "staged": staged_status(self.fingerprint), "cache": res.get("cache"),
+                "appearance": self.appearance, "size": [2560, 1440] if hd else [1280, 720]}
 
     def render(self) -> bytes | None:
         """advance the core's clock by the real time since the last frame (held buttons repeat, titles scroll), then draw"""
@@ -110,6 +124,12 @@ class Session:
             now = time.time(); dt = int(min(1000, max(0, (now - (self.t_last or now)) * 1000))); self.t_last = now
             if dt: self._send(f"tick {dt}"); self._wait("tick", 5)
             self._send(f"input {action} {button}"); self._send("home-state"); self._wait("home", 5)
+            return {"ok": True, "state": self.state}
+    def set_music(self, music: str) -> dict:
+        if music not in ("on", "off"): return {"ok": False, "error": "HOME Music is On or Off"}
+        with self.lock:
+            if not self.proc: return {"ok": False, "error": "the preview is not running"}
+            self._send(f"home-music {music}"); self._wait("home", 10)
             return {"ok": True, "state": self.state}
     def set_theme(self, theme: str) -> dict:
         if theme not in THEMES: return {"ok": False, "error": "unknown theme"}
@@ -151,7 +171,9 @@ def handle_get(h, path: str, qs: str):
         if not data: return h._json(409, {"ok": False, "error": "the preview is not running"})
         h.send_response(200); h.send_header("Content-Type", "image/jpeg"); h.send_header("Content-Length", str(len(data))); h.send_header("Cache-Control", "no-store")
         h.send_header("X-Preview-Seq", str(s.seq)); h.send_header("X-Preview-Focus", str((s.state or {}).get("id") or "")); h.send_header("X-Preview-Theme", str((s.state or {}).get("theme") or ""))
-        h.send_header("Access-Control-Expose-Headers", "X-Preview-Seq, X-Preview-Focus, X-Preview-Theme"); h._cors(); h.end_headers(); h.wfile.write(data); return
+        st = s.state or {}; mb = st.get("music_badge"); mb = ",".join(str(int(v)) for v in mb) if isinstance(mb, list) and len(mb) == 4 and all(isinstance(v, (int, float)) for v in mb) else ""
+        h.send_header("X-Preview-Music", f"{st.get('music')};{st.get('music_seq', 0)};{mb}" if st.get("music") in ("on", "off") else "")   # HOME Music changed in the core's own Settings or its badge; where the badge is (stage px)
+        h.send_header("Access-Control-Expose-Headers", "X-Preview-Seq, X-Preview-Focus, X-Preview-Theme, X-Preview-Music"); h._cors(); h.end_headers(); h.wfile.write(data); return
     return h._json(404, {"ok": False, "error": "unknown preview endpoint"})
 def handle_post(h, path: str, body: dict):
     if not _desktop(h): return h._json(403, {"ok": False, "error": "this works only in the Windows app"})
@@ -159,10 +181,11 @@ def handle_post(h, path: str, body: dict):
     if path == "/api/preview/start":
         man, home = body.get("manifest"), body.get("home")
         if not isinstance(man, dict) or not isinstance(home, dict): return h._json(400, {"ok": False, "error": "the collection and the HOME configuration are required"})
-        try: r = s.start(man, home)
+        try: r = s.start(man, home, appearance="browser" if body.get("appearance") == "browser" else "console", focus_id=body.get("focus") if isinstance(body.get("focus"), str) and len(body.get("focus")) <= 40 else None, music=body.get("music") if body.get("music") in ("on", "off") else None)
         except Exception as e: r = {"ok": False, "error": f"the preview could not start: {e}"}
         return h._json(200 if r.get("ok") else 409, r)
     if path == "/api/preview/input": r = s.input(str(body.get("button") or ""), str(body.get("action") or "")); return h._json(200 if r.get("ok") else 400, r)
     if path == "/api/preview/theme": r = s.set_theme(str(body.get("theme") or "")); return h._json(200 if r.get("ok") else 400, r)
+    if path == "/api/preview/music": r = s.set_music(str(body.get("music") or "")); return h._json(200 if r.get("ok") else 400, r)
     if path == "/api/preview/stop": s.stop(); return h._json(200, {"ok": True})
     return h._json(404, {"ok": False, "error": "unknown preview endpoint"})

@@ -36,11 +36,12 @@ PACKAGE_SCHEMA = "ccs-native-home-package/2"; PACK_SCHEMA = "ccs-native-home-pac
 OWNED = ".ccs-native-home-owned"
 HOME_THEMES = ("arcade-grid", "box-art-showcase", "featured-shelf", "adventure-map")
 CATEGORIES = ("executable", "shared", "theme-arcade-grid", "theme-box-art-showcase", "theme-featured-shelf", "theme-adventure-map", "game-covers",
-              "game-details-artwork", "game-theme-artwork", "folder-artwork", "font", "catalog", "descriptions", "configuration", "other")
+              "game-details-artwork", "game-theme-artwork", "folder-artwork", "font", "music", "catalog", "descriptions", "configuration", "other")
 # what the native runtime (tools/console-simulator/core) can display: reachability is decided against this, not against what the
 # Windows application or the browser HOME can show. N3: all four themes and switching between them on the console.
 RUNTIME_FEATURES = {"all-games": True, "game-details": True, "themes": list(HOME_THEMES), "theme-switching": True, "theme-preference-persistence": True,
-                    "browse-folders": True, "categories": True, "favorites": False, "recently-played": False, "search": False, "settings": False, "launch": False}
+                    "browse-folders": True, "categories": True, "favorites": False, "recently-played": False, "search": False, "settings": False, "launch": False,
+                    "home-music": True}   # D-81: START > Settings offers HOME Music On / Off; the console keeps the choice in its state folder
 THEMES = {   # theme -> what its native renderer draws (sprites by name; the scene; the card trim for Arcade Grid)
     "arcade-grid": {"scene": "scene-arcade-grid.png", "ref": "ref-arcade-grid.png", "thumb": "thumb-arcade-grid.jpg", "card_trim": True,
                     "sprites": ["card-frame", "tab-bar", "tab-active", "badge-a", "icon-games", "icon-folder", "icon-star", "icon-clock", "icon-gear", "stat-icon-games"]},
@@ -100,9 +101,9 @@ def _jload(p: str):
     with open(p, encoding="utf-8") as f: return json.load(f)
 
 class Builder:
-    def __init__(self, cfg: dict, root: str, progress=None):
+    def __init__(self, cfg: dict, root: str, progress=None, cache_root: str | None = None):
         self.cfg = cfg; self.root = root; self.progress = progress or (lambda stage, done, total, text="": None)
-        self.cache = DV.Cache(os.path.join(root, "cache")); self.files: dict[str, dict] = {}; self.blockers: list[dict] = []; self.warnings: list[str] = []
+        self.cache = DV.Cache(cache_root or os.path.join(root, "cache")); self.files: dict[str, dict] = {}; self.blockers: list[dict] = []; self.warnings: list[str] = []
         self.excluded: list[dict] = []; self.stage = None
 
     def put(self, rel: str, src: str, category: str, kind: str, **meta):
@@ -127,19 +128,44 @@ class Builder:
 
     def cached(self, kind: str, src_hash: str, params: str, ext: str, make) -> str: return self.cache.get(kind, src_hash, params, ext, make)
 
+    def hd_thumb(self, scene2: str) -> str:
+        """the theme picker's preview at twice the approved thumbnail's size (640 x 360), from the redrawn 2x scene"""
+        from PIL import Image
+        def make(out):
+            with Image.open(scene2) as im: DV.save_jpeg(im.convert("RGB").resize((640, 360), Image.LANCZOS), out, q=90)
+        return self.cached("hd-thumb", DV.sha256_file(scene2), "640x360|q90", ".jpg", make)
+
+    def hd_scene(self, theme: str, src: str, geometry: dict) -> str | None:
+        """the background picture at 2x with its painted panels redrawn (hd_sprites.scene_hd), cached by the picture, layout and version"""
+        from PIL import Image
+        from native_home import hd_sprites as HDS
+        if theme not in HDS.SCENES: return None
+        def make(out):
+            with Image.open(src) as im: HDS.scene_hd(theme, im, geometry).save(out, "PNG", optimize=True)
+        return self.cached("hd-scene", DV.sha256_file(src), f"{theme}|{json.dumps(geometry, sort_keys=True)}|{HDS.VERSION}", ".png", make)
+
+    def hd_sprite(self, theme: str, name: str, src: str) -> str | None:
+        """the high-resolution redrawing of a theme overlay (hd_sprites.py), cached by the sprite's content and the drawing version"""
+        from PIL import Image
+        from native_home import hd_sprites as HDS
+        if not HDS.has(theme, name): return None
+        def make(out):
+            with Image.open(src) as im: HDS.render(theme, name, im.convert("RGBA")).save(out, "PNG", optimize=True)
+        return self.cached("hd-sprite", DV.sha256_file(src), f"{theme}|{name}|{HDS.VERSION}", ".png", make)
+
     def game_cover(self, g: dict) -> tuple[str | None, str, str | None]:
         """effective cover (config.cover_source: the user's replacement > authentic art > the NES-style mock cover; always one image
         per game) -> (package path, kind, the site art path it was derived from)"""
-        cs = CF.cover_source(g); kind = cs["kind"]
+        cs = CF.cover_source(g); kind = cs["kind"]; box = DV.COVER_BOX_HI if self.cfg["mode"] == "play" else DV.COVER_BOX   # the computer: full resolution
         if cs["problem"]: self.warnings.append(f"{g['title']}: {cs['problem']}; the mock cover is shown")
         if kind == "user":
             u = g["art_user"]; crop = json.dumps(u.get("crop"), sort_keys=True); h = u.get("sha256") or DV.sha256_file(u["path"])
-            p = self.cached("user-cover", h, f"{crop}|{DV.COVER_BOX}", ".jpg", lambda out: DV.user_cover(u["path"], u.get("crop"), out))
+            p = self.cached("user-cover", h, f"{crop}|{box}", ".jpg", lambda out: DV.user_cover(u["path"], u.get("crop"), out, box))
         elif kind == "authentic":
-            src = cs["path"]; p = self.cached("cover", DV.sha256_file(src), f"contain{DV.COVER_BOX}", ".jpg", lambda out: DV.cover(src, out))
+            src = cs["path"]; p = self.cached("cover", DV.sha256_file(src), f"contain{box}", ".jpg", lambda out: DV.cover(src, out, box))
         else:
             key = DV.sha256_bytes(json.dumps([g["id"], g.get("title"), g.get("publisher"), g.get("year")], ensure_ascii=False).encode())
-            p = self.cached("mock", key, f"mock-2|{DV.COVER_BOX}", ".jpg", lambda out: DV.mock(g.get("title") or g["id"], g.get("publisher"), g.get("year"), g["id"], out, theme_root()))
+            p = self.cached("mock", key, f"mock-2|{box}", ".jpg", lambda out: DV.mock(g.get("title") or g["id"], g.get("publisher"), g.get("year"), g["id"], out, theme_root(), box))
         d = DV.sha256_file(p); return self.put(f"cover/{d[:16]}.jpg", p, "game-covers", "cover-jpeg", art=kind), kind, cs["rel"]
 
     def _assemble(self) -> dict:
@@ -150,8 +176,12 @@ class Builder:
         for tid, th in THEMES.items():
             T = art["themes"][tid]; cat = f"theme-{tid}"; sprites = {}
             scene = self.put(f"theme/{tid}/scene.png", os.path.join(troot, th["scene"]), cat, "scene-png")
+            scene2 = self.hd_scene(tid, os.path.join(troot, th["scene"]), T["geometry"]) if self.cfg["mode"] == "play" else None   # the computer
             for name in th["sprites"]:
                 sp = T["sprites"][name]; sprites[name] = {"file": self.put(f"theme/{tid}/sprite-{name}.png", os.path.join(troot, sp["file"]), cat, "sprite-png"), "box": sp["box_stage"]}
+                if self.cfg["mode"] == "play":   # the computer: the overlay redrawn in high resolution, when it has a redrawing
+                    p2 = self.hd_sprite(tid, name, os.path.join(troot, sp["file"]))
+                    if p2: sprites[name]["file_2x"] = self.put(f"theme/{tid}/sprite-{name}-2x.png", p2, cat, "sprite-png")
             for name in T["sprites"]:
                 if name not in th["sprites"]: self.excluded.append({"asset": f"{THEME_NAMES[tid]} sprite {name}", "reason": "not drawn by the native renderer"})
             if th.get("card_trim"):
@@ -159,10 +189,15 @@ class Builder:
                 sprites["card-trim"] = {"file": self.put(f"theme/{tid}/sprite-card-trim.png", p, cat, "sprite-png"), "box": T["geometry"]["card"]["frame"]}
             tsrc = os.path.join(troot, th["thumb"]); tp = self.cached("thumb", DV.sha256_file(tsrc), "q88", ".jpg", lambda out, tsrc=tsrc: DV.thumb(tsrc, out))
             themes[tid] = {"name": THEME_NAMES[tid], "scene": scene, "thumb": self.put(f"theme/{tid}/thumb.jpg", tp, "shared", "thumb-jpeg"), "geometry": T["geometry"], "sprites": sprites}
-        icons = {}
+            if scene2:
+                themes[tid]["scene_2x"] = self.put(f"theme/{tid}/scene-2x.png", scene2, cat, "scene-png")
+                themes[tid]["thumb_2x"] = self.put(f"theme/{tid}/thumb-2x.jpg", self.hd_thumb(scene2), "shared", "thumb-jpeg")   # the picker preview
+        icons = {}; icons2 = {}
         for k, sizes in DV.ICON_SIZES.items():
             for sz in sizes:
                 p = self.cached("icon", DV.sha256_bytes(k.encode()), str(sz), ".png", lambda out, k=k, sz=sz: DV.meta_icon(k, out, sz)); icons[f"{k}-{sz}"] = self.put(f"theme/icon-{k}-{sz}.png", p, "shared", "icon-png")
+                if cfg["mode"] == "play":   # the computer: the same icon drawn at twice the size
+                    p2 = self.cached("icon", DV.sha256_bytes(k.encode()), str(sz * 2), ".png", lambda out, k=k, sz=sz: DV.meta_icon(k, out, sz * 2)); icons2[f"{k}-{sz}"] = self.put(f"theme/icon-{k}-{sz}-2x.png", p2, "shared", "icon-png")
         done += 4; tick("themes")
         # games: effective cover (user > authentic > mock), the Details backdrop (own hero or the shared fallback), the Featured
         # Shelf key art (own hero or the shared fallback), effective texts and their previews
@@ -222,8 +257,19 @@ class Builder:
             want = sorted(c for c in (sets[cs] if fam != "sym" else set(DV.SYMBOLS)) if c.isprintable() or c == " ")
             if fam == "sym": want = [c for c in want if c in DV.SYMBOLS]
             src_id = DV.sha256_bytes(("".join(want) + fam + str(w) + str(px)).encode())
-            p = self.cached("font", src_id, f"{name}|{DV.COVERAGE_EXP}", ".ccsf", lambda out, name=name, fam=fam, w=w, px=px, want=want: DV.bake_font(name, fam, w, px, want, troot, out))
-            fonts[name] = {"file": self.put(f"font/{name}.ccsf", p, "font", "font-atlas"), "px": px, "family": DV.FAMILY_LABEL[fam]}
+            hd = DV.HD_FACES.get(fam)   # F19 (D-101): no pixel typeface anywhere: the console's 1280 x 720 HOME too sets its text in the smooth stand-in, at its own size
+            if hd:
+                gf = (hd[0], hd[1], max(1, round(px * hd[2])), hd[3])
+                p = self.cached("font", src_id, f"{name}|hd-{gf}|{DV.COVERAGE_EXP}", ".ccsf", lambda out, name=name, fam=fam, w=w, px=px, want=want, gf=gf: DV.bake_font(name, fam, w, px, want, troot, out, glyphs_from=gf))
+            else:
+                p = self.cached("font", src_id, f"{name}|{DV.COVERAGE_EXP}", ".ccsf", lambda out, name=name, fam=fam, w=w, px=px, want=want: DV.bake_font(name, fam, w, px, want, troot, out))
+            fonts[name] = {"file": self.put(f"font/{name}.ccsf", p, "font", "font-atlas"), "px": px, "family": DV.FAMILY_LABEL[hd[0] if hd else fam]}   # the face its glyphs are drawn from
+            if hd: fonts[name]["layout"] = DV.FAMILY_LABEL[fam]   # the approved design's metrics the smooth face keeps (F19)
+            if cfg["mode"] == "play":   # the computer's full-resolution HOME draws these glyphs (the 1x face still lays out)
+                src2 = DV.sha256_bytes(("".join(want) + fam + str(w) + str(px * 2)).encode())
+                gf2 = (hd[0], hd[1], max(1, round(px * 2 * hd[2])), hd[3]) if hd else None
+                p2 = self.cached("font", src2, f"{name}@2x|{gf2 or ''}|{DV.COVERAGE_EXP}", ".ccsf", lambda out, name=name, fam=fam, w=w, px=px, want=want, gf2=gf2: DV.bake_font(name, fam, w, px * 2, want, troot, out, glyphs_from=gf2))
+                fonts[name]["file_2x"] = self.put(f"font/{name}-2x.ccsf", p2, "font", "font-atlas")
             missing |= {c for c in want if c.strip()} - _atlas_chars(p)
         if missing: self.warnings.append(f"{len(missing)} character(s) have no glyph in some face and show as '?': {''.join(sorted(missing))[:40]}")
         for lic, src in DV.font_licenses(troot).items(): self.put(f"licenses/{lic}", src, "font", "license")
@@ -238,9 +284,19 @@ class Builder:
             if not (info.get("machine") == "ARM" and info.get("class") == "32-bit"): self.blockers.append({"code": "runtime-arch", "text": f"the native runtime is {info.get('class')} {info.get('machine')}, not 32-bit ARM"})
         elif cfg["mode"] == "deployment": self.blockers.append({"code": "runtime-missing", "text": RUNTIME_PROBLEM or "the native HOME runtime for the console (32-bit ARM) is not available in this installation"})
         done += 1; tick("runtime")
+        # HOME Music (D-81): an installation carries the song once (PCM, played by the runtime's device adapter); a TV Preview package only
+        # says that HOME Music exists and what this computer's choice is (the page plays it; generating frames never plays sound); a Play
+        # on PC package has none (the game window plays it from the application)
+        music = None
+        if cfg["mode"] == "deployment":
+            import home_music as HMU
+            mp, mi = HMU.asset(), HMU.info().get("native") or {}
+            if mp: music = {"file": self.put("music/" + HMU.FILE, mp, "music", "pcm-wav"), "default": "on", "format": "s16le", "rate": 48000, "channels": 2, "frames": mi.get("frames"), "sha256": mi.get("sha256")}
+            else: self.warnings.append("HOME Music is not in this installation, so this HOME package has no music")
+        elif cfg["mode"] == "preview": music = {"file": None, "default": "off" if cfg.get("home_music") == "off" else "on"}
         # the runtime index (pack.json, games.json) and the configuration snapshot
-        pack = {"schema": PACK_SCHEMA, "stage": [1280, 720], "theme_default": cfg["theme"], "theme_apply": cfg.get("theme_apply_epoch"), "themes": themes, "icons": icons,
-                "fonts": fonts, "games": "games.json", "count": len(recs), "counts": {"games": len(recs), "folders": len(cfg.get("folders") or []), "favorites": len(cfg.get("favorites") or [])}, "map_shortcuts": cfg.get("map_shortcuts") or [None, None], "map_folders": browse["map_folders"], "browse": {"folders": browse["folders"], "categories": browse["categories"]}}
+        pack = {"schema": PACK_SCHEMA, "stage": [1280, 720], "theme_default": cfg["theme"], "theme_apply": cfg.get("theme_apply_epoch"), "themes": themes, "icons": icons, **({"icons_2x": icons2} if icons2 else {}),
+                "fonts": fonts, **({"music": music} if music else {}), "games": "games.json", "count": len(recs), "counts": {"games": len(recs), "folders": len(cfg.get("folders") or []), "favorites": len(cfg.get("favorites") or [])}, "map_shortcuts": cfg.get("map_shortcuts") or [None, None], "map_folders": browse["map_folders"], "browse": {"folders": browse["folders"], "categories": browse["categories"]}}
         gdoc = {"schema": GAMES_SCHEMA, "collection": cfg["collection"].get("name"), "count": len(recs), "games": recs}
         self.put_bytes("games.json", json.dumps(gdoc, ensure_ascii=False, indent=0).encode("utf-8"), "catalog", "games-json")
         self.put_bytes("pack.json", json.dumps(pack, ensure_ascii=False, indent=1).encode("utf-8"), "catalog", "pack-json")
@@ -256,7 +312,7 @@ class Builder:
             p = os.path.join(self.stage, rel.replace("/", os.sep)); size = os.path.getsize(p); m = self.files[rel]
             files.append({"path": rel, "size": size, "sha256": DV.sha256_file(p), **m}); totals[m["category"]] = totals.get(m["category"], 0) + size
         cfg = self.cfg; ready = cfg["mode"] == "deployment" and not self.blockers
-        why = {"development": "development full-catalog package: never an installation", "preview": "TV Preview package: rendered on this computer only, never an installation"}
+        why = {"development": "development full-catalog package: never an installation", "preview": "TV Preview package: rendered on this computer only, never an installation", "play": "Play on PC package: the HOME played on this computer, never an installation"}
         return {"schema": PACKAGE_SCHEMA, "mode": cfg["mode"], "installable": ready,
                 "not_installable_reason": None if ready else (why.get(cfg["mode"]) or "; ".join(b["text"] for b in self.blockers)),
                 "configuration": {"fingerprint": cfg["fingerprint"], "content_fingerprint": cfg.get("content_fingerprint"), "collection": cfg["collection"], "theme_default": cfg["theme"], "theme_apply": cfg.get("theme_apply_epoch"), "themes_installed": list(HOME_THEMES)},
@@ -274,10 +330,11 @@ class Builder:
                 if rel != OWNED: on_disk.add(rel)
         if on_disk != listed: problems.append(f"files and manifest differ: extra {sorted(on_disk - listed)[:3]}, missing {sorted(listed - on_disk)[:3]}")
         pack = _jload(os.path.join(self.stage, "pack.json")); gd = _jload(os.path.join(self.stage, "games.json"))
-        refs = [pack["games"]] + list(pack["icons"].values()) + [f["file"] for f in pack["fonts"].values()]
-        for t in pack["themes"].values(): refs += [t["scene"], t["thumb"]] + [s["file"] for s in t["sprites"].values()]
+        refs = [pack["games"]] + list(pack["icons"].values()) + list((pack.get("icons_2x") or {}).values()) + [f["file"] for f in pack["fonts"].values()] + [f["file_2x"] for f in pack["fonts"].values() if f.get("file_2x")]
+        for t in pack["themes"].values(): refs += [t["scene"], t["thumb"]] + [t[k] for k in ("scene_2x", "thumb_2x") if t.get(k)] + [s["file"] for s in t["sprites"].values()] + [s["file_2x"] for s in t["sprites"].values() if s.get("file_2x")]
         for g in gd["games"]: refs += [x for x in (g.get("cover"), g.get("hero"), g.get("hero_wide"), g.get("text")) if x]
         refs += [f["art"] for f in (pack.get("browse") or {}).get("folders") or [] if f.get("art")]   # folder tile artwork (Browse)
+        if (pack.get("music") or {}).get("file"): refs.append(pack["music"]["file"])   # HOME Music (D-81)
         if set(pack["themes"]) != set(HOME_THEMES): problems.append("not all four themes are in the package")
         for r in refs:
             if r not in listed: problems.append(f"unresolved reference {r}")
@@ -294,7 +351,7 @@ class Builder:
 
     def _swap(self) -> str:
         """the validated staging tree replaces the current package in one rename; the previous package goes after the swap"""
-        name = {"deployment": "current", "development": "development", "preview": "preview"}[self.cfg["mode"]]; final = os.path.join(self.root, name); old = None
+        name = {"deployment": "current", "development": "development", "preview": "preview", "play": "play"}[self.cfg["mode"]]; final = os.path.join(self.root, name); old = None
         if os.path.isdir(final): old = final + f".old-{uuid.uuid4().hex[:6]}"; _replace_retry(final, old)
         _replace_retry(self.stage, final); self.stage = None
         if old: self._remove_owned(old)
@@ -363,18 +420,23 @@ def browse_index(cfg: dict, recs: list) -> dict:
     art = [(_folder_art_wide(f["id"]) if f.get("art") else None) for f in ordered]
     return {"folders": folders, "_art_src": art, "categories": categories(recs), "map_folders": [fidx.get(x, -1) if x else -1 for x in (cfg.get("map_shortcut_ids") or [None, None])[:2]]}
 
-def build(manifest: dict | None, home: dict | None, *, mode: str = "deployment", root: str | None = None, progress=None, apply_epoch: int | None = None) -> dict:
-    """the one entry point (backend route and CLI): resolve the configuration, then build, validate and stage"""
+import threading as _threading
+_BUILD_LOCK = _threading.Lock()   # one build at a time: Preview, Play on PC and installation share the derivation cache (its files are renamed into place)
+def build(manifest: dict | None, home: dict | None, *, mode: str = "deployment", root: str | None = None, progress=None, apply_epoch: int | None = None, cache_root: str | None = None) -> dict:
+    """the one entry point (backend route and CLI): resolve the configuration, then build, validate and stage. cache_root: a
+    derivation cache shared with another package root (default: the root's own cache)"""
+    with _BUILD_LOCK: return _build(manifest, home, mode=mode, root=root, progress=progress, apply_epoch=apply_epoch, cache_root=cache_root)
+def _build(manifest, home, *, mode, root, progress, apply_epoch, cache_root=None) -> dict:
     root = root or package_root()
-    if mode in ("deployment", "preview"):
+    if mode in ("deployment", "preview", "play"):
         if manifest is None or home is None: return {"ok": False, "status": "invalid-configuration", "ready": False, "error": "deployment needs the collection and the HOME configuration; nothing is packaged without them"}
         try: cfg = CF.resolve(manifest, home)
         except CF.ConfigError as e: return {"ok": False, "status": "invalid-configuration", "ready": False, "error": str(e)}
-        cfg["mode"] = mode
+        cfg["mode"] = mode; cfg["home_music"] = "off" if isinstance(home, dict) and home.get("home_music") == "off" else "on"   # a TV Preview shows this computer's HOME Music choice
         if cfg.get("theme_apply") and mode == "deployment": cfg["theme_apply_epoch"] = apply_epoch or next_apply_epoch(root)
     elif mode == "development": cfg = CF.development_full_catalog()
     else: return {"ok": False, "status": "invalid-configuration", "ready": False, "error": f"unknown mode {mode!r}"}
-    t0 = time.time(); res = Builder(cfg, root, progress).build(); res["seconds"] = round(time.time() - t0, 2); res["mode"] = mode; return res
+    t0 = time.time(); res = Builder(cfg, root, progress, cache_root).build(); res["seconds"] = round(time.time() - t0, 2); res["mode"] = mode; return res
 
 def inspect(root: str | None = None, name: str = "current") -> dict | None:
     p = os.path.join(root or package_root(), name, "manifest.json")

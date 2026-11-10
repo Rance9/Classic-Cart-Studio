@@ -1,10 +1,15 @@
 /* ==== "As Seen on TV": the Preview on TV button and the Proposed Menu Preview ==== */
-.tvbtn{display:inline-flex;align-items:center;justify-content:center;width:52px;height:44px;padding:0;flex:none;background:transparent;border:1px solid transparent;border-radius:8px;cursor:pointer;margin:-4px 0}
+.tvbtn{display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;min-height:44px;padding:2px 12px 2px 4px;flex:none;background:rgba(255,255,255,.04);border:1px solid var(--line2);border-radius:10px;cursor:pointer;margin:-4px 0;color:var(--ink);text-align:left}
+.tvbtn .tvbl{display:flex;flex-direction:column;line-height:1.15}.tvbtn .tvbl b{font-size:13px;white-space:nowrap}.tvbtn .tvbl small{font-size:11px;color:var(--muted);white-space:nowrap}
 .tvbtn img{width:48px;height:auto;max-height:40px;object-fit:contain;display:block;image-rendering:auto}
 .tvbtn:hover{background:rgba(255,255,255,.06);border-color:var(--line2)}
 .tvbtn:focus-visible{outline:2px solid var(--red3);outline-offset:1px}
-@media (max-width:900px){.tvbtn img{width:42px}}
-.toolsfold.stack:not(.measuring) .row.tools .tvbtn{flex:0 0 52px;height:36px;margin:0}
+@media (max-width:900px){.tvbtn img{width:42px}}@media (max-width:560px){.tvbtn .tvbl small{display:none}.tvbtn{padding-right:8px}}
+/* narrower windows: the label on two lines and no second line, so the toolbar keeps one row as before the label (with a loadout open
+   too, down to 800 px; phones: the My Collections button shortens its own text instead of overlapping it) */
+@media (max-width:1100px){.tvbtn .tvbl small{display:none}.tvbtn .tvbl b{white-space:normal;width:80px;font-size:12px;line-height:1.12}}
+@media (max-width:1000px){.tvbtn .tvbl b{width:62px;font-size:10.5px}}
+.toolsfold.stack:not(.measuring) .row.tools .tvbtn{flex:none;min-height:40px;margin:0}
 .toolsfold.stack:not(.measuring) .row.tools .tvbtn img{width:42px}
 .toolsfold.stack:not(.measuring) .row.tools #filtersBtn,.toolsfold.stack:not(.measuring) .row.tools .menuwrap,.toolsfold.stack:not(.measuring) .row.tools .seg{flex:1 1 calc((100% - 52px - 24px) / 3)}
 .vis-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -83,7 +88,7 @@
 .tvassume{margin:0;padding:0;list-style:none;font-size:12px;color:var(--ink2)}.tvassume li{margin:0 0 6px}.tvassume .lv{margin:0 4px 0 0}
 .tvsel{width:100%;margin-top:6px;background:#0b0b0e;color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:6px;font:inherit;font-size:12px}
 .tvdiff{margin-top:8px}.tvdiff .mut{color:var(--muted)}
-.tvfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2);flex-wrap:wrap}.tvfoot .r{display:flex;gap:6px}
+.tvfoot:empty{display:none}.tvfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2);flex-wrap:wrap}.tvfoot .r{display:flex;gap:6px}
 /* responsive: the side panel goes below the stage on narrower screens; the stage stays 16:9 and uncropped; on a phone the four theme
    buttons wrap onto rows that fill the width instead of running past the edge (1 px gaps show the divider color) */
 @media (max-width:1100px){.tvmain{display:block;overflow:auto}.tvstagewrap{display:block}.tvpad{margin:10px 0 12px}.tvside{max-height:none;overflow:visible}.tvstage{width:100%;height:auto}}
@@ -105,6 +110,150 @@ html.vp-short .tvbox{overflow-y:auto;overscroll-behavior:contain}html.vp-short .
 html.vp-short .tvstage{--tvfit:calc(var(--vph,100dvh) - 105px)}
 html.vp-short .tvt>div{min-width:0}html.vp-short #tvSub{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ---- the close control: always the top right corner of the modal (inside the header), large, obvious ---- */
+/* HOME Music (D-81): the toggle in the tools (its state in words and in the icon) and the tap control the stage shows while a browser
+   waits for a tap: at the bottom of the stage, centered above the HOME's hints, off the brand, the navigation and the pad (home-music.js
+   hmTapPlace places it; this is where it starts) */
+.tvmusic{display:inline-flex;align-items:center;gap:6px}.tvmusic svg{flex:none}.tvmusicnote{color:#c9c5d8;max-width:22em}.tvmusicnote:empty{display:none}
+.tvmusictap{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);z-index:6;white-space:nowrap;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid rgba(255,255,255,.4);background:rgba(16,16,22,.9);color:#fff;font:inherit;font-size:14px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.tvmusictap[hidden]{display:none}.tvmusictap:hover,.tvmusictap:focus-visible{background:var(--red);border-color:var(--red3);outline:none;box-shadow:0 0 0 3px rgba(228,0,15,.35)}
+@media (pointer:coarse){.tvmusic{min-height:44px}}
+/* a touch screen: the on-screen pad's own HOME Music button (home-music.js), full size; with a mouse the HOME's compact note is enough */
+.tvpad .muh{display:none;align-items:center}
+@media (pointer:coarse){.tvpad .muh{display:flex}}
+.tvpad .pb.mu{width:44px;height:44px;min-width:44px;padding:0;border-radius:50%}.tvpad .pb.mu svg{display:block}
 .tvclose{position:absolute;top:8px;right:10px;z-index:20;width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:#1b1b22;color:#fff;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.5)}
 .tvclose:hover,.tvclose:focus-visible{background:var(--red);border-color:var(--red3);outline:none;box-shadow:0 0 0 3px rgba(228,0,15,.35)}
 @media (max-width:640px){.tvclose{top:6px;right:6px;width:36px;height:36px}.tvhd{padding-right:48px}}
+
+/* Preview for: Browser HOME | NES Classic Console HOME (tv.js tvSetAppearance) */
+.tvtools .tvappear{display:flex;align-items:stretch;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.03)}
+.tvtools .tvappear .seglab{display:flex;align-items:center;font-size:12px;color:#b9b6c8;padding:0 8px;white-space:nowrap}
+.tvtools .tvappear .tvap{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.15;padding:5px 10px;border:0;border-left:1px solid var(--line2);border-radius:0;min-height:40px;text-align:left}
+.tvtools .tvappear .tvap b{font-size:12px}
+.tvtools .tvappear .tvap small{font-size:10.5px;font-weight:500;opacity:.82}
+.tvtools .tvappear .tvap.active{background:#e4000f;color:#fff}
+@media (max-width:640px){ .tvtools .tvappear{width:100%} .tvtools .tvappear .tvap{flex:1 1 0} .tvtools .tvappear .seglab{padding:0 6px} }
+
+/* ---- the largest HOME (tv-landscape.js): phones and tablets always (landscape only), the computer with Full Screen ----
+   The stage is the largest 16:9 area of the visible page (--tvl-*: the visual viewport's whole rectangle, offsets included, less the safe
+   areas; tv-landscape.js); the touch controls sit in the space beside it, or over its edges when there is none (.tvl-over); Close, the
+   options button and every control are placed by tv-landscape.js inside that same rectangle (left/top from --tvl-*). */
+#tv.tvmax{padding:0}
+#tv.tvmax .tvbox{width:100%;height:100%;max-height:none;border-radius:0;border:0;background:#000;box-shadow:none}
+#tv.tvmax .tvmain{display:block;padding:0;overflow:hidden;position:relative;height:100%}
+#tv.tvmax .tvside,#tv.tvmax .tvfoot,#tv.tvmax .tvhint{display:none}
+#tv.tvmax .tvstagewrap{display:block}
+#tv.tvmax .tvstage{position:fixed;left:var(--tvl-x,0);top:var(--tvl-y,0);width:var(--tvl-w,100vw);height:var(--tvl-h,56.25vw);max-width:none;max-height:none;margin:0;z-index:1;border-radius:0}
+#tv.tvmax .tvhd{position:fixed;top:0;left:0;right:0;z-index:6;border:0;padding:0;background:none;pointer-events:none;min-height:0}
+#tv.tvmax .tvt,#tv.tvmax .tvtools{display:none}
+#tv.tvmax .tvclose{position:fixed;left:var(--tvl-cx,auto);top:var(--tvl-cy,6px);right:auto;width:44px;height:44px;pointer-events:auto;z-index:7;background:rgba(20,20,26,.85)}
+.tvmore{display:none}
+#tv.tvmax .tvmore{display:flex;position:fixed;top:var(--tvl-my,6px);left:var(--tvl-mx,8px);width:44px;height:44px;border-radius:50%;align-items:center;justify-content:center;background:rgba(20,20,26,.85);color:#fff;border:1px solid var(--line2);font-size:22px;line-height:1;pointer-events:auto;z-index:7;cursor:pointer}
+#tv.tvmax.tvl-tools .tvtools{display:flex;position:fixed;top:var(--tvl-ty,56px);left:var(--tvl-tx,8px);width:var(--tvl-tw,auto);right:auto;max-height:var(--tvl-th,calc(100% - 64px));overflow:auto;z-index:8;pointer-events:auto;background:rgba(18,18,22,.97);border:1px solid var(--line2);border-radius:12px;padding:10px}
+#tv.tvmax .tvpad{position:fixed;inset:0;z-index:5;pointer-events:none;display:block;margin:0}
+#tv.tvmax .tvpad>*{pointer-events:auto}
+#tv.tvmax .tvpad .dpad{position:fixed;left:var(--tvl-dx,8px);top:var(--tvl-dy,50%);grid-template-columns:44px 44px 44px;grid-template-rows:44px 44px 44px;gap:4px}
+#tv.tvmax .tvpad .dpad .pb{min-width:44px;height:44px}
+#tv.tvmax .tvpad .abh{position:fixed;left:var(--tvl-abx,auto);top:var(--tvl-aby,50%);gap:10px}
+#tv.tvmax .tvpad .pb.a,#tv.tvmax .tvpad .pb.b{width:54px;height:54px;font-size:17px}
+#tv.tvmax .tvpad .ssh{position:fixed;left:var(--tvl-ssx,auto);top:var(--tvl-ssy,auto);margin:0;display:flex;gap:6px}
+#tv.tvmax .tvpad .ssh .pb{min-height:44px;padding:0 10px}
+#tv.tvmax .tvpad .muh{position:fixed;left:var(--tvl-mux,8px);top:var(--tvl-muy,auto);margin:0}
+#tv.tvmax.tvl-over .tvpad .pb{opacity:.74}
+/* the rotate screen: nothing of the HOME shows or takes input behind it */
+.tvrotate{position:fixed;left:var(--tvl-vx,0px);top:var(--tvl-vy,0px);width:var(--tvl-vw,100vw);height:var(--tvl-vh,100vh);overflow:auto;box-sizing:border-box;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));background:#0b0a12;color:#f2f0ea;text-align:center}
+.tvrotate[hidden]{display:none}
+.tvrotate h3{margin:0;font-size:20px}
+.tvrotate p{margin:0;max-width:30em;color:#c9c5d8}
+.tvrotate .btn{min-height:44px}
+.tvrico span{display:block;width:40px;height:66px;border:3px solid #f2f0ea;border-radius:9px;animation:tvrot 2.4s ease-in-out infinite}
+@keyframes tvrot{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+@media (prefers-reduced-motion:reduce){.tvrico span{animation:none;transform:rotate(-90deg)}}
+#tv.tvl-blocked .tvstage,#tv.tvl-blocked .tvpad,#tv.tvl-blocked .tvmain,#tv.tvl-blocked .tvhd{visibility:hidden}
+/* ---- ws12: the Preview's own game player and pop-out (tv-player.js, ccs-play.js) ---- */
+/* the embedded player's pictures (Windows app): the HOME at 2560 x 1440 scaled smoothly into the TV picture; a game at its own size with
+   its proportions, nearest pixels, black around it */
+#tvStage.tpapp #tvHome,#tvStage.tpweb #tvHome{visibility:hidden}
+#tvStage .tpcv{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:2;display:block}
+#tvStage .tpcv[hidden]{display:none}
+#tvStage .tpcv.tpgame{inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:auto;height:auto;image-rendering:pixelated;object-fit:fill}
+#tvStage .tpcv:not(.tpgame){image-rendering:auto}
+/* the loading panel (F18): centered horizontally and vertically over the TV picture, never the whole page */
+#tvStage .tpload,#tvStage .tppop{position:absolute;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(6,6,10,.72)}
+#tvStage .tppop{background:radial-gradient(ellipse at 50% 40%,#1c1a2a 0,#0b0a12 75%)}
+#tvStage .tpbox{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:min(30em,92%);padding:22px 26px;border-radius:14px;background:#15131f;border:1px solid #3a3550;box-shadow:0 18px 50px rgba(0,0,0,.6);color:#e9e7e1;text-align:center}
+#tvStage .tpbox b{font-family:var(--display,inherit);letter-spacing:1px;font-size:17px;color:#fff}
+#tvStage .tpbox span{font-size:13px;color:#c9c5d8;line-height:1.45}
+#tvStage .tpbox .tpacts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;padding:4px}
+#tvStage .tpspin{width:40px;height:40px;border-radius:50%;border:4px solid rgba(255,255,255,.16);border-top-color:#e4000f;animation:tpspin .85s linear infinite}
+#tvStage .tpx{display:grid;place-content:center;width:40px;height:40px;border-radius:50%;background:#e4000f;color:#fff;font-style:normal;font-weight:800;font-size:22px}
+@keyframes tpspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#tvStage .tpspin{animation:none;border-top-color:rgba(255,255,255,.16);border-left-color:#e4000f}}
+#tvStage.tpbusy #tvHome,#tvStage.tpbusy .tpcv{pointer-events:none}
+/* the toolbar (F11): Theme, Display and More as menus; Pop Out; HOME Music; Close stays at the right */
+.tvtools .tvmenu{position:relative}
+.tvtools .tvmb{display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.tvtools .tvmb .lbl{color:#b9b6c8;font-weight:500}
+.tvtools .tvmb .car{font-size:10px;opacity:.8}
+.tvtools .tvdrop{position:absolute;top:calc(100% + 6px);left:0;z-index:20;min-width:240px;display:flex;flex-direction:column;gap:2px;padding:6px;border-radius:10px;background:#1b1a24;border:1px solid var(--line2);box-shadow:0 16px 40px rgba(0,0,0,.6)}
+.tvtools .tvdrop[hidden]{display:none}
+.tvtools .tvdrop button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;min-height:40px;padding:7px 10px 7px 32px;border:0;border-radius:8px;background:none;color:var(--ink);text-align:left;cursor:pointer;position:relative;font:inherit;font-size:13px}
+.tvtools .tvdrop button small{font-size:11px;color:#a9a5b8}
+.tvtools .tvdrop button:hover,.tvtools .tvdrop button:focus-visible{background:rgba(255,255,255,.08);outline:none}
+.tvtools .tvdrop button:focus-visible{box-shadow:inset 0 0 0 2px var(--red3)}
+.tvtools .tvdrop button[aria-checked=true]::before{content:"";position:absolute;left:11px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:#e4000f;box-shadow:0 0 0 2px rgba(228,0,15,.3)}
+.tvtools .tvdrop button.tvtheme.active{background:rgba(228,0,15,.14);color:#fff;border:0}
+.tvtools .tvdrop hr{border:0;border-top:1px solid var(--line2);margin:4px 2px}
+#tv.tvmax .tvtools .tvdrop{position:static;box-shadow:none;margin-top:4px}
+/* the website's game player (ccs-play.js): the picture with its proportions on black; the menus at 2560 x 1440, smooth; X opens the
+   game menu; touch controls only on touch screens (D-75: black around the picture, the controls outside it, CCS at the top left) */
+.cpsurf{position:absolute;inset:0;z-index:6;display:none;align-items:center;justify-content:center;background:#000;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow:hidden}
+.cpsurf.on{display:flex}
+.cpsurf canvas{display:block;image-rendering:pixelated;max-width:100%;max-height:100%}
+.cpsurf canvas.cpmenu{image-rendering:auto}
+.cpsurf canvas[hidden]{display:none}
+.cpsurf.nocursor canvas.cpgame{cursor:none}
+.cpsurf .cpx{position:absolute;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));z-index:3;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(20,20,26,.72);color:#fff;font-size:18px;cursor:pointer}
+.cpsurf .cpx:focus-visible{outline:2px solid var(--red3);outline-offset:2px}
+.cpsurf .cpbrand{position:absolute;top:max(8px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:3;font-family:var(--display,inherit);font-size:12px;letter-spacing:1.5px;color:#e4000f;font-weight:800;pointer-events:none;opacity:.9}
+.cpsurf .cptouch{display:none}
+.cpsurf .cpsound{position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4}
+.cpsurf .cpsound[hidden]{display:none}
+@media (pointer:coarse){
+ .cpsurf .cptouch{display:block;position:absolute;inset:0;z-index:2;pointer-events:none}
+ .cpsurf .cpdpad{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));width:min(150px,34vh);height:min(150px,34vh);border-radius:50%;background:rgba(255,255,255,.07);pointer-events:auto;touch-action:none}
+ .cpsurf .cpdpad i{position:absolute;background:rgba(255,255,255,.22);border-radius:6px}
+ .cpsurf .cpdpad i.u,.cpsurf .cpdpad i.d{left:36%;width:28%;height:36%}.cpsurf .cpdpad i.u{top:4%}.cpsurf .cpdpad i.d{bottom:4%}
+ .cpsurf .cpdpad i.l,.cpsurf .cpdpad i.r{top:36%;height:28%;width:36%}.cpsurf .cpdpad i.l{left:4%}.cpsurf .cpdpad i.r{right:4%}
+ .cpsurf .cpdpad[data-on~=up] i.u,.cpsurf .cpdpad[data-on~=down] i.d,.cpsurf .cpdpad[data-on~=left] i.l,.cpsurf .cpdpad[data-on~=right] i.r{background:#e4000f}
+ .cpsurf .cpab{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(22px,env(safe-area-inset-bottom));display:flex;gap:14px;pointer-events:auto;touch-action:none}
+ .cpsurf .cpab b{display:grid;place-content:center;width:min(66px,15vh);height:min(66px,15vh);border-radius:50%;background:#b0000c;color:#fff;font-size:22px;font-weight:800;box-shadow:inset 0 -4px 0 rgba(0,0,0,.3)}
+ .cpsurf .cpab b:first-child{margin-top:22px}
+ .cpsurf .cpss{position:absolute;left:50%;bottom:max(6px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:12px;pointer-events:auto;touch-action:none}
+ .cpsurf .cpss b{display:grid;place-content:center;min-width:72px;height:44px;padding:0 10px;border-radius:22px;background:rgba(255,255,255,.14);color:#fff;font-size:11px;letter-spacing:1px}
+ .cpsurf .cptouch b.on{background:#e4000f}
+}
+/* the separate window (Pop Out, website): the HOME and the game fill it */
+body.tppopbody{margin:0;background:#000;overflow:hidden}
+body.tppopbody .tppopstage{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;aspect-ratio:auto;border-radius:0;margin:0;box-shadow:none}
+/* W1 (D-104): a phone plays on its whole visible screen. The surround is black; the game keeps its proportions in the middle; the D-pad and
+   SELECT stand in the left column, A/B and START in the right one (outside the picture, inside the safe areas); the Studio's name small at
+   the top left (not a button) and X (the game menu) at the top right. The rotate screen stays above it */
+.cpsurf.cpfull{position:fixed;inset:auto;left:var(--tvl-vx,0px);top:var(--tvl-vy,0px);width:var(--tvl-vw,100vw);height:var(--tvl-vh,100dvh);z-index:15;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);box-sizing:border-box}
+.cpsurf .cpsafe{position:absolute;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.cpsurf .cpbrand{display:none}
+.cpsurf.cpfull .cpbrand{display:block;color:#fff;font-size:11px;line-height:1;letter-spacing:1.2px}.cpsurf.cpfull .cpbrand span{color:#e4000f}
+@media (pointer:coarse){
+ .cpsurf.cpfull .cpdpad{left:calc(env(safe-area-inset-left) + (var(--cp-col,176px) - min(150px,34vh)) / 2);top:50%;bottom:auto;transform:translateY(-50%)}
+ .cpsurf.cpfull .cpab{right:calc(env(safe-area-inset-right) + (var(--cp-col,176px) - 2 * min(66px,15vh) - 14px) / 2);top:50%;bottom:auto;transform:translateY(-50%)}
+ .cpsurf.cpfull .cpss{inset:0;left:0;transform:none;display:block;pointer-events:none}
+ .cpsurf.cpfull .cpss b{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));pointer-events:auto}
+ .cpsurf.cpfull .cpss b[data-k=select]{left:calc(env(safe-area-inset-left) + (var(--cp-col,176px) - 72px) / 2)}
+ .cpsurf.cpfull .cpss b[data-k=start]{right:calc(env(safe-area-inset-right) + (var(--cp-col,176px) - 72px) / 2)}
+}
+/* every popup over the Preview stands out from the TV picture (owner, 2026-11-07): what is behind it is blurred and dimmed, and its box
+   has a red border; the dialogs opened over the Preview, and the Preview's own panels (loading, errors, notices, the separate-window note) */
+body.tv-open .modal.open{background:rgba(0,0,0,.74);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+body.tv-open .modal.open .mbox{border:2px solid var(--red3);box-shadow:0 0 0 4px rgba(228,0,15,.22),var(--sh3)}
+.tpload,#tvStage .tppop{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#tvStage .tpbox,#tpPopStage .tpbox{border:2px solid var(--red3);box-shadow:0 0 0 4px rgba(228,0,15,.22),0 18px 50px rgba(0,0,0,.6)}

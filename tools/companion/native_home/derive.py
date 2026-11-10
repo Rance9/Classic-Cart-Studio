@@ -19,11 +19,15 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS_DIR = os.path.join(HERE, "fonts")
 DERIVE_VERSION = "n3-2"
+COVER_BOX_HI = (680, 932)       # the computer's full-resolution HOME ("play" packages): twice the box, never enlarged past the source art
 COVER_BOX = (340, 466)          # the Details cover box: the largest box a cover is drawn in by any theme (the Box Art Showcase focus box
                                 # face is 281 x 369, Arcade card 274 x 291, Featured cells 106 x 145, Map panel 185 x 142): one cover serves all
 HERO_WIDE = (620, 342)          # Featured Shelf hero box (home-art.json featured-shelf geometry hero.inner): the key art, object-fit: cover
 DETAILS_ART = (1272, 712)       # the Details art area inside the Arcade Grid 4 px frame
 FONT_MAGIC = b"CCSF2\0"
+# the smooth stand-ins for the pixel typefaces (every package since F19, D-101: the console's too): (family, weight, size factor for the same capital height,
+# all capitals). Silkscreen caps 0.63 em, Press Start 2P 1.00 em, VT323 0.56 em; Barlow 0.70 em.
+HD_FACES = {"silk": ("sans", 600, 0.90, True), "px": ("sans", 700, 1.43, False), "vt": ("sans", 400, 0.80, False)}
 COVERAGE_EXP = float(os.environ.get("CCS_HOME_COVERAGE_EXP", "0.72"))
 SANS_FILES = {400: "Barlow-Regular.ttf", 600: "Barlow-SemiBold.ttf", 700: "Barlow-Bold.ttf", 800: "Barlow-Bold.ttf"}   # 800 renders as 700 in the approved design
 FAMILY_LABEL = {"sans": "Barlow", "silk": "Silkscreen", "sym": "geometric symbols", "cin": "Cinzel", "vt": "VT323", "px": "Press Start 2P", "mono": "Space Mono"}
@@ -96,9 +100,9 @@ class Cache:
 def save_jpeg(im: Image.Image, out: str, q: int = 85):   # baseline 4:2:0: compact, decoded by the native runtime's stb_image (scalar paths)
     im.convert("RGB").save(out, "JPEG", quality=q, optimize=False, progressive=False, subsampling=2)
 
-def cover(src: str, out: str):
+def cover(src: str, out: str, box: tuple = COVER_BOX):
     """the whole cover, fitted (contain) into the Details box and never enlarged; the grid cell and the card draw it smaller"""
-    im = Image.open(src).convert("RGB"); w, h = im.size; s = min(COVER_BOX[0] / w, COVER_BOX[1] / h)
+    im = Image.open(src).convert("RGB"); w, h = im.size; s = min(box[0] / w, box[1] / h)
     if s < 1: im = im.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
     save_jpeg(im, out)
 
@@ -223,19 +227,23 @@ def _missing(font, ch: str) -> bool:
     try: a = font.getmask(ch); b = font.getmask(""); return a.size == b.size and bytes(a) == bytes(b)
     except Exception: return True
 
-def bake_font(name: str, family: str, weight: int, px: int, chars: list[str], theme_root: str, out: str) -> dict:
+def bake_font(name: str, family: str, weight: int, px: int, chars: list[str], theme_root: str, out: str, glyphs_from: tuple | None = None) -> dict:
     """one atlas: 8-bit coverage per glyph (with the coverage curve that matches the approved rendering), bearings, advances;
-    characters the font lacks become geometric symbols (UI symbols) or are reported as missing (the runtime draws '?')"""
-    main = open_face(family, weight, px, theme_root)
+    characters the font lacks become geometric symbols (UI symbols) or are reported as missing (the runtime draws '?').
+    glyphs_from (family, weight, px, all_caps): the glyphs come from another face at its own size (the computer's smooth stand-in);
+    the line metrics stay this role's"""
+    gfam, gweight, gpx, caps = glyphs_from or (family, weight, px, False)
+    main = open_face(gfam, gweight, gpx, theme_root)
     asc, desc, gap = layout_metrics(family, weight, px, theme_root); glyphs = []; blob = bytearray(); synth = []; missing = []
+    def shape(ch): u = ch.upper(); return u if caps and len(u) == 1 else ch   # the face drawn for ch
     curve = bytes(int(255 * (v / 255) ** COVERAGE_EXP + 0.5) for v in range(256))
     for ch in sorted(set(chars)):
         if ch == " " and main is not None:   # the space has no ink, so the ink comparison below cannot tell it is present
-            adv = SANS_SPACE_EM * px if family == "sans" else main.getlength(" "); glyphs.append((32, int(round(adv * 64)), 0, 0, 0, 0, len(blob))); continue
-        if main is not None and not _missing(main, ch):
-            adv = SANS_SPACE_EM * px if family == "sans" and ch == " " else main.getlength(ch); x0, y0, x1, y1 = main.getbbox(ch, anchor="ls"); w, h = max(0, x1 - x0), max(0, y1 - y0); off = len(blob)
+            adv = SANS_SPACE_EM * gpx if gfam == "sans" else main.getlength(" "); glyphs.append((32, int(round(adv * 64)), 0, 0, 0, 0, len(blob))); continue
+        if main is not None and not _missing(main, shape(ch)):
+            g = shape(ch); adv = main.getlength(g); x0, y0, x1, y1 = main.getbbox(g, anchor="ls"); w, h = max(0, x1 - x0), max(0, y1 - y0); off = len(blob)
             if w and h:
-                im = Image.new("L", (w, h), 0); ImageDraw.Draw(im).text((-x0, -y0), ch, font=main, fill=255, anchor="ls"); blob += im.tobytes().translate(curve)
+                im = Image.new("L", (w, h), 0); ImageDraw.Draw(im).text((-x0, -y0), g, font=main, fill=255, anchor="ls"); blob += im.tobytes().translate(curve)
             glyphs.append((ord(ch), int(round(adv * 64)), x0, y0, w, h, off))
         elif ch in SYMBOLS:
             im, x0, y0, adv = _symbol(ch, px); off = len(blob); blob += im.tobytes(); glyphs.append((ord(ch), int(round(adv * 64)), x0, y0, im.width, im.height, off)); synth.append(ch)
@@ -248,7 +256,7 @@ def bake_font(name: str, family: str, weight: int, px: int, chars: list[str], th
     for g in glyphs: buf.write(struct.pack("<IihhHHI", *g))
     buf.write(struct.pack("<I", len(blob))); buf.write(bytes(blob))
     with open(out, "wb") as f: f.write(buf.getvalue())
-    return {"px": px, "family": FAMILY_LABEL[family], "weight": weight, "ascent": asc, "descent": desc, "line_gap": gap,
+    return {"px": px, "family": FAMILY_LABEL[glyphs_from[0] if glyphs_from else family], "weight": weight, "ascent": asc, "descent": desc, "line_gap": gap,
             "glyphs": len(glyphs), "synthesized": "".join(synth), "missing": "".join(missing)}
 
 def font_licenses(theme_root: str) -> dict[str, str]:
@@ -275,7 +283,7 @@ def thumb(src: str, out: str):
     """theme picker thumbnails: the approved 320 x 180 thumbs, re-encoded as baseline JPEG for the runtime decoder"""
     save_jpeg(Image.open(src).convert("RGB"), out, q=88)
 
-def user_cover(src: str, crop: dict | None, out: str):
+def user_cover(src: str, crop: dict | None, out: str, box: tuple = COVER_BOX):
     """a user's replacement artwork: EXIF orientation applied, the nondestructive crop (normalized rectangle) applied, then fitted
     whole into the cover box like every cover (never enlarged, never cut)"""
     from PIL import ImageOps
@@ -285,11 +293,11 @@ def user_cover(src: str, crop: dict | None, out: str):
     if crop:
         w, h = im.size; x0 = max(0, min(w - 1, round(crop["x"] * w))); y0 = max(0, min(h - 1, round(crop["y"] * h)))
         x1 = max(x0 + 1, min(w, round((crop["x"] + crop["w"]) * w))); y1 = max(y0 + 1, min(h, round((crop["y"] + crop["h"]) * h))); im = im.crop((x0, y0, x1, y1))
-    w, h = im.size; s = min(COVER_BOX[0] / w, COVER_BOX[1] / h)
+    w, h = im.size; s = min(box[0] / w, box[1] / h)
     if s < 1: im = im.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
     save_jpeg(im, out)
 
-def mock(title: str, publisher: str | None, year: str | None, game_id: str, out: str, theme_root: str | None = None):
+def mock(title: str, publisher: str | None, year: str | None, game_id: str, out: str, theme_root: str | None = None, box: tuple = COVER_BOX):
     """the NES-style mock cover (tools/rom-pipeline/mock_cover.py, the approved generated-placeholder design) for one game"""
     import sys
     rp = os.path.normpath(os.path.join(HERE, "..", "..", "rom-pipeline"))
@@ -297,7 +305,7 @@ def mock(title: str, publisher: str | None, year: str | None, game_id: str, out:
     import mock_cover
     if theme_root and not (mock_cover.FONT_PX and os.path.isfile(mock_cover.FONT_PX)): mock_cover.FONT_PX = press_start_path(theme_root)   # installed app: the site's brand fonts
     if not (mock_cover.FONT_UI and os.path.isfile(mock_cover.FONT_UI)): mock_cover.FONT_UI = os.path.join(FONTS_DIR, "Barlow-Regular.ttf")
-    im = mock_cover.cover(title, publisher, year, game_id); w, h = im.size; s = min(COVER_BOX[0] / w, COVER_BOX[1] / h)
+    im = mock_cover.cover(title, publisher, year, game_id); w, h = im.size; s = min(box[0] / w, box[1] / h)
     if s < 1: im = im.resize((round(w * s), round(h * s)), Image.LANCZOS)
     save_jpeg(im, out, q=90)
 

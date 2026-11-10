@@ -5,6 +5,10 @@ Three tiers. `simulate` is always available and only ever touches fake transport
 which are **code**: not a config key, not an environment variable, not an API argument, not a query parameter. Changing
 them is a reviewed code change released as its own owner-approved milestone. `transport.open_transport` checks the same
 constants again at the last boundary, so a caller that somehow reaches it with a real transport kind is still refused.
+The two physical tiers stay separate all the way down: a console session is opened for one of them (worker_console), a
+session opened to inspect refuses every change itself, and the transport worker asks the write tier again for each command
+that changes the console. The older game sync through hakchi (G2, the engine's `execute`) is not a tier: it is refused
+unconditionally, whatever these constants say, and only Classic Cart Studio's own HOME operations (ccs_install) reach a console.
 """
 from __future__ import annotations
 

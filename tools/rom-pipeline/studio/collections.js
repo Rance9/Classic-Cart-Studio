@@ -15,7 +15,7 @@ function csCollSel(){ return LO?LO.collSel:sel; }
 function csNow(){ return new Date().toISOString(); }
 function csId(){ return 'c'+(typeof uuid==='function'?uuid():String(Math.random()).slice(2)).replace(/-/g,'').slice(0,15); }
 function csRead(){ try{ const s=JSON.parse(localStorage.getItem(CSKEY)||'null'); if(s&&s.schema===CS_SCHEMA&&s.items&&typeof s.items==='object') return s; }catch(e){} return null; }
-function csWrite(){ try{ localStorage.setItem(CSKEY, JSON.stringify(CS)); }catch(e){ toast('Could not save collections (browser storage may be full). Back Up Studio Data now.'); } try{ if(typeof desktopStateDirty==='function') desktopStateDirty(); }catch(e){} }
+function csWrite(){ try{ localStorage.setItem(CSKEY, JSON.stringify(CS)); }catch(e){ toast('Could not save collections (browser storage may be full). Save Lists and Settings or Back Up Everything now (Studio menu).'); } try{ if(typeof desktopStateDirty==='function') desktopStateDirty(); }catch(e){} }
 function csHomeRead(){ try{ return JSON.parse(localStorage.getItem(HOME_KEY)||'null'); }catch(e){ return null; } }
 function csCollFields(c){ const o={}; ['created','modified','savedToFile','prepared','baseline','pref','multi','avail','placeholders','missing'].forEach(k=>{ if(c&&c[k]!==undefined) o[k]=c[k]; }); return JSON.parse(JSON.stringify(o)); }
 // the working copy (the established keys) -> a record
@@ -91,7 +91,7 @@ async function ccsSaveFile(defName, blob, kind){ const ext=(defName.match(/\.[a-
   m.classList.add('open'); const inp=$('savemN'); inp.focus(); inp.setSelectionRange(0, Math.max(0, inp.value.length-ext.length));
   const done=r=>{ m.classList.remove('open'); res(r); };
   $('savemC').onclick=()=>done({ok:false,canceled:true}); m.onkeydown=e=>{ if(e.key==='Escape') done({ok:false,canceled:true}); if(e.key==='Enter'&&e.target===inp) $('savemS').click(); };
-  $('savemS').onclick=()=>{ const name=csSafeName(inp.value, ext); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); done({ok:true,name}); }; }); }
+  $('savemS').onclick=()=>{ const name=csSafeName(inp.value, ext); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000); done({ok:true,name,download:true}); }; }); }   // download: handed to the browser's downloads (no path or finished write is known)
 window.ccsSaveFile=ccsSaveFile;
 // ---- Export Collection ----
 async function csExport(id){ id=id||CS.active; const r=CS.items[id]; if(!r) return; if(id===CS.active&&typeof confirmExportWarnings==='function'&&!confirmExportWarnings()) return;
@@ -127,7 +127,10 @@ function csKeptFallback(m, e, id){ const o=csMergeEntry(m, e, id); ['content_sha
  if(m.personal&&e.personal){ const p=Object.assign({}, m.personal), q=e.personal, empty=v=>v==null||v===''||v===0;   /* top-level personal fields: text, or a size where 0 means unknown (csInt||0) */
   Object.keys(q).forEach(k=>{ if(k==='user'||k==='detected') return; if(empty(p[k])) p[k]=q[k]; });
   p.user=Object.assign({}, p.user||{}); const top={title:'title', version_label:'version', description:'description', year:'year', publisher:'publisher'};   /* the collection's own top-level value counts as filled */
-  Object.entries(q.user||{}).forEach(([k,v])=>{ if(!csMeaningful(p.user[k], id)&&!(top[k]&&csMeaningful(m[top[k]], id))&&csMeaningful(v, id)) p.user[k]=v; });
+  const pe=new Set(csKeptEdits(m)), qe=new Set(csKeptEdits(e));   /* a field its person chose (a blank one too) is filled; one the fallback's person chose comes with its mark */
+  Object.entries(q.user||{}).forEach(([k,v])=>{ if(k==='edited'||pe.has(k)||csMeaningful(p.user[k], id)||(top[k]&&csMeaningful(m[top[k]], id))) return; if(qe.has(k)){ p.user[k]=v; pe.add(k); } else if(csMeaningful(v, id)) p.user[k]=v; });
+  if(qe.has('art')&&!m.thumb_url&&e.thumb_url) pe.add('art'); if(pe.size) p.user.edited=[...pe].sort();
+  pe.forEach(f=>{ const t=top[f]; if(t&&!csMeaningful(m[t], id)) o[t]=p.user[f]||(t==='title'?o[t]:''); });   /* what the person chose (a deliberate clear too) is what the entry shows */
   if(q.detected){ p.detected=Object.assign({}, p.detected||{}); const unset=v=>v==null||v===''; Object.entries(q.detected).forEach(([k,v])=>{ if(unset(p.detected[k])||(k==='emulator'&&p.detected[k]==='unknown')||(k==='compat_confidence'&&p.detected[k]==='none')) p.detected[k]=v; }); }   /* header values: 0 (mapper, submapper, CHR RAM) and false are values; only absent/invalid ones (null) or empty text are filled */
   o.personal=p; }
  return o; }
@@ -135,30 +138,107 @@ function csNotCollection(fileName){ if(typeof ccsFail==='function') ccsFail(file
 async function csImportObject(obj, fileName){ if(!obj||typeof obj!=='object'){ csNotCollection(fileName); return 0; }
  if(obj.schema===SBACKUP_SCHEMA||obj.schema==='nes-classic-studio-data/1'){ csRestoreDialog(obj, fileName); return 0; }
  const recs=obj.schema===CBUNDLE_SCHEMA&&Array.isArray(obj.collections)?obj.collections:(obj.ccs_collection&&obj.ccs_collection.schema===CREC_SCHEMA?[obj.ccs_collection]:null);
- if(recs){ let n=0, miss=0, last=null; recs.slice(0,200).forEach(x=>{ if(!x||!Array.isArray(x.sel)) return; const {rec,missing}=csRecordFromFile(x, fileName); last=csCreate(rec.name, rec); miss+=missing.length; n++; });
+ if(recs){ let n=0, miss=0, last=null; recs.slice(0,200).forEach(x=>{ if(!x||!Array.isArray(x.sel)) return; const {rec,missing}=csRecordFromFile(x, fileName); Object.keys(rec.coll.missing).forEach(k=>{ rec.coll.missing[k]=csNoEdits(rec.coll.missing[k]); }); last=csCreate(rec.name, rec); miss+=missing.length; n++; });
   if(!last){ csNotCollection(fileName); return 0; }
   csSwitch(last.id, true); toast(`Imported ${n} collection${n===1?'':'s'}${miss?` · ${miss} game${miss===1?'':'s'} ${csAwayWord()}`:''}`); csMenuRefresh(); const t=$('tray'); if(t) t.classList.add('open'); return n; }
  if(typeof KNOWN_SCHEMAS!=='undefined'&&KNOWN_SCHEMAS.includes(obj.schema)){ const r=csCreate(obj.name||(fileName||'Imported collection').replace(/\.json$/i,'')); csSwitch(r.id, true); const res=await applyManifest(obj, fileName, 'before importing a collection file'); if(res){ COLL.name=r.name; saveColl(); updateStatusLine(); csSaveActiveNow(); } return res?1:0; }
  csNotCollection(fileName); return 0; }
 function csImportPick(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json'; inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; f.text().then(t=>{ let o; try{ o=JSON.parse(t); }catch(e){ csNotCollection(f.name); return; } csImportObject(o, f.name); }); }; inp.click(); }
-// ---- Back Up Studio Data / Restore Studio Data: every collection, library favorites, settings and recovery snapshots ----
+// ---- Save Lists and Settings / Restore Lists and Settings: every collection, library favorites, settings and recovery snapshots ----
 function csBackupObject(){ csSaveActiveNow(); return {schema:SBACKUP_SCHEMA, exported:csNow(), app:'Classic Cart Studio', origin:location.origin, active:CS.active, collections:csList().map(csRecordOut), favorites:[...fav], view:(typeof view==='string'?view:'list'), extended:localStorage.getItem(EKEY)||'', welcomed:!!localStorage.getItem(WKEY), snapshots:JSON.parse(localStorage.getItem(SKEY)||'[]')}; }
-async function csBackup(){ const d=csBackupObject(); const res=await ccsSaveFile(`Classic Cart Studio Data Backup ${csStamp()}.json`, new Blob([JSON.stringify(d,null,1)],{type:'application/json'}), 'Studio Data Backup'); if(res.ok) toast(`Backed up ${d.collections.length} collection${d.collections.length===1?'':'s'}, favorites and snapshots to ${res.name}`); }
+async function csBackup(){ const d=csBackupObject();
+ if(typeof gsCurrent==='function'&&!(typeof gsApp==='function'&&gsApp())){ try{ d.game_settings=await gsCurrent(); }catch(e){ toast(`The file was not saved. ${e.message}`); return; } }   /* the Game Settings as they are now (the browser player's files): an unread or older copy is never saved as current */ const res=await ccsSaveFile(`Classic Cart Studio Lists and Settings ${csStamp()}.json`, new Blob([JSON.stringify(d,null,1)],{type:'application/json'}), 'Lists and Settings (no game files)');
+ if(res.ok) toast(`${res.download?'Your browser is saving':'Saved'} ${d.collections.length} collection${d.collections.length===1?'':'s'}, favorites and settings (no game files) ${res.download?'to its downloads as':'to'} ${res.name}`); }
 function csRestorePick(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json'; inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; f.text().then(t=>{ let o; try{ o=JSON.parse(t); }catch(e){ toast('That file is not a Studio data backup'); return; } csRestoreDialog(o, f.name); }); }; inp.click(); }
 function csRestoreDialog(d, fileName){ const v1=d&&d.schema==='nes-classic-studio-data/1', v2=d&&d.schema===SBACKUP_SCHEMA; if(!v1&&!v2){ if(d&&(d.ccs_collection||(typeof KNOWN_SCHEMAS!=='undefined'&&KNOWN_SCHEMAS.includes(d.schema))||d.schema===CBUNDLE_SCHEMA)){ csImportObject(d, fileName); return; } toast('That file is not a Studio data backup'); return; }
  const cols=v2?(d.collections||[]):((Array.isArray(d.selection)&&d.collection)?[{name:(d.collection||{}).name||'Restored collection', sel:d.selection, decisions:d.decisions||{}, coll:d.collection||{}, home:null}]:[]);
  const have=new Set(Object.keys(CS.items));
- openColl('Restore Studio Data', fileName||'', `<p class="small">Adds the backup's collections, favorites and snapshots to what is here; nothing here is deleted or replaced. Unchanged collections are skipped; changed ones are added as copies.</p>
+ openColl('Restore Lists and Settings', fileName||'', `<p class="small">Adds the file's collections, favorites, snapshots and Game Settings to what is here (no game files); nothing here is deleted or replaced. Unchanged collections are skipped; changed ones are added as copies.</p>
   <div class="kv"><dt>Backup made</dt><dd>${esc(nowShort(d.exported)||'unknown')}</dd><dt>Collections</dt><dd>${cols.length}</dd><dt>Library favorites</dt><dd>${(d.favorites||[]).length}</dd><dt>Snapshots</dt><dd>${(d.snapshots||[]).length}</dd></div>
   <div class="acts"><span class="sp"></span><button class="btn" id="rsCancel">Cancel</button><button class="btn hk" id="rsGo">Restore</button></div>`);
  $('rsCancel').onclick=closeColl;
- $('rsGo').onclick=()=>{ try{ localStorage.setItem(CSKEY+'.before-restore', JSON.stringify({at:csNow(), store:CS, favorites:[...fav]})); }catch(e){}
-  let added=0, skipped=0;
-  cols.forEach(x=>{ if(!x||!Array.isArray(x.sel)) return; const same=x.id&&have.has(x.id)&&JSON.stringify((CS.items[x.id].sel||[]).slice().sort())===JSON.stringify(x.sel.slice().sort())&&CS.items[x.id].name===x.name; if(same){ skipped++; return; } const {rec}=csRecordFromFile(x); csCreate(rec.name, rec); added++; });
-  (d.favorites||[]).forEach(id=>{ if(byId[id]) fav.add(id); });
-  try{ const snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); const at=new Set(snaps.map(s=>s.at)); (d.snapshots||[]).forEach(s=>{ if(s&&s.at&&!at.has(s.at)) snaps.push(s); }); snaps.sort((a,b)=>a.at<b.at?1:-1); localStorage.setItem(SKEY, JSON.stringify(snaps.slice(0,30))); }catch(e){}
-  if(typeof d.extended==='string'&&d.extended){ try{ localStorage.setItem(EKEY,d.extended); }catch(e){} } if(d.welcomed){ try{ localStorage.setItem(WKEY,'1'); }catch(e){} }
-  persist(); render(); csMenuRefresh(); closeColl(); toast(`Restored ${added} collection${added===1?'':'s'}${skipped?` (${skipped} already here)`:''}; favorites and snapshots merged`); }; }
+ $('rsGo').onclick=async()=>{ let gbase=null; if(typeof gsCurrent==='function'&&!(typeof gsApp==='function'&&gsApp())){ try{ gbase=await gsCurrent(); }   // the Game Settings as they are now: the restore decides with them (an unread store stops it)
+   catch(e){ openColl('Restore Lists and Settings', fileName||'', `<div class="msgbox bad"><b>Nothing was restored.</b> ${esc(e.message)}</div><div class="acts"><span class="sp"></span><button class="btn" id="rsOk">OK</button></div>`); $('rsOk').onclick=closeColl; return; } }
+  const r=csMergeStudioData(d, cols, gbase);
+  if(!r.ok){ openColl('Restore Lists and Settings', fileName||'', `<div class="msgbox bad"><b>Nothing was restored.</b> ${esc(r.error)}.${r.left&&r.left.length?` These could not be put back as they were: ${esc(r.left.join(', '))}. Nothing of yours was removed (a restore only adds, so what it added may still be there), and a copy of your collections from before the restore is kept in this browser.`:' Everything was put back as it was.'}</div><div class="acts"><span class="sp"></span><button class="btn" id="rsOk">OK</button></div>`); $('rsOk').onclick=closeColl; return; }
+  const gp=r.settings&&r.settings.writes.length&&typeof gsWebOk==='function'&&gsWebOk()?await gsWebPush(r.settings.writes):{ok:true};   // only the restored choices reach the browser's game player (its files decide), as a Full Studio Backup's do
+  closeColl(); const p=r.plan; toast(`Restored ${r.added} collection${r.added===1?'':'s'}${r.skipped?` (${r.skipped} already here)`:''}; ${p.fav.add.length} favorite${p.fav.add.length===1?'':'s'} and ${p.snaps.add.length} earlier version${p.snaps.add.length===1?'':'s'} added${p.view.act==='keep'?'; your library view was kept':''}`);
+  if(!gp.ok){ openColl('Restore Lists and Settings', fileName||'', `<div class="msgbox warn"><b>The file's Game Settings were not restored:</b> this browser could not store them. ${esc(gp.error)} The Game Settings here are as they were; restore the file again to add them.</div><div class="acts"><span class="sp"></span><button class="btn" id="rsOk">OK</button></div>`); $('rsOk').onclick=closeColl; } }; }
+// ---- restoring a Studio backup (Restore Lists and Settings, a Full Studio Backup): plan first (read only), then one checked write ----
+// The plan compares each backed-up collection by its content with every collection here: the same games, decisions, HOME settings,
+// loadouts, its own details (pref, multi, available games, placeholders, baseline) and the kept details of games this Studio cannot
+// resolve itself. An equivalent one is skipped; a changed one (even with the same id, name and games) is added as a copy; nothing here is
+// replaced. Bookkeeping never makes a copy: ids, times, the saved/prepared marks, a generated "(Copy n)" ending, the HOME's position.
+function csCanon(v){ if(Array.isArray(v)) return v.map(csCanon); if(v&&typeof v==='object'){ const o={}; Object.keys(v).sort().forEach(k=>{ if(v[k]!==undefined) o[k]=csCanon(v[k]); }); return o; } return v; }
+function csHomeKey(h){ if(!h||typeof h!=='object') return null; const o=Object.assign({}, h); delete o.state; return o; }   // TV.S: where the HOME's cursor was
+function csContentKey(rec){ const c=rec.coll||{}; const kept={}; Object.entries(c.missing||{}).forEach(([id,m])=>{ if(!byId[id]&&m&&typeof m==='object'){ const k=csKept(m, id); if(!(k.title===id&&k.source==='unknown'&&!k.personal)) kept[id]=k; } });
+ return JSON.stringify(csCanon({name:String(rec.name||'').replace(/\s*\(Copy \d+\)$/i,'').trim().toLowerCase(), sel:[...(rec.sel||[])].sort(), decisions:rec.decisions||{}, home:csHomeKey(rec.home),
+  loadouts:(rec.loadouts||[]).map(l=>JSON.stringify(csCanon({name:l.name, sel:[...(l.sel||[])].sort(), decisions:l.decisions||{}, home:csHomeKey(l.home)}))).sort(),
+  pref:c.pref||{}, multi:c.multi||{}, avail:[...(c.avail||[])].sort(), placeholders:c.placeholders||[], baseline:c.baseline||null, kept})); }
+// a record as it stands now, without writing anything (the open collection from the working copy)
+function csRecordNow(r){ if(!r||r.id!==CS.active) return r; const n=csFromWorking(r.id, COLL.name); n.created=r.created||n.created; n.loadouts=csLoadoutsNow(r); return n; }
+// a Studio with nothing of the person's in it yet: one collection, empty, no loadouts, HOME settings, favorites or earlier versions
+function csFresh(){ const l=csList(); let snaps=[]; try{ snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); }catch(e){}
+ return l.length===1&&!csCollSel().size&&!(l[0].sel||[]).length&&!(l[0].loadouts||[]).length&&!csHomeRead()&&!l[0].home&&!fav.size&&!snaps.length; }
+// a restored collection's kept details for its personal games from a Full Studio Backup's personal records (the key is the identity;
+// csFromCache cleans and bounds every value and ignores file-presence claims); the collection's own kept details win and the record fills
+// what they leave empty; the backup's own artwork for the game becomes its kept cover. Never put into the Game Library or the personal store.
+function csEnrichKept(rec, personal, art){ const miss=rec.coll.missing||{};
+ rec.sel.forEach(id=>{ if(!/^p_[0-9a-f]{16}$/.test(id)) return; const p=personal&&typeof personal==='object'&&Object.prototype.hasOwnProperty.call(personal, id)?personal[id]:null; const e=p?csFromCache(p, id):null;
+  let m=miss[id]&&typeof miss[id]==='object'?csCleanMissing(miss[id], id):null; if(m&&m.title===String(id).slice(0,120)&&m.source==='unknown'&&!m.personal) m=null;   /* the placeholder csRecordFromFile writes */
+  if(e) m=m?csKeptFallback(m, e, id):e;
+  const a=art&&typeof art==='object'&&Object.prototype.hasOwnProperty.call(art, id)?csThumbOk(art[id]):''; if(m&&a&&!m.thumb_url) m.thumb_url=a;
+  if(m) miss[id]=m; });
+ rec.coll.missing=miss; return rec; }
+// what a restore would do (nothing is written): {add:[{rec, name, wasActive}], skip:[{name, as}], fav, snaps, view, ext, open, fresh}
+function csMergePlan(d, opt){ opt=opt||{}; const cols=(opt.cols||d.collections||[]); const fresh=csFresh(); const keys=new Map();
+ Object.values(CS.items).forEach(r=>{ const n=csRecordNow(r); keys.set(csContentKey(csRecordFromFile(csRecordOut(n), n.name).rec), r.name); });
+ const taken=new Set(csList().map(r=>r.name.toLowerCase())); const add=[], skip=[];
+ cols.slice(0,2000).forEach(x=>{ if(!x||typeof x!=='object'||!Array.isArray(x.sel)) return; let {rec}=csRecordFromFile(x); if(opt.personal||opt.art) rec=csEnrichKept(rec, opt.personal, opt.art);
+  const k=csContentKey(rec); if(keys.has(k)){ skip.push({name:rec.name, as:keys.get(k)}); return; }
+  const name=csCopyName(rec.name, taken, 72); taken.add(name.toLowerCase()); keys.set(k, name); add.push({rec, name, wasActive:!!(x.id&&x.id===d.active)}); });
+ const listed=new Set(); add.forEach(a=>a.rec.sel.forEach(id=>listed.add(id))); Object.values(CS.items).forEach(r=>(r.sel||[]).forEach(id=>listed.add(id)));
+ const fv=[...new Set((Array.isArray(d.favorites)?d.favorites:[]).filter(id=>typeof id==='string'&&id.length<=128))].filter(id=>!fav.has(id));
+ const favAdd=fv.filter(id=>byId[id]||listed.has(id)), favOut=fv.length-favAdd.length;
+ let snaps=[]; try{ snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); if(!Array.isArray(snaps)) snaps=[]; }catch(e){ snaps=[]; } const at=new Set(snaps.map(s=>s&&s.at));
+ const inSn=(Array.isArray(d.snapshots)?d.snapshots:[]).filter(s=>s&&typeof s==='object'&&typeof s.at==='string'&&!at.has(s.at)).sort((a,b)=>a.at<b.at?1:-1); const room=Math.max(0, 30-snaps.length);
+ const want=d.view==='grid'||d.view==='list'?d.view:null; const vAct=!want||want===view?'same':(fresh||opt.replace)?'apply':'keep';
+ let curExt=''; try{ curExt=localStorage.getItem(EKEY)||''; }catch(e){} const ew=typeof d.extended==='string'?d.extended.slice(0,8):''; const eAct=!ew||ew===curExt?'same':(fresh||opt.replace)?'apply':'keep';
+ const act=add.find(a=>a.wasActive); const open=fresh&&act?act.name:null;
+ return {add, skip, fav:{add:favAdd, out:favOut}, snaps:{have:snaps, add:inSn.slice(0, room), out:Math.max(0, inSn.length-room)}, view:{want, act:vAct}, ext:{want:ew, act:eAct}, open, welcomed:!!d.welcomed, fresh}; }
+// one checked write to this browser's (or the app's) storage: every new value is written and read back; on any failure every key written
+// so far gets its earlier value back, each read back; a key that cannot be put back is named (never "nothing changed" when it is not so)
+const CS_TXN_NAMES={[CSKEY]:'collections', [FKEY]:'favorites', [VKEY]:'library view', [SKEY]:'earlier versions', [EKEY]:'Extended library choice', [WKEY]:'welcome choice', 'ccs-game-settings-v1':'Game Settings'};
+function csTxn(){ const before=new Map(), done=[]; const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return undefined; } };
+ return {
+  set(k, v){ if(!before.has(k)) before.set(k, get(k)); done.push(k); localStorage.setItem(k, v); if(get(k)!==v) throw new Error(`this browser did not keep the ${CS_TXN_NAMES[k]||k}`); },
+  keys(){ return [...new Set(done)]; },
+  rollback(){ const left=[]; [...new Set(done)].reverse().forEach(k=>{ const v=before.get(k); if(v===undefined){ left.push(CS_TXN_NAMES[k]||k); return; }   /* judged by what the storage holds afterwards */
+   try{ if(v===null) localStorage.removeItem(k); else localStorage.setItem(k, v); }catch(e){} if(get(k)!==v) left.push(CS_TXN_NAMES[k]||k); }); if(!left.length) done.length=0; return left; } }; }
+// the plan written (storage only; the page's own state is adopted by csAdopt once every part of the restore succeeded)
+function csApplyPlan(plan, tx, extra){ csSaveActiveNow(); const now=csNow(); const next=JSON.parse(JSON.stringify(CS)); const ids=[];
+ try{ localStorage.setItem(CSKEY+'.before-restore', JSON.stringify({at:now, store:CS, favorites:[...fav]})); }catch(e){}   // an extra copy of what was here (when there is room); the transaction itself puts everything back
+ plan.add.forEach(a=>{ let id=csId(); while(next.items[id]) id=csId(); next.items[id]=Object.assign({sel:[],decisions:{},coll:{},home:null,loadouts:[]}, JSON.parse(JSON.stringify(a.rec)), {id, name:a.name, created:a.rec.created||now, modified:now, shares:[], openLoadout:null}); ids.push(id); a.id=id; });
+ tx.set(CSKEY, JSON.stringify(next));
+ const nf=new Set([...fav, ...plan.fav.add]); if(plan.fav.add.length) tx.set(FKEY, JSON.stringify([...nf]));
+ if(plan.snaps.add.length) tx.set(SKEY, JSON.stringify(plan.snaps.have.concat(plan.snaps.add).sort((a,b)=>a.at<b.at?1:-1)));
+ const nv=plan.view.act==='apply'?plan.view.want:view; if(plan.view.act==='apply') tx.set(VKEY, nv);
+ if(plan.ext.act==='apply') tx.set(EKEY, plan.ext.want); if(plan.welcomed) tx.set(WKEY, '1');
+ if(extra) extra(tx);
+ return {next, fav:nf, view:nv, ids}; }
+// the page takes the written state as its own (the open collection stays open unless a new Studio opens the backup's own)
+function csAdopt(plan, res){ CS=res.next; fav.clear(); res.fav.forEach(x=>fav.add(x)); if(view!==res.view){ view=res.view; try{ $('vList').classList.toggle('active', view==='list'); $('vGrid').classList.toggle('active', view==='grid'); }catch(e){} }
+ if(plan.ext.act==='apply'&&typeof setExt==='function'){ try{ setExt(plan.ext.want==='1'); }catch(e){} }
+ let opened=null; const a=plan.open&&plan.add.find(x=>x.name===plan.open&&x.id);
+ if(a){ try{ csSwitch(a.id, true); opened=a.name; }catch(e){ opened=null; } }
+ try{ if(typeof desktopStateDirty==='function') desktopStateDirty(); }catch(e){}
+ render(); csMenuRefresh(); return opened; }
+// the earlier state back in the page after a rolled-back restore
+function csUnadopt(old){ CS=old.CS; fav.clear(); old.fav.forEach(x=>fav.add(x)); view=old.view; try{ if(typeof desktopStateDirty==='function') desktopStateDirty(); }catch(e){} render(); csMenuRefresh(); }
+// Restore Lists and Settings (JSON): the same plan and checked write, with the file's Game Settings on the website
+function csMergeStudioData(d, cols, gbase){ const plan=csMergePlan(d, {cols}); const old={CS, fav:new Set(fav), view}; const tx=csTxn(); const gs=(d.game_settings&&typeof fbSettingsPlan==='function'&&!(typeof gsApp==='function'&&gsApp()))?fbSettingsPlan({web:{game_settings:d.game_settings}, platform:'web'}):null; let gres=null;
+ try{ const res=csApplyPlan(plan, tx, gs?(t=>{ gres=fbSettingsWrite(gs, false, t, gbase); }):null); csAdopt(plan, res); return {ok:true, added:plan.add.length, skipped:plan.skip.length, plan, settings:gres}; }
+ catch(e){ const left=tx.rollback(); csUnadopt(old); return {ok:false, error:String(e&&e.message||e), left, added:0, skipped:0, plan}; } }
 // ---- the My Collections menu (quick switch) and the manager ----
 // the menu shows the open collection once (a card with its games and where it is saved), the commands, and up to six OTHER
 // collections to switch to (five); Manage Collections lists every one (the bounded list never limits what is stored)
@@ -181,8 +261,8 @@ function csManager(){ csSaveActiveNow(); const list=csList(); const where=CO&&CO
  openColl('Manage Collections', `${list.length.toLocaleString('en-US')} collection${list.length===1?'':'s'} · saved automatically ${where}`, `<div class="dquick">${miHtml({ic:'✨', label:'New Collection…', cls:'new', attrs:'id="csNewB"'})}${miHtml({ic:'📂', label:'Import Collection…', sub:'.ccs package or collection file', attrs:'id="csImpB"'})}</div>
   <div class="dlinks">${miHtml({ic:'🕘', label:'Restore Previous Version…', attrs:'id="csRestB"'})}${CO&&(CO.desktop||CO.served)?miHtml({ic:'🖥️', label:'Games Already on This Computer…', attrs:'id="csLocalB"'}):''}</div>
   <div class="cslist" role="list">${list.map(r=>{ const on=r.id===CS.active; const n=on?csCollSel().size:(r.sel||[]).length; const nl=(r.loadouts||[]).length; return `<div class="csrow${on?' on':''}" role="listitem" data-id="${r.id}"><span class="mic" aria-hidden="true">${on?'🎮':'🕹️'}</span><div class="csn"><b>${esc(r.name)}</b><span class="small">${csGames(n)}${nl?` · ${nl} NES Classic Loadout${nl===1?'':'s'}`:''} · changed ${esc(nowShort(r.modified))}</span></div>${on?'<span class="opentag"><span aria-hidden="true">✓</span> Open</span>':''}
-   <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open" aria-label="Open ${esc(r.name)}">Open</button>`}<button class="btn sm grow" data-a="share"><span aria-hidden="true">📤</span> Share or Export…</button>${rowMore(r.name)}</div></div>`; }).join('')}</div>
-  <p class="small">Collections are kept only ${where}. To move them, use <b>Share or Export…</b> or <b>Back Up Studio Data</b> in the Studio menu${CO&&!CO.desktop&&!CO.file?', or <b>Open in Windows App</b>':''}.</p>`);
+   <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open" aria-label="Open ${esc(r.name)}">Open</button>`}<button class="btn sm grow" data-a="share"><span aria-hidden="true">💾</span> Back Up…</button>${rowMore(r.name)}</div></div>`; }).join('')}</div>
+  <p class="small">Collections are kept only ${where}. To keep a copy, use <b>Back Up Collection…</b> or <b>Back Up Everything…</b> in the Studio menu${CO&&!CO.desktop&&!CO.file?', or <b>Open in Windows App</b>':''}.</p>`);
  $('csNewB').onclick=()=>csNewDialog(); $('csImpB').onclick=()=>{ closeColl(); csImportPick(); }; $('csRestB').onclick=()=>restoreMenu(); if($('csLocalB')) $('csLocalB').onclick=()=>loadLocalLibrary();
  rowMoreWire($('collBody'));
  $('collBody').onclick=e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const id=b.closest('.csrow').dataset.id; const r=CS.items[id]; if(!r) return; const a=b.dataset.a; if(['rename','dup','del'].includes(a)) ROW_RET=`.csrow[data-id="${id}"] details.csmore>summary`;
@@ -190,7 +270,7 @@ function csManager(){ csSaveActiveNow(); const list=csList(); const where=CO&&CO
   else if(a==='rename'){ csNameDialog('Rename Collection', r.name, 'Rename', nm=>{ csRename(id, nm); csManager(); }); }
   else if(a==='dup'){ csDuplicate(id); csManager(); }
   else if(a==='export'){ csExport(id); }
-  else if(a==='share'){ closeColl(); ccsShareDialog(id); }
+  else if(a==='share'){ closeColl(); ccsBackupDialog(id); }
   else if(a==='del'){ csNameDialog(`Delete "${r.name}"?`, null, 'Delete', ()=>{ csDelete(id); csManager(); }, `<p class="small">${(c=>`"${esc(r.name)}" (${c} game${c===1?'':'s'}${(r.loadouts||[]).length?` and ${(r.loadouts||[]).length} NES Classic Loadout${(r.loadouts||[]).length===1?'':'s'}`:''}) will be deleted.${c?' <b>Restore Previous Version</b> can bring it back for a while.':''}`)(id===CS.active?csCollSel().size:(r.sel||[]).length)} ROM files and personal games are not affected.</p>`); } }; }
 function csNameDialog(title, value, action, then, html){ openColl(title,'', `${html||''}${value!==null?`<div class="fld"><label for="csNm">Collection name</label><input type="text" id="csNm" maxlength="80" value="${esc(value||'')}"></div>`:''}<div class="acts"><span class="sp"></span><button class="btn" id="csNo" data-cancel>Cancel</button><button class="btn ${action==='Delete'?'danger':'hk'}" id="csYes">${esc(action)}</button></div>`);
  const inp=$('csNm'); if(inp){ if(!TOUCH||title.startsWith('Rename')){ inp.focus(); inp.select(); } inp.onkeydown=e=>{ if(e.key==='Enter') $('csYes').click(); }; }
@@ -206,7 +286,7 @@ function csTransferPick(then){ csSaveActiveNow(); const list=csList();
  $('cpAll').onclick=()=>document.querySelectorAll('.cspick input').forEach(x=>x.checked=true); $('cpNo').onclick=closeColl;
  $('cpGo').onclick=()=>{ const ids=[...document.querySelectorAll('.cspick input:checked')].map(x=>x.value); if(!ids.length){ toast('Choose at least one collection'); return; } then(ids); }; }
 async function csToWebsite(){ csSaveActiveNow(); const ids=csList().map(r=>r.id); const res=await ccsSaveFile(`Classic Cart Studio Collections ${csStamp()}.json`, new Blob([JSON.stringify(csBundle(ids),null,1)],{type:'application/json'}), 'Collections File');
- if(!res.ok) return; openColl('Open Your Collections on the Website','', `<p class="small">Saved ${ids.length} collection${ids.length===1?'':'s'} to <b>${esc(res.name)}</b>. On <b>ClassicCartStudio.com</b>, choose <b>My Collections → Import .ccs Collection…</b> and pick that file; they arrive as new collections.</p><div class="acts"><span class="sp"></span><a class="btn hk" href="https://classiccartstudio.com/" target="_blank" rel="noopener">Open ClassicCartStudio.com</a><button class="btn" id="twOk">Done</button></div>`); $('twOk').onclick=closeColl; }
+ if(!res.ok) return; openColl('Open Your Collections on the Website','', `<p class="small">Saved ${ids.length} collection${ids.length===1?'':'s'} to <b>${esc(res.name)}</b>. On <b>ClassicCartStudio.com</b>, choose <b>My Collections → Import Collection…</b> and pick that file; they arrive as new collections.</p><div class="acts"><span class="sp"></span><a class="btn hk" href="https://classiccartstudio.com/" target="_blank" rel="noopener">Open ClassicCartStudio.com</a><button class="btn" id="twOk">Done</button></div>`); $('twOk').onclick=closeColl; }
 // ---- start ----
 csInit();
 // the app's durable copy may arrive after start (a new WebView2 profile): adopt it, or bring the restored single collection into the store
@@ -240,12 +320,23 @@ function csEntryFromSelection(s, plib){ const id=s.version_id||s.game_id; const 
   payload_sha256:/^[0-9a-f]{64}$/.test(s.payload_sha256||'')?s.payload_sha256:'', size:Number((p&&p.content_size)||s.size||0)||0, art:/^art\/[0-9a-f]{16}\.jpg$/.test(s.art||'')?s.art:'', thumb_url:/^https:\/\//.test(s.thumb_url||'')?csThumbOk(s.thumb_url):''};
  if(p) o.personal=csCleanPersonal(p, id);
  return o; }
-// the personal-game record a kept entry carries for packages and collection files (portable fields only; never a path)
+// the personal-game record a kept entry carries for packages and collection files (portable fields only; never a path). user.edited:
+// the fields its person chose (a blank one a deliberate clear, D-80), kept only when strictly valid (csEdits)
 function csCleanPersonal(p, id){ const u=(p.user&&typeof p.user==='object')?p.user:{}; const hx=v=>/^[0-9a-f]{64}$/.test(v||'')?v:''; const num=v=>csInt(v, 4e9)||0;
  const o={id, title:csCleanText(p.title, csLim().title), version_label:csCleanText(p.version_label, csLim().version), content_sha256:hx(p.content_sha256), file_sha256:hx(p.file_sha256), content_size:num(p.content_size), file_size:num(p.file_size),
   format:csCleanText(p.format, 16), file_name:csCleanText(String(p.file_name||'').split(/[\\/]/).pop(), 200), note:csCleanText(p.note, 200), content_crc32:/^[0-9A-Fa-f]{8}$/.test(p.content_crc32||'')?String(p.content_crc32).toUpperCase():'',
   user:{title:csCleanText(u.title, csLim().title), version_label:csCleanText(u.version_label, csLim().version), description:csCleanText(u.description, csLim().description, true), year:csCleanText(u.year, csLim().year), publisher:csCleanText(u.publisher, csLim().publisher)}};
+ const ed=csEdits(u); if(ed) o.user.edited=ed;
  const d=csCleanDetected(p.detected); if(d) o.detected=d; return o; }
+// the person's own edits a personal record names (user.edited; personal.portable_edits checks the same): distinct names of the editable
+// fields, each edited text field's value text or absent. Anything else and the edits are not used (the details still are, as automatic ones)
+function csEdits(u){ const F=['title','version_label','description','year','publisher','art'], e=u&&u.edited;   /* a local list: the start-up render can reach this before a top-level const runs */
+ if(!Array.isArray(e)||!e.length||e.length>F.length||new Set(e).size!==e.length||!e.every(x=>typeof x==='string'&&F.includes(x))) return null;
+ return e.some(f=>f!=='art'&&u[f]!=null&&typeof u[f]!=='string')?null:[...e].sort(); }
+function csKeptEdits(x){ const u=x&&x.personal&&x.personal.user; return u&&Array.isArray(u.edited)?u.edited:[]; }
+// a kept entry from an ordinary package or collection file: its details only, never another Studio's record of what its person edited
+// (only a Studio backup restores those: Restore Lists and Settings, Restore Full Studio Backup)
+function csNoEdits(m){ if(!csKeptEdits(m).length) return m; const u=Object.assign({}, m.personal.user); delete u.edited; return Object.assign({}, m, {personal:Object.assign({}, m.personal, {user:u})}); }
 // a whole non-negative number (a number, or a string of digits) up to max; anything else is unknown (null)
 function csInt(v, max){ const n=typeof v==='number'?v:(typeof v==='string'&&/^\s*\d{1,13}\s*$/.test(v)?Number(v):NaN); return Number.isSafeInteger(n)&&n>=0&&n<=max?n:null; }
 // what the app read from a personal game's iNES / NES 2.0 header and its compatibility rules (personal.py): header numbers within their
@@ -268,9 +359,9 @@ function csMergeEntry(m, e, id){ if(!m) return e; if(!e) return m; const o=Objec
 // stays in the collection (pending) until the store confirms the merge: a refused, failed or interrupted request keeps it through
 // autosaves, switching collections and restarts, and the next reconcile (every personal-games refresh, e.g. when the app connects or
 // after an import) sends it again. Only a request in flight is not sent twice; nothing is remembered as "done" without confirmation.
-function csHasDetails(x, id){ return !!x&&(['title','version','description','year','publisher'].some(k=>csMeaningful(x[k], id))||!!x.thumb_url); }
+function csHasDetails(x, id){ return !!x&&(['title','version','description','year','publisher'].some(k=>csMeaningful(x[k], id))||!!x.thumb_url||csKeptEdits(x).length>0); }
 function csPendingPersonal(id, x){ return /^p_[0-9a-f]{16}$/.test(id||'')&&csHasDetails(x, id); }
-function csMetaKey(id, x){ return id+'|'+JSON.stringify([x.title||'', x.version||'', x.description||'', x.year||'', x.publisher||'', x.thumb_url||'']); }
+function csMetaKey(id, x){ return id+'|'+JSON.stringify([x.title||'', x.version||'', x.description||'', x.year||'', x.publisher||'', x.thumb_url||'', csKeptEdits(x)]); }
 // the store confirmed this exact entry: drop it from every collection that still holds the same details (others stay pending)
 function csSettlePersonal(id, key){ let n=0; const drop=m=>{ if(m&&m[id]&&typeof m[id]==='object'&&csMetaKey(id, csKept(m[id], id))===key){ delete m[id]; n++; } };
  drop(COLL.missing); Object.values((typeof CS!=='undefined'&&CS.items)||{}).forEach(r=>drop(r&&r.coll&&r.coll.missing)); if(n){ saveColl(); csWrite(); } }
@@ -278,8 +369,9 @@ const CS_INFLIGHT=new Map();   // key -> the request's promise (a second call fo
 async function csMergePersonal(list){ const res={sent:0, ok:0, changed:0, failed:[]}; if(!(typeof COMPANION!=='undefined'&&COMPANION.ok)||typeof hkPost!=='function') return res;
  for(const [id, x] of list){ if(!/^p_[0-9a-f]{16}$/.test(id)||!PERSONAL[id]||!x) continue; const key=csMetaKey(id, x);
   let p=CS_INFLIGHT.get(key);
-  if(!p){ const art=/^data:image\/(jpeg|png);base64,/.test(x.thumb_url||'')?x.thumb_url:''; res.sent++;
-   p=(async()=>{ try{ return await hkPost('/api/personal/merge', {id, meta:{title:x.title, version_label:x.version, description:x.description, year:x.year, publisher:x.publisher}, art}); }catch(e){ return {ok:false, error:String(e)}; } })();
+  if(!p){ const art=/^data:image\/(jpeg|png);base64,/.test(x.thumb_url||'')?x.thumb_url:''; res.sent++; const ed=csKeptEdits(x), u=(x.personal&&x.personal.user)||{};
+   const body={id, meta:{title:x.title, version_label:x.version, description:x.description, year:x.year, publisher:x.publisher}, art}; if(ed.length){ body.edited=ed; body.user={}; ed.forEach(f=>{ if(f!=='art') body.user[f]=u[f]||''; }); }   /* a Studio backup's own edits (D-80) */
+   p=(async()=>{ try{ return await hkPost('/api/personal/merge', body); }catch(e){ return {ok:false, error:String(e)}; } })();
    CS_INFLIGHT.set(key, p); p.finally(()=>{ if(CS_INFLIGHT.get(key)===p) CS_INFLIGHT.delete(key); }); }
   const r=await p;
   if(r&&r.ok){ res.ok++; if((r.changed||[]).length) res.changed++; csSettlePersonal(id, key); } else res.failed.push(id); }
@@ -287,7 +379,9 @@ async function csMergePersonal(list){ const res={sent:0, ok:0, changed:0, failed
 // every pending entry for a personal game that is on this computer (one request per distinct set of details)
 function csPendingList(){ const todo=new Map(); const scan=miss=>Object.entries(miss||{}).forEach(([id,x])=>{ x=x&&typeof x==='object'?csKept(x, id):null; if(x&&PERSONAL[id]&&csPendingPersonal(id, x)){ const k=csMetaKey(id, x); if(!todo.has(k)) todo.set(k, [id, x]); } });
  scan(COLL.missing); Object.values((typeof CS!=='undefined'&&CS.items)||{}).forEach(r=>scan(r&&r.coll&&r.coll.missing)); return [...todo.values()]; }
-function csReconcilePersonal(){ const l=csPendingList(); return l.length?csMergePersonal(l):Promise.resolve({sent:0, ok:0, changed:0, failed:[]}); }
+// held while a Full Studio Backup restores (the backup's details reach this computer's own games only inside the restore's transaction)
+var CS_HOLD=0;
+function csReconcilePersonal(){ const l=CS_HOLD?[]:csPendingList(); return l.length?csMergePersonal(l):Promise.resolve({sent:0, ok:0, changed:0, failed:[]}); }
 // while details are still pending, the game shows them where its own are only automatic (never over what the person edited)
 function csShowPending(){ csPendingList().forEach(([id, x])=>{ const g=byId[id], e=PERSONAL[id]; if(!g||!e||g.source!=='personal') return; const u=e.user||{}, ed=u.edited||[];
   const auto=t=>!csMeaningful(t, id)||t===(e.detected||{}).title||t===String(e.file_name||'').replace(/\.[^.]*$/,'');
@@ -326,32 +420,36 @@ function keptRows(){ if(!COLL||!COLL.missing) return []; const lo=typeof LO!=='u
 // Game Library game's (its kept details stay in the collection data); cleared when another collection opens
 var KEPT_OFF;
 function keptOff(id, off){ KEPT_OFF=KEPT_OFF||new Set(); if(off) KEPT_OFF.add(id); else KEPT_OFF.delete(id); }
-// ---- whether a kept entry's ROM file is available right now, from the same sources Share or Export uses (never inferred from "not in
+// ---- whether a kept entry's ROM file is available right now, from the same sources Back Up Collection uses (never inferred from "not in
 //      byId"): the website holds the files chosen in this visit (ROMSRC: references only, nothing is stored, gone after a reload); the
-//      Windows app checks this computer (the Share or Export ROM check). States: visit | here | none | checking | unknown ----
+//      Windows app checks this computer (the Back Up Collection ROM check). States: visit | here | none | checking | unknown ----
 var KEPT_AV, KEPT_AVQ;   // app: id -> true/false (null: the check failed); ids already asked
 function keptAvail(id){ if(typeof ccsAppPackages==='function'&&ccsAppPackages()){ KEPT_AV=KEPT_AV||new Map(); if(!KEPT_AV.has(id)){ keptAvailAsk(id); return 'checking'; } const v=KEPT_AV.get(id); return v===null?'unknown':v?'here':'none'; }
- let held=false; try{ held=ROMSRC.has(id); }catch(e){}   // ROMSRC is a const of ccs.js: the start-up render can reach this before that line has run (and typeof throws then)
+  let held=false; try{ held=ROMSRC.has(id); }catch(e){}   // ROMSRC is a const of ccs.js: the start-up render can reach this before that line has run (and typeof throws then)
+ let have=null; try{ have=CCSROMS._have; }catch(e){}   // CCSROMS is a const of ccs-play.js: the same start-up render reaches this before it exists (its keys arrive later: keptAvailChanged)
+ if(!held&&have){ const k=String(id).replace(/^p_/,''); for(const s of have) if(s.startsWith(k)) return 'browser'; }   // kept for playing in this browser (W1)
  return held?'visit':'none'; }
 function keptAvailAsk(id){ KEPT_AVQ=KEPT_AVQ||new Set(); if(KEPT_AVQ.has(id)) return; KEPT_AVQ.add(id); clearTimeout(keptAvailAsk.t);
  keptAvailAsk.t=setTimeout(async()=>{ const ids=[...KEPT_AVQ].filter(x=>!KEPT_AV.has(x)); if(!ids.length) return; let chk=null;
   try{ chk=await hkPost('/api/package/rom-check', {games:ids.map(x=>({version_id:x, title:csMissing(x).title||x}))}); }catch(e){}
   const yes=new Set(((chk&&chk.ok&&chk.available)||[]).map(g=>g.version_id)); ids.forEach(x=>KEPT_AV.set(x, chk&&chk.ok?yes.has(x):null)); keptAvailChanged(); }, 60); }
-// a Share or Export check (either source) is the newest word on the games it checked
+// a Back Up Collection check (either source) is the newest word on the games it checked
 function keptAvailNoted(ready, missing){ if(typeof ccsAppPackages==='function'&&ccsAppPackages()){ KEPT_AV=KEPT_AV||new Map(); (ready||[]).forEach(x=>KEPT_AV.set(x, true)); (missing||[]).forEach(x=>KEPT_AV.set(x, false)); } keptAvailChanged(); }
 // cards and an open Game Details follow the new state
 function keptAvailChanged(){ clearTimeout(keptAvailChanged.t); keptAvailChanged.t=setTimeout(()=>{ if(!keptRows().length) return; render();
  const box=$('detailsBox'), n=box&&box.querySelector('.keptnote'); if(n&&$('details').classList.contains('open')&&n.dataset.id){ const k=keptNote(n.dataset.id); n.className='msgbox keptnote'+(k.warn?' warn':''); n.innerHTML=k.html; } }, 30); }
 function keptNote(id){ const a=keptAvail(id), app=csAwayHere(), kept="This game's details are kept with the collection, and it stays in the collection and its loadouts.";
- if(a==='visit') return {html:'<b>ROM file held for this visit.</b> Ready to share or export. After reloading or closing this page, choose the ROM or .ccs package again. Game details stay saved.'};
- if(a==='here') return {html:`<b>ROM file on this computer.</b> This game is not in the Game Library, but its ROM file is on this computer, so it can be exported with the collection. ${kept}`};
+ if(a==='visit') return {html:'<b>ROM file held for this visit.</b> Ready to back up. After reloading or closing this page, choose the ROM or .ccs package again. Game details stay saved.'};
+ if(a==='browser') return {html:`<b>Kept in this browser for playing.</b> It plays here and is ready to back up. That copy is not a backup: keep your own file or a .ccs backup. ${kept}`};
+ if(a==='here') return {html:`<b>ROM file on this computer.</b> This game is not in the Game Library, but its ROM file is on this computer, so it can be backed up with the collection. ${kept}`};
  if(a==='checking') return {html:`<b>Checking this computer for its ROM file…</b> ${kept}`};
  if(a==='unknown') return {warn:true, html:`<b>Its ROM file could not be checked.</b> ${kept}`};
- return {warn:true, html:`<b>No ROM file here.</b> ${app?'The ROM file is not on this computer':'The website keeps no ROM files'}. ${kept} ${app?'Add its ROM file with <b>Add Your Own Game</b> to install it.':'To share or export it from here, choose its ROM file in <b>Share or Export</b>. To install it, open the collection in Classic Cart Studio for Windows and add its ROM file there.'}`}; }
+ return {warn:true, html:`<b>No ROM file here.</b> ${app?'The ROM file is not on this computer':'This browser has no copy of its ROM file'}. ${kept} ${app?'Add its ROM file with <b>Add Your Own Game</b> to install it.':'To back it up from here, choose its ROM file in <b>Back Up Collection</b>. To install it, open the collection in Classic Cart Studio for Windows and add its ROM file there.'}`}; }
 // the card/row mark: [text, tooltip, held (true when the file can be exported now)]
 function keptBadge(id){ const a=keptAvail(id); return a==='visit'?['ROM held for this visit','Its ROM file was chosen in this browser visit. The website does not keep it: after a reload, choose it again.',true]
+ :a==='browser'?['Kept in this browser','A private copy of its ROM file is kept in this browser for playing; it is ready to back up.',true]
  :a==='here'?['ROM file on this computer','Its ROM file is on this computer. This game is not in the Game Library.',true]:a==='checking'?['Checking ROM file…','Checking this computer for its ROM file',false]
- :a==='unknown'?['ROM file not checked','Its ROM file could not be checked',false]:['No ROM file here',(csAwayHere()?'The ROM file is not on this computer':'The website keeps no ROM files')+': its details are kept with this collection',false]; }
+ :a==='unknown'?['ROM file not checked','Its ROM file could not be checked',false]:['No ROM file here',(csAwayHere()?'The ROM file is not on this computer':'This browser has no copy of its ROM file')+': its details are kept with this collection',false]; }
 // Game Details of a kept entry say so first
 (function(){ const _d=openDetails; openDetails=function(id){ const r=_d.apply(this, arguments); const g=!byId[id]&&keptRow(id), box=$('detailsBox'); if(!g||!box) return r; const h=box.querySelector('h2');
  if(h&&!box.querySelector('.keptnote')){ const k=keptNote(id); h.insertAdjacentHTML('afterend', `<div class="msgbox keptnote${k.warn?' warn':''}" data-id="${esc(id)}">${k.html}</div>`); } return r; }; })();

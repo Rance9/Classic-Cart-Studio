@@ -6,7 +6,7 @@
  *
  * This file only translates: the HOME (home.c and the four themes) keeps navigation, focus, repeat and theme logic, and the
  * pixels presented are exactly the frame home_render draws for Preview on TV. Nothing here changes the video mode, launches a
- * game, or writes anywhere except the framebuffer and <state dir>/home-prefs.json (written by persist.c when the controller
+ * game, or writes anywhere except the framebuffer, the sound device (HOME Music, D-81) and <state dir>/home-prefs.json and home-music.json (written by persist.c when the controller
  * picks a theme). The state folder must be on tmpfs/ramfs: H1 keeps everything in RAM.
  *
  * Test seams (host-side verification only; never used on the console): --fb-file PATH --fb-geometry SPEC maps a regular file
@@ -48,6 +48,7 @@ int device_inspect_fb(int argc, char **argv) { (void)argc; (void)argv; return li
 #include <sys/syscall.h>
 #include <sys/resource.h>
 #include <linux/fb.h>
+#include "devio.h"
 
 #define EXIT_USAGE 2
 #define EXIT_STATE 10
@@ -77,29 +78,9 @@ static const char *arg_val(int argc, char **argv, int *i, const char *name) {   
     return NULL;
 }
 
-/* ---------- monotonic clock ---------- */
-#if defined(__arm__) && !defined(__GLIBC__)
-#if defined(SYS_clock_gettime32)
-#define CCS_CGT32 SYS_clock_gettime32
-#elif defined(SYS_clock_gettime)
-#define CCS_CGT32 SYS_clock_gettime
-#endif
-#ifdef CCS_CGT32
-_Static_assert(CCS_CGT32 == 263, "ARM EABI clock_gettime is system call 263");
-#endif
-#endif
-static uint64_t mono_us(void) {
-#if defined(CCS_CGT32)
-    /* the classic 32-bit clock_gettime (Linux 2.6+): no dependence on musl's 64-bit-time fallback on the console's 3.4 kernel */
-    static uint64_t last; long t32[2];
-    if (syscall(CCS_CGT32, CLOCK_MONOTONIC, t32) == 0) last = (uint64_t)(unsigned long)t32[0] * 1000000u + (uint64_t)t32[1] / 1000u;
-    return last;   /* (cannot fail for CLOCK_MONOTONIC; libc's clock_gettime is not linked in, so no 64-bit-time call is in the binary) */
-#else
-    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return (uint64_t)ts.tv_sec * 1000000u + (uint64_t)ts.tv_nsec / 1000u;
-#endif
-}
-
-static uint64_t mono_ms_now(void) { return mono_us() / 1000u; }
+/* ---------- the devices: devio.c (shared with the game player's console host, tools/player/core/host_dev.c) ---------- */
+static uint64_t mono_us(void) { return dio_mono_us(); }
+static uint64_t mono_ms_now(void) { return dio_mono_us() / 1000u; }
 
 /* ---------- signals ---------- */
 static volatile sig_atomic_t g_stop, g_signal;
@@ -112,187 +93,27 @@ static void install_signals(void) {
     sa.sa_handler = SIG_IGN; sigaction(SIGPIPE, &sa, NULL);
 }
 
-/* ---------- framebuffer: one seam, two back ends (the device via ioctl, or a test file with a declared mode) ---------- */
-typedef struct {
-    int fd, is_file, pan_mode, pan_fail_after, pans; uint8_t *map, *mem; size_t map_len;
-    struct fb_var_screeninfo var; struct fb_fix_screeninfo fix;
-    uint32_t orig_yoff, shown_yoff; int pages, flip;        /* flip: page flipping in use (else single-buffer drawing) */
-    char path[256];
-} dfb;
+typedef dio_fb dfb;
+#define fb_open dio_fb_open
+#define fb_describe dio_fb_describe
+#define fb_present dio_fb_present
+static void fb_close(dfb *f, int clear) { char w[200]; dio_fb_close(f, clear, w, sizeof w); if (w[0]) outf("{\"ev\":\"warning\",\"warning\":\"%s\"}", w); }
 
-static int fb_validate(const dfb *f, char *err, size_t n) {
-    const struct fb_var_screeninfo *v = &f->var; const struct fb_fix_screeninfo *x = &f->fix;
-    if (v->xres != CCS_FB_W || v->yres != CCS_FB_H) { snprintf(err, n, "screen is %ux%u; the HOME draws 1280x720 and the mode is never changed", v->xres, v->yres); return -1; }
-    if (v->bits_per_pixel != 32) { snprintf(err, n, "%u bits per pixel; only 32-bit XRGB/ARGB is supported", v->bits_per_pixel); return -1; }
-    if (x->type != FB_TYPE_PACKED_PIXELS || x->visual != FB_VISUAL_TRUECOLOR || v->nonstd || v->grayscale) { snprintf(err, n, "not a packed true-color framebuffer (type %u visual %u nonstd %u grayscale %u)", x->type, x->visual, v->nonstd, v->grayscale); return -1; }
-    const struct fb_bitfield *c[3] = { &v->red, &v->green, &v->blue }; unsigned used = 0;
-    for (int i = 0; i < 3; i++) { if (c[i]->length != 8 || c[i]->msb_right || c[i]->offset % 8 || c[i]->offset > 24 || (used & (1u << (c[i]->offset / 8)))) { snprintf(err, n, "unsupported color fields r%u/%u g%u/%u b%u/%u", v->red.offset, v->red.length, v->green.offset, v->green.length, v->blue.offset, v->blue.length); return -1; } used |= 1u << (c[i]->offset / 8); }
-    if (v->transp.length && (v->transp.length != 8 || (used & (1u << (v->transp.offset / 8))) || v->transp.offset % 8 || v->transp.offset > 24)) { snprintf(err, n, "unsupported alpha field %u/%u", v->transp.offset, v->transp.length); return -1; }
-    if (x->line_length < v->xres * 4 || x->line_length % 4) { snprintf(err, n, "line length %u is too short or unaligned for %u pixels", x->line_length, v->xres); return -1; }
-    if (v->xres_virtual < v->xres || v->yres_virtual < v->yres) { snprintf(err, n, "virtual size %ux%u is smaller than the screen", v->xres_virtual, v->yres_virtual); return -1; }
-    if ((uint64_t)x->line_length * v->yres_virtual > x->smem_len) { snprintf(err, n, "framebuffer memory %u bytes is smaller than line %u x virtual height %u", x->smem_len, x->line_length, v->yres_virtual); return -1; }
-    if (v->xoffset != 0 || v->yoffset + v->yres > v->yres_virtual) { snprintf(err, n, "display offset %u,%u is outside what the adapter supports", v->xoffset, v->yoffset); return -1; }
-    return 0;
-}
+/* ---------- controller mapping (a text file in the bundle, so codes can be corrected without rebuilding): devio.c ---------- */
+typedef dio_map cmap;
+#define map_default dio_map_default
+#define map_load dio_map_load
 
-static void fb_describe(const dfb *f, char *o, size_t n) {
-    const struct fb_var_screeninfo *v = &f->var;
-    snprintf(o, n, "\"xres\":%u,\"yres\":%u,\"xres_virtual\":%u,\"yres_virtual\":%u,\"xoffset\":%u,\"yoffset\":%u,\"bits_per_pixel\":%u,\"line_length\":%u,\"smem_len\":%u,"
-             "\"red\":[%u,%u],\"green\":[%u,%u],\"blue\":[%u,%u],\"transp\":[%u,%u],\"type\":%u,\"visual\":%u,\"ypanstep\":%u",
-             v->xres, v->yres, v->xres_virtual, v->yres_virtual, v->xoffset, v->yoffset, v->bits_per_pixel, f->fix.line_length, f->fix.smem_len,
-             v->red.offset, v->red.length, v->green.offset, v->green.length, v->blue.offset, v->blue.length, v->transp.offset, v->transp.length, f->fix.type, f->fix.visual, f->fix.ypanstep);
-}
-
-/* SPEC (tests): xres=1280,yres=720,vxres=1280,vyres=1440,bpp=32,line=5120,smem=7372800,r=16,g=8,b=0,a=-1,yoff=0,pan=1|0|failN */
-static int fb_parse_geometry(dfb *f, const char *spec, char *err, size_t n) {
-    struct fb_var_screeninfo *v = &f->var; struct fb_fix_screeninfo *x = &f->fix;
-    v->xres = v->xres_virtual = 1280; v->yres = 720; v->yres_virtual = 1440; v->bits_per_pixel = 32; x->line_length = 5120; x->smem_len = 5120 * 1440;
-    v->red.offset = 16; v->green.offset = 8; v->blue.offset = 0; v->red.length = v->green.length = v->blue.length = 8;
-    x->type = FB_TYPE_PACKED_PIXELS; x->visual = FB_VISUAL_TRUECOLOR; x->ypanstep = 1; f->pan_mode = 1; f->pan_fail_after = -1;
-    char buf[400]; snprintf(buf, sizeof buf, "%s", spec ? spec : "");
-    for (char *t = strtok(buf, ","); t; t = strtok(NULL, ",")) {
-        char *eq = strchr(t, '='); if (!eq) { snprintf(err, n, "bad geometry item %s", t); return -1; } *eq++ = 0; long val = strtol(eq, NULL, 10);
-        if (!strcmp(t, "xres")) v->xres = (uint32_t)val; else if (!strcmp(t, "yres")) v->yres = (uint32_t)val; else if (!strcmp(t, "vxres")) v->xres_virtual = (uint32_t)val;
-        else if (!strcmp(t, "vyres")) v->yres_virtual = (uint32_t)val; else if (!strcmp(t, "bpp")) v->bits_per_pixel = (uint32_t)val; else if (!strcmp(t, "line")) x->line_length = (uint32_t)val;
-        else if (!strcmp(t, "smem")) x->smem_len = (uint32_t)val; else if (!strcmp(t, "r")) v->red.offset = (uint32_t)val; else if (!strcmp(t, "g")) v->green.offset = (uint32_t)val;
-        else if (!strcmp(t, "b")) v->blue.offset = (uint32_t)val; else if (!strcmp(t, "a")) { if (val >= 0) { v->transp.offset = (uint32_t)val; v->transp.length = 8; } }
-        else if (!strcmp(t, "yoff")) v->yoffset = (uint32_t)val; else if (!strcmp(t, "visual")) x->visual = (uint32_t)val;
-        else if (!strcmp(t, "pan")) { if (!strncmp(eq, "fail", 4)) { f->pan_mode = 1; f->pan_fail_after = atoi(eq + 4); } else f->pan_mode = (int)val; }
-        else { snprintf(err, n, "unknown geometry item %s", t); return -1; }
-    }
-    return 0;
-}
-
-static int fb_open(dfb *f, const char *path, const char *test_geometry, int map_it, char *err, size_t n) {
-    memset(f, 0, sizeof *f); f->fd = -1; snprintf(f->path, sizeof f->path, "%s", path);
-    if (test_geometry) {
-        f->is_file = 1; if (fb_parse_geometry(f, test_geometry, err, n)) return -1;
-        f->fd = open(path, map_it ? O_RDWR : O_RDONLY); if (f->fd < 0) { snprintf(err, n, "cannot open test framebuffer file %s: %s", path, strerror(errno)); return -1; }
-        off_t size = lseek(f->fd, 0, SEEK_END); lseek(f->fd, 0, SEEK_SET);   /* (lseek, not fstat: musl's stat family tries statx, a 4.11 call) */
-        if (size < 0 || (uint64_t)size < f->fix.smem_len) { snprintf(err, n, "test framebuffer file is smaller than smem %u", f->fix.smem_len); return -1; }
-    } else {
-        f->fd = open(path, map_it ? O_RDWR : O_RDONLY); if (f->fd < 0) { snprintf(err, n, "cannot open %s: %s", path, strerror(errno)); return -1; }
-        if (ioctl(f->fd, FBIOGET_VSCREENINFO, &f->var)) { snprintf(err, n, "FBIOGET_VSCREENINFO failed on %s: %s", path, strerror(errno)); return -1; }
-        if (ioctl(f->fd, FBIOGET_FSCREENINFO, &f->fix)) { snprintf(err, n, "FBIOGET_FSCREENINFO failed on %s: %s", path, strerror(errno)); return -1; }
-    }
-    f->orig_yoff = f->shown_yoff = f->var.yoffset;
-    if (fb_validate(f, err, n)) return -1;
-    if (!map_it) return 0;
-    long pg = sysconf(_SC_PAGESIZE); size_t lead = f->is_file ? 0 : (size_t)(f->fix.smem_start & (unsigned long)(pg - 1));
-    f->map_len = lead + f->fix.smem_len;
-    void *m = mmap(NULL, f->map_len, PROT_READ | PROT_WRITE, MAP_SHARED, f->fd, 0);
-    if (m == MAP_FAILED) { snprintf(err, n, "mmap of %zu bytes failed: %s", f->map_len, strerror(errno)); f->map = NULL; return -1; }
-    f->map = m; f->mem = f->map + lead;
-    /* page flipping needs two whole screens and a displayed page at 0 or yres; otherwise draw into the shown page */
-    f->pages = (int)(f->var.yres_virtual / f->var.yres);
-    f->flip = f->pages >= 2 && (f->var.yoffset == 0 || f->var.yoffset == f->var.yres) && (f->is_file ? f->pan_mode : 1);
-    return 0;
-}
-
-static int fb_pan(dfb *f, uint32_t yoff) {
-    if (f->is_file) {   /* emulated: the test declares whether panning works (and when it starts failing) */
-        if (!f->pan_mode || (f->pan_fail_after >= 0 && f->pans >= f->pan_fail_after)) { errno = EINVAL; return -1; }
-        f->pans++; f->shown_yoff = yoff; return 0;
-    }
-    struct fb_var_screeninfo v = f->var; v.xoffset = 0; v.yoffset = yoff;
-    if (ioctl(f->fd, FBIOPAN_DISPLAY, &v)) return -1;
-    f->pans++; f->shown_yoff = yoff; return 0;
-}
-
-/* RGB24 -> the framebuffer's 32-bit pixels at page row y0, using the reported channel offsets; only the visible 1280x720
- * rectangle of that page is written (row padding and the other page are never touched) */
-static void fb_convert(const dfb *f, const framebuffer *src, uint32_t y0) {
-    const struct fb_var_screeninfo *v = &f->var; uint32_t ro = v->red.offset, go = v->green.offset, bo = v->blue.offset;
-    uint32_t alpha = v->transp.length == 8 ? (uint32_t)0xFF << v->transp.offset : 0;   /* opaque where the format has alpha */
-    for (int y = 0; y < src->h; y++) {
-        uint32_t *d = (uint32_t *)(void *)(f->mem + (size_t)(y0 + (uint32_t)y) * f->fix.line_length); const uint8_t *s = src->rgb + (size_t)y * src->w * 3;
-        for (int x = 0; x < src->w; x++, s += 3) d[x] = ((uint32_t)s[0] << ro) | ((uint32_t)s[1] << go) | ((uint32_t)s[2] << bo) | alpha;
-    }
-}
-
-/* present one frame: into the hidden page then pan; if panning fails, fall back for good to drawing into the shown page */
-static int fb_present(dfb *f, const framebuffer *src, int *fell_back, char *why, size_t n) {
-    if (f->flip) {
-        uint32_t back = f->shown_yoff == 0 ? f->var.yres : 0; fb_convert(f, src, back);
-        if (!fb_pan(f, back)) return 0;
-        snprintf(why, n, "FBIOPAN_DISPLAY failed (%s): single-buffer drawing from now on", strerror(errno)); f->flip = 0; *fell_back = 1;
-    }
-    fb_convert(f, src, f->shown_yoff); return 0;
-}
-
-static void fb_close(dfb *f, int clear) {
-    if (f->map) {
-        if (clear) for (uint32_t y = 0; y < f->var.yres_virtual; y++) memset(f->mem + (size_t)y * f->fix.line_length, 0, (size_t)f->var.xres * 4);
-        if (f->shown_yoff != f->orig_yoff && fb_pan(f, f->orig_yoff)) outf("{\"ev\":\"warning\",\"warning\":\"could not restore the original display offset %u\"}", f->orig_yoff);
-        if (f->is_file) msync(f->map, f->map_len, MS_SYNC);
-        munmap(f->map, f->map_len); f->map = NULL;
-    }
-    if (f->fd >= 0) close(f->fd); f->fd = -1;
-}
-
-/* ---------- controller mapping (a text file in the bundle, so codes can be corrected without rebuilding) ---------- */
-typedef struct { char devices[MAX_DEV][128]; int ndev; signed char key[KEY_MAX_ + 1]; } cmap;   /* key[code] = button or -1 */
-static const int DEFAULT_MAP[][2] = { { 304, B_A }, { 305, B_B }, { 314, B_SELECT }, { 315, B_START }, { 704, B_LEFT }, { 705, B_RIGHT }, { 706, B_UP }, { 707, B_DOWN } };
-
-static void map_default(cmap *m) {
-    memset(m, 0, sizeof *m); memset(m->key, -1, sizeof m->key); snprintf(m->devices[0], sizeof m->devices[0], "Nintendo Clovercon - controller1"); m->ndev = 1;
-    for (size_t i = 0; i < sizeof DEFAULT_MAP / sizeof DEFAULT_MAP[0]; i++) m->key[DEFAULT_MAP[i][0]] = (signed char)DEFAULT_MAP[i][1];
-}
-/* format: '#' comments; "device <name>" (one per controller, up to 4); "key <code> <up|down|left|right|a|b|start|select>" */
-static int map_load(cmap *m, const char *path, char *err, size_t n) {
-    memset(m, 0, sizeof *m); memset(m->key, -1, sizeof m->key);
-    FILE *fp = fopen(path, "r"); if (!fp) { snprintf(err, n, "cannot read the mapping file %s: %s", path, strerror(errno)); return -1; }
-    char line[300]; int ln = 0, seen[B_COUNT] = { 0 };
-    while (fgets(line, sizeof line, fp)) {
-        ln++; char *s = line; while (*s == ' ' || *s == '\t') s++; size_t L = strlen(s); while (L && (s[L - 1] == '\n' || s[L - 1] == '\r' || s[L - 1] == ' ')) s[--L] = 0;
-        if (!*s || *s == '#') continue;
-        if (!strncmp(s, "device ", 7)) { if (m->ndev >= MAX_DEV || strlen(s + 7) >= sizeof m->devices[0]) { snprintf(err, n, "line %d: too many devices or name too long", ln); fclose(fp); return -1; } snprintf(m->devices[m->ndev++], sizeof m->devices[0], "%s", s + 7); continue; }
-        int code; char bn[32], extra[8]; button b;
-        if (sscanf(s, "key %d %31s %7s", &code, bn, extra) != 2) { snprintf(err, n, "line %d: expected \"key <code> <button>\" or \"device <name>\"", ln); fclose(fp); return -1; }
-        if (code < 0 || code > KEY_MAX_) { snprintf(err, n, "line %d: key code %d is out of range 0..%d", ln, code, KEY_MAX_); fclose(fp); return -1; }
-        if (!button_parse(bn, &b)) { snprintf(err, n, "line %d: unknown button %s", ln, bn); fclose(fp); return -1; }
-        if (m->key[code] >= 0) { snprintf(err, n, "line %d: key code %d is mapped twice", ln, code); fclose(fp); return -1; }
-        m->key[code] = (signed char)b; seen[b] = 1;
-    }
-    fclose(fp);
-    if (!m->ndev) { snprintf(err, n, "no \"device\" line"); return -1; }
-    for (int b = 0; b < B_COUNT; b++) if (!seen[b]) { snprintf(err, n, "button %s is not mapped", button_name((button)b)); return -1; }
-    return 0;
-}
-
-/* ---------- evdev devices ---------- */
-/* settle_until: mono ms until which this device's key events only update its button state (an "open-time settle"): the
- * clovercon driver re-initializes the controller when a program opens it (clovercon_open) and derives D-pad keys from the
- * analog stick bytes as well (clovercon_poll), so the first reports after an open can carry presses nobody made. A button
- * still down when the window ends counts as held: it gives no press until it has been released. */
-typedef struct { int fd; char path[64], name[128]; uint8_t rem[24]; size_t nrem; int down[B_COUNT]; uint64_t settle_until; int settle_ignored; } edev;
+/* ---------- evdev devices (devio.c; the open-time settle is explained there) ---------- */
+typedef dio_dev edev;
 #define INPUT_SETTLE_MS 400
 static uint64_t g_settle_ms = INPUT_SETTLE_MS;
-static uint64_t mono_ms_now(void);
-typedef struct { edev d[MAX_DEV]; int n; const char *fixed; uint64_t next_scan_us; } inputs;
-
-static int dev_name(int fd, char *name, size_t n) { memset(name, 0, n); return ioctl(fd, CCS_EVIOCGNAME(n - 1), name) < 0 ? -1 : 0; }
-/* open every /dev/input/eventN whose registered name is one of the mapped controllers (never a fixed event number) */
-static int inputs_scan(inputs *in, const cmap *m, int list_all) {
-    for (int i = 0; i < 64 && in->n < MAX_DEV; i++) {
-        char p[64]; snprintf(p, sizeof p, "/dev/input/event%d", i); int fd = open(p, O_RDONLY | O_NONBLOCK | O_CLOEXEC); if (fd < 0) continue;
-        char name[128]; int ok = !dev_name(fd, name, sizeof name), match = 0;
-        for (int k = 0; ok && k < m->ndev; k++) if (!strcmp(name, m->devices[k])) match = 1;
-        for (int k = 0; k < in->n; k++) if (!strcmp(in->d[k].path, p)) match = 0;   /* already open */
-        if (list_all) { char a[160], b[300]; jq(p, a, sizeof a); jq(ok ? name : "", b, sizeof b); outf("{\"ev\":\"input_device_seen\",\"path\":%s,\"name\":%s,\"mapped\":%s}", a, b, match ? "true" : "false"); }
-        if (!match) { close(fd); continue; }
-        edev *d = &in->d[in->n++]; memset(d, 0, sizeof *d); d->fd = fd; snprintf(d->path, sizeof d->path, "%s", p); snprintf(d->name, sizeof d->name, "%s", name); d->settle_until = mono_ms_now() + g_settle_ms;
-        char a[160], b[300]; jq(p, a, sizeof a); jq(name, b, sizeof b); outf("{\"ev\":\"input_device\",\"path\":%s,\"name\":%s,\"event_size\":%zu}", a, b, (size_t)EVSIZE);
-    }
-    return in->n;
-}
-static int inputs_open_fixed(inputs *in, const char *path) {
-    int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC); if (fd < 0) return -1;
-    edev *d = &in->d[in->n++]; memset(d, 0, sizeof *d); d->fd = fd; snprintf(d->path, sizeof d->path, "%.63s", path); d->settle_until = mono_ms_now() + g_settle_ms;
-    if (dev_name(fd, d->name, sizeof d->name)) snprintf(d->name, sizeof d->name, "(not an input device: test stream)");
-    char a[160], b[300]; jq(d->path, a, sizeof a); jq(d->name, b, sizeof b); outf("{\"ev\":\"input_device\",\"path\":%s,\"name\":%s,\"event_size\":%zu}", a, b, (size_t)EVSIZE);
-    return 0;
-}
+typedef dio_inputs inputs;
+static void on_seen(void *ctx, int kind, const char *path, const char *name, int mapped) { (void)ctx; char a[160], b[300]; jq(path, a, sizeof a); jq(name, b, sizeof b);
+    if (kind == 0) outf("{\"ev\":\"input_device_seen\",\"path\":%s,\"name\":%s,\"mapped\":%s}", a, b, mapped ? "true" : "false");
+    else outf("{\"ev\":\"input_device\",\"path\":%s,\"name\":%s,\"event_size\":%zu}", a, b, (size_t)EVSIZE); }
+static int inputs_scan(inputs *in, const cmap *m, int list_all) { return dio_inputs_scan(in, m, list_all, g_settle_ms, on_seen, NULL); }
+static int inputs_open_fixed(inputs *in, const char *path) { return dio_inputs_open_fixed(in, path, g_settle_ms, on_seen, NULL); }
 
 /* ---------- SELECT+START arbiter: the H1 emergency exit is recognized before SELECT/START reach the HOME ---------- */
 typedef struct {
@@ -336,21 +157,7 @@ static void arb_tick(arbiter *a, dstate *s, uint64_t now) {
 static void arb_reset(arbiter *a) { memset(a->phys, 0, sizeof a->phys); memset(a->fwd, 0, sizeof a->fwd); memset(a->pend, 0, sizeof a->pend); a->combo = 0; }
 
 /* read whatever is available: whole records only, partial records kept for the next read; returns -1 when the device is gone */
-static int dev_read(edev *d, const cmap *m, void (*fn)(void *, edev *, int, int, int), void *ctx) {
-    uint8_t buf[64 * 24];
-    for (;;) {
-        memcpy(buf, d->rem, d->nrem); ssize_t r = read(d->fd, buf + d->nrem, sizeof buf - d->nrem);
-        if (r < 0) { if (errno == EAGAIN || errno == EINTR) return 0; return -1; }
-        if (r == 0) { errno = 0; return -1; }       /* end of a test stream, or the device went away */
-        size_t have = d->nrem + (size_t)r, off = 0;
-        for (; off + EVSIZE <= have; off += EVSIZE) {
-            uint16_t type, code; int32_t value; memcpy(&type, buf + off + 2 * sizeof(long), 2); memcpy(&code, buf + off + 2 * sizeof(long) + 2, 2); memcpy(&value, buf + off + 2 * sizeof(long) + 4, 4);
-            fn(ctx, d, type, code, value);
-        }
-        d->nrem = have - off; memcpy(d->rem, buf + off, d->nrem);
-    }
-    (void)m;
-}
+static int dev_read(edev *d, const cmap *m, void (*fn)(void *, edev *, int, int, int), void *ctx) { (void)m; return dio_dev_read(d, fn, ctx); }
 
 /* ---------- --device ---------- */
 typedef struct { dstate s; arbiter a; cmap m; inputs in; uint64_t t0; int dropped; } rt;
@@ -372,19 +179,98 @@ static void rt_device_lost(rt *r, int i, const char *why) {
     input_device(&r->s.in, 0, on_input, &r->s); input_device(&r->s.in, r->in.n > 0, NULL, NULL);   /* a rescan reconnects */
 }
 
-static long rss_kb(void) { FILE *f = fopen("/proc/self/statm", "r"); if (!f) return -1; long a = 0, b = 0; if (fscanf(f, "%ld %ld", &a, &b) != 2) b = -1; fclose(f); return b < 0 ? -1 : b * (sysconf(_SC_PAGESIZE) / 1024); }
+static long rss_kb(void) { return dio_rss_kb(); }
 
 static int state_dir_check(const char *dir, int any_fs, char *err, size_t n, char *fsname, size_t fn) {
     if (!dir || !*dir) { snprintf(err, n, "--state-dir is required (H1 keeps the theme choice in RAM, e.g. /tmp/ccs/state); there is no default"); return -1; }
-    if (dir[0] != '/' || strstr(dir, "/../") || strstr(dir, "/./") || (strlen(dir) >= 3 && !strcmp(dir + strlen(dir) - 3, "/.."))) { snprintf(err, n, "--state-dir must be an absolute path without . or .. components"); return -1; }
-    static const char *deny[] = { "/var/lib", "/var/saves", "/newroot", "/etc", "/usr", "/bin", "/sbin", "/lib", "/media", "/mnt", "/boot" };
-    for (size_t i = 0; i < sizeof deny / sizeof deny[0]; i++) { size_t L = strlen(deny[i]); if (!strncmp(dir, deny[i], L) && (dir[L] == 0 || dir[L] == '/')) { snprintf(err, n, "--state-dir %s is under %s, a persistent or system location", dir, deny[i]); return -1; } }
-    int dfd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC); if (dfd < 0) { snprintf(err, n, "--state-dir %s does not exist or is not a folder (the launcher creates it in RAM first)", dir); return -1; } close(dfd);
-    if (access(dir, W_OK)) { snprintf(err, n, "--state-dir %s is not writable", dir); return -1; }
-    struct statfs sf; if (statfs(dir, &sf)) { snprintf(err, n, "statfs(%s) failed: %s", dir, strerror(errno)); return -1; }
-    unsigned long t = (unsigned long)sf.f_type; snprintf(fsname, fn, t == TMPFS_MAGIC_ ? "tmpfs" : t == RAMFS_MAGIC_ ? "ramfs" : "other (0x%lx)", t);
-    if (t != TMPFS_MAGIC_ && t != RAMFS_MAGIC_ && !any_fs) { snprintf(err, n, "--state-dir %s is not on tmpfs or ramfs (filesystem 0x%lx): H1 must not write persistent storage", dir, t); return -1; }
+    char e[400]; if (dio_ram_dir(dir, any_fs, e, sizeof e, fsname, fn)) { snprintf(err, n, "--state-dir: %s", e); return -1; } return 0; }
+
+/* ---------- HOME Music (D-81): the console's sound ----------
+ * The console's ALSA device hw:0,0 takes S16_LE, 2 channels, 48,000 Hz (its /etc/asound.conf), which is the HOME Music file's own format,
+ * so the samples go to the device unchanged. The static musl runtime cannot load the console's glibc libasound, so this speaks the
+ * kernel's PCM interface directly (the kernel's <sound/asound.h>: HW_PARAMS, SW_PARAMS, PREPARE, WRITEI_FRAMES, DELAY, DROP). The
+ * file is read in pieces (never held whole); non-blocking writes top up the device's buffer between frames; Off and exit stop the
+ * sound at once (DROP). The whole song plays, then it starts again from the beginning. A device that cannot be opened never stops
+ * the HOME: it reports audio_unavailable and the HOME runs silently.
+ * Test seam (host-side verification only; never used on the console): --audio-file PATH writes the samples the device would get,
+ * paced by the clock, to a file instead. It exercises the reading, looping, pause and resume logic, not the kernel's PCM interface. */
+#define SND_CHUNK 1024
+typedef struct {
+    int on; dio_pcm pcm; FILE *wav, *sink; long data_off; uint32_t frames, pos, loops; int playing; char dev[300];
+    int16_t chunk[SND_CHUNK * 2]; uint32_t chunk_n, chunk_off;   /* read from the file, not yet written */
+    uint64_t sink_resume_us, sink_resume_written, sink_written;
+} dsnd;
+static int wav_open(dsnd *s, const char *path, char *why, size_t n) {
+    s->wav = fopen(path, "rb"); if (!s->wav) { snprintf(why, n, "cannot open %s", path); return -1; }
+    uint8_t h[12]; if (fread(h, 1, 12, s->wav) != 12 || memcmp(h, "RIFF", 4) || memcmp(h + 8, "WAVE", 4)) { snprintf(why, n, "not a WAV file"); return -1; }
+    int fmt_ok = 0;
+    for (;;) {
+        uint8_t c[8]; if (fread(c, 1, 8, s->wav) != 8) { snprintf(why, n, "no data chunk"); return -1; }
+        uint32_t sz = (uint32_t)c[4] | (uint32_t)c[5] << 8 | (uint32_t)c[6] << 16 | (uint32_t)c[7] << 24;
+        if (!memcmp(c, "fmt ", 4)) { uint8_t f[16]; if (sz < 16 || fread(f, 1, 16, s->wav) != 16) { snprintf(why, n, "short fmt chunk"); return -1; }
+            unsigned tag = f[0] | f[1] << 8, ch = f[2] | f[3] << 8, bits = f[14] | f[15] << 8; uint32_t rate = (uint32_t)f[4] | (uint32_t)f[5] << 8 | (uint32_t)f[6] << 16 | (uint32_t)f[7] << 24;
+            if (tag != 1 || ch != 2 || rate != 48000 || bits != 16) { snprintf(why, n, "the music is not 16-bit stereo PCM at 48000 Hz"); return -1; }
+            fmt_ok = 1; if (sz > 16 && fseek(s->wav, (long)(sz - 16 + (sz & 1)), SEEK_CUR)) { snprintf(why, n, "bad fmt chunk"); return -1; } }
+        else if (!memcmp(c, "data", 4)) { if (!fmt_ok) { snprintf(why, n, "data before fmt"); return -1; } s->data_off = ftell(s->wav); s->frames = sz / 4; break; }
+        else if (fseek(s->wav, (long)(sz + (sz & 1)), SEEK_CUR)) { snprintf(why, n, "bad chunk"); return -1; }
+    }
+    if (!s->frames) { snprintf(why, n, "the music has no samples"); return -1; }
     return 0;
+}
+static int pcm_open(dsnd *s, char *why, size_t n) { return dio_pcm_open(&s->pcm, s->dev, 48000, why, n); }
+/* frames accepted (0 when the device's buffer is full), -1 on a lasting error */
+static int pcm_write(dsnd *s, const int16_t *b, uint32_t frames) {
+    if (s->sink) {
+        uint64_t due = s->sink_resume_written + (mono_us() - s->sink_resume_us) * 48000u / 1000000u + 4800u;   /* 100 ms ahead, as a device buffer would be */
+        if (s->sink_written >= due) return 0; uint64_t k = due - s->sink_written; if (k > frames) k = frames;
+        if (fwrite(b, 4, (size_t)k, s->sink) != (size_t)k) return -1; fflush(s->sink); s->sink_written += k; return (int)k;
+    }
+    return dio_pcm_write(&s->pcm, b, frames);   /* a slow frame that emptied the buffer starts it again there */
+}
+static void snd_stop(dsnd *s) {   /* silent at once; the playhead steps back to what was actually heard */
+    uint32_t unplayed = s->chunk_n - s->chunk_off;
+    if (s->sink) { uint64_t played = s->sink_resume_written + (mono_us() - s->sink_resume_us) * 48000u / 1000000u;   /* the test file keeps only what was heard */
+        if (s->sink_written > played) { unplayed += (uint32_t)(s->sink_written - played); s->sink_written = played; fflush(s->sink); fseek(s->sink, (long)(played * 4), SEEK_SET); } }
+    else if (s->pcm.fd >= 0) { unplayed += (uint32_t)dio_pcm_delay(&s->pcm); dio_pcm_drop(&s->pcm); }
+    unplayed %= s->frames; s->pos = (s->pos + s->frames - unplayed) % s->frames; s->chunk_n = s->chunk_off = 0; s->playing = 0;
+    outf("{\"ev\":\"music_pause\",\"pos\":%u,\"loops\":%u,\"underruns\":%u}", s->pos, s->loops, s->pcm.underruns);
+}
+static void snd_tick(dsnd *s, int want) {
+    if (!s->on) return;
+    if (!want) { if (s->playing) snd_stop(s); return; }
+    if (!s->playing) {
+        if (s->sink) { s->sink_resume_us = mono_us(); s->sink_resume_written = s->sink_written; } else if (dio_pcm_prepare(&s->pcm)) { outf("{\"ev\":\"audio_unavailable\",\"error\":\"the sound device could not be prepared again\"}"); s->on = 0; return; }
+        if (fseek(s->wav, s->data_off + (long)s->pos * 4, SEEK_SET)) { s->on = 0; return; }
+        s->playing = 1; outf("{\"ev\":\"music_play\",\"pos\":%u,\"frames\":%u}", s->pos, s->frames);
+    }
+    for (int guard = 0; guard < 64; guard++) {
+        if (s->chunk_off == s->chunk_n) {
+            if (s->pos >= s->frames) { s->pos = 0; s->loops++; fseek(s->wav, s->data_off, SEEK_SET); outf("{\"ev\":\"music_loop\",\"loops\":%u}", s->loops); }   /* the whole song played: from its beginning */
+            uint32_t k = s->frames - s->pos; if (k > SND_CHUNK) k = SND_CHUNK;
+            if (fread(s->chunk, 4, k, s->wav) != k) { outf("{\"ev\":\"audio_unavailable\",\"error\":\"the music file could not be read\"}"); snd_stop(s); s->on = 0; return; }
+            s->chunk_n = k; s->chunk_off = 0; s->pos += k;
+        }
+        int w = pcm_write(s, s->chunk + s->chunk_off * 2, s->chunk_n - s->chunk_off);
+        if (w < 0) { outf("{\"ev\":\"audio_unavailable\",\"error\":\"the sound device stopped: %s\"}", strerror(errno)); snd_stop(s); s->on = 0; return; }
+        if (w == 0) break;
+        s->chunk_off += (uint32_t)w;
+    }
+}
+static void snd_init(dsnd *s, const char *music, const char *mode, const char *dev, const char *file) {
+    memset(s, 0, sizeof *s); s->pcm.fd = -1; snprintf(s->dev, sizeof s->dev, "%s", dev); char why[400] = "", w2[600];
+    if (!strcmp(mode, "off")) { out("{\"ev\":\"audio_off\",\"note\":\"--audio off\"}"); return; }
+    if (wav_open(s, music, why, sizeof why)) { jq(why, w2, sizeof w2); outf("{\"ev\":\"audio_unavailable\",\"error\":%s}", w2); if (s->wav) fclose(s->wav); s->wav = NULL; return; }
+    if (file) { s->sink = fopen(file, "wb"); if (!s->sink) { jq(file, w2, sizeof w2); outf("{\"ev\":\"audio_unavailable\",\"error\":\"cannot write the test sink\",\"path\":%s}", w2); fclose(s->wav); s->wav = NULL; return; } }
+    else if (pcm_open(s, why, sizeof why)) { jq(why, w2, sizeof w2); outf("{\"ev\":\"audio_unavailable\",\"error\":%s}", w2); fclose(s->wav); s->wav = NULL; return; }
+    s->on = 1; jq(file ? file : s->dev, w2, sizeof w2);
+    outf("{\"ev\":\"audio_ready\",\"output\":\"%s\",\"path\":%s,\"rate\":48000,\"channels\":2,\"format\":\"S16_LE\",\"frames\":%u,\"buffer\":%lu,\"period\":%lu}", file ? "test-file" : "alsa", w2, s->frames, s->pcm.buffer, s->pcm.period);
+}
+static void snd_close(dsnd *s) {
+    if (s->playing) snd_stop(s);
+    dio_pcm_close(&s->pcm); if (s->wav) { fclose(s->wav); s->wav = NULL; }
+    if (s->sink) { fflush(s->sink); if (ftruncate(fileno(s->sink), (off_t)(s->sink_written * 4))) { } fclose(s->sink); s->sink = NULL; }
+    if (s->on) outf("{\"ev\":\"audio_closed\",\"loops\":%u,\"underruns\":%u,\"written\":%llu}", s->loops, s->pcm.underruns, (unsigned long long)s->sink_written);
+    s->on = 0;
 }
 
 static void usage(void) {
@@ -392,11 +278,13 @@ static void usage(void) {
           "         [--exit-hold-ms 3000] [--cover-budget N] [--watchdog-ms 15000] [--run-ms N] [--stats-ms 5000] [--input-settle-ms 400]\n"
           "       ccs-home-armv7 --inspect-input [--map FILE] [--input auto|PATH] [--run-ms N] [--input-settle-ms 400]\n"
           "       ccs-home-armv7 --inspect-fb [--fb /dev/fb0]\n"
-          "test seams (host only): --fb-file PATH --fb-geometry SPEC, --test-allow-any-state-fs, --test-keep-frame, --test-dump-ppm PATH\n", stderr);
+          "         [--audio auto|off] [--audio-device /dev/snd/pcmC0D0p]   (HOME Music, when the package has it)\n"
+          "test seams (host only): --fb-file PATH --fb-geometry SPEC, --test-allow-any-state-fs, --test-keep-frame, --test-dump-ppm PATH, --audio-file PATH\n", stderr);
 }
 
 int device_main(int argc, char **argv) {
     const char *pack = NULL, *state = NULL, *fbpath = "/dev/fb0", *fbfile = NULL, *geom = NULL, *input = "auto", *mapf = NULL, *dump = NULL, *v;
+    const char *audio = "auto", *audio_dev = "/dev/snd/pcmC0D0p", *audio_file = NULL;   /* HOME Music (D-81) */
     int fps = 30, idle_fps = 5, cover_budget = 2, any_fs = 0, keep = 0; long run_ms = -1, watchdog_ms = 15000, stats_ms = 5000; uint32_t hold = 3000, grace = COMBO_GRACE_MS;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--device")) continue;
@@ -408,6 +296,7 @@ int device_main(int argc, char **argv) {
         else if ((v = arg_val(argc, argv, &i, "--exit-hold-ms"))) hold = (uint32_t)atol(v); else if ((v = arg_val(argc, argv, &i, "--combo-grace-ms"))) grace = (uint32_t)atol(v);
         else if ((v = arg_val(argc, argv, &i, "--run-ms"))) run_ms = atol(v); else if ((v = arg_val(argc, argv, &i, "--watchdog-ms"))) watchdog_ms = atol(v); else if ((v = arg_val(argc, argv, &i, "--stats-ms"))) stats_ms = atol(v);
         else if ((v = arg_val(argc, argv, &i, "--test-dump-ppm"))) dump = v;
+        else if ((v = arg_val(argc, argv, &i, "--audio"))) audio = v; else if ((v = arg_val(argc, argv, &i, "--audio-device"))) audio_dev = v; else if ((v = arg_val(argc, argv, &i, "--audio-file"))) audio_file = v;
         else if (!strcmp(argv[i], "--test-allow-any-state-fs")) any_fs = 1; else if (!strcmp(argv[i], "--test-keep-frame")) keep = 1;
         else { fprintf(stderr, "unknown argument: %s\n", argv[i]); usage(); return EXIT_USAGE; }
     }
@@ -439,6 +328,7 @@ int device_main(int argc, char **argv) {
     outf("{\"ev\":\"device_ready\",\"protocol\":\"%s\",\"fb\":{%s,\"pages\":%d,\"page_flip\":%s,\"backend\":\"%s\"},\"state_dir\":%s,\"state_fs\":\"%s\",\"fps\":%d,\"idle_fps\":%d,\"exit_hold_ms\":%u,\"combo_grace_ms\":%u,\"event_size\":%zu,\"theme\":\"%s\",\"games\":%zu,\"note\":\"H1 device test: games are never launched\"}",
          CCS_SIM_PROTOCOL, desc, f.pages, f.flip ? "true" : "false", f.is_file ? "test-file (pan emulated)" : "fbdev", sd, fsn, fps, idle_fps, hold, grace, (size_t)EVSIZE, home_theme(r.s.hm), home_games(r.s.hm));
     home_emit_state(r.s.hm);
+    static dsnd snd; { char mf[1100]; int mon = home_music(r.s.hm, mf, sizeof mf); if (mon >= 0 && mf[0]) snd_init(&snd, mf, audio, audio_dev, audio_file); else { memset(&snd, 0, sizeof snd); snd.pcm.fd = -1; } }   /* HOME Music, when the package has it */
 
     uint64_t period = 1000000u / (unsigned)fps, idle_period = 1000000u / (unsigned)idle_fps, next = mono_us(), rclock = 0, still = 0, frames = 0, presented = 0, skipped = 0, rsum = 0, rmax = 0, psum = 0, pmax = 0, last_stats = next, late = 0;
     int have_prev = 0, rc = 0, settled = 0; const char *reason = "signal";
@@ -462,6 +352,7 @@ int device_main(int argc, char **argv) {
             }
         }
         arb_tick(&r.a, &r.s, now_ms(&r));
+        snd_tick(&snd, home_music(r.s.hm, NULL, 0) == 1 && !r.a.fired);   /* HOME Music: plays while it is On; Off is silent at once */
         if (r.s.activity) { r.s.activity = 0; still = 0; if (next > mono_us()) next = mono_us(); }   /* respond to the controller at once */
         if (r.a.fired) { reason = "emergency-exit"; break; }
         if (run_ms >= 0 && (long)now_ms(&r) >= run_ms) { reason = "run-ms"; break; }
@@ -497,10 +388,12 @@ int device_main(int argc, char **argv) {
         if (r.a.combo) { long due = (long)(r.a.combo_at + r.a.hold_ms) - (long)now_ms(&r); if (due < wait) wait = due < 0 ? 0 : (int)due; }
         if (!settled) for (int i = 0; i < r.in.n; i++) { long due = (long)(r.in.d[i].settle_until - mono_ms_now()); if (due < wait) wait = due < 0 ? 0 : (int)due + 1; }
         int fixed_file = r.in.fixed && r.in.n == 0;   /* the test stream ended: just pace frames */
+        if (snd.playing && wait > 40) wait = 40;   /* keep the sound device's buffer topped up */
         if (r.in.n > 0 && !fixed_file) poll(pf, (nfds_t)r.in.n, wait); else if (wait > 0) poll(NULL, 0, wait);
     }
     if (g_stop) { reason = g_signal == SIGTERM ? "SIGTERM" : g_signal == SIGINT ? "SIGINT" : g_signal == SIGHUP ? "SIGHUP" : "signal"; }
     if (dump) { uint32_t crc = 0; fb_write_ppm(&fr, dump, &crc); char d[400]; jq(dump, d, sizeof d); outf("{\"ev\":\"frame_dumped\",\"path\":%s,\"crc32\":\"%08x\",\"render_clock_ms\":%llu,\"shown_yoffset\":%u}", d, crc, (unsigned long long)rclock, f.shown_yoff); }
+    snd_close(&snd);   /* HOME Music stops with the HOME */
     /* shutdown: release everything held (the HOME sees releases), clear the screen, restore the original display offset */
     input_device(&r.s.in, 0, on_input, &r.s);
     for (int i = 0; i < r.in.n; i++) close(r.in.d[i].fd);

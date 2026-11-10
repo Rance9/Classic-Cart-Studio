@@ -35,15 +35,17 @@ enum { FONT_LIST(FONT_ENUM) F_COUNT };
 #define MAX_CELLS 24
 #define MAX_SPRITES 24
 #define MAX_REC 160
+#define MAX_TG 128
 #define N_THEMES 4
 enum { TH_ARCADE, TH_BOXART, TH_SHELF, TH_MAP };
 enum { SCR_GRID, SCR_DETAILS };
 enum { Z_GAMES, Z_NAV, Z_MAP, Z_BROWSE };
 enum { SEC_ALL, SEC_BROWSE, SEC_FOLDER, SEC_CAT };   /* where the player is (home-state.js sections): All Games, Browse (folder / category tiles), a folder's or a category's games */
-enum { OV_NONE, OV_START, OV_THEME, OV_MAPDEST };
-enum { DF_PLAY, DF_FAV, DF_DESC };
+enum { OV_NONE, OV_START, OV_THEME, OV_MAPDEST, OV_SETTINGS };   /* OV_SETTINGS: the console's own Settings (HOME Music), when no PC player provides them */
+enum { DF_PLAY, DF_FAV, DF_DESC, DF_GSET };   /* DF_GSET: the PC player's Game Settings button (only with its hook) */
 enum { DK_TWO, DK_ONE, DK_NONE };
 enum { D_UP, D_DOWN, D_LEFT, D_RIGHT };
+enum { HT_NONE, HT_GAME, HT_NAV, HT_LANDMARK, HT_TILE, HT_MENU, HT_THEME, HT_PANEL, HT_DBUTTON, HT_DESC, HT_PREV, HT_NEXT, HT_LEGEND, HT_MUSIC };
 
 typedef struct { int x0, y0, x1, y1; } box4;
 typedef struct { char *id, *title, *version_label, *year, *players, *genre, *publisher, *developer, *cover, *cover_kind, *hero, *hero_kind, *hero_wide, *text, *blurb, *mblurb, *ftext;
@@ -56,6 +58,8 @@ typedef struct { int game, w, h, mode; image im; uint64_t used; } centry;
 typedef struct { int game; uint8_t *buf; size_t len; uint64_t used; } bentry;
 typedef struct { int font; uint32_t rgb; double y_top, line_h; char *s; size_t len; double spacing, shear; int bold; } dline;
 typedef struct { char name[24]; box4 b; } layrec;
+typedef struct { box4 b; int kind, idx; } hittgt;   /* the computer's mouse: what is drawn where (HT_*), recorded only while a pointer event waits */
+typedef struct { int kind, x, y, d; uint64_t t; } ptev;
 typedef struct { char name[24]; image im; box4 box; } tsprite;
 typedef struct { char key[24]; image im; } ticon;
 
@@ -76,7 +80,7 @@ typedef struct {
     int open, game; framebuffer base;
     int kind; char *single; box4 note;
     char *official, *overview, *official_label; dline *lines; size_t nlines, cap; double content_h; int avail, over;
-    int acts_y, act_h, play_x, play_w, fav_x, fav_w, desc_x, desc_y, desc_w, desc_h; double acts_top;
+    int acts_y, act_h, play_x, play_w, fav_x, fav_w, gset_x, gset_w, desc_x, desc_y, desc_w, desc_h; double acts_top;
     layrec *recs; size_t nrecs, rcap;
 } details;
 
@@ -91,6 +95,8 @@ typedef struct {
     int sec, sec_id;      /* the section: SEC_ALL / SEC_BROWSE (sec_id = the parent folder, -1 at the top) / SEC_FOLDER / SEC_CAT (sec_id = its index) */
     int browse;           /* the focused Browse tile */
     int dzone;            /* the zone Game Details was opened from (B returns there) */
+    int mgame;            /* F20: the game selected when the START menu opened (index in g; -1 none): its Game Details and Play rows */
+    int foot_on, foot;    /* F13: the controller's focus is on the bottom hints (foot: the focused actionable hint) */
 } navstate;
 
 typedef struct home home;
@@ -102,20 +108,29 @@ typedef struct theme_ops {
     void (*input)(home *h, button b);                      /* the HOME screen's zones (games, navigation, landmarks) */
     const dstyle *details;
     int menu_rpg;                                          /* Adventure Map: the rpg START menu */
+    int (*caption)(home *h, framebuffer *fb, uint64_t now, int box[4]);   /* K3D1-F3: only the scrolling title redrawn into the last picture (1), or not possible (0) */
 } theme_ops;
 extern const theme_ops THEME_ARCADE, THEME_BOXART, THEME_SHELF, THEME_MAP;
 
 struct home {
     char dir[900]; home_emit_fn emit; hgame *g; size_t n; jval *pk;
+    home_launch_fn launch; void *launch_ctx;                     /* the PC player: A on a game starts it (none: the notice below) */
+    home_settings_fn settings; void *settings_ctx;            /* the PC player's Settings (none: the notice) */
+    home_game_settings_fn game_settings; void *game_settings_ctx;   /* the PC player's Game Settings (none: no button) */
     const theme_ops *ops; int theme; const jval *tj, *geo;        /* the active theme: its pack entry and geometry */
     image scene; tsprite sp[MAX_SPRITES]; int nsp; void *tstate;  /* the active theme's resources (freed on a switch) */
-    image thumbs[N_THEMES]; ticon icons[24]; int nicons;
+    image thumbs[N_THEMES]; ticon icons[24]; int nicons; int hd_fonts, hd_sprites, hd_scene, hd_thumbs, hd_icons;   /* scale 2: what loaded in high resolution */
     font f[F_COUNT]; centry cache[64]; uint64_t use_seq; size_t cache_bytes; bentry bytes[96]; size_t bytes_total;
     navstate nav; uint64_t changed_at; char notice_title[96], notice_text[600];
     layrec recs[MAX_REC]; int nrec, rec;
-    int budget, decoded, pending;
+    hittgt tg[MAX_TG]; int ntg, hitrec; ptev pq[8]; int npq, pt_lx, pt_ly, pt_click;   /* the computer's mouse (home_pointer); pt_click: the game a click opened + 1 */
+    int budget, decoded, pending, live;   /* live: something in the last picture moves by itself (a scrolling title) */
     details d; size_t static_bytes;
     char state_dir[900]; char theme_default[32]; int apply_epoch, saved_epoch; char theme_source[16];
+    int music_ext; box4 mbadge; char mgame_id[160];   /* mgame_id: the START menu's game, checked before its rows act (F20) */
+    int leg_y0;   /* the top of the bottom hints' area this frame (0: none drawn): an overlay menu stays above it (owner edge rule) */
+                               /* HOME Music: its owner saves the choice (the TV Preview, the game window); where its badge is */
+    int music_avail, music_on, music_seq; char music_file[1100]; char music_source[16];   /* HOME Music (D-81): offered, the choice, changes made in Settings, the package's PCM file ("" none), where the choice came from */
     /* Browse (N3.1): every game of the package (all/nall); the current listing g/n is All Games (g == all) or a folder's or a
      * category's games (shallow copies, vmap = package index of each); the cover caches are keyed by the package index */
     hgame *all; size_t nall; hgame *view; int *vmap;
@@ -137,6 +152,7 @@ int T(framebuffer *fb, rect clip, const font *f, double x, int base, const char 
 int Tb(framebuffer *fb, rect clip, const font *f, double x, int base, const char *s, uint32_t rgb, int a, double sp);   /* synthetic bold (+1 px) */
 void emit_json(home *h, const char *fmt, ...);
 void LR(home *h, const char *name, int x0, int y0, int x1, int y1);
+void LT(home *h, int kind, int idx, int x0, int y0, int x1, int y1);   /* a mouse target (recorded only while home_pointer has an event waiting) */
 void LRtext(home *h, const char *name, const font *f, double x, int base, const char *s, size_t len, double sp);
 int gbox(const jval *o, const char *k, box4 *b);             /* a [x0,y0,x1,y1] array member */
 int jbox_at(const jval *arr, size_t i, box4 *b);

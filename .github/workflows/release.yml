@@ -30,13 +30,16 @@ jobs:
           file build/native/arm-musl-device/ccs-home-armv7 | tee file.txt; grep -q "ELF 32-bit LSB executable, ARM" file.txt; grep -q "statically linked" file.txt
           echo shutdown | "$HOME/.cache/ccs-sim/toolchain/deb/usr/bin/qemu-arm" build/native/arm-musl-device/ccs-home-armv7 | tee arm.log; grep -q '"ev":"ready"' arm.log
           echo shutdown | build/native/linux-x86_64/ccs-sim-core | grep -q '"ev":"ready"'
+          file build/native/arm-musl-device/ccs-player-armv7 | tee player.txt; grep -q "ELF 32-bit LSB executable, ARM" player.txt; grep -q "statically linked" player.txt
       - uses: actions/upload-artifact@v4
         with:
           name: native-home
           path: |
             build/native/arm-musl-device/ccs-home-armv7
+            build/native/arm-musl-device/ccs-player-armv7
             build/native/arm-musl-device/build-info.json
             build/native/windows-x86_64/ccs-sim-core.exe
+            build/native/windows-x86_64/ccs-player.exe
             build/native/windows-x86_64/build-info.json
           if-no-files-found: error
 
@@ -70,6 +73,21 @@ jobs:
         run: python tools/companion/test_offline_runtime.py
       - name: The official Hakchi2 CE 3.9.3 package with its console USB driver (downloaded, size and SHA-256 verified; bundled so setup needs no download)
         run: python tools/publish/fetch_hakchi_package.py build/packages
+      - name: The .NET SDK the console transport worker is built with (tools/console-worker/global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: tools/console-worker/global.json
+      - name: The pinned Hakchi2 CE 3.9.3 source with its submodules (every commit and every file the worker compiles, links or derives from verified)
+        shell: pwsh
+        run: |
+          tools/console-worker/get-hakchi-source.ps1 -Dest build/hakchi-src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build the console transport worker (offline tests, two build folders byte-identical, BUILD-INFO.json, corresponding source archive)
+        shell: pwsh
+        run: |
+          tools/console-worker/build-worker.ps1 -HakchiSource build/hakchi-src -Out build/console-worker -SourceRevision "${{ github.sha }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "CCS_CONSOLE_WORKER_DIR=$PWD\build\console-worker" >> $env:GITHUB_ENV
       - name: Freeze the companion (PyInstaller, one-folder; bundles every required component and fails without one)
         env:
           NES_SITE_DIR: ${{ github.workspace }}\build\site
@@ -98,11 +116,12 @@ jobs:
           $env:NES_STUDIO_DATA = Join-Path $env:RUNNER_TEMP "ccs-selftest"
           & build/dist/ClassicCartStudioBackend/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
           if ($LASTEXITCODE -ne 0) { throw "desktop self-test failed" }
-      - name: Copy the installer wizard images and the Start menu icon
+      - name: Copy the Start menu icon (the installer's own pictures and icon come from the repository)
         shell: pwsh
         run: |
-          Copy-Item tools/publish/assets/wizard-*.bmp build/dist/ClassicCartStudioBackend/_internal/site/brand/public/
           Copy-Item tools/publish/assets/app.ico build/dist/ClassicCartStudioBackend/ClassicCartStudio.ico -ErrorAction Stop
+      - name: The Installation Terms (the copy the installer shows and installs is the one maintained source's)
+        run: python tools/publish/legal_terms.py --check
       - name: Build the installer (Inno Setup, per-user)
         shell: pwsh
         run: |
@@ -110,7 +129,7 @@ jobs:
           & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\ClassicCartStudioBackend" "/DOutDir=$PWD\build\release" tools\companion\installer.iss
       - name: Scan the release folder and the frozen tree (no game files, images or secrets may ship)
         run: |
-          python tools/publish/scan_prohibited.py build/dist --allow "**/*.pyd" --allow "**/*.dll" --allow "**/*.exe" --allow "**/base_library.zip" --allow "**/*.exe.config" --allow "**/native/ccs-home-armv7" --allow "**/packages/hakchi2-ce-3.9.3-portable.zip"
+          python tools/publish/scan_prohibited.py build/dist --allow "**/*.pyd" --allow "**/*.dll" --allow "**/*.exe" --allow "**/base_library.zip" --allow "**/*.exe.config" --allow "**/native/ccs-home-armv7" --allow "**/native/ccs-player-armv7" --allow "**/packages/hakchi2-ce-3.9.3-portable.zip"
           python tools/publish/scan_prohibited.py build/release --allow "*.exe"
       - name: Checksums and build information
         shell: pwsh
@@ -118,8 +137,15 @@ jobs:
           Set-Location build/release
           $f = Get-ChildItem *.exe | Select-Object -First 1
           $h = (Get-FileHash -Algorithm SHA256 $f.Name).Hash.ToLower()
-          "$h  $($f.Name)" | Out-File -Encoding ascii SHA256SUMS.txt
-          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ github.sha }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = $false } | ConvertTo-Json | Out-File -Encoding utf8 build-info.json
+          # the console transport worker's corresponding source (GPL-3.0-or-later; it bundles the Hakchi2 CE files it is derived from) is published beside the installer
+          Copy-Item ../console-worker/console-worker-source.zip . -ErrorAction Stop
+          $zh = (Get-FileHash -Algorithm SHA256 console-worker-source.zip).Hash.ToLower()
+          # the Installation Terms this release's setup shows, kept with the release (the version presented stays available with it)
+          Copy-Item ../../tools/publish/assets/legal/INSTALLATION-TERMS.txt ClassicCartStudio-Installation-Terms-1.0.txt -ErrorAction Stop
+          $th = (Get-FileHash -Algorithm SHA256 ClassicCartStudio-Installation-Terms-1.0.txt).Hash.ToLower()
+          "$h  $($f.Name)", "$zh  console-worker-source.zip", "$th  ClassicCartStudio-Installation-Terms-1.0.txt" | Out-File -Encoding ascii SHA256SUMS.txt
+          $wi = Get-Content -Raw ../console-worker/BUILD-INFO.json | ConvertFrom-Json
+          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ github.sha }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = $false; console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh } } | ConvertTo-Json -Depth 4 | Out-File -Encoding utf8 build-info.json
           Get-Content SHA256SUMS.txt
       - name: Smoke-test the frozen companion (starts, answers /api/version, stops)
         shell: pwsh
@@ -131,6 +157,8 @@ jobs:
             build/release/*.exe
             build/release/SHA256SUMS.txt
             build/release/build-info.json
+            build/release/console-worker-source.zip
+            build/release/ClassicCartStudio-Installation-Terms-1.0.txt
       - name: Attest build provenance (GitHub artifact attestations)
         uses: actions/attest-build-provenance@v2
         with:
@@ -147,4 +175,4 @@ jobs:
           $src = "build/hakchi-source/hakchi2-ce-3.9.3-source.tar.gz"
           if ((Get-FileHash -Algorithm SHA256 $src).Hash.ToLower() -ne "dc6e6a4704a9bdb1ca8a0deb746dd41f660b4076ba99b84160af5164f36e5038") { throw "the Hakchi2 CE source archive does not match its recorded SHA-256" }
           python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --out build/release/NOTES.md
-          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/SHA256SUMS.txt build/release/build-info.json $src --title "Classic Cart Studio $env:APP_VERSION" --notes-file build/release/NOTES.md
+          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.0.txt $src --title "Classic Cart Studio $env:APP_VERSION" --notes-file build/release/NOTES.md

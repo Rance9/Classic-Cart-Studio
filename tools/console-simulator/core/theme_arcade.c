@@ -14,6 +14,7 @@ static const char *NAV_ICON[6] = { "icon-games", "icon-folder", NULL, "icon-star
 typedef struct {
     box4 tabbar, card_frame, card_cover, card_caption, cells[MAX_CELLS], legend, stat_rows[3]; int ncells, tab_active_w, stat_icon_x, cell_row[MAX_CELLS];
     image badge_a, tab_icons[6], stat_icons[3]; framebuffer chrome; int chrome_key;
+    uint8_t *cap_bg; rect cap_clip; int cap_ok, cap_x, cap_base, cap_sel; unsigned cap_gen;   /* K3D1-F3: under the scrolling title, as last drawn */
 } arcade;
 #define A(h) ((arcade *)(h)->tstate)
 
@@ -38,12 +39,12 @@ static int arcade_init(home *h, char *err, size_t errlen) {
     for (int i = 0; i < 6; i++) if (NAV_ICON[i] && scaled(h, NAV_ICON[i], &a->tab_icons[i], 22, 22, 1)) { snprintf(err, errlen, "arcade sprite %s missing", NAV_ICON[i]); return -1; }
     static const char *SI[3] = { "stat-icon-games", "icon-folder", "icon-star" };
     for (int i = 0; i < 3; i++) if (scaled(h, SI[i], &a->stat_icons[i], 30, 28, 0)) { snprintf(err, errlen, "arcade sprite %s missing", SI[i]); return -1; }
-    if (fb_init(&a->chrome, CCS_FB_W, CCS_FB_H)) { snprintf(err, errlen, "out of memory (chrome)"); return -1; }
+    if (fb_init(&a->chrome, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory (chrome)"); return -1; }
     return 0;
 }
 static void arcade_fini(home *h) {
     arcade *a = A(h); if (!a) return; img_free(&a->badge_a); for (int i = 0; i < 6; i++) img_free(&a->tab_icons[i]); for (int i = 0; i < 3; i++) img_free(&a->stat_icons[i]);
-    if (a->chrome.rgb) fb_free(&a->chrome); free(a); h->tstate = NULL;
+    if (a->chrome.rgb) fb_free(&a->chrome); free(a->cap_bg); free(a); h->tstate = NULL;
 }
 
 static int row_count(const arcade *a) { int r = 0; for (int i = 0; i < a->ncells; i++) if (a->cell_row[i] + 1 > r) r = a->cell_row[i] + 1; return r; }
@@ -106,7 +107,7 @@ static void render_tabs(home *h, framebuffer *fb) {
         double tw = i == 0 ? aw : rest, x = i == 0 ? tb.x0 + 3 : tb.x0 + 3 + aw + (i - 1) * rest; int isA = i == active, foc = h->nav.zone == Z_NAV && h->nav.screen == SCR_GRID && i == h->nav.nav;
         if (isA) { image s; if (act->im.w == iround(tw) && act->im.h == H - 6) gfx_image(fb, FULL, &act->im, iround(x), tb.y0 + 3, 255); else if (!img_scale(&act->im, &s, iround(tw), H - 6)) { gfx_image(fb, FULL, &s, iround(x), tb.y0 + 3, 255); img_free(&s); } }
         if (foc) { gfx_shadow(fb, FULL, iround(x) + 4, tb.y0 + 5, iround(tw) - 8, H - 10, 6, RGBA(RED, 150)); gfx_rrect_ring(fb, FULL, iround(x) + 4, tb.y0 + 5, iround(tw) - 8, H - 10, 7, 2, RGBA(0xFFFFFF, 255)); }
-        LR(h, foc ? "tab-focus" : "tab", iround(x), tb.y0, iround(x + tw), tb.y1);
+        LR(h, foc ? "tab-focus" : "tab", iround(x), tb.y0, iround(x + tw), tb.y1); LT(h, HT_NAV, i, iround(x), tb.y0, iround(x + tw), tb.y1);
         const font *f = &h->f[F_SILK11]; int lw = text_w(f, NAV_LABEL[i], strlen(NAV_LABEL[i]), .3), iw = NAV_ICON[i] ? 22 : text_w(&h->f[F_SYM16], "\xE2\x8C\x95", 3, 0), cw = iw + 8 + lw;
         double cx = x + (tw - cw) / 2.0; int base = baseline_center(f, tb.y0, H); uint32_t col = isA || foc ? 0xFFFFFF : 0xCFD6E2;
         if (NAV_ICON[i]) gfx_image(fb, FULL, &a->tab_icons[i], iround(cx), tb.y0 + (H - 22) / 2, 255);
@@ -117,11 +118,11 @@ static void render_tabs(home *h, framebuffer *fb) {
     }
 }
 static void caption_small(home *h, const hgame *g, int w, char *out, size_t n) {
-    const font *fs = &h->f[F_S400_10]; char ply[40] = "", pos[64], gen[160]; const char *SEP = " \xC2\xB7 ";
+    const font *fs = &h->f[F_S400_10]; char ply[40] = "", gen[160]; const char *SEP = " \xC2\xB7 ";   /* players, genre, year (no position counter: owner, 2026-11-03) */
     if (g->players) snprintf(ply, sizeof ply, "%s player%s", g->players, strcmp(g->players, "1") ? "s" : "");
     for (int variant = 0; variant < 3; variant++) {
-        snprintf(pos, sizeof pos, "%s%s%d/%zu", variant == 0 ? home_section_title(h) : "", variant == 0 ? " " : "", h->nav.sel + 1, h->n); snprintf(gen, sizeof gen, "%s", g->genre ? g->genre : "");
-        const char *parts[4] = { g->players ? ply : NULL, gen[0] ? gen : NULL, g->year, pos };
+        snprintf(gen, sizeof gen, "%s", g->genre ? g->genre : "");
+        const char *parts[4] = { g->players ? ply : NULL, gen[0] ? gen : NULL, g->year, NULL };
         if (variant == 2 && gen[0]) {
             char rest[200]; size_t k = 0; rest[0] = 0; for (int i = 0; i < 4; i++) if (parts[i] && i != 1) k += (size_t)snprintf(rest + k, sizeof rest - k, "%s%s", k ? SEP : "", parts[i]);
             int left = w - text_w(fs, rest, strlen(rest), .3) - text_w(fs, SEP, strlen(SEP), .3); char fit[160];
@@ -134,18 +135,25 @@ static void caption_small(home *h, const hgame *g, int w, char *out, size_t n) {
     }
     char fit[400]; text_fit(fs, out, w, .3, fit, sizeof fit); snprintf(out, n, "%s", fit);
 }
+static void caption_title(home *h, framebuffer *fb, uint64_t now, rect clip, int x, int base) {   /* the selected title scrolling in its line */
+    hgame *g = &h->g[h->nav.sel]; const font *ft = &h->f[F_S700_14];
+    char mq[600]; snprintf(mq, sizeof mq, "%s\xC2\xA0\xC2\xA0\xC2\xA0\xC2\xA0%s", g->title, g->title); int spanw = text_w(ft, mq, strlen(mq), 0) + 40;
+    double dur = (double)strlen(g->title) / 4.0 * 1000; if (dur < 6000) dur = 6000; double t = (double)(now - h->changed_at) - 900, off = 0;
+    if (t > 0) { double ph = t / dur; ph -= (double)(int64_t)ph; if (ph > 0.1) off = -(spanw / 2.0 + 20) * (ph - 0.1) / 0.9; }
+    text_draw(fb, NULL, clip, ft, x + off, base, mq, strlen(mq), RGBA(0xFFFFFF, 255), 0, 0);
+}
 static void render_caption(home *h, framebuffer *fb, uint64_t now) {
     arcade *a = A(h); hgame *g = &h->g[h->nav.sel]; box4 c = a->card_caption; int x = c.x0 + 14, w = c.x1 - c.x0 - 28;
     const font *ft = &h->f[F_S700_14], *fs = &h->f[F_S400_10];
     double inner0 = c.y0 + 1, inner1 = c.y1 - 3, content = lh_normal(ft) + 5 + lh_normal(fs); int top = iround(inner0 + (inner1 - inner0 - content) / 2);
     int base = baseline_normal(ft, top); rect clip = { x, top, x + w, top + iround(lh_normal(ft)) };
-    int tw = text_w(ft, g->title, strlen(g->title), 0);
+    int tw = text_w(ft, g->title, strlen(g->title), 0); a->cap_ok = 0;
     if (tw <= w) { T(fb, clip, ft, x, base, g->title, 0xFFFFFF, 255, 0); LR(h, "caption-title", x, base - ft->ascent, x + tw, base + ft->descent); }
-    else {
-        char mq[600]; snprintf(mq, sizeof mq, "%s\xC2\xA0\xC2\xA0\xC2\xA0\xC2\xA0%s", g->title, g->title); int spanw = text_w(ft, mq, strlen(mq), 0) + 40;
-        double dur = (double)strlen(g->title) / 4.0 * 1000; if (dur < 6000) dur = 6000; double t = (double)(now - h->changed_at) - 900, off = 0;
-        if (t > 0) { double ph = t / dur; ph -= (double)(int64_t)ph; if (ph > 0.1) off = -(spanw / 2.0 + 20) * (ph - 0.1) / 0.9; }
-        text_draw(fb, NULL, clip, ft, x + off, base, mq, strlen(mq), RGBA(0xFFFFFF, 255), 0, 0); LR(h, "caption-title", clip.x0, clip.y0, clip.x1, clip.y1);
+    else {   /* it scrolls: the next picture differs; what is under it is kept, so the next pictures can redraw the title alone (arcade_caption) */
+        int cw = clip.x1 - clip.x0, ch = clip.y1 - clip.y0; uint8_t *bg = cw > 0 && ch > 0 && ccs_scale == 1 ? realloc(a->cap_bg, (size_t)cw * ch * 3) : NULL;
+        if (bg) { a->cap_bg = bg; for (int yy = 0; yy < ch; yy++) memcpy(bg + (size_t)yy * cw * 3, fb->rgb + ((size_t)(clip.y0 + yy) * fb->w + (size_t)clip.x0) * 3, (size_t)cw * 3);
+            a->cap_clip = clip; a->cap_x = x; a->cap_base = base; a->cap_sel = h->nav.sel; a->cap_gen = h->gen; a->cap_ok = 1; }
+        caption_title(h, fb, now, clip, x, base); LR(h, "caption-title", clip.x0, clip.y0, clip.x1, clip.y1); h->live = 1;
     }
     char sm[400]; caption_small(h, g, w, sm, sizeof sm); double y2 = top + lh_normal(ft) + 5; int b2 = baseline_normal(fs, y2);
     text_draw(fb, NULL, FULL, fs, x, b2, sm, strlen(sm), RGBA(0xD8DBE3, 255), .3, 0); LRtext(h, "caption-meta", fs, x, b2, sm, strlen(sm), .3);
@@ -178,8 +186,8 @@ static void arcade_render(home *h, framebuffer *fb, uint64_t now) {
         box4 cv = a->card_cover; int ox, oy; const image *im = cover(h, h->nav.sel, cv.x1 - cv.x0, cv.y1 - cv.y0, 1, &ox, &oy);
         gfx_image(fb, FULL, im, cv.x0 + ox, cv.y0 + oy, 255); LR(h, "card-art", cv.x0 + ox, cv.y0 + oy, cv.x0 + ox + im->w, cv.y0 + oy + im->h);
         const tsprite *fr = tsp(h, "card-frame"), *trim = tsp(h, "card-trim");
-        gfx_image(fb, FULL, &fr->im, fr->box.x0, fr->box.y0, 255); if (trim) gfx_image(fb, FULL, &trim->im, trim->box.x0, trim->box.y0, 255);
-        LR(h, "card", a->card_frame.x0, a->card_frame.y0, a->card_frame.x1, a->card_frame.y1); render_caption(h, fb, now);
+        gfx_image(fb, FULL, &fr->im, fr->box.x0, fr->box.y0, 255); if (trim && !fr->im.hpx) gfx_image(fb, FULL, &trim->im, trim->box.x0, trim->box.y0, 255);   /* the redrawn frame has its trim */
+        LR(h, "card", a->card_frame.x0, a->card_frame.y0, a->card_frame.x1, a->card_frame.y1); LT(h, HT_GAME, h->nav.sel, a->card_frame.x0, a->card_frame.y0, a->card_frame.x1, a->card_frame.y1); render_caption(h, fb, now);
         const image *arts[MAX_CELLS] = { 0 }; box4 art[MAX_CELLS];
         for (int k = 0; k < filled; k++) {
             int kk = k == 0 ? slot : (k <= slot ? k - 1 : k); box4 c = a->cells[kk];
@@ -189,7 +197,7 @@ static void arcade_render(home *h, framebuffer *fb, uint64_t now) {
         for (int k = 0; k < filled; k++) if (arts[k]) gfx_shadow(fb, FULL, art[k].x0, art[k].y0 + 4, art[k].x1 - art[k].x0, art[k].y1 - art[k].y0, 5, RGBA(0, 128));
         box4 sa = arts[slot] ? art[slot] : a->cells[slot];
         if (focus_games) gfx_shadow(fb, FULL, sa.x0, sa.y0, sa.x1 - sa.x0, sa.y1 - sa.y0, 11, RGBA(RED, 204));
-        for (int k = 0; k < filled; k++) { if (arts[k]) { gfx_image(fb, FULL, arts[k], art[k].x0, art[k].y0, 255); LR(h, "cell-art", art[k].x0, art[k].y0, art[k].x1, art[k].y1); } LR(h, "cell", a->cells[k].x0, a->cells[k].y0, a->cells[k].x1, a->cells[k].y1); }
+        for (int k = 0; k < filled; k++) { if (arts[k]) { gfx_image(fb, FULL, arts[k], art[k].x0, art[k].y0, 255); LR(h, "cell-art", art[k].x0, art[k].y0, art[k].x1, art[k].y1); } LR(h, "cell", a->cells[k].x0, a->cells[k].y0, a->cells[k].x1, a->cells[k].y1); LT(h, HT_GAME, page * S + k, a->cells[k].x0, a->cells[k].y0, a->cells[k].x1, a->cells[k].y1); }
         box4 rb = focus_ring_box(h, slot, sa);
         if (focus_games) {
             gfx_rrect_ring(fb, FULL, rb.x0, rb.y0, rb.x1 - rb.x0, rb.y1 - rb.y0, 0, 3, RGBA(RED, 255));
@@ -198,7 +206,24 @@ static void arcade_render(home *h, framebuffer *fb, uint64_t now) {
         } else { gfx_rrect_ring(fb, FULL, rb.x0 + 2, rb.y0 + 2, rb.x1 - rb.x0 - 4, rb.y1 - rb.y0 - 4, 0, 2, RGBA(0xFFFFFF, 160)); LR(h, "selected-ring", rb.x0, rb.y0, rb.x1, rb.y1); }
     }
     legend_items(h, fb, a->legend, 0, TH_ARCADE);
+    if (a->cap_ok) {   /* the title line drawn again alone, over the kept background, must give exactly this picture's pixels: if anything drawn after the title
+                          (a cell's shadow or ring, the legend) changed that line, every picture stays a full one */
+        rect c = a->cap_clip; int cw = c.x1 - c.x0, ch = c.y1 - c.y0; uint8_t *fin = malloc((size_t)cw * ch * 3);
+        if (!fin) a->cap_ok = 0;
+        else { for (int yy = 0; yy < ch; yy++) memcpy(fin + (size_t)yy * cw * 3, fb->rgb + ((size_t)(c.y0 + yy) * fb->w + (size_t)c.x0) * 3, (size_t)cw * 3);
+            for (int yy = 0; yy < ch; yy++) memcpy(fb->rgb + ((size_t)(c.y0 + yy) * fb->w + (size_t)c.x0) * 3, a->cap_bg + (size_t)yy * cw * 3, (size_t)cw * 3);
+            caption_title(h, fb, now, c, a->cap_x, a->cap_base);
+            for (int yy = 0; yy < ch && a->cap_ok; yy++) if (memcmp(fin + (size_t)yy * cw * 3, fb->rgb + ((size_t)(c.y0 + yy) * fb->w + (size_t)c.x0) * 3, (size_t)cw * 3)) a->cap_ok = 0;
+            if (!a->cap_ok) for (int yy = 0; yy < ch; yy++) memcpy(fb->rgb + ((size_t)(c.y0 + yy) * fb->w + (size_t)c.x0) * 3, fin + (size_t)yy * cw * 3, (size_t)cw * 3);   /* the picture as drawn */
+            free(fin); } }
     if (!h->pending) prefetch(h);
+}
+static int arcade_caption(home *h, framebuffer *fb, uint64_t now, int box[4]) {   /* K3D1-F3: the title alone, over the background kept under it */
+    arcade *a = A(h); if (!a->cap_ok || !a->cap_bg || a->cap_gen != h->gen || a->cap_sel != h->nav.sel || fb->w != CCS_FB_W || ccs_scale != 1) return 0;
+    rect c = a->cap_clip; int cw = c.x1 - c.x0, ch = c.y1 - c.y0;
+    for (int yy = 0; yy < ch; yy++) memcpy(fb->rgb + ((size_t)(c.y0 + yy) * fb->w + (size_t)c.x0) * 3, a->cap_bg + (size_t)yy * cw * 3, (size_t)cw * 3);
+    caption_title(h, fb, now, c, a->cap_x, a->cap_base); h->live = 1;
+    box[0] = c.x0; box[1] = c.y0; box[2] = cw; box[3] = ch; return 1;
 }
 
 static const dstyle ARCADE_DETAILS = {
@@ -211,4 +236,4 @@ static const dstyle ARCADE_DETAILS = {
     .desc_font = F_S400_19, .desc_lh = 1.55, .desc_radius = 4, .desc_bw = 2, .desc_bg = 0x090D26, .desc_bg_a = 184, .desc_border = NAVY, .desc_border_a = 255,
     .dh_font = F_S700_13, .dh_lh = 1.4, .dh_spacing = 1.6, .dh_bold = 0,
     .cover_radius = 6, .cover_ring = 3, .cover_ring_rgb = NAVY, .cover_ring_a = 255, .note_font = F_S400_14 };
-const theme_ops THEME_ARCADE = { "arcade-grid", "Arcade Grid", arcade_init, arcade_fini, arcade_render, arcade_input, &ARCADE_DETAILS, 0 };
+const theme_ops THEME_ARCADE = { "arcade-grid", "Arcade Grid", arcade_init, arcade_fini, arcade_render, arcade_input, &ARCADE_DETAILS, 0, arcade_caption };

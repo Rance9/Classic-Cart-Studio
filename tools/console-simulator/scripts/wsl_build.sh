@@ -10,7 +10,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; SRC="$HERE/../core"
 TC="${CCS_SIM_TOOLCHAIN:-$HOME/.cache/ccs-sim/toolchain}"; OUT="${CCS_SIM_BUILD:-/mnt/c/NES/work/console-simulator/build}"
 ZIG="$TC/zig/zig"; TARGETS="${1:-all}"
-SRCS="$SRC/main.c $SRC/json_min.c $SRC/model.c $SRC/input.c $SRC/fb.c $SRC/gfx.c $SRC/font.c $SRC/home.c $SRC/persist.c $SRC/theme_arcade.c $SRC/theme_boxart.c $SRC/theme_shelf.c $SRC/theme_map.c $SRC/gfx3d.c $SRC/device.c"; CFLAGS="-std=c11 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-misleading-indentation -ffp-contract=off"
+SRCS="$SRC/main.c $SRC/json_min.c $SRC/model.c $SRC/input.c $SRC/fb.c $SRC/gfx.c $SRC/font.c $SRC/home.c $SRC/persist.c $SRC/theme_arcade.c $SRC/theme_boxart.c $SRC/theme_shelf.c $SRC/theme_map.c $SRC/gfx3d.c $SRC/devio.c $SRC/device.c"; CFLAGS="-std=c11 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-misleading-indentation -ffp-contract=off"
 mkdir -p "$OUT"; rc=0
 build() {   # name, compiler command..., output name
   local name="$1"; shift; local exe="$1"; shift; local d="$OUT/$name"; mkdir -p "$d"
@@ -40,10 +40,14 @@ EOF
 want() { [ "$TARGETS" = all ] || [[ " $TARGETS " == *" $1 "* ]]; }
 want linux-x86_64 && build linux-x86_64 ccs-sim-core gcc $CFLAGS -DCCS_BUILD_TARGET='"linux-x86_64-gcc"' -o "$OUT/linux-x86_64/ccs-sim-core" $SRCS -lm
 if [ -x "$ZIG" ]; then
+  # the game player (Play on PC; tools/player: FCEUmm + this HOME core) is part of the Windows target
+  if want windows-x86_64; then bash "$HERE/../../player/scripts/build_player.sh" "$OUT/windows-x86_64" windows || rc=1; fi
   want windows-x86_64 && build windows-x86_64 ccs-sim-core.exe "$ZIG" cc -target x86_64-windows-gnu $CFLAGS -DCCS_BUILD_TARGET='"windows-x86_64-zig"' -o "$OUT/windows-x86_64/ccs-sim-core.exe" $SRCS -lpsapi
   want arm-musl && build arm-musl ccs-sim-core "$ZIG" cc -target arm-linux-musleabihf -mcpu=cortex_a7 $CFLAGS -DCCS_BUILD_TARGET='"arm-linux-musleabihf-zig"' -static -o "$OUT/arm-musl/ccs-sim-core" $SRCS
   # the same static ARM build without symbols: the executable the native HOME package carries (tools/companion/native_home)
   want arm-musl-device && build arm-musl-device ccs-home-armv7 "$ZIG" cc -target arm-linux-musleabihf -mcpu=cortex_a7 $CFLAGS -DCCS_BUILD_TARGET='"arm-linux-musleabihf-zig"' -static -s -o "$OUT/arm-musl-device/ccs-home-armv7" $SRCS
+  # D-113: beside it, the game player for the console (the same session engine and pinned FCEUmm; host_dev.c)
+  if want arm-musl-device; then bash "$HERE/../../player/scripts/build_player.sh" "$OUT/arm-musl-device" console || rc=1; fi
   want arm-glibc && build arm-glibc ccs-sim-core "$ZIG" cc -target arm-linux-gnueabihf.2.31 -mcpu=cortex_a7 $CFLAGS -DCCS_BUILD_TARGET='"arm-linux-gnueabihf-zig"' -o "$OUT/arm-glibc/ccs-sim-core" $SRCS
 else echo "zig not installed at $ZIG: run setup first (only linux-x86_64 built)"; rc=1; fi
 exit $rc

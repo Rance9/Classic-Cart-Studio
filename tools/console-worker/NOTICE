@@ -1,0 +1,24 @@
+Classic Cart Studio console transport worker (ccs-console-worker)
+Copyright (C) 2026 Rance9
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published
+by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in
+the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License (licenses/GPL-3.0.txt) for more details.
+
+Derived from Hakchi2 CE 3.9.3 (https://github.com/TeamShinkansen/Hakchi2-CE, tag v3.9.3, commit
+25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc), GNU GPL v3: the clovershell connection and exec protocol (Clovershell/ClovershellConnection.cs,
+Clovershell/ExecConnection.cs), the SSH shell (SshClient/SshClientWrapper.cs), the shell interface (ISystemShell.cs) and the console
+identification (hakchi.cs, Shell_OnConnected). Hakchi2 CE is the work of clusterrr (Alexey Avdyukhin), madmonkey, DanTheMan827,
+Team Shinkansen and its other contributors. Each derived file names its source and the changes made.
+
+Uses, unchanged:
+  SSH.NET, TeamShinkansen fork, commit 32181aeb4ce69e8f07e5e1d585fd592a44017bc1 (a submodule of Hakchi2 CE 3.9.3), compiled from source.
+    MIT License; licenses/SSH.NET.txt.
+  LibUsbDotNet 2.2.29 (NuGet; byte-identical to the copy Hakchi2 CE 3.9.3 embeds). GNU LGPL v3; licenses/LibUsbDotNet.txt.
+
+The tests run, without changing them, hakchi's on-console module functions (etc/preinit, preinit.d/b0000_defines, b0010_functions,
+b0030_package) and hakchi's BusyBox and rsync from the pinned hakchi.hmod, and the NES Classic's stock BusyBox, all under qemu-arm. None
+of those files is part of this source or of the built program.
+
+No endorsement by Team Shinkansen, the Hakchi2 CE authors or Nintendo is implied. NES Classic is a trademark of Nintendo.

@@ -1,0 +1,29 @@
+{
+ "schema": "ccs-home-music-asset/1",
+ "title": "Classic Cart Studio HOME theme",
+ "decision": "D-81: the owner-selected song plays in HOME, whole and looping, On by default",
+ "provenance": "Created by the Classic Cart Studio project owner (Rance9) with Suno, under the owner's own Suno subscription, and selected by the owner on 2026-11-04. It is a creative asset shipped with Classic Cart Studio; the software's GPL-3.0-or-later license does not apply to it.",
+ "source": {
+  "codec": "aac",
+  "rate": 48000,
+  "channels": 2,
+  "packets": 2908,
+  "packet_sha256": "5ada6f169b434897e247fec744b6689dfad097f181cdca0e58ba1e01050b3684",
+  "decoded_frames": 2976768,
+  "seconds": 62.016
+ },
+ "native": {
+  "file": "ccs-home-theme.wav",
+  "format": "PCM s16le, 48000 Hz, 2 channels (WAV)",
+  "frames": 2976768,
+  "data_offset": 44,
+  "pcm_sha256": "2954a07339500b4a04bc2c9174b0b61f5fa64bd5fda1bbcc975dc3b1a520b576",
+  "sha256": "dc6dde85f4ad5ec2e1f9476bb5489cd89b271cf1a0eafc97ac6642f73e8763fc",
+  "made": "the source AAC decoded once to 16-bit stereo at its own 48,000 Hz; every decoded frame kept, nothing trimmed, no fade or level change"
+ },
+ "browser": {
+  "file": "brand/home/music/ccs-home-theme-7d07857f25e3.m4a",
+  "sha256": "7d07857f25e3ae4ffd3d38a4a200c43e25b97891fb6195671c486c9aabdd2c68",
+  "made": "the source's 2,908 AAC packets copied unchanged into a new M4A without descriptive metadata (no re-encoding)"
+ }
+}

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- ccs-console-worker: the console transport worker process (stdin/stdout protocol). GPL-3.0-or-later. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>ccs-console-worker</AssemblyName>
+    <RootNamespace>CcsWorker.App</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Product>Classic Cart Studio</Product>
+    <Copyright>Copyright (C) 2026 Rance9; derived parts (C) Hakchi2 CE authors. GPL-3.0-or-later.</Copyright>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CcsWorker\CcsWorker.csproj" />
+  </ItemGroup>
+</Project>

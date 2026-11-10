@@ -23,7 +23,7 @@ from test_loadouts_web import CCS_EXPORT_UI, page_file, page_bytes, net_take, ne
 from test_ccs_v2_web import NET, ROMS
 import ccs_package as cp
 
-READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csEntries==='function'&&typeof ccsShareDialog==='function'&&document.readyState==='complete'"
+READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csEntries==='function'&&typeof ccsBackupDialog==='function'&&document.readyState==='complete'"
 # the mixed collection, built in the page: personal rows are injected exactly as the app would hold them (no backend on the website)
 BUILD = r"""(async()=>{ try{ doneWelcome(); }catch(e){}
  const c=document.createElement('canvas'); c.width=60; c.height=84; const x=c.getContext('2d'); x.fillStyle='#3a6'; x.fillRect(0,0,60,84); x.fillStyle='#fff'; x.fillRect(10,10,40,20); const own=c.toDataURL('image/png');
@@ -80,7 +80,7 @@ def main():
             ok("mixed_collection_organizes_without_roms", st["lo"] == N and st["dup"] == N and st["L"] == [N], st)
             # Share or Export: blocked, with the list of games that need their ROM file
             st = J(ed, f"(async()=>JSON.stringify(await ccsExportUi('{b['cid']}', null)))()")
-            ok("mixed_share_blocked_with_the_missing_list", st["exp"] and st["send"] and len(st["missing"]) == N and sorted(st["missing"]) == sorted(ids) and f"{N} of {N} games need their ROM file" in st["text"]
+            ok("mixed_backup_blocked_with_the_missing_list", st["exp"] and st["send"] and len(st["missing"]) == N and sorted(st["missing"]) == sorted(ids) and f"{N} of {N} games need their ROM file" in st["text"]
                and "My Homebrew Quest" in st["text"] and "and 1 more" in st["text"] and st["pick"] and not st.get("name"), st["text"])
             st = J(ed, "(async()=>{ let e=''; try{ await ccsBuild(CCS.parts); }catch(x){ e=x.message; } return JSON.stringify({e, saved:!!window.__saved}); })()")
             ok("mixed_package_cannot_be_built_incomplete", "missing ROM" in st["e"] and not st["saved"], st)
@@ -90,7 +90,7 @@ def main():
             s = J(ed, SENTINEL); sids = s["ids"]
             ok("sentinel_collection_built", s["n"] == 13 and len(sids) == 13, s)
             st = J(ed, f"(async()=>JSON.stringify(await ccsExportUi('{s['cid']}', __G.map(x=>x.file))))()")
-            ok("package_exported_through_share_or_export", st.get("ready") == 13 and st.get("ack") == "Export Collection with ROM Files" and (st.get("name") or "").endswith(".ccs"), st)
+            ok("package_made_through_back_up_collection", st.get("ready") == 13 and st.get("ack") == "Back Up Collection" and (st.get("name") or "").endswith(".ccs"), st)
             pkg = page_bytes(ed, "window.__pkg"); path = os.path.join(tmp, "Sentinel Integrity.ccs"); open(path, "wb").write(pkg)
             info = cp.inspect(path); inc = [r["version_id"] for r in info["manifest"]["roms"]["included"]]
             ok("windows_reader_accepts_every_game", info["ok"] and info["games"] == 13 and info["rom_count"] == 13 and all(r["verified"] for r in info["roms"]) and inc == sids
@@ -118,12 +118,12 @@ def main():
             m2 = J(ed, "JSON.stringify(csFileFor(csActive()))")
             ok("recipient_export_every_game", m2["count"] == 13 and sorted(x["version_id"] for x in m2["selections"]) == sorted(sids))
             st = J(ed, "(async()=>JSON.stringify(await ccsExportUi(CS.active, null)))()")
-            ok("recipient_share_asks_for_the_rom_files_again", st["exp"] and len(st["missing"]) == 13 and st["pick"], {k: st.get(k) for k in ("exp", "ready", "missing")})
+            ok("restored_collection_backup_asks_for_the_rom_files_again", st["exp"] and len(st["missing"]) == 13 and st["pick"], {k: st.get(k) for k in ("exp", "ready", "missing")})
             page_file(ed, pkg, "Sentinel Integrity.ccs", "__P")
             st = J(ed, "(async()=>JSON.stringify(await ccsExportUi(CS.active, [__P])))()")
             again = page_bytes(ed, "window.__pkg") if st.get("name") else b""; p2 = os.path.join(tmp, "again.ccs"); open(p2, "wb").write(again)
             i2 = cp.inspect(p2) if again else {"ok": False}
-            ok("recipient_reshares_all_13_with_the_package_as_rom_source", st.get("ready") == 13 and i2["ok"] and i2["rom_count"] == 13 and [r["version_id"] for r in i2["roms"]] == sids, st)
+            ok("restored_collection_backs_up_all_13_with_the_package_as_rom_source", st.get("ready") == 13 and i2["ok"] and i2["rom_count"] == 13 and [r["version_id"] for r in i2["roms"]] == sids, st)
             nets.append(net_take(ed))
         # ---- the original file and the transfer bundle in another clean browser ----
         with EdgeSession(width=1400, height=900, profile=profs[2]) as ed:

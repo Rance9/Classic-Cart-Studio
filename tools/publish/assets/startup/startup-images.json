@@ -1,0 +1,213 @@
+{
+ "schema": "ccs-startup-images/1",
+ "default": "random",
+ "min_visible_ms": 5000,
+ "images": [
+  {
+   "id": "forgotten-keep",
+   "name": "Forgotten Keep",
+   "master": {
+    "file": "Classic-Cart-Studio-Background-Forgotten-Keep-Theme.png",
+    "sha256": "6012364fe9da8f79aca973f6c704e53c1b39e0f09a26df2b4738bdfe801fbbdc",
+    "bytes": 2903825,
+    "size": [
+     1672,
+     941
+    ]
+   },
+   "file": "startup-forgotten-keep.jpg",
+   "sha256": "206a0c1cf5c6cb7c7983043a9d8446949678c3e5537f2c4e3d0eb0c41741367e",
+   "bytes": 593444,
+   "size": [
+    1280,
+    720
+   ],
+   "thumb": {
+    "file": "startup-forgotten-keep-thumb.jpg",
+    "sha256": "ccc7240e1ccc1e16c8cf14fa290ab09f054c5dc2cba351788b9a3f83b0a69601",
+    "bytes": 75397,
+    "size": [
+     480,
+     270
+    ]
+   },
+   "derivation": {
+    "source_box": [
+     0.0,
+     0.25,
+     1672.0,
+     940.75
+    ],
+    "resample": "lanczos",
+    "format": "jpeg baseline",
+    "quality": 92,
+    "subsampling": "4:4:4"
+   }
+  },
+  {
+   "id": "galactic-frontier",
+   "name": "Galactic Frontier",
+   "master": {
+    "file": "Classic-Cart-Studio-Background-Galactic-Frontier-Theme.png",
+    "sha256": "d2db7707abef329a02db36ffbef9e2a0f1c19e3538dacee4b147fd23eb54ce67",
+    "bytes": 2627662,
+    "size": [
+     1672,
+     941
+    ]
+   },
+   "file": "startup-galactic-frontier.jpg",
+   "sha256": "42d9ee5990175195200e7bfb61a4d50529921889ac644d8d1d44e4ea7b9e1328",
+   "bytes": 557530,
+   "size": [
+    1280,
+    720
+   ],
+   "thumb": {
+    "file": "startup-galactic-frontier-thumb.jpg",
+    "sha256": "d79dd52d3ebc15d77fa70ec4b87bcb3e66ae4ed74f3d1c7458381236e99b54f0",
+    "bytes": 78007,
+    "size": [
+     480,
+     270
+    ]
+   },
+   "derivation": {
+    "source_box": [
+     0.0,
+     0.25,
+     1672.0,
+     940.75
+    ],
+    "resample": "lanczos",
+    "format": "jpeg baseline",
+    "quality": 92,
+    "subsampling": "4:4:4"
+   }
+  },
+  {
+   "id": "kingdoms-beyond",
+   "name": "Kingdoms Beyond",
+   "master": {
+    "file": "Classic-Cart-Studio-Background-Kingdoms-Beyond-Theme.png",
+    "sha256": "a3cb535fbd3814a2713eb03ffeba326fa44d9ab1873da2e4c88d44bd134ab3de",
+    "bytes": 3022710,
+    "size": [
+     1672,
+     941
+    ]
+   },
+   "file": "startup-kingdoms-beyond.jpg",
+   "sha256": "a6d9503ee0996430b919f1a0e74c83561bce2757f874efe245a3456b4ff1c257",
+   "bytes": 667632,
+   "size": [
+    1280,
+    720
+   ],
+   "thumb": {
+    "file": "startup-kingdoms-beyond-thumb.jpg",
+    "sha256": "a3596297a454862e43fd3850b21c7e41b5bd949e9f506e734793a149288eccb8",
+    "bytes": 88387,
+    "size": [
+     480,
+     270
+    ]
+   },
+   "derivation": {
+    "source_box": [
+     0.0,
+     0.25,
+     1672.0,
+     940.75
+    ],
+    "resample": "lanczos",
+    "format": "jpeg baseline",
+    "quality": 92,
+    "subsampling": "4:4:4"
+   }
+  },
+  {
+   "id": "neon-highway",
+   "name": "Neon Highway",
+   "master": {
+    "file": "Classic-Cart-Studio-Background-Neon-Highway-Theme.png",
+    "sha256": "1bf71790981718288a0d851a3eef91458d1970870c890f6fc8d49227ee39d5e8",
+    "bytes": 2387558,
+    "size": [
+     1672,
+     941
+    ]
+   },
+   "file": "startup-neon-highway.jpg",
+   "sha256": "0f4f4056a2dcca459187ef67411cc28da1f5adc3955fc81269c3ae1346cc2417",
+   "bytes": 480206,
+   "size": [
+    1280,
+    720
+   ],
+   "thumb": {
+    "file": "startup-neon-highway-thumb.jpg",
+    "sha256": "e83da038f9dfefc5ae4d8a08f7cf0b1a75ac666799661998119f7b7d77da2c61",
+    "bytes": 70440,
+    "size": [
+     480,
+     270
+    ]
+   },
+   "derivation": {
+    "source_box": [
+     0.0,
+     0.25,
+     1672.0,
+     940.75
+    ],
+    "resample": "lanczos",
+    "format": "jpeg baseline",
+    "quality": 92,
+    "subsampling": "4:4:4"
+   }
+  },
+  {
+   "id": "pixel-worlds",
+   "name": "Pixel Worlds",
+   "master": {
+    "file": "Classic-Cart-Studio-Background-Pixel-Worlds-Theme.png",
+    "sha256": "10b53330d8be9096eb42c444b7d8966ed539d386ee4b342d0c0196ddc684c55f",
+    "bytes": 2610943,
+    "size": [
+     1672,
+     941
+    ]
+   },
+   "file": "startup-pixel-worlds.jpg",
+   "sha256": "70d7cbd2b4663fb8748ab4763f06626526b3aef21f9927b9d24cdbdea53e360b",
+   "bytes": 556584,
+   "size": [
+    1280,
+    720
+   ],
+   "thumb": {
+    "file": "startup-pixel-worlds-thumb.jpg",
+    "sha256": "983a864e6049a8ee6bebd4c6d4a4f3a1c1b224af1711a4b3fcfda41b4ae5045c",
+    "bytes": 83576,
+    "size": [
+     480,
+     270
+    ]
+   },
+   "derivation": {
+    "source_box": [
+     0.0,
+     0.25,
+     1672.0,
+     940.75
+    ],
+    "resample": "lanczos",
+    "format": "jpeg baseline",
+    "quality": 92,
+    "subsampling": "4:4:4"
+   }
+  }
+ ],
+ "note": "Derivatives of the owner's approved masters (not published). Creative assets, not covered by the software license (THIRD_PARTY_NOTICES.md)."
+}

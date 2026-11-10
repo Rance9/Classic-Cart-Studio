@@ -27,7 +27,7 @@ static int sh_init(home *h, char *err, size_t errlen) {
     const jval *rows = json_get(info, "rows"); for (int i = 0; i < 3; i++) if (jbox_at(rows, (size_t)i, &a->rows[i])) { snprintf(err, errlen, "featured-shelf rows missing"); return -1; }
     const jval *cells = json_get(sf, "cells"); for (size_t i = 0; cells && i < cells->n && a->ncells < 12; i++) if (!jbox_at(cells, i, &a->cells[a->ncells])) a->ncells++;
     if (a->ncells < 1) { snprintf(err, errlen, "featured-shelf cells missing"); return -1; }
-    if (fb_init(&a->frame, CCS_FB_W, CCS_FB_H)) { snprintf(err, errlen, "out of memory"); return -1; }
+    if (fb_init(&a->frame, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
 }
 static void sh_fini(home *h) { shelf *a = SH(h); if (!a) return; if (a->frame.rgb) fb_free(&a->frame); img_free(&a->wide); free(a); h->tstate = NULL; }
@@ -59,6 +59,7 @@ static int hero_fit(const home *h, const char *t, int maxw, lines *best) {
 }
 static double dsqrt(double x) { if (x <= 0) return 0; double r = x > 1 ? x : 1; for (int i = 0; i < 40; i++) r = 0.5 * (r + x / r); return r; }
 static void radial_box(framebuffer *fb, rect clip, int x, int y, int w, int hh, int radius) {   /* .lbg: radial-gradient(ellipse at 50% 50%, .62, .42 45%, 0 72%) */
+    if (ccs_scale > 1) { int S = ccs_scale; x *= S; y *= S; w *= S; hh *= S; clip.x0 *= S; clip.y0 *= S; clip.x1 *= S; clip.y1 *= S; }   /* device pixels */
     double cx = x + w / 2.0, cy = y + hh / 2.0, rx = w / 2.0 * 1.41421356, ry = hh / 2.0 * 1.41421356; (void)radius;
     for (int yy = y < clip.y0 ? clip.y0 : y; yy < y + hh && yy < clip.y1; yy++) for (int xx = x < clip.x0 ? clip.x0 : x; xx < x + w && xx < clip.x1; xx++) {
         if (xx < 0 || yy < 0 || xx >= fb->w || yy >= fb->h) continue;
@@ -78,7 +79,7 @@ static void draw_hero(home *h, framebuffer *fb, int gi) {
     shelf *a = SH(h); hgame *g = &h->g[gi]; box4 B = a->hero; int W = B.x1 - B.x0, H = B.y1 - B.y0; rect clip = { B.x0, B.y0, B.x1, B.y1 };
     gfx_fill(fb, clip, B.x0, B.y0, W, H, RGBA(0x07070A, 255));
     if (a->wide_game != gi) { img_free(&a->wide); a->wide_game = gi; char p[1200], err[200]; if (g->hero_wide) { snprintf(p, sizeof p, "%s/%s", h->dir, g->hero_wide); if (img_load(p, &a->wide, 0, err, sizeof err)) a->wide.px = NULL; } }
-    if (a->wide.px) { image sc; if (a->wide.w == W && a->wide.h == H) gfx_image(fb, clip, &a->wide, B.x0, B.y0, 255); else if (!img_cover(&a->wide, &sc, W, H)) { gfx_image(fb, clip, &sc, B.x0, B.y0, 255); img_free(&sc); } }
+    if (a->wide.px) { image sc; if (a->wide.w == W && a->wide.h == H) gfx_image(fb, clip, &a->wide, B.x0, B.y0, 255); else if (!img_cover(&a->wide, &sc, W, H)) { img_hi(&a->wide, &sc, 1); gfx_image(fb, clip, &sc, B.x0, B.y0, 255); img_free(&sc); } }
     stop hz[3] = { { .46, 0x04050C, 0 }, { .66, 0x04050C, .42 }, { 1, 0x04050C, .62 } }, vt[4] = { { 0, 0, .22 }, { .34, 0, 0 }, { .78, 0, 0 }, { 1, 0, .45 } };   /* .shade.art */
     gfx_gradient(fb, clip, B.x0, B.y0, W, H, 1, vt, 4); gfx_gradient(fb, clip, B.x0, B.y0, W, H, 0, hz, 3);
     /* the title slot measured on the art (or the master's top right) and the fitted lettering */
@@ -102,7 +103,7 @@ static void draw_hero(home *h, framebuffer *fb, int gi) {
     if (!tag[0] && np) snprintf(tag, sizeof tag, "%s", parts[0]);
     if (tag[0]) { const font *ft = &h->f[tf]; int w = text_w(ft, tag, strlen(tag), 1); double x = right ? X0 + lw - w : X0; int base = baseline_normal(ft, tag_y);
         text_draw(fb, NULL, clip, ft, x + 1, base + 1, tag, strlen(tag), RGBA(0, 255), 1, 0); text_draw(fb, NULL, clip, ft, x, base, tag, strlen(tag), RGBA(0xC8C4BC, 255), 1, 0); }
-    LR(h, "hero", B.x0, B.y0, B.x1, B.y1);
+    LR(h, "hero", B.x0, B.y0, B.x1, B.y1); LT(h, HT_GAME, gi, B.x0, B.y0, B.x1, B.y1);
 }
 
 /* ---------- the page ---------- */
@@ -117,13 +118,13 @@ static void sh_draw(home *h, framebuffer *fb) {
         const font *f = &h->f[F_VT26]; int base = baseline_center(f, y, ph);
         if (foc) draw_glow_text(fb, h, F_VT26, a->text_x, base, SIDE_LABEL[i], strlen(SIDE_LABEL[i]), 5, RGBA(RED, 204), .5);
         T(fb, FULL, f, a->text_x, base, SIDE_LABEL[i], foc ? 0xFFFFFF : act ? 0xFF5B63 : 0xF1EFE9, 255, .5);
-        LR(h, foc ? "side-focus" : "side", a->icon_x, y, a->plate.x1, y + ph);
+        LR(h, foc ? "side-focus" : "side", a->icon_x, y, a->plate.x1, y + ph); LT(h, HT_NAV, i, a->plate.x0, y, a->plate.x1, y + ph);
     }
     if (!h->n) return;
     int sel = h->nav.sel; hgame *g = &h->g[sel];
     draw_hero(h, fb, sel);
     { const tsprite *fr = tsp(h, "hero-frame"); if (fr) gfx_image(fb, FULL, &fr->im, fr->box.x0, fr->box.y0, 255); }
-    { char lab[300], st[200]; upper(home_section_title(h), st, sizeof st); snprintf(lab, sizeof lab, "%s \xC2\xB7 %d OF %zu", st, sel + 1, h->n); const font *f = &h->f[F_SILK10]; T(fb, FULL, f, a->label.x0, baseline_normal(f, a->label.y0), lab, 0xFF4A54, 255, 1); }
+    { char lab[300], st[200]; upper(home_section_title(h), st, sizeof st); snprintf(lab, sizeof lab, "%s", st);   /* the section, without a position counter */ const font *f = &h->f[F_SILK10]; T(fb, FULL, f, a->label.x0, baseline_normal(f, a->label.y0), lab, 0xFF4A54, 255, 1); }
     { char t[400], fit[400]; upper(g->title, t, sizeof t); static const int TF[6] = { F_SILK25, F_SILKT23, F_SILKH22, F_SILKH20, F_SILKT19, F_SILKT16 };   /* .ftitle + homeFitText */
       int fid = fit_font(h, TF, 6, t, a->title.x1 - a->title.x0, .5); const font *f = &h->f[fid]; text_fit(f, t, a->title.x1 - a->title.x0, .5, fit, sizeof fit);
       int base = baseline_in(f, a->title.y0, f->px * 1.2); T(fb, FULL, f, a->title.x0, base + 2, fit, 0, 255, .5); T(fb, FULL, f, a->title.x0, base, fit, 0xFFFFFF, 255, .5); LRtext(h, "ftitle", f, a->title.x0, base, fit, strlen(fit), .5); }
@@ -138,8 +139,9 @@ static void sh_draw(home *h, framebuffer *fb) {
     int start = sel - 3; if (start > (int)h->n - a->ncells) start = (int)h->n - a->ncells; if (start < 0) start = 0;
     const tsprite *al = tsp(h, "arrow-l"), *ar = tsp(h, "arrow-r");
     if (al) gfx_image(fb, FULL, &al->im, al->box.x0, al->box.y0, start == 0 ? 89 : 255); if (ar) gfx_image(fb, FULL, &ar->im, ar->box.x0, ar->box.y0, start + a->ncells >= (int)h->n ? 89 : 255);
+    if (al) LT(h, HT_PREV, 0, al->box.x0, al->box.y0, al->box.x1, al->box.y1); if (ar) LT(h, HT_NEXT, 0, ar->box.x0, ar->box.y0, ar->box.x1, ar->box.y1);
     for (int k = 0; k < a->ncells; k++) {   /* the shelf: whole covers, the selected one in the authored focus frame */
-        int i = start + k; if (i >= (int)h->n) break; box4 c = a->cells[k], art; draw_cover(h, fb, i, c, i == sel, &art); LR(h, "shelf-art", art.x0, art.y0, art.x1, art.y1);
+        int i = start + k; if (i >= (int)h->n) break; box4 c = a->cells[k], art; draw_cover(h, fb, i, c, i == sel, &art); LR(h, "shelf-art", art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, i, c.x0, c.y0, c.x1, c.y1);
         if (i == sel) { box4 f = { c.x0 - 10, c.y0 - 13, c.x1 + 10, c.y1 + 11 }; image tmp; const image *im = sprite_scaled(h, "shelf-focus", f.x1 - f.x0, f.y1 - f.y0, 0, &tmp);
             if (im) gfx_image(fb, FULL, im, f.x0, f.y0, h->nav.zone == Z_GAMES ? 255 : 140); img_free(&tmp); LR(h, h->nav.zone == Z_GAMES ? "shelf-focus" : "shelf-selected", f.x0, f.y0, f.x1, f.y1); }
     }
@@ -147,7 +149,7 @@ static void sh_draw(home *h, framebuffer *fb) {
 static void sh_render(home *h, framebuffer *fb, uint64_t now) {
     shelf *a = SH(h); (void)now;
     long key = (long)h->gen;   /* every input and section change bumps it */
-    if (key != a->key || h->rec) { sh_draw(h, &a->frame); legend_items(h, &a->frame, a->legend, 1, TH_SHELF); a->key = h->rec ? -1 : key; }
+    if (key != a->key || h->rec || h->hitrec > 1) { sh_draw(h, &a->frame); legend_items(h, &a->frame, a->legend, 1, TH_SHELF); a->key = h->rec ? -1 : key; }
     memcpy(fb->rgb, a->frame.rgb, (size_t)fb->w * fb->h * 3);
 }
 static void sh_input(home *h, button b) {
@@ -172,4 +174,4 @@ static const dstyle SHELF_DETAILS = {
     .desc_font = F_VT23, .desc_lh = 1.55, .desc_radius = 8, .desc_bw = 2, .desc_bg = 0x11080A, .desc_bg_a = 184, .desc_border = 0x5B1A21, .desc_border_a = 255,
     .dh_font = F_VT17, .dh_lh = 1.4, .dh_spacing = 1, .dh_bold = 1,
     .cover_radius = 6, .cover_ring = 1, .cover_ring_rgb = 0xFFFFFF, .cover_ring_a = 31, .note_font = F_S400_14 };
-const theme_ops THEME_SHELF = { "featured-shelf", "Featured Shelf", sh_init, sh_fini, sh_render, sh_input, &SHELF_DETAILS, 0 };
+const theme_ops THEME_SHELF = { "featured-shelf", "Featured Shelf", sh_init, sh_fini, sh_render, sh_input, &SHELF_DETAILS, 0, NULL };   /* no scrolling title: always a full picture (K3D1-F3) */

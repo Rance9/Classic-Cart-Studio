@@ -19,14 +19,20 @@
 .hm .empty{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:var(--sans);font-size:20px;line-height:1.5;color:#f4f2ec;background:rgba(8,8,12,.86);border:2px solid var(--red);border-radius:8px;text-shadow:0 2px 0 #000}
 /* ---- controller legend (the master's own badge style per theme) ---- */
 .hm .brand.sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-.hm .legend{position:absolute;display:flex;align-items:center;gap:0}
-.hm.nohints .legend{display:none}   /* Settings > On-screen control hints: Off hides the controller legend only; every control keeps working */
+.hm .legend{position:absolute;display:flex;align-items:center;gap:0;box-sizing:border-box;padding:0 16px}   /* 16 px inside its area: nothing touches an edge */
+.hm .legend.det{z-index:3}   /* a game's Details: its hints and HOME Music's badge on top of the Details, as the console's HOME draws them */
+.hm.nohints .legend .k:not(.kmu){display:none}   /* Settings > On-screen control hints: Off hides the controller hints only (HOME Music's badge stays); every control keeps working */
 .hm .legend .k{display:flex;align-items:center;gap:10px;margin-right:46px;white-space:nowrap}
+.hm .legend .k:last-child{margin-right:0}
 .hm .legend .b{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--red);color:#fff;font-family:var(--sans);font-weight:800;font-size:15px;box-shadow:0 2px 0 rgba(0,0,0,.6);flex:none}
 .hm .legend .b.pill{width:auto;padding:0 9px;height:26px;border-radius:7px;font-size:10px;letter-spacing:.5px;background:#55565c}
 .hm .legend .b.gray{background:#4a4a52}
+.hm .hmmu{position:relative;width:30px;height:30px;padding:0;margin:0;border:0;border-radius:50%;background:#55565c;box-shadow:0 2px 0 rgba(0,0,0,.6);cursor:pointer;display:block}   /* HOME Music's badge: on screen even when the hints are off */
+.hm .hmmu svg{display:block;width:30px;height:30px}
+.hm .hmmu:focus-visible{outline:2px solid #fff;outline-offset:2px}
 /* ---- overlays (shared) ---- */
-.hm .ov{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center}
+.hm .ov{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:none}
+.hm .ov>*{pointer-events:auto}   /* under a menu the HOME is dimmed; HOME Music's badge still answers a click, as on the console's HOME */
 .hm .menu{min-width:360px;max-width:560px;background:#111115;border:2px solid var(--red);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.8);padding:14px 0;font-family:var(--sans)}
 .hm .menu h3{margin:0 0 8px;padding:0 22px 10px;font-family:var(--px);font-size:11px;letter-spacing:1px;color:#ffb3b7;border-bottom:1px solid rgba(255,255,255,.14)}
 .hm .menu .it{display:flex;justify-content:space-between;gap:20px;padding:11px 22px;font-size:20px;color:#e9e7e1}
@@ -81,7 +87,7 @@
 /* Featured Shelf: dark-red plates, Silkscreen heading, VT323 body */
 .hm-featured-shelf .details.art{border:3px solid #5b1a21}
 .hm-featured-shelf .details.art .dshade{background:linear-gradient(90deg,rgba(17,8,10,.14) 0%,rgba(17,8,10,.06) 28%,rgba(17,8,10,.58) 40%,rgba(17,8,10,.7) 100%),linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,0) 22%,rgba(0,0,0,0) 72%,rgba(17,8,10,.72) 100%)}
-.hm-featured-shelf .details h2{font-family:var(--silk);font-size:30px;line-height:1.25}.hm-featured-shelf .details .meta,.hm-featured-shelf .details .desc{font-family:var(--vt)}.hm-featured-shelf .details .meta{font-size:19px}.hm-featured-shelf .details .desc{font-size:23px}
+.hm-featured-shelf .details h2{font-family:var(--silk);text-transform:var(--silk-case,none);font-size:30px;line-height:1.25}.hm-featured-shelf .details .meta,.hm-featured-shelf .details .desc{font-family:var(--vt)}.hm-featured-shelf .details .meta{font-size:19px}.hm-featured-shelf .details .desc{font-size:23px}
 .hm-featured-shelf .details .act{border-radius:6px;background:#1b0f12;border-color:#5b1a21;font-family:var(--vt);font-size:23px}.hm-featured-shelf .details .desc,.hm-featured-shelf .details .nodesc-note{background:rgba(17,8,10,.72);border-color:#5b1a21}
 /* Adventure Map: wood-and-red RPG frame, pixel heading, pixelated art */
 .hm-adventure-map .details.art{border:4px solid #6b4a2b;box-shadow:inset 0 0 0 2px var(--red2)}.hm-adventure-map .details.art .dbg img{image-rendering:pixelated}
@@ -101,7 +107,7 @@
 /* theme character for the secondary screens (Browse, Search, History, Settings): each theme keeps its own panel language */
 .hm-arcade-grid .section,.hm-arcade-grid .search .zone{background:rgba(9,13,38,.94);border:3px solid #2f3f8c;border-radius:8px;box-shadow:inset 0 0 0 2px #070a22}.hm-arcade-grid .tile{background:#0f1538;border-color:#273576}.hm-arcade-grid .tile .tcap{background:#0b1030}.hm-arcade-grid .tile.cat{background:#0c1130}.hm-arcade-grid .search .kb .k{background:#141a44}
 .hm-box-art-showcase .section,.hm-box-art-showcase .search .zone{background:rgba(7,7,10,.9);border:1px solid rgba(255,255,255,.26);border-radius:14px}.hm-box-art-showcase .section h3{font-family:var(--cin);font-size:16px;letter-spacing:2px;color:#f3efe6}.hm-box-art-showcase .tile{background:rgba(22,22,28,.92);border-color:rgba(255,255,255,.18);border-radius:10px}.hm-box-art-showcase .tile .tcap{background:rgba(12,12,16,.95)}
-.hm-featured-shelf .section,.hm-featured-shelf .search .zone{background:rgba(17,8,10,.95);border:3px solid #5b1a21;border-radius:10px}.hm-featured-shelf .section h3{font-family:var(--silk);font-size:13px;color:#ff9aa0}.hm-featured-shelf .tile{background:#1b0f12;border-color:#4a1c22}.hm-featured-shelf .tile .tcap{background:#140a0c}.hm-featured-shelf .search .kb .k{background:#2a1418}
+.hm-featured-shelf .section,.hm-featured-shelf .search .zone{background:rgba(17,8,10,.95);border:3px solid #5b1a21;border-radius:10px}.hm-featured-shelf .section h3{font-family:var(--silk);text-transform:var(--silk-case,none);font-size:13px;color:#ff9aa0}.hm-featured-shelf .tile{background:#1b0f12;border-color:#4a1c22}.hm-featured-shelf .tile .tcap{background:#140a0c}.hm-featured-shelf .search .kb .k{background:#2a1418}
 .hm-adventure-map .section,.hm-adventure-map .search .zone{background:rgba(16,10,8,.96);border:4px solid #6b4a2b;border-radius:4px;box-shadow:inset 0 0 0 2px var(--red2)}.hm-adventure-map .section h3{color:#ffd27a}.hm-adventure-map .tile{background:#20140f;border-color:#6b4a2b;border-radius:4px}.hm-adventure-map .tile .tcap{background:#160d0a}.hm-adventure-map .tile .nm{font-family:var(--px);font-size:11px}.hm-adventure-map .tile small{font-family:var(--px);font-size:8px;color:#d8c9a8}.hm-adventure-map .search .zone.focus,.hm-adventure-map .tile.focus{border-color:var(--red2)}.hm-adventure-map .search .kb .k{background:#2a1c14;border-radius:3px}
 
 /* history, settings and View All (restored) */
@@ -116,13 +122,13 @@
 .hm .search .kb .k{height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:#1c1c23;border:2px solid transparent;font-family:var(--px);font-size:10px;color:#e9e7e1}.hm .search .kb .k.focus{border-color:var(--red);background:var(--red);color:#fff}.hm .search .kb .k.u{grid-column:span 2;font-size:9px}
 .hm .search .nores{font-size:18px;color:#f4f2ec;padding:16px;text-align:center}
 /* ---- Arcade Grid ---- */
-.hm-arcade-grid .clock{font-family:var(--silk);font-size:14px;color:#fff;text-align:right;letter-spacing:.5px}
-.hm-arcade-grid .tab{position:absolute;top:0;display:flex;align-items:center;gap:8px;height:100%;padding:0 10px;font-family:var(--silk);font-size:11px;letter-spacing:.3px;color:#cfd6e2;text-transform:uppercase;white-space:nowrap}
+.hm-arcade-grid .clock{font-family:var(--silk);text-transform:var(--silk-case,none);font-size:14px;color:#fff;text-align:right;letter-spacing:.5px}
+.hm-arcade-grid .tab{position:absolute;top:0;display:flex;align-items:center;gap:8px;height:100%;padding:0 10px;font-family:var(--silk);text-transform:var(--silk-case,none);font-size:11px;letter-spacing:.3px;color:#cfd6e2;text-transform:uppercase;white-space:nowrap}
 .hm-arcade-grid .tab img{width:22px;height:22px;image-rendering:pixelated}
 .hm-arcade-grid .tab.active{color:#fff}.hm-arcade-grid .tab.focus{color:#fff;text-shadow:0 0 10px rgba(228,0,15,.9)}
 .hm-arcade-grid .tabsep{position:absolute;top:8px;width:1px;height:28px;background:rgba(255,255,255,.22)}
-.hm-arcade-grid .stat{position:absolute;font-family:var(--silk);color:#dfe3ea;font-size:9px;letter-spacing:.3px}
-.hm-arcade-grid .stat b{display:block;font-family:var(--silk);font-size:17px;color:#fff;margin-top:5px;letter-spacing:0}
+.hm-arcade-grid .stat{position:absolute;font-family:var(--silk);text-transform:var(--silk-case,none);color:#dfe3ea;font-size:9px;letter-spacing:.3px}
+.hm-arcade-grid .stat b{display:block;font-family:var(--silk);text-transform:var(--silk-case,none);font-size:17px;color:#fff;margin-top:5px;letter-spacing:0}
 .hm-arcade-grid .stat.sm b{font-size:9px}
 .hm-arcade-grid .cell{position:absolute;overflow:hidden;background:#101016;box-shadow:0 4px 10px rgba(0,0,0,.5)}
 .hm-arcade-grid .cell.focus{outline:3px solid var(--red);outline-offset:1px;box-shadow:0 0 0 1px #000,0 0 22px rgba(228,0,15,.8)}
@@ -171,7 +177,7 @@
 .hm-box-art-showcase .pnl.r{display:flex;align-items:center;gap:22px}.hm-box-art-showcase .pnl.r b{font-size:18px;color:#fff;min-width:44px}.hm-box-art-showcase .pnl.r span{font-size:10px;letter-spacing:2px;text-transform:uppercase}
 .hm-box-art-showcase .pnl.r .ico{width:22px;height:22px}
 /* ---- Featured Shelf ---- */
-.hm-featured-shelf .clock{font-family:var(--silk);font-size:16px;color:#fff;text-align:right}.hm-featured-shelf .clock small{display:block;font-family:var(--vt);font-size:14px;color:#e4e2dc;margin-top:2px;letter-spacing:1px}
+.hm-featured-shelf .clock{font-family:var(--silk);text-transform:var(--silk-case,none);font-size:16px;color:#fff;text-align:right}.hm-featured-shelf .clock small{display:block;font-family:var(--vt);font-size:14px;color:#e4e2dc;margin-top:2px;letter-spacing:1px}
 .hm-featured-shelf .sitem{position:absolute;display:flex;align-items:center;font-family:var(--vt);font-size:26px;color:#f1efe9;letter-spacing:.5px;white-space:nowrap}
 .hm-featured-shelf .sitem img{position:absolute;width:35px;height:35px;image-rendering:pixelated}
 .hm-featured-shelf .sitem.active{color:#ff5b63}.hm-featured-shelf .sitem.focus{color:#fff;text-shadow:0 0 10px rgba(228,0,15,.8)}
@@ -183,26 +189,26 @@
 .hm-featured-shelf .hero .ill{position:absolute;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 11%,#000 89%,transparent),linear-gradient(180deg,transparent,#000 9%,#000 91%,transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent,#000 11%,#000 89%,transparent),linear-gradient(180deg,transparent,#000 9%,#000 91%,transparent);mask-composite:intersect}
 .hm-featured-shelf .hero .ill img{position:absolute;left:0;width:100%;image-rendering:auto}
 .hm-featured-shelf .hero .ill .gen{position:absolute;left:12%;top:12%;padding:2px 4px;background:rgba(0,0,0,.72);color:#ffd166;font-family:var(--px);font-size:6px;border:1px solid rgba(255,209,102,.5)}
-.hm-featured-shelf .hero .ill .noart{position:absolute;inset:12%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--silk);font-size:18px;color:#fff;text-shadow:0 2px 0 #000}
+.hm-featured-shelf .hero .ill .noart{position:absolute;inset:12%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--silk);text-transform:var(--silk-case,none);font-size:18px;color:#fff;text-shadow:0 2px 0 #000}
 .hm-featured-shelf .hero .shade.art{background:linear-gradient(90deg,rgba(4,5,12,0) 46%,rgba(4,5,12,.42) 66%,rgba(4,5,12,.62) 100%),linear-gradient(180deg,rgba(0,0,0,.22) 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,0) 78%,rgba(0,0,0,.45) 100%)}
 .hm-featured-shelf .hero .lett{position:absolute;top:0;height:100%}
 .hm-featured-shelf .hero .lbg{position:absolute;left:-34px;right:-30px;border-radius:18px;background:radial-gradient(ellipse at 50% 50%,rgba(4,5,12,.62) 0%,rgba(4,5,12,.42) 45%,rgba(4,5,12,0) 72%);pointer-events:none}
 /* Game Details backdrop: the game's key art (hero or universal fallback) under the details, shaded in each theme's own language */
 
-.hm-featured-shelf .hero .hl{position:absolute;left:0;font-family:var(--silk);color:#f5f3ee;white-space:nowrap;letter-spacing:1px;text-shadow:3px 4px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,0 0 22px rgba(0,0,0,.95)}
+.hm-featured-shelf .hero .hl{position:absolute;left:0;font-family:var(--silk);text-transform:var(--silk-case,none);color:#f5f3ee;white-space:nowrap;letter-spacing:1px;text-shadow:3px 4px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,0 0 22px rgba(0,0,0,.95)}
 .hm-featured-shelf .hero .hl.red{color:var(--red2)}
 .hm-featured-shelf .hero .rule{position:absolute;left:0;width:64px;height:3px;background:var(--red)}
-.hm-featured-shelf .hero .tag{position:absolute;left:0;font-family:var(--silk);font-size:13px;letter-spacing:1px;color:#c8c4bc;text-shadow:1px 1px 0 #000;white-space:nowrap}
+.hm-featured-shelf .hero .tag{position:absolute;left:0;font-family:var(--silk);text-transform:var(--silk-case,none);font-size:13px;letter-spacing:1px;color:#c8c4bc;text-shadow:1px 1px 0 #000;white-space:nowrap}
 .hm-featured-shelf .hero .lett.ra .hl,.hm-featured-shelf .hero .lett.ra .tag{left:auto;right:0;text-align:right}.hm-featured-shelf .hero .lett.ra .rule{left:auto;right:0}.hm-featured-shelf .hero .lett.ra .lbg{left:-10px;right:-34px}
 .hm-featured-shelf .hero img.wide{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;image-rendering:auto}
 .hm-featured-shelf .hero .noscene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}.hm-featured-shelf .hero .noscene img{position:static;height:86%;width:auto;image-rendering:auto}
-.hm-featured-shelf .flabel{position:absolute;font-family:var(--silk);font-size:10px;letter-spacing:1px;color:#ff4a54}
-.hm-featured-shelf .ftitle{position:absolute;font-family:var(--silk);font-size:25px;line-height:1.2;color:#fff;letter-spacing:.5px;text-shadow:0 2px 0 #000}
+.hm-featured-shelf .flabel{position:absolute;font-family:var(--silk);text-transform:var(--silk-case,none);font-size:10px;letter-spacing:1px;color:#ff4a54}
+.hm-featured-shelf .ftitle{position:absolute;font-family:var(--silk);text-transform:var(--silk-case,none);font-size:25px;line-height:1.2;color:#fff;letter-spacing:.5px;text-shadow:0 2px 0 #000}
 .hm-featured-shelf .frow{position:absolute;display:flex;justify-content:space-between;align-items:center;font-family:var(--vt);font-size:18px;color:#e6e4de;letter-spacing:1.5px;border-bottom:1px solid rgba(255,255,255,.22);padding-bottom:4px}
 .hm-featured-shelf .frow .ico{position:absolute;width:24px;height:24px;left:0;top:0}.hm-featured-shelf .frow span{padding-left:46px}.hm-featured-shelf .frow b{font-weight:400;color:#fff}
 .hm-featured-shelf .ftext{position:absolute;font-family:var(--vt);font-size:21px;line-height:1.4;color:#efede7;overflow:hidden}
 .hm-featured-shelf .scell{position:absolute;overflow:hidden;background:#101016}
-.hm-featured-shelf .legend{font-family:var(--silk);font-size:10px;letter-spacing:.5px;color:#f1efe9;text-transform:uppercase}
+.hm-featured-shelf .legend{font-family:var(--silk);text-transform:var(--silk-case,none);font-size:10px;letter-spacing:.5px;color:#f1efe9;text-transform:uppercase}
 /* ---- Adventure Map ---- */
 .hm-adventure-map .clock{font-family:var(--px);font-size:11px;color:#fff;text-align:right;white-space:nowrap}
 .hm-adventure-map .sign{position:absolute;display:flex;align-items:center;justify-content:center;font-family:var(--px);font-size:9px;letter-spacing:.3px;color:#f6efe2;text-shadow:0 1px 0 #000,0 0 6px #000;white-space:nowrap;overflow:hidden;text-transform:uppercase}
@@ -218,3 +224,13 @@
 .hm-adventure-map .mcell .lab{position:absolute;left:0;right:0;top:0;padding:5px 7px;background:linear-gradient(180deg,rgba(0,0,0,.78),rgba(0,0,0,0));font-family:var(--px);font-size:7px;line-height:1.5;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;text-shadow:0 1px 0 #000}
 .hm-adventure-map .legend{font-family:var(--px);font-size:9px;letter-spacing:.3px;color:#f3e7d3;text-transform:uppercase}
 .hm-adventure-map .legend .k img{width:30px;height:30px;image-rendering:pixelated}
+
+/* Preview for: Browser HOME (high resolution): smooth text faces in the approved sizes (Barlow, as the computer's game-window HOME), the
+   redrawn overlays drawn smoothly; the background pictures stay the approved retro art. NES Classic Console HOME keeps the rules above. */
+.hm.hd{--px:"CCS HD px",sans-serif;--silk:"CCS HD silk",sans-serif;--vt:"CCS HD vt",sans-serif;--sans:"CCS HD Sans","Bahnschrift","Segoe UI",system-ui,sans-serif;--silk-case:uppercase}
+.hm.hd img.sp,.hm.hd .tab img,.hm.hd .sitem img,.hm.hd .legend .k img,.hm.hd .themes img{image-rendering:auto}
+
+/* F13 (D-95): the bottom hint the controller has focused: the HOME's red focus ring, inside the hints' own padding (nothing reaches an edge) */
+.hm .legend .k.ffocus{outline:3px solid #e4000f;outline-offset:4px;border-radius:12px}
+/* F20 (D-102): a long title in the START menu stays inside the menu (cut with an ellipsis; the row's title holds it whole) */
+.hm .menu .it span{display:block;max-width:516px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

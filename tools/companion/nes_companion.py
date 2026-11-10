@@ -13,7 +13,8 @@ with the API, and exposes three JSON endpoints that only the served page can cal
   POST /api/personal/pick     native file picker -> identify (exact content match or new personal entry with a managed copy)
   POST /api/personal/relink   body {id} -> picker; accepted only when the content hash matches the entry
   POST /api/personal/update   body {id, user:{title, version_label, description, year, publisher}}
-  POST /api/personal/merge    body {id, meta:{title, version_label, description, year, publisher}, art?: data:image/jpeg|png} (D-1 merge policy)
+  POST /api/personal/merge    body {id, meta:{title, version_label, description, year, publisher}, art?: data:image/jpeg|png, edited?, user?} (D-1 merge policy;
+                              edited/user: a Studio backup's own edits kept with a collection, D-80, never over an edit or real value here)
   POST /api/personal/art      body {id} -> picker (image) -> stored thumbnail
   POST /api/personal/remove   body {id, delete_copy?}
   POST /api/library/adopt     create personal entries for local custom games the inventory does not know (read-only towards Hakchi)
@@ -45,7 +46,7 @@ from version import VERSION, PROTOCOL, APP_ID, SITE_ORIGINS, SITE_URL
 from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path, art_alias
 
 CFG = hb.load_cfg(); TOKEN = secrets.token_urlsafe(24); ROOT = SITE_ROOT
-mimetypes.add_type("application/json", ".json")
+mimetypes.add_type("application/json", ".json"); mimetypes.add_type("audio/mp4", ".m4a")   # HOME Music (D-81)
 LOCK = threading.Lock()
 ORIGIN_RE = re.compile(r"^https://[a-z0-9.-]+$|^http://(127\.0\.0\.1|localhost)(:\d+)?$")
 def allowed_origins(port: int) -> set:
@@ -60,7 +61,7 @@ ALLOWED: set = set()
 #      an exact-origin, authenticated caller (the only one besides this server's own page). The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "package-jobs", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides"]
+CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "package-jobs", "studio-backup", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides", "play-on-pc", "play-embedded"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -115,6 +116,20 @@ def home_state_path(): return data_path("home-state.json")
 # ---- native HOME packages (N2): one build at a time, in the background, from the configuration the page sends ----
 NATIVE_JOBS: dict[str, dict] = {}
 
+def console_package_stage(manifest, home, pack_dir) -> dict:
+    """the console package of this configuration (install layout), staged under <native HOME root>/console: built into a new folder, checked,
+    then put in place of the previous one (which is removed only after that). Nothing is sent anywhere"""
+    from native_home import package as nhp, console_package as cpk; import shutil
+    root = os.path.join(nhp.package_root(), "console"); os.makedirs(root, exist_ok=True); stage = os.path.join(root, "staging-" + secrets.token_hex(4))
+    r = cpk.build_console(manifest, home, stage, layout="install", pack_dir=pack_dir, label=str(manifest.get("name") or "HOME")[:80])
+    if not r.get("ok"): return {"ok": False, "error": r.get("error")}
+    v = cpk.verify(stage)
+    if not v["ok"]: shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": "the console package did not check out: " + "; ".join(v["problems"][:3])}
+    cur = os.path.join(root, "current"); old = os.path.join(root, "previous-" + secrets.token_hex(4))
+    if os.path.isdir(cur): os.replace(cur, old)
+    os.replace(stage, cur); shutil.rmtree(old, ignore_errors=True)
+    m = r["manifest"]; return {"ok": True, "games": m["games"], "playable": m["playable"], "unavailable": m["unavailable"][:50], "startup": m["startup"], "sizes": m["sizes"], "total_bytes": m["total_bytes"], "files": len(m["files"])}
+
 def native_package_start(manifest, home) -> dict:
     """starts building the console's native HOME package from the user's collection and HOME configuration (staged on this PC
     only; nothing is sent to a console). One build at a time; a second request while one runs returns that job."""
@@ -130,6 +145,10 @@ def native_package_start(manifest, home) -> dict:
             from native_home import package as nhp
             res = nhp.build(manifest, home, progress=progress)
         except Exception as e: res = {"ok": False, "status": "failed", "ready": False, "error": f"The native HOME package could not be prepared ({e}). Try again; your collection is unchanged."}
+        if res.get("ok"):   # D-113: the console package beside it (the player, the exact ROM files, the startup images, the installed session)
+            progress("console", 0, 0, "console package")
+            try: res["console"] = console_package_stage(manifest, home, res["package_dir"])
+            except Exception as e: res["console"] = {"ok": False, "error": f"The console package could not be prepared ({e})."}
         with LOCK: job["result"] = res; job["state"] = "done"; job["finished"] = time.time()
     threading.Thread(target=run, daemon=True, name="native-home-package").start()
     return {"ok": True, "job": jid}
@@ -178,6 +197,57 @@ def save_manifest(man: dict) -> str:
     k = 2
     while os.path.exists(p): p = os.path.join(CFG["exports_dir"], f"{stamp}-selection-{k}.json"); k += 1
     open(p, "w", encoding="utf-8").write(json.dumps(man, indent=1)); return p
+
+# ---- Classic Cart Studio's HOME on the console (K3; docs/console-install-architecture.md sections 13 and 14) ----
+HOME_OPS = [   # the distinct operations, in the order the app shows them; availability is read from the gate in code, never from the page
+    {"id": "prepare", "label": "Prepare the console package", "tier": None, "text": "Builds the HOME menu, the game player and the exact ROM files of this collection on this computer."},
+    {"id": "rehearse", "label": "Rehearse on a simulated console", "tier": "simulate", "text": "Runs every step against a disposable stand-in on this computer: install, update, repair, an interruption, removal and the saves copy."},
+    {"id": "inspect", "label": "Check the console", "tier": "inspect", "text": "Reads your NES Classic over USB: its software, the room left and what is installed. Not available in this version."},
+    {"id": "ram-test", "label": "RAM-only test session", "tier": "ram", "text": "A test that runs from the console's memory only. It needs the owner's own authorization for that exact session and runs from its own helper, not from this app."},
+    {"id": "first-setup", "label": "First-time console setup", "tier": "first-setup", "text": "hakchi's own kernel is installed first with the pinned Hakchi2 CE 3.9.3, as its own approved step. This app does not install firmware."},
+    {"id": "install", "label": "Install or update the HOME", "tier": "install", "text": "Installs the reviewed plan on the checked console after you confirm it. Not available in this version."},
+    {"id": "recover", "label": "Recover or remove", "tier": "install", "text": "Recovers an interrupted installation, or removes the HOME exactly as reviewed; each needs its own confirmation. Not available in this version."},
+    {"id": "export", "label": "Copy the console's saves", "tier": "inspect", "text": "Copies the console's saves, slots and settings to this computer and checks every file. Not available in this version."},
+]
+HOME_PROFILES_UI = [{"name": "hakchi-ready", "label": "NES Classic with hakchi, room to spare"}, {"name": "nearly-full", "label": "NES Classic with hakchi, nearly full"},
+                    {"name": "other-module", "label": "NES Classic with another start-up module"}, {"name": "stock", "label": "NES Classic without hakchi (first-time setup needed)"}]
+HOME_SCENARIOS_UI = {"first-install": "First installation", "update": "Update from an earlier HOME", "repeat": "The same HOME again", "repair": "Repair a changed file", "interrupted": "Connection lost during the installation"}
+def _transport_worker() -> dict:
+    """the console transport worker shipped beside the app (tools/console-worker): identified, never started for a connection here"""
+    from console_engine.worker_console import worker_exe
+    exe = worker_exe()
+    if not exe: return {"present": False}
+    try:
+        with open(exe, "rb") as f: h = hashlib.sha256(f.read()).hexdigest()
+    except OSError: return {"present": False}
+    rec = None
+    try:
+        with open(os.path.join(bundle_integrity.BUNDLE, bundle_integrity.MANIFEST_NAME), encoding="utf-8") as f: rec = (json.load(f).get("files") or {}).get("console-worker/ccs-console-worker.exe")
+    except (OSError, ValueError): pass
+    return {"present": True, "sha256": h, "recorded": bool(rec) and rec.get("sha256") == h, "physical": False, "text": "Present; real connections are closed in this version."}
+def console_home_status() -> dict:
+    """read directly (no worker is started): the staged package, the PC-side records, the gate, the checked console"""
+    from native_home import package as nhp
+    from console_engine import gate as cg
+    from console_engine.worker import read_home_records
+    import console_home
+    man = None; staged = None; f = os.path.join(nhp.package_root(), "console", "current", "MANIFEST.json")
+    try:
+        with open(f, "rb") as fh: mb = fh.read()
+        m = json.loads(mb); staged = hashlib.sha256(mb).hexdigest()
+        man = {"label": m.get("label"), "games": m.get("games"), "playable": m.get("playable"), "total_bytes": m.get("total_bytes"), "startup": m.get("startup"),
+               "layout": m.get("layout"), "version": staged[:16], "unavailable": (m.get("unavailable") or [])[:50]}
+    except (OSError, ValueError): pass
+    recs = read_home_records(os.path.join(cr.ROOT, "records"), staged)
+    allowed = console_home.DISPATCH.allowed   # the dispatcher's gate: the code constants in the app (a test's own dispatcher answers for itself)
+    st = cg.state(); ops = [dict(o, available=(o["tier"] is None or o["tier"] == "simulate" or (o["tier"] in ("inspect", "install") and allowed(o["tier"])))) for o in HOME_OPS]
+    return {"ok": True, "staged": man, "records": recs, "gate": st, "operations": ops, "profiles": HOME_PROFILES_UI, "scenarios": HOME_SCENARIOS_UI, "transport_worker": _transport_worker(),
+            "console": console_home.DISPATCH.status_console()}
+def console_home_post(h, op: str, body: dict):
+    """one dispatcher (console_home.py) for the rehearsals and the physical operations; the gate is asked there first"""
+    import console_home
+    code, obj = console_home.DISPATCH.post(op, body if isinstance(body, dict) else {})
+    return h._json(code, obj)
 
 class H(http.server.BaseHTTPRequestHandler):
     server_version = "nes-companion/1.0"
@@ -273,6 +343,7 @@ class H(http.server.BaseHTTPRequestHandler):
             if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "Only Classic Cart Studio for Windows can use this. Open the Windows app on this computer.", "pair_required": True})
         if path.startswith(("/api/overrides", "/overrides/")): import overrides as ov; return ov.handle_get(self, path, qs)   # N3 content customization (desktop principal; images like personal art)
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_get(self, path, qs)   # N3: TV Preview drawn by the native HOME renderer (desktop principal)
+        if path.startswith("/api/play/"): import play as pl; return pl.handle_get(self, path, qs)   # M3: Play on PC, the game player (desktop principal)
         if path == "/api/status":
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); wait = min(float(q.get("wait", "0") or 0), 30.0)
             return self._json(200, {"ok": True, **status_payload(wait), "bundle": bundle_integrity.check(), "version": VERSION, "protocol": PROTOCOL, "dev_store": os.path.exists(hb.DB_PATH)})
@@ -293,10 +364,11 @@ class H(http.server.BaseHTTPRequestHandler):
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             with LOCK: handoff_prune(); items = sorted(HANDOFF.values(), key=lambda v: v.get("received", 0), reverse=True)
             return self._json(200, {"ok": True, "pending": [{k: v[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at") if k in v} for v in items]})
-        if path in ("/api/package/preview", "/api/package/file"):   # .ccs packages staged on this computer: desktop application only
+        if path in ("/api/package/preview",):   # .ccs packages staged on this computer: desktop application only
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             import package_api as pk; return pk.handle_get(self, path, qs, data_path)
+        if path == "/api/metrics/choice": import metrics_relay as mr; return mr.handle(self, "GET", path, None, data_path, VERSION)   # optional usage counts (D-123): desktop principal
         if path == "/api/desktop/state":
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
@@ -323,6 +395,7 @@ class H(http.server.BaseHTTPRequestHandler):
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             if path == "/api/console/capabilities":
                 r = cr.call("capabilities", {}, timeout=60); return self._json(200 if r.get("event") == "result" else 500, {"ok": r.get("event") == "result", **({"capabilities": r.get("result")} if r.get("event") == "result" else {"error": r.get("text")})})
+            if path == "/api/console/home/status": return self._json(200, console_home_status())
             if path == "/api/console/run":
                 q = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else ""); rid = (q.get("id") or [""])[0]
                 try: cur = int((q.get("cursor") or ["0"])[0])
@@ -342,7 +415,14 @@ class H(http.server.BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(html))); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(html); return
         ctype = mimetypes.guess_type(fp)[0] or "application/octet-stream"
         with open(fp, "rb") as f: data = f.read()
-        self.send_response(200); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(data))); self.send_header("Cache-Control", "max-age=3600"); self.end_headers(); self.wfile.write(data)
+        rng = re.match(r"^bytes=(\d*)-(\d*)$", self.headers.get("Range") or "") if ctype.startswith("audio/") else None   # HOME Music: a media element seeks and loops by range
+        if rng and (rng.group(1) or rng.group(2)):
+            n = len(data); a = int(rng.group(1)) if rng.group(1) else max(0, n - int(rng.group(2))); b = min(n - 1, int(rng.group(2))) if rng.group(1) and rng.group(2) else n - 1
+            if a >= n or a > b: self.send_response(416); self.send_header("Content-Range", f"bytes */{n}"); self.send_header("Content-Length", "0"); self.end_headers(); return
+            self.send_response(206); self.send_header("Content-Type", ctype); self.send_header("Content-Range", f"bytes {a}-{b}/{n}"); self.send_header("Accept-Ranges", "bytes"); self.send_header("Content-Length", str(b - a + 1)); self.send_header("Cache-Control", "max-age=3600"); self.end_headers(); self.wfile.write(data[a:b + 1]); return
+        self.send_response(200); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(data))); self.send_header("Cache-Control", "max-age=3600")
+        if ctype.startswith("audio/"): self.send_header("Accept-Ranges", "bytes")
+        self.end_headers(); self.wfile.write(data)
     def _handoff_offer(self):
             o = self._origin()
             if o not in ALLOWED or o in (f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"): return self._json(403, {"ok": False, "error": "This website is not allowed to connect to Classic Cart Studio on this computer."})   # the website's origin (or a listed dev origin), never this backend's own page
@@ -380,7 +460,7 @@ class H(http.server.BaseHTTPRequestHandler):
             import package_api as pk; return pk.handle_website_package(self, data_path)
         if not self._authed():
             return self._json(401 if self._cross_site() and self._origin() in ALLOWED else 403, {"ok": False, "error": "Only Classic Cart Studio for Windows can use this. Open the Windows app on this computer." if self._cross_site() else "This request is not authorized. Reload the page and try again.", "pair_required": self._cross_site()})
-        if path.startswith("/api/package/"):   # .ccs packages: desktop application only; before _body(): uploads stream to disk
+        if path.startswith(("/api/package/", "/api/studio/")):   # .ccs packages and Full Studio Backups: desktop application only; before _body(): uploads stream to disk
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             import package_api as pk; return pk.handle_post(self, path, data_path, VERSION, CFG)
@@ -388,6 +468,8 @@ class H(http.server.BaseHTTPRequestHandler):
         try: body = self._body()
         except Exception as e: return self._json(408 if getattr(self, "_stalled", False) else 400, {"ok": False, "error": f"The request could not be read ({e})."})
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_post(self, path, body)   # N3: TV Preview (desktop principal)
+        if path.startswith("/api/play/"): import play as pl; return pl.handle_post(self, path, body)   # M3: Play on PC (desktop principal)
+        if path.startswith("/api/metrics/"): import metrics_relay as mr; return mr.handle(self, "POST", path, body, data_path, VERSION)   # optional usage counts (D-123): desktop principal
         if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown") or path.startswith("/api/console/") or path.startswith("/api/home/"):
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
@@ -397,8 +479,9 @@ class H(http.server.BaseHTTPRequestHandler):
                 return
             if path.startswith("/api/console/"):
                 # Console engine, simulation tier. Every call goes to an isolated worker process over the line protocol; the
-                # worker addresses plans by hash and can only open the fake transport. `execute` is forwarded on purpose so the
-                # refusal (Gate G1, in code) is proven end to end; nothing in this backend can open the gate.
+                # worker addresses plans by hash and can only open the fake transport. `execute` (the older game sync through
+                # hakchi, G2) is retired: refused here, whatever the gate says, without a worker; only /api/console/home/* reaches a console.
+                if path.startswith("/api/console/home/"): return console_home_post(self, path[len("/api/console/home/"):], body)
                 op = path[len("/api/console/"):]; prof = re.sub(r"[^a-z0-9-]", "", str(body.get("profile") or ""))[:40]
                 if op == "identify": r = cr.call("identify", {"profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "device": r.get("result"), "error": r.get("text")})
                 if op == "plan":
@@ -414,10 +497,7 @@ class H(http.server.BaseHTTPRequestHandler):
                     rid = cr.start("simulate", {"plan_hash": h, "profile": prof}); return self._json(200, {"ok": True, "run": rid, "simulated": True})
                 if op == "verify":
                     r = cr.call("verify", {"plan_hash": h, "profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "verify": r.get("result"), "error": r.get("text")})
-                if op == "execute":
-                    r = cr.call("execute", {"plan_hash": h, "transport": str(body.get("transport") or "ssh")})
-                    res = r.get("result") if r.get("event") == "result" else {"code": r.get("code"), "state": r.get("text")}
-                    return self._json(403, {"ok": False, "error": (res or {}).get("state") or "Installing on a real console is not available in this version.", "code": (res or {}).get("code") or "physical-disabled", "physical": False})
+                if op == "execute": return self._json(403, {"ok": False, "error": "Syncing games through hakchi is not part of Classic Cart Studio.", "code": "physical-disabled", "physical": False})
                 if op == "cancel": return self._json(200, {"ok": True, **cr.cancel(re.sub(r"[^A-Za-z0-9-]", "", str(body.get("run") or ""))[:40])})
                 if op == "recover": r = cr.call("recover", {"stage": re.sub(r"[^a-z-]", "", str(body.get("stage") or ""))[:20]}); return self._json(200, {"ok": True, **(r.get("result") or {})})
                 return self._json(404, {"ok": False, "error": "unknown console operation"})
@@ -528,7 +608,11 @@ class H(http.server.BaseHTTPRequestHandler):
                     m = re.match(r"^data:image/(jpeg|png);base64,([A-Za-z0-9+/=]+)$", a)
                     if m and len(m.group(2)) <= 1_400_000:
                         import base64; art = base64.b64decode(m.group(2))
-                    return self._json(200, {"ok": True, **ps.merge_metadata(eid, body.get("meta") if isinstance(body.get("meta"), dict) else {}, art=art)})
+                    edits = None   # a Studio backup's own edits kept with the collection (D-80; checked strictly, never over an edit or a real value here)
+                    if body.get("edited") is not None:
+                        try: edits = ps.portable_edits(dict(body.get("user") if isinstance(body.get("user"), dict) else {}, edited=body.get("edited")))
+                        except ValueError: edits = None
+                    return self._json(200, {"ok": True, **ps.merge_metadata(eid, body.get("meta") if isinstance(body.get("meta"), dict) else {}, art=art, edits=edits)})
                 if path == "/api/personal/art":
                     f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Choose artwork", [("Images", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")])
                     if not f: return self._json(200, {"ok": False, "canceled": True})

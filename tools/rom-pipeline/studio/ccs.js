@@ -1,15 +1,20 @@
 // ---- Classic Cart Studio packages (.ccs) on the website and in the Windows app. Contract: tools/companion/CCS-FORMAT.md (ccs-package/2);
 //      the Windows reader and writer: ccs_package.py. A package is always complete: every game it lists has its ROM file, verified by
 //      content (exact version). Packages are made and read on this device only: nothing here sends a package or a ROM byte anywhere but,
-//      when the person asks, to Classic Cart Studio on this same computer (http://127.0.0.1, allow-listed origin) or to a sharing app the
-//      person picks in the device's own share sheet. There is no package size, ROM size or game-count limit (ZIP64 when needed); ROM data is
+//      when the person asks, to Classic Cart Studio on this same computer (http://127.0.0.1, allow-listed origin). Backups are saved where the
+//      person chooses; there is no sharing workflow. There is no package size, ROM size or game-count limit (ZIP64 when needed); ROM data is
 //      handled one file at a time and copied by reference (Blob slices) into a new package, so a large package is never held in memory.
 const CCS_FORMAT='classic-cart-studio-package', CCS_SCHEMA='ccs-package/2', CCS_MANIFEST='ccs-manifest.json';
 const CCS_LIM={json:1<<30, art:1<<20, ratio:400};   // JSON is parsed in memory; art is thumbnails; the ratio stops decompression bombs
 const CCS_ROM_RE=/^roms\/[A-Za-z0-9_.-]{1,96}\.(nes|unh)$/, CCS_ART_RE=/^art\/[A-Za-z0-9_.-]{1,96}\.(jpg|png)$/, CCS_ID_RE=/^(p_)?[0-9a-f]{16}$/;
 const CCS_FIXED={'ccs-manifest.json':'manifest','collection.json':'collection','README.txt':'readme'};
-const CCS_README='Classic Cart Studio package (.ccs)\r\n\r\nThis file holds a game collection made with Classic Cart Studio: every game with its ROM file and exact version,\r\nthe collection\'s NES Classic Loadouts, HOME settings and artwork.\r\n\r\nOpen it with Classic Cart Studio for Windows (double-click the file once the app is installed), or on the website:\r\nhttps://classiccartstudio.com  ->  My Collections  ->  Import .ccs Collection\r\n\r\nClassic Cart Studio does not provide or host game files. Whoever includes or receives game files is responsible for having the\r\nrights to copy, distribute and use them.\r\n';
-function ccsSafeName(n){ if(!n||n.length>200||/^[\/\\]/.test(n)||/[\\:\u0000-\u001f]/.test(n)) return false; if(n.split('/').some(p=>p===''||p==='.'||p==='..')) return false; return n in CCS_FIXED||CCS_ROM_RE.test(n)||CCS_ART_RE.test(n); }
+// Full Studio Backup (kind "studio"): studio.json instead of collection.json, plus the Windows app's saved games and custom content
+const CCS_FIXED_STUDIO={'ccs-manifest.json':'manifest','studio.json':'studio','README.txt':'readme'}, CCS_STUDIO_SCHEMA='ccs-studio-archive/1';
+const CCS_PROG_RE=/^progress\/[0-9a-f]{64}\/(cart\.sav|slot[1-4]\.ccsstate|last-used\.json|continue\.ccsstate|game\.json|slot-names\.json|cart-set-aside-[0-9]{1,20}(-[0-9]{1,3})?\.sav)$/, CCS_CUSTOM_RE=/^custom\/[A-Za-z0-9_.-]{1,64}(\/[A-Za-z0-9_.-]{1,96}){0,3}$/;
+const CCS_README='Classic Cart Studio package (.ccs)\r\n\r\nThis file holds a game collection made with Classic Cart Studio: every game with its ROM file and exact version,\r\nthe collection\'s NES Classic Loadouts, HOME settings and artwork.\r\n\r\nOpen it with Classic Cart Studio for Windows (double-click the file once the app is installed), or on the website:\r\nhttps://classiccartstudio.com  ->  My Collections  ->  Import Collection\r\n\r\nClassic Cart Studio does not provide or host game files. You are responsible for having the rights to copy and use the game files\r\nin this backup. Creating a backup does not grant permission to redistribute copyrighted games.\r\n';
+const CCS_README_STUDIO='Classic Cart Studio Full Studio Backup (.ccs)\r\n\r\nThis file holds every collection made with Classic Cart Studio, every listed game with its ROM file (exact versions), loadouts, HOME settings,\r\nfavorites and Game Settings.\r\n\r\nRestore it with Classic Cart Studio: My Collections -> Import Collection.\r\n\r\nClassic Cart Studio does not provide or host game files. You are responsible for having the rights to copy and use the game files\r\nin this backup. Creating a backup does not grant permission to redistribute copyrighted games.\r\n';
+function ccsSafeName(n, kind){ if(!n||n.length>200||/^[\/\\]/.test(n)||/[\\:\u0000-\u001f]/.test(n)) return false; if(n.split('/').some(p=>p===''||p==='.'||p==='..')) return false;
+ const studio=n in CCS_FIXED_STUDIO||CCS_PROG_RE.test(n)||CCS_CUSTOM_RE.test(n), coll=n in CCS_FIXED; if(kind==='studio') return studio||CCS_ROM_RE.test(n)||CCS_ART_RE.test(n); if(kind==='any') return studio||coll||CCS_ROM_RE.test(n)||CCS_ART_RE.test(n); return coll||CCS_ROM_RE.test(n)||CCS_ART_RE.test(n); }
 const CCS_CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
 function ccsCrcUpdate(c, u8){ for(let i=0;i<u8.length;i++) c=CCS_CRC[(c^u8[i])&255]^(c>>>8); return c; }
 function ccsCrc32(u8){ return (ccsCrcUpdate(0xFFFFFFFF, u8)^0xFFFFFFFF)>>>0; }
@@ -64,25 +69,27 @@ async function ccsUnzip(blob){ const size=blob.size; if(size<22) throw new Error
 // ---- validate a package completely (the same rules as the Windows app's reader); ROMs are read one at a time ----
 async function ccsInspect(blob, opt){ opt=opt||{}; let z; try{ z=await ccsUnzip(blob); }catch(e){ throw new Error('This file is not a Classic Cart Studio package, or it is damaged.'); }
  const E=z.entries; const names=E.map(x=>x.name); if(new Set(names).size!==names.length) throw new Error('The package has duplicate entries.');
- for(const x of E){ if(x.name.endsWith('/')) throw new Error('The package contains an unexpected folder entry.'); if(!ccsSafeName(x.name)) throw new Error(`The package contains an unsafe or unexpected entry (${x.name.slice(0,60)}).`);
+ for(const x of E){ if(x.name.endsWith('/')) throw new Error('The package contains an unexpected folder entry.'); if(!ccsSafeName(x.name,'any')) throw new Error(`The package contains an unsafe or unexpected entry (${x.name.slice(0,60)}).`);
   if(((x.ext>>>16)&0xF000)===0xA000) throw new Error('The package contains a link, which is not allowed.'); if(x.flags&1) throw new Error('Encrypted packages are not supported.'); if(x.method!==0&&x.method!==8) throw new Error('The package uses an unsupported compression method.');
   if(x.csize&&x.usize/Math.max(1,x.csize)>CCS_LIM.ratio) throw new Error('The package contains an entry with a suspicious compression ratio.'); }
  const by=Object.fromEntries(E.map(x=>[x.name,x])); if(!by[CCS_MANIFEST]) throw new Error('This is not a Classic Cart Studio package.');
  let man; try{ man=JSON.parse(new TextDecoder().decode(await z.read(by[CCS_MANIFEST], CCS_LIM.json))); }catch(e){ throw new Error('The package contents list is damaged.'); }
  if(!man||man.format!==CCS_FORMAT) throw new Error('This is not a Classic Cart Studio package.');
  if(man.schema==='ccs-package/1') throw new Error('This package does not include its ROM files, so it can\'t be opened. Ask for a new .ccs file.');
- if(man.schema!==CCS_SCHEMA) throw new Error('This package was made by a newer Classic Cart Studio; update to open it.'); if(man.kind!=='collection') throw new Error('This is not a Classic Cart Studio package.');
+ if(man.schema!==CCS_SCHEMA) throw new Error('This package was made by a newer Classic Cart Studio; update to open it.'); if(man.kind!=='collection'&&man.kind!=='studio') throw new Error('This is not a Classic Cart Studio package.'); const kind=man.kind, main=kind==='studio'?'studio.json':'collection.json';
+ if(names.some(x=>!ccsSafeName(x, kind))) throw new Error('The package contains an unexpected entry.');
  if(!Array.isArray(man.files)) throw new Error('The package contents list is damaged.'); const lp=man.files.map(f=>f&&f.path); if(new Set(lp).size!==lp.length) throw new Error('The package contents list names a file twice.');
  if(names.some(x=>x!==CCS_MANIFEST&&!lp.includes(x))) throw new Error('The package contains files its contents list does not name.');
  const problems=[], roms=[], art={}; let data=null; const romFiles=man.files.filter(f=>f&&typeof f.path==='string'&&f.path.startsWith('roms/'));
- for(const f of man.files){ const p=f&&f.path; if(typeof p!=='string'||!ccsSafeName(p)||p===CCS_MANIFEST) throw new Error('The package contents list names an unsafe file.'); if(!/^[0-9a-f]{64}$/.test(f.sha256||'')||!Number.isSafeInteger(f.size)||f.size<0) throw new Error('The package contents list has an invalid checksum or size.');
+ for(const f of man.files){ const p=f&&f.path; if(typeof p!=='string'||!ccsSafeName(p, kind)||p===CCS_MANIFEST) throw new Error('The package contents list names an unsafe file.'); if(!/^[0-9a-f]{64}$/.test(f.sha256||'')||!Number.isSafeInteger(f.size)||f.size<0) throw new Error('The package contents list has an invalid checksum or size.');
   const x=by[p]; if(!x){ problems.push({path:p, problem:'listed but missing from the package'}); continue; } if(x.usize!==f.size){ problems.push({path:p, problem:'size differs from the listed size'}); continue; }
   if(p.startsWith('roms/')) continue;
   const d=await z.read(x, p.startsWith('art/')?CCS_LIM.art:CCS_LIM.json); if(await ccsSha(d)!==f.sha256){ problems.push({path:p, problem:'checksum does not match (damaged or altered)'}); continue; }
   if(p.startsWith('art/')){ const id=p.slice(4).replace(/\.(jpg|png)$/,''); let s=''; for(let i=0;i<d.length;i+=0x8000) s+=String.fromCharCode.apply(null, d.subarray(i,i+0x8000)); art[id]=`data:image/${p.endsWith('.png')?'png':'jpeg'};base64,`+btoa(s); }
-  else if(p==='collection.json'){ try{ data=JSON.parse(new TextDecoder().decode(d)); }catch(e){ throw new Error('The collection inside the package is not valid.'); } } }
+  else if(p===main){ try{ data=JSON.parse(new TextDecoder().decode(d)); }catch(e){ throw new Error('The collection inside the package is not valid.'); } } }
  if(!data) throw new Error('The package holds no collection.');
- const ids=((data.ccs_collection&&data.ccs_collection.sel)||(data.selections||[]).map(s=>s.version_id||s.game_id)||[]).map(String); const want=new Set(ids); const seen=new Map();
+ if(kind==='studio'&&(data.schema!==CCS_STUDIO_SCHEMA||!Array.isArray(data.games))) throw new Error('The backup\'s contents are not valid.');
+ const ids=(kind==='studio'?data.games:((data.ccs_collection&&data.ccs_collection.sel)||(data.selections||[]).map(s=>s.version_id||s.game_id)||[])).map(String); const want=new Set(ids); const seen=new Map();
  for(const f of romFiles){ const id=String(f.version_id||''); if(!want.has(id)){ problems.push({path:f.path, problem:'is not a game of this collection'}); continue; } if(seen.has(id)){ problems.push({path:f.path, problem:'a second ROM file for the same game'}); continue; } seen.set(id, f); }
  const missing=ids.filter(id=>!seen.has(id)); if(missing.length) problems.push({path:'collection', problem:`${missing.length} game${missing.length===1?' has':'s have'} no ROM file in the package`});
  let done=0; const total=seen.size;
@@ -92,7 +99,7 @@ async function ccsInspect(blob, opt){ opt=opt||{}; let z; try{ z=await ccsUnzip(
    if(await ccsSha(d)!==f.sha256){ problems.push({path:f.path, problem:'checksum does not match (damaged or altered)'}); continue; }
    rec.content_sha256=await ccsSha(ccsRomContent(d)); if(!ccsIdMatches(id, rec.content_sha256)){ problems.push({path:f.path, problem:'is a different version than the game it is listed for'}); continue; } rec.verified=true; rec.ext=ccsRomExt(d); }
   roms.push(rec); done++; if(opt.progress) opt.progress(done, total); }
- return {manifest:man, kind:'collection', data, art, roms, problems, size:z.size, ok:!problems.length, romBytes:roms.reduce((a,r)=>a+r.size,0), zip:z, blob}; }
+ return {manifest:man, kind, data, art, roms, problems, size:z.size, ok:!problems.length, romBytes:roms.reduce((a,r)=>a+r.size,0), zip:z, blob, progress:man.files.filter(f=>CCS_PROG_RE.test(f.path)).map(f=>f.path)}; }
 // ---- ROM files available to this page (website): chosen by the person (ROM files, ZIPs of ROMs, or .ccs packages), kept for this visit
 //      only as references to those files (nothing is copied into storage or sent anywhere) ----
 const ROMSRC=new Map();   // game id -> {name, ext, sha256, content_sha256, size, raw:{blob, method, crc, csize, usize} | file}
@@ -115,21 +122,19 @@ async function ccsCollectionParts(r){ const file=csFileFor(r); const games=csWit
  const ids=((file.ccs_collection||{}).sel||[]).map(String); const titles={}; games.forEach(g=>{ titles[g.id]=g.display_title||g.title||g.id; });
  const summary={name:r.name, games:ids.length, loadouts:((file.ccs_collection||{}).loadouts||[]).length, personal:games.filter(g=>g.source==='personal').length};
  return {file, games, ids, titles, art, artB64, summary}; }
-// a smaller share selection the person chose explicitly: the same collection limited to some of its games (loadouts and folders follow)
-function ccsSubsetRecord(r, keep){ const k=new Set(keep); csSaveActiveNow(); const o=JSON.parse(JSON.stringify(csRecordOut(CS.items[r.id]||r))); o.id='share_'+r.id; o.sel=(o.sel||[]).filter(x=>k.has(x));
- o.loadouts=(o.loadouts||[]).map(l=>Object.assign(l, {sel:(l.sel||[]).filter(x=>k.has(x))})); const fold=h=>{ if(h&&Array.isArray(h.folders)) h.folders.forEach(f=>{ f.order=(f.order||[]).filter(x=>k.has(x)); }); return h; }; o.home=fold(o.home); o.loadouts.forEach(l=>fold(l.home)); return o; }
 // the package itself (website): collection.json, artwork, one ROM per game (copied by reference), README and the manifest
-async function ccsBuild(parts, progress, cancel){ const entries=[], listed=[], included=[];
- const c=await ccsJsonEntry('collection.json', parts.file); entries.push(c.entry); listed.push({path:'collection.json', sha256:c.sha256, size:c.size, kind:'collection'});
+async function ccsBuild(parts, progress, cancel){ const entries=[], listed=[], included=[]; const kind=parts.kind==='studio'?'studio':'collection', main=kind==='studio'?'studio.json':'collection.json';
+ const c=await ccsJsonEntry(main, parts.file); entries.push(c.entry); listed.push({path:main, sha256:c.sha256, size:c.size, kind});
  for(const [n,u8] of Object.entries(parts.art||{})){ const p='art/'+n; if(!CCS_ART_RE.test(p)||u8.length>CCS_LIM.art) continue; entries.push({name:p, method:0, crc:ccsCrc32(u8), usize:u8.length, csize:u8.length, body:u8}); listed.push({path:p, sha256:await ccsSha(u8), size:u8.length, kind:'art'}); }
+ for(const x of parts.extra||[]){ if(!CCS_PROG_RE.test(x.path)) continue; entries.push({name:x.path, method:0, crc:ccsCrc32(x.u8), usize:x.u8.length, csize:x.u8.length, body:x.u8}); listed.push({path:x.path, sha256:await ccsSha(x.u8), size:x.u8.length, kind:'progress'}); }   // saved games (website backup)
  let done=0, bytes=0;
  for(const id of parts.ids){ if(cancel&&cancel()) throw new Error('canceled'); const s=ROMSRC.get(id); if(!s) throw new Error('missing ROM for '+id); const p='roms/'+id+s.ext;
   if(s.raw) entries.push({name:p, method:s.raw.method, crc:s.raw.crc, usize:s.raw.usize, csize:s.raw.csize, body:s.raw.blob});
   else entries.push({name:p, method:0, crc:await ccsCrcBlob(s.file), usize:s.file.size, csize:s.file.size, body:s.file});
   const rec={path:p, sha256:s.sha256, size:s.size, kind:'rom', version_id:id, title:String(parts.titles[id]||id).slice(0,120), content_sha256:s.content_sha256}; listed.push(rec); included.push({version_id:id, title:rec.title, path:p, sha256:s.sha256, size:s.size, content_sha256:s.content_sha256});
   done++; bytes+=s.size; if(progress) progress(done, parts.ids.length); }
- const rd=await ccsJsonEntry('README.txt', CCS_README); entries.push(rd.entry); listed.push({path:'README.txt', sha256:rd.sha256, size:rd.size, kind:'readme'});
- const man={format:CCS_FORMAT, schema:CCS_SCHEMA, kind:'collection', created:new Date().toISOString().replace(/\.\d+Z$/,'Z'), app:{name:'Classic Cart Studio', version:(typeof COMPANION!=='undefined'&&COMPANION.version)||''}, summary:Object.assign({}, parts.summary, {games:parts.ids.length, roms:included.length, rom_bytes:bytes}), files:listed, roms:{included}};
+ const rd=await ccsJsonEntry('README.txt', kind==='studio'?CCS_README_STUDIO:CCS_README); entries.push(rd.entry); listed.push({path:'README.txt', sha256:rd.sha256, size:rd.size, kind:'readme'});
+ const man={format:CCS_FORMAT, schema:CCS_SCHEMA, kind, created:new Date().toISOString().replace(/\.\d+Z$/,'Z'), app:{name:'Classic Cart Studio', version:(typeof COMPANION!=='undefined'&&COMPANION.version)||''}, summary:Object.assign({}, parts.summary, {games:parts.ids.length, roms:included.length, rom_bytes:bytes}), files:listed, roms:{included}};
  entries.push((await ccsJsonEntry(CCS_MANIFEST, JSON.stringify(man,null,1))).entry); return ccsZipBlob(entries); }
 function ccsAppPackages(){ return !!(typeof CO!=='undefined'&&CO.desktop&&CO.ok&&((COMPANION.info&&COMPANION.info.capabilities)||COMPANION.capabilities||[]).includes('ccs-package')); }
 function ccsName(r, n){ return csSafeName((r.name||'Classic Cart Studio Collection')+(n?` (${n} games)`:''),'.ccs'); }
@@ -144,16 +149,15 @@ function ccsAck(o){ return new Promise(res=>{ let m=$('ccsAck'); if(!m){ m=docum
   const done=v=>{ m.classList.remove('open'); others.forEach(x=>x.removeAttribute('inert')); m.onkeydown=null; res(v); };
   btns.forEach((b,i)=>b.onclick=()=>{ if(b.disabled) return; done(o.actions[i].value); });
   m.onkeydown=e=>{ if(e.key==='Escape'){ e.preventDefault(); done('cancel'); return; } if(e.key==='Tab'){ const f=[chk,...btns.filter(b=>!b.disabled)]; const i=f.indexOf(document.activeElement); e.preventDefault(); (f[(i+(e.shiftKey?-1:1)+f.length)%f.length]).focus(); } }; }); }
-const CCS_EXPORT_ACK={title:'Export Collection with ROM Files', body:['You are about to create a Classic Cart Studio collection package containing ROM files from your computer.','Classic Cart Studio does not provide or host these ROM files.','You are responsible for ensuring that you have the necessary rights to copy and distribute the ROM files included in this package.','Owning an original game cartridge or possessing a ROM copy does not necessarily grant permission to distribute it.'],
- check:'I confirm that I have the necessary rights to distribute the ROM files included in this package.', actions:[{label:'Cancel', value:'cancel', secondary:true},{label:'Export with ROMs', value:'export', primary:true, needsAck:true}]};
-const CCS_IMPORT_ACK={title:'Import Collection with ROM Files', body:['This Classic Cart Studio collection package contains ROM files supplied by another user.','Classic Cart Studio does not provide or host these ROM files.','You are responsible for ensuring that you are legally permitted to receive and use the ROM files included in this package.','You may also import the collection without its ROM files.'],
- check:'I understand and accept responsibility for the lawful receipt and use of the included ROM files.', actions:[{label:'Cancel', value:'cancel', secondary:true},{label:'Import Without ROMs', value:'without'},{label:'Import Collection with ROMs', value:'with', primary:true, needsAck:true}]};
-// ---- Share or Export: one complete package, saved (Export .ccs) or handed to the device's share sheet (Send to Phone / Share Games) ----
+const CCS_EXPORT_ACK={title:'Back Up Collection', body:['This backup will contain the ROM files, artwork and collection information of this collection.','Classic Cart Studio creates and saves the backup on your device. No ROM files are uploaded to Classic Cart Studio.','You are responsible for having the legal rights to make copies of the included game files. Creating a backup does not grant permission to redistribute copyrighted games.'],
+ check:'I confirm that I have the necessary rights to create this backup and understand that doing so does not grant permission to redistribute copyrighted game files.', actions:[{label:'Cancel', value:'cancel', secondary:true},{label:'Create Backup', value:'export', primary:true, needsAck:true}]};
+const CCS_IMPORT_ACK={title:'Restore Collection Backup', body:['This backup contains ROM files. Classic Cart Studio does not provide game files.','Restore backups of games you have the rights to use. Restoring a backup does not grant permission to redistribute copyrighted games.'],
+ check:'I confirm that I have the necessary rights to use the game files in this backup.', actions:[{label:'Cancel', value:'cancel', secondary:true},{label:'Restore Backup', value:'with', primary:true, needsAck:true}]};
+// ---- Back Up Collection: one complete .ccs file (every listed game with its verified ROM), saved where the person chooses ----
 const CCS={cid:null, ids:[], titles:{}, ready:[], missing:[], mismatched:[], busy:false, cancel:false};
-function ccsShareDialog(cid){ csSaveActiveNow(); cid=cid||CS.active; const r=CS.items[cid]; if(!r) return; document.querySelectorAll('.menu').forEach(x=>x.hidden=true); CCS.cid=cid; CCS.subset=null; ccsCheck(); }
-function ccsShareLabel(){ return ccsPhone()?'Share Games':'Send to Phone'; }
-async function ccsCheck(){ const r=CS.items[CCS.cid]; if(!r) return; const p=await ccsCollectionParts(r); CCS.parts=p; const ids=CCS.subset||p.ids; CCS.ids=ids; CCS.titles=p.titles;
- openColl('Share or Export Collection', `"${r.name}" · ${ids.length} game${ids.length===1?'':'s'}`, '<div class="msgbox">Checking ROM files…</div>');
+function ccsBackupDialog(cid){ csSaveActiveNow(); cid=cid||CS.active; const r=CS.items[cid]; if(!r) return; document.querySelectorAll('.menu').forEach(x=>x.hidden=true); CCS.cid=cid; ccsCheck(); }
+async function ccsCheck(){ const r=CS.items[CCS.cid]; if(!r) return; if(typeof fbKeptSources==='function') await fbKeptSources(); const p=await ccsCollectionParts(r);   /* games kept in this browser go in from their kept bytes */ CCS.parts=p; const ids=p.ids; CCS.ids=ids; CCS.titles=p.titles;
+ openColl('Back Up Collection', `"${r.name}" · ${ids.length} game${ids.length===1?'':'s'}`, '<div class="msgbox">Checking ROM files…</div>');
  if(ccsAppPackages()){ const chk=await hkPost('/api/package/rom-check', {games:ids.map(id=>({version_id:id, title:p.titles[id]||id}))});
   if(!chk.ok){ $('collBody').innerHTML=`<div class="msgbox bad">${esc(chk.error||'The ROM files could not be checked. Try again.')}</div>`; return; }
   CCS.ready=(chk.available||[]).map(g=>g.version_id); CCS.bytes=(chk.available||[]).reduce((a,g)=>a+(g.size||0),0); CCS.missing=(chk.missing||[]).map(g=>g.version_id); CCS.mismatched=(chk.mismatched||[]).map(g=>g.version_id); }
@@ -161,55 +165,44 @@ async function ccsCheck(){ const r=CS.items[CCS.cid]; if(!r) return; const p=awa
  if(typeof keptAvailNoted==='function') keptAvailNoted(CCS.ready, CCS.missing.concat(CCS.mismatched)); ccsRender(); }   /* a file of a different version is not this game's ROM file */
 function ccsRender(){ const r=CS.items[CCS.cid]; const n=CCS.ids.length, need=CCS.missing.length+CCS.mismatched.length, ok=!need&&n>0; const app=ccsAppPackages(); const t=id=>esc(CCS.titles[id]||id);
  const list=arr0=>{ const arr=arr0.slice().sort((x,y)=>(CCS_ID_RE.test(x)?1:0)-(CCS_ID_RE.test(y)?1:0)); return `<ul class="small ccsmiss">${arr.slice(0,12).map(id=>`<li>${t(id)}${CCS_ID_RE.test(id)?'':' <i>(file unknown)</i>'}</li>`).join('')}${arr.length>12?`<li>and ${arr.length-12} more</li>`:''}</ul>`; };   /* entries with no known file come first: they can never be packaged */
- $('collBody').innerHTML=(ok?`<div class="msgbox ok"><b>${n.toLocaleString('en-US')} ROM file${n===1?' is':'s are'} ready</b> (${fmt(CCS.bytes)}). The package is made on this ${app?'computer':'device'}; nothing is uploaded.</div>`
+ $('collBody').innerHTML=(ok?`<div class="msgbox ok"><b>${n.toLocaleString('en-US')} ROM file${n===1?' is':'s are'} ready</b> (${fmt(CCS.bytes)}). The backup is made on this ${app?'computer':'device'}; nothing is uploaded.</div>`
    :!n?`<div class="msgbox warn">This collection has no games yet.</div>`
    :`<div class="msgbox warn"><b>${need} of ${n} game${n===1?'':'s'} ${need===1?'needs its':'need their'} ROM file.</b> A .ccs file always includes every game's ROM.${CCS.missing.length?list(CCS.missing):''}${CCS.mismatched.length?`<div class="small">A different version is on this computer for:</div>${list(CCS.mismatched)}`:''}</div>
-    <div class="ccsfix">${app?'<button class="btn" id="ccsAdd">Add ROM Files…</button>':'<button class="btn" id="ccsPick">Choose ROM Files…</button>'}${!app&&typeof desktopAvailable==='function'&&desktopAvailable()?'<button class="btn ghost" id="ccsWinApp">Open in Windows App</button>':''}${CCS.ready.length?`<button class="btn ghost" id="ccsOnly">Share Only the ${CCS.ready.length} Ready Game${CCS.ready.length===1?'':'s'}</button>`:''}</div>
+    <div class="ccsfix">${app?'<button class="btn" id="ccsAdd">Add ROM Files…</button>':'<button class="btn" id="ccsPick">Choose ROM Files…</button>'}${!app&&typeof desktopAvailable==='function'&&desktopAvailable()?'<button class="btn ghost" id="ccsWinApp">Open in Windows App</button>':''}</div>
     ${app?'':'<p class="small">Choose the ROM files, a ZIP of them, or a .ccs file that has them. They are read on this device only.</p>'}`)
-  +(n?`<div class="filecard"><span class="mic" aria-hidden="true">📦</span><div><b>${esc(ccsName(r, CCS.subset&&CCS.parts&&CCS.subset.length!==CCS.parts.ids.length?CCS.subset.length:0))}</b><span class="small">${n.toLocaleString('en-US')} game${n===1?'':'s'}${ok?` · ${fmt(CCS.bytes)} of ROM files`:''} · Classic Cart Studio package</span></div></div>`:'')
-  +`<div class="acts"><span class="sp"></span><button class="btn" id="ccsNo">Cancel</button><button class="btn" id="ccsExp" ${ok?'':'disabled'}>Export .ccs</button><button class="btn hk" id="ccsSend" ${ok?'':'disabled'}>${ccsShareLabel()}</button></div>`;
- $('ccsNo').onclick=closeColl; $('ccsExp').onclick=()=>ccsMake('export'); $('ccsSend').onclick=()=>ccsMake('share');
+  +(n?`<div class="filecard"><span class="mic" aria-hidden="true">📦</span><div><b>${esc(ccsName(r, 0))}</b><span class="small">${n.toLocaleString('en-US')} game${n===1?'':'s'}${ok?` · ${fmt(CCS.bytes)} of ROM files`:''} · Classic Cart Studio collection backup</span></div></div>`:'')
+  +`<div class="acts"><span class="sp"></span><button class="btn" id="ccsNo">Cancel</button><button class="btn hk" id="ccsExp" ${ok?'':'disabled'}>Create Backup…</button></div>`;
+ $('ccsNo').onclick=closeColl; $('ccsExp').onclick=()=>ccsMake('export');
  if($('ccsPick')) $('ccsPick').onclick=async()=>{ const fs=await ccsPickRoms(); if(!fs.length) return; $('ccsPick').disabled=true; $('ccsPick').textContent='Reading files…'; const res=await ccsAddRomSources(fs); await ccsCheck(); if(!res.found) toast('No ROM files were found in those files'); };
  if($('ccsAdd')) $('ccsAdd').onclick=()=>{ closeColl(); if(typeof importGames==='function') importGames('files'); };
- if($('ccsWinApp')) $('ccsWinApp').onclick=()=>{ closeColl(); if(typeof startHandoff==='function') startHandoff([CCS.cid]); };
- if($('ccsOnly')) $('ccsOnly').onclick=()=>{ CCS.subset=CCS.ready.slice(); ccsCheck(); }; }
-async function ccsMake(mode){ const r=CS.items[CCS.cid]; if(!r) return; const a=await ccsAck(CCS_EXPORT_ACK); if(a!=='export') return;
- const sub=CCS.subset&&CCS.subset.length!==CCS.parts.ids.length; const rec=sub?ccsSubsetRecord(r, CCS.subset):r; const parts=sub?await ccsCollectionParts(rec):CCS.parts; const name=ccsName(r, sub?CCS.subset.length:0);
- CCS.cancel=false; $('collBody').innerHTML=`<div class="msgbox" id="ccsProg">Creating the package…</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsStop">Cancel</button></div>`; $('ccsStop').onclick=()=>{ CCS.cancel=true; closeColl(); toast('Canceled; nothing was saved'); }; procSet('collm','running');
- const prog=(d,t)=>{ const p=$('ccsProg'); if(p) p.textContent=`Creating the package… ${d.toLocaleString('en-US')} of ${t.toLocaleString('en-US')} ROM files`; };
- if(ccsAppPackages()&&ccsAppJobs()){ const req={collection:parts.file, art:parts.artB64, roms:parts.ids.map(id=>({version_id:id, title:parts.titles[id]||id})), summary:parts.summary, job:true, save:mode==='export', name};
-  if(mode==='export'){ $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native'); }
+ if($('ccsWinApp')) $('ccsWinApp').onclick=()=>{ closeColl(); if(typeof startHandoff==='function') startHandoff([CCS.cid]); }; }
+async function ccsMake(mode){ mode='export'; const r=CS.items[CCS.cid]; if(!r) return; const a=await ccsAck(CCS_EXPORT_ACK); if(a!=='export') return;
+ const parts=CCS.parts; const name=ccsName(r, 0);
+ CCS.cancel=false; $('collBody').innerHTML=`<div class="msgbox" id="ccsProg">Creating the backup…</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsStop">Cancel</button></div>`; $('ccsStop').onclick=()=>{ CCS.cancel=true; closeColl(); toast('Canceled; nothing was saved'); }; procSet('collm','running');
+ const prog=(d,t)=>{ const p=$('ccsProg'); if(p) p.textContent=`Creating the backup… ${d.toLocaleString('en-US')} of ${t.toLocaleString('en-US')} ROM files`; };
+ if(ccsAppPackages()&&ccsAppJobs()){ const req={collection:parts.file, art:parts.artB64, roms:parts.ids.map(id=>({version_id:id, title:parts.titles[id]||id})), summary:parts.summary, job:true, save:true, name};
+  $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native');
   const st=await hkPost('/api/package/export', req);
   if(st.canceled){ closeColl(); toast('Canceled; nothing was saved'); return; } if(!st.ok){ procSet('collm',null); return ccsJobFail(st.error); }
   const j=await ccsWatch(st.job, 'Creating '+st.name);
-  if(j.phase==='canceled'){ closeColl(); toast('Export canceled; nothing was saved'); return; } if(j.phase!=='done'){ procSet('collm',null); return ccsJobFail(j.error); }
-  if(mode==='export'){ ccsMarkSaved(parts); return ccsSavedView(j, parts); }
-  return ccsDoneApp(mode, {id:j.stage_id, size:j.size}, name, parts); }
+  if(j.phase==='canceled'){ closeColl(); toast('Backup canceled; nothing was saved'); return; } if(j.phase!=='done'){ procSet('collm',null); return ccsJobFail(j.error); }
+  ccsMarkSaved(parts); return ccsSavedView(j, parts); }
  if(ccsAppPackages()){ const ex=await hkPost('/api/package/export', {collection:parts.file, art:parts.artB64, roms:parts.ids.map(id=>({version_id:id, title:parts.titles[id]||id})), summary:parts.summary});
-  if(CCS.cancel) return; if(!ex.ok){ $('collBody').innerHTML=`<div class="msgbox bad">The package was not created: ${esc(ex.error||'unknown error')}. Nothing was saved.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`; $('ccsOk').onclick=closeColl; return; }
+  if(CCS.cancel) return; if(!ex.ok){ $('collBody').innerHTML=`<div class="msgbox bad">The backup was not created: ${esc(ex.error||'unknown error')}. Nothing was saved.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`; $('ccsOk').onclick=closeColl; return; }
   return ccsDoneApp(mode, ex, name, parts); }
- let blob; try{ blob=await ccsBuild(parts, prog, ()=>CCS.cancel); }catch(e){ if(CCS.cancel) return; $('collBody').innerHTML=`<div class="msgbox bad">The package was not created: ${esc(e.message||String(e))}. Nothing was saved.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`; $('ccsOk').onclick=closeColl; return; }
+ let blob; try{ blob=await ccsBuild(parts, prog, ()=>CCS.cancel); }catch(e){ if(CCS.cancel) return; $('collBody').innerHTML=`<div class="msgbox bad">The backup was not created: ${esc(e.message||String(e))}. Nothing was saved.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`; $('ccsOk').onclick=closeColl; return; }
  if(CCS.cancel) return; ccsDoneWeb(mode, blob, name, parts); }
-function ccsMarkSaved(parts){ if(CCS.cid===CS.active&&!LO&&!(CCS.subset&&CCS.subset.length!==CCS.parts.ids.length)){ COLL.savedToFile={at:new Date().toISOString(), fp:collFingerprint()}; saveColl(); if(typeof updateStatusLine==='function') updateStatusLine(); } }
+function ccsMarkSaved(parts){ if(typeof CCSM!=='undefined') CCSM.track('backup_completed');   /* every collection backup that was really saved comes here once */
+ if(CCS.cid===CS.active&&!LO){ COLL.savedToFile={at:new Date().toISOString(), fp:collFingerprint()}; saveColl(); if(typeof updateStatusLine==='function') updateStatusLine(); } }
 function ccsDoneMsg(parts, size){ return `<b>${parts.ids.length} game${parts.ids.length===1?'':'s'}</b>, every ROM file included (${fmt(size)}).`; }
-// sharing advice names no services: the device's own share options list what it actually has
-const CCS_SEND_TIP='Share it with your usual messaging, email, cloud storage or file-transfer app.';
-const CCS_SEND_AFTER='Save the .ccs file, then share it with your usual messaging, email, cloud storage or file-transfer app.';
-const CCS_SEND_WIN='Share it with your usual messaging, email, cloud storage or file-transfer app, or right-click it in File Explorer and choose <b>Share</b>.';
-// whether this browser or app can hand a file to the system's share options (feature detection, never the device type)
-function ccsCanShareFiles(f){ try{ return !!(navigator.canShare&&navigator.canShare({files:[f||new File([new Uint8Array(1)], 'test.ccs', {type:'application/octet-stream'})]})); }catch(e){ return false; } }
 function ccsNativeWait(name){ return `<div class="msgbox" id="ccsProg"><b>Choose where to save ${esc(name)}.</b> The Windows Save dialog is open in its own window; this continues when you save or cancel there.</div>`; }
-async function ccsDoneWeb(mode, blob, name, parts){ procSet('collm',null); const file=new File([blob], name, {type:blob.type}); const canShare=ccsCanShareFiles(file);
- if(mode==='export'){ closeColl(); const res=await ccsSaveFile(name, blob, 'Classic Cart Studio Package'); if(res.ok){ ccsMarkSaved(parts); toast(`Saved "${res.name}" (${parts.ids.length} games, ${fmt(blob.size)})`); } else toast('Canceled; nothing was saved'); return; }
- $('collBody').innerHTML=`<div class="msgbox ok">The package is ready: ${ccsDoneMsg(parts, blob.size)}</div>${canShare?'':`<div class="msgbox">This browser can't hand files to other apps. ${CCS_SEND_AFTER}</div>`}<div id="ccsShareOut"></div>
-  <div class="acts"><span class="sp"></span><button class="btn" id="ccsSave">Save .ccs…</button>${canShare?`<button class="btn hk" id="ccsShare">Share…</button>`:''}</div>`;
- $('ccsSave').onclick=async()=>{ const res=await ccsSaveFile(name, blob, 'Classic Cart Studio Package'); if(res.ok){ ccsMarkSaved(parts); closeColl(); toast(`Saved "${res.name}"`); } };
- if($('ccsShare')) $('ccsShare').onclick=async()=>{ try{ await navigator.share({files:[file], title:name}); closeColl(); }
-  catch(e){ if(e&&e.name==='AbortError') return; $('ccsShareOut').innerHTML=`<div class="msgbox warn">The app you picked didn't take the file${blob.size>25e6?' (it may be too large for it)':''}. Your package is complete: save it, or share it with another app.</div>`; } }; }
+async function ccsDoneWeb(mode, blob, name, parts){ procSet('collm',null); closeColl(); const res=await ccsSaveFile(name, blob, 'Classic Cart Studio Backup');
+ if(!res.ok){ toast(res.canceled?'Canceled; nothing was saved':'The backup was not saved: '+(res.error||'the browser refused it')+'. Try again.'); return; }
+ ccsMarkSaved(parts); toast(res.download?`Your browser is saving "${res.name}" (${parts.ids.length} games, ${fmt(blob.size)}) to its downloads. Where that is depends on your browser's settings.`:`Saved "${res.name}" (${parts.ids.length} games, ${fmt(blob.size)})`); }
 // ---- export jobs in the Windows app: progress from the Background Helper, Cancel honored at its next 1 MB checkpoint ----
 function ccsAppJobs(){ return ((COMPANION.info&&COMPANION.info.capabilities)||COMPANION.capabilities||[]).includes('package-jobs'); }
 function ccsShown(){ return $('collm').classList.contains('open'); }
-function ccsJobFail(err){ const m=String(err||'unknown error'); if(!ccsShown()){ toast('The package was not created'); return; }
+function ccsJobFail(err){ if(typeof CCSM!=='undefined') CCSM.fail('backup','write_failed'); const m=String(err||'unknown error'); if(!ccsShown()){ toast('The package was not created'); return; }
  $('collBody').innerHTML=`<div class="msgbox bad">The package was not created: ${esc(m.replace(/\.$/,''))}${/Nothing was saved/.test(m)?'.':'. Nothing was saved.'}</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`; $('ccsOk').onclick=closeColl; }
 // the counts are finished work: games whose ROM file has been checked or completely written into the package; the bytes are the ROM
 // bytes read so far (checking) or written so far (packaging), so they keep moving while one large game is in progress
@@ -228,22 +221,14 @@ async function ccsWatch(job, title){ CCS.job=job; procSet('collm','running');
   j=r.job; ccsJobDraw(j); if(j.phase==='done'||j.phase==='error'||j.phase==='canceled') break; await new Promise(res=>setTimeout(res, 300)); }
  procSet('collm',null); CCS.job=null; return j; }
 function ccsSavedView(j, parts){ if(!ccsShown()){ toast(`Saved "${j.saved_name}" (${fmt(j.size)})`); return; }
- $('collBody').innerHTML=`<div class="msgbox ok">Saved <b>${esc(j.saved_name)}</b>: ${ccsDoneMsg(parts, j.size)}</div><p class="small ccspath">${esc(j.saved_path||'')}</p><p class="small">${CCS_SEND_WIN}</p>
+ $('collBody').innerHTML=`<div class="msgbox ok">Saved <b>${esc(j.saved_name)}</b>: ${ccsDoneMsg(parts, j.size)}</div><p class="small ccspath">${esc(j.saved_path||'')}</p><p class="small">Keep it somewhere safe, such as another drive. Restore it with Import Collection.</p>
   <div class="acts"><span class="sp"></span><button class="btn" id="ccsShow">Show in Folder</button><button class="btn hk" id="ccsOk">Done</button></div>`;
  $('ccsOk').onclick=closeColl; $('ccsShow').onclick=async()=>{ const r=await hkPost('/api/package/reveal', {id:j.id}); if(!r.ok) toast(r.error||'File Explorer could not be opened'); }; }
 async function ccsDoneApp(mode, ex, name, parts){ let saved=null;
  const save=async()=>{ $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native'); const s=await hkPost('/api/package/save', ccsAppJobs()?{id:ex.id, name, job:true}:{id:ex.id, name}); if(!s.job) procSet('collm',null);
-  if(s.ok&&s.job){ const j=await ccsWatch(s.job, 'Saving '+s.name); if(j.phase==='done'){ saved={name:j.saved_name, path:j.saved_path}; ccsMarkSaved(parts); return true; } toast(j.phase==='canceled'?'Canceled; nothing was saved':(j.error||'The package was not saved')); return false; }
-  if(s.ok){ saved=s; ccsMarkSaved(parts); return true; } if(!s.canceled) toast(s.error||'The package was not saved'); return false; };
- if(mode==='export'){ closeColl(); if(await save()) toast(`Saved "${saved.name}" (${parts.ids.length} games, ${fmt(ex.size)})`); return; }
- const canShare=ccsCanShareFiles();
- const draw=()=>{ $('collBody').innerHTML=`<div class="msgbox ok">The package is ready: ${ccsDoneMsg(parts, ex.size)}</div>${saved?`<div class="msgbox">Saved as <b>${esc(saved.name)}</b>.${saved.path?`<div class="small ccspath">${esc(saved.path)}</div>`:''} ${CCS_SEND_WIN}</div>`:`<p class="small">${CCS_SEND_AFTER}</p>`}<div id="ccsShareOut"></div>
-   <div class="acts"><span class="sp"></span>${saved?'<button class="btn" id="ccsShow">Show in Folder</button>':'<button class="btn hk" id="ccsSave">Save .ccs…</button>'}${canShare?'<button class="btn" id="ccsShare">Share…</button>':''}<button class="btn" id="ccsOk">Done</button></div>`;
-  $('ccsOk').onclick=closeColl; if($('ccsSave')) $('ccsSave').onclick=async()=>{ await save(); if(ccsShown()) draw(); }; if($('ccsShow')) $('ccsShow').onclick=async()=>{ const r=await hkPost('/api/package/reveal', {id:ex.id}); if(!r.ok) toast(r.error||'File Explorer could not be opened'); };
-  if($('ccsShare')) $('ccsShare').onclick=async()=>{ try{ const rr=await fetch(CO.base+'/api/package/file?id='+encodeURIComponent(ex.id), lnaInit({headers:hdrs(), cache:'no-store'})); if(!rr.ok) throw new Error('HTTP '+rr.status); const f=new File([await rr.blob()], name, {type:'application/vnd.classiccartstudio.collection+zip'});
-    if(!navigator.canShare({files:[f]})) throw new Error('unsupported'); await navigator.share({files:[f], title:name}); }
-   catch(e){ if(e&&e.name==='AbortError') return; $('ccsShareOut').innerHTML=`<div class="msgbox warn">That didn't work here${ex.size>25e6?' (the file may be too large for the app)':''}. Save the package and share it from File Explorer instead.</div>`; } }; };
- draw(); }
+  if(s.ok&&s.job){ const j=await ccsWatch(s.job, 'Saving '+s.name); if(j.phase==='done'){ saved={name:j.saved_name, path:j.saved_path}; ccsMarkSaved(parts); return true; } toast(j.phase==='canceled'?'Canceled; nothing was saved':(j.error||'The backup was not saved')); return false; }
+  if(s.ok){ saved=s; ccsMarkSaved(parts); return true; } if(!s.canceled) toast(s.error||'The backup was not saved'); return false; };
+ closeColl(); if(await save()) toast(`Saved "${saved.name}" (${parts.ids.length} games, ${fmt(ex.size)})`); }
 // ---- Import .ccs Collection ----
 function ccsImportPick(){ const inp=document.createElement('input'); inp.type='file'; inp.onchange=()=>{ const f=inp.files[0]; if(f) ccsOpenFile(f); }; inp.click(); }
 // what a chosen file is comes from its content, not its name or type: a JSON object is a collection file or a Studio data backup, a ZIP
@@ -267,32 +252,41 @@ async function ccsOpenFile(f){ const kind=await ccsFileKind(f);
  let info; try{ info=await ccsInspect(f, {cancel:()=>stop, progress:(d,t)=>{ const p=$('ccsProg'); if(p) p.textContent=`Checking ROM files… ${d.toLocaleString('en-US')} of ${t.toLocaleString('en-US')}`; }}); }catch(e){ if(!stop) ccsFail(f.name, e.message); return; }
  if(stop) return; procSet('collm',null); if(!info.ok){ ccsFail(f.name, 'It is incomplete or damaged: '+info.problems.slice(0,3).map(p=>`${p.path} ${p.problem}`).join('; ')+(info.problems.length>3?` (and ${info.problems.length-3} more)`:'')+'.'); return; }
  ccsPreview(Object.assign(info, {source:'file', file:f}), f.name); }
-function ccsFromStaged(d){ return {manifest:{created:d.created}, kind:d.kind, data:d.data, art:{}, roms:d.roms||[], problems:d.problems||[], size:d.size, ok:d.ok!==false&&!(d.problems||[]).length, romBytes:d.rom_bytes||0, source:'staged', id:d.id}; }
-function ccsFail(name, why, head){ openColl(head?'Import Collection':'Import .ccs Collection', name||'', `<div class="msgbox bad"><b>${esc(head||'This package cannot be opened.')}</b> ${esc(why||'')}</div><p class="small">Nothing was imported.</p><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`); $('ccsOk').onclick=closeColl; }
+function ccsFromStaged(d){ return {manifest:{created:d.created}, kind:d.kind, data:d.data, art:{}, roms:d.roms||[], problems:d.problems||[], size:d.size, ok:d.ok!==false&&!(d.problems||[]).length, romBytes:d.rom_bytes||0, source:'staged', id:d.id, restore_preview:d.restore_preview||null}; }   // restore_preview: a Full Studio Backup's counts, the files it would not restore and why, an unfinished earlier restore
+function ccsFail(name, why, head){ openColl(head?'Import Collection':'Restore Collection Backup', name||'', `<div class="msgbox bad"><b>${esc(head||'This package cannot be opened.')}</b> ${esc(why||'')}</div><p class="small">Nothing was imported.</p><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`); $('ccsOk').onclick=closeColl; }
 function ccsCounts(info){ const rec=(info.data&&info.data.ccs_collection)||{}; return {name:rec.name||info.data.name||'Imported collection', games:(rec.sel||[]).length||(info.data.selections||[]).length, loadouts:(rec.loadouts||[]).length}; }
-function ccsPreview(info, fname){ if(!info.ok){ ccsFail(fname, 'It is incomplete or damaged: '+(info.problems||[]).slice(0,3).map(p=>`${p.path} ${p.problem}`).join('; ')+'.'); return; }
+function ccsPreview(info, fname){ if(info.ok&&info.kind==='studio'&&typeof fbRestorePreview==='function') return fbRestorePreview(info, fname); if(!info.ok){ ccsFail(fname, 'It is incomplete or damaged: '+(info.problems||[]).slice(0,3).map(p=>`${p.path} ${p.problem}`).join('; ')+'.'); return; }
  const c=ccsCounts(info); const roms=info.roms.length; const web=!CO.desktop; const canRoms=!web&&ccsAppPackages()&&info.source==='staged';
  const rows=[['Collection',esc(c.name)],['Games',String(c.games)],['NES Classic Loadouts',String(c.loadouts)],['ROM files',`${roms} verified (${fmt(info.romBytes)})`],['Package size', fmt(info.size)]];
- openColl('Import .ccs Collection', fname||'', `<dl class="kv">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
-  ${web?`<div class="msgbox">The website checks the ROM files but does not keep them. Keep this .ccs file: to share or export the collection again, choose it when asked.</div>`:''}
+ openColl('Restore Collection Backup', fname||'', `<dl class="kv">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+  ${web?`<div class="msgbox">Each checked game file is kept privately in this browser so you can play it here. That private copy is not a backup: keep this .ccs file (or your own game files) to restore your games if this browser's data is cleared.</div>`:''}
   <p class="small">It is added as a new collection; nothing here is replaced.</p>
-  <div class="acts">${web&&typeof desktopAvailable==='function'&&desktopAvailable()?`<button class="btn" id="ccsWin">Open in Windows App</button>`:''}<span class="sp"></span><button class="btn" id="ccsNo">Cancel</button><button class="btn hk" id="ccsGo">${web?'Save to My Collections':canRoms?'Import…':'Import Collection'}</button></div>`);
+  <div class="acts">${web&&typeof desktopAvailable==='function'&&desktopAvailable()?`<button class="btn" id="ccsWin">Open in Windows App</button>`:''}<span class="sp"></span><button class="btn" id="ccsNo">Cancel</button><button class="btn hk" id="ccsGo">${web?'Save to My Collections':canRoms?'Restore…':'Restore Collection'}</button></div>`);
  $('ccsNo').onclick=closeColl; if($('ccsWin')) $('ccsWin').onclick=()=>ccsToApp(info.file, fname);
- $('ccsGo').onclick=async()=>{ if(canRoms){ const a=await ccsAck(CCS_IMPORT_ACK); if(a==='cancel') return; if(a==='with'){ const ok=await ccsImportRoms(info); if(!ok) return; } }
+ $('ccsGo').onclick=async()=>{ if(canRoms){ const a=await ccsAck(CCS_IMPORT_ACK); if(a!=='with') return; const ok=await ccsImportRoms(info); if(!ok) return; }
   if(info.source==='staged'&&info.id&&ccsAppPackages()){ const ka=await hkPost('/api/package/keep-art', {id:info.id}); if(ka&&ka.ok) info.art=ka.art||{}; }   /* the package's artwork for its personal games, kept in the app's own folder */
-  if(web&&info.zip){ for(const x of info.roms) if(x.verified) ccsSrcAdd({name:x.path, ext:x.ext, sha256:x.sha256, content_sha256:x.content_sha256, size:x.size, raw:{blob:await info.zip.raw(x.entry), method:x.entry.method, crc:x.entry.crc, csize:x.entry.csize, usize:x.entry.usize}}); }
+  if(web&&info.zip){ for(const x of info.roms) if(x.verified) ccsSrcAdd({name:x.path, ext:x.ext, sha256:x.sha256, content_sha256:x.content_sha256, size:x.size, raw:{blob:await info.zip.raw(x.entry), method:x.entry.method, crc:x.entry.crc, csize:x.entry.csize, usize:x.entry.usize}});
+   info._kept=await ccsKeepForPlay(info); }
   closeColl(); const r=ccsSaveCollection(info); if(!r) return; const mr=CCS.metaMerge?await CCS.metaMerge:null; CCS.metaMerge=null; const nf=mr?new Set(mr.failed).size:0;
-  openColl('Collection Imported', '', `<div class="msgbox ok">"${esc(r.name)}" (${(r.sel||[]).length} game${(r.sel||[]).length===1?'':'s'}${(r.loadouts||[]).length?`, ${(r.loadouts||[]).length} NES Classic Loadout${(r.loadouts||[]).length===1?'':'s'}`:''}) is in My Collections.${info._romResult?` ${info._romResult.imported.length} ROM file${info._romResult.imported.length===1?' was':'s were'} added to this computer.`:canRoms?' Saved without its ROM files.':''}</div>${info._romResult&&info._romResult.rejected.length?`<div class="msgbox warn">${info._romResult.rejected.length} file${info._romResult.rejected.length===1?' was':'s were'} not used: ${esc(info._romResult.rejected.map(x=>x.reason).join('; '))}</div>`:''}${nf?`<div class="msgbox warn">The details of ${nf} personal game${nf===1?' were':'s were'} not saved on this computer yet. They are kept with this collection, and Classic Cart Studio tries again automatically.</div>`:''}<div class="acts"><button class="btn ghost" id="ccsStay">Stay Here</button><span class="sp"></span><button class="btn hk" id="ccsOpen">Open It Now</button></div>`);
+  openColl('Collection Imported', '', `<div class="msgbox ok">"${esc(r.name)}" (${(r.sel||[]).length} game${(r.sel||[]).length===1?'':'s'}${(r.loadouts||[]).length?`, ${(r.loadouts||[]).length} NES Classic Loadout${(r.loadouts||[]).length===1?'':'s'}`:''}) is in My Collections.${info._kept?' '+esc(info._kept.text):''}${info._romResult?` ${info._romResult.imported.length} ROM file${info._romResult.imported.length===1?' was':'s were'} added to this computer.`:''}</div>${info._romResult&&info._romResult.rejected.length?`<div class="msgbox warn">${info._romResult.rejected.length} file${info._romResult.rejected.length===1?' was':'s were'} not used: ${esc(info._romResult.rejected.map(x=>x.reason).join('; '))}</div>`:''}${nf?`<div class="msgbox warn">The details of ${nf} personal game${nf===1?' were':'s were'} not saved on this computer yet. They are kept with this collection, and Classic Cart Studio tries again automatically.</div>`:''}<div class="acts"><button class="btn ghost" id="ccsStay">Stay Here</button><span class="sp"></span><button class="btn hk" id="ccsOpen">Open It Now</button></div>`);
   $('ccsStay').onclick=closeColl; $('ccsOpen').onclick=()=>{ closeColl(); csSwitch(r.id, true); const t=$('tray'); if(t) t.classList.add('open'); }; }; }
+// the website (W1): each verified game of a package is kept privately in this browser (CCSROMS, by its exact content identity) so it plays
+// here; a game that cannot be kept (storage full, blocked or private browsing) is said, never shown as ready
+async function ccsKeepForPlay(info){ if(typeof CCSROMS==='undefined'||!CCSPLAY.supported()) return {kept:0, failed:0, text:'This browser cannot keep games for playing here.'};
+ let kept=0, failed=0, why='';
+ for(const x of info.roms){ if(!x.verified) continue; try{ const d=await info.zip.read(x.entry, x.size); await CCSROMS.put(d, {sha:x.content_sha256, title:x.title, name:x.path}); kept++; }catch(e){ failed++; why=String(e&&e.message||e); } }
+ const kp=kept?await CCSROMS.persist():false;
+ return {kept, failed, text:(kept?`${kept} game${kept===1?' is':'s are'} ready to play in this browser${kp?'':' (this browser may clear them when it needs room: keep this .ccs file)'}.`:'')+(failed?` ${failed} game${failed===1?' was':'s were'} not kept here: ${why}`:'')}; }
 async function ccsImportRoms(info){ $('collBody').querySelectorAll('.acts button').forEach(b=>b.disabled=true); $('collBody').insertAdjacentHTML('beforeend','<div class="msgbox" id="ccsBusy">Checking and adding the ROM files… This can take a while for a large package.</div>');
  procSet('collm','running'); const r=await hkPost('/api/package/import-roms', {id:info.id}); procSet('collm',null); const b=$('ccsBusy'); if(b) b.remove(); $('collBody').querySelectorAll('.acts button').forEach(b=>b.disabled=false);
- if(!r.ok){ $('collBody').insertAdjacentHTML('beforeend', `<div class="msgbox bad">The ROM files were not imported: ${esc(r.error||'unknown error')}. You can still import the collection without them.</div>`); return false; }
+ if(!r.ok){ const n=(r.imported||[]).length; $('collBody').insertAdjacentHTML('beforeend', `<div class="msgbox bad">The ROM files were not ${n?'all ':''}restored: ${esc(r.error||'unknown error')}. ${n?`${n} ROM file${n===1?' was':'s were'} added before it stopped; ${n===1?'it stays':'they stay'} on this computer (each a complete, checked copy). The collection was not added; try again.`:'Nothing was added; try again.'}</div>`); return false; }
  info._romResult=r; await refreshPersonal(); return true; }
 // a new, independent collection from a package (every entry kept; artwork of games not on this computer kept with their entries)
 function ccsSaveCollection(info){ const d=info.data||{}; const rec0=d.ccs_collection; if(!rec0||!Array.isArray(rec0.sel)){ csImportObject(d, 'package'); return csActive(); }
  const {rec}=csRecordFromFile(rec0, rec0.name); const sels=Object.fromEntries((d.selections||[]).map(s=>[s.version_id||s.game_id, s]));
  const kept=[]; const given=(rec0.coll&&typeof rec0.coll==='object'&&rec0.coll.missing&&typeof rec0.coll.missing==='object')?rec0.coll.missing:{};
  rec.sel.forEach(id=>{ const s=sels[id]; let m=given[id]?csCleanMissing(given[id], id):null; if(s) m=csMergeEntry(m, csEntryFromSelection(s, d.personal_library), id); if(!m) m=rec.coll.missing[id]||null;
+  m=csNoEdits(m);   /* an ordinary package: its details merge as automatic ones; another Studio's record of its person's own edits is not used (D-80) */
   if(m&&info.art&&info.art[id]&&!m.thumb_url) m.thumb_url=csThumbOk(info.art[id]);
   if(byId[id]){ if(m&&csPendingPersonal(id, m)){ kept.push([id, m]); rec.coll.missing[id]=m; } else delete rec.coll.missing[id]; return; }   /* on this computer: its details go to the personal store; kept here until the store confirms */
   if(m) rec.coll.missing[id]=m; });
@@ -314,9 +308,9 @@ function ccsAppFallback(fname, err){ openColl('Open in Windows App', fname||'', 
 function ccsLaunch(u){ let f=$('ccsLaunch'); if(!f){ f=document.createElement('iframe'); f.id='ccsLaunch'; f.setAttribute('aria-hidden','true'); f.style.cssText='display:none;width:0;height:0;border:0'; document.body.appendChild(f); } try{ f.src=u; }catch(e){} }
 // Studio data backups stay JSON files (collections.js); importing .ccs packages and backups shares one picker
 csImportPick=function(){ ccsImportPick(); };
-csExport=function(id){ return ccsShareDialog(id||CS.active); };
+csExport=function(id){ return ccsBackupDialog(id||CS.active); };
 // ---- links and files handed over by Windows (protocol, file association) and by the website ----
-window.__ccsLink=function(kind, value){ if(kind==='share'){ openColl('Shared Collection Links','', `<div class="msgbox">Shared collection links are no longer used. Ask the sender for the collection's .ccs file and open it here.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`); $('ccsOk').onclick=closeColl; return; }
+window.__ccsLink=function(kind, value){ if(kind==='share'){ openColl('Shared Collection Links','', `<div class="msgbox">Shared collection links are no longer used, and Classic Cart Studio does not send collections to other people. To restore one of your own collections, open its .ccs backup here.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button></div>`); $('ccsOk').onclick=closeColl; return; }
  const go=()=>{ if(kind==='package'&&/^[A-Za-z0-9_-]{16,40}$/.test(value)){ capi('/api/package/preview?id='+encodeURIComponent(value)).then(d=>d.ok?ccsPreview(ccsFromStaged(d), 'from ClassicCartStudio.com'):ccsFail('', d.error)); }
   else if(kind==='file'&&/\.ccs$/i.test(value)){ openColl('Import .ccs Collection', value.split(/[\\/]/).pop(), '<div class="msgbox">Checking the package…</div>'); hkPost('/api/package/open', {path:value}).then(d=>d.ok?ccsPreview(ccsFromStaged(d), d.file_name):ccsFail(value.split(/[\\/]/).pop(), d.error)); } };
  if(CO.ok) go(); else { let n=0; const t=setInterval(()=>{ if(CO.ok||++n>120){ clearInterval(t); if(CO.ok) go(); } }, 500); } };

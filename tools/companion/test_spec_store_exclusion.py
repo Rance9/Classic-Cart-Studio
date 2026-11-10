@@ -28,17 +28,33 @@ def fixture_site(root: str) -> str:
 def tree(d: str) -> list[str]:
     return sorted(os.path.relpath(os.path.join(a, n), d).replace("\\", "/") for a, _, ns in os.walk(d) for n in ns)
 
-def isolated_env(tmp: str, site: str) -> dict:
-    env = {k: v for k, v in os.environ.items() if k not in ("CCS_RELEASE_BUILD", "CCS_REQUIRE_NATIVE", "CCS_HAKCHI_PACKAGE")}
-    env.update(NES_SITE_DIR=site, CCS_NATIVE_HOME_RUNTIME=os.path.join(tmp, "absent"), CCS_NATIVE_PREVIEW_CORE=os.path.join(tmp, "absent"))
+def fixture_worker(root: str, **change) -> str:
+    """a stand-in for build-worker.ps1's release folder (the spec requires one): placeholder bytes, a BUILD-INFO.json that lists them"""
+    import hashlib
+    d = os.path.join(root, "worker"); files = {"ccs-console-worker.exe": b"MZ fixture", "ccs-console-worker.exe.config": b"<configuration/>", "CcsWorker.dll": b"MZ fixture dll",
+                                               "Renci.SshNet.dll": b"MZ fixture ssh", "LibUsbDotNet.LibUsbDotNet.dll": b"MZ fixture usb", "NOTICE": b"notice", "SOURCE.md": b"# source",
+                                               "licenses/GPL-3.0.txt": b"GPL"}
+    for rel, b in files.items():
+        p = os.path.join(d, *rel.split("/")); os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "wb") as f: f.write(b)
+    info = {"schema": "ccs-console-worker-build/1", "hakchi": {"commit": "25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc", "submodules": {"Libraries/SSH.NET": "32181aeb4ce69e8f07e5e1d585fd592a44017bc1"}},
+            "files": {rel: {"size": len(b), "sha256": hashlib.sha256(b).hexdigest()} for rel, b in files.items()}}
+    for k, v in change.items(): info[k] = v
+    with open(os.path.join(d, "BUILD-INFO.json"), "w", encoding="utf-8") as f: json.dump(info, f)
+    return d
+
+def isolated_env(tmp: str, site: str, worker: str | None = None) -> dict:
+    env = {k: v for k, v in os.environ.items() if k not in ("CCS_RELEASE_BUILD", "CCS_REQUIRE_NATIVE", "CCS_HAKCHI_PACKAGE", "CCS_CONSOLE_WORKER_DIR")}
+    env.update(NES_SITE_DIR=site, CCS_NATIVE_HOME_RUNTIME=os.path.join(tmp, "absent"), CCS_NATIVE_PREVIEW_CORE=os.path.join(tmp, "absent"),
+               CCS_CONSOLE_WORKER_DIR=worker if worker is not None else (os.path.join(tmp, "worker") if os.path.isdir(os.path.join(tmp, "worker")) else fixture_worker(tmp)))
     return env
 
-def exec_spec(tmp: str, site: str):
+def exec_spec(tmp: str, site: str, worker: str | None = None):
     rec = {}
     class Analysis:
         def __init__(self, scripts, **kw): rec["datas"] = kw.get("datas"); self.pure = []; self.scripts = []; self.binaries = []; self.datas = []
     stub = lambda *a, **k: None
-    saved = dict(os.environ); os.environ.clear(); os.environ.update(isolated_env(tmp, site)); path = list(sys.path)
+    saved = dict(os.environ); os.environ.clear(); os.environ.update(isolated_env(tmp, site, worker)); path = list(sys.path)
     try:
         g = {"__file__": SPEC, "__name__": "__main__", "SPEC": SPEC, "Analysis": Analysis, "PYZ": stub, "EXE": stub, "COLLECT": stub}
         exec(compile(open(SPEC, encoding="utf-8").read(), SPEC, "exec"), g)

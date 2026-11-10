@@ -4,7 +4,8 @@ folders; synthetic ROMs (random bytes behind an iNES header); the Save As dialog
              and matches the file, a package that passes full verification, about the speed of the same export without a job
   cancel     during verification, during writing and during Save: stops within seconds, no file under the final name, no partial
              files, the ROM files unchanged; the next export works
-  send       Send to Phone stages the package; Save copies it as a job; Show in Folder opens only the saved path
+  save       a job backup always saves where asked, even with save=False (nothing is only staged: sharing is removed); a staged
+             package from a plain backup is saved as a job; Show in Folder opens only the saved path; a canceled Save leaves nothing
   timeout    the headless helper (CCS_HELPER_IDLE_TIMEOUT=4): an upload that keeps arriving for 3 timeouts succeeds, one with short
              pauses succeeds, one that stops gets 408 and its connection closed, no partial file, the helper keeps answering;
              untrusted origins, forged tokens and the removed /pair routes stay refused; the website handoff still works
@@ -106,10 +107,13 @@ def main():
         gone = make_set("gone", [16384, 16384]); os.remove(gone[1][1]); dest = os.path.join(out, "Gone.ccs")
         j, s, _ = run(body(gone, "Gone", job=True, save=True, path=dest))
         ok("missing_rom_ends_in_an_error_without_a_file", j["phase"] == "error" and [x["version_id"] for x in j.get("missing") or []] == [gone[1][0]] and clean(out, "Gone") == [], j)
-        # ---- Send to Phone: staged, then Save as a job (and a canceled Save) ----
-        j, s, _ = run(body(large[:4], "Phone Set", job=True, save=False))
-        sid = j.get("stage_id"); staged = pk._path_for(pk.stage_dir(data_path), sid or "")
-        ok("send_to_phone_stages_a_complete_package", j["phase"] == "done" and staged and cp.inspect(staged)["ok"] and j.get("saved_path") is None, j)
+        # ---- a job backup with save=False still saves where asked (no staged-only package); then a plain backup's staged package is saved as a job ----
+        sd = pk.stage_dir(data_path); before = set(os.listdir(sd)) if os.path.isdir(sd) else set(); dj = os.path.join(out, "Job Set.ccs")
+        j, s, _ = run(body(large[:4], "Job Set", job=True, save=False, path=dj))
+        after = set(os.listdir(sd)) if os.path.isdir(sd) else set()
+        ok("job_backup_always_saves_nothing_only_staged", j["phase"] == "done" and j.get("saved_path") == dj and cp.inspect(dj)["ok"] and not j.get("stage_id") and after == before, [j, sorted(after - before)])
+        h = post("/api/package/export", body(large[:4], "Phone Set")); sid = (h.obj or {}).get("id"); staged = pk._path_for(sd, sid or "")
+        ok("plain_backup_is_complete", h.code == 200 and staged and cp.inspect(staged)["ok"], h.obj)
         dest = os.path.join(out, "Phone Set.ccs")
         j2, s2, _ = run({"id": sid, "name": "Phone Set.ccs", "job": True, "path": dest}, save="/api/package/save")
         sv = [x for x in s2 if x["phase"] == "save"]

@@ -12,6 +12,8 @@
 //   sorts              display sorts per browsing location; view-only
 const HOME_SCHEMA='ccs-home-collection/1';
 const HOME_THEMES=['arcade-grid','box-art-showcase','featured-shelf','adventure-map'];
+// the console's startup screen (D-113): Random among the five approved images, or one of them; separate from the HOME theme
+const HOME_STARTUP=[{id:'forgotten-keep',name:'Forgotten Keep'},{id:'galactic-frontier',name:'Galactic Frontier'},{id:'kingdoms-beyond',name:'Kingdoms Beyond'},{id:'neon-highway',name:'Neon Highway'},{id:'pixel-worlds',name:'Pixel Worlds'}];
 const HOME_DEFAULT_THEME='arcade-grid';
 const HOME_SORTS=[{id:'custom',label:'Custom Order'},{id:'title-az',label:'Title A–Z'},{id:'title-za',label:'Title Z–A'},{id:'year-old',label:'Release Year: Oldest First'},{id:'year-new',label:'Release Year: Newest First'},{id:'pub-az',label:'Publisher A–Z'},{id:'pub-za',label:'Publisher Z–A'}];
 const HOME_MAX_FOLDER_DEPTH=5;
@@ -35,7 +37,7 @@ function homeBuild(manifest, byId, prev, opts){
  opts=opts||{}; prev=prev||{}; const sels=(manifest&&manifest.selections)||[]; const games=[]; const seen=new Set();
  for(const s of sels){ const id=s.game_id||s.version_id; if(!id||seen.has(id)) continue; seen.add(id); const g=byId[id]||{};
   const installed=!s.install_required||opts.readiness===undefined?true:(opts.readiness[id]!=='missing');
-  const artSrc=s.art||g.art||null; const prov=g.art_source==='none'||!artSrc?(opts.generated&&opts.generated[id]?'generated':'none'):(g.art_source==='uploaded'?'uploaded':'authentic');
+  const artSrc=s.art||g.art||null; const prov=g.art_source==='none'||!artSrc?(opts.generated&&opts.generated[id]?'generated':'none'):(['uploaded','personal','kept'].includes(g.art_source)?'uploaded':'authentic');
   games.push({id, title_id:s.title_id||g.title_id||null, title:s.display_title||g.display_title||s.title||id, sort_title:homeSortTitle(s.display_title||g.display_title||s.title),
    version_id:s.payload_sha256||s.builtin_factory_version||id, version_label:s.nointro_name||s.version_label||(s.builtin_code&&!s.install_required?'factory version':''),
    publisher:g.publisher||null, developer:g.developer||null, genre:g.genre||null, players:g.players||null, year:g.year||null, description:g.description||null,
@@ -45,7 +47,8 @@ function homeBuild(manifest, byId, prev, opts){
  const order=games.map(g=>g.id);
  const m={schema:HOME_SCHEMA, generated:homeNow(), source:{schema:manifest&&manifest.schema||null, name:manifest&&manifest.name||null}, games, order,
   folders:homeKeepFolders(prev.folders||[], new Set(order)), favorites:homeKeepFavorites(prev.favorites, new Set(order)), history:prev.history||{events:[],cleared_gen:0,cleared_at:null},
-  map_shortcuts:(prev.map_shortcuts||[null,null]).slice(0,2), sorts:Object.assign({},prev.sorts||{}), theme:HOME_THEMES.includes(prev.theme)?prev.theme:HOME_DEFAULT_THEME, settings:Object.assign({reduced_motion:false,hints:true},prev.settings||{})};
+  map_shortcuts:(prev.map_shortcuts||[null,null]).slice(0,2), sorts:Object.assign({},prev.sorts||{}), theme:HOME_THEMES.includes(prev.theme)?prev.theme:HOME_DEFAULT_THEME, settings:Object.assign({reduced_motion:false,hints:true},prev.settings||{}),
+  startup_image:HOME_STARTUP.some(s=>s.id===prev.startup_image)?prev.startup_image:'random'};
  if(m.map_shortcuts.length<2) m.map_shortcuts.push(null);
  homeDefaultShortcuts(m); return m;
 }

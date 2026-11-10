@@ -11,6 +11,7 @@
  *            the test pattern) | home-state | state-dir <dir> (where the console keeps its theme choice; before `home`)
  *            | home-layout (the rectangles the current frame draws, for overlap checks) | home-select <index> (tests only)
  *            | home-theme <id> [save] (tooling: switch the theme as the controller would; `save` also stores the choice)
+ *            | home-music on|off (the TV Preview: offer HOME Music in the HOME's own Settings with this computer's choice; this process never plays sound)
  * Faults:    --fault=startup-fail | --fault=startup-hang | --fault=slow-start=<ms> | --fault=crash-after-inputs=<n>
  *            --fault=crash-on-launch | --fault=frame-fail      --mem-budget-kb=<n>  --repeat=<delay>,<rate>
  * Stub:      --game-stub [--exit-code=<n>] [--delay-ms=<n>] [--crash]
@@ -160,6 +161,7 @@ int main(int argc, char **argv) {
         else if (!strncmp(a, "--mem-budget-kb=", 16)) c.mem_budget = (size_t)atol(a + 16) * 1024;
         else if (!strncmp(a, "--repeat=", 9)) { unsigned d = 400, r = 100; if (sscanf(a + 9, "%u,%u", &d, &r) >= 1) { c.in.repeat_delay_ms = d; c.in.repeat_rate_ms = r; c.repeat_set = 1; } }
         else if (!strncmp(a, "--cover-budget=", 15)) c.cover_budget = atoi(a + 15);
+        else if (!strncmp(a, "--scale=", 8)) { int v = atoi(a + 8); ccs_scale = v == 2 ? 2 : 1; }   /* the computer's full-resolution HOME (2: 2560 x 1440 frames); the console is 1 */
         else if (!strncmp(a, "--state-dir=", 12)) snprintf(c.state_dir, sizeof c.state_dir, "%s", a + 12);
         else if (!strcmp(a, "--version")) { printf("%s %s %s %s\n", CCS_SIM_PROTOCOL, CCS_BUILD_TARGET, ARCH, ABI); return 0; }
         else { fprintf(stderr, "unknown argument: %s\n", a); return 64; }
@@ -167,7 +169,7 @@ int main(int argc, char **argv) {
     if (startup_fail) { emit("{\"ev\":\"fault\",\"name\":\"startup-fail\",\"note\":\"simulated startup failure\"}"); return 3; }
     if (slow_start > 0) SLEEP_MS((unsigned)slow_start);
     if (startup_hang) { for (;;) SLEEP_MS(1000); }
-    if (fb_init(&c.fb, CCS_FB_W, CCS_FB_H)) { emit("{\"ev\":\"error\",\"error\":\"framebuffer allocation failed\"}"); return 5; }
+    if (fb_init(&c.fb, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { emit("{\"ev\":\"error\",\"error\":\"framebuffer allocation failed\"}"); return 5; }
     emitf("{\"ev\":\"ready\",\"protocol\":\"%s\",\"build\":\"%s\",\"arch\":\"%s\",\"abi\":\"%s\",\"float_abi\":\"%s\",\"fb\":[%d,%d],\"pointer_bits\":%d,\"mem_budget_bytes\":%zu,\"simulation\":true}", CCS_SIM_PROTOCOL, CCS_BUILD_TARGET, ARCH, ABI, FLOAT_ABI, CCS_FB_W, CCS_FB_H, (int)(sizeof(void *) * 8), c.mem_budget);
     c.st = S_READY; emit("{\"ev\":\"state\",\"state\":\"ready\"}");
     char line[4096], esc[1024];
@@ -196,6 +198,7 @@ int main(int argc, char **argv) {
             char *sv = strchr(arg, ' '); int save = 0; if (sv) { *sv++ = 0; save = !strcmp(sv, "save"); }
             if (home_set_theme(c.hm, arg, save)) { jstr(arg, esc, sizeof esc); emitf("{\"ev\":\"error\",\"error\":\"unknown theme\",\"theme\":%s}", esc); } else home_emit_state(c.hm);
         } else if (!strcmp(cmd, "home-select") && arg) { if (c.hm) home_select(c.hm, atoi(arg)); else emit("{\"ev\":\"error\",\"error\":\"no HOME loaded\"}"); }
+        else if (!strcmp(cmd, "home-music") && arg) { if (c.hm) { home_music_offer(c.hm, !strcmp(arg, "on")); home_emit_state(c.hm); } else emit("{\"ev\":\"error\",\"error\":\"no HOME loaded\"}"); }   /* the TV Preview: offer HOME Music with this computer's choice (D-81); no sound is ever played here */
         else if (!strcmp(cmd, "home-layout")) { if (c.hm) home_layout(c.hm, &c.fb, c.in.clock_ms); else emit("{\"ev\":\"error\",\"error\":\"no HOME loaded\"}"); }
         else if (!strcmp(cmd, "home-go") && arg) { if (c.hm) { char kind[24] = ""; int v = -1; sscanf(arg, "%23s %d", kind, &v); home_go(c.hm, kind, v); } else emit("{\"ev\":\"error\",\"error\":\"no HOME loaded\"}"); }
         else if (!strcmp(cmd, "home-state")) { if (c.hm) home_emit_state(c.hm); else emit("{\"ev\":\"error\",\"error\":\"no HOME loaded\"}"); }

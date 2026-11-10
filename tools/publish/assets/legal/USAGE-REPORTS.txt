@@ -1,0 +1,25 @@
+﻿Classic Cart Studio: optional usage and error reports
+
+What is collected?
+
+Only these counts, and only while usage reporting is on: that the Studio opened, a HOME opened, a game started, a backup or a restore finished, a download link was chosen, or something failed. A failure says only which kind of operation (HOME, play, backup, restore or storage) and a fixed reason (not ready, missing ROM, storage unavailable, read failed, write failed, invalid data, unsupported or other). With each count: the release version, whether it came from the website, the installed web app or the Windows app, the browser family and the system family (in the Windows app always Edge and Windows), and for some failures a rough duration.
+
+Never included: game files or their hashes, game names, collection or loadout names, file names or paths, saved games, screenshots, controller details, typed text, error messages, web addresses, or any account, device, installation or advertising identifier. These are counts, not logs or crash dumps: they cannot show anyone's games, files or computer.
+
+Why: to see which features are used and which operations fail, so fixes can be prioritized. The totals are approximate and cannot show who you are, how many people use Classic Cart Studio, or what any one person did.
+
+Who receives them: Classic Cart Studio's own collector, a Cloudflare Worker at metrics.classiccartstudio.com, which stores each count in Cloudflare Workers Analytics Engine. The collector does not store your IP address, browser details or the request itself. Cloudflare, as the network that delivers the request, necessarily processes the connection's IP address and request details under its own terms.
+
+How long: Cloudflare Workers Analytics Engine keeps the counts for three months. There is no other copy.
+
+Your choice: in this setup, where the box starts unchecked, and at any time in Classic Cart Studio's Studio menu under Usage Reporting. The choice belongs to this Windows account on this computer: it is never part of a backup, and a restore never changes it. Turning it off stops new counts at once; anything not yet sent is dropped (a count already delivered cannot be recalled). If the choice cannot be saved, reporting stays off until Classic Cart Studio closes, and it says so. A count that cannot be sent right away (offline, blocked or slow) is dropped too, never queued or retried. Every feature works the same with reporting on or off, offline too, and with the collector blocked. This setup itself sends nothing.
+
+What continues when usage reporting is off
+
+1. Optional usage reports (Classic Cart Studio's own counts, above): off. None are sent, and the Windows app makes no remote request for them.
+
+2. Cloudflare Web Analytics on the website (visits, page views, referring sites, browser and device type, page-load performance; it is not in the Windows app): continues on the website, because the Usage Reporting choice does not cover it. A content or privacy blocker can block it without breaking the website.
+
+3. Delivering the website and downloads (GitHub Pages and Cloudflare deliver the website; GitHub delivers downloads and the release information): continues whenever you load the website or download a release. These providers process connection information, such as your IP address, and may keep security and access records under their own terms.
+
+Classic Cart Studio has no compulsory usage reporting. Nothing comes from the NES Classic itself, and nothing is measured on a game's picture or sound.

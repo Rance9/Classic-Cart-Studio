@@ -28,6 +28,7 @@
  */
 #include "home_int.h"
 #include <stdarg.h>
+#include <errno.h>
 
 int ccs_mkdirs(const char *dir);
 int ccs_write_atomic(const char *path, const void *data, size_t len);
@@ -44,9 +45,11 @@ static const char *THEME_IDS[N_THEMES] = { "arcade-grid", "box-art-showcase", "f
 static const char *THEME_NAMES[N_THEMES] = { "Arcade Grid", "Box Art Showcase", "Featured Shelf", "Adventure Map" };
 static const theme_ops *THEME_OPS[N_THEMES] = { &THEME_ARCADE, &THEME_BOXART, &THEME_SHELF, &THEME_MAP };
 static const char *NODESC = "No description is available for this game.";
-/* home-state.js HOME_START_MENU (Sort Games applies to All Games); HOME_NAV for the Adventure Map destinations */
-static const char *START_ID[9] = { "return", "theme", "sort", "favorites", "recent", "settings", "allgames", "browse", "search" };
-static const char *START_LABEL[9] = { "Return to Games", "Change Theme", "Sort Games", "Favorites", "Recently Played", "Settings", "All Games", "Browse", "Search" };
+/* home-state.js HOME_START_MENU (Sort Games applies to All Games); HOME_NAV for the Adventure Map destinations. F20 (D-102): the selected
+   game's Game Details and Play come first (their labels name that game, shortened to fit), Return to Games last */
+#define N_START 11
+static const char *START_ID[N_START] = { "details", "play", "theme", "sort", "favorites", "recent", "settings", "allgames", "browse", "search", "return" };
+static const char *START_LABEL[N_START] = { "Game Details", "Play", "Change Theme", "Sort Games", "Favorites", "Recently Played", "Settings", "All Games", "Browse", "Search", "Return to Games" };
 static const char *DEST_LABEL[6] = { "All Games", "Browse", "Search", "Favorites", "Recently Played", "Settings" };
 
 /* ---------- small helpers ---------- */
@@ -72,6 +75,7 @@ int Tb(framebuffer *fb, rect clip, const font *f, double x, int base, const char
 void emit_json(home *h, const char *fmt, ...) { char buf[4096]; va_list ap; va_start(ap, fmt); vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap); if (h->emit) h->emit(buf); }
 static void jesc(const char *s, char *out, size_t n) { json_escape(s ? s : "", out, n); }
 void LR(home *h, const char *name, int x0, int y0, int x1, int y1) { if (!h->rec || h->nrec >= MAX_REC) return; layrec *r = &h->recs[h->nrec++]; snprintf(r->name, sizeof r->name, "%s", name); r->b.x0 = x0; r->b.y0 = y0; r->b.x1 = x1; r->b.y1 = y1; }
+void LT(home *h, int kind, int idx, int x0, int y0, int x1, int y1) { if (!h->hitrec || h->ntg >= MAX_TG) return; hittgt *t = &h->tg[h->ntg++]; t->b = (box4){ x0, y0, x1, y1 }; t->kind = kind; t->idx = idx; }
 void LRtext(home *h, const char *name, const font *f, double x, int base, const char *s, size_t len, double sp) { LR(h, name, iround(x), base - f->ascent, iround(x) + text_w(f, s, len, sp), base + f->descent); }
 int dir_of(button b) { return b == B_UP ? D_UP : b == B_DOWN ? D_DOWN : b == B_LEFT ? D_LEFT : b == B_RIGHT ? D_RIGHT : -1; }
 void draw_glow_text(framebuffer *fb, home *h, int fid, double x, int base, const char *s, size_t len, double sigma, color glow, double sp) {
@@ -94,8 +98,10 @@ size_t overview_clamp(const font *f, const char *s, int maxw, int lines, double 
 int fit_font(const home *h, const int *fonts, int n, const char *s, int maxw, double sp) { for (int i = 0; i < n; i++) if (text_w(&h->f[fonts[i]], s, strlen(s), sp) <= maxw) return fonts[i]; return fonts[n - 1]; }
 void upper(const char *s, char *out, size_t n) { size_t i = 0; for (; s && s[i] && i < n - 1; i++) out[i] = (char)((s[i] >= 'a' && s[i] <= 'z') ? s[i] - 32 : s[i]); out[i] = 0; }
 const image *sprite_scaled(home *h, const char *name, int w, int hh, int nearest, image *tmp) {
-    const tsprite *s = tsp(h, name); tmp->px = NULL; if (!s) return NULL; if (s->im.w == w && s->im.h == hh) return &s->im;
-    if (nearest ? img_scale_nearest(&s->im, tmp, w, hh) : img_scale(&s->im, tmp, w, hh)) return NULL; return tmp;
+    const tsprite *s = tsp(h, name); memset(tmp, 0, sizeof *tmp); if (!s) return NULL; if (s->im.w == w && s->im.h == hh) return &s->im;
+    if (nearest ? img_scale_nearest(&s->im, tmp, w, hh) : img_scale(&s->im, tmp, w, hh)) return NULL;
+    if (!nearest && !tmp->hpx) img_hi(&s->im, tmp, 0);   /* a redrawn overlay's pixels came with the resize */
+    return tmp;
 }
 
 /* ---------- sprites, icons, thumbs ---------- */
@@ -111,17 +117,28 @@ static int theme_index(const char *id) { for (int i = 0; i < N_THEMES; i++) if (
 static int theme_activate(home *h, int t, char *err, size_t errlen) {
     const jval *themes = json_get(h->pk, "themes"), *tj = themes ? json_get(themes, THEME_IDS[t]) : NULL; char p[1200];
     if (!tj) { snprintf(err, errlen, "the package has no %s theme", THEME_IDS[t]); return -1; }
-    theme_unload(h); h->theme = t; h->tj = tj; h->geo = json_get(tj, "geometry");
+    theme_unload(h); h->theme = t; h->tj = tj; h->geo = json_get(tj, "geometry"); h->hd_sprites = h->hd_scene = 0;
     const jval *sc = json_get(tj, "scene"); if (!sc || sc->t != J_STR || !safe_rel(sc->s)) { snprintf(err, errlen, "%s scene missing", THEME_IDS[t]); return -1; }
     pjoin(h, sc->s, p, sizeof p); if (img_load(p, &h->scene, 0, err, errlen)) return -1;
     if (h->scene.w != CCS_FB_W || h->scene.h != CCS_FB_H) { snprintf(err, errlen, "scene is %dx%d", h->scene.w, h->scene.h); return -1; }
+    if (ccs_scale > 1) {   /* the computer: the package's picture at this scale (its panels redrawn), else this one's pixels doubled */
+        const jval *s2 = ccs_scale == 2 ? json_get(tj, "scene_2x") : NULL; image up; char e2[200]; int have = 0;
+        if (s2 && s2->t == J_STR && safe_rel(s2->s)) { pjoin(h, s2->s, p, sizeof p); if (!img_load(p, &up, 0, e2, sizeof e2)) { if (up.w == CCS_FB_W * 2 && up.h == CCS_FB_H * 2) have = 1; else img_free(&up); } }
+        h->hd_scene = have;
+        if (!have && img_scale_nearest(&h->scene, &up, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory (scene)"); return -1; }
+        img_free(&h->scene); h->scene = up; }
     const jval *sps = json_get(tj, "sprites");
     if (sps && sps->t == J_OBJ) for (size_t i = 0; i < sps->n && h->nsp < MAX_SPRITES; i++) {
         const jval *sp = sps->items[i], *f = json_get(sp, "file"); tsprite *s = &h->sp[h->nsp];
         if (!f || f->t != J_STR || !safe_rel(f->s) || gbox(sp, "box", &s->box)) { snprintf(err, errlen, "sprite %s malformed", sps->keys[i]); return -1; }
         snprintf(s->name, sizeof s->name, "%s", sps->keys[i]); pjoin(h, f->s, p, sizeof p); if (img_load(p, &s->im, 1, err, errlen)) return -1; h->nsp++;
+        const jval *f2 = ccs_scale == 2 ? json_get(sp, "file_2x") : NULL;   /* the computer: the overlay redrawn at twice its size */
+        if (f2 && f2->t == J_STR && safe_rel(f2->s)) { image hi; char e2[200]; pjoin(h, f2->s, p, sizeof p);
+            if (!img_load(p, &hi, 1, e2, sizeof e2)) { image fit; h->hd_sprites++; if (hi.w == s->im.w * 2 && hi.h == s->im.h * 2) { s->im.hpx = hi.px; s->im.hs = 2; }
+                else { if (!img_scale(&hi, &fit, s->im.w * 2, s->im.h * 2)) { s->im.hpx = fit.px; s->im.hs = 2; } img_free(&hi); } } }
     }
     h->ops = THEME_OPS[t]; if (!h->geo) { snprintf(err, errlen, "%s geometry missing", THEME_IDS[t]); return -1; }
+    if (ccs_scale > 1) emit_json(h, "{\"ev\":\"hd_assets\",\"theme\":\"%s\",\"scale\":%d,\"fonts\":%d,\"sprites\":%d,\"scene\":%d,\"thumbs\":%d,\"icons\":%d}", THEME_IDS[t], ccs_scale, h->hd_fonts, h->hd_sprites, h->hd_scene, h->hd_thumbs, h->hd_icons);   /* the computer only */
     return h->ops->init ? h->ops->init(h, err, errlen) : 0;
 }
 
@@ -147,6 +164,38 @@ static int prefs_resolve(home *h) {
     if (saved >= 0) { snprintf(h->theme_source, sizeof h->theme_source, "saved"); return saved; }
     snprintf(h->theme_source, sizeof h->theme_source, invalid ? "fallback" : "default"); return def;
 }
+
+/* ---------- HOME Music (D-81): the choice, kept outside the package like the theme ---------- */
+static void music_path(const home *h, char *out, size_t n) { snprintf(out, n, "%s/home-music.json", h->state_dir); }
+static void music_emit(home *h) { char f[1200]; jesc(h->music_file, f, sizeof f); emit_json(h, "{\"ev\":\"home_music\",\"on\":%s,\"source\":\"%s\",\"seq\":%d,\"file\":%s}", h->music_on ? "true" : "false", h->music_source, h->music_seq, f); }
+/* the package's "music" entry (an installation: its PCM file; a TV Preview: none), then the saved choice: absent -> the package
+ * default (On); present but unreadable or another schema -> Off, so nothing ever plays unexpectedly, until the person chooses again */
+static void music_load(home *h) {
+    const jval *m = json_get(h->pk, "music"); h->music_avail = 0; h->music_file[0] = 0; if (!m || m->t != J_OBJ) return;
+    const jval *f = json_get(m, "file"), *d = json_get(m, "default"); h->music_avail = 1;
+    if (f && f->t == J_STR && safe_rel(f->s)) pjoin(h, f->s, h->music_file, sizeof h->music_file);
+    h->music_on = !(d && d->t == J_STR && !strcmp(d->s, "off")); snprintf(h->music_source, sizeof h->music_source, "default");
+    if (h->state_dir[0]) { char p[1100]; uint8_t *buf; size_t len; music_path(h, p, sizeof p); errno = 0;
+        int rc = ccs_read_file(p, &buf, &len, 1u << 12);
+        if (!rc) { char jerr[120]; jval *o = json_parse((const char *)buf, len, jerr, sizeof jerr); free(buf);
+            const jval *v = o ? json_get(o, "music") : NULL, *sc = o ? json_get(o, "schema") : NULL;
+            if (o && o->t == J_OBJ && sc && sc->t == J_STR && !strcmp(sc->s, "ccs-home-music/1") && v && v->t == J_STR && (!strcmp(v->s, "on") || !strcmp(v->s, "off"))) { h->music_on = !strcmp(v->s, "on"); snprintf(h->music_source, sizeof h->music_source, "saved"); }
+            else { h->music_on = 0; snprintf(h->music_source, sizeof h->music_source, "unreadable"); }
+            json_free(o); }
+        else if (!(rc == -1 && errno == ENOENT)) { h->music_on = 0; snprintf(h->music_source, sizeof h->music_source, "unreadable"); } }
+    music_emit(h);
+}
+static int music_save(home *h) {
+    if (!h->state_dir[0]) return 0; char p[1100], body[96]; music_path(h, p, sizeof p); ccs_mkdirs(h->state_dir);
+    int n = snprintf(body, sizeof body, "{\"schema\":\"ccs-home-music/1\",\"music\":\"%s\"}\n", h->music_on ? "on" : "off");
+    int rc = ccs_write_atomic(p, body, (size_t)n); emit_json(h, "{\"ev\":\"home_music_saved\",\"on\":%s,\"ok\":%s}", h->music_on ? "true" : "false", rc ? "false" : "true"); return rc;
+}
+int home_music(const home *h, char *file, size_t n) { if (file && n) snprintf(file, n, "%s", h->music_avail ? h->music_file : ""); return h->music_avail ? h->music_on : -1; }
+int home_music_seq(const home *h) { return h->music_seq; }
+void home_music_offer(home *h, int on) { if (!h->music_avail) { h->music_avail = 1; h->music_file[0] = 0; h->gen++; } if (h->music_on != (on ? 1 : 0)) h->gen++; h->music_on = on ? 1 : 0; h->music_ext = 1;
+    snprintf(h->music_source, sizeof h->music_source, "offered"); music_emit(h); }
+static void music_toggle(home *h) {   /* the HOME's own Settings and its music badge: On <-> Off (saved here unless its owner saves it) */
+    h->music_on = !h->music_on; h->music_seq++; h->gen++; snprintf(h->music_source, sizeof h->music_source, "saved"); if (!h->music_ext) music_save(h); music_emit(h); }
 
 /* ---------- loading ---------- */
 static int *jints(const jval *a, int *n, int max) {   /* valid package indices of a JSON array */
@@ -194,10 +243,19 @@ home *home_load2(const char *dir, const char *state_dir, home_emit_fn emit, char
     const jval *td = json_get(h->pk, "theme_default"); snprintf(h->theme_default, sizeof h->theme_default, "%s", td && td->t == J_STR ? td->s : "arcade-grid");
     h->apply_epoch = gnum(h->pk, "theme_apply", 0);
     const jval *fonts = json_get(h->pk, "fonts");
-    for (int i = 0; i < F_COUNT; i++) { const jval *fo = fonts ? json_get(fonts, FONT_NAMES[i]) : NULL; const jval *f = fo ? json_get(fo, "file") : NULL; if (!f || f->t != J_STR || !safe_rel(f->s)) { snprintf(err, errlen, "pack font %s missing", FONT_NAMES[i]); goto fail; } pjoin(h, f->s, p, sizeof p); if (font_load(&h->f[i], p, err, errlen)) goto fail; }
+    for (int i = 0; i < F_COUNT; i++) { const jval *fo = fonts ? json_get(fonts, FONT_NAMES[i]) : NULL; const jval *f = fo ? json_get(fo, "file") : NULL; if (!f || f->t != J_STR || !safe_rel(f->s)) { snprintf(err, errlen, "pack font %s missing", FONT_NAMES[i]); goto fail; } pjoin(h, f->s, p, sizeof p); if (font_load(&h->f[i], p, err, errlen)) goto fail;
+        const jval *f2 = ccs_scale == 2 ? json_get(fo, "file_2x") : NULL;
+        if (f2 && f2->t == J_STR && safe_rel(f2->s)) { font *hf = calloc(1, sizeof *hf); char e2[200]; pjoin(h, f2->s, p, sizeof p); if (hf && !font_load(hf, p, e2, sizeof e2)) { h->f[i].hi = hf; h->hd_fonts++; } else free(hf); } }
     const jval *icons = json_get(h->pk, "icons");
     if (icons && icons->t == J_OBJ) for (size_t i = 0; i < icons->n && h->nicons < 24; i++) { const jval *f = icons->items[i]; if (f->t != J_STR || !safe_rel(f->s)) continue; ticon *ic = &h->icons[h->nicons]; snprintf(ic->key, sizeof ic->key, "%s", icons->keys[i]); pjoin(h, f->s, p, sizeof p); if (img_load(p, &ic->im, 1, err, errlen)) goto fail; h->nicons++; }
-    for (int t = 0; t < N_THEMES; t++) { const jval *th = json_get(themes, THEME_IDS[t]), *f = json_get(th, "thumb"); if (f && f->t == J_STR && safe_rel(f->s)) { pjoin(h, f->s, p, sizeof p); if (img_load(p, &h->thumbs[t], 0, err, errlen)) goto fail; } }
+    const jval *ic2 = ccs_scale == 2 ? json_get(h->pk, "icons_2x") : NULL;   /* the computer: each icon drawn at twice the size */
+    if (ic2 && ic2->t == J_OBJ) for (int i = 0; i < h->nicons; i++) { const jval *f = json_get(ic2, h->icons[i].key); image hi; char e2[200];
+        if (!f || f->t != J_STR || !safe_rel(f->s)) continue; pjoin(h, f->s, p, sizeof p); if (img_load(p, &hi, 1, e2, sizeof e2)) continue;
+        if (hi.w == h->icons[i].im.w * 2 && hi.h == h->icons[i].im.h * 2 && hi.ch == h->icons[i].im.ch) { h->icons[i].im.hpx = hi.px; h->icons[i].im.hs = 2; h->hd_icons++; } else img_free(&hi); }
+    for (int t = 0; t < N_THEMES; t++) { const jval *th = json_get(themes, THEME_IDS[t]), *f = json_get(th, "thumb"); if (f && f->t == J_STR && safe_rel(f->s)) { pjoin(h, f->s, p, sizeof p); if (img_load(p, &h->thumbs[t], 0, err, errlen)) goto fail;
+            const jval *f2 = ccs_scale == 2 ? json_get(th, "thumb_2x") : NULL; image hi; char e2[200];   /* the computer: the preview at twice the size */
+            if (f2 && f2->t == J_STR && safe_rel(f2->s)) { pjoin(h, f2->s, p, sizeof p); if (!img_load(p, &hi, 0, e2, sizeof e2)) {
+                if (hi.w == h->thumbs[t].w * 2 && hi.h == h->thumbs[t].h * 2 && hi.ch == h->thumbs[t].ch) { h->thumbs[t].hpx = hi.px; h->thumbs[t].hs = 2; h->hd_thumbs++; } else img_free(&hi); } } } }
     /* games: compact records in display order; long texts stay on disk until Details opens */
     const jval *gf = json_get(h->pk, "games"); if (!gf || gf->t != J_STR || !safe_rel(gf->s)) { snprintf(err, errlen, "pack games file missing"); goto fail; }
     pjoin(h, gf->s, p, sizeof p); if (ccs_read_file(p, &buf, &len, 32u << 20)) { snprintf(err, errlen, "cannot read %s", p); goto fail; }
@@ -220,7 +278,7 @@ home *home_load2(const char *dir, const char *state_dir, home_emit_fn emit, char
     json_free(gm); gm = NULL;
     h->all = h->g; h->nall = h->n;
     if (load_browse(h, err, errlen)) goto fail;
-    int t = prefs_resolve(h);
+    int t = prefs_resolve(h); music_load(h);
     if (theme_activate(h, t, err, errlen)) goto fail;
     h->static_bytes = 0; for (int i = 0; i < F_COUNT; i++) h->static_bytes += h->f[i].nbits + h->f[i].n * sizeof(glyph);
     emit_json(h, "{\"ev\":\"theme_resolved\",\"theme\":\"%s\",\"source\":\"%s\",\"default\":\"%s\",\"apply_epoch\":%d}", THEME_IDS[h->theme], h->theme_source, h->theme_default, h->apply_epoch);
@@ -258,9 +316,11 @@ const char *home_theme(const home *h) { return h->ops ? h->ops->id : ""; }
 static void noart(home *h, int gi, image *im, int w, int hh) {   /* only when a cover file cannot be read: the title on a dark box */
     if (img_alloc(im, w, hh, 3)) return;
     for (int y = 0; y < hh; y++) for (int x = 0; x < w; x++) { int t = (x + y) * 255 / (w + hh); uint8_t *q = im->px + ((size_t)y * w + x) * 3; q[0] = (uint8_t)(0x2a - (0x2a - 0x15) * t / 255); q[1] = q[0]; q[2] = (uint8_t)(0x33 - (0x33 - 0x1b) * t / 255); }
-    framebuffer tmp = { w, hh, im->px }; span ln[6]; const char *t = h->g[gi].title; size_t n = text_wrap(&h->f[F_SILK9], t, w - 16, 0, ln, 6); int lh = 14, y0 = (hh - (int)n * lh) / 2;
+    int sv = ccs_scale; ccs_scale = 1; framebuffer tmp = { w, hh, im->px }; span ln[6]; const char *t = h->g[gi].title; size_t n = text_wrap(&h->f[F_SILK9], t, w - 16, 0, ln, 6); int lh = 14, y0 = (hh - (int)n * lh) / 2;
     for (size_t i = 0; i < n; i++) { int tw = text_w(&h->f[F_SILK9], t + ln[i].start, ln[i].len, 0); text_draw(&tmp, NULL, FULL, &h->f[F_SILK9], (w - tw) / 2.0, baseline_normal(&h->f[F_SILK9], y0 + (int)i * lh), t + ln[i].start, ln[i].len, RGBA(0xE8E6E0, 255), 0, 0); }
+    ccs_scale = sv;
 }
+static size_t im_bytes(const image *im) { return (size_t)im->w * im->h * im->ch * (im->hpx ? 1 + (size_t)im->hs * im->hs : 1); }
 static bentry *cover_bytes(home *h, int gi) {   /* gi: a listing index; the caches key by the package index (shared by every listing) */
     int mi = home_master(h, gi);
     int victim = -1; for (int i = 0; i < BYTES_N; i++) { if (h->bytes[i].buf && h->bytes[i].game == mi) { h->bytes[i].used = ++h->use_seq; return &h->bytes[i]; } if (!h->bytes[i].buf && victim < 0) victim = i; }
@@ -277,15 +337,16 @@ const image *cover_b(home *h, int gi, int w, int hh, int mode, int *ox, int *oy,
     h->decoded++;
     for (;;) {
         int lru = -1, used = 0; for (int i = 0; i < CACHE_N; i++) if (h->cache[i].im.px) { used++; if (lru < 0 || h->cache[i].used < h->cache[lru].used) lru = i; }
-        if (lru < 0 || (used < CACHE_N && h->cache_bytes + (size_t)w * hh * 3 <= CACHE_BYTES)) break;
-        h->cache_bytes -= (size_t)h->cache[lru].im.w * h->cache[lru].im.h * h->cache[lru].im.ch; img_free(&h->cache[lru].im); victim = lru;
+        size_t k = ccs_scale > 1 ? 1 + (size_t)ccs_scale * ccs_scale : 1;
+        if (lru < 0 || (used < CACHE_N && h->cache_bytes + (size_t)w * hh * 3 * k <= CACHE_BYTES * k)) break;
+        h->cache_bytes -= im_bytes(&h->cache[lru].im); img_free(&h->cache[lru].im); victim = lru;
     }
     for (int i = 0; i < CACHE_N; i++) if (!h->cache[i].im.px) { victim = i; break; }
     centry *c = &h->cache[victim]; image src; char err[256]; int ok = 0;
     bentry *be = cover_bytes(h, gi);
-    if (be && !img_decode(be->buf, be->len, &src, 0, err, sizeof err)) { ok = mode == 1 ? !img_contain(&src, &c->im, w, hh, ox, oy) : !img_cover(&src, &c->im, w, hh); img_free(&src); }
+    if (be && !img_decode(be->buf, be->len, &src, 0, err, sizeof err)) { ok = mode == 1 ? !img_contain(&src, &c->im, w, hh, ox, oy) : !img_cover(&src, &c->im, w, hh); if (ok) img_hi(&src, &c->im, mode == 0); img_free(&src); }
     if (!ok) { noart(h, gi, &c->im, w, hh); *ox = *oy = 0; }
-    c->game = mi; c->w = w; c->h = hh; c->mode = mode; c->used = ++h->use_seq; h->cache_bytes += (size_t)c->im.w * c->im.h * c->im.ch; return &c->im;
+    c->game = mi; c->w = w; c->h = hh; c->mode = mode; c->used = ++h->use_seq; h->cache_bytes += im_bytes(&c->im); return &c->im;
 }
 const image *cover(home *h, int gi, int w, int hh, int mode, int *ox, int *oy) { return cover_b(h, gi, w, hh, mode, ox, oy, 1); }
 void draw_cover(home *h, framebuffer *fb, int gi, box4 b, int must, box4 *art) {
@@ -299,22 +360,40 @@ int home_prefetch_bytes(home *h, int gi) {   /* reads a cover file into the byte
 }
 void home_set_cover_budget(home *h, int per_frame) { h->budget = per_frame > 0 ? per_frame : 0; }
 int home_covers_pending(const home *h) { return h->pending; }
+unsigned home_frame_gen(const home *h) { return h->gen; }
+int home_frame_live(const home *h) { return h->pending > 0 || h->npq > 0 || h->live; }
+int home_render_caption(home *h, framebuffer *fb, uint64_t now, int box[4]) {   /* K3D1-F3: nothing but the scrolling title moves, so only it is drawn */
+    if (!h->ops->caption || !h->live || h->pending || h->npq || h->rec || h->hitrec || !h->n || h->nav.screen != SCR_GRID || h->nav.overlay != OV_NONE || h->nav.notice || h->nav.sec == SEC_BROWSE || h->d.open) return 0;
+    return h->ops->caption(h, fb, now, box);
+}
 
 /* ---------- notices ---------- */
 void notice(home *h, const char *title, const char *text) { h->nav.notice = 1; snprintf(h->notice_title, sizeof h->notice_title, "%s", title); snprintf(h->notice_text, sizeof h->notice_text, "%s", text); }
+void home_set_launch(home *h, home_launch_fn fn, void *ctx) { h->launch = fn; h->launch_ctx = ctx; }
 void launch_unavailable(home *h, int gi) {
     char id[160], t[400], txt[600]; jesc(h->g[gi].id, id, sizeof id); jesc(h->g[gi].title, t, sizeof t);
+    if (h->launch) {   /* the PC player: start the game, or say why it cannot */
+        char why[400] = "";
+        if (h->launch(h->launch_ctx, h->g[gi].id, h->g[gi].title, why, sizeof why)) { emit_json(h, "{\"ev\":\"launched\",\"id\":%s,\"title\":%s}", id, t); return; }
+        emit_json(h, "{\"ev\":\"launch_refused\",\"id\":%s,\"title\":%s}", id, t);
+        notice(h, "THIS GAME CANNOT START", why[0] ? why : "This game cannot start on this computer."); return;
+    }
     emit_json(h, "{\"ev\":\"launch_unavailable\",\"id\":%s,\"title\":%s,\"note\":\"native HOME prototype: launching is not connected; no game runs\"}", id, t);
     snprintf(txt, sizeof txt, "%s would start now on the console. This native HOME prototype does not launch games yet; nothing was run.", h->g[gi].title);
     notice(h, "LAUNCHING IS NOT AVAILABLE IN THIS PROTOTYPE", txt);
 }
-void not_yet(home *h, const char *what) { char txt[300]; snprintf(txt, sizeof txt, "%s is not part of this native HOME prototype yet.", what); emit_json(h, "{\"ev\":\"not_available\",\"what\":\"%s\"}", what); notice(h, "NOT YET AVAILABLE", txt); }
+void home_set_settings(home *h, home_settings_fn fn, void *ctx) { h->settings = fn; h->settings_ctx = ctx; }
+void home_set_game_settings(home *h, home_game_settings_fn fn, void *ctx) { h->game_settings = fn; h->game_settings_ctx = ctx; }
+void not_yet(home *h, const char *what) {   /* the PC player's own Settings take the place of this notice */
+    if (h->settings && !strcmp(what, "Settings")) { emit_json(h, "{\"ev\":\"settings_opened\"}"); h->settings(h->settings_ctx); return; }
+    if (h->music_avail && !strcmp(what, "Settings")) { emit_json(h, "{\"ev\":\"settings_opened\",\"own\":true}"); h->nav.overlay = OV_SETTINGS; h->nav.oindex = 0; return; }   /* the console's own Settings: HOME Music */
+    char txt[300]; snprintf(txt, sizeof txt, "%s is not part of this native HOME prototype yet.", what); emit_json(h, "{\"ev\":\"not_available\",\"what\":\"%s\"}", what); notice(h, "NOT YET AVAILABLE", txt); }
 
 /* ---------- state report ---------- */
 static int desc_max(const home *h) { return h->d.open ? (h->d.over + DESC_STEP - 1) / DESC_STEP : 0; }
 static const char *SEC_NAME[4] = { "allgames", "browse", "folder", "category" };
 void home_emit_state(home *h) {
-    char id[160], extra[2400] = ""; static const char *FOC[3] = { "play", "fav", "desc" }, *ZN[4] = { "games", "nav", "map", "browse" }, *OV[4] = { "none", "start", "theme", "mapdest" };
+    char id[160], extra[2400] = ""; static const char *FOC[4] = { "play", "fav", "desc", "game_settings" }, *ZN[4] = { "games", "nav", "map", "browse" }, *OV[5] = { "none", "start", "theme", "mapdest", "settings" };
     jesc(h->n ? h->g[h->nav.sel].id : "", id, sizeof id);
     if (h->ops && h->ops->id && h->theme == TH_ARCADE && h->nav.sec != SEC_BROWSE) { extern void arcade_state_json(home *h, char *out, size_t n); arcade_state_json(h, extra, sizeof extra); }
     {   /* the section, its title and the focused Browse tile (folder:<id> / game:<id> / category:<label>) */
@@ -326,9 +405,11 @@ void home_emit_state(home *h) {
             snprintf(raw, sizeof raw, "%s:%s", it->kind == BI_FOLDER ? "folder" : it->kind == BI_GAME ? "game" : "category", it->kind == BI_FOLDER ? h->fold[it->idx].id : it->kind == BI_GAME ? h->all[it->idx].id : h->cats[it->idx].label); jesc(raw, tile, sizeof tile); }
         snprintf(extra + k, sizeof extra - k, ",\"section\":\"%s\",\"section_id\":%s,\"title\":%s,\"browse\":%d,\"tiles\":%d,\"tile\":%s,\"total\":%zu",
                  SEC_NAME[h->nav.sec], sid, title, h->nav.browse, h->nbi, tile[0] ? tile : "null", h->nall);
+        if (h->music_avail) { k = strlen(extra); snprintf(extra + k, sizeof extra - k, ",\"music\":\"%s\",\"music_seq\":%d,\"music_badge\":[%d,%d,%d,%d]", h->music_on ? "on" : "off", h->music_seq,
+                 h->mbadge.x0, h->mbadge.y0, h->mbadge.x1, h->mbadge.y1); }
     }
-    emit_json(h, "{\"ev\":\"home\",\"theme\":\"%s\",\"screen\":\"%s\",\"zone\":\"%s\",\"index\":%d,\"count\":%zu,\"id\":%s,\"nav\":%d,\"landmark\":%d,\"overlay\":\"%s\",\"oindex\":%d,\"focus\":\"%s\",\"scroll\":%d,\"scroll_max\":%d,\"notice\":%s%s}",
-              THEME_IDS[h->theme], h->nav.screen == SCR_DETAILS ? "details" : "grid", ZN[h->nav.zone], h->nav.sel, h->n, id, h->nav.nav, h->nav.landmark, OV[h->nav.overlay], h->nav.oindex,
+    emit_json(h, "{\"ev\":\"home\",\"footer\":%d,\"menu_game\":%d,\"theme\":\"%s\",\"screen\":\"%s\",\"zone\":\"%s\",\"index\":%d,\"count\":%zu,\"id\":%s,\"nav\":%d,\"landmark\":%d,\"overlay\":\"%s\",\"oindex\":%d,\"focus\":\"%s\",\"scroll\":%d,\"scroll_max\":%d,\"notice\":%s%s}",
+              h->nav.foot_on ? h->nav.foot : -1, h->nav.overlay == OV_START ? h->nav.mgame : -1, THEME_IDS[h->theme], h->nav.screen == SCR_DETAILS ? "details" : "grid", ZN[h->nav.zone], h->nav.sel, h->n, id, h->nav.nav, h->nav.landmark, OV[h->nav.overlay], h->nav.oindex,
               FOC[h->nav.dfocus], h->nav.dscroll, desc_max(h), h->nav.notice ? "true" : "false", extra);
 }
 
@@ -363,7 +444,7 @@ static void drec(details *d, const char *name, int x0, int y0, int x1, int y1) {
 }
 int open_details(home *h, int gi) {
     details *d = &h->d; details_close(h); hgame *g = &h->g[gi]; const dstyle *S = h->ops->details; char p[1200], err[256]; uint8_t *buf; size_t len; char jerr[160];
-    if (fb_init(&d->base, CCS_FB_W, CCS_FB_H)) return -1;
+    if (fb_init(&d->base, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) return -1;
     d->open = 1; d->game = gi; int B = S->border, bottom = CCS_FB_H - B - 60;
     /* texts (home-model.js + N3 effective content): the dataset's sections, a personal single block, or the quiet note; an empty
      * Official description shows no section at all (the Game overview stands alone); an edited or custom one says so */
@@ -373,8 +454,8 @@ int open_details(home *h, int gi) {
             d->kind = d->official || d->overview ? DK_TWO : d->single ? DK_ONE : DK_NONE; } json_free(o); } }
     framebuffer *fb = &d->base; fb_clear(fb, 0x07, 0x07, 0x0A);
     image bg; if (g->hero) { pjoin(h, g->hero, p, sizeof p); if (!img_load(p, &bg, 0, err, sizeof err)) {   /* the backdrop was composed for a 4 px frame */
-        int aw = CCS_FB_W - 2 * B, ah = CCS_FB_H - 2 * B; if (bg.w == aw && bg.h == ah) gfx_image(fb, FULL, &bg, B, B, 255);
-        else { image sc; if (!(S->pixelated ? img_scale_nearest(&bg, &sc, aw, ah) : img_scale(&bg, &sc, aw, ah))) { gfx_image(fb, FULL, &sc, B, B, 255); img_free(&sc); } }
+        int aw = CCS_FB_W - 2 * B, ah = CCS_FB_H - 2 * B; if (bg.w == aw && bg.h == ah) { if (!S->pixelated) img_hi(&bg, &bg, 0); gfx_image(fb, FULL, &bg, B, B, 255); }
+        else { image sc; if (!(S->pixelated ? img_scale_nearest(&bg, &sc, aw, ah) : img_scale(&bg, &sc, aw, ah))) { if (!S->pixelated) img_hi(&bg, &sc, 0); gfx_image(fb, FULL, &sc, B, B, 255); img_free(&sc); } }
         img_free(&bg); } }
     gfx_gradient(fb, FULL, B, B, CCS_FB_W - 2 * B, CCS_FB_H - 2 * B, 1, S->vt, 4); gfx_gradient(fb, FULL, B, B, CCS_FB_W - 2 * B, CCS_FB_H - 2 * B, 0, S->hz, 4);
     if (B) gfx_rrect_ring(fb, FULL, 0, 0, CCS_FB_W, CCS_FB_H, 0, B, RGBA(S->border_rgb, 255));
@@ -417,6 +498,7 @@ int open_details(home *h, int gi) {
       y = rowy + rowh + 18; }
     const font *fa = &h->f[S->act_font]; double acth = S->act_bw + 12 + lh_normal(fa) + 12 + S->act_bw; d->acts_y = iround(y); d->act_h = iround(acth); d->acts_top = y;
     d->play_x = X; d->play_w = S->act_bw * 2 + 48 + text_w(fa, "\xE2\x96\xB6 Play Game", 13, 0); d->fav_x = X + d->play_w + 16; d->fav_w = S->act_bw * 2 + 48 + text_w(fa, "\xE2\x98\x86 Add Favorite", 16, 0);
+    d->gset_x = d->fav_x + d->fav_w + 16; d->gset_w = h->game_settings ? S->act_bw * 2 + 48 + text_w(fa, "Game Settings", 13, 0) : 0;
     d->desc_x = X; d->desc_y = iround(y + acth + 18); d->desc_w = W; d->desc_h = bottom - d->desc_y; if (d->desc_h < 120) d->desc_h = 120;
     d->avail = d->desc_h - 2 * S->desc_bw - 28;
     int tw = W - 2 * S->desc_bw - 36 - 12; double ty = 0; const font *fd = &h->f[S->dh_font]; double hl = fd->px * S->dh_lh;
@@ -446,8 +528,9 @@ static void draw_button(framebuffer *fb, home *h, int x, int y, int w, int hh, c
 static void render_details(home *h, framebuffer *fb) {
     details *d = &h->d; const dstyle *S = h->ops->details; memcpy(fb->rgb, d->base.rgb, (size_t)fb->w * fb->h * 3);
     for (size_t i = 0; i < d->nrecs; i++) LR(h, d->recs[i].name, d->recs[i].b.x0, d->recs[i].b.y0, d->recs[i].b.x1, d->recs[i].b.y1);
-    draw_button(fb, h, d->play_x, d->acts_y, d->play_w, d->act_h, "\xE2\x96\xB6 Play Game", h->nav.dfocus == DF_PLAY); LR(h, "button-play", d->play_x, d->acts_y, d->play_x + d->play_w, d->acts_y + d->act_h);
-    draw_button(fb, h, d->fav_x, d->acts_y, d->fav_w, d->act_h, "\xE2\x98\x86 Add Favorite", h->nav.dfocus == DF_FAV); LR(h, "button-fav", d->fav_x, d->acts_y, d->fav_x + d->fav_w, d->acts_y + d->act_h);
+    draw_button(fb, h, d->play_x, d->acts_y, d->play_w, d->act_h, "\xE2\x96\xB6 Play Game", h->nav.dfocus == DF_PLAY); LR(h, "button-play", d->play_x, d->acts_y, d->play_x + d->play_w, d->acts_y + d->act_h); LT(h, HT_DBUTTON, DF_PLAY, d->play_x, d->acts_y, d->play_x + d->play_w, d->acts_y + d->act_h);
+    draw_button(fb, h, d->fav_x, d->acts_y, d->fav_w, d->act_h, "\xE2\x98\x86 Add Favorite", h->nav.dfocus == DF_FAV); LR(h, "button-fav", d->fav_x, d->acts_y, d->fav_x + d->fav_w, d->acts_y + d->act_h); LT(h, HT_DBUTTON, DF_FAV, d->fav_x, d->acts_y, d->fav_x + d->fav_w, d->acts_y + d->act_h);
+    if (h->game_settings) { draw_button(fb, h, d->gset_x, d->acts_y, d->gset_w, d->act_h, "Game Settings", h->nav.dfocus == DF_GSET); LR(h, "button-gset", d->gset_x, d->acts_y, d->gset_x + d->gset_w, d->acts_y + d->act_h); LT(h, HT_DBUTTON, DF_GSET, d->gset_x, d->acts_y, d->gset_x + d->gset_w, d->acts_y + d->act_h); }
     if (d->kind == DK_NONE) {
         box4 n = d->note; const font *fn = &h->f[S->note_font];
         gfx_rrect(fb, FULL, n.x0, n.y0, n.x1 - n.x0, n.y1 - n.y0, S->desc_radius > 6 ? 6 : S->desc_radius, RGBA(S->desc_bg, S->desc_bg_a)); gfx_rrect_ring(fb, FULL, n.x0, n.y0, n.x1 - n.x0, n.y1 - n.y0, S->desc_radius > 6 ? 6 : S->desc_radius, 1, RGBA(S->desc_border, S->desc_border_a));
@@ -455,7 +538,7 @@ static void render_details(home *h, framebuffer *fb) {
         return;
     }
     int x = d->desc_x, y = d->desc_y, w = d->desc_w, hh = d->desc_h, foc = h->nav.dfocus == DF_DESC, bw = S->desc_bw;
-    gfx_rrect(fb, FULL, x, y, w, hh, S->desc_radius, RGBA(S->desc_bg, S->desc_bg_a)); gfx_rrect_ring(fb, FULL, x, y, w, hh, S->desc_radius, bw, foc ? RGBA(RED, 255) : RGBA(S->desc_border, S->desc_border_a)); LR(h, "desc", x, y, x + w, y + hh);
+    gfx_rrect(fb, FULL, x, y, w, hh, S->desc_radius, RGBA(S->desc_bg, S->desc_bg_a)); gfx_rrect_ring(fb, FULL, x, y, w, hh, S->desc_radius, bw, foc ? RGBA(RED, 255) : RGBA(S->desc_border, S->desc_border_a)); LR(h, "desc", x, y, x + w, y + hh); LT(h, HT_DESC, 0, x, y, x + w, y + hh);
     int sy = h->nav.dscroll * DESC_STEP; if (sy > d->over) sy = d->over;
     rect clip = { x + bw, y + bw, x + w - bw, y + hh - bw }; double top = y + bw + 14 - sy;
     for (size_t i = 0; i < d->nlines; i++) { dline *l = &d->lines[i]; const font *f = &h->f[l->font]; int base = baseline_in(f, top + l->y_top, l->line_h); if (base - f->ascent > clip.y1 || base + f->descent < clip.y0) continue;
@@ -475,7 +558,7 @@ static int legend_list(home *h, litem *it) {
     #define L(k, t) do { it[n].key = k; it[n].label = t; n++; } while (0)
     if (h->nav.overlay != OV_NONE) { L("dpad", "Move"); L("A", "Choose"); L("B", "Close"); return n; }
     if (h->nav.screen == SCR_DETAILS) {
-        if (h->nav.dfocus == DF_DESC) { L("dpad", "Scroll"); L("B", "Back"); } else { L("dpad", "Move"); L("A", h->nav.dfocus == DF_PLAY ? "Play Game" : "Add Favorite"); L("B", "Back"); }
+        if (h->nav.dfocus == DF_DESC) { L("dpad", "Scroll"); L("B", "Back"); } else { L("dpad", "Move"); L("A", h->nav.dfocus == DF_PLAY ? "Play Game" : h->nav.dfocus == DF_GSET ? "Game Settings" : "Add Favorite"); L("B", "Back"); }
         L("START", "Menu"); return n;
     }
     if (h->nav.zone == Z_BROWSE) {   /* hmLegendItems: a game tile inside a folder launches; folders and categories open */
@@ -495,8 +578,7 @@ static int legend_list(home *h, litem *it) {
 static int legend_item(framebuffer *fb, home *h, int x, int cy, const char *key, const char *label, int style, int draw) {
     int x0 = x; char up[80];
     const tsprite *sp = NULL;
-    if (style == 3 && !strcmp(key, "dpad")) sp = tsp(h, "badge-dpad"); else if (style == 3 && (!strcmp(key, "A") || !strcmp(key, "B"))) sp = tsp(h, !strcmp(key, "A") ? "badge-a" : "badge-b");
-    else if ((style == 0 || style == 2) && !strcmp(key, "A")) sp = tsp(h, "badge-a");
+    if (style == 3 && !strcmp(key, "dpad")) sp = tsp(h, "badge-dpad");   /* A and B: the same white, centered letter in every theme (D-72) */
     if (sp) { if (draw) { image sc; if (sp->im.w == 30 && sp->im.h == 30) gfx_image(fb, FULL, &sp->im, x, cy - 15, 255); else if (!(style == 3 ? img_scale_nearest(&sp->im, &sc, 30, 30) : img_scale(&sp->im, &sc, 30, 30))) { gfx_image(fb, FULL, &sc, x, cy - 15, 255); img_free(&sc); } } x += 30; }
     else if (!strcmp(key, "A") || !strcmp(key, "B") || !strcmp(key, "dpad")) {
         if (draw) { gfx_rrect(fb, FULL, x, cy - 15 + 2, 30, 30, 15, RGBA(0, 153)); gfx_rrect(fb, FULL, x, cy - 15, 30, 30, 15, RGBA(RED, 255));
@@ -515,14 +597,47 @@ static int legend_item(framebuffer *fb, home *h, int x, int cy, const char *key,
     else { f = &h->f[F_PX9]; col = 0xF3E7D3; sp2 = .3; }
     if (style >= 2) { size_t i = 0; for (; label[i] && i < sizeof up - 1; i++) up[i] = (char)((label[i] >= 'a' && label[i] <= 'z') ? label[i] - 32 : label[i]); up[i] = 0; lab = up; }
     int xe = draw ? T(fb, FULL, f, x, baseline_center(f, cy - 25, 50), lab, col, 255, sp2) : x + text_w(f, lab, strlen(lab), sp2);
-    if (draw) LR(h, "legend", x0, cy - 15, xe, cy + 17);
+    if (draw) { LR(h, "legend", x0, cy - 15, xe, cy + 17);   /* the mouse: a hint does what its button does */
+        int bt = !strcmp(key, "A") ? B_A : !strcmp(key, "B") ? B_B : !strcmp(key, "SELECT") ? B_SELECT : !strcmp(key, "START") ? B_START : -1; if (bt >= 0) LT(h, HT_LEGEND, bt, x0, cy - 15, xe, cy + 17); }
     return xe + 46;
 }
+/* HOME Music's badge (owner request 2026-11-05): beamed eighth notes on the legend's button-gray disc; Off: dimmed and struck through */
+static int mu_note(double u, double v) {   /* inside the notes, in the badge's own 30 x 30 units */
+    static const double hx[2] = { 10.4, 19.4 }, hy[2] = { 20.6, 18.6 };
+    for (int i = 0; i < 2; i++) { double dx = u - hx[i], dy = v - hy[i], a = .94 * dx - .34 * dy, b = .34 * dx + .94 * dy; if (a * a / 13.0 + b * b / 7.3 <= 1) return 1; }   /* the heads, tilted */
+    if (u >= 13.0 && u <= 14.8 && v >= 8.6 && v <= 20.2) return 1; if (u >= 22.0 && u <= 23.8 && v >= 6.6 && v <= 18.2) return 1;   /* the stems */
+    double top = 8.6 - (u - 13.0) * (2.0 / 10.8); return u >= 13.0 && u <= 23.8 && v >= top && v <= top + 3.2; }   /* the beam */
+static int mu_slash(double u, double v, double w) { double d = (u - v) / 1.41421356; if (d < 0) d = -d; return d <= w / 2 && u + v >= 11 && u + v <= 49; }
+static void mu_shape(framebuffer *fb, int x, int y, int (*in)(double, double, double), double w, color c) {   /* 4 x 4 samples per device pixel */
+    mask m; if (mask_alloc(&m, x, y, 30, 30)) return; double s = ccs_scale > 1 ? ccs_scale : 1;
+    for (int j = 0; j < m.h; j++) for (int i = 0; i < m.w; i++) { int n = 0;
+        for (int sj = 0; sj < 4; sj++) for (int si = 0; si < 4; si++) n += in((i + (si + .5) / 4) / s, (j + (sj + .5) / 4) / s, w);
+        m.a[(size_t)j * m.w + i] = (uint8_t)(n * 255 / 16); }
+    gfx_mask(fb, FULL, &m, c); mask_free(&m); }
+static int mu_note3(double u, double v, double w) { (void)w; return mu_note(u, v); }
+static void music_badge(home *h, framebuffer *fb, int x, int cy) {
+    int y = cy - 15; gfx_rrect(fb, FULL, x, y + 2, 30, 30, 15, RGBA(0, 153)); gfx_rrect(fb, FULL, x, y, 30, 30, 15, RGBA(0x55565C, 255));
+    mu_shape(fb, x, y, mu_note3, 0, RGBA(0xFFFFFF, h->music_on ? 255 : 115));
+    if (!h->music_on) { mu_shape(fb, x, y, mu_slash, 5.2, RGBA(0x55565C, 255)); mu_shape(fb, x, y, mu_slash, 2.4, RGBA(0xFFFFFF, 255)); }
+    box4 nb = { x, y, x + 30, y + 30 }; if (memcmp(&nb, &h->mbadge, sizeof nb)) { h->mbadge = nb; home_emit_state(h); }   /* where it is: the TV Preview maps clicks with it */
+    LR(h, h->music_on ? "music-on" : "music-off", x, y, x + 30, y + 30); LT(h, HT_MUSIC, 0, x - 4, y - 4, x + 34, y + 34); }
+/* F13 (D-95): the actionable hints (A, B, SELECT, START and HOME Music; never the D-pad's explanation) as the controller's focus sees them */
+static int foot_items(home *h, int *bt) { litem it[6]; int n = legend_list(h, it), k = 0;
+    for (int i = 0; i < n; i++) { const char *key = it[i].key; int b = !strcmp(key, "A") ? B_A : !strcmp(key, "B") ? B_B : !strcmp(key, "SELECT") ? B_SELECT : !strcmp(key, "START") ? B_START : -1; if (b >= 0) bt[k++] = b; }
+    if (h->music_avail) bt[k++] = -2; return k; }   /* -2: HOME Music */
+/* nothing touches an edge (owner rule 2026-11-05): the hints keep LEG_PAD inside their area. HOME Music's badge follows the hints as one
+   more item in every theme (Arcade Grid too: at its bar's right end a phone's SELECT and START cover it); home-themes.js hmLegend lays
+   out the same */
+enum { LEG_PAD = 16 };
 void legend_items(home *h, framebuffer *fb, box4 box, int center, int style) {
-    litem it[6]; int n = legend_list(h, it), cy = (box.y0 + box.y1) / 2, x = box.x0;
-    if (center) { int w = 0, xx = 0; for (int i = 0; i < n; i++) xx = legend_item(fb, h, xx, cy, it[i].key, it[i].label, style, 0); w = xx - 46; x = box.x0 + ((box.x1 - box.x0) - w) / 2; }
-    for (int i = 0; i < n; i++) x = legend_item(fb, h, x, cy, it[i].key, it[i].label, style, 1);
-    LR(h, "legend-box", box.x0, box.y0, box.x1, box.y1);
+    litem it[6]; int n = legend_list(h, it), cy = (box.y0 + box.y1) / 2, x = box.x0 + LEG_PAD, mu = h->music_avail;
+    if (center) { int xx = 0; for (int i = 0; i < n; i++) xx = legend_item(fb, h, xx, cy, it[i].key, it[i].label, style, 0);
+        int w = mu ? xx + 30 : xx - 46; x = box.x0 + ((box.x1 - box.x0) - w) / 2; if (x < box.x0 + LEG_PAD) x = box.x0 + LEG_PAD; }
+    int fk = 0, fx[8], fe[8];
+    for (int i = 0; i < n; i++) { int x0 = x; x = legend_item(fb, h, x, cy, it[i].key, it[i].label, style, 1); if (strcmp(it[i].key, "dpad") && fk < 7) { fx[fk] = x0; fe[fk] = x - 46; fk++; } }
+    LR(h, "legend-box", box.x0, box.y0, box.x1, box.y1); h->leg_y0 = box.y0; if (mu) { music_badge(h, fb, x, cy); fx[fk] = x; fe[fk] = x + 30; fk++; }
+    if (h->nav.foot_on && h->nav.overlay == OV_NONE && fk) { int f = h->nav.foot < fk ? h->nav.foot : fk - 1; int x0 = fx[f] - 6, x1 = fe[f] + 6, y0 = cy - 20, y1 = cy + 20; if (y1 > CCS_FB_H - 13) { y0 -= y1 - (CCS_FB_H - 13); y1 = CCS_FB_H - 13; }   /* the focused hint: the HOME's red focus ring, 13 px clear of the bottom edge */
+        gfx_rrect_ring(fb, FULL, x0, y0, x1 - x0, y1 - y0, 12, 3, RGBA(RED, 255)); LR(h, "legend-focus", x0, y0, x1, y1); }
 }
 static void details_legend(home *h, framebuffer *fb) {
     int B = h->ops->details->border; box4 b = { B + 70, CCS_FB_H - B - 50, CCS_FB_W - B - 70, CCS_FB_H - B - 18 };
@@ -685,7 +800,7 @@ static void render_browse(home *h, framebuffer *fb) {
         else { const hcat *c = &h->cats[it->idx]; name = c->label; snprintf(sub, sizeof sub, "%s \xC2\xB7 %d game%s", c->kind ? c->kind : "", c->ng, c->ng == 1 ? "" : "s"); }
         if (cat) tile_caption(h, fb, inner_clip, S, x, ty + 2, w, TH - 4, 12, name, sub); else tile_caption(h, fb, inner_clip, S, x, capy, w, TH - 2 - 72 - 2, 6, name, sub);
         gfx_rrect_ring(fb, clip, x, ty, w, TH, S->tile_radius, 2, foc ? RGBA(S->focus, 255) : RGBA(S->tile_border, S->tile_border_a));
-        LR(h, foc ? "browse-tile-focus" : "browse-tile", x, ty < top ? top : ty, x + w, ty + TH > top + inner ? top + inner : ty + TH);
+        LR(h, foc ? "browse-tile-focus" : "browse-tile", x, ty < top ? top : ty, x + w, ty + TH > top + inner ? top + inner : ty + TH); LT(h, HT_TILE, i, x, ty < top ? top : ty, x + w, ty + TH > top + inner ? top + inner : ty + TH);
     }
     #undef TILE_Y
     #undef TILE_X
@@ -706,10 +821,10 @@ static void render_empty(home *h, framebuffer *fb) {
 
 /* ---------- overlays: notice, START menu, theme picker, Adventure Map destinations ---------- */
 static void render_notice(home *h, framebuffer *fb) {
-    gfx_fill(fb, FULL, 0, 0, fb->w, fb->h, RGBA(0, 140));
+    gfx_fill(fb, FULL, 0, 0, CCS_FB_W, CCS_FB_H, RGBA(0, 140));
     const font *ft = &h->f[F_SILK11], *fx = &h->f[F_S400_17], *fh = &h->f[F_S400_15]; int W = 560, inner = W - 44; span ln[12];
     size_t n = text_wrap(fx, h->notice_text, inner, 0, ln, 12); double lh = 17 * 1.5;
-    int H = iround(2 + 14 + lh_normal(ft) + 10 + 1 + 8 + 6 + n * lh + 14 + lh_normal(fh) + 14 + 2), x = (fb->w - W) / 2, y = (fb->h - H) / 2;
+    int H = iround(2 + 14 + lh_normal(ft) + 10 + 1 + 8 + 6 + n * lh + 14 + lh_normal(fh) + 14 + 2), x = (CCS_FB_W - W) / 2, y = (CCS_FB_H - H) / 2;
     gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204)); gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(0x111115, 255)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255));
     double yy = y + 2 + 14; T(fb, FULL, ft, x + 22, baseline_normal(ft, yy), h->notice_title, 0xFFB3B7, 255, 1); yy += lh_normal(ft) + 10;
     gfx_fill(fb, FULL, x + 2, iround(yy), W - 4, 1, RGBA(0xFFFFFF, 36)); yy += 1 + 8 + 6;
@@ -720,11 +835,13 @@ static void render_notice(home *h, framebuffer *fb) {
 /* .menu (home.css): min-width 360, padding 14 0, h3 Press Start 11 px #ffb3b7 with a rule, items 20 px with 11/22 px padding;
  * Adventure Map: .menu.rpg (double border, Press Start 13 px items, a red triangle before the focused one) */
 static void render_menu(home *h, framebuffer *fb, const char *title, const char **items, int n, int focus) {
-    int rpg = h->ops->menu_rpg; gfx_fill(fb, FULL, 0, 0, fb->w, fb->h, RGBA(0, 140));
+    int rpg = h->ops->menu_rpg; gfx_fill(fb, FULL, 0, 0, CCS_FB_W, CCS_FB_H, RGBA(0, 140));
     const font *fh = rpg ? &h->f[F_PX10] : &h->f[F_PX11], *fi = rpg ? &h->f[F_PX13] : &h->f[F_S400_20], *fb2 = rpg ? &h->f[F_PX13] : &h->f[F_S700_20];
     int ih = rpg ? iround(10 + lh_normal(fi) + 10) : iround(11 + lh_normal(fi) + 11), W = 360;
     for (int i = 0; i < n; i++) { int w = text_w(fb2, items[i], strlen(items[i]), 0) + 44 + (rpg ? 30 : 0); if (w > W) W = w; } if (W > 560) W = 560;
-    int H = 14 + iround(lh_normal(fh)) + 10 + 8 + n * ih + 14 + (rpg ? 8 : 4), x = (fb->w - W) / 2, y = (fb->h - H) / 2;
+    int fix = 14 + iround(lh_normal(fh)) + 10 + 8 + 14 + (rpg ? 8 : 4), top = 12, bot = h->leg_y0 > 0 && h->leg_y0 - 8 < CCS_FB_H - 12 ? h->leg_y0 - 8 : CCS_FB_H - 12;
+    if (fix + n * ih > bot - top) { int m = (bot - top - fix) / (n > 0 ? n : 1); if (m < ih) ih = m < iround(lh_normal(fi)) + 8 ? iround(lh_normal(fi)) + 8 : m; }
+    int H = fix + n * ih, x = (CCS_FB_W - W) / 2, y = (CCS_FB_H - H) / 2; if (y + H > bot) y = bot - H; if (y < top) y = top; LT(h, HT_PANEL, 0, x, y, x + W, y + H);
     gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204));
     if (rpg) { gfx_rrect(fb, FULL, x - 2, y - 2, W + 4, H + 4, 4, RGBA(0, 255)); gfx_rrect(fb, FULL, x, y, W, H, 4, RGBA(0x0E0B0A, 255)); gfx_shadow(fb, FULL, x, y, W, H, 15, RGBA(RED, 90));
         gfx_rrect(fb, FULL, x, y, W, H, 4, RGBA(0x0E0B0A, 255)); gfx_rrect_ring(fb, FULL, x, y, W, H, 4, 1, RGBA(0xFFB3B7, 255)); gfx_rrect_ring(fb, FULL, x + 3, y + 3, W - 6, H - 6, 2, 1, RGBA(0xFFB3B7, 255)); }
@@ -735,16 +852,16 @@ static void render_menu(home *h, framebuffer *fb, const char *title, const char 
         int foc = i == focus; const font *f = foc ? fb2 : fi;
         if (rpg) { if (foc) { const font *s = &h->f[F_SYM13]; T(fb, FULL, s, x + 22, baseline_center(s, yy, ih), "\xE2\x96\xB6", RED2, 255, 0); } T(fb, FULL, f, x + 22 + (foc ? 22 : 0), baseline_center(f, yy, ih), items[i], foc ? 0xFFD166 : 0xE9E7E1, 255, 0); }
         else { if (foc) gfx_fill(fb, FULL, x + 2, yy, W - 4, ih, RGBA(RED, 255)); if (foc) Tb(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), items[i], 0xFFFFFF, 255, 0); else T(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), items[i], 0xE9E7E1, 255, 0); }
-        LR(h, foc ? "menu-focus" : "menu-item", x, yy, x + W, yy + ih); yy += ih;
+        LR(h, foc ? "menu-focus" : "menu-item", x, yy, x + W, yy + ih); LT(h, HT_MENU, i, x, yy, x + W, yy + ih); yy += ih;
     }
     LR(h, "menu", x, y, x + W, y + H);
 }
 /* the theme picker (hmOverlay 'theme'): four 200 px cards with the theme's thumbnail and name; the current one is marked */
 static void render_theme_picker(home *h, framebuffer *fb) {
-    gfx_fill(fb, FULL, 0, 0, fb->w, fb->h, RGBA(0, 140));
+    gfx_fill(fb, FULL, 0, 0, CCS_FB_W, CCS_FB_H, RGBA(0, 140));
     const font *fh = &h->f[F_PX11], *fn = &h->f[F_S400_14], *fc = &h->f[F_S400_11]; const char *title = "CHANGE THEME \xC2\xB7 A applies at once";
     int cw = 200, gap = 18, th = 113, ch = 6 + th + 6 + iround(lh_normal(fn)) + iround(lh_normal(fc)) + 4 + 6, W = 22 + 4 * cw + 3 * gap + 22, H = 14 + iround(lh_normal(fh)) + 10 + 1 + 10 + ch + 14 + 14;
-    int x = (fb->w - W) / 2, y = (fb->h - H) / 2;
+    int x = (CCS_FB_W - W) / 2, y = (CCS_FB_H - H) / 2; LT(h, HT_PANEL, 0, x, y, x + W, y + H);
     gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204)); gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(0x111115, 255)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255));
     int yy = y + 16; T(fb, FULL, fh, x + 22, baseline_normal(fh, yy), title, 0xFFB3B7, 255, 1); yy += iround(lh_normal(fh)) + 10; gfx_fill(fb, FULL, x + 2, yy, W - 4, 1, RGBA(0xFFFFFF, 36)); yy += 11;
     for (int t = 0; t < N_THEMES; t++) {
@@ -755,11 +872,28 @@ static void render_theme_picker(home *h, framebuffer *fb) {
         const char *nm = THEME_NAMES[t]; int nw = text_w(fn, nm, strlen(nm), 0), ny = yy + 6 + th + 6;
         T(fb, FULL, fn, cx + (cw - nw) / 2.0, baseline_normal(fn, ny), nm, foc ? 0xFFFFFF : 0xE4E2DC, 255, 0);
         if (cur) { const char *c = "current"; int w = text_w(fc, c, 7, 0); T(fb, FULL, fc, cx + (cw - w) / 2.0, baseline_normal(fc, ny + lh_normal(fn) + 4), c, 0xFFB3B7, 255, 0); }
-        LR(h, foc ? "theme-focus" : "theme-card", cx, yy, cx + cw, yy + ch);
+        LR(h, foc ? "theme-focus" : "theme-card", cx, yy, cx + cw, yy + ch); LT(h, HT_THEME, t, cx, yy, cx + cw, yy + ch);
     }
     LR(h, "theme-picker", x, y, x + W, y + H);
 }
-static int start_count(void) { return 9; }
+static int start_count(void) { return N_START; }
+/* the START menu's labels: "Game Details: <title>" and "Play: <title>" for the game selected when it opened, the title cut with an ellipsis at
+   28 characters and to the menu's widest line (its focused, bold face), never wider; no game selected: they say so */
+static void start_labels(home *h, const char **lab, char b[2][200]) {
+    for (int i = 0; i < N_START; i++) lab[i] = START_LABEL[i];
+    int rpg = h->ops->menu_rpg; const font *fb2 = rpg ? &h->f[F_PX13] : &h->f[F_S700_20]; int maxw = 560 - 44 - (rpg ? 30 : 0);
+    for (int k = 0; k < 2; k++) { const char *pre = k ? "Play: " : "Game Details: ";
+        if (h->nav.mgame < 0 || (size_t)h->nav.mgame >= h->n) { snprintf(b[k], sizeof b[k], "%s(No Game Selected)", pre); lab[k] = b[k]; continue; }
+        const char *t = h->g[h->nav.mgame].title; char cut[160]; size_t n = 0, chars = 0;
+        while (t[n] && chars < 28 && n < sizeof cut - 4) { n++; while (t[n] && ((unsigned char)t[n] & 0xC0) == 0x80) n++; chars++; }   /* whole UTF-8 characters */
+        memcpy(cut, t, n); cut[n] = 0; if (t[n]) { while (n && cut[n - 1] == ' ') cut[--n] = 0; snprintf(cut + n, sizeof cut - n, "\xE2\x80\xA6"); }
+        char full[220]; snprintf(full, sizeof full, "%s%s", pre, cut); text_fit(fb2, full, maxw, 0, b[k], sizeof b[k]); lab[k] = b[k]; } }
+static void open_start_menu(home *h) {   /* START: the menu, and which game its first two rows are about */
+    navstate *N = &h->nav; N->overlay = OV_START; N->oindex = 0; N->mgame = -1; N->foot_on = 0;
+    if (N->screen == SCR_DETAILS && h->d.open) N->mgame = h->d.game;
+    else if (N->sec == SEC_BROWSE) { if (N->zone == Z_BROWSE && N->browse < h->nbi && h->bi[N->browse].kind == BI_GAME) N->mgame = h->bi[N->browse].idx; }
+    else if (h->n) N->mgame = N->sel;
+    snprintf(h->mgame_id, sizeof h->mgame_id, "%s", N->mgame >= 0 ? h->g[N->mgame].id : ""); }
 
 /* ---------- theme switching (on the console, offline: everything is in the package) ---------- */
 int home_set_theme(home *h, const char *id, int save) {
@@ -792,11 +926,23 @@ void home_input(home *h, button b, in_kind k, uint64_t clock_ms) {
         if (b == B_B || b == B_START) N->overlay = OV_NONE;
         else if (b == B_UP) { if (N->oindex > 0) N->oindex--; } else if (b == B_DOWN) { if (N->oindex < n - 1) N->oindex++; }
         else if (b == B_A) { const char *id = START_ID[N->oindex];
-            if (!strcmp(id, "return")) N->overlay = OV_NONE;
+            if (!strcmp(id, "details") || !strcmp(id, "play")) {   /* F20: the game the menu named, checked again (never a stale or different game) */
+                int gi = N->mgame; N->overlay = OV_NONE;
+                if (gi < 0 || (size_t)gi >= h->n || strcmp(h->g[gi].id, h->mgame_id)) notice(h, "NO GAME SELECTED", "Highlight a game on the HOME first, then open the menu again.");
+                else if (!strcmp(id, "play")) launch_unavailable(h, gi);   /* the game's own start choices follow (Load Last Used Save, Load a Save Slot, Start New Game) */
+                else if (!(N->screen == SCR_DETAILS && h->d.open && h->d.game == gi)) { int dz = N->sec == SEC_BROWSE ? Z_BROWSE : Z_GAMES;
+                    if (!open_details(h, gi)) { N->screen = SCR_DETAILS; N->dfocus = DF_PLAY; N->dbutton = DF_PLAY; N->dscroll = 0; N->dzone = dz; } } }
+            else if (!strcmp(id, "return")) N->overlay = OV_NONE;
             else if (!strcmp(id, "theme")) { N->overlay = OV_THEME; N->oindex = h->theme; }
             else if (!strcmp(id, "allgames")) { N->overlay = OV_NONE; home_go_all(h); }
             else if (!strcmp(id, "browse")) { N->overlay = OV_NONE; home_go_browse(h, -1); }
-            else { N->overlay = OV_NONE; not_yet(h, START_LABEL[N->oindex]); } }
+            else { N->overlay = OV_NONE; not_yet(h, START_LABEL[N->oindex]); } }   /* Settings, Sort Games, ...: as before */
+        home_emit_state(h); return;
+    }
+    if (N->overlay == OV_SETTINGS) {   /* HOME Music On / Off, Back */
+        if (b == B_B || b == B_START) N->overlay = OV_NONE;
+        else if (b == B_UP) { if (N->oindex > 0) N->oindex--; } else if (b == B_DOWN) { if (N->oindex < 1) N->oindex++; }
+        else if (b == B_A) { if (N->oindex == 0) music_toggle(h); else N->overlay = OV_NONE; }
         home_emit_state(h); return;
     }
     if (N->overlay == OV_THEME) {
@@ -807,23 +953,39 @@ void home_input(home *h, button b, in_kind k, uint64_t clock_ms) {
     }
     if (N->overlay == OV_MAPDEST) {
         if (b == B_B || b == B_SELECT) N->overlay = OV_NONE;
-        else if (b == B_START) { N->overlay = OV_START; N->oindex = 0; }
+        else if (b == B_START) open_start_menu(h);
         else if (b == B_UP) { if (N->oindex > 0) N->oindex--; } else if (b == B_DOWN) { if (N->oindex < 5) N->oindex++; }
         else if (b == B_A) { N->overlay = OV_NONE; if (N->oindex == 0) { home_go_all(h); N->landmark = 0; } else if (N->oindex == 1) { home_go_browse(h, -1); N->landmark = 1; } else not_yet(h, DEST_LABEL[N->oindex]); }
         home_emit_state(h); return;
     }
+    if (N->foot_on) {   /* F13: the bottom hints have the focus: Left/Right choose, A does it once, Up or B returns; START and SELECT stay shortcuts */
+        int bt[8], k = foot_items(h, bt); if (N->foot >= k) N->foot = k ? k - 1 : 0;
+        if (b == B_LEFT) { if (N->foot > 0) N->foot--; home_emit_state(h); return; }
+        if (b == B_RIGHT) { if (N->foot < k - 1) N->foot++; home_emit_state(h); return; }
+        if (b == B_UP || b == B_B || b == B_DOWN) { N->foot_on = 0; home_emit_state(h); return; }
+        if (b == B_A && k) { int a = bt[N->foot]; emit_json(h, "{\"ev\":\"footer_activate\",\"item\":%d,\"button\":%d}", N->foot, a);
+            if (a == -2) { music_toggle(h); home_emit_state(h); return; }
+            N->foot_on = 0; home_input(h, (button)a, IN_PRESS, clock_ms); home_input(h, (button)a, IN_RELEASE, clock_ms); return; }   /* exactly that hint's action, then the focus is back where it was */
+        N->foot_on = 0; }   /* START, SELECT: their own actions (below) */
     if (N->screen == SCR_DETAILS) {
         int max = desc_max(h), *f = &N->dfocus;
+        if (b == B_DOWN && (max <= 0 || *f == DF_DESC && N->dscroll >= max)) { N->foot_on = 1; N->foot = 0; home_emit_state(h); return; }   /* below the last thing: the hints */
         if (b == B_B) { details_close(h); N->screen = SCR_GRID; N->zone = N->dzone == Z_BROWSE && N->sec == SEC_BROWSE ? Z_BROWSE : home_section_zone(h); }
-        else if (b == B_START) { N->overlay = OV_START; N->oindex = 0; }
-        else if (b == B_LEFT) { if (*f == DF_FAV) *f = DF_PLAY; }
-        else if (b == B_RIGHT) { if (*f == DF_PLAY) *f = DF_FAV; }
+        else if (b == B_START) open_start_menu(h);
+        else if (b == B_LEFT) { if (*f == DF_FAV) *f = DF_PLAY; else if (*f == DF_GSET) *f = DF_FAV; }
+        else if (b == B_RIGHT) { if (*f == DF_PLAY) *f = DF_FAV; else if (*f == DF_FAV && h->game_settings) *f = DF_GSET; }
         else if (b == B_DOWN) { if (*f == DF_DESC) { if (N->dscroll < max) N->dscroll++; } else if (max > 0) { N->dbutton = *f; *f = DF_DESC; } }
         else if (b == B_UP) { if (*f == DF_DESC) { if (N->dscroll > 0) N->dscroll--; else *f = N->dbutton; } }
-        else if (b == B_A) { if (*f == DF_PLAY) launch_unavailable(h, h->d.game); else if (*f == DF_FAV) not_yet(h, "Favorites"); }
+        else if (b == B_A) { if (*f == DF_PLAY) launch_unavailable(h, h->d.game); else if (*f == DF_FAV) not_yet(h, "Favorites");
+            else if (*f == DF_GSET && h->game_settings) { const char *id = h->d.game >= 0 && (size_t)h->d.game < h->n ? h->g[h->d.game].id : ""; char e[160]; jesc(id, e, sizeof e); emit_json(h, "{\"ev\":\"game_settings_opened\",\"id\":%s}", e); h->game_settings(h->game_settings_ctx, id); } }
         home_emit_state(h); return;
     }
-    if (b == B_START) { N->overlay = OV_START; N->oindex = 0; home_emit_state(h); return; }
+    if (b == B_START) { open_start_menu(h); home_emit_state(h); return; }
+    if (b == B_DOWN && (N->zone == Z_GAMES || N->zone == Z_BROWSE)) {   /* F13: Down that moves nothing (the last row) goes to the hints */
+        int s0 = N->sel, z0 = N->zone, b0 = N->browse, sc0 = N->screen, ov0 = N->overlay, nv0 = N->nav, lm0 = N->landmark;
+        if (N->zone == Z_BROWSE) browse_input(h, b); else if (h->n) h->ops->input(h, b);
+        if (s0 == N->sel && z0 == N->zone && b0 == N->browse && sc0 == N->screen && ov0 == N->overlay && nv0 == N->nav && lm0 == N->landmark && !N->notice) { N->foot_on = 1; N->foot = 0; }
+        home_emit_state(h); return; }
     if (N->zone == Z_BROWSE) { browse_input(h, b); home_emit_state(h); return; }
     if (N->zone == Z_GAMES && N->sec != SEC_ALL && b == B_B) { home_back(h); home_emit_state(h); return; }
     if (N->zone == Z_GAMES && !h->n) {   /* an empty folder or category: only the way out (the theme's navigation) */
@@ -843,17 +1005,81 @@ void home_open_mapdest(home *h) { h->nav.overlay = OV_MAPDEST; h->nav.oindex = 0
 
 /* ---------- render ---------- */
 static void render_overlays(home *h, framebuffer *fb) {
-    if (h->nav.overlay == OV_START) render_menu(h, fb, "MENU", START_LABEL, start_count(), h->nav.oindex);
+    if (h->nav.overlay == OV_START) { const char *lab[N_START]; char b[2][200]; start_labels(h, lab, b); render_menu(h, fb, "MENU", lab, start_count(), h->nav.oindex); }
     else if (h->nav.overlay == OV_THEME) render_theme_picker(h, fb);
     else if (h->nav.overlay == OV_MAPDEST) render_menu(h, fb, "WHERE TO?", DEST_LABEL, 6, h->nav.oindex);
+    else if (h->nav.overlay == OV_SETTINGS) { const char *it[2] = { h->music_on ? "HOME Music: On" : "HOME Music: Off", "Back" }; render_menu(h, fb, "SETTINGS", it, 2, h->nav.oindex); }
     if (h->nav.notice) render_notice(h, fb);
 }
-void home_render(home *h, framebuffer *fb, uint64_t now) {
-    h->decoded = 0; h->pending = 0; h->nrec = 0;
+static void render_frame(home *h, framebuffer *fb, uint64_t now) {
+    h->decoded = 0; h->pending = 0; h->live = 0; h->nrec = 0;
     if (h->nav.screen == SCR_DETAILS && h->d.open) { render_details(h, fb); details_legend(h, fb); render_overlays(h, fb); return; }
     if (h->nav.sec == SEC_BROWSE) { size_t keep = h->n; h->n = 0; h->ops->render(h, fb, now); h->n = keep; render_browse(h, fb); }   /* the theme's chrome, then the Browse panel */
     else { h->ops->render(h, fb, now); if (!h->n) render_empty(h, fb); }
     render_overlays(h, fb);
+}
+/* ---------- the computer's mouse (home_pointer): resolved against what was just drawn, with the controller's own presses ---------- */
+static const char *HT_NAME[] = { "none", "game", "nav", "landmark", "tile", "menu-item", "theme", "panel", "details-button", "description", "previous", "next", "hint", "music" };
+static const char *HP_NAME[] = { "move", "click", "double", "back", "wheel" };
+static int hit_at(const home *h, int x, int y, int *idx) {   /* the topmost target under the pointer: the last one drawn */
+    for (int i = h->ntg - 1; i >= 0; i--) { box4 b = h->tg[i].b; if (x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1) { *idx = h->tg[i].idx; return h->tg[i].kind; } }
+    *idx = -1; return HT_NONE; }
+static void tap_button(home *h, button b, uint64_t t) { home_input(h, b, IN_PRESS, t); home_input(h, b, IN_RELEASE, t); }
+static void pointer_one(home *h, const ptev *e) {
+    navstate *N = &h->nav; int idx = -1, k = e->x < 0 ? HT_NONE : hit_at(h, e->x, e->y, &idx); const char *act = NULL;
+    if (e->kind == HP_BACK) { tap_button(h, B_B, e->t); act = "back"; }
+    else if (N->notice) { if (e->kind == HP_CLICK) { tap_button(h, B_A, e->t); act = "dismiss"; } }
+    else if (e->kind == HP_DOUBLE) {   /* only a game plays on a double-click: anything else already acted on the first click */
+        if (N->overlay == OV_NONE && N->screen == SCR_DETAILS && h->d.open && h->pt_click == h->d.game + 1) { N->dfocus = DF_PLAY; tap_button(h, B_A, e->t); act = "play"; }   /* its first click opened the Details */
+        else if (N->overlay == OV_NONE && N->screen == SCR_GRID && k == HT_GAME) { N->zone = Z_GAMES; N->sel = idx; tap_button(h, B_A, e->t); act = "play"; }
+        else if (N->overlay == OV_NONE && N->screen == SCR_GRID && k == HT_TILE && idx < h->nbi && h->bi[idx].kind == BI_GAME) { N->zone = Z_BROWSE; N->browse = idx; tap_button(h, B_A, e->t); act = "play"; }
+        h->pt_click = 0; }
+    else if (N->overlay != OV_NONE) {
+        if (e->kind == HP_WHEEL) { tap_button(h, e->d > 0 ? B_UP : B_DOWN, e->t); act = "wheel"; }
+        else if (k == HT_MENU || k == HT_THEME) {
+            if (e->kind == HP_MOVE) { if (N->oindex != idx) { N->oindex = idx; h->gen++; act = "hover"; home_emit_state(h); } }
+            else if (e->kind == HP_CLICK) { N->oindex = idx; tap_button(h, B_A, e->t); act = "choose"; } }
+        else if (e->kind == HP_CLICK && k == HT_LEGEND) { h->nav.foot_on = 0; tap_button(h, (button)idx, e->t); act = "hint"; }
+        else if (e->kind == HP_CLICK && k == HT_MUSIC) { music_toggle(h); home_emit_state(h); act = "music"; }
+        else if (e->kind == HP_CLICK && k != HT_PANEL) { tap_button(h, B_B, e->t); act = "close"; } }   /* outside the menu: it closes */
+    else if (N->screen == SCR_DETAILS) {
+        if (k == HT_DBUTTON && e->kind == HP_MOVE) { if (N->dfocus != idx) { N->dfocus = N->dbutton = idx; h->gen++; act = "hover"; home_emit_state(h); } }
+        else if (k == HT_DBUTTON && e->kind == HP_CLICK) { N->dfocus = N->dbutton = idx; tap_button(h, B_A, e->t); act = idx == DF_PLAY ? "play" : idx == DF_GSET ? "game_settings" : "favorite"; }
+        else if (e->kind == HP_WHEEL && desc_max(h) > 0 && (N->dfocus == DF_DESC || e->d < 0)) {   /* the description scrolls (down first moves into it) */
+            if (N->dfocus != DF_DESC) { N->dbutton = N->dfocus; N->dfocus = DF_DESC; } tap_button(h, e->d > 0 ? B_UP : B_DOWN, e->t); act = "scroll"; }
+        else if (e->kind == HP_CLICK && k == HT_LEGEND) { h->nav.foot_on = 0; tap_button(h, (button)idx, e->t); act = "hint"; }
+        else if (e->kind == HP_CLICK && k == HT_MUSIC) { music_toggle(h); home_emit_state(h); act = "music"; } }
+    else if (e->kind == HP_WHEEL) {
+        if (N->zone != Z_GAMES && N->zone != Z_BROWSE) N->zone = home_section_zone(h);
+        tap_button(h, N->zone == Z_BROWSE ? (e->d > 0 ? B_UP : B_DOWN) : (e->d > 0 ? B_LEFT : B_RIGHT), e->t); act = "wheel"; }
+    else if (e->kind == HP_CLICK) {
+        h->pt_click = 0;
+        if (k == HT_GAME && idx >= 0 && idx < (int)h->n) { N->zone = Z_GAMES; N->sel = idx; h->pt_click = idx + 1; tap_button(h, B_SELECT, e->t); act = "details"; }
+        else if (k == HT_TILE && idx >= 0 && idx < h->nbi) { N->zone = Z_BROWSE; N->browse = idx;
+            if (h->bi[idx].kind == BI_GAME) { h->pt_click = h->bi[idx].idx + 1; tap_button(h, B_SELECT, e->t); act = "details"; } else { tap_button(h, B_A, e->t); act = "open"; } }
+        else if (k == HT_NAV) { N->zone = Z_NAV; N->nav = idx; tap_button(h, B_A, e->t); act = "open"; }
+        else if (k == HT_LANDMARK) { N->zone = Z_MAP; N->landmark = idx; tap_button(h, B_A, e->t); act = "open"; }
+        else if (k == HT_PREV || k == HT_NEXT) { N->zone = home_section_zone(h); tap_button(h, k == HT_PREV ? B_LEFT : B_RIGHT, e->t); act = "move"; }
+        else if (k == HT_LEGEND) { h->nav.foot_on = 0; tap_button(h, (button)idx, e->t); act = "hint"; }
+        else if (k == HT_MUSIC) { music_toggle(h); home_emit_state(h); act = "music"; } }
+    if (act) emit_json(h, "{\"ev\":\"pointer\",\"kind\":\"%s\",\"at\":[%d,%d],\"target\":\"%s\",\"index\":%d,\"action\":\"%s\"}", HP_NAME[e->kind], e->x, e->y, HT_NAME[k], idx, act);
+}
+static void pointer_resolve(home *h) {   /* the waiting events in order; once one changes what is drawn, the rest wait for the next frame */
+    int n = h->npq, done = 0; uint64_t g0 = h->gen;
+    while (done < n) { ptev e = h->pq[done++]; pointer_one(h, &e); if (h->gen != g0) break; }
+    memmove(h->pq, h->pq + done, (size_t)(n - done) * sizeof *h->pq); h->npq = n - done; }
+void home_pointer(home *h, int kind, int x, int y, int delta, uint64_t clock_ms) {
+    if (!h || !h->nall || kind < HP_MOVE || kind > HP_WHEEL) return;
+    if (kind == HP_MOVE) {   /* hover only highlights menu items and the Details buttons; it never moves the selection */
+        if (x == h->pt_lx && y == h->pt_ly) return; h->pt_lx = x; h->pt_ly = y;
+        if (h->nav.overlay == OV_NONE && h->nav.screen != SCR_DETAILS) return;
+        if (h->npq && h->pq[h->npq - 1].kind == HP_MOVE) { h->pq[h->npq - 1].x = x; h->pq[h->npq - 1].y = y; return; } }
+    if (h->npq >= 8) return;
+    h->pq[h->npq++] = (ptev){ kind, x, y, delta, clock_ms }; }
+void home_render(home *h, framebuffer *fb, uint64_t now) {
+    int n = h->npq; if (n) { h->hitrec = 1; for (int i = 0; i < n; i++) if (h->pq[i].kind != HP_MOVE) h->hitrec = 2; h->ntg = 0; }   /* 2: the themes draw in full (their cached frames hold targets too) */
+    render_frame(h, fb, now);
+    if (n) { h->hitrec = 0; pointer_resolve(h); }
 }
 void home_select(home *h, int index) {
     if (!h->n) return; if (index < 0) index = 0; if (index >= (int)h->n) index = (int)h->n - 1;

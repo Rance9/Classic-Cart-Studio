@@ -14,7 +14,7 @@ function ccsWindowsDesktop(){ const ua=navigator.userAgent||'', p=(navigator.use
 function desktopAvailable(){ return CO.hosted&&!CO.desktop&&!CO.file&&ccsWindowsDesktop(); }
 // ---- the invitation (website on a Windows PC only; never in the installed application). Elsewhere, what needs the Windows app says so ----
 function desktopInvite(reason){
- if(CO.hosted&&!CO.desktop&&!CO.file&&!ccsWindowsDesktop()){ openColl('Needs a Windows PC','', `${reason?`<div class="msgbox">${esc(reason)}</div>`:''}<p class="lead">Classic Cart Studio for Windows runs on a Windows PC. On this device you can build, organize and share collections.</p><div class="acts"><span class="sp"></span><button class="btn" id="dvOk">OK</button></div>`); $('dvOk').onclick=closeColl; return true; }
+ if(CO.hosted&&!CO.desktop&&!CO.file&&!ccsWindowsDesktop()){ openColl('Needs a Windows PC','', `${reason?`<div class="msgbox">${esc(reason)}</div>`:''}<p class="lead">Classic Cart Studio for Windows runs on a Windows PC. On this device you can build, organize and back up collections.</p><div class="acts"><span class="sp"></span><button class="btn" id="dvOk">OK</button></div>`); $('dvOk').onclick=closeColl; return true; }
  if(!desktopAvailable()) return false; const n=sel.size;
  openColl('Open in Classic Cart Studio for Windows','', `${reason?`<div class="msgbox">${esc(reason)}</div>`:''}<p class="lead">Anything that needs your computer, like ROM files or the console, happens in the Windows app. ${n?'Your collection comes with you.':'You can build your collection here first.'}</p>
   ${n?`<div class="kv"><dt>Collection</dt><dd>${esc(COLL.name)} · ${n} game${n===1?'':'s'}</dd></div>`:''}
@@ -44,7 +44,7 @@ function handoffDone(id,n,wasRunning){ openColl('Collection Sent to the Windows 
 function handoffFallback(id,n,why,err){ const dl=why==='absent';
  openColl(dl?'Install Classic Cart Studio for Windows':'Could Not Send the Collection','', `<div class="msgbox warn">${dl?'Classic Cart Studio is not installed or did not start. Install it (below, or from <a href="https://ClassicCartStudio.com/app" target="_blank" rel="noopener">ClassicCartStudio.com/app</a>), start it, then choose <b>Open in Windows App</b> again. Your collection stays in this browser.':why==='denied'?'Your browser blocked this website from reaching apps on your device. Allow it under the lock icon → <b>Permissions for this site</b> → <b>Local network access</b> and try again, or use the file below.':`Classic Cart Studio did not accept the collection${err?' ('+esc(err)+')':''}. It may be out of date: update it, or use the file below.`}</div>
   ${dl?'<div class="msgbox" id="dl"><b>Download Classic Cart Studio</b><div class="small">Looking up the latest version…</div></div>':''}
-  <div class="msgbox"><b>Use a Collection File Instead</b><div class="small">Save "${esc(COLL.name)}" as a collection file (.json: the list of games, without ROM files), then in Classic Cart Studio choose <b>My Collections → Import .ccs Collection</b> and pick that file.</div><div class="acts" style="margin-top:8px"><button class="btn hk" id="hoFile">Save Collection File</button><button class="btn ghost" id="hoRetry">Try Again</button><span class="sp"></span><button class="btn" id="hoClose">Close</button></div></div>`);
+  <div class="msgbox"><b>Use a Collection File Instead</b><div class="small">Save "${esc(COLL.name)}" as a collection file (.json: the list of games, without ROM files), then in Classic Cart Studio choose <b>My Collections → Import Collection</b> and pick that file.</div><div class="acts" style="margin-top:8px"><button class="btn hk" id="hoFile">Save Collection File</button><button class="btn ghost" id="hoRetry">Try Again</button><span class="sp"></span><button class="btn" id="hoClose">Close</button></div></div>`);
  if(dl) renderDownload($('dl')); $('hoFile').onclick=()=>$('export').click(); $('hoRetry').onclick=startHandoff; $('hoClose').onclick=closeColl; }
 // ---- desktop side: pending offers, confirmation, onboarding ----
 let HANDOFF_BUSY=false, INBOX_T=null;
@@ -80,7 +80,7 @@ async function desktopStateRestore(){ if(!CO.desktop||!CO.ok) return false; cons
  if(!useRemote){ DSTATE_LAST=''; desktopStateDirty(); return false; }
  let changed=false; Object.keys(ls).forEach(k=>{ if(DESKTOP_KEYS.includes(k)&&localStorage.getItem(k)!==ls[k]){ localStorage.setItem(k,ls[k]); changed=true; } });
  DSTATE_LAST=JSON.stringify(ls); if(changed){ hoLog('restore applied in place'); desktopApplyState(ls); } return false; }
-['persist','saveColl','snapshotNow','setExt','doneWelcome'].forEach(n=>{ const f=window[n]; if(typeof f==='function') window[n]=function(){ const r=f.apply(this,arguments); try{ desktopStateDirty(); }catch(e){} return r; }; });
+['persist','saveColl','snapshotNow','setExt'].forEach(n=>{ const f=window[n]; if(typeof f==='function') window[n]=function(){ const r=f.apply(this,arguments); try{ desktopStateDirty(); }catch(e){} return r; }; });
 let DESK_CONN=false;
 async function onDesktopConnected(){ if(DESK_CONN) return; DESK_CONN=true; hoLog('onDesktopConnected'); try{ if(await desktopStateRestore()) return; }catch(e){ hoLog('restore err '+e.message); } window.__dstateReady=true; desktopStateDirty();
  if(window.__ccsPendingOffer){ const id=window.__ccsPendingOffer; window.__ccsPendingOffer=null; desktopOfferDialog(id); } else desktopCheckInbox();

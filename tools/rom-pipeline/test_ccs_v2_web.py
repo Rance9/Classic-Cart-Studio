@@ -2,10 +2,11 @@ r"""Complete .ccs packages on the website (ccs-package/2, tools/companion/CCS-FO
 sentinel byte pattern (no real games). Every request the page makes is recorded (fetch, XMLHttpRequest, sendBeacon, WebSocket wrappers and
 the browser's resource timing), and no request may leave 127.0.0.1 or carry ROM bytes.
   complete      a collection's ROM files chosen as files -> the dialog says all are ready -> the package lists every game with a verified ROM
-  missing       a game without its ROM blocks Export and Share; "Share Only the N Ready Games" packages exactly that subset (loadouts follow)
+  missing       a game without its ROM blocks the backup; there is no partial ("only the ready games") option and no share action
   identity      a ROM of a different version under a game's id, a package missing a ROM, and an old ROM-free (ccs-package/1) package are refused
-  import        the website verifies every ROM, saves the collection and can share it again without choosing files
-  flows         Export .ccs (save), Share Games / Send to Phone (share sheet, a refusing app, a browser without file sharing): always the complete file
+  import        the website verifies every ROM, saves the collection and can back it up again without choosing files
+  flows         Back Up Collection: the exact rights acknowledgment (unchecked, Create Backup off until checked), the complete file saved;
+                navigator.share is never called even where the browser could share files; a browser download is reported as one
   size          3,000 games; ZIP64 records (forced) read back; a > 4 GB archive (Blob references, no memory copy) parsed with 64-bit offsets
   retired       public share links and ROM-free exports are gone; Studio data backups are JSON files, not .ccs
   python test_ccs_v2_web.py <built site folder> [--out DIR]      Exit 0 = PASS."""
@@ -43,9 +44,9 @@ def main():
         # ---- a collection of five synthetic games (three headered, two headerless) with a loadout of three ----
         J(r"""(async()=>{ window.R=[]; for(let i=0;i<5;i++) R.push(await mkRom(i, i<3)); sel.clear(); R.forEach(x=>sel.add(x.id)); COLL.name='Sentinel Collection'; saveColl(); persist(); render(); csSaveActiveNow();
    const r=csActive(); r.loadouts=[{id:loNewId(), target:'nes-classic', name:'Three', created:csNow(), modified:csNow(), sel:R.slice(0,3).map(x=>x.id), decisions:{}, home:null}]; csWrite(); return JSON.stringify(1); })()""")
-        st = J("""(async()=>{ ccsShareDialog(); await new Promise(r=>setTimeout(r,800)); return JSON.stringify({missing:CCS.missing.length, ready:CCS.ready.length, exp:$('ccsExp').disabled, send:$('ccsSend').disabled, label:$('ccsSend').textContent, pick:!!$('ccsPick'), text:$('collBody').innerText}); })()""")
-        ok("missing_roms_block_export_and_share", st["missing"] == 5 and st["exp"] is True and st["send"] is True and "5 of 5 games need their ROM file" in st["text"] and st["pick"], st)
-        ok("desktop_label_send_to_phone", st["label"] == "Send to Phone", st["label"])
+        st = J("""(async()=>{ ccsBackupDialog(); await new Promise(r=>setTimeout(r,800)); return JSON.stringify({missing:CCS.missing.length, ready:CCS.ready.length, exp:$('ccsExp').disabled, send:!!$('ccsSend'), only:!!$('ccsOnly'), acts:[...document.querySelectorAll('#collm .acts button')].map(b=>b.textContent.trim()), title:$('collTitle').textContent, pick:!!$('ccsPick'), text:$('collBody').innerText}); })()""")
+        ok("missing_roms_block_the_backup", st["missing"] == 5 and st["exp"] is True and "5 of 5 games need their ROM file" in st["text"] and st["pick"] and st["title"] == "Back Up Collection", st)
+        ok("backup_dialog_has_no_share_or_partial_action", not st["send"] and not st["only"] and st["acts"] == ["Cancel", "Create Backup…"], st)
         st = J("""(async()=>{ await ccsAddRomSources(R.map(x=>x.file)); await ccsCheck(); return JSON.stringify({missing:CCS.missing.length, ready:CCS.ready.length, exp:$('ccsExp').disabled, text:$('collBody').innerText}); })()""")
         ok("chosen_rom_files_make_every_game_ready", st["missing"] == 0 and st["ready"] == 5 and st["exp"] is False and "5 ROM files are ready" in st["text"] and "All " not in st["text"], st)
         pk = J("""(async()=>{ const b=await ccsBuild(CCS.parts); window.PKG=b; const i=await ccsInspect(b); const ids=(i.data.ccs_collection||{}).sel||[];
@@ -53,12 +54,10 @@ def main():
         ok("complete_package_every_game_has_a_verified_rom", pk["ok"] and pk["schema"] == "ccs-package/2" and pk["kind"] == "collection" and pk["roms"] == 5 and pk["verified"] and pk["inc"] == 5 and pk["games"] == 5 and pk["everyHasRom"] and not pk["missingKey"], pk)
         ok("package_keeps_loadouts", pk["loadout"] == [3], pk["loadout"])
         open(os.path.join(a.out, "web-complete.ccs"), "wb").write(base64.b64decode(ed.js("(async()=>{ const u8=new Uint8Array(await PKG.arrayBuffer()); let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); })()")))
-        # ---- missing ROM and an explicit smaller selection ----
-        st = J("""(async()=>{ ROMSRC.clear(); await ccsAddRomSources(R.slice(0,4).map(x=>x.file)); await ccsCheck(); const before={missing:CCS.missing.length, exp:$('ccsExp').disabled, only:!!$('ccsOnly')};
-   $('ccsOnly').click(); await new Promise(r=>setTimeout(r,800)); const rec=ccsSubsetRecord(CS.items[CCS.cid], CCS.subset); const parts=await ccsCollectionParts(rec); const b=await ccsBuild(parts); const i=await ccsInspect(b);
-   return JSON.stringify({before, ids:CCS.ids.length, ready:CCS.ready.length, exp:$('ccsExp').disabled, ok:i.ok, games:(i.data.ccs_collection.sel||[]).length, roms:i.roms.length, lo:(i.data.ccs_collection.loadouts||[]).map(l=>l.sel.length), name:ccsName(CS.items[CCS.cid], CCS.subset.length)}); })()""")
-        ok("one_missing_rom_blocks_the_whole_package", st["before"]["missing"] == 1 and st["before"]["exp"] is True and st["before"]["only"], st["before"])
-        ok("explicit_subset_packages_exactly_the_ready_games", st["ids"] == 4 and st["ready"] == 4 and st["exp"] is False and st["ok"] and st["games"] == 4 and st["roms"] == 4 and st["lo"] == [3] and "(4 games)" in st["name"], st)
+        # ---- one missing ROM: the whole backup is blocked; no smaller selection is offered ----
+        st = J("""(async()=>{ ROMSRC.clear(); await ccsAddRomSources(R.slice(0,4).map(x=>x.file)); await ccsCheck(); return JSON.stringify({missing:CCS.missing.length, exp:$('ccsExp').disabled, only:!!$('ccsOnly'), subset:typeof window.ccsSubsetRecord, text:$('collBody').innerText}); })()""")
+        ok("one_missing_rom_blocks_the_whole_backup", st["missing"] == 1 and st["exp"] is True and "1 of 5 games needs its ROM file" in st["text"], st)
+        ok("no_partial_backup_option", not st["only"] and st["subset"] == "undefined" and "Only" not in st["text"], st)
         # ---- identity: wrong revision, missing ROM in a package, old ROM-free package ----
         st = J(r"""(async()=>{ const id=R[0].id, other=new Uint8Array(await R[1].file.arrayBuffer()); const parts=await ccsCollectionParts(CS.items[CCS.cid]); ROMSRC.clear(); await ccsAddRomSources(R.map(x=>x.file));
    const s1=ROMSRC.get(R[1].id); ROMSRC.set(id, s1); let wrong; try{ wrong=await ccsInspect(await ccsBuild(parts)); }catch(e){ wrong={ok:false, problems:[{problem:e.message}]}; }
@@ -73,27 +72,30 @@ def main():
    const mi=entries.findIndex(e=>e.name===CCS_MANIFEST); entries[mi]=(await ccsJsonEntry(CCS_MANIFEST, JSON.stringify(man))).entry; const b=ccsZipBlob(entries); const i=await ccsInspect(b);
    ccsOpenFile(new File([b],'Incomplete.ccs')); await new Promise(r=>setTimeout(r,1500)); return JSON.stringify({ok:i.ok, why:i.problems.map(p=>p.problem).join('; '), dialog:$('collBody').innerText, save:!!$('ccsGo')}); })()""")
         ok("incomplete_package_refused_and_not_importable", st["ok"] is False and "no ROM file" in st["why"] and "cannot be opened" in st["dialog"] and not st["save"], st)
-        # ---- import on the website, then share again without choosing files ----
+        # ---- import on the website, then back it up again without choosing files ----
         st = J(r"""(async()=>{ ROMSRC.clear(); closeColl(); const n0=csList().length; ccsOpenFile(new File([PKG],'Sentinel Collection.ccs')); for(let i=0;i<40&&!$('ccsGo');i++) await new Promise(r=>setTimeout(r,250));
    const text=$('collBody').innerText; $('ccsGo').click(); await new Promise(r=>setTimeout(r,800)); const n1=csList().length; const rec=csList().find(r=>r.name.startsWith('Sentinel Collection')&&r.id!==CCS.cid);
    const ready=R.every(x=>ROMSRC.has(x.id)); closeColl(); return JSON.stringify({text, added:n1-n0, ready, games:rec?(rec.sel||[]).length:0}); })()""")
         ok("website_import_verifies_every_rom", "5 verified" in st["text"] and "does not keep them" in st["text"], st["text"][:300])
-        ok("website_import_saves_collection_and_can_share_again", st["added"] == 1 and st["games"] == 5 and st["ready"], st)
-        # ---- the flows: Export .ccs, Send to Phone with a share sheet, a refusing app, no file sharing ----
-        flow = r"""(async(mode, share)=>{ window.__saved=null; window.__shared=null; ccsSaveFile=async(n,b)=>{ window.__saved={name:n, blob:b}; return {ok:true, name:n}; };
-   if(share==='none'){ try{ delete navigator.canShare; }catch(e){} Object.defineProperty(navigator,'canShare',{value:undefined, configurable:true}); }
-   else { Object.defineProperty(navigator,'canShare',{value:()=>true, configurable:true}); Object.defineProperty(navigator,'share',{value:async o=>{ if(share==='refuse'){ const e=new Error('too large'); e.name='NotAllowedError'; throw e; } window.__shared=o.files[0]; }, configurable:true}); }
-   ccsShareDialog(csList().find(r=>r.name==='Sentinel Collection').id); await new Promise(r=>setTimeout(r,900)); (mode==='export'?$('ccsExp'):$('ccsSend')).click(); await new Promise(r=>setTimeout(r,300));
-   const ack=$('ccsAck'); const ackTitle=ack&&ack.querySelector('h2').textContent; $('ccsAckC').click(); [...ack.querySelectorAll('button')].find(b=>b.textContent==='Export with ROMs').click();
-   for(let i=0;i<60&&!(window.__saved||$('ccsSave')||$('ccsShare'));i++) await new Promise(r=>setTimeout(r,250));
-   const panel=$('collm').classList.contains('open')?$('collBody').innerText:''; if(mode!=='export'){ if($('ccsShare')) { $('ccsShare').click(); await new Promise(r=>setTimeout(r,500)); } }
-   const got=window.__saved?window.__saved.blob:window.__shared; const i=got?await ccsInspect(got):null;
-   return JSON.stringify({ackTitle, panel, after:$('collm').classList.contains('open')?$('collBody').innerText:'', saved:!!window.__saved, shared:!!window.__shared, savedName:window.__saved&&window.__saved.name, ok:i&&i.ok, roms:i?i.roms.length:0, shareBtn:!!$('ccsShare'), saveBtn:!!$('ccsSave')}); })"""
+        ok("website_import_saves_collection_and_can_back_up_again", st["added"] == 1 and st["games"] == 5 and st["ready"], st)
+        # ---- the flows: Back Up Collection (save; a browser download), navigator.share never called ----
+        flow = r"""(async(save)=>{ window.__saved=null; window.__shares=0; ccsSaveFile=async(n,b)=>{ window.__saved={name:n, blob:b}; return save==='download'?{ok:true, name:n, download:true}:{ok:true, name:n}; };
+   Object.defineProperty(navigator,'canShare',{value:()=>true, configurable:true}); Object.defineProperty(navigator,'share',{value:async o=>{ window.__shares++; }, configurable:true});
+   $('toast').textContent='';
+   ccsBackupDialog(csList().find(r=>r.name==='Sentinel Collection').id); await new Promise(r=>setTimeout(r,900)); $('ccsExp').click(); await new Promise(r=>setTimeout(r,300));
+   const ack=$('ccsAck'); const ackTitle=ack&&ack.querySelector('h2').textContent; const go=[...ack.querySelectorAll('button')].find(b=>b.textContent==='Create Backup');
+   const before={checked:$('ccsAckC').checked, disabled:go.disabled, label:$('ccsAckC').closest('label').textContent.trim()}; $('ccsAckC').click(); const after=!go.disabled; go.click();
+   for(let i=0;i<60&&!window.__saved;i++) await new Promise(r=>setTimeout(r,250)); await new Promise(r=>setTimeout(r,400));
+   const got=window.__saved?window.__saved.blob:null; const i=got?await ccsInspect(got):null; const toastText=$('toast').textContent;
+   return JSON.stringify({ackTitle, before, after, saved:!!window.__saved, savedName:window.__saved&&window.__saved.name, ok:i&&i.ok, roms:i?i.roms.length:0, shares:window.__shares, toast:toastText}); })"""
         ed.js("ROMSRC.clear(); ccsAddRomSources(R.map(x=>x.file)).then(()=>1)"); time.sleep(1)
-        st = J(f"({flow})('export','sheet')"); ok("export_ccs_saves_the_complete_package_after_the_acknowledgment", st["ackTitle"] == "Export Collection with ROM Files" and st["saved"] and st["ok"] and st["roms"] == 5 and st["savedName"].endswith(".ccs"), st)
-        st = J(f"({flow})('share','sheet')"); ok("send_to_phone_hands_the_complete_package_to_the_share_sheet", st["shared"] and st["ok"] and st["roms"] == 5 and "The package is ready" in st["panel"], st)
-        st = J(f"({flow})('share','refuse')"); ok("a_refusing_app_keeps_the_package_and_offers_save", "didn't take the file" in st["after"] and st["saveBtn"] and st["shareBtn"], st)
-        st = J(f"({flow})('share','none')"); ok("no_file_sharing_offers_save_instead", "can't hand files to other apps" in st["panel"] and st["saveBtn"] and not st["shareBtn"], st)
+        st = J(f"({flow})('save')")
+        ok("backup_acknowledgment_is_exact_and_required", st["ackTitle"] == "Back Up Collection" and st["before"]["checked"] is False and st["before"]["disabled"] is True and st["after"]
+           and st["before"]["label"] == "I confirm that I have the necessary rights to create this backup and understand that doing so does not grant permission to redistribute copyrighted game files.", st)
+        ok("back_up_collection_saves_the_complete_package", st["saved"] and st["ok"] and st["roms"] == 5 and st["savedName"].endswith(".ccs") and "Saved" in st["toast"], st)
+        ok("navigator_share_never_called", st["shares"] == 0, st)
+        st = J(f"({flow})('download')")
+        ok("a_browser_download_is_reported_as_one", st["saved"] and "Your browser is saving" in st["toast"] and "downloads" in st["toast"] and st["shares"] == 0, st)
         ed.js("closeColl(); 1")
         # ---- size: thousands of games, forced ZIP64, and > 4 GB archive structure ----
         t0 = time.time()
@@ -125,16 +127,16 @@ def main():
         ok("no_request_left_this_computer", all(h.startswith("127.0.0.1") for h in hosts), hosts)
         ok("no_request_carried_rom_bytes", not any(x["sentinel"] for x in st["net"]) and not any("share.classiccartstudio" in u for u in st["res"]), [x for x in st["net"] if x["sentinel"]][:3])
         print(f"   requests recorded: {len(st['net'])} scripted, {len(st['res'])} resources; hosts: {hosts}")
-    # ---- phone: the same dialog says Share Games ----
+    # ---- phone: the same backup dialog, no share action ----
     with EdgeSession(width=390, height=844, scale=2, profile=tempfile.mkdtemp(prefix="ccs-v2m-")) as ed:
         ed.call("Emulation.setUserAgentOverride", {"userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"})
         ed.navigate(URL); ed.wait_for(READY, timeout=120); time.sleep(1); ed.js(CALM); ed.js(ROMS)
-        st = json.loads(ed.js(r"""(async()=>{ const x=await mkRom(1,true); sel.clear(); sel.add(x.id); persist(); render(); csSaveActiveNow(); await ccsAddRomSources([x.file]); ccsShareDialog(); await new Promise(r=>setTimeout(r,900));
-   return JSON.stringify({label:$('ccsSend').textContent, exp:$('ccsExp').textContent, ready:(document.querySelector('#collBody .msgbox.ok b')||{}).textContent||'', overflow:document.documentElement.scrollWidth>innerWidth+1, inView:[...document.querySelectorAll('#collm .acts button')].every(b=>{ const r=b.getBoundingClientRect(); return r.right<=innerWidth+1&&r.bottom<=innerHeight+1; })}); })()"""))
-        ok("phone_label_share_games", st["label"] == "Share Games" and st["exp"] == "Export .ccs", st)
+        st = json.loads(ed.js(r"""(async()=>{ const x=await mkRom(1,true); sel.clear(); sel.add(x.id); persist(); render(); csSaveActiveNow(); await ccsAddRomSources([x.file]); ccsBackupDialog(); await new Promise(r=>setTimeout(r,900));
+   return JSON.stringify({send:!!$('ccsSend'), exp:$('ccsExp').textContent, ready:(document.querySelector('#collBody .msgbox.ok b')||{}).textContent||'', overflow:document.documentElement.scrollWidth>innerWidth+1, inView:[...document.querySelectorAll('#collm .acts button')].every(b=>{ const r=b.getBoundingClientRect(); return r.right<=innerWidth+1&&r.bottom<=innerHeight+1; })}); })()"""))
+        ok("phone_backup_dialog_without_share", not st["send"] and st["exp"] == "Create Backup…", st)
         ok("phone_dialog_fits", not st["overflow"] and st["inView"], st)
         ok("one_game_reads_1_rom_file_is_ready", st["ready"] == "1 ROM file is ready", st["ready"])
-        open(os.path.join(a.out, "phone-share-dialog.png"), "wb").write(ed.screenshot())
+        open(os.path.join(a.out, "phone-backup-dialog.png"), "wb").write(ed.screenshot())
     bad = [k for k, v in checks if not v]; print("RESULT:", "PASS" if not bad else "FAIL " + json.dumps(bad), f"({len(checks)} checks; packages in {a.out})"); return 0 if not bad else 1
 
 if __name__ == "__main__": sys.exit(main())

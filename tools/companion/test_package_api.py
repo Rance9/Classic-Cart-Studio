@@ -64,7 +64,7 @@ def main():
             info = cp.inspect(pp); ok("exported_package_verifies", info["ok"] and info["data"] == coll and all(r["verified"] for r in info["roms"]) and info["art"] == [f"art/{P5}.jpg"])
             g = FH(); pk.handle_get(g, "/api/package/preview", "id=" + pid, data_path)
             ok("preview_reports_valid_and_identities", g.code == 200 and g.obj["valid"] is True and g.obj["games"] == 2 and {r["version_id"]: r["content_sha256"] for r in g.obj["roms"]} == {L1: c1, P5: c5} and "missing_roms" not in g.obj, g.obj)
-            g = FH(); pk.handle_get(g, "/api/package/file", "id=" + pid, data_path); ok("file_route_streams_the_package", g.code == 200 and g.wfile.getvalue() == open(pp, "rb").read())
+            g = FH(); pk.handle_get(g, "/api/package/file", "id=" + pid, data_path); ok("file_route_removed_with_sharing", g.code == 404 and not g.wfile.getvalue().startswith(b"PK"), g.code)   # section 7: no staged file for a share sheet
             h = post("/api/package/export", {"backup": {"collections": []}}); ok("backup_export_refused", h.code == 400 and "backup file" in h.obj["error"])
             h = post("/api/package/export", {"collection": {"schema": "nes-classic-collection/4"}}); ok("export_without_game_list_refused", h.code == 400 and "no game list" in h.obj["error"])
             real_du = shutil.disk_usage

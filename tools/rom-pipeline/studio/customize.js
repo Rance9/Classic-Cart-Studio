@@ -45,7 +45,7 @@ const _ovConnPill=connPill; connPill=function(){ _ovConnPill.apply(this,argument
 // ---- Details: decoration (Windows app only) ----
 const _ovOpenDetails=openDetails;
 openDetails=function(id){ if(ovTextDirty()&&OVED.id!==id&&!confirm(OV_DISCARD)) return; OVED=null; _ovOpenDetails(id); OVR.cur=id; ovDecorate(id); };
-function ovRefreshDetails(force){ if(!OVR.cur||!$('details').classList.contains('open')) return; if(OVED&&!force) return; const b=$('detailsBox'), sc=b.scrollTop; OVED=null; _ovOpenDetails(OVR.cur); ovDecorate(OVR.cur); b.scrollTop=sc; }
+function ovRefreshDetails(force){ if(!OVR.cur||!$('details').classList.contains('open')) return; if(OVED&&!force) return; const b=$('detailsBox'), sc=b.scrollTop; OVED=null; openDetails(OVR.cur); b.scrollTop=sc; }   // the whole chain (this file's decoration and the layers added after it: Play, Game Settings, the loadout and kept-game notes), not only the base
 function ovPen(field,label){ return `<button type="button" class="ovpen" data-ovedit="${field}" title="${esc(label)}" aria-label="${esc(label)}">${OV_PEN}</button>`; }
 function ovChip(t){ return `<span class="ovchip" title="${esc(t||'Your version; the original can be restored')}">Customized</span>`; }
 function ovDecorate(id){ const g=byId[id], box=$('detailsBox'); if(!g||!box||!ovEditable(g)) return;

@@ -36,6 +36,10 @@
   try{ const r=await fetch('store/store.json',{cache:'no-store'}); if(!r.ok) return; const d=await r.json(); const live=d&&d.published===true&&(d.products||[]).some(p=>p&&p.enabled); b.hidden=!live; }catch(e){} }
  on('mStore',()=>{ closeMenus(); window.open(location.protocol==='https:'?'store/':STORE_URL,'_blank','noopener'); });
  if(location.protocol!=='file:') setTimeout(storeCheck,1200);
+ // merch (Printful): always listed, independent of the Store's accessory listings; it opens outside Studio (a new tab on the website,
+ // the user's own browser in the Windows app, which hands every other site to the browser)
+ const MERCH_URL='https://classic-cart-studio.printful.me/';
+ on('mMerch',()=>{ closeMenus(); window.open(MERCH_URL,'_blank','noopener'); });
  // phones: the ⋯ menu of the library row is the same list of Game Library actions as Select (build_html.py LIB_ACTIONS), plus the
  // controls a phone does not show (List/Grid, Add Your Own Game); each row clicks the real control, so labels and handlers never drift
  const mm=$('moreMenu'); if(mm){ const vt=mm.querySelector('[data-view]');
@@ -43,12 +47,12 @@
    mm.querySelectorAll('[data-proxy]').forEach(b=>{ const t=$(b.dataset.proxy); if(!t) return; const tb=t.querySelector('.mtx b'); if(tb) miLabel(b, tb.textContent); if(t.hasAttribute('aria-label')) b.setAttribute('aria-label', t.getAttribute('aria-label')); if(t.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', t.getAttribute('aria-pressed')); b.disabled=t.disabled; }); });
   wireMenu('moreBtn','moreMenu');
   mm.addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; mm.hidden=true; if(b.dataset.view){ (view==='grid'?$('vList'):$('vGrid')).click(); return; } const t=$(b.dataset.proxy); if(t) t.click(); }); }
- // the phone action bar: Home first, then the top bar's actions (collection view: Tray, Loadouts, Share, Studio; loadout editor: Tray,
+ // the phone action bar: Home first, then the top bar's actions (collection view: Tray, Loadouts, Back Up, Studio; loadout editor: Tray,
  // Console Menu (Setup), Install, Studio). Home is the title link's action (D-62): an open loadout is saved and closed, the library at the top
  on('mbGoHome',()=>{ closeMenus(); goHome(); }); on('mGoHome',()=>{ closeMenus(); goHome(); });
  on('mbTray',()=>{ closeMenus(); $('trayBtn').click(); });
  on('mbLo',e=>{ e.stopPropagation(); const m=$('loMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('loBtn').click(); });
- on('mbShare',()=>{ closeMenus(); if(typeof ccsShareDialog==='function') ccsShareDialog(); });
+ on('mbShare',()=>{ closeMenus(); if(typeof ccsBackupDialog==='function') ccsBackupDialog(); });
  on('mbHome',()=>{ closeMenus(); $('homeBtn').click(); });
  on('mbInstall',()=>{ closeMenus(); $('hkBtn').click(); });
  on('mbMenu',e=>{ e.stopPropagation(); const m=$('appMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('appBtn').click(); });
@@ -154,7 +158,7 @@ updateStatusLine(); csMenuRefresh();
 //      scroll that way (also at either end of its content). Two-finger pinch zoom is never touched. Closing the last surface releases it.
 //      Operation locks (PROC), focus containment and Escape are separate and unchanged. ----
 (function(){
- const BLOCK=['#collm','#hkpanel','#filters','#details','#welcome','#savem','#tech','#guide','#glight','#tv','#ovArt','.ccsack'];
+ const BLOCK=['#collm','#hkpanel','#filters','#details','#savem','#tech','#guide','#glight','#tv','#ovArt','.ccsack','#gsetm'];
  const SHEETS=matchMedia('(max-width:640px), (max-height:500px) and (max-width:1000px)');
  const open=el=>!!el&&el.classList.contains('open')&&!el.hidden&&getComputedStyle(el).display!=='none';
  const z=el=>{ const v=parseInt(getComputedStyle(el).zIndex,10); return isNaN(v)?0:v; };
@@ -225,7 +229,7 @@ updateStatusLine(); csMenuRefresh();
 (function(){
  const MANAGED={collm:{esc:()=>{ if(PROC.collm) return; const c=[...$('collBody').querySelectorAll('[data-cancel]')].find(x=>!x.disabled&&x.getClientRects().length); if(c) c.click(); else closeColl(); }},
   hkpanel:{esc:()=>{ if(!PROC.hkpanel) $('hkpanel').classList.remove('open'); }}, filters:{esc:()=>{ if(typeof fcancel==='function') fcancel(); }},
-  details:{esc:()=>$('details').classList.remove('open')}, welcome:{esc:()=>doneWelcome()}, savem:{esc:null}};
+  details:{esc:()=>$('details').classList.remove('open')}, savem:{esc:null}};
  const SELF=['tech','ccsAck','guide','glight','tv','ovArt'];
  const isOpen=el=>!!el&&el.classList.contains('open')&&!el.hidden;
  const z=el=>{ const v=parseInt(getComputedStyle(el).zIndex,10); return isNaN(v)?0:v; };

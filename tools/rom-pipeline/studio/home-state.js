@@ -8,7 +8,12 @@
 //                            browse (folder/category tiles) | history | viewall | settings
 // Overlays (above the section, context kept): start | theme | mapdest | details | confirm
 const HOME_NAV=[{id:'allgames',label:'All Games'},{id:'browse',label:'Browse'},{id:'search',label:'Search'},{id:'favorites',label:'Favorites'},{id:'recent',label:'Recently Played'},{id:'settings',label:'Settings'}];
-const HOME_START_MENU=[{id:'return',label:'Return to Games'},{id:'theme',label:'Change Theme'},{id:'sort',label:'Sort Games'},{id:'favorites',label:'Favorites'},{id:'recent',label:'Recently Played'},{id:'settings',label:'Settings'},{id:'allgames',label:'All Games'},{id:'browse',label:'Browse'},{id:'search',label:'Search'}];
+// F20 (D-102): the selected game's Game Details and Play first, Return to Games last (home.c START_ID: the same order)
+const HOME_START_MENU=[{id:'details',label:'Game Details'},{id:'play',label:'Play'},{id:'theme',label:'Change Theme'},{id:'sort',label:'Sort Games'},{id:'favorites',label:'Favorites'},{id:'recent',label:'Recently Played'},{id:'settings',label:'Settings'},{id:'allgames',label:'All Games'},{id:'browse',label:'Browse'},{id:'search',label:'Search'},{id:'return',label:'Return to Games'}];
+// "Game Details: <title>" / "Play: <title>" for the game the menu opened on (cut at 28 characters; the full title stays in the row's title);
+// no game: they say so
+function homeStartLabel(model,it,gid){ if(it.id!=='details'&&it.id!=='play') return it.label; const pre=it.id==='details'?'Game Details: ':'Play: '; const g=gid&&model.games.find(x=>x.id===gid);
+ if(!g) return pre+'(No Game Selected)'; const t=[...g.title]; return pre+(t.length>28?t.slice(0,28).join('').trimEnd()+'…':g.title); }
 const HOME_KEYS='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');   // six columns: A-Z then 0-9, then Space / Clear Search / Back
 const HOME_KEY_COLS=6, HOME_KEY_ROWS=6; const HOME_UTIL=['space','clear','back'];
 const HOME_REPEAT={delay:400,rate:110,fast_after:6,fast_rate:55};   // held D-pad: responsive, accelerates in long lists, never skips on a tap
@@ -64,7 +69,7 @@ function homeRelease(S){ S.repeat={button:null,since:0,count:0}; }
 function homeDispatch(S0, model, action, env){
  const S=JSON.parse(JSON.stringify(S0)); const fx=[]; const search=env.search; const geo=env.geometry||{kind:'grid',cols:5}; const say=t=>fx.push({type:'say',text:t});
  const list=()=>homeListing(model,S,search); const remember=()=>{ S.memo[homeLocKey(S.section)]={index:S.index,zone:S.zone,scroll:S.scroll||0,browseIndex:S.browseIndex}; };
- const go=(sec,opts)=>{ remember(); S.section=sec; const m=S.memo[homeLocKey(sec)]; S.index=m?m.index:0; if(sec.type==='browse') S.browseIndex=m&&m.browseIndex!==undefined?m.browseIndex:0; S.zone=sec.type==='search'?(m&&HOME_SEARCH_ZONES.includes(m.zone)?m.zone:(S.searchZone||'keyboard')):homeSectionZone(S,model,search); S.overlay=null; if(opts&&opts.focus!==undefined){ const ids=list().ids; const k=ids.indexOf(opts.focus); if(k>=0) S.index=k; } fx.push({type:'persist'}); };
+ const go=(sec,opts)=>{ if(sec.type==='settings'&&S.section.type!=='settings') S.gsTarget=currentGame()||null; remember(); S.section=sec; const m=S.memo[homeLocKey(sec)]; S.index=m?m.index:0; if(sec.type==='browse') S.browseIndex=m&&m.browseIndex!==undefined?m.browseIndex:0; S.zone=sec.type==='search'?(m&&HOME_SEARCH_ZONES.includes(m.zone)?m.zone:(S.searchZone||'keyboard')):homeSectionZone(S,model,search); S.overlay=null; if(opts&&opts.focus!==undefined){ const ids=list().ids; const k=ids.indexOf(opts.focus); if(k>=0) S.index=k; } fx.push({type:'persist'}); };
  const dest=id=>{ if(id==='allgames') go({type:'allgames'}); else if(id==='browse') go({type:'browse'}); else if(id==='search') go({type:'search'}); else if(id==='favorites') go({type:'favorites'}); else if(id==='recent') go({type:'recent'}); else if(id==='settings') go({type:'settings'}); else if(id==='history') go({type:'history'}); else if(id&&id.startsWith('folder:')) go({type:'folder',id:id.slice(7)}); };
  const currentGame=()=>{ if(S.section.type==='history'){ const ev=homeHistoryEvents(model)[S.historyIndex]; return ev?ev.game:null; } if(S.section.type==='search') return (list().ids)[S.resultIndex]||null; const ids=list().ids; return ids[S.index]||null; };
  const launch=id=>{ if(!id) return; if(!homeGamePlayable(model,id)){ say('This game is no longer installed and cannot be launched.'); return; } S.lastGame=id; S.launchCount++; fx.push({type:'launch',id}); fx.push({type:'persist'}); };
@@ -75,24 +80,29 @@ function homeDispatch(S0, model, action, env){
   if(o.type==='details'){ const g=model.games.find(x=>x.id===o.id); const hasDesc=!!(g&&(g.description||g.descriptions));
    const descMax=env.descMax!==undefined&&env.descMax!==null?env.descMax:homeDescSteps(g);   // the renderer measures the text; the estimate is the fallback
    if(action==='b'){ S.overlay=null; return {state:S,effects:fx}; }
-   if(action==='start'){ S.overlay={type:'start',index:0,below:o}; return {state:S,effects:fx}; }
+   if(action==='start'){ S.overlay={type:'start',index:0,below:o,game:o.id}; return {state:S,effects:fx}; }
    if(action==='select') return {state:S,effects:fx};
-   if(action==='up'){ if(S.detailsFocus==='desc'){ if(S.descScroll>0) S.descScroll--; else S.detailsFocus='fav'; } else if(S.detailsFocus==='fav') S.detailsFocus='play'; }
-   else if(action==='down'){ if(S.detailsFocus==='play') S.detailsFocus='fav'; else if(S.detailsFocus==='fav'&&hasDesc) S.detailsFocus='desc'; else if(S.detailsFocus==='desc'&&S.descScroll<descMax) S.descScroll++; }
-   else if(action==='a'){ if(S.detailsFocus==='play'){ S.overlay=null; launch(o.id); } else if(S.detailsFocus==='fav'){ const on=!homeIsFavorite(model,o.id); fx.push({type:'favorite',id:o.id,on}); fx.push({type:'persist'}); say(on?'Added to Favorites':'Removed from Favorites'); } }
+   if(action==='up'){ if(S.detailsFocus==='desc'){ if(S.descScroll>0) S.descScroll--; else S.detailsFocus='gset'; } else if(S.detailsFocus==='gset') S.detailsFocus='fav'; else if(S.detailsFocus==='fav') S.detailsFocus='play'; }
+   else if(action==='down'){ if(S.detailsFocus==='play') S.detailsFocus='fav'; else if(S.detailsFocus==='fav') S.detailsFocus='gset'; else if(S.detailsFocus==='gset'&&hasDesc) S.detailsFocus='desc'; else if(S.detailsFocus==='desc'&&S.descScroll<descMax) S.descScroll++; }
+   else if(action==='a'){ if(S.detailsFocus==='play'){ S.overlay=null; launch(o.id); } else if(S.detailsFocus==='fav'){ const on=!homeIsFavorite(model,o.id); fx.push({type:'favorite',id:o.id,on}); fx.push({type:'persist'}); say(on?'Added to Favorites':'Removed from Favorites'); } else if(S.detailsFocus==='gset') fx.push({type:'game_settings',id:o.id}); }
    return {state:S,effects:fx}; }
   if(o.type==='start'){ const items=HOME_START_MENU.filter(it=>it.id!=='sort'||homeSortable(S.section)); const n=items.length;
    if(action==='b'||action==='start'){ S.overlay=o.below||null; return {state:S,effects:fx}; }
    if(action==='up') o.index=Math.max(0,o.index-1); else if(action==='down') o.index=Math.min(n-1,o.index+1);
-   else if(action==='a'){ const it=items[o.index]; if(it.id==='return') S.overlay=o.below||null; else if(it.id==='theme') S.overlay={type:'theme',index:HOME_THEMES.indexOf(S.theme),below:o.below||null}; else if(it.id==='sort'){ const cur=homeSortFor(model,homeLocKey(S.section)); S.overlay={type:'sort',index:Math.max(0,HOME_SORTS.findIndex(s=>s.id===cur))}; } else { S.overlay=null; dest(it.id); } }
+   else if(action==='a'){ const it=items[o.index];
+    if(it.id==='details'||it.id==='play'){ const gid=o.game&&model.games.some(g=>g.id===o.game)?o.game:null;   // the game the menu named: never another one
+     if(!gid){ S.overlay=o.below||null; say('Highlight a game first, then open the menu again.'); }
+     else if(it.id==='play'){ S.overlay=null; launch(gid); }
+     else if(o.below&&o.below.type==='details'&&o.below.id===gid) S.overlay=o.below; else { S.overlay=null; openDetails(gid); } }
+    else if(it.id==='return') S.overlay=o.below||null; else if(it.id==='theme') S.overlay={type:'theme',index:HOME_THEMES.indexOf(S.theme),below:o.below||null}; else if(it.id==='sort'){ const cur=homeSortFor(model,homeLocKey(S.section)); S.overlay={type:'sort',index:Math.max(0,HOME_SORTS.findIndex(s=>s.id===cur))}; } else { S.overlay=null; dest(it.id); } }
    return {state:S,effects:fx}; }
   if(o.type==='theme'){ if(action==='b'||action==='start'){ S.overlay=o.below||null; return {state:S,effects:fx}; } if(action==='left'||action==='up') o.index=Math.max(0,o.index-1); else if(action==='right'||action==='down') o.index=Math.min(HOME_THEMES.length-1,o.index+1); else if(action==='a'){ S.theme=HOME_THEMES[o.index]; S.overlay=null; fx.push({type:'theme',id:S.theme}); fx.push({type:'persist'}); say('Theme: '+S.theme); } return {state:S,effects:fx}; }
   if(o.type==='sort'){ if(action==='b'||action==='start'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='up') o.index=Math.max(0,o.index-1); else if(action==='down') o.index=Math.min(HOME_SORTS.length-1,o.index+1); else if(action==='a'){ const cur=currentGame(); fx.push({type:'sort',location:homeLocKey(S.section),sort:HOME_SORTS[o.index].id}); S.overlay=null; S.pendingFocus=cur; fx.push({type:'persist'}); } return {state:S,effects:fx}; }
-  if(o.type==='mapdest'){ const items=HOME_NAV; if(action==='b'||action==='select'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='start'){ S.overlay={type:'start',index:0,below:null}; return {state:S,effects:fx}; } if(action==='up') o.index=Math.max(0,o.index-1); else if(action==='down') o.index=Math.min(items.length-1,o.index+1); else if(action==='a'){ S.overlay=null; dest(items[o.index].id); } return {state:S,effects:fx}; }
+  if(o.type==='mapdest'){ const items=HOME_NAV; if(action==='b'||action==='select'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='start'){ S.overlay={type:'start',index:0,below:null,game:currentGame()}; return {state:S,effects:fx}; } if(action==='up') o.index=Math.max(0,o.index-1); else if(action==='down') o.index=Math.min(items.length-1,o.index+1); else if(action==='a'){ S.overlay=null; dest(items[o.index].id); } return {state:S,effects:fx}; }
   if(o.type==='confirm'){ if(action==='b'||action==='start'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='left'||action==='right'||action==='up'||action==='down') o.index=o.index?0:1; else if(action==='a'){ if(o.index===1&&o.what==='clear-history'){ fx.push({type:'clear-history'}); fx.push({type:'persist'}); say('Play history cleared on this console and, when connected, on Windows.'); } S.overlay=null; } return {state:S,effects:fx}; }
  }
  // ---- START anywhere opens the main menu overlay ----
- if(action==='start'){ S.overlay={type:'start',index:0,below:null}; return {state:S,effects:fx}; }
+ if(action==='start'){ S.overlay={type:'start',index:0,below:null,game:currentGame()}; return {state:S,effects:fx}; }
 
  const sec=S.section; const L=list(); const ids=L.ids; const n=ids.length;
  if(S.index>=n) S.index=Math.max(0,n-1);
@@ -150,10 +160,10 @@ function homeDispatch(S0, model, action, env){
   else if(action==='b'){ go({type:'recent'}); S.zone='viewall'; }
   return {state:S,effects:fx}; }
  // ---- Settings ----
- if(sec.type==='settings'){ const items=homeSettingsItems(model); const m=items.length; if(S.settingsIndex>=m) S.settingsIndex=m-1;
+ if(sec.type==='settings'){ const items=homeSettingsItems(model,S); const m=items.length; if(S.settingsIndex>=m) S.settingsIndex=m-1;
   if(action==='up'){ if(S.settingsIndex>0) S.settingsIndex--; else S.zone=!!geo.map?'map':'nav'; } else if(action==='down') S.settingsIndex=Math.min(m-1,S.settingsIndex+1);
   else if(action==='left'&&geo.navAxis==='vertical') S.zone='nav';
-  else if(action==='a'){ const it=items[S.settingsIndex]; if(it.id==='theme') S.overlay={type:'theme',index:HOME_THEMES.indexOf(S.theme),below:null}; else if(it.id==='reduced'){ fx.push({type:'setting',key:'reduced_motion',value:!model.settings.reduced_motion}); fx.push({type:'persist'}); } else if(it.id==='hints'){ fx.push({type:'setting',key:'hints',value:!model.settings.hints}); fx.push({type:'persist'}); } else if(it.id==='history') go({type:'history'}); else if(it.id==='clear') S.overlay={type:'confirm',what:'clear-history',index:0,text:'Clear Play History? This removes the launch history on this console and, when connected, in Classic Cart Studio for Windows. Favorites, games and folders are not affected. This cannot be undone.'}; }
+  else if(action==='a'){ const it=items[S.settingsIndex]; if(it.id==='controllers') fx.push({type:'controllers'}); else if(it.id==='gpdefaults') fx.push({type:'gameplay_defaults'}); else if(it.id==='gamesettings') fx.push({type:'game_settings',id:S.gsTarget&&model.games.some(g=>g.id===S.gsTarget)?S.gsTarget:null}); else if(it.id==='theme') S.overlay={type:'theme',index:HOME_THEMES.indexOf(S.theme),below:null}; else if(it.id==='reduced'){ fx.push({type:'setting',key:'reduced_motion',value:!model.settings.reduced_motion}); fx.push({type:'persist'}); } else if(it.id==='hints'){ fx.push({type:'setting',key:'hints',value:!model.settings.hints}); fx.push({type:'persist'}); } else if(it.id==='music'){ fx.push({type:'music'}); say('HOME Music '+(homeMusicValue()==='On'?'Off':'On')); } else if(it.id==='history') go({type:'history'}); else if(it.id==='clear') S.overlay={type:'confirm',what:'clear-history',index:0,text:'Clear Play History? This removes the launch history on this console and, when connected, in Classic Cart Studio for Windows. Favorites, games and folders are not affected. This cannot be undone.'}; }
   else if(action==='b'){ const prev=S.memo.__prevSection; go(prev&&prev.type!=='settings'?prev:{type:'allgames'}); }
   return {state:S,effects:fx}; }
  // ---- game listings (All Games, folder, category, Favorites, Recently Played) ----
@@ -167,7 +177,9 @@ function homeDispatch(S0, model, action, env){
  else if(action==='b'){ if(sec.type!=='allgames'){ const prev=S.memo.__prevSection; if(sec.type==='folder'){ const f=homeFolder(model,sec.id); go(f&&f.parent?{type:'browse',id:f.parent}:{type:'browse'}); const mem=S.memo['browse-parent:'+sec.id]; if(mem) S.browseIndex=mem.index; } else if(sec.type==='category') go({type:'browse'}); else go(prev&&homeLocKey(prev)!==homeLocKey(sec)?prev:{type:'allgames'}); } }
  return {state:S,effects:fx};
 }
-function homeSettingsItems(model){ return [{id:'theme',label:'Change Theme',group:'Appearance & Controls'},{id:'reduced',label:'Reduced motion',value:model.settings&&model.settings.reduced_motion?'On':'Off',group:'Appearance & Controls'},{id:'hints',label:'On-screen control hints',value:model.settings&&model.settings.hints!==false?'On':'Off',group:'Appearance & Controls'},{id:'history',label:'View All History',group:'Play History'},{id:'clear',label:'Clear Play History',group:'Play History'},{id:'info',label:'Information',value:'HOME runtime ccs-home/1 · model '+HOME_SCHEMA,group:'Information'}]; }
+// HOME Music (D-81): this device's choice (home-music.js), not the collection's; Off when the page has no HOME Music
+function homeMusicValue(){ return typeof HM!=='undefined'&&HM.pref==='on'?'On':'Off'; }
+function homeSettingsItems(model,S){ const tg=S&&S.gsTarget&&model.games.find(g=>g.id===S.gsTarget); return [{id:'controllers',label:'Controllers & Keyboard',group:'Controllers & Gameplay'},{id:'gpdefaults',label:'Gameplay Defaults',value:'Rapid fire for all games',group:'Controllers & Gameplay'},{id:'gamesettings',label:'Selected Game Settings',value:tg?tg.title:'Choose a game',group:'Controllers & Gameplay'},{id:'theme',label:'Change Theme',group:'Appearance & Controls'},{id:'reduced',label:'Reduced motion',value:model.settings&&model.settings.reduced_motion?'On':'Off',group:'Appearance & Controls'},{id:'hints',label:'On-screen control hints',value:model.settings&&model.settings.hints!==false?'On':'Off',group:'Appearance & Controls'},{id:'music',label:'HOME Music',value:homeMusicValue(),group:'Appearance & Controls'},{id:'history',label:'View All History',group:'Play History'},{id:'clear',label:'Clear Play History',group:'Play History'},{id:'info',label:'Information',value:'HOME runtime ccs-home/1 · model '+HOME_SCHEMA,group:'Information'}]; }
 // the zone a section is used in, where focus goes when the player comes back into it from the theme's navigation (M2.5): every
 // actionable focus is a drawn focus. Search returns to its last Search zone while that zone has something to focus.
 const HOME_SEARCH_ZONES=['keyboard','suggest','results'];
@@ -183,6 +195,16 @@ function homeRepairZone(S, model, search){ const t=S.section.type, z=S.zone, map
 function homeReconcileState(S, model, search){ const L=homeListing(model,S,search); const n=L.ids.length; if(S.pendingFocus){ const k=L.ids.indexOf(S.pendingFocus); if(k>=0) S.index=k; delete S.pendingFocus; } if(S.index>=n) S.index=Math.max(0,n-1); if(S.resultIndex>=n) S.resultIndex=Math.max(0,n-1); if(S.overlay&&S.overlay.type==='details'&&!model.games.some(g=>g.id===S.overlay.id)) S.overlay=null; homeRepairZone(S,model,search); return S; }
 // track "where did I come from" for B
 function homeTrackPrev(Sbefore, Safter){ if(homeLocKey(Sbefore.section)!==homeLocKey(Safter.section)) Safter.memo.__prevSection=Sbefore.section; return Safter; }
-function homeStep(S, model, action, env){ const r=homeDispatch(S,model,action,env); homeTrackPrev(S,r.state); if(r.state.section.type==='search'){ if(HOME_SEARCH_ZONES.includes(r.state.zone)) r.state.searchZone=r.state.zone; else if(S.section.type==='search'&&HOME_SEARCH_ZONES.includes(S.zone)) r.state.searchZone=S.zone; } return r; }   // the last Search zone, for coming back (M2.5)
+// F13 (D-95): the actionable hints (A, B, SELECT, START and the HOME Music note; never the D-pad's explanation), as the controller sees them
+function homeFooterItems(S,model,env){ const it=(typeof hmLegendItems==='function'?hmLegendItems(S,model):[]).map(x=>x[0]).filter(k=>k!=='dpad').map(k=>k.toLowerCase()); if(env&&env.music) it.push('music'); return it; }
+function homeStep(S, model, action, env){
+ if(S.footer!=null&&!(S.overlay&&S.overlay.type!=='details')){ const items=homeFooterItems(S,model,env), T=JSON.parse(JSON.stringify(S)); let f=Math.min(T.footer,Math.max(0,items.length-1));
+  if(action==='left'){ T.footer=Math.max(0,f-1); return {state:T,effects:[]}; } if(action==='right'){ T.footer=Math.min(items.length-1,f+1); return {state:T,effects:[]}; }
+  if(action==='up'||action==='b'||action==='down'){ T.footer=null; return {state:T,effects:[]}; }
+  if(action==='a'&&items.length){ const it=items[f]; if(it==='music') return {state:T,effects:[{type:'music'}]}; T.footer=null; return homeStep(T,model,it,env); }   // exactly that hint's action, once
+  T.footer=null; S=T; }   // START and SELECT: their own actions
+ const r=homeDispatch(S,model,action,env);
+ if(action==='down'&&!r.effects.length&&(!S.overlay||S.overlay.type==='details')&&JSON.stringify([S.index,S.zone,S.browseIndex,S.section,S.overlay,S.descScroll,S.detailsFocus])===JSON.stringify([r.state.index,r.state.zone,r.state.browseIndex,r.state.section,r.state.overlay,r.state.descScroll,r.state.detailsFocus])&&['games','browse'].includes(S.zone)) r.state.footer=0;   /* a Down that moved nothing: the hints */
+ homeTrackPrev(S,r.state); if(r.state.section.type==='search'){ if(HOME_SEARCH_ZONES.includes(r.state.zone)) r.state.searchZone=r.state.zone; else if(S.section.type==='search'&&HOME_SEARCH_ZONES.includes(S.zone)) r.state.searchZone=S.zone; } return r; }   // the last Search zone, for coming back (M2.5)
 
 if(typeof module!=='undefined'&&module.exports){ module.exports={homeDescSteps,HOME_NAV,HOME_START_MENU,HOME_KEYS,HOME_KEY_COLS,HOME_KEY_ROWS,HOME_UTIL,HOME_REPEAT,HOME_MARQUEE_DELAY,homeInitialState,homeLocKey,homeSortable,homeListing,homeSearchResults,homeSuggestions,homeBrowseItems,homeGridMove,homeLineMove,homeRepeatStep,homeRelease,homeDispatch,homeStep,homeSettingsItems,homeReconcileState,homeTrackPrev,homeSectionZone,homeRepairZone,HOME_SEARCH_ZONES}; }

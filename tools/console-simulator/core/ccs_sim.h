@@ -71,6 +71,9 @@ const char *lstate_name(lstate s);
 
 /* ---------- diagnostic framebuffer (software RGB, PPM output) ---------- */
 typedef struct { int w, h; uint8_t *rgb; } framebuffer;
+/* the HOME's drawing scale: device pixels per stage pixel. 1 everywhere (the console's 1280 x 720) except the computer's game window,
+   which may set 2 before loading a HOME (every framebuffer the HOME draws into is then the stage size times 2) */
+extern int ccs_scale;
 int fb_init(framebuffer *fb, int w, int h);
 void fb_free(framebuffer *fb);
 void fb_clear(framebuffer *fb, uint8_t r, uint8_t g, uint8_t b);

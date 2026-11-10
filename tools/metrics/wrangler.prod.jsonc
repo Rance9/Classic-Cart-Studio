@@ -1,0 +1,15 @@
+// Classic Cart Studio optional usage counts: the PRODUCTION collector, on its own hostname in the CCS zone (nothing else uses it).
+// GPL-3.0-or-later. Promoted only with a reviewed release; no Worker logs (observability off); not on workers.dev.
+{
+  "name": "classic-cart-studio-metrics",
+  "main": "collector.mjs",
+  "compatibility_date": "2026-11-10",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [ { "pattern": "metrics.classiccartstudio.com", "custom_domain": true } ],
+  "observability": { "enabled": false },
+  "vars": { "METRICS_ENABLED": "true", "ALLOWED_ORIGINS": "https://classiccartstudio.com" },
+  "analytics_engine_datasets": [
+    { "binding": "CCS_METRICS", "dataset": "ccs_usage" }
+  ]
+}

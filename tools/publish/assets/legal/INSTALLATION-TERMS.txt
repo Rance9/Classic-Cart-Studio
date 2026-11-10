@@ -1,0 +1,167 @@
+﻿Classic Cart Studio for Windows
+
+Open-Source License, Installation Terms and Risk Acknowledgment
+
+Document CCS-INSTALLATION-TERMS, version 1.0. Effective with Classic Cart Studio 0.8.0 (November 2026), the first release to present these terms. The version presented with a release remains available with that release's materials (section 18).
+
+PLEASE READ BEFORE CONTINUING SETUP. Classic Cart Studio is independent, open-source software. It is not a Nintendo product. Managing game files, restoring backups, playing games and modifying a console can involve legal, technical and data-loss risks. Subject to rights that applicable law does not allow anyone to exclude, the software is supplied without warranty and with the liability limitations described below.
+
+YOUR OPEN-SOURCE RIGHTS COME FIRST. This document does not replace the GNU General Public License or any component's own license, require a proprietary software license, or add restrictions on rights those licenses grant. A setup acknowledgment does not authorize a console modification, a data-replacing operation, advertising tracking or a purchase.
+
+1. Provider, product and scope
+
+Classic Cart Studio ("CCS") is an independent project maintained by the individual developer who publishes under the name Rance9 (the "Provider"). The project name does not identify a separately incorporated company. References to the Provider include that individual acting as the project's publisher, not Nintendo or the maintainers of independent third-party projects.
+
+These terms describe the official CCS Windows distribution, its installer, included player and supporting tools, documentation, and related features used through that installation (collectively, the "Software"). Some features may interact with the CCS website, a browser, a controller, local files, or separately installed console tools. Features depend on the release and may be unavailable, experimental or subject to separate confirmation.
+
+This document is not a license for your game collection, a manufacturer's hardware warranty, a promise of console compatibility, or a contract between you and another project's authors. A recipient of GPL-covered software receives the applicable license rights directly from its licensors, whether or not that recipient used this installer. Merely visiting a website does not establish acceptance of these installer terms.
+
+2. Licenses and order of precedence
+
+CCS's own code is distributed under the GNU General Public License, version 3 or, at your option, any later version (GPL-3.0-or-later), as identified in the distribution. Included components retain their own applicable licenses. The full license texts, copyright notices, source information and component descriptions accompany the distribution in LICENSE, THIRD_PARTY_NOTICES.md and the relevant component notices. Corresponding source for official releases is made available through the project's repository and release materials at https://github.com/Rance9/Classic-Cart-Studio.
+
+Those licenses, not this document, determine your rights to run, study, copy, modify and redistribute covered code, including rights concerning commercial use. This document does not prohibit reverse engineering, interoperability work, security research, modified builds, redistribution or other conduct permitted by those licenses or applicable law. It does not impose a per-device license, mandatory account, royalty or noncommercial-use restriction on GPL-covered software.
+
+If a provision here conflicts with an applicable open-source license, that provision does not apply to the covered material or the exercise of those license rights. No additional contractual assent is a condition of possessing or running GPL-covered code. A click-through may present the GPL and acknowledge risk notices; it does not change that rule. Warranty and liability provisions apply only to the extent permitted by the applicable license and mandatory law.
+
+3. Setup acknowledgment and authority
+
+Before continuing the official setup process, you must have an opportunity to read and retain this document and the applicable licenses. Selecting the expressly labeled "I agree" control records your assent to these supplemental terms only to the extent legally applicable and compatible with section 2, and your acknowledgment of the risk notices. It does not represent that you have read documents that were not made available to you.
+
+If you act for an organization or another person, you must have authority for any commitments or device operations you undertake for them. A person who cannot legally enter an applicable agreement should have a parent, guardian or other authorized adult handle installation and any optional operations requiring consent. An installer checkbox is not age verification, parental consent to data collection, or a substitute for any consent required by law.
+
+You may cancel setup before installation. Canceling does not terminate any software rights you already have under an open-source license. A saved acknowledgment is evidence of the installer action, not proof that every clause is enforceable or that every later operation was authorized.
+
+4. Independent project; no endorsement or game license
+
+CCS is not produced, licensed, sponsored, approved or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Other names and marks belong to their respective owners. References to products, games, controllers and compatibility identify the products or describe interoperability; they do not establish affiliation or endorsement.
+
+Hakchi2 CE, emulator projects, operating systems, browsers, hosting services and other third-party tools are independent projects or services. Their inclusion, compatibility or attribution does not make their authors responsible for CCS or create an agency, partnership or joint venture with the Provider.
+
+CCS does not grant you rights to Nintendo's software or hardware designs, commercial game ROMs, firmware, BIOS files, music, box art, characters, trademarks or other third-party works. Third-party assets do not become GPL-licensed merely because they appear in an open-source application. Describing an illustration as fan art or AI-generated does not itself establish ownership, permission, fair use or a right of redistribution. Any separately identified rights or permissions remain subject to their own terms.
+
+5. Game files, copyright and lawful use
+
+Official CCS distributions do not supply commercial game ROMs or operate a hosted ROM-sharing service. Catalog entries, titles, technical descriptions, cover images and compatibility information are not playable game licenses. You supply game files for features that require them. Separately identified original test software or homebrew remains subject to its own stated license.
+
+You are responsible for determining whether you may possess, copy, extract, modify, play, transfer or back up each file in your circumstances and jurisdiction. Owning a cartridge, owning a console, finding a download online, describing a work as abandoned, or selecting a confirmation checkbox does not by itself establish all those rights. A personal-backup exception, where one exists, has its own conditions; it is not a general permission to distribute copyrighted games.
+
+Copyright, access-control and anti-circumvention rules are separate issues. CCS does not provide legal advice, determine that a particular dumping or modification method is lawful, or grant an exemption from those rules. Nothing here requires you to surrender a lawful exception, fair-use defense, interoperability right or other right provided by law.
+
+The Software's file-validation, checksum and identification features address technical properties. They do not authenticate ownership or establish legal permission. Removing a sharing feature or keeping processing local does not legalize an otherwise unlawful act.
+
+6. Your content and locally created files
+
+You and the relevant rightsholders retain their rights in files, artwork, descriptions, collections, saved games and other material you supply. Using CCS does not transfer ownership of that material to the Provider or grant permission to use it for advertising, training an AI system, public distribution or an unrelated purpose.
+
+Functions you request may read, copy, convert, cache, display, execute or package local material as needed for those functions. Choosing a user-controlled output folder, including a cloud-synchronized folder, can cause another service to process the output under that service's terms. If you later send a file using another application, you are responsible for that transmission and the permissions it requires.
+
+Do not place confidential, identifying or third-party material in a public bug report without appropriate permission. A voluntary submission is subject to the terms of the submission channel and any separately stated contribution terms; this document does not transfer ownership of your reviews or contributions.
+
+7. Backups, restore, saves and storage
+
+KEEP AN INDEPENDENT COPY OF IMPORTANT DATA BEFORE IMPORTING, RESTORING, UPGRADING, MODIFICATION OR DEVICE WORK. Backups can be incomplete, damaged, outdated, incompatible, unavailable or lost with the device on which they are stored. A successful hash comparison confirms a particular integrity comparison; it does not prove that a device or its original software can be restored.
+
+A collection backup, Full Studio Backup, console data export, game save slot, cartridge save and original-console recovery image are different things. Each contains only the data included by that operation and release. A CCS data export is not automatically a backup of Nintendo's original games, saves, kernel or complete console storage. Do not assume data created after a backup is included in it.
+
+Review the operation's preview, counts, conflicts, replacement choices, warnings and completion report. An error, warning, refused file or partial result is not a successful restore. Confirm that important restored files and saved games actually work before deleting originals. Compatibility can depend on the exact ROM and player version. A preserved-original folder, rollback mechanism or retry option reduces some risks but is not a guarantee against all data loss.
+
+Browser storage, installed-web-app storage, Windows profiles and console storage may be separate. Clearing site data, uninstalling software, browser eviction, private browsing, device resets, storage limits, security software and system changes can remove or make data inaccessible. A local copy is not a cloud backup or a promise of automatic synchronization. Use the actual export and backup functions where appropriate.
+
+8. Console modification, hardware and recovery risks
+
+CONSOLE MODIFICATION CAN CAUSE LOSS OF GAMES OR SAVES, CORRUPTED STORAGE, FAILURE TO START, LOSS OF FUNCTIONALITY, OR A DEVICE THAT CANNOT PRACTICALLY BE RECOVERED. It may affect manufacturer service eligibility, contractual warranty coverage or support, subject to applicable law. A recovery method may fail, and restoring factory operation is not guaranteed.
+
+Risks include incompatible hardware or firmware, incorrect console identification, outdated or incomplete backups, interrupted power, unreliable USB connections, unsupported drivers, failed writes, wrong files, storage exhaustion and third-party-tool defects. Estimates, simulations, previews, tests on another platform and a prior successful operation do not prove that a particular physical device or later operation will succeed.
+
+Installing the Windows application does not itself authorize a kernel installation, console-storage write, driver installation, firmware dump, recovery, uninstall of console software or any other physical console action. Follow the release's actual capabilities, prerequisites, operation-specific warnings and confirmation steps. A disabled feature is not enabled by this agreement. Do not bypass an interlock or repeat an uncertain or failed write merely because an earlier step succeeded; stop and establish the state before further device work.
+
+You are responsible for deciding whether to proceed with an optional device operation, using hardware you own or are authorized to administer, and for the physical cable, power and controller actions you perform. This acknowledgment is not a release of liability that applicable law prohibits, and it does not excuse a false statement about a feature or a known risk.
+
+9. Compatibility, gameplay and safety
+
+Compatibility and performance can differ by game, exact ROM revision, controller or adapter, browser, operating system, processor, display, console and firmware. Some peripherals, special controls, save formats, mapper features or timing-sensitive behavior may be unsupported or behave differently from original hardware. Speed, storage and fit estimates are estimates unless expressly identified as measurements of your device.
+
+Previews and emulation are not certifications of console performance. A build labeled preview, test, beta or pre-1.0 can contain unfinished behavior. Follow the capabilities and limitations stated for the specific release. No general compatibility statement promises that every game, feature, input device or saved game will work.
+
+Use normal hardware, electrical and gameplay precautions and follow the health warnings supplied with your device and games. Flashing visuals, loud sound and prolonged play can cause discomfort or other harm; stop if you experience adverse effects. The Software is intended for collection management and entertainment, not safety-critical, medical, emergency or other systems where failure could endanger a person.
+
+10. Privacy, network activity and security
+
+The Privacy Notice supplied with your release describes the actual local storage, network requests, diagnostic records, optional services and available choices. It is a disclosure of data practices, not a waiver of privacy rights. This document does not consent on your behalf to optional analytics, targeted advertising, sale or sharing of personal data, or access to unrelated local files.
+
+Local processing does not mean that every part of the product is permanently offline. Hosting providers, downloads, external links, update checks, operating-system components, local companion communication and later expressly disclosed optional services can involve network activity. Cloud synchronization or backup software you use can also transfer local files. Review the relevant notice and choices rather than assuming that nothing can leave a device.
+
+CCS is not a managed backup, file escrow, security-monitoring or incident-recovery service. No software can guarantee perfect security or prevent every malicious file, vulnerability, corrupted package or unauthorized action. Keep appropriate backups and system protections and use trusted sources. Report sensitive vulnerabilities through the private channel described in SECURITY.md; do not post credentials, personal data, ROMs, firmware or recovery dumps publicly.
+
+11. Advertising, sponsorship and optional payments
+
+The Provider may introduce limited advertising, sponsorships or affiliate links in future website or Windows-app releases. This is a possibility, not a statement that paid advertising or an advertising network is active in this release. Such support does not alter the licenses governing the code or restrict your rights to modified versions under those licenses.
+
+Paid placements and material commercial relationships will be identified as required by law. An advertisement or external offer is not a guarantee by the Provider of an advertiser's products, statements or services. Purchases, subscriptions, delivery, refunds and disputes with a separate merchant are governed by that merchant's terms and applicable law. This does not exclude responsibility that the law places on the Provider for its own conduct or representations.
+
+INSTALLING CCS OR ACKNOWLEDGING THESE TERMS IS NOT CONSENT TO FUTURE ADVERTISING TRACKING. Before introducing new data practices, the Provider must give the notices, obtain the permissions, honor applicable opt-out choices and implement protections required by law, including protections for children where relevant. Declining an optional data-use consent does not waive privacy or open-source rights. The applicable notice must identify actual practices and choices when a feature is introduced.
+
+Voluntary donations or sponsorship do not purchase a software license, a support response, continued development, particular features, a hardware warranty or a successful recovery unless a separate express agreement says so. Merchandise and separately purchased services have their own terms. No recurring charge or paid subscription is authorized by this installer acknowledgment.
+
+12. Updates, support and availability
+
+Unless the Provider separately agrees in writing or mandatory law requires otherwise, the project has no service-level commitment and no obligation to provide a particular update, security fix, support response, new feature, compatibility change, data-conversion service or continued hosted service. A support reply is not a guarantee that a proposed action will succeed.
+
+Future releases can change available features, requirements or optional services. That possibility does not permit retroactive revocation of an existing open-source license, removal of statutory rights, undisclosed tracking or silent alteration of a separately binding promise. This document alone does not authorize an automatic update, remote file deletion or data-replacing operation. Obtain release information and update choices from the actual product behavior and accompanying notices.
+
+13. Disclaimer of warranties
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW AND THE APPLICABLE COMPONENT LICENSES, THE SOFTWARE, DOCUMENTATION, CATALOG DATA, PREVIEWS, COMPATIBILITY INFORMATION AND OTHER CCS MATERIALS ARE PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT EXPRESS OR IMPLIED WARRANTIES. THE PROVIDER DISCLAIMS IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NONINFRINGEMENT, AND WARRANTIES ARISING FROM COURSE OF DEALING, USAGE OR TRADE PRACTICE, TO THE EXTENT THOSE WARRANTIES MAY LAWFULLY BE DISCLAIMED.
+
+THERE IS NO PROMISE THAT THE SOFTWARE WILL BE ERROR-FREE, SECURE, UNINTERRUPTED, ACCURATE, COMPATIBLE WITH EVERY FILE OR DEVICE, OR CAPABLE OF PRESERVING OR RECOVERING ALL DATA OR HARDWARE. YOU BEAR THE RISK OF ITS QUALITY AND PERFORMANCE AND, EXCEPT WHERE LAW OR AN EXPRESS BINDING WARRANTY PROVIDES OTHERWISE, THE COST OF NECESSARY SERVICE, REPAIR OR CORRECTION.
+
+A contributor's license may contain its own disclaimer, which remains applicable on its own terms. These notices do not override a non-excludable legal guarantee or an express warranty the Provider actually gives. They do not turn false advertising or a misleading factual claim into an authorized statement.
+
+14. Limitation of liability
+
+SUBJECT TO SECTION 15 AND TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW AND THE APPLICABLE LICENSE, THE PROVIDER WILL NOT BE LIABLE FOR DAMAGES ARISING OUT OF OR CONNECTED WITH THE SOFTWARE, ITS USE OR INABILITY TO BE USED, AN IMPORT OR RESTORE, A GAME OR SAVE, A CONSOLE OPERATION, OR RELIANCE ON PROVIDED INFORMATION. THIS INCLUDES DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL AND EXEMPLARY DAMAGES; LOSS OF PROFITS, REVENUE, OPPORTUNITY, USE OR DATA; INACCURATE DATA; LOSS OF GAME PROGRESS; HARDWARE DAMAGE; AND THE COST OF REPAIR, RESTORATION OR REPLACEMENT, UNDER CONTRACT, TORT (INCLUDING ORDINARY NEGLIGENCE) OR ANOTHER LEGAL THEORY, EVEN IF THE POSSIBILITY OF LOSS WAS KNOWN.
+
+IF APPLICABLE LAW DOES NOT ALLOW LIABILITY TO BE EXCLUDED BUT DOES ALLOW IT TO BE LIMITED, THE PROVIDER'S TOTAL AGGREGATE LIABILITY FOR CLAIMS CONNECTED WITH THE SOFTWARE WILL NOT EXCEED THE GREATER OF US $100 OR THE AMOUNT YOU PAID THE PROVIDER SPECIFICALLY FOR THE AFFECTED SOFTWARE OR SERVICE DURING THE TWELVE MONTHS BEFORE THE EVENT GIVING RISE TO THE CLAIM. THIS FALLBACK CAP DOES NOT CREATE LIABILITY OR A WARRANTY WHERE NONE OTHERWISE EXISTS.
+
+An independent contributor, distributor or component author may rely on the liability protections in its own applicable license; this paragraph does not purport to rewrite that license or make that person a party to these supplemental terms. The stated limits apply only where they are lawful, properly incorporated and otherwise enforceable.
+
+15. Rights and liabilities that are not excluded
+
+NOTHING HERE EXCLUDES OR LIMITS LIABILITY FOR FRAUD, FRAUDULENT MISREPRESENTATION, INTENTIONAL MISCONDUCT, GROSS NEGLIGENCE, OR DEATH OR PERSONAL INJURY CAUSED BY NEGLIGENCE; OR A LIABILITY, REMEDY, GUARANTEE OR RIGHT THAT APPLICABLE LAW DOES NOT PERMIT TO BE EXCLUDED OR LIMITED.
+
+You keep applicable mandatory consumer, privacy, accessibility and product rights. Nothing prevents an honest review, lawful criticism, security reporting, a complaint to a regulator, cooperation with authorities, or exercise of an applicable legal remedy. Acknowledging a risk does not by itself establish that you assumed a legally non-waivable risk or that the Provider met every duty imposed by law.
+
+If a warranty, exclusion or limitation cannot lawfully apply to you, it does not apply to that extent. Neither a "free" or "open-source" label nor an optional payment automatically determines which legal protections apply.
+
+16. No additional software-use penalty or blanket indemnity
+
+This installer document does not require you to indemnify the Provider merely for running, modifying or redistributing GPL-covered code, waive your right to sue, pay the Provider's legal fees for making a complaint, keep defects secret, or assign ownership of a review. Existing law and the actual component licenses continue to determine responsibility for independently unlawful conduct. This section does not excuse copyright infringement or another legal violation.
+
+17. Disputes and governing law
+
+To the extent these supplemental terms validly form an agreement between you and the Provider, Nebraska law governs that agreement, without applying a conflict-of-laws rule that would require a different law. This choice does not displace mandatory protections, applicable choice-of-law rules or a right to bring a claim in a court available to you under mandatory law. It does not choose the governing law for an independent third-party license or agreement.
+
+Where a forum may lawfully be agreed, disputes concerning these supplemental terms may be brought in a state court in Nebraska or a federal court located in Nebraska with subject-matter jurisdiction. This provision does not require exclusive litigation there or waive an otherwise available small-claims, consumer or regulatory remedy. You may contact the project first to seek a practical resolution, but doing so is not a mandatory prerequisite to an urgent or legally time-limited remedy.
+
+There is no mandatory arbitration, class-action waiver, jury-trial waiver, shortened limitation period or automatic prevailing-party fee provision in this document. Any such provision would require a separately considered, lawful agreement; it is not hidden in this acknowledgment.
+
+18. Changes, duration and severability
+
+The version presented with a release remains available with that release's materials. A later published version of these supplemental terms does not retroactively change an earlier transaction merely because it appears on a website. Material new contractual obligations require legally sufficient notice and assent where required. Licenses and permissions already granted under the GPL are not revoked by publishing new installer text.
+
+You may stop using or uninstall the Software. Uninstallation may leave user data; consult the release's removal instructions before deleting anything. This document does not require destruction of your own content or of copies you may retain under an applicable open-source license. Termination and reinstatement of an open-source license are governed by that license, not by an arbitrary cancellation power added here.
+
+If a provision is invalid or unenforceable, it is omitted to the extent necessary rather than enlarged beyond the law, and the remaining lawful provisions continue to apply. A failure to enforce a provision once is not a waiver of it in every case. Any lawful warranty and liability provisions survive only as relevant to acts during their applicable period.
+
+19. Entire supplemental terms and communications
+
+This document states the supplemental installation notices and terms on its subject. It does not supersede the GPL, component notices, a separately applicable privacy notice, mandatory legal rights, or an express binding promise. A factual release statement or representation is not made irrelevant simply because it appears outside this document.
+
+Project information and ordinary non-sensitive questions: https://ClassicCartStudio.com/ and https://github.com/Rance9/Classic-Cart-Studio/issues. The issue tracker is public. Sensitive security reports should follow the private reporting procedure in the repository's SECURITY.md. Do not use a public issue to post personal details, copyrighted game files, firmware, keys or recovery dumps. These links are support channels, not consent to electronic service of legal process; use any legally required notice procedure applicable to the Provider.
+
+20. Installer acknowledgment
+
+I have had an opportunity to read and retain the Open-Source License, Installation Terms and Risk Acknowledgment, the GPL, and the third-party notices. I agree to these installation terms to the extent legally applicable and compatible with the controlling open-source licenses, and acknowledge the software, backup and console-modification risks and the warranty and liability provisions. I understand that my open-source and non-waivable legal rights are preserved, and that continuing setup does not authorize a console modification, tracking or a purchase.
+
+End of the Installation Terms, version 1.0.

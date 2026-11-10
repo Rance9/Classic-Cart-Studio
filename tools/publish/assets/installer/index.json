@@ -1,0 +1,24 @@
+{
+ "schema": "ccs-installer-art/1",
+ "source": "drawn in code by tools/publish/make_installer_art.py from the CCS cast, app icon and PixelifySans (OFL)",
+ "files": {
+  "wizard-panel-100.png": 18431,
+  "wizard-wordmark-100.png": 850,
+  "wizard-back-100.png": 20396,
+  "wizard-panel-125.png": 23770,
+  "wizard-wordmark-125.png": 764,
+  "wizard-back-125.png": 25442,
+  "wizard-panel-150.png": 29125,
+  "wizard-wordmark-150.png": 806,
+  "wizard-back-150.png": 30949,
+  "wizard-panel-175.png": 35396,
+  "wizard-wordmark-175.png": 854,
+  "wizard-back-175.png": 36150,
+  "wizard-panel-200.png": 41408,
+  "wizard-wordmark-200.png": 729,
+  "wizard-back-200.png": 43542,
+  "wizard-panel-250.png": 53486,
+  "wizard-wordmark-250.png": 1032,
+  "wizard-back-250.png": 53836
+ }
+}

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Classic Cart Studio console transport worker: protocol, console operations, the clovershell and SSH shells derived from
+       Hakchi2 CE 3.9.3 (GPL-3.0), the Gate G1 constants. GPL-3.0-or-later. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>CcsWorker</AssemblyName>
+    <RootNamespace>CcsWorker</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Product>Classic Cart Studio</Product>
+    <Copyright>Copyright (C) 2026 Rance9; derived parts (C) Hakchi2 CE authors. GPL-3.0-or-later.</Copyright>
+    <Version>0.1.0</Version>
+    <NoWarn>$(NoWarn);CS0162</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LibUsbDotNet" Version="2.2.29" />
+    <ProjectReference Include="..\Renci.SshNet\Renci.SshNet.csproj" />
+    <Reference Include="System.Web.Extensions" />
+    <InternalsVisibleTo Include="CcsWorker.Tests" />
+  </ItemGroup>
+</Project>

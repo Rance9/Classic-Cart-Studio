@@ -84,7 +84,7 @@ def main():
               csNew('Sentinel Mixed'); const ids=G.map(x=>x.id); ids.forEach(i=>sel.add(i)); persist(); render(); csSaveActiveNow(); (__LO__)(ids, G.slice(2,6).map(x=>x.id));
               window.__E=G; return JSON.stringify({ids, id:CS.active, own:G[4].id}); })()""".replace("__LO__", LOADOUTS))
             want = J(ed, f"JSON.stringify((()=>{{ const r=CS.items['{E['id']}']; return {{sel:r.sel, L:r.loadouts.map(l=>[l.name,l.sel,(l.home||{{}}).theme||null])}}; }})())")
-            ed.js(f"(async()=>{{ ROMSRC.clear(); await ccsAddRomSources(__E.map(x=>x.file)); closeColl(); $('collBody').innerHTML=''; ccsShareDialog('{E['id']}'); return 1; }})()")
+            ed.js(f"(async()=>{{ ROMSRC.clear(); await ccsAddRomSources(__E.map(x=>x.file)); closeColl(); $('collBody').innerHTML=''; ccsBackupDialog('{E['id']}'); return 1; }})()")
             ed.wait_for("!!$('ccsExp')&&!$('ccsExp').disabled", timeout=60); time.sleep(0.3); shot(ed, "1b-share-or-export-ready")
             st = J(ed, f"(async()=>JSON.stringify(await ccsExportUi('{E['id']}', null)))()")
             ok("E_complete_package_exported_through_share_or_export", st.get("ready") == 8 and st.get("ack") == "Export Collection with ROM Files" and st.get("name") == "Sentinel Mixed.ccs", st)

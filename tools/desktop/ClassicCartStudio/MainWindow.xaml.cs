@@ -29,6 +29,8 @@ namespace ClassicCartStudio
         int devtoolsPort;
         internal string LastNavigation = "not yet";
         DispatcherTimer blockTimer; int blockStep; bool hitLogged;
+        CoreWebView2Environment wvEnv; PlayerBridge bridge; bool exitConfirmed;   // the Preview's game player (D-104) and the close that asked first (F6)
+        int openGen;   // the Preview's latest "embed-open"; an earlier one still waiting for the previous player is dropped
 
         public MainWindow(string[] args)
         {
@@ -180,7 +182,7 @@ namespace ClassicCartStudio
                 var opts = new CoreWebView2EnvironmentOptions();
                 var extra = App.Dev ? (Environment.GetEnvironmentVariable("CCS_BROWSER_ARGS") ?? "") : "";   // development experiments only
                 if (devtoolsPort > 0 || extra.Length > 0) opts.AdditionalBrowserArguments = ((devtoolsPort > 0 ? "--remote-debugging-port=" + devtoolsPort + " " : "") + extra).Trim();
-                var env = await CoreWebView2Environment.CreateAsync(null, App.WebViewDataFolder, opts);
+                var env = await CoreWebView2Environment.CreateAsync(null, App.WebViewDataFolder, opts); wvEnv = env;
                 await web.EnsureCoreWebView2Async(env);
                 var core = web.CoreWebView2;
                 core.Settings.IsStatusBarEnabled = false; core.Settings.AreDevToolsEnabled = App.Dev || devtoolsPort > 0; core.Settings.IsZoomControlEnabled = true;
@@ -316,10 +318,21 @@ namespace ClassicCartStudio
 
         static string JsonStr(string s) { return "\"" + (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "") + "\""; }
 
-        // Messages come only from the bundled recovery page (about:blank origin). Pages from the website have no message channel.
+        // Messages come from the bundled recovery page (about:blank origin) and, for the Preview's game player only, from the bundled
+        // Studio (this window's own backend origin): "embed-open", "embed-cmd <one checked command>", "embed-dispose". Nothing else.
         void OnWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
-            var source = e.Source ?? ""; if (!source.StartsWith("about:")) return;
+            var source = e.Source ?? "";
+            if (App.IsApprovedOrigin(App.OriginOf(source)))
+            {
+                string m = null; try { m = e.TryGetWebMessageAsString(); } catch { }
+                if (m == null) return;
+                if (m == "embed-open") _ = OpenBridge(++openGen);
+                else if (m.StartsWith("embed-cmd ")) bridge?.Command(m.Substring(10));
+                else if (m == "embed-dispose") { openGen++; if (bridge != null && !bridge.Active) { bridge.Dispose(); bridge = null; } }
+                return;
+            }
+            if (!source.StartsWith("about:")) return;
             string cmd = ""; try { var m = Regex.Match(e.WebMessageAsJson ?? "", "\"cmd\"\\s*:\\s*\"([a-z]+)\""); if (m.Success) cmd = m.Groups[1].Value; } catch { }
             switch (cmd)
             {
@@ -328,6 +341,22 @@ namespace ClassicCartStudio
                 case "diagnostics": ShowDiagnostics(); break;
                 case "exit": Close(); break;
             }
+        }
+
+        // the Preview opened again while the previous one's player is still ending (closed a moment ago): wait for it (bounded, without
+        // blocking this window's thread), then open; one player at a time. A player that does not end is reported as busy.
+        async Task OpenBridge(int gen)
+        {
+            var old = bridge;
+            if (old != null && old.Active)
+            {
+                old.LetGo();   // its own late "ended" is not this new Preview's
+                bool ended = await Task.Run(() => old.WaitEnded(10000));
+                if (gen != openGen) return;
+                if (!ended) { _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsPlayerBusy && window.__ccsPlayerBusy()"); return; }
+            }
+            if (gen != openGen) return;
+            bridge?.Dispose(); bridge = new PlayerBridge(this, web.CoreWebView2, wvEnv); bridge.Open();
         }
 
         // Local Network Access: the approved website inside this window may reach the backend on 127.0.0.1 without a prompt
@@ -341,7 +370,7 @@ namespace ClassicCartStudio
 
         // Links and files handed to the application (command line, or forwarded by a second instance):
         //   classiccartstudio://open                      bring the window forward
-        //   classiccartstudio://share/<id>                a retired public share link: the page explains that collections are shared as .ccs files
+        //   classiccartstudio://share/<id>                a retired public share link: the page explains that shared links are no longer used
         //   classiccartstudio://handoff?offer=<id>        a collection the website offered (the existing inbox)
         //   classiccartstudio://package?offer=<id>        a .ccs package the website handed to this computer's backend (staged there)
         //   <path>.ccs                                    a collection package opened from File Explorer (double-click, Open With)
@@ -430,9 +459,29 @@ namespace ClassicCartStudio
 
         void OnClosingWindow(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (closing) return; closing = true; SavePlacement();
+            if (closing) return;
+            // F6 (D-91): the games and HOME this window owns close with it, after asking (Cancel is the default)
+            if (!exitConfirmed && bridge != null && bridge.Active)
+            {
+                e.Cancel = true; App.Log("close asked while the Preview's player is open");
+                Dispatcher.BeginInvoke(new Action(() => { if (bridge.ConfirmStudioExit(this)) { exitConfirmed = true; Close(); } }));
+                return;
+            }
+            if (!exitConfirmed && OtherPlayerOpen())
+            {
+                e.Cancel = true;
+                Dispatcher.BeginInvoke(new Action(() => { if (PlayerBridge.Ask(this, "Close Classic Cart Studio?", "A game window from Classic Cart Studio is open. Closing Classic Cart Studio closes it too: it writes the game's own cartridge save and ends. Anything you have not saved to a save slot is lost.", "Keep Studio Open", "Close Studio")) { exitConfirmed = true; Close(); } }));
+                return;
+            }
+            closing = true; SavePlacement();
             App.Log("closing");
+            try { bridge?.Dispose(); } catch { }
             try { backend.Stop(); } catch { }
+        }
+        // a game window the backend started outside the Preview (Play on PC from older pages or tests): it ends when this window is gone
+        bool OtherPlayerOpen()
+        {
+            try { var r = backend.Ready ? backend.Call("GET", "/api/play/status", null, 1500) : null; return r != null && Regex.IsMatch(r, "\"running\"\\s*:\\s*true"); } catch { return false; }
         }
     }
 }

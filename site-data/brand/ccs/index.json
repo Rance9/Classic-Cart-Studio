@@ -1,0 +1,294 @@
+{
+ "schema": "ccs-brand-cast/1",
+ "source": "drawn in code by tools/publish/make_ccs_cast.py (original Classic Cart Studio pixel art)",
+ "license": "GPL-3.0-or-later (part of Classic Cart Studio)",
+ "characters": [
+  {
+   "id": "carty",
+   "name": "Carty",
+   "role": "the Classic Cart Studio mascot, a walking game cartridge",
+   "frames": [
+    "carty-0.png",
+    "carty-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "padd",
+   "name": "Padd",
+   "role": "a walking controller, Carty's best friend",
+   "frames": [
+    "padd-0.png",
+    "padd-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "hero",
+   "name": "Hero",
+   "role": "a caped adventurer (inspired by the Kingdoms Beyond design)",
+   "frames": [
+    "hero-0.png",
+    "hero-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "astro",
+   "name": "Astro",
+   "role": "a space explorer (inspired by the Galactic Frontier design)",
+   "frames": [
+    "astro-0.png",
+    "astro-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "boltbot",
+   "name": "Bolt Bot",
+   "role": "a friendly robot",
+   "frames": [
+    "boltbot-0.png",
+    "boltbot-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "wizzy",
+   "name": "Wizzy",
+   "role": "a wizard who keeps the save slots",
+   "frames": [
+    "wizzy-0.png",
+    "wizzy-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "dino",
+   "name": "Dino",
+   "role": "a small dinosaur who loves racing games",
+   "frames": [
+    "dino-0.png",
+    "dino-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "ghosty",
+   "name": "Ghosty",
+   "role": "a shy ghost from the haunted levels",
+   "frames": [
+    "ghosty-0.png",
+    "ghosty-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "slimo",
+   "name": "Slimo",
+   "role": "a bouncy slime",
+   "frames": [
+    "slimo-0.png",
+    "slimo-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "batty",
+   "name": "Batty",
+   "role": "a bat from the cave levels",
+   "frames": [
+    "batty-0.png",
+    "batty-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "racer",
+   "name": "Racer",
+   "role": "a neon racer (inspired by the Neon Highway design)",
+   "frames": [
+    "racer-0.png",
+    "racer-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  },
+  {
+   "id": "knightly",
+   "name": "Knightly",
+   "role": "a knight guarding the collections",
+   "frames": [
+    "knightly-0.png",
+    "knightly-1.png"
+   ],
+   "size": [
+    16,
+    20
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "chest",
+   "name": "Treasure chest",
+   "file": "chest.png",
+   "size": [
+    16,
+    10
+   ]
+  },
+  {
+   "id": "star",
+   "name": "Star",
+   "file": "star.png",
+   "size": [
+    12,
+    10
+   ]
+  },
+  {
+   "id": "gem",
+   "name": "Gem",
+   "file": "gem.png",
+   "size": [
+    10,
+    8
+   ]
+  },
+  {
+   "id": "heart",
+   "name": "Heart",
+   "file": "heart.png",
+   "size": [
+    10,
+    8
+   ]
+  },
+  {
+   "id": "coin",
+   "name": "Token",
+   "file": "coin.png",
+   "size": [
+    8,
+    8
+   ]
+  }
+ ],
+ "icons": [
+  {
+   "id": "icon-cartridge",
+   "meaning": "game cartridge",
+   "file": "icon-cartridge.png",
+   "size": [
+    12,
+    12
+   ]
+  },
+  {
+   "id": "icon-a",
+   "meaning": "A button",
+   "file": "icon-a.png",
+   "size": [
+    12,
+    12
+   ]
+  },
+  {
+   "id": "icon-b",
+   "meaning": "B button",
+   "file": "icon-b.png",
+   "size": [
+    12,
+    12
+   ]
+  },
+  {
+   "id": "icon-dpad",
+   "meaning": "direction pad",
+   "file": "icon-dpad.png",
+   "size": [
+    12,
+    12
+   ]
+  },
+  {
+   "id": "icon-start",
+   "meaning": "START",
+   "file": "icon-start.png",
+   "size": [
+    12,
+    12
+   ]
+  },
+  {
+   "id": "icon-disk",
+   "meaning": "save",
+   "file": "icon-disk.png",
+   "size": [
+    12,
+    12
+   ]
+  },
+  {
+   "id": "icon-warning",
+   "meaning": "warning",
+   "file": "icon-warning.png",
+   "size": [
+    12,
+    12
+   ]
+  },
+  {
+   "id": "icon-1p-2p",
+   "meaning": "players 1 and 2",
+   "file": "icon-1p-2p.png",
+   "size": [
+    14,
+    14
+   ]
+  }
+ ],
+ "tiles": [
+  {
+   "id": "ground",
+   "file": "ground.png",
+   "size": [
+    16,
+    16
+   ]
+  }
+ ]
+}

@@ -12,24 +12,25 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.jo
 
 def main(site: str):
     checks = []; ok = lambda k, v, n="": checks.append(f"{k}={'true' if v else 'false'}{(' ('+n+')') if n and not v else ''}")
-    need = ["index.html", "nes-catalog.html", "catalog.json", "builtin.json", "library.json", "descriptions.json", ".nojekyll", "robots.txt", "release.json", "brand/oem/index.json", "brand/oem/nes-wordmark.png", "brand/web/provenance.json", "brand/fonts/PressStart2P-Regular.ttf", "art"]
+    need = ["index.html", "nes-catalog.html", "catalog.json", "builtin.json", "library.json", "descriptions.json", ".nojekyll", "robots.txt", "release.json", "brand/ccs/index.json", "brand/ccs/ground.png", "brand/fonts/PressStart2P-Regular.ttf", "art"]
     missing = [n for n in need if not os.path.exists(os.path.join(site, n))]; ok("required_files", not missing, str(missing))
     page = open(os.path.join(site, "nes-catalog.html"), encoding="utf-8").read(); idx = open(os.path.join(site, "index.html"), encoding="utf-8").read()
     ok("index_is_the_page", page == idx)
     ok("title_and_disclaimer", "<title>Classic Cart Studio</title>" in page and "independent" in page and ("not produced, licensed, sponsored, approved or endorsed by Nintendo" in page or "not produced, licensed, sponsored, approved, or endorsed by Nintendo" in page))
-    # ---- approved visual presentation (owner directive 2026-10-10): the public page must carry the same artwork as the accepted build ----
+    # ---- the Classic Cart Studio cast (owner direction 2026-11-03, D-66: original CCS art replaces the console software's and community sprites) ----
     sys.path.insert(0, HERE); import build_html as BH
     pi = page.index('<div class="parade"'); parade = page[pi:page.index('<div class="ground">', pi)]
-    hero_imgs = re.findall(r'src="(brand/(?:oem|web)/[^"]+\.png)"', parade); expected = [f"brand/{d}/{st}.png" for d, st, sc, cls in BH.HERO]
-    ok("hero_parade_27_original_characters_in_order", hero_imgs == expected and len(expected) == 27, f"{len(hero_imgs)} of {len(expected)}")
+    hero_imgs = re.findall(r'src="(brand/(?:oem|web|ccs)/[^"]+\.png)"', parade); expected = [f"brand/{d}/{st}.png" for d, st, sc, cls in BH.HERO]
+    ok("hero_parade_is_the_ccs_cast_in_order", hero_imgs == expected and len(expected) >= 12 and all(p.startswith("brand/ccs/") for p in expected), f"{len(hero_imgs)} of {len(expected)}")
+    walk = re.findall(r'data-walk="(brand/ccs/[^"]+\.png)"', parade); ok("parade_characters_have_their_second_frame", len(walk) >= 10 and all(os.path.exists(os.path.join(site, p)) for p in walk), len(walk))
     ok("hero_sprites_exist", all(os.path.exists(os.path.join(site, p)) for p in expected))
-    ok("wordmark_present", 'src="brand/oem/nes-wordmark.png"' in page and os.path.exists(os.path.join(site, "brand", "oem", "nes-wordmark.png")))
-    ok("interface_icons_from_firmware", page.count("brand/oem/icon-") >= 8 and all(os.path.exists(os.path.join(site, "brand", "oem", n)) for n in ("icon-a.png", "icon-b.png", "icon-cartridge.png", "icon-disk.png", "icon-warning.png", "icon-start.png")))
-    ok("footer_roster_present", page.count('src="brand/oem/px-') >= 40 and page.count('src="brand/web/') >= 15, f"oem={page.count(chr(34)+'brand/oem/px-')} web={page.count('src='+chr(34)+'brand/web/')}")
-    ok("no_generic_substitutes", page.replace("brand/public/as-seen-on-tv.png", "").count("brand/public/") == 0 and page.count("brand/help/") >= 20 and "original pixel art drawn" not in page and "original drawings" not in page)
+    ok("no_console_software_or_community_sprites", "brand/oem/" not in page and "brand/web/" not in page and not os.path.exists(os.path.join(site, "brand", "oem")) and not os.path.exists(os.path.join(site, "brand", "web")))
+    ok("interface_icons_are_ccs", page.count("brand/ccs/icon-") >= 8 and all(os.path.exists(os.path.join(site, "brand", "ccs", n)) for n in ("icon-a.png", "icon-b.png", "icon-cartridge.png", "icon-disk.png", "icon-warning.png", "icon-start.png")))
+    ok("footer_roster_is_the_ccs_cast", page.count('src="brand/ccs/') >= 40, page.count('src="brand/ccs/'))
+    ok("no_unexpected_public_folder_art", page.replace("brand/public/as-seen-on-tv.png", "").count("brand/public/") == 0 and page.count("brand/help/") >= 20)
     refs = set(re.findall(r'(?:src|href)="([^"]+)"', page)) | set(re.findall(r'url\("([^"]+)"\)', page))
     refs = {r for r in refs if not r.startswith(("data:", "#", "blob:", "mailto:")) and "${" not in r}
-    ext = sorted(r for r in refs if re.match(r"^[a-z]+:", r)); allowed_ext = ("https://github.com/", "https://rance9.github.io/", "https://ClassicCartStudio.com/", "https://classiccartstudio.com/", "https://api.github.com/", "http://127.0.0.1:", "https://www.nintendo.com/", "https://www.ebay.com/itm/302788782864", "https://commons.wikimedia.org/wiki/File:")   # the seller recommendation and the photo credits are plain anchors, not assets
+    ext = sorted(r for r in refs if re.match(r"^[a-z]+:", r)); allowed_ext = ("https://github.com/", "https://rance9.github.io/", "https://ClassicCartStudio.com/", "https://classiccartstudio.com/", "https://api.github.com/", "http://127.0.0.1:", "https://www.nintendo.com/", "https://www.ebay.com/itm/302788782864", "https://commons.wikimedia.org/wiki/File:", "https://classic-cart-studio.printful.me/")   # the seller recommendation, the photo credits and the merch store (M2-1: the owner-verified Printful address, exactly) are plain anchors, not assets
     bad_ext = [r for r in ext if not r.startswith(allowed_ext)]; ok("external_links_are_only_github_and_loopback", not bad_ext, str(bad_ext)[:200])
     rel = [r for r in refs if not re.match(r"^[a-z]+:", r)]; abs_ = [r for r in rel if r.startswith("/")]; ok("no_root_absolute_references (sub-path safe)", not abs_, str(abs_)[:200])
     miss = [r for r in rel if not os.path.exists(os.path.join(site, r.split("?")[0]))]; ok("relative_references_exist", not miss, str(miss)[:200])
@@ -47,9 +48,9 @@ def main(site: str):
     ok("cover_art_files_exist", all(os.path.exists(os.path.join(site, g["art"])) for g in with_art) and len(os.listdir(os.path.join(site, "art"))) >= 800)
     lib = json.load(open(os.path.join(site, "library.json"), encoding="utf-8")); titles = list(lib["titles"].values()) if isinstance(lib["titles"], dict) else lib["titles"]
     ok("library_art_mappings_kept", sum(1 for t in titles if t.get("art")) >= 740 and sum(1 for v in lib["versions"] if v.get("art")) >= 800, (sum(1 for t in titles if t.get("art")), sum(1 for v in lib["versions"] if v.get("art"))))
-    sprites = set(re.findall(r'src="(brand/(?:oem|web)/[^"]+\.png)"', page)); ok("every_sprite_reference_exists", len(sprites) >= 60 and all(os.path.exists(os.path.join(site, s)) for s in sprites), str(len(sprites)))
-    prov = {p["slug"] for p in json.load(open(os.path.join(site, "brand", "web", "provenance.json"), encoding="utf-8"))}
-    used = {s.split("/")[-1][:-4] for s in sprites if s.startswith("brand/web/")}; ok("web_characters_have_provenance", bool(used) and used <= prov, str(sorted(used - prov)))
+    sprites = set(re.findall(r'src="(brand/ccs/[^"]+\.png)"', page)); ok("every_sprite_reference_exists", len(sprites) >= 20 and all(os.path.exists(os.path.join(site, s)) for s in sprites), str(len(sprites)))
+    ci = json.load(open(os.path.join(site, "brand", "ccs", "index.json"), encoding="utf-8")); known = {f for c in ci["characters"] for f in c["frames"]} | {x["file"] for k in ("items", "icons", "tiles") for x in ci[k]}
+    used = {s.split("/")[-1] for s in sprites}; ok("ccs_art_has_provenance", used <= known and ci.get("source", "").startswith("drawn in code"), str(sorted(used - known)))
     node = shutil.which("node")
     if node:
         sc = re.findall(r"<script>(.*?)</script>", page, re.S); p = os.path.join(site, "_script_check.js"); open(p, "w", encoding="utf-8").write(sc[0] if sc else "")
