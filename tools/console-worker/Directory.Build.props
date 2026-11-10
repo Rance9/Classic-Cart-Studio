@@ -1,0 +1,25 @@
+<Project>
+  <!-- build output goes to the repository's ignored build folder (build\console-worker\) unless CcsBuildRoot names another folder
+       (build-worker.ps1 passes its own); HakchiSource is the pinned Hakchi2 CE 3.9.3 source tree with its submodules (SOURCE.md;
+       get-hakchi-source.ps1 fetches and verifies it) and must always be given: there is no default location -->
+  <PropertyGroup>
+    <CcsBuildRoot Condition="'$(CcsBuildRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'console-worker'))</CcsBuildRoot>
+    <CcsBuildRoot Condition="!HasTrailingSlash('$(CcsBuildRoot)')">$(CcsBuildRoot)\</CcsBuildRoot>
+    <BaseIntermediateOutputPath>$(CcsBuildRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(CcsBuildRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+    <!-- the bytes depend on the source only, never on the git checkout it is built in (the SDK would append that checkout's commit to
+         the product version); build-worker.ps1 records the source revision in BUILD-INFO.json instead -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+  </PropertyGroup>
+  <!-- release builds carry no debug information (no build paths in the binaries): the same source gives the same bytes in any folder -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+  <Target Name="CcsRequireHakchiSource" BeforeTargets="PrepareForBuild" Condition="'$(MSBuildProjectName)' == 'Renci.SshNet'">
+    <Error Condition="'$(HakchiSource)' == ''" Text="HakchiSource is not set: give the pinned Hakchi2 CE 3.9.3 source tree with its submodules (-p:HakchiSource=DIR; tools\console-worker\get-hakchi-source.ps1 fetches and verifies it)." />
+    <Error Condition="'$(HakchiSource)' != '' And !Exists('$(HakchiSource)\Libraries\SSH.NET\src\Renci.SshNet\SshClient.cs')" Text="HakchiSource '$(HakchiSource)' is not the pinned Hakchi2 CE 3.9.3 tree with its submodules (Libraries\SSH.NET is missing)." />
+  </Target>
+</Project>

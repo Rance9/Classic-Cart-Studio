@@ -25,7 +25,13 @@ jobs:
       - name: Unit tests that need no game files
         run: |
           python tools/rom-pipeline/test_manifest_v4_pure.py
-      - name: Build the static site from the public data
+      - name: The Installation Terms (the Help chapter, the installer's and the release's copies are the one maintained source's)
+        run: python tools/publish/legal_terms.py --check
+      - name: The browser game player (W1) from this commit, with the pinned zig (version, URL and SHA-256 from toolchain.lock.json; FCEUmm is vendored)
+        run: python tools/publish/build_web_player.py build/web-player
+      - name: Build the static site from the public data (it fails without the browser game player)
+        env:
+          CCS_REQUIRE_WEB_PLAYER: "1"
         run: python tools/publish/build_site_ci.py build/site
       - name: Prohibited-content scan of the site artifact (fails the build on any finding)
         run: python tools/publish/scan_prohibited.py build/site

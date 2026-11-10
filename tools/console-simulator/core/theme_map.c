@@ -31,7 +31,7 @@ static int mp_init(home *h, char *err, size_t errlen) {
     }
     const jval *cells = json_get(sf, "cells"); for (size_t i = 0; cells && i < cells->n && a->ncells < 12; i++) if (!jbox_at(cells, i, &a->cells[a->ncells])) a->ncells++;
     const jval *ms = json_get(h->pk, "map_shortcuts"); for (int i = 0; i < 2; i++) { const jval *v = ms && ms->t == J_ARR && (size_t)i < ms->n ? ms->items[i] : NULL; snprintf(a->shortcut[i], sizeof a->shortcut[i], "%s", v && v->t == J_STR ? v->s : ""); }
-    if (fb_init(&a->frame, CCS_FB_W, CCS_FB_H)) { snprintf(err, errlen, "out of memory"); return -1; }
+    if (fb_init(&a->frame, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
 }
 static void mp_fini(home *h) { map *a = MP(h); if (!a) return; if (a->frame.rgb) fb_free(&a->frame); free(a); h->tstate = NULL; }
@@ -60,18 +60,18 @@ static void mp_draw(home *h, framebuffer *fb) {
         if (foc) draw_glow_text(fb, h, fs == 8 ? F_PX8 : F_PX9, x, base, up, strlen(up), 5, RGBA(0xFFD166, 230), .3);
         text_draw(fb, NULL, clip, f, x, base + 1, up, strlen(up), RGBA(0, 255), .3, 0);
         text_draw(fb, NULL, clip, f, x, base, up, strlen(up), RGBA(act ? 0xFFB3B7 : foc ? 0xFFD166 : 0xF6EFE2, 255), .3, 0);
-        LR(h, foc ? "sign-focus" : "sign", bb.x0, bb.y0, bb.x1, bb.y1);
+        LR(h, foc ? "sign-focus" : "sign", bb.x0, bb.y0, bb.x1, bb.y1); LT(h, HT_LANDMARK, k, bb.x0, bb.y0, bb.x1, bb.y1);
     }
     landmark *cur = &a->lm[h->nav.landmark];
     sprite_box(h, fb, "marker", (box4){ cur->cx - 21, cur->cy - 12, cur->cx + 21, cur->cy + 12 }, 255, 1);
     { const tsprite *w = tsp(h, "hero"); if (w) { gfx_image(fb, FULL, &w->im, cur->sx, cur->sy, 255); LR(h, "walker", cur->sx, cur->sy, cur->sx + w->im.w, cur->sy + w->im.h); } }
     if (!h->n) return;
     int sel = h->nav.sel; hgame *g = &h->g[sel];
-    { box4 art; draw_cover(h, fb, sel, a->card_cover, 1, &art); LR(h, "card-art", art.x0, art.y0, art.x1, art.y1); }
+    { box4 art; draw_cover(h, fb, sel, a->card_cover, 1, &art); LR(h, "card-art", art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, sel, art.x0, art.y0, art.x1, art.y1); }
     { const tsprite *s = tsp(h, "card-frame"); if (s) gfx_image(fb, FULL, &s->im, s->box.x0, s->box.y0, 255); s = tsp(h, "card-pointer"); if (s) gfx_image(fb, FULL, &s->im, s->box.x0, s->box.y0, 255); }
     gfx_fill(fb, FULL, a->pframe.x0, a->pframe.y0, a->pframe.x1 - a->pframe.x0, a->pframe.y1 - a->pframe.y0, RGBA(0x0A0808, 230));
     { const tsprite *s = tsp(h, "panel-frame"); if (s) gfx_image(fb, FULL, &s->im, s->box.x0, s->box.y0, 255); }
-    { box4 art; draw_cover(h, fb, sel, a->pcover, 1, &art); LR(h, "panel-art", art.x0, art.y0, art.x1, art.y1); }
+    { box4 art; draw_cover(h, fb, sel, a->pcover, 1, &art); LR(h, "panel-art", art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, sel, art.x0, art.y0, art.x1, art.y1); }
     { char t[400], fit[400]; upper(g->title, t, sizeof t); static const int TF[5] = { F_PX21, F_PX19, F_PX17, F_PX15, F_PX13 };   /* .mtitle + homeFitText */
       int fid = fit_font(h, TF, 5, t, a->ptitle.x1 - a->ptitle.x0, 1); const font *f = &h->f[fid]; text_fit(f, t, a->ptitle.x1 - a->ptitle.x0, 1, fit, sizeof fit);
       int base = baseline_center(f, a->ptitle.y0, a->ptitle.y1 - a->ptitle.y0); T(fb, FULL, f, a->ptitle.x0, base + 2, fit, 0, 255, 1); T(fb, FULL, f, a->ptitle.x0, base, fit, 0xF3E7D3, 255, 1); LRtext(h, "mtitle", f, a->ptitle.x0, base, fit, strlen(fit), 1); }
@@ -86,6 +86,7 @@ static void mp_draw(home *h, framebuffer *fb) {
     int start = sel - 3; if (start > (int)h->n - a->ncells) start = (int)h->n - a->ncells; if (start < 0) start = 0;
     const tsprite *al = tsp(h, "arrow-l"), *ar = tsp(h, "arrow-r");
     if (al) gfx_image(fb, FULL, &al->im, al->box.x0, al->box.y0, start == 0 ? 89 : 255); if (ar) gfx_image(fb, FULL, &ar->im, ar->box.x0, ar->box.y0, start + a->ncells >= (int)h->n ? 89 : 255);
+    if (al) LT(h, HT_PREV, 0, al->box.x0, al->box.y0, al->box.x1, al->box.y1); if (ar) LT(h, HT_NEXT, 0, ar->box.x0, ar->box.y0, ar->box.x1, ar->box.y1);
     for (int k = 0; k < a->ncells; k++) {   /* the shelf: whole covers with the title band, the selected one in the authored focus frame */
         int i = start + k; if (i >= (int)h->n) break; box4 c = a->cells[k], art; draw_cover(h, fb, i, c, i == sel, &art);
         const font *f = &h->f[F_PX7]; char up[300], fit[300]; upper(h->g[i].title, up, sizeof up); text_fit(f, up, c.x1 - c.x0 - 14, 0, fit, sizeof fit); int bandh = 5 + iround(f->px * 1.5) + 5;
@@ -94,13 +95,13 @@ static void mp_draw(home *h, framebuffer *fb) {
         box4 fr = { c.x0 - 10, c.y0 - 16, c.x1 + 10, c.y1 + 16 };
         if (i == sel) { sprite_box(h, fb, "shelf-focus", fr, h->nav.zone == Z_GAMES ? 255 : 153, 1); LR(h, h->nav.zone == Z_GAMES ? "shelf-focus" : "shelf-selected", fr.x0, fr.y0, fr.x1, fr.y1); }
         else sprite_box(h, fb, "shelf-frame", fr, 255, 1);
-        LR(h, "shelf-art", art.x0, art.y0, art.x1, art.y1);
+        LR(h, "shelf-art", art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, i, c.x0, c.y0, c.x1, c.y1);
     }
 }
 static void mp_render(home *h, framebuffer *fb, uint64_t now) {
     map *a = MP(h); (void)now;
     long key = (long)h->gen;   /* every input and section change bumps it */
-    if (key != a->key || h->rec) { mp_draw(h, &a->frame); legend_items(h, &a->frame, a->legend, 1, TH_MAP); a->key = h->rec ? -1 : key; }
+    if (key != a->key || h->rec || h->hitrec > 1) { mp_draw(h, &a->frame); legend_items(h, &a->frame, a->legend, 1, TH_MAP); a->key = h->rec ? -1 : key; }
     memcpy(fb->rgb, a->frame.rgb, (size_t)fb->w * fb->h * 3);
 }
 static void mp_input(home *h, button b) {
@@ -130,4 +131,4 @@ static const dstyle MAP_DETAILS = {
     .desc_font = F_MONO19, .desc_lh = 1.55, .desc_radius = 3, .desc_bw = 3, .desc_bg = 0x100A08, .desc_bg_a = 204, .desc_border = 0x6B4A2B, .desc_border_a = 255,
     .dh_font = F_MONO700_13, .dh_lh = 1.4, .dh_spacing = 1.6, .dh_bold = 0,
     .cover_radius = 2, .cover_ring = 3, .cover_ring_rgb = 0x6B4A2B, .cover_ring_a = 255, .note_font = F_S400_14 };
-const theme_ops THEME_MAP = { "adventure-map", "Adventure Map", mp_init, mp_fini, mp_render, mp_input, &MAP_DETAILS, 1 };
+const theme_ops THEME_MAP = { "adventure-map", "Adventure Map", mp_init, mp_fini, mp_render, mp_input, &MAP_DETAILS, 1, NULL };   /* no scrolling title: always a full picture (K3D1-F3) */

@@ -1,12 +1,12 @@
-r"""Website checks for My Collections, the new navigation and Share or Export (headless Edge, no Windows app, no backend).
+r"""Website checks for My Collections, the new navigation and Back Up Collection (headless Edge, no Windows app, no backend).
 
 The built site is served on 127.0.0.1 (website mode: no desktop backend) and nothing else runs: public share links are retired, a collection
-is shared as a complete .ccs file made on this device. A persistent browser profile is used so "browser restarts" are real restarts.
+is backed up as a complete .ccs file made on this device (sharing is removed; section 7 of the coordinated phase). A persistent browser profile is used so "browser restarts" are real restarts.
 
   collections   migration of an existing single collection; three named collections with independent selections and exact
                 versions; switch; rename; duplicate; delete and restore; export / import round trip; persistence across a restart
   favorites     Select -> Show Favorites shows only favorites without changing the selection, and leaving it is one click
-  sharing       Share or Export Collection from My Collections: a collection whose games have no ROM file here stays usable and is
+  backup        Back Up Collection from My Collections: a collection whose games have no ROM file here stays usable and is
                 not packaged (the dialog lists the games); a collection of synthetic sentinel ROMs is exported as a complete .ccs file,
                 unchanged by the export, and saved into My Collections in a clean profile (an independent new collection, exact versions);
                 an old ?share= address opens the Studio normally; a Studio data backup is a JSON file that restores in a clean profile;
@@ -51,7 +51,7 @@ def main():
     web = serve(a.site); WEB = f"http://127.0.0.1:{web.server_address[1]}"
     prof = tempfile.mkdtemp(prefix="ccs-web-profile-"); prof2 = tempfile.mkdtemp(prefix="ccs-web-clean-"); prof3 = tempfile.mkdtemp(prefix="ccs-web-off-")
     URL = f"{WEB}/index.html?companion={free_port()}"   # a loopback port nothing listens on: website mode, whatever runs on this computer
-    READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csList==='function'&&typeof ccsShareDialog==='function'&&document.readyState==='complete'"
+    READY = "typeof CS!=='undefined'&&!!CS&&typeof byId!=='undefined'&&typeof csList==='function'&&typeof ccsBackupDialog==='function'&&document.readyState==='complete'"
     nets = []
     def tools(ed): ed.js(NET); ed.js(ROMS); ed.js(CCS_EXPORT_UI)
     try:
@@ -70,7 +70,7 @@ def main():
             st = json.loads(ed.js("JSON.stringify({vis:!$('mShare').hidden, label:$('mShare').innerText, gone:['SHARE_ON','SHARE_API','openShare','shReceive','shPublish','shUnpublish','shareConfig'].filter(n=>typeof window[n]!=='undefined')})"))
             ed.js("$('mShare').click()"); time.sleep(0.8)
             st["dialog"] = ed.js("$('collm').classList.contains('open')&&$('collTitle').textContent"); ed.js("closeColl(); 1")
-            ok("share_or_export_in_my_collections", st["vis"] and "Share or Export…" in st["label"] and ".ccs" in st["label"] and st["dialog"] == "Share or Export Collection" and not st["gone"], st)
+            ok("back_up_collection_in_my_collections", st["vis"] and "Back Up Collection…" in st["label"] and ".ccs" in st["label"] and st["dialog"] == "Back Up Collection" and not st["gone"], st)
             nets.append(net_take(ed))
             ed.navigate(URL); ed.wait_for(READY, timeout=120); tools(ed)
             ok("migration_is_idempotent", ed.js("csList().length") == 1)
@@ -85,7 +85,7 @@ def main():
             aid = ed.js("csList().find(r=>r.name==='Alpha').id"); ed.js(f"csSwitch('{aid}')")
             ok("switch_loads_that_selection", sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == sorted(pick[:3]) and ed.js("COLL.name") == "Alpha" and ed.js("$('collName').textContent") == "Alpha")
             bid = ed.js("csList().find(r=>r.name==='Bravo').id"); ed.js(f"csRename('{bid}','Bravo Renamed')"); dup = ed.js(f"csDuplicate('{aid}').id")
-            ok("rename_and_duplicate", ed.js(f"CS.items['{bid}'].name") == "Bravo Renamed" and sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{dup}'].sel)"))) == sorted(pick[:3]) and ed.js(f"CS.items['{dup}'].name") == "Alpha copy")
+            ok("rename_and_duplicate", ed.js(f"CS.items['{bid}'].name") == "Bravo Renamed" and sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{dup}'].sel)"))) == sorted(pick[:3]) and ed.js(f"CS.items['{dup}'].name") == "Alpha (Copy 1)")   # the released duplicate name (0.7.x)
             cid = ed.js("csList().find(r=>r.name==='Charlie').id"); ed.js(f"csDelete('{cid}')")
             snap = ed.js("JSON.parse(localStorage.getItem('studio-snapshots-v1')||'[]').some(s=>s.name==='Charlie')")
             ok("delete_with_recovery_snapshot", not ed.js(f"!!CS.items['{cid}']") and snap)
@@ -95,8 +95,8 @@ def main():
             exp = json.loads(ed.js(f"JSON.stringify(csFileFor(CS.items['{aid}']))"))
             ok("export_file_is_schema4_plus_record", exp.get("schema") == "nes-classic-collection/4" and exp.get("ccs_collection", {}).get("schema") == "ccs-collection/1" and exp.get("count") == 3, {k: exp.get(k) for k in ("schema", "count", "error")} if isinstance(exp, dict) else exp)
             ed.js(f"csImportObject({json.dumps(exp)}, 'x.json')")
-            imp = ed.js("JSON.stringify((r=>r?({name:r.name,sel:r.sel.slice().sort(),act:r.id===CS.active}):{names:csList().map(x=>x.name)})(csList().find(r=>r.name==='Alpha (2)')))"); imp = json.loads(imp) if isinstance(imp, str) else imp
-            ok("import_round_trip_new_collection", imp.get("name") == "Alpha (2)" and imp.get("sel") == sorted(pick[:3]) and imp.get("act"), imp)
+            imp = ed.js("JSON.stringify((r=>r?({name:r.name,sel:r.sel.slice().sort(),act:r.id===CS.active}):{names:csList().map(x=>x.name)})(csList().find(r=>r.name==='Alpha (Copy 2)')))"); imp = json.loads(imp) if isinstance(imp, str) else imp
+            ok("import_round_trip_new_collection", imp.get("name") == "Alpha (Copy 2)" and imp.get("sel") == sorted(pick[:3]) and imp.get("act"), imp)
             ed.js(f"csSwitch('{bid}')")
             # favorites from the Select menu: a view, never a selection change
             favs = pick[:2]; ed.js(f"{json.dumps(favs)}.forEach(i=>fav.add(i)); persist(); render();")
@@ -122,21 +122,21 @@ def main():
                     open(os.path.join(shots, f"{w}-{name}.png"), "wb").write(ed.screenshot())
                 ed.js("document.querySelectorAll('.menu').forEach(x=>x.hidden=true)")
             ed.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": False})
-            # sharing a collection whose games have no ROM file here: it stays a collection, no package is made
+            # backing up a collection whose games have no ROM file here: it stays a collection, no package is made
             ed.js(f"csSwitch('{aid}', true)")
             st = json.loads(ed.js(f"(async()=>JSON.stringify(await ccsExportUi('{aid}', null)))()"))
-            open(os.path.join(shots, "share-dialog-roms-needed.png"), "wb").write(ed.screenshot())
+            open(os.path.join(shots, "backup-dialog-roms-needed.png"), "wb").write(ed.screenshot())
             titles = json.loads(ed.js(f"JSON.stringify({json.dumps(pick[:3])}.map(i=>byId[i].display_title))"))
-            ok("share_without_roms_lists_the_games_and_makes_nothing", st["exp"] and st["send"] and sorted(st["missing"]) == sorted(pick[:3]) and "3 of 3 games need their ROM file" in st["text"] and all(t in st["text"] for t in titles) and st["pick"] and not st.get("name"), st)
+            ok("backup_without_roms_lists_the_games_and_makes_nothing", st["exp"] and st["send"] and sorted(st["missing"]) == sorted(pick[:3]) and "3 of 3 games need their ROM file" in st["text"] and all(t in st["text"] for t in titles) and st["pick"] and not st.get("name"), st)
             ed.js("closeColl(); 1")
             ok("collection_without_roms_unchanged", sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{aid}'].sel)"))) == sorted(pick[:3]) and ed.js("csActive().name") == "Alpha")
-            # a collection of synthetic games with their ROM files: exported as a complete .ccs file through Share or Export
+            # a collection of synthetic games with their ROM files: backed up as a complete .ccs file through Back Up Collection
             D = json.loads(ed.js(r"""(async()=>{ const G=[]; for(let i=0;i<4;i++) G.push(await mkRom('d'+i, i%2===0)); csNew('Delta'); G.forEach(x=>sel.add(x.id)); persist(); render(); csSaveActiveNow(); window.__D=G;
               return JSON.stringify({id:CS.active, sel:csActive().sel.slice(), rec:JSON.stringify(csRecordOut(csActive()))}); })()"""))
             st = json.loads(ed.js(f"(async()=>JSON.stringify(await ccsExportUi('{D['id']}', __D.map(x=>x.file))))()"))
-            ok("complete_package_exported_through_share_or_export", st.get("ready") == 4 and st.get("ack") == "Export Collection with ROM Files" and st.get("name") == "Delta.ccs", st)
+            ok("complete_backup_made_through_back_up_collection", st.get("ready") == 4 and st.get("ack") == "Back Up Collection" and st.get("name") == "Delta.ccs", st)
             pkg = page_bytes(ed, "window.__pkg")
-            ok("export_leaves_the_collection_unchanged", ed.js(f"JSON.stringify(csRecordOut(CS.items['{D['id']}']))") == D["rec"])
+            ok("backup_leaves_the_collection_unchanged", ed.js(f"JSON.stringify(csRecordOut(CS.items['{D['id']}']))") == D["rec"])
             # Studio data backup: a JSON file (not a package)
             bk = json.loads(ed.js("(async()=>{ window.__saved=null; ccsSaveFile=async(n,b)=>{ window.__saved={name:n, text:await b.text()}; return {ok:true,name:n}; }; await csBackup(); return JSON.stringify(window.__saved); })()"))
             ok("studio_data_backup_is_a_json_file", bk["name"].endswith(".json") and json.loads(bk["text"]).get("schema") == "ccs-studio-backup/2", bk["name"])
@@ -152,7 +152,7 @@ def main():
         with EdgeSession(width=1440, height=900, profile=prof) as ed:
             ed.navigate(URL); ed.wait_for(READY, timeout=120); tools(ed)
             names = sorted(json.loads(ed.js("JSON.stringify(csList().map(r=>r.name))")))
-            ok("collections_persist_across_restart", names == sorted(["My Old Collection", "Alpha", "Bravo Renamed", "Alpha copy", "Alpha (2)", "Charlie", "Delta"]), names)
+            ok("collections_persist_across_restart", names == sorted(["My Old Collection", "Alpha", "Bravo Renamed", "Alpha (Copy 1)", "Alpha (Copy 2)", "Charlie", "Delta"]), names)
             ok("active_collection_persists", ed.js("csActive().name") == "Alpha" and sorted(json.loads(ed.js("JSON.stringify([...sel])"))) == sender_before)
             ok("favorites_persist", sorted(json.loads(ed.js("JSON.stringify([...fav])"))) == sorted(pick[:2]))
             ok("exported_collection_persists_with_exact_versions", json.loads(ed.js("JSON.stringify(csList().find(r=>r.name==='Delta').sel)")) == D["sel"])
@@ -170,7 +170,7 @@ def main():
             # the sender's Studio data backup restores here (it adds; nothing here is replaced)
             page_file(ed, bk["text"].encode("utf-8"), bk["name"], "__B"); ed.js("ccsOpenFile(__B)"); ed.wait_for("!!$('rsGo')", timeout=30); ed.js("$('rsGo').click()"); time.sleep(1.0); ed.js("try{ closeColl(); }catch(e){} 1")
             names2 = json.loads(ed.js("JSON.stringify(csList().map(r=>r.name))"))
-            ok("studio_data_backup_restores_in_a_clean_browser", all(any(n == x or n.startswith(x) for n in names2) for x in ("Alpha", "Bravo Renamed", "Alpha copy", "Charlie", "My Old Collection")) and sorted(json.loads(ed.js("JSON.stringify([...fav])"))) == sorted(pick[:2]), names2)
+            ok("studio_data_backup_restores_in_a_clean_browser", all(any(n == x or n.startswith(x) for n in names2) for x in ("Alpha", "Bravo Renamed", "Alpha (Copy 1)", "Charlie", "My Old Collection")) and sorted(json.loads(ed.js("JSON.stringify([...fav])"))) == sorted(pick[:2]), names2)
             nets.append(net_take(ed))
         rep = net_report(nets)
         ok("no_request_left_this_computer", not rep["remote"] and not rep["share"], rep)

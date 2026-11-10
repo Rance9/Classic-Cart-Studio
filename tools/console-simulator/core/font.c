@@ -24,7 +24,7 @@ int font_load(font *f, const char *path, char *err, size_t errlen) {
     for (uint32_t i = 0; i < ng; i++) if ((size_t)f->g[i].off + (size_t)f->g[i].w * f->g[i].h > f->nbits) { snprintf(err, errlen, "glyph outside the atlas in %s", path); font_free(f); return -4; }
     return 0;
 }
-void font_free(font *f) { free(f->g); free(f->bits); f->g = NULL; f->bits = NULL; }
+void font_free(font *f) { free(f->g); free(f->bits); f->g = NULL; f->bits = NULL; if (f->hi) { font_free(f->hi); free(f->hi); f->hi = NULL; } }
 
 uint32_t utf8_next(const char **s) {
     const uint8_t *p = (const uint8_t *)*s; uint32_t c = *p;
@@ -44,7 +44,36 @@ int text_w(const font *f, const char *s, size_t len, double spacing) {
     while (s < e && *s) { const glyph *g = find(f, utf8_next(&s)); if (g) pen += g->adv; pen += ls; }
     return (int)((pen + 32) >> 6);
 }
+static void put(framebuffer *fb, mask *m, int xx, int yy, int v, color c) {
+    if (m) { if (xx >= m->x && xx < m->x + m->w && yy >= m->y && yy < m->y + m->h) { uint8_t *d = m->a + (size_t)(yy - m->y) * m->w + (xx - m->x); int nv = *d + v * (255 - *d) / 255; *d = (uint8_t)(nv > 255 ? 255 : nv); } }
+    else if (xx >= 0 && yy >= 0 && xx < fb->w && yy < fb->h) {
+        uint8_t *d = fb->rgb + ((size_t)yy * fb->w + xx) * 3; int a = c.a * v / 255;
+        d[0] = (uint8_t)((d[0] * (255 - a) + ((c.rgb >> 16) & 255) * a + 127) / 255); d[1] = (uint8_t)((d[1] * (255 - a) + ((c.rgb >> 8) & 255) * a + 127) / 255); d[2] = (uint8_t)((d[2] * (255 - a) + (c.rgb & 255) * a + 127) / 255);
+    } }
+/* ccs_scale > 1: the pen moves by this font's advances (the stage layout), each glyph is drawn from the high-resolution atlas at the
+   pen times the scale, or this font's own glyph with every pixel doubled when there is none */
+static int text_draw_scaled(framebuffer *fb, mask *m, rect clip, const font *f, double x, int y, const char *s, size_t len, color c, double spacing, double shear) {
+    const int S = ccs_scale; const char *e = s + len; int64_t pen = (int64_t)(x * 64 + (x >= 0 ? 0.5 : -0.5)); int ls = (int)(spacing * 64 + 0.5), Y = y * S;
+    rect cl = { clip.x0 * S, clip.y0 * S, clip.x1 * S, clip.y1 * S };
+    while (s < e && *s) {
+        uint32_t cp = utf8_next(&s); const glyph *g = find(f, cp); if (!g) continue;
+        const glyph *hg = f->hi ? find(f->hi, cp) : NULL;
+        if (hg) {
+            int gx = (int)((pen * S + 32) >> 6) + hg->x0, gy = Y + hg->y0; const uint8_t *src = f->hi->bits + hg->off;
+            for (int r = 0; r < hg->h; r++) { int yy = gy + r; if (yy < cl.y0 || yy >= cl.y1) continue; int sh = shear > 0 ? (int)(shear * (Y - yy) + (Y - yy >= 0 ? 0.5 : -0.5)) : 0;
+                for (int q = 0; q < hg->w; q++) { int v = src[r * hg->w + q]; if (!v) continue; int xx = gx + q + sh; if (xx < cl.x0 || xx >= cl.x1) continue; put(fb, m, xx, yy, v, c); } }
+        } else {
+            int gx = (int)((pen + 32) >> 6) + g->x0, gy = y + g->y0; const uint8_t *src = f->bits + g->off;
+            for (int r = 0; r < g->h; r++) for (int q = 0; q < g->w; q++) { int v = src[r * g->w + q]; if (!v) continue;
+                for (int j = 0; j < S; j++) { int yy = (gy + r) * S + j; if (yy < cl.y0 || yy >= cl.y1) continue; int sh = shear > 0 ? (int)(shear * (Y - yy) + (Y - yy >= 0 ? 0.5 : -0.5)) : 0;
+                    for (int i = 0; i < S; i++) { int xx = (gx + q) * S + i + sh; if (xx < cl.x0 || xx >= cl.x1) continue; put(fb, m, xx, yy, v, c); } } }
+        }
+        pen += g->adv + ls;
+    }
+    return (int)((pen + 32) >> 6);
+}
 int text_draw(framebuffer *fb, mask *m, rect clip, const font *f, double x, int y, const char *s, size_t len, color c, double spacing, double shear) {
+    if (ccs_scale > 1) return text_draw_scaled(fb, m, clip, f, x, y, s, len, c, spacing, shear);
     const char *e = s + len; int64_t pen = (int64_t)(x * 64 + (x >= 0 ? 0.5 : -0.5)); int ls = (int)(spacing * 64 + 0.5);
     while (s < e && *s) {
         const glyph *g = find(f, utf8_next(&s)); if (!g) continue;

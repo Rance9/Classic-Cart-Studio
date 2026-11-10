@@ -18,7 +18,9 @@ void g3_box_point(const g3box *b, double x, double y, double z, double *X, doubl
 static double det2(double a, double b, double c, double d) { return a * d - b * c; }
 /* maps the texture onto the screen quad P0 (tex 0,0), P1 (W,0), P2 (W,H), P3 (0,H); returns 0 when drawn, 1 when culled (the
  * face shows its back: CSS backface-visibility: hidden) */
-int g3_quad(framebuffer *fb, rect clip, const framebuffer *tex, const double qx[4], const double qy[4], int opacity, const uint8_t *row_alpha, int cull) {
+int g3_quad(framebuffer *fb, rect clip, const framebuffer *tex, const double qx_[4], const double qy_[4], int opacity, const uint8_t *row_alpha, int cull) {
+    double qx[4], qy[4]; for (int i = 0; i < 4; i++) { qx[i] = qx_[i] * ccs_scale; qy[i] = qy_[i] * ccs_scale; }   /* stage -> device pixels */
+    if (ccs_scale > 1) { clip.x0 *= ccs_scale; clip.y0 *= ccs_scale; clip.x1 *= ccs_scale; clip.y1 *= ccs_scale; }
     double area = (qx[1] - qx[0]) * (qy[2] - qy[1]) - (qy[1] - qy[0]) * (qx[2] - qx[1]);
     if (cull && area <= 0) return 1;
     /* unit square -> quad (Heckbert) */
@@ -74,9 +76,9 @@ void g3_vertical_text(framebuffer *t, const font *f, const char *s, int x, int y
     char fit[300]; text_fit(f, s, h, sp, fit, sizeof fit); int tw = text_w(f, fit, strlen(fit), sp), th = f->ascent + f->descent; mask m;
     if (tw <= 0 || mask_alloc(&m, 0, 0, tw, th)) return;
     text_draw(NULL, &m, (rect){ 0, 0, tw, th }, f, 0, f->ascent, fit, strlen(fit), RGBA(0, 255), sp, 0);
-    int ox = x + (w - th) / 2, oy = y + (h - tw) / 2;   /* rotated -90 degrees: mask (mx, my) -> texture (ox + my, oy + tw - 1 - mx) */
-    for (int my = 0; my < th; my++) for (int mx = 0; mx < tw; mx++) {
-        int a = m.a[(size_t)my * tw + mx]; if (!a) continue; int tx = ox + my, ty = oy + tw - 1 - mx; if (tx < 0 || ty < 0 || tx >= t->w || ty >= t->h) continue;
+    int ox = (x + (w - th) / 2) * ccs_scale, oy = (y + (h - tw) / 2) * ccs_scale;   /* rotated -90 degrees: mask (mx, my) -> texture (ox + my, oy + m.w - 1 - mx), device pixels */
+    for (int my = 0; my < m.h; my++) for (int mx = 0; mx < m.w; mx++) {
+        int a = m.a[(size_t)my * m.w + mx]; if (!a) continue; int tx = ox + my, ty = oy + m.w - 1 - mx; if (tx < 0 || ty < 0 || tx >= t->w || ty >= t->h) continue;
         a = a * col.a / 255; uint8_t *q = t->rgb + ((size_t)ty * t->w + tx) * 3; uint8_t cc[3] = { (uint8_t)(col.rgb >> 16), (uint8_t)(col.rgb >> 8), (uint8_t)col.rgb };
         for (int c = 0; c < 3; c++) q[c] = (uint8_t)(q[c] + ((cc[c] - q[c]) * a + 127) / 255);
     }

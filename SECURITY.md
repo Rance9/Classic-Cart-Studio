@@ -6,7 +6,7 @@ Please open a private security advisory on GitHub (Security → Report a vulnera
 
 ## What Classic Cart Studio for Windows does and does not do
 
-- The application is a WebView2 window that shows the interface installed with it and a backend (the Background Helper) that listens **only on 127.0.0.1** (loopback). Neither opens a port on your network, and nothing contacts the console.
+- The application is a WebView2 window that shows the interface installed with it and a backend (the Background Helper) that listens **only on 127.0.0.1** (loopback). Neither opens a port on your network. In this release the console features are turned off, so nothing contacts the console.
 - Only the application's own interface may load inside its window; any other link opens in your normal browser. Web content never gets a general bridge to Windows: the only message channel is the bundled recovery screen's four buttons.
 - The backend accepts privileged requests from exactly one caller: the application window (a random session token created at startup, handed to the backend through its environment, injected only into pages of the approved website origin, and discarded at exit). The public website never pairs with the backend (there are no pairing endpoints); the only requests it may send are a collection handoff and a `.ccs` package handoff (below).
 - The only website origin allowed is `https://classiccartstudio.com`. Loopback development origins can be added in `companion.json` (`allowed_origins`); non-loopback `http://` origins are never accepted.
@@ -15,7 +15,8 @@ Please open a private security advisory on GitHub (Security → Report a vulnera
 - A request whose body stops arriving for 120 seconds is abandoned: the connection is closed and anything partly received is deleted. This is an inactivity limit, not a time or size limit; a transfer that keeps arriving is never cut off.
 - ROM files and `.ccs` packages never leave your computer through Classic Cart Studio: packages are made and checked on the device, and nothing is uploaded to a Classic Cart Studio service.
 - The backend downloads nothing. Hakchi2 CE 3.9.3 is included in the installer, and the backend refuses it unless its size and SHA-256 match the values pinned in `tools/companion/hakchi_bridge.py`.
-- The backend never writes to the console. Installing a collection on the console is done by Hakchi2 CE under the user's control; this project only prepares the files and settings on the PC.
+- Optional usage counts, sent only while the device's Usage Reporting choice is on (no valid saved choice means nothing is sent), go only to `https://metrics.classiccartstudio.com`. The Windows setup only saves the person's answer to its optional question; it sends nothing. The backend re-checks the device's choice and the exact allow-listed fields before sending, sends at most two at a time with a short timeout, keeps no queue, and holds no credential: the collector accepts only fixed fields and values, rejects anything else, and stores no IP address, user agent or request body. Counts can be spoofed and are treated as approximate.
+- The backend never writes to the console in this release. Installing a collection on the console is done by Hakchi2 CE under the user's control; this project only prepares the files and settings on the PC. The installer's agreement does not enable or authorize any console operation.
 
 ## Verifying a download
 

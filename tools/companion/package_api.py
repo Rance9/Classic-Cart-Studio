@@ -4,7 +4,6 @@ computer: no route here uses the network.
 Desktop application only (the window's desktop principal):
   POST /api/package/rom-check     {games: [{version_id, title}]} -> which games have their exact ROM file on this computer
   POST /api/package/export        build a COMPLETE package of the page's collection in the staging folder (every game with its exact ROM)
-  GET  /api/package/file?id=      the built package's bytes
   POST /api/package/save          {id, name} -> native Save As on this computer, the staged package copied there
                                   (export and save with {job: true}: run as a job; export {job, save: true} asks where to save first)
   POST /api/package/job           {job} -> phase (verify | write | check | save | done | canceled | error), games and bytes done
@@ -74,6 +73,12 @@ def describe(i: str, path: str, origin: str = "") -> dict:
     out = {"ok": True, "id": i, "kind": info["kind"], "data": info["data"], "summary": m.get("summary") or {}, "size": info["size"], "origin": origin,
            "valid": info["ok"], "games": info["games"], "roms": [{k: r.get(k) for k in ("version_id", "title", "size", "sha256", "content_sha256", "verified")} for r in info["roms"]],
            "rom_bytes": info["rom_bytes"], "art_count": len(info["art"]), "problems": info["problems"], "created": m.get("created"), "app": m.get("app")}
+    if info["kind"] == cp.KIND_STUDIO:   # a Full Studio Backup: what a restore would add, skip or find different (nothing is written)
+        import studio_backup as sb
+        from common import data_path as _dp
+        try: out["restore_preview"] = sb.preview(_dp, path, info)
+        except Exception as e: out["restore_preview"] = {"error": str(e)}
+        out["progress_count"] = len(info.get("progress") or []); out["custom_count"] = len(info.get("custom") or [])
     _DESC[path] = (key[0], key[1], out); return out
 
 def _read_raw_to(handler, path: str) -> int:
@@ -254,7 +259,7 @@ def _run_job(j: dict, fn, *args):
                         except OSError: pass
     threading.Thread(target=go, daemon=True).start()
 
-def _export_job(j: dict, coll: dict, ids: list, titles: dict, art: dict, summary: dict, version: str, out: str, stage_id: str | None):
+def _export_job(j: dict, coll: dict, ids: list, titles: dict, art: dict, summary: dict, version: str, out: str, stage_id: str | None, kind: str = cp.KIND, extra: list | None = None):
     """verify (every ROM's exact identity) -> write (streamed into <out>.part) -> check (the finished archive's structure) -> rename to <out>.
     Nothing exists under the final name until the package is complete; a canceled or failed job removes its partial file."""
     cancel = lambda: j["cancel_requested"]; part = j["_part"] = out + ".part"
@@ -277,7 +282,7 @@ def _export_job(j: dict, coll: dict, ids: list, titles: dict, art: dict, summary
     def stage(name):
         if name == "roms": st["base"] = st.get("last", 0)
     man = cp.write(part, collection=coll, roms=roms, art=art, summary=summary, app_version=version, identities=idents, cancel=cancel, progress=prog, stage=stage,
-                   rom_done=lambda n, t: j.update(games_done=n))
+                   rom_done=lambda n, t: j.update(games_done=n), kind=kind, extra=extra)
     j.update(phase="check", bytes_done=total)
     if cancel(): raise _Canceled()
     info = cp.inspect(part, verify_roms=False)   # every ROM was hashed as it was written; this confirms the archive reads back completely
@@ -342,7 +347,9 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
         if not p: return handler._json(404, {"ok": False, "error": "That package is no longer open. Open the .ccs file again."})
         acc = body.get("accept"); acc = [str(x) for x in acc] if isinstance(acc, list) else None
         try: r = cp.import_roms(p, acc)
-        except cp.PackageError as e: return handler._json(400, {"ok": False, "error": str(e)})
+        except cp.PackageError as e:   # the files added before it stopped (if any) stay and are named; nothing else changed
+            dt = getattr(e, "details", {}) or {}
+            return handler._json(400, {"ok": False, "error": str(e), "imported": dt.get("imported") or [], "rejected": dt.get("rejected") or []})
         except OSError as e: return handler._json(507, {"ok": False, "error": f"The ROM files could not be saved on this computer ({e.strerror or e}). Nothing was imported."})
         return handler._json(200, dict(r, ok=True))
     if path == "/api/package/keep-art":   # the package's artwork for its personal games, kept in personal/art (also when imported without ROM files)
@@ -375,6 +382,42 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
         if not j: return handler._json(404, {"ok": False, "error": "That export is no longer running."})
         if j["phase"] not in ("done", "error", "canceled"): j["cancel_requested"] = True
         return handler._json(200, {"ok": True, "job": job_status(j["id"])})
+    if path == "/api/studio/backup":   # Back Up Everything: a Full Studio Backup (every collection, every listed game's ROM, settings, saved games)
+        sd = body.get("studio"); games = body.get("games")
+        if not isinstance(sd, dict) or not isinstance(games, list): return handler._json(400, {"ok": False, "error": "There is nothing to back up."})
+        ids = list(dict.fromkeys(str(g.get("version_id")) for g in games if isinstance(g, dict) and g.get("version_id")))
+        titles = {str(g.get("version_id")): str(g.get("title") or "")[:120] for g in games if isinstance(g, dict)}
+        import studio_backup as sb
+        fields, extra = sb.app_parts(data_path, ids)
+        summary = {"name": "Full Studio Backup", "collections": len(sd.get("collections") or []), **sb.summary_of(fields)}
+        personal = fields.pop("personal", {})   # the listed personal games' details from this computer's own games (their artwork: art/ entries)
+        studio = {"schema": cp.STUDIO_SCHEMA, "games": ids, "titles": titles, "studio_data": sd, "personal": personal, "app": fields, "platform": "windows", "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        out = _dest(body, cfg, _safe_file_name(body.get("name") or "Classic Cart Studio Full Backup.ccs"))
+        if not out: return handler._json(200, {"ok": False, "canceled": True})
+        j = _new_job("export", os.path.basename(out))
+        _run_job(j, _export_job, studio, ids, titles, {}, summary, version, out, None, cp.KIND_STUDIO, extra)
+        return handler._json(200, {"ok": True, "job": j["id"], "name": j["name"], "summary": summary})
+    if path == "/api/studio/contents":   # what Back Up Everything would hold (counts), before the ROM check and the Save dialog
+        import studio_backup as sb
+        ids = [str(x) for x in (body.get("ids") or []) if isinstance(x, str)]
+        fields, extra = sb.app_parts(data_path, ids)
+        return handler._json(200, {"ok": True, "summary": sb.summary_of(fields), "progress_bytes": sum(os.path.getsize(src) for n, k, src in extra if k == "progress" and isinstance(src, str)),
+                                   "orphaned": [{"sha": x["sha"][:16], "title": x["title"]} for x in fields["progress"] if x.get("orphaned")][:50]})
+    if path == "/api/studio/restore":   # a staged Full Studio Backup: its settings, saved games and custom content (the ROMs: import-roms)
+        p = _path_for(d, str(body.get("id") or ""))
+        if not p: return handler._json(404, {"ok": False, "error": "That backup is no longer open. Open the .ccs file again."})
+        try: info = cp.inspect(p, verify_roms=False)
+        except cp.PackageError as e: return handler._json(400, {"ok": False, "error": str(e)})
+        if info["kind"] != cp.KIND_STUDIO: return handler._json(400, {"ok": False, "error": "This is a Collection Backup, not a Full Studio Backup."})
+        if not info["ok"]: return handler._json(400, {"ok": False, "error": "The backup is damaged, so nothing was restored: " + "; ".join(f"{x['path']} {x['problem']}" for x in info["problems"][:3])})
+        import studio_backup as sb   # it asks the game player itself (holding its lock) and writes no saved progress unless no game window is open
+        r = sb.restore(data_path, p, info, replace=bool(body.get("replace")), controllers=bool(body.get("controllers")), check_only=bool(body.get("check")))
+        if not r.get("ok"): return handler._json(409, r)
+        return handler._json(200, dict(r, studio_data=(info["data"] or {}).get("studio_data") or {}))
+    if path == "/api/studio/restore-recover":   # Try Again: finish putting back a restore whose own rollback could not finish (the same game-window rule)
+        import studio_backup as sb
+        r = sb.recover(data_path, str(body.get("txid") or ""))
+        return handler._json(200 if r.get("ok") else 409, r)
     if path == "/api/package/export":   # complete packages only; ROM files are always included (include_roms is accepted and ignored)
         coll = body.get("collection")
         if not isinstance(coll, dict):
@@ -385,11 +428,9 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
         titles = {**cp._titles(coll, []), **_games_titles(body)}; art = _art(body)
         name = _safe_file_name((coll.get("ccs_collection") or {}).get("name") or coll.get("name") or "Collection")
         summary = body.get("summary") if isinstance(body.get("summary"), dict) else {}
-        if body.get("job"):   # the window's export with progress and cancel: Export .ccs asks where to save first; Send to Phone stages it
-            if body.get("save"):
-                out = _dest(body, cfg, _safe_file_name(body.get("name") or name)); sid = None
-                if not out: return handler._json(200, {"ok": False, "canceled": True})
-            else: _prune(d); sid, out = _new_path(d)
+        if body.get("job"):   # the window's backup with progress and cancel: it asks where to save first (nothing is only staged)
+            out = _dest(body, cfg, _safe_file_name(body.get("name") or name)); sid = None
+            if not out: return handler._json(200, {"ok": False, "canceled": True})
             j = _new_job("export", os.path.basename(out) if sid is None else _safe_file_name(body.get("name") or name))
             _run_job(j, _export_job, coll, ids, titles, art, summary, version, out, sid)
             return handler._json(200, {"ok": True, "job": j["id"], "name": j["name"]})
@@ -440,8 +481,4 @@ def handle_get(handler, path: str, qs: str, data_path) -> None:
     p = _path_for(d, q.get("id", ""))
     if not p: return handler._json(404, {"ok": False, "error": "That package is no longer open. Open the .ccs file again."})
     if path == "/api/package/preview": return handler._json(200, describe(q["id"], p))
-    if path == "/api/package/file":
-        n = os.path.getsize(p); handler.send_response(200); handler.send_header("Content-Type", cp.MEDIA_TYPE); handler.send_header("Content-Length", str(n)); handler.send_header("Cache-Control", "no-store"); handler.end_headers()
-        with open(p, "rb") as f: shutil.copyfileobj(f, handler.wfile, 1 << 20)
-        return
     return handler._json(404, {"ok": False, "error": "unknown package endpoint"})

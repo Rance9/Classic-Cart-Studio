@@ -3,9 +3,9 @@
   "name": "welcome",
   "size": [
    1400,
-   565
+   566
   ],
-  "bytes": 68658
+  "bytes": 69013
  },
  {
   "name": "toolbar",
@@ -13,7 +13,7 @@
    1400,
    62
   ],
-  "bytes": 19323
+  "bytes": 18995
  },
  {
   "name": "tools-row",
@@ -21,15 +21,15 @@
    1400,
    96
   ],
-  "bytes": 22710
+  "bytes": 22591
  },
  {
   "name": "search-dr-mario",
   "size": [
    1400,
-   281
+   282
   ],
-  "bytes": 39188
+  "bytes": 38684
  },
  {
   "name": "selected-rows",
@@ -37,7 +37,7 @@
    1400,
    484
   ],
-  "bytes": 49422
+  "bytes": 46047
  },
  {
   "name": "grid-cards",
@@ -45,7 +45,7 @@
    1400,
    535
   ],
-  "bytes": 206925
+  "bytes": 202934
  },
  {
   "name": "list-rows",
@@ -53,63 +53,71 @@
    1400,
    484
   ],
-  "bytes": 49948
+  "bytes": 46357
  },
  {
   "name": "version-chip",
   "size": [
    876,
-   714
+   715
   ],
-  "bytes": 49413
+  "bytes": 49455
  },
  {
   "name": "filters",
   "size": [
    1400,
-   955
+   966
   ],
-  "bytes": 107607
+  "bytes": 101738
  },
  {
   "name": "select-menu",
   "size": [
-   636,
-   506
+   824,
+   883
   ],
-  "bytes": 20852
+  "bytes": 32303
  },
  {
   "name": "tray",
   "size": [
    880,
-   1404
+   1414
   ],
-  "bytes": 79463
+  "bytes": 81464
  },
  {
   "name": "details",
   "size": [
    1400,
-   1026
+   1066
   ],
-  "bytes": 269714
+  "bytes": 277253
+ },
+ {
+  "name": "game-settings",
+  "size": [
+   1400,
+   1082
+  ],
+  "bytes": 144809
  },
  {
   "name": "my-collection-menu",
   "size": [
-   656,
-   968
+   824,
+   1020
   ],
-  "bytes": 44554
+  "bytes": 61922
  },
  {
-  "name": "share-export",
+  "name": "backup",
   "size": [
    1400,
-   295
+   449
   ],
-  "bytes": 50180
+  "bytes": 53005
  },
  {
   "name": "loadout-band",
@@ -117,119 +125,127 @@
    1400,
    132
   ],
-  "bytes": 49682
+  "bytes": 49475
  },
  {
   "name": "will-it-fit",
   "size": [
    1400,
-   795
+   856
   ],
-  "bytes": 91692
+  "bytes": 89157
  },
  {
   "name": "tv-preview",
   "size": [
    1600,
-   943
+   900
   ],
-  "bytes": 331982
+  "bytes": 281369
  },
  {
   "name": "tv-pad",
   "size": [
    1400,
-   220
+   221
   ],
-  "bytes": 43435
+  "bytes": 42413
  },
  {
   "name": "tv-side-panel",
   "size": [
    680,
-   1414
+   1408
   ],
-  "bytes": 123443
+  "bytes": 95908
  },
  {
   "name": "tv-themes",
   "size": [
    1400,
-   787
+   788
   ],
-  "bytes": 271579
+  "bytes": 255577
  },
  {
   "name": "tv-search",
   "size": [
    1400,
-   787
+   788
   ],
-  "bytes": 199703
+  "bytes": 183263
  },
  {
   "name": "desktop-invitation",
   "size": [
    1400,
-   457
+   505
   ],
-  "bytes": 88258
+  "bytes": 79808
  },
  {
   "name": "install-check",
   "size": [
    1400,
-   785
+   791
   ],
-  "bytes": 140085
+  "bytes": 135602
  },
  {
   "name": "install-connect",
   "size": [
    1400,
-   755
+   761
   ],
-  "bytes": 106972
+  "bytes": 105093
  },
  {
   "name": "install-console-state",
   "size": [
    1400,
-   874
+   948
   ],
-  "bytes": 140499
+  "bytes": 186361
  },
  {
   "name": "install-review",
   "size": [
    1400,
-   959
+   1194
   ],
-  "bytes": 169282
+  "bytes": 205045
+ },
+ {
+  "name": "install-rehearse",
+  "size": [
+   1400,
+   714
+  ],
+  "bytes": 121698
  },
  {
   "name": "install-authorize",
   "size": [
    1400,
-   413
+   419
   ],
-  "bytes": 74966
+  "bytes": 76584
  },
  {
   "name": "install-verify",
   "size": [
    1400,
-   552
+   739
   ],
-  "bytes": 91446
+  "bytes": 149240
  },
  {
   "name": "tv-sample",
   "size": [
    1400,
-   787
+   788
   ],
-  "bytes": 390082
+  "bytes": 370876
  },
  {
   "name": "phone-toolbar",
@@ -237,6 +253,14 @@
    560,
    1212
   ],
-  "bytes": 198934
+  "bytes": 193097
+ },
+ {
+  "name": "rance9-avatar",
+  "size": [
+   480,
+   480
+  ],
+  "bytes": 108139
  }
 ]

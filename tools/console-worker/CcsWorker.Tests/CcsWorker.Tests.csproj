@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline tests of the console transport worker (no hardware): protocol, gate, clovershell framing on a simulated device, the SSH
+       adapter on a fake session, the operations on scripted shells, and fidelity runs on the console's own BusyBox under qemu-arm.
+       The BusyBox shell exists only here. GPL-3.0-or-later. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>CcsWorker.Tests</AssemblyName>
+    <RootNamespace>CcsWorker.Tests</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CS0162</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CcsWorker\CcsWorker.csproj" />
+    <ProjectReference Include="..\ccs-console-worker\ccs-console-worker.csproj" ReferenceOutputAssembly="false" />
+    <Reference Include="System.Web.Extensions" />
+    <EmbeddedResource Include="..\CcsWorker\**\*.cs" LogicalName="src/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="fidelity\*.sh" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

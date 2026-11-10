@@ -1,0 +1,14 @@
+// Classic Cart Studio optional usage counts: the TEST collector (its own dataset; never the production one). GPL-3.0-or-later.
+// Deployed only for verification; its counts are test traffic. No Worker logs (observability off); workers.dev only.
+{
+  "name": "classic-cart-studio-metrics-test",
+  "main": "collector.mjs",
+  "compatibility_date": "2026-11-10",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "vars": { "METRICS_ENABLED": "true", "ALLOWED_ORIGINS": "https://classiccartstudio.com" },
+  "analytics_engine_datasets": [
+    { "binding": "CCS_METRICS", "dataset": "ccs_usage_test" }
+  ]
+}

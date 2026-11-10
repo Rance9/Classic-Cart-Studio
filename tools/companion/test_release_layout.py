@@ -52,6 +52,10 @@ def main(dist: str) -> int:
     ok("arm_runtime_bundled", e is not None, rt); ok("arm_runtime_is_32bit_arm_static", e and e["class"] == 1 and e["machine"] == 40 and e["interp"] is False, e)
     ok("preview_core_bundled", os.path.isfile(core) and open(core, "rb").read(2) == b"MZ", core)
     ok("site_bundled", os.path.isfile(os.path.join(site, "index.html")) and os.path.isfile(os.path.join(site, "catalog.json")), site)
+    pl = os.path.join(internal, "player", "ccs-player.exe"); pf = os.path.join(internal, "player", "fonts")   # M3: the game player and its menu fonts
+    ok("game_player_bundled", os.path.isfile(pl) and open(pl, "rb").read(2) == b"MZ", pl)
+    ok("game_player_fonts_bundled", all(os.path.isfile(os.path.join(pf, f + ".ccsf")) for f in ("silk17", "sans700_30", "sans600_22", "sans400_17")), pf)
+    ok("site_ships_extended_descriptions", os.path.isfile(os.path.join(site, "descriptions-library.json")), site)   # M2-2
     from hakchi_bridge import HAKCHI_PACKAGE, HAKCHI_REQUIRED
     hk = os.path.join(internal, "packages", HAKCHI_PACKAGE["name"])
     ok("hakchi_package_bundled_and_verified", os.path.isfile(hk) and os.path.getsize(hk) == HAKCHI_PACKAGE["size"] and BI.sha256(hk) == HAKCHI_PACKAGE["sha256"], hk)

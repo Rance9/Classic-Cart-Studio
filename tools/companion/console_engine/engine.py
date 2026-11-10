@@ -5,7 +5,7 @@ at two boundaries. States are the truthful set from the directive (section D2)."
 from __future__ import annotations
 import re, time, uuid
 from . import gate, plan as planmod
-from .transport import FakeTransport, Disconnected, TransportError, open_transport
+from .transport import FakeTransport, Disconnected, TransportError
 from .journal import Journal
 
 MIN_BOOT, MIN_KERNEL, MIN_SCRIPT = (1, 0, 2), (3, 4, 113), (1, 0, 4, 118)     # hakchi.cs 285-298
@@ -166,12 +166,10 @@ class Engine:
             self.emit("failure", self.stage, text=str(e), level="error", code="device-error"); return res
 
     def execute(self, p: dict, transport_kind: str = "ssh") -> dict:
-        """Physical operation: refused by Gate G1 in code; the transport boundary refuses again."""
-        try: gate.require("install", "execute installation plan")
-        except gate.GateClosed as e:
-            self.emit("refused", "execute", text=str(e), level="warn", code="physical-disabled"); return {"state": gate.GATE_STATE_TEXT, "code": "physical-disabled", "simulated": False, "plan_hash": p["hash"]}
-        open_transport(transport_kind)   # unreachable while the gate is closed; and still refused at the boundary
-        return {"state": "unreachable"}
+        """The older plan's game sync through hakchi (G2): refused whatever the gate says (it is retired; no transport is opened). Classic
+        Cart Studio's HOME reaches a console only through ccs_install, for an operation the app's dispatcher admitted."""
+        self.emit("refused", "execute", text="syncing games through hakchi is not part of Classic Cart Studio", level="warn", code="physical-disabled")
+        return {"state": "Syncing games through hakchi is not part of Classic Cart Studio.", "code": "physical-disabled", "simulated": False, "plan_hash": p["hash"]}
 
     def cancel_if_safe(self) -> dict:
         self.cancel_requested = True; safe = self.stage in SAFE_CANCEL_STAGES or self.stage == "idle"

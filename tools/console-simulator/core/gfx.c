@@ -42,8 +42,8 @@ int ccs_read_file(const char *path, uint8_t **buf, size_t *len, size_t max_len) 
     *buf = b; *len = n; return 0;
 }
 
-int img_alloc(image *im, int w, int h, int ch) { im->w = w; im->h = h; im->ch = ch; im->px = calloc((size_t)w * h * ch, 1); return im->px ? 0 : -1; }
-void img_free(image *im) { free(im->px); im->px = NULL; im->w = im->h = 0; }
+int img_alloc(image *im, int w, int h, int ch) { im->w = w; im->h = h; im->ch = ch; im->hpx = NULL; im->hs = 0; im->px = calloc((size_t)w * h * ch, 1); return im->px ? 0 : -1; }
+void img_free(image *im) { free(im->px); free(im->hpx); im->px = im->hpx = NULL; im->w = im->h = im->hs = 0; }
 
 int img_decode(const uint8_t *buf, size_t len, image *im, int want_alpha, char *err, size_t errlen) {
     memset(im, 0, sizeof *im); int w, h, n; uint8_t *px = stbi_load_from_memory(buf, (int)len, &w, &h, &n, want_alpha ? 4 : 3);
@@ -107,9 +107,11 @@ static int scale_rect(const image *src, int sx, int sy, int sw, int sh, image *d
     if (ch == 4) for (size_t i = 0, n = (size_t)dw * dh; i < n; i++) { uint8_t *q = dst->px + i * 4; int a = q[3]; if (a) { q[0] = clamp8((q[0] * 255 + a / 2) / a); q[1] = clamp8((q[1] * 255 + a / 2) / a); q[2] = clamp8((q[2] * 255 + a / 2) / a); } }
     free(wx); free(wy); free(tmp); free(pm); return 0;
 }
-int img_scale(const image *src, image *dst, int dw, int dh) { return scale_rect(src, 0, 0, src->w, src->h, dst, dw, dh); }
+static void carry_hi(const image *src, image *dst) {   /* a resized image keeps its high-resolution pixels (resized from the source's) */
+    if (ccs_scale > 1 && src->hpx && src->hs == ccs_scale && dst->px) { image hs = { src->w * src->hs, src->h * src->hs, src->ch, src->hpx, NULL, 0 }; img_hi(&hs, dst, 0); } }
+int img_scale(const image *src, image *dst, int dw, int dh) { int r = scale_rect(src, 0, 0, src->w, src->h, dst, dw, dh); if (!r) carry_hi(src, dst); return r; }
 int img_scale_nearest(const image *src, image *dst, int dw, int dh) {
-    if (img_alloc(dst, dw, dh, src->ch)) return -1;
+    if (img_alloc(dst, dw, dh, src->ch)) return -1; carry_hi(src, dst);
     for (int y = 0; y < dh; y++) { int sy = (int)(((int64_t)y * src->h * 2 + src->h) / (2 * dh)); for (int x = 0; x < dw; x++) { int sx = (int)(((int64_t)x * src->w * 2 + src->w) / (2 * dw)); memcpy(dst->px + ((size_t)y * dw + x) * src->ch, src->px + ((size_t)sy * src->w + sx) * src->ch, (size_t)src->ch); } }
     return 0;
 }
@@ -124,7 +126,19 @@ int img_contain(const image *src, image *dst, int dw, int dh, int *ox, int *oy) 
     *ox = (dw - fw) / 2; *oy = (dh - fh) / 2; return img_scale(src, dst, fw, fh);
 }
 
+void img_hi(const image *src, image *dst, int cover) {
+    if (ccs_scale <= 1 || !dst->px || !src || !src->px) return; image t; int S = ccs_scale;
+    if (cover ? img_cover(src, &t, dst->w * S, dst->h * S) : img_scale(src, &t, dst->w * S, dst->h * S)) return;
+    if (t.ch != dst->ch) { img_free(&t); return; }
+    free(dst->hpx); dst->hpx = t.px; dst->hs = S; }
+
 /* ---------- drawing ---------- */
+#define SC ccs_scale
+static rect sc_clip(rect c) { rect r = { c.x0 * SC, c.y0 * SC, c.x1 * SC, c.y1 * SC }; return r; }
+static inline int div255(int v) { v += 128; return (v + (v >> 8)) >> 8; }   /* = (v + 127) / 255 for 0 <= v <= 65025 */
+static inline void blend2(uint8_t *p, uint32_t rgb, int a) {   /* blend() with div255: the scaled paths only */
+    if (a <= 0) return; if (a >= 255) { p[0] = (uint8_t)(rgb >> 16); p[1] = (uint8_t)(rgb >> 8); p[2] = (uint8_t)rgb; return; }
+    p[0] = (uint8_t)div255(p[0] * (255 - a) + ((rgb >> 16) & 255) * a); p[1] = (uint8_t)div255(p[1] * (255 - a) + ((rgb >> 8) & 255) * a); p[2] = (uint8_t)div255(p[2] * (255 - a) + (rgb & 255) * a); }
 rect rect_make(int x, int y, int w, int h) { rect r = { x, y, x + w, y + h }; return r; }
 rect rect_isect(rect a, rect b) { rect r = { a.x0 > b.x0 ? a.x0 : b.x0, a.y0 > b.y0 ? a.y0 : b.y0, a.x1 < b.x1 ? a.x1 : b.x1, a.y1 < b.y1 ? a.y1 : b.y1 }; return r; }
 static rect fb_clip(const framebuffer *fb, rect clip, int x, int y, int w, int h) { rect r = rect_isect(clip, rect_make(x, y, w, h)); return rect_isect(r, rect_make(0, 0, fb->w, fb->h)); }
@@ -133,11 +147,29 @@ static inline void blend(uint8_t *p, uint32_t rgb, int a) {
     p[0] = (uint8_t)((p[0] * (255 - a) + ((rgb >> 16) & 255) * a + 127) / 255); p[1] = (uint8_t)((p[1] * (255 - a) + ((rgb >> 8) & 255) * a + 127) / 255); p[2] = (uint8_t)((p[2] * (255 - a) + (rgb & 255) * a + 127) / 255);
 }
 void gfx_fill(framebuffer *fb, rect clip, int x, int y, int w, int h, color c) {
+    if (SC > 1) { x *= SC; y *= SC; w *= SC; h *= SC; clip = sc_clip(clip); }
     rect r = fb_clip(fb, clip, x, y, w, h);
     for (int yy = r.y0; yy < r.y1; yy++) for (int xx = r.x0; xx < r.x1; xx++) blend(fb->rgb + ((size_t)yy * fb->w + xx) * 3, c.rgb, c.a);
 }
+static int rr_cov(int px, int py, int x, int y, int w, int h, int r);
+/* ccs_scale > 1: an image at stage position (x, y) in device pixels: its hpx when it has them at this scale, else its pixels doubled;
+   radius > 0 (device pixels): the rounded-rectangle coverage of gfx_rrect_image */
+static void blit_scaled(framebuffer *fb, rect clip, const image *im, int x, int y, int opacity, int radius) {
+    int S = SC, X = x * S, Y = y * S, W = im->w * S, H = im->h * S, hi = im->hpx && im->hs == S, ch = im->ch; rect r = fb_clip(fb, sc_clip(clip), X, Y, W, H);
+    if (r.x1 <= r.x0) return;
+    for (int yy = r.y0; yy < r.y1; yy++) {
+        uint8_t *d = fb->rgb + ((size_t)yy * fb->w + r.x0) * 3;
+        const uint8_t *row = hi ? im->hpx + (size_t)(yy - Y) * W * ch : im->px + (size_t)((yy - Y) / S) * im->w * ch;
+        int corner = radius > 0 && (yy < Y + radius || yy >= Y + H - radius);   /* rows that cross a rounded corner */
+        if (hi && ch == 3 && opacity >= 255 && !corner) { memcpy(d, row + (size_t)(r.x0 - X) * 3, (size_t)(r.x1 - r.x0) * 3); continue; }   /* an opaque row, fully inside any rounding */
+        int sx = (r.x0 - X) / S, ph = (r.x0 - X) % S;   /* the source column and how far into its S device pixels */
+        for (int xx = r.x0; xx < r.x1; xx++, d += 3) {
+            const uint8_t *q = hi ? row + (size_t)(xx - X) * ch : row + (size_t)sx * ch;
+            if (!hi && ++ph == S) { ph = 0; sx++; }
+            int a = ch == 4 ? q[3] * opacity / 255 : opacity; if (corner) { int cv = rr_cov(xx, yy, X, Y, W, H, radius); if (!cv) continue; a = a * cv / 16; }
+            blend2(d, ((uint32_t)q[0] << 16) | ((uint32_t)q[1] << 8) | q[2], a); } } }
 void gfx_image(framebuffer *fb, rect clip, const image *im, int x, int y, int opacity) {
-    if (!im || !im->px) return; rect r = fb_clip(fb, clip, x, y, im->w, im->h);
+    if (!im || !im->px) return; if (SC > 1) { blit_scaled(fb, clip, im, x, y, opacity, 0); return; } rect r = fb_clip(fb, clip, x, y, im->w, im->h);
     for (int yy = r.y0; yy < r.y1; yy++) {
         const uint8_t *s = im->px + ((size_t)(yy - y) * im->w + (r.x0 - x)) * im->ch; uint8_t *d = fb->rgb + ((size_t)yy * fb->w + r.x0) * 3;
         if (im->ch == 3 && opacity >= 255) { memcpy(d, s, (size_t)(r.x1 - r.x0) * 3); continue; }
@@ -156,15 +188,23 @@ static int rr_cov(int px, int py, int x, int y, int w, int h, int r) {
     return n;
 }
 void gfx_rrect(framebuffer *fb, rect clip, int x, int y, int w, int h, int radius, color c) {
+    if (SC > 1) { x *= SC; y *= SC; w *= SC; h *= SC; radius *= SC; clip = sc_clip(clip); }
     rect r = fb_clip(fb, clip, x, y, w, h);
     for (int yy = r.y0; yy < r.y1; yy++) for (int xx = r.x0; xx < r.x1; xx++) { int cv = rr_cov(xx, yy, x, y, w, h, radius); if (cv) blend(fb->rgb + ((size_t)yy * fb->w + xx) * 3, c.rgb, c.a * cv / 16); }
 }
 void gfx_rrect_ring(framebuffer *fb, rect clip, int x, int y, int w, int h, int radius, int t, color c) {
+    if (SC > 1) { x *= SC; y *= SC; w *= SC; h *= SC; radius *= SC; t *= SC; clip = sc_clip(clip); }
     rect r = fb_clip(fb, clip, x, y, w, h); int ir = radius - t > 0 ? radius - t : 0;
+    if (SC > 1) {   /* only the band: rows within t + radius of the top or bottom, else the columns within t + radius of the sides */
+        int bnd = t + radius;
+        for (int yy = r.y0; yy < r.y1; yy++) { int full = yy < y + bnd || yy >= y + h - bnd;
+            for (int xx = r.x0; xx < r.x1; xx++) { if (!full && xx >= x + bnd && xx < x + w - bnd) { xx = x + w - bnd - 1; continue; }
+                int cv = rr_cov(xx, yy, x, y, w, h, radius) - rr_cov(xx, yy, x + t, y + t, w - 2 * t, h - 2 * t, ir); if (cv > 0) blend2(fb->rgb + ((size_t)yy * fb->w + xx) * 3, c.rgb, c.a * cv / 16); } }
+        return; }
     for (int yy = r.y0; yy < r.y1; yy++) for (int xx = r.x0; xx < r.x1; xx++) { int cv = rr_cov(xx, yy, x, y, w, h, radius) - rr_cov(xx, yy, x + t, y + t, w - 2 * t, h - 2 * t, ir); if (cv > 0) blend(fb->rgb + ((size_t)yy * fb->w + xx) * 3, c.rgb, c.a * cv / 16); }
 }
 void gfx_rrect_image(framebuffer *fb, rect clip, const image *im, int x, int y, int radius) {
-    if (!im || !im->px) return; rect r = fb_clip(fb, clip, x, y, im->w, im->h);
+    if (!im || !im->px) return; if (SC > 1) { blit_scaled(fb, clip, im, x, y, 255, radius > 0 ? radius * SC : 0); return; } rect r = fb_clip(fb, clip, x, y, im->w, im->h);
     for (int yy = r.y0; yy < r.y1; yy++) for (int xx = r.x0; xx < r.x1; xx++) {
         int cv = rr_cov(xx, yy, x, y, im->w, im->h, radius); if (!cv) continue; const uint8_t *s = im->px + ((size_t)(yy - y) * im->w + (xx - x)) * im->ch;
         int a = (im->ch == 4 ? s[3] : 255) * cv / 16; blend(fb->rgb + ((size_t)yy * fb->w + xx) * 3, ((uint32_t)s[0] << 16) | ((uint32_t)s[1] << 8) | s[2], a);
@@ -184,7 +224,19 @@ static void phi_init(void) {
     phi_ready = 1;
 }
 static double phi(double z) { if (z <= -4.0) return 0; if (z >= 4.0) return 1; double f = (z + 4.0) / 8.0 * PHI_N; int i = (int)f; if (i >= PHI_N) return 1; double t = f - i; return PHI[i] + (PHI[i + 1] - PHI[i]) * t; }
+static void shadow_scaled(framebuffer *fb, rect clip, int x, int y, int w, int h, double sigma, color c) {   /* stage-resolution blur, S x S per value */
+    int S = SC, m = (int)(sigma * 3) + 1; rect r = rect_isect(rect_isect(clip, rect_make(x - m, y - m, w + 2 * m, h + 2 * m)), rect_make(0, 0, fb->w / S, fb->h / S));
+    int W = r.x1 - r.x0; if (W <= 0 || r.y1 <= r.y0) return; double *px = malloc(sizeof(double) * W); if (!px) return;
+    for (int xx = r.x0; xx < r.x1; xx++) px[xx - r.x0] = sigma > 0 ? phi((xx + 0.5 - x) / sigma) - phi((xx + 0.5 - x - w) / sigma) : (xx >= x && xx < x + w);
+    for (int yy = r.y0; yy < r.y1; yy++) {
+        double py = sigma > 0 ? phi((yy + 0.5 - y) / sigma) - phi((yy + 0.5 - y - h) / sigma) : (yy >= y && yy < y + h);
+        for (int xx = r.x0; xx < r.x1; xx++) { int a = iround(c.a * px[xx - r.x0] * py); if (a <= 0) continue;
+            for (int j = 0; j < S; j++) { uint8_t *d = fb->rgb + ((size_t)(yy * S + j) * fb->w + xx * S) * 3; for (int i = 0; i < S; i++, d += 3) blend2(d, c.rgb, a); } }
+    }
+    free(px);
+}
 void gfx_shadow(framebuffer *fb, rect clip, int x, int y, int w, int h, double sigma, color c) {
+    if (SC > 1) { if (!phi_ready) phi_init(); shadow_scaled(fb, clip, x, y, w, h, sigma, c); return; }
     if (!phi_ready) phi_init(); int m = (int)(sigma * 3) + 1; rect r = fb_clip(fb, clip, x - m, y - m, w + 2 * m, h + 2 * m);
     int W = r.x1 - r.x0; if (W <= 0 || r.y1 <= r.y0) return; double *px = malloc(sizeof(double) * W); if (!px) return;
     for (int xx = r.x0; xx < r.x1; xx++) px[xx - r.x0] = sigma > 0 ? phi((xx + 0.5 - x) / sigma) - phi((xx + 0.5 - x - w) / sigma) : (xx >= x && xx < x + w);
@@ -196,6 +248,7 @@ void gfx_shadow(framebuffer *fb, rect clip, int x, int y, int w, int h, double s
 }
 /* CSS linear-gradient over a box: stops interpolated in premultiplied space, composited over the framebuffer */
 void gfx_gradient(framebuffer *fb, rect clip, int x, int y, int w, int h, int vertical, const stop *s, int n) {
+    if (SC > 1) { x *= SC; y *= SC; w *= SC; h *= SC; clip = sc_clip(clip); }
     rect r = fb_clip(fb, clip, x, y, w, h); int len = vertical ? h : w; if (len <= 0) return;
     int lo = vertical ? r.y0 : r.x0, hi = vertical ? r.y1 : r.x1, base = vertical ? y : x;
     for (int i = lo; i < hi; i++) {
@@ -219,7 +272,7 @@ void gfx_gradient(framebuffer *fb, rect clip, int x, int y, int w, int h, int ve
 }
 
 /* ---------- coverage masks (text glows) ---------- */
-int mask_alloc(mask *m, int x, int y, int w, int h) { m->x = x; m->y = y; m->w = w; m->h = h; m->a = calloc((size_t)w * h, 1); return m->a ? 0 : -1; }
+int mask_alloc(mask *m, int x, int y, int w, int h) { if (SC > 1) { x *= SC; y *= SC; w *= SC; h *= SC; } m->x = x; m->y = y; m->w = w; m->h = h; m->a = calloc((size_t)w * h, 1); return m->a ? 0 : -1; }
 void mask_free(mask *m) { free(m->a); m->a = NULL; }
 static void box_pass(uint8_t *a, int n, int stride, int r, uint8_t *tmp) {
     int win = 2 * r + 1; int32_t s = 0;
@@ -228,12 +281,12 @@ static void box_pass(uint8_t *a, int n, int stride, int r, uint8_t *tmp) {
     for (int i = 0; i < n; i++) { a[i * stride] = (uint8_t)((s + win / 2) / win); int out = i - r, in = i + r + 1; if (out >= 0) s -= tmp[out]; if (in < n) s += tmp[in]; }
 }
 void mask_blur(mask *m, double sigma) {   /* three box passes approximate a Gaussian: r(r+1) ~ sigma^2 */
-    int r = 0; while ((double)(r + 1) * (r + 2) <= sigma * sigma) r++; if (r < 1) r = 1;
+    if (SC > 1) sigma *= SC; int r = 0; while ((double)(r + 1) * (r + 2) <= sigma * sigma) r++; if (r < 1) r = 1;
     uint8_t *tmp = malloc((size_t)(m->w > m->h ? m->w : m->h)); if (!tmp) return;
     for (int p = 0; p < 3; p++) { for (int y = 0; y < m->h; y++) box_pass(m->a + (size_t)y * m->w, m->w, 1, r, tmp); for (int x = 0; x < m->w; x++) box_pass(m->a + x, m->h, m->w, r, tmp); }
     free(tmp);
 }
 void gfx_mask(framebuffer *fb, rect clip, const mask *m, color c) {
-    rect r = fb_clip(fb, clip, m->x, m->y, m->w, m->h);
+    if (SC > 1) clip = sc_clip(clip); rect r = fb_clip(fb, clip, m->x, m->y, m->w, m->h);
     for (int yy = r.y0; yy < r.y1; yy++) for (int xx = r.x0; xx < r.x1; xx++) { int v = m->a[(size_t)(yy - m->y) * m->w + (xx - m->x)]; if (v) blend(fb->rgb + ((size_t)yy * fb->w + xx) * 3, c.rgb, c.a * v / 255); }
 }

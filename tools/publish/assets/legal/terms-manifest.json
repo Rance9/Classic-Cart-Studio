@@ -1,0 +1,21 @@
+{
+ "schema": "ccs-legal-terms/1",
+ "document": "CCS-INSTALLATION-TERMS",
+ "version": "1.0",
+ "source": "tools/publish/assets/legal/INSTALLATION-TERMS.md",
+ "source_sha256": "660c631491f358b6792cd18ffe934e5e4ea45d697f9b71a4b19d3cc17f673ea7",
+ "text_identity_sha256": "6f3f33859be66936c41309fb813f84450246af4b8571143f582953d7d6540a4a",
+ "copies": {
+  "installer_and_release_txt": {
+   "path": "tools/publish/assets/legal/INSTALLATION-TERMS.txt",
+   "sha256": "652341f08695c513dc0c89725b74ba3598fd045779bcb41e3a2f22777150aa71",
+   "text_identity_sha256": "6f3f33859be66936c41309fb813f84450246af4b8571143f582953d7d6540a4a"
+  },
+  "help_chapter": {
+   "path": "tools/rom-pipeline/studio/guide.html (between its markers)",
+   "sha256": "3dc08179dc26f5c5ffbe2b91f54bf2134712999b130ae73a8b606a7fe3037715",
+   "text_identity_sha256": "6f3f33859be66936c41309fb813f84450246af4b8571143f582953d7d6540a4a"
+  }
+ },
+ "normalization": "Markdown marks removed (**, `, heading #); Help adds <b>, <code>, links on https addresses and <h4> headings; whitespace collapsed for the text identity"
+}

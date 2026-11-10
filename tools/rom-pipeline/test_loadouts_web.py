@@ -4,13 +4,13 @@ Focused scenarios (the storage arithmetic itself is test_storage_model.py; the i
   E  creation       a new collection has no loadout; loadouts are created only when asked (all games, or chosen games), named in the
                     creation dialog with a suggested, editable name
   D  scope          the NES Classic storage meter exists only in the loadout editor: not in the library, the collection view, the tray,
-                    the collection manager, the Prepare dialog or the Share or Export dialog; Back to Collection removes it
+                    the collection manager, the Prepare dialog or the Back Up Collection dialog; Back to Collection removes it
   A  live bytes     adding and removing games moves the meter by the games' own bytes (a large game more than a small one); switching
                     loadouts shows the other loadout's figure at once
   C  oversized      a loadout larger than the estimated space is kept whole with an exceed warning, and survives a restart
   B  independence   loadouts of a 1,200-game collection keep their own games and HOME theme across switching and a restart
   F  artwork        a complete .ccs package (synthetic sentinel ROMs: eight Game Library versions with catalog covers, a personal game
-                    with the user's own artwork, one without art) exported through Share or Export and imported in a clean browser
+                    with the user's own artwork, one without art) backed up through Back Up Collection and imported in a clean browser
                     with none of the files: catalog covers and the personal artwork thumbnail load, the game without art falls back;
                     every game and the loadout kept; no request leaves this computer, none carries ROM bytes
   N  navigation     Preview on TV sits directly before My Collections in the primary row (collection and loadout views, desktop and phone)
@@ -56,7 +56,7 @@ PERSONAL = r"""(()=>{ const c=document.createElement('canvas'); c.width=60; c.he
  return JSON.stringify([P('p_1111222233334444','My Homebrew Quest', own), P('p_5555666677778888','Translated Hack (T-En)', null)]); })()"""
 # ---- complete .ccs packages in the page (shared by test_ccs_web, test_collections_web, test_collection_integrity; the synthetic sentinel
 #      ROMs themselves are mkRom in test_ccs_v2_web.ROMS, the request recorder is test_ccs_v2_web.NET) ----
-# ccsExportUi(cid, files): Export .ccs as a person does it: the Share or Export dialog checks the ROM files, Export .ccs, the ROM
+# ccsExportUi(cid, files): Back Up Collection as a person does it: the dialog checks the ROM files, Create Backup, the rights
 # acknowledgment (CCS_EXPORT_ACK) is confirmed, the save is captured instead of downloaded (window.__pkg holds the package as a File).
 # Returns the dialog state; when Export is blocked nothing is built. ccsLib(row, i): a Game Library version made from a synthetic ROM (the
 # library id is the content SHA-256[:16], so a real cover row is reused under the synthetic identity, as both sides' Game Library would hold
@@ -64,11 +64,11 @@ PERSONAL = r"""(()=>{ const c=document.createElement('canvas'); c.width=60; c.he
 CCS_EXPORT_UI = r"""(()=>{ const wait=async(f,ms)=>{ const n=(ms||30000)/100; for(let i=0;i<n;i++){ const v=f(); if(v) return v; await new Promise(r=>setTimeout(r,100)); } return null; };
  window.ccsExportUi=async(cid, files)=>{ window.__pkg=null; window.__saved=null; ccsSaveFile=async(n,b)=>{ window.__saved={name:n, blob:b}; return {ok:true, name:n}; };
   if(files){ ROMSRC.clear(); await ccsAddRomSources(files); }
-  try{ closeColl(); }catch(e){} $('collBody').innerHTML=''; ccsShareDialog(cid); const exp=await wait(()=>$('ccsExp'));
+  try{ closeColl(); }catch(e){} $('collBody').innerHTML=''; ccsBackupDialog(cid); const exp=await wait(()=>$('ccsExp'));
   const st={title:$('collTitle').textContent, missing:CCS.missing.slice(), ready:CCS.ready.length, ids:CCS.ids.length, exp:!exp||exp.disabled, send:!$('ccsSend')||$('ccsSend').disabled, pick:!!$('ccsPick'), text:$('collBody').innerText};
   if(!exp||exp.disabled) return st;
   exp.click(); const ack=await wait(()=>$('ccsAck')&&$('ccsAck').classList.contains('open')&&$('ccsAck')); if(!ack) return st;
-  st.ack=ack.querySelector('h2').textContent; $('ccsAckC').click(); [...ack.querySelectorAll('button')].find(b=>b.textContent==='Export with ROMs').click();
+  st.ack=ack.querySelector('h2').textContent; $('ccsAckC').click(); [...ack.querySelectorAll('button')].find(b=>b.textContent==='Create Backup').click();
   const s=await wait(()=>window.__saved, 600000); if(!s) return st; window.__pkg=new File([s.blob], s.name, {type:s.blob.type}); st.name=s.name; st.size=s.blob.size; return st; };
  window.ccsLib=async(row, i)=>{ const x=await mkRom('lib'+i, true); delete PERSONAL[x.id]; delete byId[x.id]; const id=x.id.slice(2);
   const r=Object.assign({}, row, {game_id:id, title_id:'tt_ccs_'+id, builtin_code:'', payload_size:16384}); byId[id]=r; return {id, row:r, file:x.file, title:r.display_title}; };
@@ -172,10 +172,10 @@ def main():
               csNew('Share Art'); lib.forEach(x=>sel.add(x.id)); sel.add(own.id); sel.add(plain.id); persist(); render(); csSaveActiveNow();
               loPrepare({newOnly:true, mode:'all'}); $('loNm').value='Party'; $('loGo').click(); loClose(true); csSaveActiveNow();
               window.__F={files:lib.map(x=>x.file).concat([own.file, plain.file])}; return JSON.stringify({rows:lib.map(x=>x.row), ids:csActive().sel.slice(), own:own.id, plain:plain.id}); })()""")
-            ed.js("closeColl(); ccsShareDialog()"); ed.wait_for("!!$('ccsExp')", timeout=30); time.sleep(0.5)
-            ok("D_no_meter_in_the_share_or_export_dialog", ed.js(METER_VISIBLE) is False)
+            ed.js("closeColl(); ccsBackupDialog()"); ed.wait_for("!!$('ccsExp')", timeout=30); time.sleep(0.5)
+            ok("D_no_meter_in_the_backup_dialog", ed.js(METER_VISIBLE) is False)
             st = J(ed, "(async()=>JSON.stringify(await ccsExportUi(CS.active, __F.files)))()")
-            ok("F_complete_package_exported_through_share_or_export", st.get("ready") == 10 and st.get("ack") == "Export Collection with ROM Files" and (st.get("name") or "").endswith(".ccs"), st)
+            ok("F_complete_backup_made_through_back_up_collection", st.get("ready") == 10 and st.get("ack") == "Back Up Collection" and (st.get("name") or "").endswith(".ccs"), st)
             pkg = page_bytes(ed, "window.__pkg"); nets.append(net_take(ed))
         with EdgeSession(width=1440, height=900, profile=p2) as ed:
             ed.navigate(WEB + "/robots.txt"); ed.js("localStorage.setItem('studio-welcomed-v1','1'); 1"); load(ed); ed.js(NET)

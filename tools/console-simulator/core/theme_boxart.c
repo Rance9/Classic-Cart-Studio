@@ -35,21 +35,21 @@ static int ba_init(home *h, char *err, size_t errlen) {
     const jval *rows = json_get(p, "rows"); for (int i = 0; i < 4; i++) if (jbox_at(rows, (size_t)i, &a->prows[i])) { snprintf(err, errlen, "box-art panel rows missing"); return -1; }
     a->picon_x = gnum(p, "icon_x", 706); const jval *sr = json_get(g, "spine_ratio"); a->spine_ratio = sr && sr->t == J_NUM ? sr->num : 0.1184;
     for (size_t i = 0; i < envs->n && a->nenv < 12; i++) { const jval *e = envs->items[i]; envelope *v = &a->env[a->nenv]; v->d = gnum(e, "d", 0); if (gbox(e, "box", &v->b)) continue; a->nenv++; }
-    a->legend = (box4){ 200, 680, 1080, 712 };
+    a->legend = (box4){ 38, 668, 659, 700 };   /* under the left column, its hints from x 54 like the title and facts, 19 px off the bottom (home-themes.js hmBoxArt: the same box) */
     const jval *c = json_get(h->pk, "counts"); a->counts[0] = (int)h->nall; a->counts[1] = gnum(c, "folders", 0); a->counts[2] = gnum(c, "favorites", 0);
-    if (fb_init(&a->frame, CCS_FB_W, CCS_FB_H)) { snprintf(err, errlen, "out of memory"); return -1; }
+    if (fb_init(&a->frame, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
 }
 static void ba_fini(home *h) { boxart *a = BX(h); if (!a) return; if (a->frame.rgb) fb_free(&a->frame); free(a); h->tstate = NULL; }
 
 /* ---------- one box ---------- */
-static void tex_gradient_h(framebuffer *t, const stop *s, int n) { gfx_gradient(t, FULL, 0, 0, t->w, t->h, 0, s, n); }
+static void tex_gradient_h(framebuffer *t, const stop *s, int n) { gfx_gradient(t, FULL, 0, 0, t->w / ccs_scale, t->h / ccs_scale, 0, s, n); }   /* the texture in stage pixels */
 static void scaled_sprite_at(framebuffer *t, const home *h, const char *name, double x, double ybottom, double w) {   /* width w, aspect kept, bottom at ybottom */
     const tsprite *s = tsp(h, name); if (!s || w < 2) return; int iw = iround(w), ih = iround(w * s->im.h / (double)s->im.w); image sc; if (ih < 1) return;
-    if (!img_scale(&s->im, &sc, iw, ih)) { gfx_image(t, FULL, &sc, iround(x), iround(ybottom - ih), 255); img_free(&sc); }
+    if (!img_scale(&s->im, &sc, iw, ih)) { img_hi(&s->im, &sc, 0); gfx_image(t, FULL, &sc, iround(x), iround(ybottom - ih), 255); img_free(&sc); }
 }
 static int build_front(home *h, int gi, int fw, int fh, int center, int left_spine, framebuffer *t) {
-    if (fb_init(t, fw, fh)) return -1; fb_clear(t, 0x0D, 0x0D, 0x11);
+    if (fb_init(t, fw * ccs_scale, fh * ccs_scale)) return -1; fb_clear(t, 0x0D, 0x0D, 0x11);
     int ox, oy; const image *art = cover(h, gi, fw - 10, fh - 10, 0, &ox, &oy); gfx_image(t, FULL, art, 5, 5, 255);   /* the whole cover: the face has its proportions */
     { int tw = iround(fw * 0.28), tx = fw - tw + 2; gfx_shadow(t, FULL, tx, 11, tw, 7, 5, RGBA(RED, 178)); gfx_fill(t, FULL, tx, 11, tw, 7, RGBA(RED, 255)); }   /* .tab */
     { stop cr[2] = { { 0, 0xFFFFFF, .28 }, { 1, 0xFFFFFF, 0 } }; gfx_gradient(t, FULL, 0, 0, 4, fh, 0, cr, 2); }   /* .crease */
@@ -65,7 +65,7 @@ static int build_front(home *h, int gi, int fw, int fh, int center, int left_spi
     return 0;
 }
 static int build_spine(home *h, int gi, int sw, int fh, int left_spine, framebuffer *t) {
-    if (fb_init(t, sw, fh)) return -1;
+    if (fb_init(t, sw * ccs_scale, fh * ccs_scale)) return -1;
     stop sg[4] = { { 0, 0x1C1C22, 1 }, { .30, 0x34343D, 1 }, { .62, 0x4A4A55, 1 }, { 1, 0x2B2B33, 1 } }, sr[4] = { { 0, 0x2B2B33, 1 }, { .38, 0x4A4A55, 1 }, { .70, 0x34343D, 1 }, { 1, 0x1C1C22, 1 } };
     tex_gradient_h(t, left_spine ? sg : sr, 4);   /* .spine 90deg; .spine.r 270deg */
     gfx_fill(t, FULL, 0, 0, sw, iround(fh * 0.05), RGBA(RED, 255));   /* .band */
@@ -83,6 +83,7 @@ static void face(framebuffer *fb, const g3cam *cam, const g3box *bx, const frame
     g3_quad(fb, FULL, tex, qx, qy, opacity, rows, cull);
 }
 static void floor_shadow(framebuffer *fb, double cx, double cy, double rx, double ry) {   /* .shadow: radial-gradient(ellipse at center, .95, .5 40%, 0 72%) */
+    if (ccs_scale > 1) { cx *= ccs_scale; cy *= ccs_scale; rx *= ccs_scale; ry *= ccs_scale; }   /* device pixels */
     int x0 = (int)(cx - rx * 1.5), x1 = (int)(cx + rx * 1.5) + 1, y0 = (int)(cy - ry * 1.5), y1 = (int)(cy + ry * 1.5) + 1;
     for (int y = y0 < 0 ? 0 : y0; y < y1 && y < fb->h; y++) for (int x = x0 < 0 ? 0 : x0; x < x1 && x < fb->w; x++) {
         double dx = (x + 0.5 - cx) / (rx * 1.41421356), dy = (y + 0.5 - cy) / (ry * 1.41421356), t = dsqrt(dx * dx + dy * dy), a;
@@ -105,9 +106,9 @@ static void draw_box(home *h, framebuffer *fb, const envelope *e, int gi, int ce
     { double X, Y, Z, sx0, sy0, sx1, sy1; g3_box_point(&bx, -0.06 * fw, fh + 1, 0, &X, &Y, &Z); g3_project(&cam, X, Y, Z, &sx0, &sy0); g3_box_point(&bx, 1.06 * fw, fh + 1, 0, &X, &Y, &Z); g3_project(&cam, X, Y, Z, &sx1, &sy1);
       floor_shadow(fb, (sx0 + sx1) / 2, (sy0 + sy1) / 2, (sx1 - sx0) / 2, 11); }
     int rh = iround(fh * 0.46); framebuffer refl;
-    if (!fb_init(&refl, fw, rh)) {
-        for (int y = 0; y < rh; y++) memcpy(refl.rgb + (size_t)y * fw * 3, front.rgb + (size_t)(fh - 1 - y) * fw * 3, (size_t)fw * 3);
-        uint8_t ra[1024]; for (int y = 0; y < rh && y < 1024; y++) ra[y] = (uint8_t)(255 * (0.95 - 0.95 * y / (double)rh) + 0.5);
+    if (!fb_init(&refl, fw * ccs_scale, rh * ccs_scale)) {   /* rows in device pixels */
+        int RH = refl.h; for (int y = 0; y < RH; y++) memcpy(refl.rgb + (size_t)y * refl.w * 3, front.rgb + (size_t)(front.h - 1 - y) * front.w * 3, (size_t)refl.w * 3);
+        uint8_t ra[2048]; for (int y = 0; y < RH && y < 2048; y++) ra[y] = (uint8_t)(255 * (0.95 - 0.95 * y / (double)RH) + 0.5);
         double P[4][3] = { { 0, fh, 0 }, { fw, fh, 0 }, { fw, fh + rh, 0 }, { 0, fh + rh, 0 } }; face(fb, &cam, &bx, &refl, P, 87, ra, 0);
         fb_free(&refl);
     }
@@ -115,10 +116,10 @@ static void draw_box(home *h, framebuffer *fb, const envelope *e, int gi, int ce
     { double X, Y, Z, x0, y0, x1, y1; g3_box_point(&bx, 0, 0, 0, &X, &Y, &Z); g3_project(&cam, X, Y, Z, &x0, &y0); g3_box_point(&bx, fw, fh, 0, &X, &Y, &Z); g3_project(&cam, X, Y, Z, &x1, &y1);
       if (center) { gfx_shadow(fb, FULL, iround(x0), iround(y0), iround(x1 - x0), iround(y1 - y0), 22, RGBA(RED, 89)); gfx_shadow(fb, FULL, iround(x0), iround(y0) + 26, iround(x1 - x0), iround(y1 - y0), 30, RGBA(0, 191)); }
       else gfx_shadow(fb, FULL, iround(x0), iround(y0) + 22, iround(x1 - x0), iround(y1 - y0), 23, RGBA(0, 166));
-      LR(h, center ? "box-focus" : "box", iround(x0), iround(y0), iround(x1), iround(y1)); }
+      LR(h, center ? "box-focus" : "box", iround(x0), iround(y0), iround(x1), iround(y1)); LT(h, HT_GAME, gi, iround(x0), iround(y0), iround(x1), iround(y1)); }
     double PS[4][3] = { { 0, 0, -spine }, { 0, 0, 0 }, { 0, fh, 0 }, { 0, fh, -spine } }, PR[4][3] = { { fw, 0, 0 }, { fw, 0, -spine }, { fw, fh, -spine }, { fw, fh, 0 } };
     face(fb, &cam, &bx, &sp, left_spine ? PS : PR, 255, NULL, 1);
-    framebuffer tb; if (!fb_init(&tb, fw, spine)) { stop tg[2] = { { 0, 0x4A4A55, 1 }, { 1, 0x2A2A32, 1 } }; gfx_gradient(&tb, FULL, 0, 0, fw, spine, 1, tg, 2); gfx_rrect_ring(&tb, FULL, 0, 0, fw, spine, 0, 2, RGBA(0x050507, 255));
+    framebuffer tb; if (!fb_init(&tb, fw * ccs_scale, spine * ccs_scale)) { stop tg[2] = { { 0, 0x4A4A55, 1 }, { 1, 0x2A2A32, 1 } }; gfx_gradient(&tb, FULL, 0, 0, fw, spine, 1, tg, 2); gfx_rrect_ring(&tb, FULL, 0, 0, fw, spine, 0, 2, RGBA(0x050507, 255));
         double PT[4][3] = { { 0, 0, -spine }, { fw, 0, -spine }, { fw, 0, 0 }, { 0, 0, 0 } }; face(fb, &cam, &bx, &tb, PT, 255, NULL, 1);
         fb_clear(&tb, 0x0A, 0x0A, 0x0D); gfx_rrect_ring(&tb, FULL, 0, 0, fw, spine, 0, 2, RGBA(0x050507, 255));
         double PB[4][3] = { { 0, fh, 0 }, { fw, fh, 0 }, { fw, fh, -spine }, { 0, fh, -spine } }; face(fb, &cam, &bx, &tb, PB, 255, NULL, 1); fb_free(&tb); }
@@ -141,13 +142,14 @@ static void ba_draw(home *h, framebuffer *fb) {
           if (foc) draw_glow_text(fb, h, F_S400_11, x, base, NAVL[i], strlen(NAVL[i]), 6, RGBA(RED, 230), 1.6);
           T(fb, FULL, f, x, base, NAVL[i], act || foc ? 0xFFFFFF : 0xB9B7B2, 255, 1.6);
           if (act || foc) gfx_fill(fb, FULL, iround(x), a->nav.y1 - 2, ws[i], 2, RGBA(foc ? RED2 : RED, 255));
-          LR(h, foc ? "nav-focus" : "nav", iround(x), iround(top), iround(x) + ws[i], a->nav.y1); x += ws[i] + gap; } }
+          LR(h, foc ? "nav-focus" : "nav", iround(x), iround(top), iround(x) + ws[i], a->nav.y1); LT(h, HT_NAV, i, iround(x) - 8, iround(top) - 6, iround(x) + ws[i] + 8, a->nav.y1 + 4); x += ws[i] + gap; } }
     if (!h->n) return;
     int sel = h->nav.sel;
     /* the boxes, far ones first (the focus box last, on top) */
     for (int far = 4; far >= 0; far--) for (int k = 0; k < a->nenv; k++) { const envelope *e = &a->env[k]; int d = e->d < 0 ? -e->d : e->d; if (d != far) continue; int i = sel + e->d; if (i < 0 || i >= (int)h->n) continue; draw_box(h, fb, e, i, e->d == 0); }
     const tsprite *al = tsp(h, "arrow-l"), *ar = tsp(h, "arrow-r");
     if (al) gfx_image(fb, FULL, &al->im, al->box.x0, al->box.y0, sel == 0 ? 89 : 255); if (ar) gfx_image(fb, FULL, &ar->im, ar->box.x0, ar->box.y0, sel >= (int)h->n - 1 ? 89 : 255);
+    if (al) LT(h, HT_PREV, 0, al->box.x0, al->box.y0, al->box.x1, al->box.y1); if (ar) LT(h, HT_NEXT, 0, ar->box.x0, ar->box.y0, ar->box.x1, ar->box.y1);
     { int n = h->n < 11 ? (int)h->n : 11, start = sel - 5; if (start > (int)h->n - n) start = (int)h->n - n; if (start < 0) start = 0;   /* .dots */
       int tw = n * 6 + (n - 1) * 12, x = (a->dots.x0 + a->dots.x1 - tw) / 2, cy = (a->dots.y0 + a->dots.y1) / 2;
       for (int i = 0; i < n; i++) { int on = start + i == sel; if (on) gfx_shadow(fb, FULL, x + i * 18, cy - 3, 6, 6, 5, RGBA(RED, 255)); gfx_rrect(fb, FULL, x + i * 18, cy - 3, 6, 6, 3, on ? RGBA(RED, 255) : RGBA(0xFFFFFF, 89)); } }
@@ -175,13 +177,13 @@ static void ba_draw(home *h, framebuffer *fb) {
       for (int i = 0; i < 4; i++) { box4 r = a->prows[i]; int cy = (r.y0 + r.y1) / 2; const image *im = icon(h, IC[i], 22); double x = r.x0; if (im) { gfx_image(fb, FULL, im, iround(x), cy - 11, 255); x += 22 + 22; }
           char num[16]; snprintf(num, sizeof num, "%d", vals[i]); const font *fv = &h->f[F_S700_18], *fl = &h->f[F_S400_10]; T(fb, FULL, fv, x, baseline_center(fv, r.y0, r.y1 - r.y0), num, 0xFFFFFF, 255, 0);
           int nw = text_w(fv, num, strlen(num), 0); x += (nw > 44 ? nw : 44) + 22; T(fb, FULL, fl, x, baseline_center(fl, r.y0, r.y1 - r.y0), LB[i], 0xD6D4CE, 255, 2); }
-      char raw[200], foot[200]; snprintf(raw, sizeof raw, "%s \xC2\xB7 %d of %zu", home_section_title(h), sel + 1, h->n); upper(raw, foot, sizeof foot); const font *f9 = &h->f[F_S400_10]; box4 r = a->prows[3];   /* .pnl.r span: 10 px, uppercase, 2 px letter spacing */
+      char raw[200], foot[200]; snprintf(raw, sizeof raw, "%s", home_section_title(h));   /* the section, without a position counter */ upper(raw, foot, sizeof foot); const font *f9 = &h->f[F_S400_10]; box4 r = a->prows[3];   /* .pnl.r span: 10 px, uppercase, 2 px letter spacing */
       T(fb, FULL, f9, r.x0, baseline_center(f9, r.y1 + 3, 16), foot, 0x9C9A95, 255, 2); }
 }
 static void ba_render(home *h, framebuffer *fb, uint64_t now) {
     boxart *a = BX(h); (void)now;
     long key = (long)h->gen;   /* every input and section change bumps it */
-    if (key != a->key || h->rec) { ba_draw(h, &a->frame); legend_items(h, &a->frame, a->legend, 1, TH_BOXART); a->key = h->rec ? -1 : key; }
+    if (key != a->key || h->rec || h->hitrec > 1) { ba_draw(h, &a->frame); legend_items(h, &a->frame, a->legend, 0, TH_BOXART); a->key = h->rec ? -1 : key; }
     memcpy(fb->rgb, a->frame.rgb, (size_t)fb->w * fb->h * 3);
 }
 static void ba_input(home *h, button b) {
@@ -205,4 +207,4 @@ static const dstyle BOXART_DETAILS = {
     .desc_font = F_S400_19, .desc_lh = 1.55, .desc_radius = 12, .desc_bw = 1, .desc_bg = 0, .desc_bg_a = 107, .desc_border = 0xFFFFFF, .desc_border_a = 71,
     .dh_font = F_S700_13, .dh_lh = 1.4, .dh_spacing = 1.6, .dh_bold = 0,
     .cover_radius = 3, .cover_ring = 1, .cover_ring_rgb = 0xFFFFFF, .cover_ring_a = 51, .note_font = F_S400_14 };
-const theme_ops THEME_BOXART = { "box-art-showcase", "Box Art Showcase", ba_init, ba_fini, ba_render, ba_input, &BOXART_DETAILS, 0 };
+const theme_ops THEME_BOXART = { "box-art-showcase", "Box Art Showcase", ba_init, ba_fini, ba_render, ba_input, &BOXART_DETAILS, 0, NULL };   /* no scrolling title: always a full picture (K3D1-F3) */
