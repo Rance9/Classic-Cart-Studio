@@ -78,7 +78,13 @@ namespace CcsWorker.Tests
         {
             var psi = new ProcessStartInfo(Exe, string.Join(" ", args)) { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
             psi.StandardOutputEncoding = new UTF8Encoding(false);
-            P = Process.Start(psi);
+            // .NET Framework makes the stdin writer from Console.InputEncoding and flushes its preamble at once: on a UTF-8 console
+            // (code page 65001, as on the GitHub runner) that put a byte-order mark before the first request, which the worker rightly
+            // reads as bad JSON. The backend writes plain UTF-8; so does this harness, whatever the console. Same code page, no preamble.
+            Encoding was = null;
+            try { was = Console.InputEncoding; if (was.CodePage == 65001 && was.GetPreamble().Length > 0) Console.InputEncoding = new UTF8Encoding(false); else was = null; } catch { was = null; }
+            try { P = Process.Start(psi); }
+            finally { if (was != null) try { Console.InputEncoding = was; } catch { } }
             to = new Thread(() => { string l; while ((l = P.StandardOutput.ReadLine()) != null) lock (Out) Out.Add(l); }) { IsBackground = true }; to.Start();
             te = new Thread(() => { string l; while ((l = P.StandardError.ReadLine()) != null) lock (Err) Err.AppendLine(l); }) { IsBackground = true }; te.Start();
         }
