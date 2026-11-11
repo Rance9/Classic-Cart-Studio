@@ -5,7 +5,7 @@
 //      (folders, theme, HOME favorites); it references the collection's games and never copies game files. Loadouts are stored inside
 //      their collection's record (`loadouts`), so backups and transfers carry them.
 //      Editing a loadout opens it in the working copy (selection, decisions, HOME settings) while the collection waits in LO
-//      (collections.js), so the Tray, Preview on TV, Console Menu Setup and Install on NES Classic all work on exactly that loadout.
+//      (collections.js), so the Tray, Preview Your Game Menu, Game Menu Setup and Install on NES Classic all work on exactly that loadout.
 //      Opening, switching or importing a collection never opens a loadout; Back to Collection always returns.
 const LO_DEFAULT_NAME='My NES Classic Setup';
 function loList(r){ r=r||csActive(); return (r&&Array.isArray(r.loadouts))?r.loadouts:[]; }
@@ -45,7 +45,7 @@ function loOpen(lid, quiet, resume){ if(!CS) return; if(LO&&LO.lid===lid){ loUi(
  sel=new Set((l.sel||[]).filter(id=>coll.has(id))); decisions=JSON.parse(JSON.stringify(l.decisions||{}));
  try{ if(l.home) localStorage.setItem(HOME_KEY, JSON.stringify(l.home)); else localStorage.removeItem(HOME_KEY); }catch(e){}
  rec.openLoadout=lid; csWrite(); loWriteWorking(); loResetConsoleState();
- render(); updateStatusLine(); try{ hkLabelUpdate(); }catch(e){} csMenuRefresh(); loUi(); if(!resume) loTop(); if(!quiet) toast(`Editing NES Classic Lineup "${l.name}" · ${loPl(sel.size,'game')}`); }
+ render(); updateStatusLine(); try{ hkLabelUpdate(); }catch(e){} csMenuRefresh(); loUi(); if(!resume) loTop(); if(!quiet) toast(`Editing lineup "${l.name}" · ${loPl(sel.size,'game')}`); }
 function loClose(quiet){ if(!LO) return; csSaveActiveNow(); const rec=CS.items[CS.active]; if(!rec){ LO=null; return; } rec.openLoadout=null; csWrite(); loResetConsoleState(); csLoadWorking(rec); loWriteWorking(); if(!quiet) toast(`Back to "${rec.name}" · ${loPl(sel.size,'game')}`); }
 // the whole collection, also while a loadout is open (collection-level actions)
 function loAsCollection(fn){ if(!LO) return fn(); const s0=sel, d0=decisions; CS_COLLVIEW++; try{ sel=new Set(LO.collSel); decisions=LO.collDecisions; return fn(); } finally { sel=s0; decisions=d0; CS_COLLVIEW--; } }
@@ -63,13 +63,13 @@ function loDelete(lid){ const rec=CS.items[CS.active]; const l=loGet(lid, rec); 
 function loNameField(v){ return `<div class="fld"><label for="loNm">Lineup name</label><input type="text" id="loNm" maxlength="60" value="${esc(v)}" spellcheck="false"></div>`; }
 // one creation dialog (a name, then All N Collection Games or Choose Games) and the Choose a Loadout step of the console actions. A
 // loadout is created only by Create Loadout; opening, canceling or closing creates nothing. `then` (the action that asked: Preview on
-// TV, Console Menu Setup, Install on NES Classic) runs exactly once, for the loadout that was opened or created, and never after Cancel.
+// TV, Game Menu Setup, Install on NES Classic) runs exactly once, for the loadout that was opened or created, and never after Cancel.
 // opts: {newOnly, mode:'all'|'choose' (caller's preselection), then, lead, back (where Cancel returns, e.g. the manager)}
 function loPrepare(opts){ opts=opts||{}; if(typeof closeVerPop==='function') closeVerPop(); document.querySelectorAll('.menu').forEach(x=>x.hidden=true); csSaveActiveNow(); const rec=CS.items[CS.active]; const list=loList(rec); const n=(rec.sel||[]).length;
  const mode=opts.mode==='all'&&n?'all':opts.mode==='choose'?'choose':(n?'all':'choose'); const then=typeof opts.then==='function'?opts.then:null; let done=false;
  const once=f=>{ if(done) return; done=true; f(); if(then) then(); };
  const choose=!opts.newOnly&&list.length;
- openColl(opts.newOnly?'New NES Classic Lineup':'Choose a Lineup', `"${rec.name}" · ${loPl(n,'game')}`, `${opts.lead?`<div class="msgbox">${esc(opts.lead)}</div>`:''}${choose?'':'<p class="small">An <b>NES Classic Lineup</b> is a named plan of games from this collection for your console. Games you leave out stay in the collection; a new game you add joins the collection too.</p>'}
+ openColl(opts.newOnly?'New Lineup':'Choose a Lineup', `"${rec.name}" · ${loPl(n,'game')}`, `${opts.lead?`<div class="msgbox">${esc(opts.lead)}</div>`:''}${choose?'':'<p class="small">A <b>lineup</b> is a named set of games from this collection with its own game menu. Play it here in your browser, or install it on an NES Classic. Games you leave out stay in the collection; a new game you add joins the collection too.</p>'}
   ${choose?`<div class="dsec" id="loListL">Your Lineups</div><div class="lolist" role="group" aria-labelledby="loListL">${list.map(l=>miHtml({ic:'📺', label:esc(l.name), sub:`${loLine(l)} · changed ${esc(nowShort(l.modified))}`, role:'button', attrs:`data-lo-open="${esc(l.id)}"`, trail:'Open ›'})).join('')}</div><div class="dsec">Or Create a New One</div>`:''}
   <div class="${choose?'locreate':''}">${loNameField(loUniqueName(LO_DEFAULT_NAME))}
   <div class="lochoice" role="radiogroup" aria-label="Start the lineup with">
@@ -84,15 +84,15 @@ function loPrepare(opts){ opts=opts||{}; if(typeof closeVerPop==='function') clo
 function loNameDialog(title, value, action, done, html, back){ openColl(title,'', `${html||''}${value!==null?loNameField(value):''}<div class="acts"><span class="sp"></span><button class="btn" id="loNo" data-cancel>Cancel</button><button class="btn ${action==='Delete'?'danger':'hk'}" id="loGo">${esc(action)}</button></div>`);
  const inp=$('loNm'); if(inp){ inp.focus(); inp.select(); inp.onkeydown=e=>{ if(e.key==='Enter') $('loGo').click(); }; }
  $('loNo').onclick=()=>{ if(back) back(); else closeColl(); }; $('loGo').onclick=()=>{ const v=inp?inp.value.trim():''; if(inp&&!v){ inp.focus(); return; } closeColl(); done(v); if(back) back(); }; }
-function loRenameDialog(lid, back){ const l=loGet(lid); if(l) loNameDialog('Rename NES Classic Lineup', l.name, 'Rename', v=>loRename(lid, v), '', back); }
+function loRenameDialog(lid, back){ const l=loGet(lid); if(l) loNameDialog('Rename Lineup', l.name, 'Rename', v=>loRename(lid, v), '', back); }
 function loDeleteDialog(lid, back){ const l=loGet(lid); if(!l) return; const rec=csActive();
- loNameDialog(`Delete "${l.name}"?`, null, 'Delete', ()=>loDelete(lid), `<p class="small">The NES Classic Lineup "${esc(l.name)}" (${loPl((LO&&LO.lid===lid?sel.size:(l.sel||[]).length),'game')}) and its HOME settings will be deleted. The collection "${esc(rec.name)}" and its other lineups stay as they are; nothing on a console changes.</p>`, back); }
+ loNameDialog(`Delete "${l.name}"?`, null, 'Delete', ()=>loDelete(lid), `<p class="small">The lineup "${esc(l.name)}" (${loPl((LO&&LO.lid===lid?sel.size:(l.sel||[]).length),'game')}) and its HOME settings will be deleted. The collection "${esc(rec.name)}" and its other lineups stay as they are.</p>`, back); }
 // Manage Loadouts: every loadout of the open collection as a card (Open; Rename, Duplicate and Delete in its ⋯ menu)
 function loManager(){ csSaveActiveNow(); const rec=csActive(); const list=loList(rec);
- openColl('Manage Lineups', `"${rec.name}" · ${loPl(list.length,'lineup')}`, `<div class="dquick">${miHtml({ic:'✨', label:'New NES Classic Lineup…', cls:'new', attrs:'id="loNewB"'})}</div>
+ openColl('Manage Lineups', `"${rec.name}" · ${loPl(list.length,'lineup')}`, `<div class="dquick">${miHtml({ic:'✨', label:'New Lineup…', cls:'new', attrs:'id="loNewB"'})}</div>
   ${list.length?`<div class="cslist" role="list">${list.map(l=>{ const on=LO&&LO.lid===l.id; return `<div class="csrow${on?' on':''}" role="listitem" data-lid="${esc(l.id)}"><span class="mic" aria-hidden="true">📺</span><div class="csn"><b>${esc(l.name)}</b><span class="small">${loLine(l)} · changed ${esc(nowShort(l.modified))}</span></div>${on?'<span class="opentag"><span aria-hidden="true">✓</span> Editing</span>':''}
-   <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open" aria-label="Open ${esc(l.name)}">Open</button>`}<span class="grow"></span>${rowMore(l.name)}</div></div>`; }).join('')}</div>`:'<div class="mempty"><b>No lineups yet.</b><br>A lineup is a named plan of games from this collection for one NES Classic.</div>'}
-  <p class="small">Each lineup is a separate plan for one NES Classic; changing one never changes another. Games left out stay in the collection; a new game added to a lineup joins the collection too.</p>`);
+   <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open" aria-label="Open ${esc(l.name)}">Open</button>`}<span class="grow"></span>${rowMore(l.name)}</div></div>`; }).join('')}</div>`:'<div class="mempty"><b>No lineups yet.</b><br>A lineup is a named set of games from this collection with its own game menu, for your browser or an NES Classic.</div>'}
+  <p class="small">Each lineup is separate; changing one never changes another. Games left out stay in the collection; a new game added to a lineup joins the collection too.</p>`);
  $('loNewB').onclick=()=>loPrepare({newOnly:true, back:loManager});
  rowMoreWire($('collBody'));
  $('collBody').onclick=e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const row=b.closest('[data-lid]'); if(!row) return; const lid=row.dataset.lid; const a=b.dataset.a; if(['rename','dup','del'].includes(a)) ROW_RET=`.csrow[data-lid="${lid}"] details.csmore>summary`;
@@ -100,7 +100,7 @@ function loManager(){ csSaveActiveNow(); const rec=csActive(); const list=loList
 // what the estimate is made of, in plain words first; the reference figures on request
 function loStorageDetails(){ const l=loCur(); if(!l) return; const e=loStorage(); const M=STORAGE_MODEL, R=M.reference;
  const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`;
- openColl('Will it fit?', `NES Classic Lineup "${l.name}"`, `<div class="msgbox ${loStatusCls(e)}"><b>${loStatusIcon(e)} ${esc(loStatusText(e))}.</b> Estimated use is about <b>${loMB(e.used)}</b> of about <b>${loMB(e.available)}</b> available on a stock NES Classic.${e.status==='over'?' Remove games from this lineup to bring it under the limit; the collection keeps them.':''}${e.status==='unconfirmed'?' Games without a known size are not counted, so the total may be low.':''}</div>
+ openColl('Will it fit?', `Lineup "${l.name}" on an NES Classic`, `<div class="msgbox ${loStatusCls(e)}"><b>${loStatusIcon(e)} ${esc(loStatusText(e))}.</b> Estimated use is about <b>${loMB(e.used)}</b> of about <b>${loMB(e.available)}</b> available on a stock NES Classic.${e.status==='over'?' Remove games from this lineup to bring it under the limit; the collection keeps them.':''}${e.status==='unconfirmed'?' Games without a known size are not counted, so the total may be low.':''}</div>
   <table class="pv lofit"><tbody>${row(`ROM files (${loPl(e.added,'game')} to add; ${e.built} built in, no file needed)`, loMB(e.rom))}${row('Cover art and menu entries', loMB(e.files))}${row(`HOME menu (${e.home_measured?'measured from the package prepared on this computer':'estimated until prepared in Install on NES Classic'})`, loMB(e.home))}${row('Hakchi (needed once per console)', loMB(e.components.hakchi))}${row(`RetroArch and emulator cores (${e.components.retroarch?'needed by some of these games':'not needed'})`, loMB(e.components.retroarch))}${row('Safety margin (file-system overhead)', loMB(e.margin))}${row('<b>Estimated use</b>', '<b>'+loMB(e.used)+'</b>')}${row('<b>Estimated available</b>', '<b>'+loMB(e.available)+'</b>')}${row(e.remaining>=0?'Estimated remaining':'Estimated excess', loMB(Math.abs(e.remaining)))}</tbody></table>
   ${e.unknownTitles.length?`<div class="msgbox warn"><b>${loPl(e.unknownTitles.length,'game')} without a known size</b>: ${esc(e.unknownTitles.slice(0,12).join(', '))}${e.unknownTitles.length>12?' …':''}</div>`:''}
   ${e.noFile.length?(typeof csAwayHere==='function'&&!csAwayHere()?`<div class="msgbox warn"><b>${loPl(e.noFile.length,'game')} without ROM files on the website</b>: ${esc(e.noFile.slice(0,12).join(', '))}${e.noFile.length>12?' …':''}.${e.unknownTitles.length<e.noFile.length?' Their known sizes are counted.':''} Installing needs Classic Cart Studio for Windows with these files.</div>`:`<div class="msgbox warn"><b>${loPl(e.noFile.length,'ROM file')} not on this computer</b>: ${esc(e.noFile.slice(0,12).join(', '))}${e.noFile.length>12?' …':''}.${e.unknownTitles.length<e.noFile.length?' Their known sizes are counted.':''} Add the files with Add Your Own Game before installing.</div>`):''}
@@ -114,7 +114,7 @@ function loReconcile(prev){ if(LO||LO_RECON||!CS) return; const rec=csActive(); 
  const titleOf2=id=>{ const g=byId[id]; return g?g.display_title:csMissing(id).title; };
  const swap=id=>{ const g=byId[id]; if(!g||!g.title_id) return null; const t=TITLES[g.title_id]; if(!t) return null; return t.versions.find(v=>v!==id&&sel.has(v)&&!prev.has(v))||null; };
  const all=[...new Set(hit.flatMap(x=>x.gone))]; const allSwap=all.every(id=>swap(id)); LO_RECON=true;
- openColl(allSwap?'Update NES Classic Lineups?':'Remove from NES Classic Lineups Too?', `"${rec.name}"`, `<p class="small">${allSwap?`You changed the version of ${loPl(all.length,'game')}; these lineups still use the earlier one.`:`You removed ${loPl(all.length,'game')} that these lineups still use. A lineup can only hold games from its collection.`}</p>
+ openColl(allSwap?'Update Lineups?':'Remove from Lineups Too?', `"${rec.name}"`, `<p class="small">${allSwap?`You changed the version of ${loPl(all.length,'game')}; these lineups still use the earlier one.`:`You removed ${loPl(all.length,'game')} that these lineups still use. A lineup can only hold games from its collection.`}</p>
   <div class="lolist">${hit.map(x=>`<div class="lorow"><div class="lon"><b>${esc(x.l.name)}</b><span class="small">${x.gone.slice(0,10).map(id=>{ const s=swap(id); return esc(titleOf2(id))+(s?` → ${esc(shortVer(byId[s]))}`:''); }).join(', ')}${x.gone.length>10?` and ${x.gone.length-10} more`:''}</span></div></div>`).join('')}</div>
   <div class="acts"><button class="btn" id="loKeep">${allSwap?'Undo Change':'Keep in Collection'}</button><span class="sp"></span><button class="btn hk" id="loDrop">${allSwap?'Use New Version':'Remove from Lineups'}</button></div>`);
  const keep=()=>{ if(!LO_RECON) return; LO_RECON=false; all.forEach(id=>sel.add(id)); if(allSwap) all.forEach(id=>{ const s=swap(id); if(s&&!COLL.multi[(byId[s]||{}).title_id]) sel.delete(s); }); persist(); render(); closeColl(); toast('Nothing removed: the collection and its lineups are unchanged'); };
@@ -140,24 +140,24 @@ function loAdopt(){ if(!LO) return; const extra=[...sel].filter(id=>!LO.collSel.
  // the installation plan and the native HOME package name the loadout they were made from
  const _bm=buildManifest; buildManifest=function(){ const m=_bm.apply(this,arguments); const l=CS_COLLVIEW?null:loCur(); if(l&&csActive()){ m.loadout={id:l.id, target:'nes-classic', name:l.name, collection:csActive().name}; m.name=`${l.name} (${csActive().name})`; } return m; };
 })();
-// ---- console actions need a loadout: Preview on TV, Console Menu Setup and Install on NES Classic work on the open loadout; from the collection
+// ---- console actions need a loadout: Preview Your Game Menu, Game Menu Setup and Install on NES Classic work on the open loadout; from the collection
 //      they ask which loadout (or create one) first, so a collection is never prepared for the console by accident ----
 document.addEventListener('click',e=>{ if(LO||!CS) return; const t=e.target.closest&&e.target.closest('#hkBtn,#trayHk,#tvBtn,#mTv,#homeBtn,[data-tvfocus]'); if(!t) return; e.preventDefault(); e.stopImmediatePropagation();
  const id=t.id, focus=t.dataset&&t.dataset.tvfocus; try{ $('details').classList.remove('open'); $('tray').classList.remove('open'); }catch(err){}
  const then=id==='tvBtn'||id==='mTv'||focus?()=>openTv(focus?{focus}:undefined):id==='homeBtn'?()=>{ if(typeof openFolders==='function') openFolders(); }:()=>openInstall();
- const what=id==='tvBtn'||id==='mTv'||focus?'Preview on TV shows':id==='homeBtn'?'Console Menu Setup arranges':'Install on NES Classic installs';
- loPrepare({then, lead:`${what} an NES Classic Lineup. Choose one, or create one.`}); }, true);
+ const what=id==='tvBtn'||id==='mTv'||focus?'Your game menu shows':id==='homeBtn'?'Game Menu Setup arranges':'Install on NES Classic installs';
+ loPrepare({then, lead:`${what} a lineup. Choose one, or create one.`}); }, true);
 // ---- the interface ----
 const LO_ICON='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg>';
 // the saved loadouts (the one being edited is checked), ONE New Loadout… (the dialog asks All N Collection Games or Choose Games),
 // Manage Loadouts… for rename/duplicate/delete, and Back to Collection while one is open
 function loMenuHtml(){ const rec=csActive(); if(!rec) return '';
- return `<div class="mhead"><span class="mbadge" aria-hidden="true">${LO_ICON}</span><div class="mht"><b>NES Classic Lineups</b></div><button type="button" class="mclose" aria-label="Close NES Classic Lineups" title="Close">✕</button></div>${loSectionHtml()}`; }
-// the lineup rows (the open one first and checked), New NES Classic Lineup…, Manage Lineups… and, with one open, Back to Collection:
-// the lineup bar's name menu and the NES Classic Lineups part of the My Collections menu
+ return `<div class="mhead"><span class="mbadge" aria-hidden="true">${LO_ICON}</span><div class="mht"><b>Lineups</b></div><button type="button" class="mclose" aria-label="Close Lineups" title="Close">✕</button></div>${loSectionHtml()}`; }
+// the lineup rows (the open one first and checked), New Lineup…, Manage Lineups… and, with one open, Back to Collection:
+// the lineup bar's name menu and the Lineups part of the My Collections menu
 function loSectionHtml(){ const rec=csActive(); if(!rec) return ''; const list=loList(rec);
  return (LO?[loCur()].concat(list.filter(l=>l.id!==LO.lid)):list).filter(Boolean).slice(0,6).map(l=>{ const on=LO&&LO.lid===l.id; return miHtml({ic:'📺', label:esc(l.name), role:'menuitemradio', attrs:`aria-checked="${!!on}" data-lo="${esc(l.id)}"`, trail:on?'✓':'›'}); }).join('')
-  +miHtml({ic:'✨', label:'New NES Classic Lineup…', attrs:'data-lo-new="1"', trail:'+'})+(list.length?miHtml({ic:'🗂️', label:'Manage Lineups…', attrs:'data-lo-act="manage"', trail:'›'}):'')
+  +miHtml({ic:'✨', label:'New Lineup…', attrs:'data-lo-new="1"', trail:'+'})+(list.length?miHtml({ic:'🗂️', label:'Manage Lineups…', attrs:'data-lo-act="manage"', trail:'›'}):'')
   +(LO?miHtml({ic:'↩️', label:'Back to Collection', attrs:'data-lo-act="back"'}):''); }
 function loMenuClick(e){ const m=e.currentTarget; const q=e.target.closest('[data-lo]'); if(q){ m.hidden=true; loOpen(q.dataset.lo); return; }
  if(e.target.closest('[data-lo-new]')){ m.hidden=true; loPrepare({newOnly:true}); return; }
@@ -174,27 +174,28 @@ function loUi(){ if(!CS) return; const on=!!LO; const rec=csActive(); document.b
   $('loUse').innerHTML=`Estimated <b>${loMB(e.used)}</b> used of <b>${loMB(e.available)}</b> available`;
   $('loStat').className='lost '+loStatusCls(e); $('loStat').textContent=loStatusIcon(e)+' '+loStatusText(e); }
  const hs=$('heroSelL'); if(hs) hs.textContent=on?'in lineup':'in collection';
- const sv=$('selVis'), us=$('unselVis'), sk=$('selKachi'), cl=$('clear'); const tgt=on?'this lineup':'the collection';
+ const sv=$('selVis'), us=$('unselVis'), cl=$('clear'); const tgt=on?'this lineup':'the collection';
  // Game Library actions name their scope: the group label and each row's accessible name say collection or loadout
  document.querySelectorAll('[data-libscope]').forEach(x=>x.textContent=on?'In This Lineup':'In This Collection');
  document.querySelectorAll('[data-libfor]').forEach(x=>x.textContent=on?`For the lineup "${(l||{}).name||''}"`:`For "${(rec||{}).name||COLL.name}"`);
  if(sv){ miLabel(sv,'Add All Shown'); sv.setAttribute('aria-label',`Add All Shown to ${tgt}`); } if(us){ miLabel(us,'Remove All Shown'); us.setAttribute('aria-label',`Remove All Shown from ${tgt}`); }
- if(sk){ miLabel(sk,'Add Shown Console-Ready Games'); sk.setAttribute('aria-label',`Add Shown Console-Ready Games to ${tgt}`); sk.title=`Adds the shown games that are verified and run on the console's built-in emulator to ${tgt}`; }
  if(cl) miLabel(cl, on?'Empty This Lineup':'Remove All Games…');
  const th=$('trayHk'); if(th) th.textContent=on?'Install on NES Classic':'Install on NES Classic…'; const tx=$('trayExport'); if(tx) tx.hidden=on;
  const sto=$('storage'); if(sto) sto.hidden=true;
  const q=$('q'); if(q) q.placeholder='Search games';
- ['loMenu','loMenu2'].forEach(id=>{ const m=$(id); if(m&&!m.hidden) m.innerHTML=loMenuHtml(); }); }
+ ['loMenu','loMenu2'].forEach(id=>{ const m=$(id); if(m&&!m.hidden) m.innerHTML=loMenuHtml(); });
+ // the My Collections button names the open lineup after the collection; its menu's first command follows what is open
+ const cln=$('collLoName'); if(cln){ cln.hidden=!on; cln.textContent=on&&l?l.name:''; } const mt=$('mTray'); if(mt) miLabel(mt, on?'Games in This Lineup':'Games in This Collection'); }
 // the tray, stats and title say which one is being edited
 (function(){ const _t=renderTray; renderTray=function(){ const r=_t.apply(this,arguments); try{ const sub=$('traySub'), ul=$('trayList'); const l=loCur();
   if(ul) ul.querySelectorAll('[data-rm]').forEach(x=>x.title=l?'Remove from this lineup; it stays in the collection':'Remove from collection');
   if(!l&&sub){ const n=sel.size, own=[...sel].filter(id=>byId[id]&&byId[id].source==='personal').length, away=[...sel].filter(id=>!byId[id]).length, b=[...sel].filter(id=>byId[id]&&(byId[id].builtin_status||'').startsWith('BUILT-IN')).length; const nl=loList().length;
-   sub.innerHTML=n?`<div class="small"><b style="color:#fff;font-size:13px">${loPl(n,'game')} in this collection</b>${b?` · ${b} built into the NES Classic`:''}${own?` · ${own} personal`:''}${away?` · ${away} ${typeof csAwayWord==='function'?csAwayWord():'not on this computer'}`:''}</div><div class="lotray small">${nl?`This collection has ${loPl(nl,'NES Classic Lineup')}. `:'Choose what goes on the console in an <b>NES Classic Lineup</b>. '}<button type="button" class="btn sm" data-lo-prep="1"><span aria-hidden="true">📺</span> Choose a Lineup…</button></div>`:''; }
-  else if(l&&sub){ sub.insertAdjacentHTML('afterbegin', `<div class="lotray small">Planned for your NES Classic, from "${esc(COLL.name)}".</div>`); }
+   sub.innerHTML=n?`<div class="small"><b style="color:#fff;font-size:13px">${loPl(n,'game')} in this collection</b>${b?` · ${b} built into the NES Classic`:''}${own?` · ${own} personal`:''}${away?` · ${away} ${typeof csAwayWord==='function'?csAwayWord():'not on this computer'}`:''}</div><div class="lotray small">${nl?`This collection has ${loPl(nl,'lineup')}. `:'Give a set of these games its own game menu with a <b>lineup</b>. '}<button type="button" class="btn sm" data-lo-prep="1"><span aria-hidden="true">📺</span> Choose a Lineup…</button></div>`:''; }
+  else if(l&&sub){ sub.insertAdjacentHTML('afterbegin', `<div class="lotray small">A lineup from "${esc(COLL.name)}".</div>`); }
   const none=!l&&!sel.size; ['trayExport','trayHk'].forEach(id=>{ const b=$(id); if(b){ b.disabled=none; if(none) b.title='Add games to this collection first'; else b.removeAttribute('title'); } });
  }catch(e){} return r; }; })();
 document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-lo-prep]'); if(!b) return; $('tray').classList.remove('open'); loPrepare(); });
-(function(){ const _u=updateStatusLine; updateStatusLine=function(){ const r=_u.apply(this,arguments); try{ const t=document.querySelector('#tray .ttl'); const l=loCur(); if(t&&l) t.lastChild.nodeValue=' NES Classic Lineup · '+l.name; }catch(e){} return r; }; })();
+(function(){ const _u=updateStatusLine; updateStatusLine=function(){ const r=_u.apply(this,arguments); try{ const t=document.querySelector('#tray .ttl'); const l=loCur(); if(t&&l) t.lastChild.nodeValue=' Lineup · '+l.name; }catch(e){} return r; }; })();
 window.statsHtml=function(shown){ if(!LO) return `${shown.toLocaleString('en-US')} shown · <b>${loPl(sel.size,'game')} in collection</b> · <span class="mut">${window.libCountText?libCountText():''}</span> · ${fav.size} ★`;
  return `${shown.toLocaleString('en-US')} shown · <b>${sel.size.toLocaleString('en-US')} of ${loPl(csCollSel().size,'game')} in lineup</b> · ${fav.size} ★`; };
 // Remove every game from the collection: asked first (Restore Previous Version keeps the earlier state)
@@ -203,8 +204,6 @@ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closes
 (function(){ ['loBtn','loName'].forEach(id=>{ const b=$(id); if(b) b.addEventListener('click',()=>{ csSaveActiveNow(); const m=$(id==='loBtn'?'loMenu':'loMenu2'); if(m) m.innerHTML=loMenuHtml(); }); });
  wireMenu('loBtn','loMenu'); wireMenu('loName','loMenu2');
  ['loMenu','loMenu2','collMenu'].forEach(id=>{ const m=$(id); if(m) m.addEventListener('click',loMenuClick); });
- // the My Collections menu lists this collection's lineups (built as it opens, like its other collections)
- const cb=$('collBtn'); if(cb) cb.addEventListener('click',()=>{ const box=$('collLo'); if(box) box.innerHTML=loSectionHtml(); });
  const bk=$('loBack'); if(bk) bk.onclick=()=>loClose(); const wy=$('loWhy'); if(wy) wy.onclick=loStorageDetails;
  const _r=render; render=function(){ const x=_r.apply(this,arguments); try{ if(LO) loUi(); }catch(e){} return x; };
  // the app's durable copy can arrive after start (a new WebView2 profile): reopen the loadout that was open

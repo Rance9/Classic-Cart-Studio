@@ -1,5 +1,5 @@
 // Install on NES Classic: the console steps, one flow for Classic Cart Studio's own HOME on the console (K3; docs/console-install-
-// architecture.md sections 13 and 14). Prepare the exact console package of this collection, its loadout and Console Menu Setup; review the
+// architecture.md sections 13 and 14). Prepare the exact console package of this collection, its loadout and Game Menu Setup; review the
 // immutable plan (what would be added, changed and kept, and the room it needs) against a simulated console; rehearse every operation on a
 // disposable stand-in through the same plan, worker and installation engine a console would use; see each real-console operation and what it
 // needs. Desktop app only: the public website keeps the Continue in Desktop App invitation. The operations on a real console (check, install,
@@ -12,7 +12,7 @@ async function consoleStatus(){ const r=await capi('/api/console/home/status'); 
 const GATE_TEXT='Not available in this version';
 // progress labels for the installation engine's stages (console_engine/ccs_install.py) and the HOME package build (native_home/package.py); ids stay internal
 const STAGE_LABEL={preflight:'Checking the console', stage:'Copying the HOME', readback:'Reading back every file', switch:'Switching to the new HOME', module:'Setting the console to start it', verify:'Checking the result', done:'Done',
- recover:'Recovering the interrupted attempt', uninstall:'Rehearsing removal', export:'Rehearsing the copy of the saves', transfer:'Copying the HOME', cancelled:'Canceled', journal:'Starting', configuration:'Reading Console Menu Setup', assemble:'Building the HOME menu'};
+ recover:'Recovering the interrupted attempt', uninstall:'Rehearsing removal', export:'Rehearsing the copy of the saves', transfer:'Copying the HOME', cancelled:'Canceled', journal:'Starting', configuration:'Reading Game Menu Setup', assemble:'Building the HOME menu'};
 const STEP_TEXT={themes:'theme artwork', fonts:'fonts', runtime:'menu program', manifest:'package contents'};
 function stLabel(s){ return STAGE_LABEL[s]||'Working'; }
 function lv(l){ return `<span class="lv ${l}">${l}</span>`; }
@@ -146,7 +146,7 @@ function nhThemeHtml(){ const cur=nhTheme(); return `<div class="row" style="dis
   <select id="nhThemeSel">${HOME_THEME_META.map(t=>`<option value="${t.id}" ${t.id===cur?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
   <label class="small" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="nhApply" ${NHP.apply?'checked':''}> Also apply it at the next installation</label></div>
   <span class="small">All four themes are included; players switch with START › Change Theme. After an update, the console keeps the player’s choice unless this box is checked.</span>`; }
-// the HOME the backend packages. withKept (Preview on TV, playing the HOME on this computer): the collection's kept entries too, with their
+// the HOME the backend packages. withKept (Preview Your Game Menu, playing the HOME on this computer): the collection's kept entries too, with their
 // sanitized details (M2-4); without (installing on the console): only games this computer resolves, as the install manifest lists them
 function nhHome(withKept){ const m=homeModelFromStudio(); const keep=id=>withKept||!!byId[id]; const order=(m.order||[]).filter(keep);
  return {schema:m.schema, theme:m.theme, order, games:(m.games||[]).filter(g=>keep(g.id)).map(g=>{ const o={id:g.id,title:g.title,version_label:g.version_label,kind:g.kind};
@@ -154,7 +154,7 @@ function nhHome(withKept){ const m=homeModelFromStudio(); const keep=id=>withKep
  folders:(m.folders||[]).map(f=>({id:f.id,name:f.name,parent:f.parent||null,order:(f.order||[]).filter(keep),art:f.art&&f.art.src?{src:f.art.src}:null})), favorites:m.favorites||{}, settings:m.settings||{}, sample:!!m.sample, map_shortcuts:m.map_shortcuts||[null,null], apply_theme:!!NHP.apply, startup_image:m.startup_image||'random'}; }
 function nhFp(){ try{ const m=homeModelFromStudio(); return collFingerprint()+'|'+m.theme+'|'+(m.startup_image||'random')+'|'+(NHP.apply?'apply':'')+'|'+JSON.stringify(m.map_shortcuts||[])+'|'+(typeof OV!=='undefined'&&OV&&OV.stamp?OV.stamp:'')+'|'+JSON.stringify((m.folders||[]).map(f=>[f.id,f.name,f.order]))+'|'+JSON.stringify(m.favorites&&m.favorites.items||{}); }catch(e){ return ''; } }
 function nhHtml(){ const r=NHP.result; const stale=r&&NHP.fp!==nhFp();
- const head=`<b>Console HOME menu</b> <span class="small">· built from this collection and its Console Menu Setup</span>`+nhThemeHtml();
+ const head=`<b>Console HOME menu</b> <span class="small">· built from this collection and its Game Menu Setup</span>`+nhThemeHtml();
  if(NHP.job&&!r){ const p=NHP.progress||{}; const pct=p.total?Math.round(100*p.done/p.total):0;
   return `<div class="msg sim">${head}<div class="pbar"><i style="width:${pct}%"></i></div><span class="small">${p.stage?esc(stLabel(p.stage)):'Starting'}${p.text?' · '+esc(STEP_TEXT[p.text]||p.text):''}${p.total?` (${p.done} of ${p.total})`:''}</span></div>`; }
  const btn=`<div class="acts" style="margin-top:6px"><span class="sp"></span><button class="btn sm ${r&&!stale?'secondary':'hk'}" id="nhBuild">${r?'Prepare Again':'Prepare HOME Menu'}</button></div>`;
@@ -162,7 +162,7 @@ function nhHtml(){ const r=NHP.result; const stale=r&&NHP.fp!==nhFp();
  if(!r.ok) return `<div class="msg bad">${head}<br><b>Not prepared:</b> ${esc(r.error||r.status||'failed')}${btn}</div>`;
  const m=r.manifest||{}; const S=m.sizes||{}; const by=S.by_category||{}; const ready=r.ready&&!stale;
  const rows=NH_CAT.map(([k,l])=>`<tr><td>${esc(l)}</td><td style="text-align:right">${fmtB(by[k]||0)}</td></tr>`).join('');
- return `<div class="msg ${ready?'ok':'warn'}">${head}<br><b>${stale?'Out of date: the collection or its Console Menu Setup changed. Prepare again.':ready?'Ready':'Not ready'}</b>${ready?` · ${r.games} games · <b>${fmtB(S.total_with_manifest||S.total)}</b> · ${r.files} files checked`:''}
+ return `<div class="msg ${ready?'ok':'warn'}">${head}<br><b>${stale?'Out of date: the collection or its Game Menu Setup changed. Prepare again.':ready?'Ready':'Not ready'}</b>${ready?` · ${r.games} games · <b>${fmtB(S.total_with_manifest||S.total)}</b> · ${r.files} files checked`:''}
   ${(m.blockers||[]).length?`<ul>${m.blockers.map(b=>`<li>${esc(b.text)}</li>`).join('')}</ul>`:''}${(m.warnings||[]).length?`<ul class="small">${m.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
   <details class="small" style="margin-top:6px"><summary>Size Details</summary><table class="small" style="margin-top:6px;min-width:300px"><tbody>${rows}<tr><td><b>Total</b> (ROM files not included)</td><td style="text-align:right"><b>${fmtB(S.total_with_manifest||S.total)}</b></td></tr></tbody></table></details>
   ${nhConsoleHtml(r.console)}
@@ -182,7 +182,7 @@ async function nhStart(){ const b=$('nhBuild'); if(b) b.disabled=true; NHP.resul
 // each render owns a token: a render that waited (the console status, the plan, the check) stops when a newer one started or the person
 // moved to another step, so a slower earlier render never draws over the step on screen
 async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step; const tok=++CONSOLE.tok; const live=()=>tok===CONSOLE.tok&&INST.step===step; $('hkTitle').textContent='Install on NES Classic';
- if(!consoleCapable()){ $('hkSub').textContent=CSTEP[step]||''; body.innerHTML=stepperHtml()+`<div class="msg warn"><b>These steps need the latest Classic Cart Studio for Windows.</b> ${COMPANION.desktop?'This version does not include them: install the latest version from <a href="https://ClassicCartStudio.com/app">ClassicCartStudio.com/app</a>.':'Use <b>Open in Windows App</b>.'}</div><div class="acts"><button class="btn secondary" id="hkBack">Back</button><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button></div>`;
+ if(!consoleCapable()){ $('hkSub').textContent=CSTEP[step]||''; body.innerHTML=stepperHtml()+`<div class="msg warn"><b>These steps need the latest Classic Cart Studio for Windows.</b> ${COMPANION.desktop?'This version does not include them: install the latest version from <a href="https://ClassicCartStudio.com/app">ClassicCartStudio.com/app</a>.':'Use <b>Open or Install the Windows App</b>.'}</div><div class="acts"><button class="btn secondary" id="hkBack">Back</button><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button></div>`;
   $('hkDone').onclick=()=>$('hkpanel').classList.remove('open'); $('hkBack').onclick=()=>{ INST.step='connect'; renderInstall(); }; return; }
  if(!CONSOLE.status&&['inspect','review','install'].includes(step)){ await consoleStatus(); if(!live()) return; }   // Verify and Complete draw at once
  const nav=(back,next,nextLabel,nextOk)=>`<div class="acts"><button class="btn secondary" id="hkBack">Back</button><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button>${next?`<button class="btn hk" id="hkNext" ${nextOk?'':'disabled'}>${esc(nextLabel)}</button>`:''}</div>`;
@@ -195,7 +195,7 @@ async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step
    await consoleStatus(); if(!ok()) return; const staged=(CONSOLE.status||{}).staged; let p=null;
    if(staged&&staged.layout==='install'){ p=await ensurePlan(!CONSOLE.plan||CONSOLE.plan.manifest_sha256===undefined||((CONSOLE.status.records||{}).staged_manifest_sha256&&CONSOLE.plan.manifest_sha256!==CONSOLE.status.records.staged_manifest_sha256)); if(!ok()) return; }
    const pf=p?await ensurePreflight():null; if(!ok()||!$('cPlan')) return;
-   $('cPlan').innerHTML=!staged?`<div class="msg na"><b>No console package yet.</b> Prepare the HOME menu above: it builds the console package of this collection, its lineup and Console Menu Setup on this computer.</div>`
+   $('cPlan').innerHTML=!staged?`<div class="msg na"><b>No console package yet.</b> Prepare the HOME menu above: it builds the console package of this collection, its lineup and Game Menu Setup on this computer.</div>`
     :CONSOLE.planErr?`<div class="msg warn"><b>No plan.</b> ${esc(CONSOLE.planErr)}<div class="acts" style="margin-top:6px"><span class="sp"></span><button class="btn sm hk" id="cReplan">Review Plan Again</button></div></div>`
     :planHtml(p,pf)+`<div class="acts" style="margin-top:6px"><span class="sp"></span><button class="btn sm secondary" id="cReplan">Review Plan Again</button></div>`;
    const rp=$('cReplan'); if(rp) rp.onclick=async()=>{ CONSOLE.plan=null; CONSOLE.preflight=null; await draw(); };

@@ -76,7 +76,7 @@ function csRecordOut(r){ return {schema:CREC_SCHEMA, id:r.id, name:r.name, creat
 function csLoadoutOut(l){ return {id:l.id, target:'nes-classic', name:l.name, created:l.created, modified:l.modified, sel:(l.sel||[]).slice(), decisions:l.decisions||{}, home:l.home||null}; }
 function csLoadoutsIn(list, ids){ const set=new Set(ids); const seen=new Set(); return (Array.isArray(list)?list:[]).slice(0,200).filter(l=>l&&typeof l==='object'&&(!l.target||l.target==='nes-classic')).map(l=>{ const id=typeof l.id==='string'&&/^[A-Za-z0-9_-]{1,40}$/.test(l.id)&&!seen.has(l.id)?l.id:'l'+csId().slice(1); seen.add(id);
   const s=[...new Set((Array.isArray(l.sel)?l.sel:[]).filter(x=>typeof x==='string'&&set.has(x)))]; const dec={}; Object.entries(l.decisions||{}).forEach(([k,v])=>{ if(s.includes(k)&&(v==='factory'||v==='alternate')) dec[k]=v; });
-  return {id, target:'nes-classic', name:String(l.name||'NES Classic Lineup').trim().slice(0,60)||'NES Classic Lineup', created:l.created||csNow(), modified:l.modified||csNow(), sel:s, decisions:dec, home:(l.home&&typeof l.home==='object')?l.home:null}; }); }
+  return {id, target:'nes-classic', name:String(l.name||'Lineup').trim().slice(0,60)||'Lineup', created:l.created||csNow(), modified:l.modified||csNow(), sel:s, decisions:dec, home:(l.home&&typeof l.home==='object')?l.home:null}; }); }
 function csFileFor(r){ return csWithRecord(r, ()=>{ const m=buildManifest(); m.ccs_collection=csRecordOut(CS.items[r.id]||r); return m; }); }
 // ---- file names (always editable) ----
 function csStamp(){ const d=new Date().toISOString(); return d.slice(0,10)+' '+d.slice(11,19).replace(/:/g,'-')+' UTC'; }
@@ -240,13 +240,18 @@ function csMergeStudioData(d, cols, gbase){ const plan=csMergePlan(d, {cols}); c
  try{ const res=csApplyPlan(plan, tx, gs?(t=>{ gres=fbSettingsWrite(gs, false, t, gbase); }):null); csAdopt(plan, res); return {ok:true, added:plan.add.length, skipped:plan.skip.length, plan, settings:gres}; }
  catch(e){ const left=tx.rollback(); csUnadopt(old); return {ok:false, error:String(e&&e.message||e), left, added:0, skipped:0, plan}; } }
 // ---- the My Collections menu (quick switch) and the manager ----
-// the menu shows the open collection once (a card with its games and where it is saved), the commands, and up to six OTHER
-// collections to switch to (five); Manage Collections lists every one (the bounded list never limits what is stored)
+// the menu is a tree: the open collection first (checked, unless one of its lineups is open), its lineups under it with
+// New Lineup…, then up to six other collections to switch to; Manage Collections lists every one (the bounded list never
+// limits what is stored). Each row is a name and a game count, nothing more.
 const csGames=n=>`${n.toLocaleString('en-US')} game${n===1?'':'s'}`;
-function csMenuRefresh(){ const box=$('csQuick'); if(!box||!CS) return; const list=csList(); const others=list.filter(r=>r.id!==CS.active); const shown=others.slice(0,5); const cn=csCollSel().size;
- box.innerHTML=shown.map(r=>miHtml({ic:'🕹️', label:esc(r.name), pill:csGames((r.sel||[]).length), role:'menuitemradio', attrs:`aria-checked="false" data-cs="${r.id}"`})).join('')
-  +(others.length>shown.length?miHtml({ic:'🗂️', label:`${others.length-shown.length} more in Manage Collections…`, cls:'quiet', attrs:'data-cs-all="1"'}):'');
- box.hidden=!others.length; const sl=$('csSwitchL'); if(sl) sl.hidden=!others.length;
+function csMenuRefresh(){ const box=$('csQuick'); if(!box||!CS) return; const list=csList(); const others=list.filter(r=>r.id!==CS.active); const shown=others.slice(0,6); const cn=csCollSel().size;
+ const cur=csActive(), los=cur&&typeof loList==='function'?loList(cur):[], open=LO?LO.lid:null, num=v=>v.toLocaleString('en-US');
+ box.innerHTML=(cur?miHtml({label:esc(cur.name), pill:num(cn), cls:'cur', role:'menuitemradio', attrs:`aria-checked="${!open}" ${open?'data-lo-act="back"':'data-cs-cur="1"'}`}):'')
+  +los.map(l=>miHtml({label:esc(l.name), pill:num(l.id===open?sel.size:(l.sel||[]).length), cls:'sub', role:'menuitemradio', attrs:`aria-checked="${l.id===open}" data-lo="${esc(l.id)}"`})).join('')
+  +(cur?miHtml({label:'New Lineup…', cls:'sub add', attrs:'data-lo-new="1"'}):'')
+  +shown.map(r=>miHtml({label:esc(r.name), pill:num((r.sel||[]).length), role:'menuitemradio', attrs:`aria-checked="false" data-cs="${r.id}"`})).join('')
+  +(others.length>shown.length?miHtml({label:`${others.length-shown.length} More…`, cls:'more', attrs:'data-cs-all="1"'}):'');
+ const lm=$('mLoManage'); if(lm) lm.hidden=!los.length;
  const t=$('csTotal'); if(t) t.textContent=`${list.length.toLocaleString('en-US')} collection${list.length===1?'':'s'}`;
  const h=$('collNameHead'), a=csActive(); if(h&&a) h.textContent=a.name; const g=$('collGames'); if(g) g.textContent=cn?csGames(cn):'No games yet';
  const c=$('collCount'); if(c) c.textContent=csGames(cn);
@@ -260,9 +265,9 @@ function rowMoreWire(box){ box.querySelectorAll('details.csmore').forEach(d=>d.a
 function csManager(){ csSaveActiveNow(); const list=csList(); const where=CO&&CO.desktop?'on this computer':'in this browser';
  openColl('Manage Collections', `${list.length.toLocaleString('en-US')} collection${list.length===1?'':'s'} · saved automatically ${where}`, `<div class="dquick">${miHtml({ic:'✨', label:'New Collection…', cls:'new', attrs:'id="csNewB"'})}${miHtml({ic:'📂', label:'Import Collection…', sub:'.ccs package or collection file', attrs:'id="csImpB"'})}</div>
   <div class="dlinks">${miHtml({ic:'🕘', label:'Restore Previous Version…', attrs:'id="csRestB"'})}${CO&&(CO.desktop||CO.served)?miHtml({ic:'🖥️', label:'Games Already on This Computer…', attrs:'id="csLocalB"'}):''}</div>
-  <div class="cslist" role="list">${list.map(r=>{ const on=r.id===CS.active; const n=on?csCollSel().size:(r.sel||[]).length; const nl=(r.loadouts||[]).length; return `<div class="csrow${on?' on':''}" role="listitem" data-id="${r.id}"><span class="mic" aria-hidden="true">${on?'🎮':'🕹️'}</span><div class="csn"><b>${esc(r.name)}</b><span class="small">${csGames(n)}${nl?` · ${nl} NES Classic Lineup${nl===1?'':'s'}`:''} · changed ${esc(nowShort(r.modified))}</span></div>${on?'<span class="opentag"><span aria-hidden="true">✓</span> Open</span>':''}
+  <div class="cslist" role="list">${list.map(r=>{ const on=r.id===CS.active; const n=on?csCollSel().size:(r.sel||[]).length; const nl=(r.loadouts||[]).length; return `<div class="csrow${on?' on':''}" role="listitem" data-id="${r.id}"><span class="mic" aria-hidden="true">${on?'🎮':'🕹️'}</span><div class="csn"><b>${esc(r.name)}</b><span class="small">${csGames(n)}${nl?` · ${nl} lineup${nl===1?'':'s'}`:''} · changed ${esc(nowShort(r.modified))}</span></div>${on?'<span class="opentag"><span aria-hidden="true">✓</span> Open</span>':''}
    <div class="csacts">${on?'':`<button class="btn sm hk" data-a="open" aria-label="Open ${esc(r.name)}">Open</button>`}<button class="btn sm grow" data-a="share"><span aria-hidden="true">💾</span> Back Up…</button>${rowMore(r.name)}</div></div>`; }).join('')}</div>
-  <p class="small">Collections are kept only ${where}. To keep a copy, use <b>Back Up Collection…</b> or <b>Back Up Everything…</b> in the Studio menu${CO&&!CO.desktop&&!CO.file?', or <b>Open in Windows App</b>':''}.</p>`);
+  <p class="small">Collections are kept only ${where}. To keep a copy, use <b>Back Up Collection…</b> or <b>Back Up Everything…</b> in the Studio menu${CO&&!CO.desktop&&!CO.file?', or <b>Open or Install the Windows App</b>':''}.</p>`);
  $('csNewB').onclick=()=>csNewDialog(); $('csImpB').onclick=()=>{ closeColl(); csImportPick(); }; $('csRestB').onclick=()=>restoreMenu(); if($('csLocalB')) $('csLocalB').onclick=()=>loadLocalLibrary();
  rowMoreWire($('collBody'));
  $('collBody').onclick=e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const id=b.closest('.csrow').dataset.id; const r=CS.items[id]; if(!r) return; const a=b.dataset.a; if(['rename','dup','del'].includes(a)) ROW_RET=`.csrow[data-id="${id}"] details.csmore>summary`;
@@ -271,7 +276,7 @@ function csManager(){ csSaveActiveNow(); const list=csList(); const where=CO&&CO
   else if(a==='dup'){ csDuplicate(id); csManager(); }
   else if(a==='export'){ csExport(id); }
   else if(a==='share'){ closeColl(); ccsBackupDialog(id); }
-  else if(a==='del'){ csNameDialog(`Delete "${r.name}"?`, null, 'Delete', ()=>{ csDelete(id); csManager(); }, `<p class="small">${(c=>`"${esc(r.name)}" (${c} game${c===1?'':'s'}${(r.loadouts||[]).length?` and ${(r.loadouts||[]).length} NES Classic Lineup${(r.loadouts||[]).length===1?'':'s'}`:''}) will be deleted.${c?' <b>Restore Previous Version</b> can bring it back for a while.':''}`)(id===CS.active?csCollSel().size:(r.sel||[]).length)} ROM files and personal games are not affected.</p>`); } }; }
+  else if(a==='del'){ csNameDialog(`Delete "${r.name}"?`, null, 'Delete', ()=>{ csDelete(id); csManager(); }, `<p class="small">${(c=>`"${esc(r.name)}" (${c} game${c===1?'':'s'}${(r.loadouts||[]).length?` and ${(r.loadouts||[]).length} lineup${(r.loadouts||[]).length===1?'':'s'}`:''}) will be deleted.${c?' <b>Restore Previous Version</b> can bring it back for a while.':''}`)(id===CS.active?csCollSel().size:(r.sel||[]).length)} ROM files and personal games are not affected.</p>`); } }; }
 function csNameDialog(title, value, action, then, html){ openColl(title,'', `${html||''}${value!==null?`<div class="fld"><label for="csNm">Collection name</label><input type="text" id="csNm" maxlength="80" value="${esc(value||'')}"></div>`:''}<div class="acts"><span class="sp"></span><button class="btn" id="csNo" data-cancel>Cancel</button><button class="btn ${action==='Delete'?'danger':'hk'}" id="csYes">${esc(action)}</button></div>`);
  const inp=$('csNm'); if(inp){ if(!TOUCH||title.startsWith('Rename')){ inp.focus(); inp.select(); } inp.onkeydown=e=>{ if(e.key==='Enter') $('csYes').click(); }; }
  $('csNo').onclick=()=>{ if(title.startsWith('Delete')||title.startsWith('Rename')) csManager(); else closeColl(); };
@@ -280,7 +285,7 @@ function csNewDialog(){ csNameDialog('New Collection', csUniqueName('New Collect
 // ---- transfer to and from Classic Cart Studio for Windows ----
 function csBundle(ids){ csSaveActiveNow(); return {schema:CBUNDLE_SCHEMA, exported:csNow(), app:'Classic Cart Studio', collections:ids.map(id=>CS.items[id]).filter(Boolean).map(csRecordOut)}; }
 function csTransferPick(then){ csSaveActiveNow(); const list=csList();
- openColl('Open in Windows App','', `<p class="small">Choose collections to copy into the Windows app. They arrive as new collections; nothing there is overwritten or kept in sync.</p>
+ openColl('Open or Install the Windows App','', `<p class="small">Choose collections to copy into the Windows app. They arrive as new collections; nothing there is overwritten or kept in sync.</p>
   <div class="cspick">${list.map(r=>`<label><input type="checkbox" value="${r.id}" ${r.id===CS.active?'checked':''}> <b>${esc(r.name)}</b> <span class="small">${(c=>`${c} game${c===1?'':'s'}`)(r.id===CS.active?csCollSel().size:(r.sel||[]).length)}</span></label>`).join('')}</div>
   <div class="acts"><button class="btn ghost" id="cpAll">Select All</button><span class="sp"></span><button class="btn" id="cpNo">Cancel</button><button class="btn hk" id="cpGo">Continue</button></div>`);
  $('cpAll').onclick=()=>document.querySelectorAll('.cspick input').forEach(x=>x.checked=true); $('cpNo').onclick=closeColl;

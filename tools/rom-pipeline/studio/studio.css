@@ -958,32 +958,146 @@ img.px{image-rendering:pixelated}
 .mbox label.chk input[type=checkbox]{flex:none;margin-top:1px}
 /* W2: the installed app's note when it starts with nothing in its storage (on the page, not a popup) */
 #pwaNote{margin:12px 16px 0;display:block}#pwaNote .btn{margin-left:8px}
-/* 0.9.0 header (owner): the pixel wordmark (CLASSIC CART over STUDIO, as on the setup and the startup screens), the tagline under it,
-   and Classic Cart Studio's own pixel art at the right (Carty and a chest of finds) where a drawing of the console used to be */
-.hero h1 .brandhome.wmark{flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:"Pixelify Sans",var(--display);font-weight:400;text-transform:uppercase;letter-spacing:0;line-height:.86;text-shadow:2px 2px 0 #12091f}
-.hero h1 .wmark .wm1{color:#fff;font-size:18px}
-.hero h1 .wmark .wm2{color:var(--red3);font-size:28px;letter-spacing:1px}
-.hero .lede.tagline{font-size:12.5px;line-height:1.3;color:#d9d9e2;letter-spacing:.2px;margin:3px 0 2px}
+/* ==== Header, toolbar and menus (owner redesign, after 0.9.0) ==== */
+/* The approved Classic Cart Studio wordmark (the launch brand pack's logo: Press Start 2P, CLASSIC CART #f5f6fc over STUDIO #ff344b at
+   1 : 1.25, centered) with the approved tagline under it, as on the launch thumbnail and the channel banner */
+.hero .lockup{display:inline-flex;flex-direction:column;align-items:center;padding-top:8px}
 .hero h1{margin:0}
-.hardware.mascot{position:relative;display:flex;align-items:flex-end;gap:22px;padding:26px 6px 2px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
-.hardware.mascot img{display:block;image-rendering:pixelated;max-width:none}
-.hardware.mascot .carty{width:32px;height:40px}
-.hardware.mascot .chest{width:32px;height:20px}
-.hardware.mascot .msc-items{position:absolute;left:0;right:0;top:0;height:22px}
-.hardware.mascot .msc-items img{position:absolute;animation:bob 2.4s ease-in-out infinite}
-.hardware.mascot .it1{width:24px;height:20px;left:2px;top:4px}
-.hardware.mascot .it2{width:16px;height:16px;left:30px;top:0;animation-delay:.4s!important}
-.hardware.mascot .it3{width:20px;height:16px;left:50px;top:6px;animation-delay:.8s!important}
-.hardware.mascot .it4{width:20px;height:16px;left:74px;top:2px;animation-delay:1.2s!important}
+.hero h1 .brandhome.wmark{display:inline-flex;flex-direction:column;align-items:center;gap:9px;padding:2px 0;font-family:var(--pixel);font-weight:400;text-transform:uppercase;letter-spacing:0;line-height:1;text-shadow:none;white-space:nowrap}
+.hero h1 .wmark .wm1{font-size:16px;color:#f5f6fc}
+.hero h1 .wmark .wm2{font-size:20px;color:#ff344b}
+.hero .lede.tagline{margin:10px 0 2px;font-family:"CCS HD Sans",var(--font);font-weight:600;font-size:11.5px;line-height:1.2;letter-spacing:.16em;text-transform:uppercase;color:#e1e6f4;white-space:nowrap}
+/* top right: one clear way to get the Windows app */
+.hardware.dlwrap{display:flex;align-items:center;justify-content:flex-end;filter:none}
+.hardware.dlwrap[hidden]{display:none}
+.dlbtn{position:relative;display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 20px 0 8px;border-radius:12px;overflow:hidden;
+ background:linear-gradient(180deg,#ff4a5e 0%,#e3132f 55%,#b30d25 100%);border:1px solid #ff8593;color:#fff;text-decoration:none;
+ font:600 14.5px/1 var(--font);letter-spacing:.01em;white-space:nowrap;
+ box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 -2px 0 rgba(0,0,0,.18) inset,0 8px 22px rgba(227,19,47,.38),0 0 0 1px rgba(0,0,0,.35);
+ transition:transform .16s var(--ease),box-shadow .2s,filter .16s}
+.dlbtn::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-18deg);transition:left .6s var(--ease);pointer-events:none}
+.dlbtn:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 -2px 0 rgba(0,0,0,.18) inset,0 12px 28px rgba(227,19,47,.5),0 0 0 1px rgba(0,0,0,.35)}
+.dlbtn:hover::after{left:120%}
+.dlbtn:active{transform:translateY(0)}
+.dlbtn:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.dlbtn .dlic{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(0,0,0,.24);box-shadow:0 1px 0 rgba(255,255,255,.18)}
+.dlbtn .dlic svg{width:16px;height:16px}
+@media (prefers-reduced-motion:reduce){.dlbtn,.dlbtn::after{transition:none}}
 .barhidden{display:none!important}
-/* the Preview Your Game Menu button is exactly as tall as the buttons beside it, at every width */
-.toolbar .row.bar .tvbtn{min-height:0!important;margin:0!important;align-self:stretch;padding-top:0;padding-bottom:0}
-.toolbar .row.bar .tvbtn img{width:auto!important;height:28px;max-height:28px}
-/* My Collections › Games in This Collection: its game count */
-.mtr .mtn{display:inline-block;min-width:22px;padding:2px 7px;border-radius:999px;background:#3d8dff;color:#fff;font:700 12px/16px var(--font);text-align:center}
-@media (max-width:640px){
- .hero .lede.tagline{display:block!important;font-size:11.5px;margin:3px 0 0}
- .hero h1 .wmark .wm1{font-size:15px}.hero h1 .wmark .wm2{font-size:22px}
- .hero h1 .brandhome.wmark{align-items:flex-start}
- .toolbar .row.bar .tvbtn{height:40px!important;align-self:center}.toolbar .row.bar .tvbtn img{height:26px;max-height:26px}
+
+/* the toolbar (wider than a phone): search and its controls on the left, Preview · My Collections · Studio on the right, on ONE line
+   when both fit (tbLayout measures); otherwise the three buttons on the first line and the search line below, both from the left */
+@media (min-width:641px){
+ .toolbar .in{position:relative;display:flex;flex-direction:column;gap:8px}
+ .toolbar .row.bar{order:1;display:flex!important;flex-wrap:nowrap!important;align-items:center;justify-content:flex-start!important;gap:8px!important}
+ .toolbar .row.bar>.actions{display:flex!important;width:auto!important;flex:none;margin-left:0!important;justify-content:flex-start!important}
+ .toolbar .row.bar .menuwrap{display:inline-flex}
+ #toolsFold{order:2}#loBand{order:3}
+ .toolbar:not(.tb-two) .row.bar{position:absolute;top:var(--tbpt,7px);right:var(--tbpr,16px);z-index:2}
+ .toolbar:not(.tb-two) .row.tools{padding-right:var(--barw,0px)}
+ .toolbar .tvbtn,.toolbar .row.bar .collbtn,.toolbar .row.bar .appbtn{height:36px!important;min-height:0!important;margin:0!important;box-sizing:border-box}
+ .toolbar .tvbtn{padding:0 12px 0 5px!important;gap:8px}
+ .toolbar .tvbtn img{width:auto!important;height:26px!important;max-height:26px}
+ .toolbar .tvbtn .tvbl b{white-space:nowrap!important;width:auto!important;font-size:13px!important;line-height:1}
+ .toolbar .row.bar .collbtn{max-width:340px;padding:0 10px 0 9px;gap:8px}
+ .toolbar .row.bar .appbtn .fl{display:inline!important}
 }
+/* My Collections button: one line, the open collection (and the open lineup after it) */
+.collbtn .cl{display:flex;flex-direction:row;align-items:center;gap:6px;min-width:0;line-height:1.2}
+.collbtn #collName{font-weight:600;color:#fff;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.collbtn .clo{display:inline-flex;align-items:center;gap:6px;color:var(--ink2);font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.collbtn .clo::before{content:"›";color:var(--muted)}
+.collbtn .clo[hidden]{display:none}
+/* the counts and the connection: the right end of the alphabet line */
+.row.sub .subinfo{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.row.sub .subinfo .stats{font-size:12px;padding:0}
+/* the lineup bar carries the lineup's own actions */
+#loBand .lob-main #homeBtn,#loBand .lob-main #hkBtn{height:32px;padding:0 12px;font-size:13px}
+
+/* ==== Menus: plain lists. Names in regular weight at reading size, one quiet row height, no icon tiles, no cards, no colored panels;
+   a check marks what is open, a small gray number is a count, and short gray headings name the groups ==== */
+.menu{min-width:240px;padding:6px;gap:0;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#1c1c22;box-shadow:0 14px 34px rgba(0,0,0,.55)}
+.menu.wide{width:290px}
+.menu .mhead{display:none}
+.menu .mic{display:none}
+.menu .mi{position:relative;min-height:32px;padding:6px 12px 6px 30px;gap:10px;border:0;border-radius:6px;font-size:13.5px;line-height:1.25;color:#e9e9ef;background:transparent}
+.menu .mi:hover,.menu .mi:focus-visible{background:rgba(255,255,255,.08)}
+.menu .mi:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.menu .mtx b{font-weight:400;color:inherit;display:block;-webkit-line-clamp:unset;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu .mi.quiet .mtx b,.menu .mi.feature .mtx b{font-weight:400;color:inherit}
+.menu .mi.feature,.menu .mi[aria-checked=true]{background:transparent;border:0;margin:0}
+.menu .mi.feature:hover,.menu .mi[aria-checked=true]:hover{background:rgba(255,255,255,.08)}
+.menu .mi[aria-checked=true]::before{content:"✓";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:#ff5a6e}
+.menu .mi.danger .mtx b{color:#ff8a96}
+.menu .mi.danger:hover{background:rgba(255,97,111,.12)}
+.menu .mi:disabled{opacity:.4}
+.menu .mtr,.menu .mpill{flex:none;margin-left:auto;padding:0;border:0;background:none;font-size:12px;font-weight:400;color:#8d8d99}
+.menu .mtr .mtn{display:inline;min-width:0;padding:0;border-radius:0;background:none;color:inherit;font:inherit}
+.menu .mlabel{padding:8px 12px 4px 30px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#8d8d99}
+.menu .sep{height:1px;margin:5px 8px;background:rgba(255,255,255,.09)}
+.menu .mquick{display:contents}
+.menu .mquick .mi{min-height:32px;border:0;background:transparent}
+.menu .mlist{gap:0}
+/* My Collections: the open collection's lineups sit under it, indented on a thin guide line */
+.menu .mtree .mi.sub{padding-left:46px}
+.menu .mtree .mi.sub::after{content:"";position:absolute;left:34px;top:0;bottom:0;width:1px;background:rgba(255,255,255,.14)}
+.menu .mtree .mi.sub[aria-checked=true]::before{left:26px}
+.menu .mtree .mi.add .mtx b{color:#ff8a96}
+.menu .mtree .mi.cur .mtx b{font-weight:600}
+.menu .mtree .mi.more .mtx b{color:#a9a9b4}
+@media (max-width:640px){
+ .menu .mhead{display:flex}
+ .menu .mhead .mbadge{display:none}
+ .menu .mhead .mht b{font-size:15px;font-weight:600}
+ .menu .mi{min-height:44px;font-size:15px;padding-left:32px}
+ .menu .mtree .mi.sub{padding-left:50px}
+ .menu .mtree .mi.sub::after{left:38px}
+ .menu .mlabel{padding-left:32px}
+ .hero h1 .brandhome.wmark{align-items:center;gap:7px}
+ .hero .lede.tagline{display:block!important;margin:8px 0 0;font-size:10.5px}
+ .collbtn #collName{max-width:none}
+ #collWrap .collbtn .cl{justify-content:flex-start;text-align:left}#collWrap .collbtn #collName{flex:0 1 auto!important}
+ #collMenu #csSwitchL{display:none}
+ .toolbar .row.bar .tvbtn{height:40px!important;min-height:0!important}.toolbar .row.bar .tvbtn img{width:auto!important;height:26px!important}
+}
+
+/* the header's road runs just under the wordmark and the download button; the walkers walk on it between the two (heroLane measures
+   the lane). Phones: the wordmark and tagline, then the download button, then the road, all centered */
+.hero .parade .lane{position:absolute;top:0;bottom:14px;left:var(--pl,0px);right:var(--pr,0px);overflow:hidden;container-type:inline-size}
+.hero .parade .lane .cast{bottom:0!important}
+@media (min-width:641px){
+ .hero .hero-inner{padding-bottom:22px}
+ .hero .parade{position:absolute;left:0;right:0;top:0;bottom:0;height:auto!important;margin:0;z-index:0;container-type:normal}
+}
+@media (max-width:640px){
+ .hero .hero-inner{display:flex!important;flex-direction:column;align-items:center;gap:12px;padding:10px 12px 12px!important;text-align:center}
+ .hero .lockup{align-items:center}
+ .hero .hardware.dlwrap{display:flex!important;justify-content:center}
+ .hero .parade{display:block!important;position:relative;height:52px!important}
+}
+
+/* the download button: compact, always narrower than the wordmark (CLASSIC CART is 192 px wide), side by side or stacked */
+.dlbtn{height:34px;padding:0 12px 0 5px;gap:7px;border-radius:9px;font-size:12px;letter-spacing:0;
+ box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 -2px 0 rgba(0,0,0,.18) inset,0 5px 14px rgba(227,19,47,.32),0 0 0 1px rgba(0,0,0,.35)}
+.dlbtn:hover{box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 -2px 0 rgba(0,0,0,.18) inset,0 8px 20px rgba(227,19,47,.45),0 0 0 1px rgba(0,0,0,.35)}
+.dlbtn .dlic{width:24px;height:24px;border-radius:7px}
+.dlbtn .dlic svg{width:13px;height:13px}
+/* Download CCS, with "for Windows 10/11" in small letters under it and the Windows logo (monochrome, the current four squares) */
+.dlbtn{height:38px;padding:0 13px 0 6px}
+.dlbtn .dlic{background:rgba(0,0,0,.22)}
+.dlbtn .dlic svg{width:12px;height:12px}
+.dlbtn .dlt{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1;text-align:center}
+.dlbtn .dlt b{font-size:12.5px;font-weight:700;letter-spacing:.01em}
+.dlbtn .dlt small{font-size:9.5px;font-weight:500;letter-spacing:.02em;color:rgba(255,255,255,.82)}
+/* grid cards (owner): the box art, the title, the version pill when a game has several versions, year · publisher, genre. The pick circle
+   and the favorite star sit on the art, so nothing else takes a line */
+.card .cover .cstar{position:absolute;right:4px;top:4px;z-index:3}
+.card .cover .cstar .star{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.35);font-size:14px;line-height:1;padding:0;color:rgba(255,255,255,.85)}
+.card .cover .cstar .star.on{color:var(--gold);border-color:rgba(242,182,50,.7)}
+.card .body{padding:8px 9px 9px!important;gap:2px!important}
+.card .t{font-size:13.5px!important;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .m{font-size:11.5px!important;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .body>div.cv{display:block!important;margin:auto 0 0;padding-top:5px}
+@media (max-width:640px){ .card .t{font-size:12.5px!important} .card .m{font-size:11px!important} .card .cover .cstar .star{width:28px;height:28px} }
+/* grid cards: year · publisher · genre on one line, wrapping only when the card is too narrow for it */
+.card .m{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.35}

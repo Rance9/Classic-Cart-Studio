@@ -69,7 +69,7 @@ function connSummary(){ switch(CO.state){
  case 'file': return 'This page was opened as a file and cannot reach Classic Cart Studio. Open the website or the Windows app instead.';
  case 'error': return 'Classic Cart Studio reported a problem: '+esc(CO.error||'unknown')+'. Restart it, then check again.';
  default: return 'Checking the connection…'; } }
-function connectInline(){ if(CO.hosted&&!CO.desktop) return `<div class="msgbox"><b>Installing on your NES Classic needs Classic Cart Studio for Windows.</b> Your collection comes with you.<div class="acts" style="margin-top:8px"><button class="btn hk" id="hkDesktop">Open in Windows App</button></div></div>`;
+function connectInline(){ if(CO.hosted&&!CO.desktop) return `<div class="msgbox"><b>Installing on your NES Classic needs Classic Cart Studio for Windows.</b> Your collection comes with you.<div class="acts" style="margin-top:8px"><button class="btn hk" id="hkDesktop">Open or Install the Windows App</button></div></div>`;
  return `<div class="msg">${connSummary()}</div><div class="acts"><span class="sp"></span><button class="btn" id="hkConn">Check Again</button></div>`; }
 function wireConnectInline(){ const b=$('hkConn'); if(b) b.onclick=()=>{ $('hkpanel').classList.remove('open'); openConnect(); }; }
 // Status of the backend on this computer (desktop app). On the website this opens the desktop invitation instead: the website never connects.
@@ -97,6 +97,16 @@ function renderDownload(el){ if(!el) return; releaseInfo().then(R=>{ if(!el.isCo
   <div class="small" style="margin-top:8px">The installer is not code-signed, so Windows SmartScreen may ask you to confirm. After installing, start <b>Classic Cart Studio</b> from the Start menu.${R.source==='github-api'?'':` <a href="${esc(R.url||RELEASE_PAGE)}" target="_blank" rel="noopener">Release page</a>.`}</div>`;
  if($('dlCopy')) $('dlCopy').onclick=()=>{ navigator.clipboard&&navigator.clipboard.writeText(R.sha256).then(()=>toast('SHA-256 copied'),()=>toast('Could not copy; select the text instead')); };
  if($('dlHow')) $('dlHow').onclick=()=>{ $('dlHowBox').hidden=!$('dlHowBox').hidden; }; }); }
+// the header's Download CCS button: always the newest release, never a fixed one. GitHub is asked for its latest release when the button is
+// clicked (the download comes from GitHub anyway; nothing is asked before) and the browser goes straight to that release's installer; if
+// GitHub cannot answer in 5 s, or a new tab or window is asked for, it opens GitHub's latest-release page. Never shown inside the app.
+async function ccsDownloadLatest(){ if(typeof ccsmTrack==='function') ccsmTrack('download_clicked'); let url=null;   /* counted only when usage reports are on (as the release links are) */
+  try{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),5000); const r=await (await fetch(RELEASES_API,{headers:{'Accept':'application/vnd.github+json'},cache:'no-store',signal:ctl.signal})).json(); clearTimeout(t);
+   const a=(r&&r.assets||[]).find(x=>/^ClassicCartStudio-Setup-.*\.exe$/i.test(x.name))||(r&&r.assets||[]).find(x=>/\.exe$/i.test(x.name)); if(a&&/^https:\/\/github\.com\//.test(a.browser_download_url)) url=a.browser_download_url; }catch(err){}
+  location.href=url||RELEASE_PAGE; }
+(function(){ const b=$('dlApp'); if(!b) return; if(window.__CCS_DESKTOP){ b.parentNode.hidden=true; return; }
+ b.href=RELEASE_PAGE;
+ b.addEventListener('click',e=>{ if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey){ if(typeof ccsmTrack==='function') ccsmTrack('download_clicked'); return; } e.preventDefault(); ccsDownloadLatest(); }); })();
 // ---- Add Games from Files: bulk import through the companion (native picker on this computer, background job, progress, cancel) ----
 async function importGames(mode){ if(!CO.ok){ await companionStatus(); if(!CO.ok){ if(typeof desktopInvite==='function'&&desktopInvite('Adding ROM files needs the Windows app, which can read files on this computer.')) return; openConnect('Classic Cart Studio is not responding on this computer.'); return; } }
  openColl('Add Games from Files', mode==='folder'?'Choose a folder in the window that opened':'Choose files in the window that opened', `<div class="msgbox">${mode==='folder'?'Every ROM file and ZIP in the folder and its subfolders is checked.':'Choose ROM files (.nes, .unh, .bin, .fds) or ZIP archives; you can select several.'} Known versions are matched exactly; others become personal games. Your files are copied, never changed.</div>`);

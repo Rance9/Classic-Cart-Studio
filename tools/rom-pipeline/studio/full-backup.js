@@ -199,7 +199,7 @@ function fbBusy(t){ const b=$('collBody'); if(b) b.innerHTML=`<div class="msgbox
 // the website: no game is open in any tab or window of this browser while its game storage is restored, and none opens until the restore has
 // finished. The restore takes the game player's lock (ccs-play.js CP_LOCK) at once or is refused, before anything changes, and holds it to the end.
 async function fbWebLock(){ if(!fbWebPlay()) return {ok:true, release:null};   /* this browser keeps no games or saved games here: nothing is shared */
- if(typeof CCSPLAY!=='undefined'&&CCSPLAY.running()) return {ok:false, why:'A game is open in Preview on TV. Close it from its own menu first, then restore'};
+ if(typeof CCSPLAY!=='undefined'&&CCSPLAY.running()) return {ok:false, why:'A game is open in Preview Your Game Menu. Close it from its own menu first, then restore'};
  if(!(navigator.locks&&navigator.locks.request)) return {ok:false, why:'This browser cannot make sure that no game is open in another of its tabs or windows. Use a current version of Edge, Chrome, Safari or Firefox to restore this backup'};
  const r=await cpLock(CP_LOCK); if(!r) return {ok:false, why:(await cpLockHolder())==='restore'?'Another tab or window of this browser is restoring a backup. Wait until it has finished, then restore':'A game is open in another tab or window of this browser. Close it from its own menu there first, then restore'};
  const r2=await cpLock(CP_RESTORE_LOCK); return {ok:true, release:()=>{ if(r2) r2(); r(); }}; }   /* the second lock only names what holds the first */
