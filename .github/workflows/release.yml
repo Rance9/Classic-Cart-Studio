@@ -19,7 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain (zig pinned and SHA-256 verified, qemu-user for the ARM check)
-        run: bash tools/console-simulator/scripts/wsl_setup.sh
+        run: |
+          # GitHub's Azure Ubuntu mirror fails at times on the runners (DNS, throttling: actions/runner-images #6894, #10785): this job's
+          # two packages (qemu-user, libc6-armhf-cross) come from the main Ubuntu archive instead
+          if [ -f /etc/apt/apt-mirrors.txt ]; then sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt; fi
+          sudo grep -rl 'azure\.archive\.ubuntu\.com' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null | xargs -r sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g'
+          sudo apt-get update -qq || echo "apt-get update reported errors; the download below says whether it matters"
+          bash tools/console-simulator/scripts/wsl_setup.sh
       - name: Build
         env:
           CCS_SIM_BUILD: ${{ github.workspace }}/build/native
