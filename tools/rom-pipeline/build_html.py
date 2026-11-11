@@ -782,7 +782,7 @@ M_COLL = ('<div class="menu wide" id="collMenu" role="menu" aria-label="My Colle
 M_APP = ('<div class="menu wide" id="appMenu" role="menu" aria-label="Studio menu" hidden>' + _mhead('<img src="icon-192.png" alt="" width="26" height="26" onerror="this.remove()">', "Studio Menu", close="Close the Studio menu")
     + _mi("mGoHome", "🏠", "Home") + _mi("howBtn", "📖", "Help &amp; User Guide")
     + '<div class="sep" id="mPlayL" hidden></div>' + _mi("mPlaySet", "🎮", "Play on PC Settings…", hidden=True)
-    + '<div class="sep" id="mDevL" hidden></div>' + _mi("mInstall", "📲", "Use This Website Offline…", hidden=True) + _mi("mUpdate", "⬆️", "Update Ready…", hidden=True)
+    + '<div class="sep" id="mDevL" hidden></div>' + _mi("mInstall", "📲", "Install the Website App…", hidden=True) + _mi("mUpdate", "⬆️", "Update Ready…", hidden=True)
     + '<div class="sep"></div>' + _mi("mBackupAll", "🗄️", "Back Up Everything…") + _mi("sdExport", "📝", "Back Up Lists and Settings Only…") + _mi("sdImport", "🛟", "Restore Lists and Settings…")
     + '<div class="sep"></div>' + _mi("mLegal", "⚖️", "Legal &amp; Privacy")
     + _mi("mUsage", "📊", "Usage Reporting…")
