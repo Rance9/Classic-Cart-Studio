@@ -44,8 +44,19 @@ foreach ($p in $Subs.Keys) {
     if ((G -C (Join-Path $Dest $p) submodule status --recursive | Measure-Object).Count) { Fail "$p has nested submodules (none expected)" }
     Write-Host "PASS  $p $($Subs[$p])"
 }
-$dirty = G -C $Dest status --porcelain --untracked-files=no --ignore-submodules=none
-if ($dirty) { Fail "tracked files differ from the commits: $(($dirty | Select-Object -First 5) -join '; ')" }
+$dirty = @(G -C $Dest status --porcelain --untracked-files=no --ignore-submodules=none | Where-Object { $_ })
+# git status reads a file again only when its timestamps cannot vouch for it, and then compares it renormalized: a file committed with CRLF
+# under a text attribute (Hakchi's .resx and GameGenieDB.xml) is then listed although its bytes are exactly what the checkout wrote. Each
+# file listed as changed in the working tree is compared byte for byte with a fresh checkout of its index entry (checkout-index --temp: the
+# same conversion); anything else listed, or a real difference, stops.
+$real = @(foreach ($l in $dirty) {
+    if ($l -notmatch '^ M ([^"]+)$' -or $Subs.Contains($Matches[1])) { $l; continue }
+    $rel = $Matches[1]; $tmp = ((G -C $Dest checkout-index --temp -- $rel) -split "`t")[0]; $tp = Join-Path $Dest $tmp
+    try { if ((Get-FileHash -Algorithm SHA256 -LiteralPath $tp).Hash -ne (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $Dest ($rel -replace '/', '\'))).Hash) { $l } }
+    finally { Remove-Item -LiteralPath $tp -Force -ErrorAction SilentlyContinue }
+})
+if ($real.Count) { Fail "tracked files differ from the commits: $(($real | Select-Object -First 5) -join '; ')" }
+if ($dirty.Count) { Write-Host "PASS  $($dirty.Count) file(s) git status listed are byte for byte the checkout of their commit" }
 Write-Host "PASS  Hakchi2 CE $Commit (v3.9.3), eight submodules at the recorded commits, no tracked file changed"
 
 function Sha($rel) { (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $Dest ($rel -replace '/', '\'))).Hash.ToLowerInvariant() }
