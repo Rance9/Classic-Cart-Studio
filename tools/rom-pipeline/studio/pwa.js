@@ -1,6 +1,6 @@
 // ---- The installed app and offline use (W2) ----
 // The service worker (sw.js) is registered only when the Studio runs as an installed app or the person asks for offline use (Studio menu >
-// Install as an App…), never in Classic Cart Studio for Windows (its own files are already on the computer) and never silently for every
+// Use This Website Offline…), never in Classic Cart Studio for Windows (its own files are already on the computer) and never silently for every
 // visitor. It keeps one version of the page, data, game player and HOME art; an update waits and is used on the next start, or at once
 // with Restart to Update (only while no game plays). Games, saved games and settings stay in this browser's storage; nothing is uploaded.
 // An app on a phone's Home Screen may keep its own storage, separate from the browser (iPhone and iPad do): when the app starts with
@@ -31,22 +31,23 @@ async function pwaUpdate(){ const r=PWA.reg; if(!r||!r.waiting) return {ok:false
 function pwaSwitched(){ if(typeof CCSPLAY!=='undefined'&&CCSPLAY.running()){ PWA.reloadAfterGame=true; return; } PWA.updating=false; location.reload(); }
 function pwaUi(){ const i=$('mInstall'), u=$('mUpdate'), s=$('mDevL'); if(!i) return; const ok=pwaAllowed();
  i.hidden=!ok; if(s) s.hidden=!ok; if(u) u.hidden=!(PWA.reg&&PWA.reg.waiting);
- miLabel(i, pwaStandalone()?(PWA.status&&PWA.status.prepared?'Ready for Offline Use':'Getting Ready for Offline Use…'):'Install as an App…'); }
+ miLabel(i, pwaStandalone()?(PWA.status&&PWA.status.prepared?'Ready for Offline Use':'Getting Ready for Offline Use…'):'Use This Website Offline…'); }
 function pwaDialog(){ const app=pwaStandalone(), apple=pwaApple(), st=PWA.status;
- const how=app?'<p>Classic Cart Studio is installed on this device.</p>'
-  :PWA.ask?'<p>Installing adds Classic Cart Studio to this device like an app (Start menu, taskbar or Home Screen) and keeps it ready to open without the internet.</p>'
+ const how=app?'<p>Classic Cart Studio is on this device as an app.</p>'
+  :PWA.ask?'<p>Your browser can add this website to this device as an app: it opens in its own window from the Start menu, taskbar or Home Screen, and works without the internet once it is ready.</p>'
   :apple?'<p>To add Classic Cart Studio to your Home Screen: in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>. It opens like an app and works without the internet once it is ready.</p>'
-  :'<p>This browser does not offer to install websites as apps. You can still keep the Studio ready to open here without the internet.</p>';
- openColl('Install as an App', '', `${how}
+  :'<p>This browser does not add websites as apps, but it can keep the Studio ready to open here without the internet.</p>';
+ const win=!app&&/Windows/.test(navigator.userAgent)?'<p class="small">This is the website. Classic Cart Studio for Windows is a separate program: choose <b>Download CCS</b> at the top of the page to get it.</p>':'';
+ openColl('Use This Website Offline', '', `${how}${win}
   <ul class="small fbitems"><li>Your games and saved games stay in this browser's storage on this device. They are never uploaded.</li>
    <li>An app on the Home Screen of an iPhone or iPad keeps its own storage, separate from Safari. To bring your Studio over, choose <b>Back Up Everything…</b> in Safari, then in the app choose <b>Import Collection…</b> and pick that file.</li>
    <li>A new version is used the next time the Studio starts, never during a game.</li></ul>
   <div class="msgbox${st&&st.prepared?' ok':''}" id="pwaState" role="status">${st&&st.prepared?'Ready for offline use on this device.':'Not yet ready for offline use on this device.'}</div>
-  <div class="acts"><span class="sp"></span><button class="btn" id="pwaNo">Close</button>${!st||!st.prepared?'<button class="btn" id="pwaPrep">Keep Ready for Offline Use</button>':''}${PWA.ask&&!app?'<button class="btn hk" id="pwaGo">Install</button>':''}</div>`);
+  <div class="acts"><span class="sp"></span><button class="btn" id="pwaNo">Close</button>${!st||!st.prepared?'<button class="btn" id="pwaPrep">Keep Ready for Offline Use</button>':''}${PWA.ask&&!app?'<button class="btn hk" id="pwaGo">Add to This Device</button>':''}</div>`);
  $('pwaNo').onclick=closeColl;
  const p=$('pwaPrep'); if(p) p.onclick=async()=>{ p.disabled=true; p.textContent='Getting ready…'; const s=$('pwaState'); s.className='msgbox'; s.textContent='Getting ready: the Studio, the game player and the HOME art are being kept on this device…';
   const r=await pwaPrepare(); s.className='msgbox '+(r.ok?'ok':'bad'); s.textContent=r.ok?`Ready for offline use on this device (with ${r.covers} cover${r.covers===1?'':'s'} of your games).`:'Not ready for offline use: '+(r.error||'unknown error'); p.remove(); };
- const g=$('pwaGo'); if(g) g.onclick=async()=>{ const a=PWA.ask; PWA.ask=null; try{ await a.prompt(); const c=await a.userChoice; if(c&&c.outcome==='accepted'){ closeColl(); toast('Installing Classic Cart Studio. Open it from your Start menu, taskbar or Home Screen.'); pwaPrepare(); } }catch(e){} pwaUi(); }; }
+ const g=$('pwaGo'); if(g) g.onclick=async()=>{ const a=PWA.ask; PWA.ask=null; try{ await a.prompt(); const c=await a.userChoice; if(c&&c.outcome==='accepted'){ closeColl(); toast('Adding Classic Cart Studio to this device. Open it from your Start menu, taskbar or Home Screen.'); pwaPrepare(); } }catch(e){} pwaUi(); }; }
 function pwaUpdateDialog(){ const play=typeof CCSPLAY!=='undefined'&&CCSPLAY.running();
  openColl('Update Ready', '', `<p>A new version of Classic Cart Studio is ready. Your collections, games and saved games stay as they are.</p>${play?'<div class="msgbox warn">A game is open. Close it from its own menu first.</div>':''}
   <div class="acts"><span class="sp"></span><button class="btn" id="pwuLater">Later</button><button class="btn hk" id="pwuGo" ${play?'disabled':''}>Restart to Update</button></div>`);
