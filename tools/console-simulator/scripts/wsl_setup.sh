@@ -1,7 +1,8 @@
 #!/bin/bash
 # Console Simulator toolchain setup (runs inside the WSL Ubuntu distribution; no root, no sudo, no system-wide change).
 #   zig (pinned, SHA-256 verified) -> $CCS_SIM_TOOLCHAIN/zig
-#   qemu-user and libc6-armhf-cross (apt-get download = signed index, dpkg-deb -x) -> $CCS_SIM_TOOLCHAIN/deb
+#   qemu-user and libc6-armhf-cross (apt-get download = signed index, dpkg-deb -x) -> $CCS_SIM_TOOLCHAIN/deb; when Ubuntu's servers cannot
+#   be reached, the same file from another full Ubuntu mirror, accepted only with the SHA-256 the signed local index lists for it
 # Everything lands under one user-owned prefix (default ~/.cache/ccs-sim/toolchain); `clean --toolchain` removes it.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; LOCK="$HERE/../toolchain.lock.json"
@@ -16,9 +17,24 @@ if [ ! -x "$TC/zig/zig" ]; then
   rm -rf "$TC/zig.tmp" && mkdir -p "$TC/zig.tmp" && tar -xJf "$f" -C "$TC/zig.tmp" --strip-components=1 && mv "$TC/zig.tmp" "$TC/zig"
   echo "zig installed: $("$TC/zig/zig" version)"
 else echo "zig present: $("$TC/zig/zig" version)"; fi
+MIRRORS="https://mirrors.kernel.org/ubuntu https://mirrors.edge.kernel.org/ubuntu https://mirrors.mit.edu/ubuntu https://mirror.math.princeton.edu/pub/ubuntu"
+fetch_deb() {   # apt-get download; if Ubuntu's servers cannot be reached, the file the signed index names, from another mirror, checked against it
+  local pkg="$1" info fn sha out m
+  ( cd "$TC/dl" && rm -f ${pkg}_*.deb && apt-get download "$pkg" >/dev/null ) && return 0
+  info=$(apt-cache show --no-all-versions "$pkg" 2>/dev/null || true)
+  fn=$(awk '/^Filename:/{print $2; exit}' <<<"$info"); sha=$(awk '/^SHA256:/{print $2; exit}' <<<"$info")
+  if [ -z "$fn" ] || [ -z "$sha" ]; then echo "no signed index entry for $pkg"; return 1; fi
+  out="$TC/dl/$(basename "$fn")"
+  for m in $MIRRORS; do
+    echo "apt-get download of $pkg failed; trying $m"
+    if curl -fsSL --retry 2 --max-time 300 -o "$out.part" "$m/$fn" && echo "$sha  $out.part" | sha256sum -c - >/dev/null; then
+      mv "$out.part" "$out"; echo "$pkg from $m: SHA-256 matches the signed index"; return 0; fi
+    rm -f "$out.part"
+  done
+  return 1; }
 for pkg in qemu-user libc6-armhf-cross; do
   if [ ! -f "$TC/deb/.$pkg.done" ]; then
-    echo "fetching $pkg (apt-get download, no root)"; ( cd "$TC/dl" && rm -f ${pkg}_*.deb && apt-get download "$pkg" >/dev/null )
+    echo "fetching $pkg (apt-get download, no root)"; fetch_deb "$pkg" || { echo "could not fetch $pkg from any mirror"; exit 4; }
     deb=$(ls "$TC/dl"/${pkg}_*.deb | head -1); ver=$(dpkg-deb -f "$deb" Version)
     want=$(j "['debian_packages']['$pkg']['version']")
     if [ "$ver" != "$want" ]; then echo "WARNING: $pkg version $ver differs from the lock ($want); recording the actual version"; fi
