@@ -82,9 +82,12 @@ function renderConnect(reason){ const st=CO.state;
  $('collTitle').textContent='Connection Status'; $('collSub').textContent=CO.version&&st==='ok'?'Version '+CO.version:''; $('collBody').innerHTML=h; $('connClose').onclick=closeColl; $('connAgain').onclick=()=>openConnect(); }
 // ---- download / release information: release.json published with the website (written from the GitHub release), then the GitHub API as a live fallback ----
 let RELEASE=null;
+// the newest published release, asked of GitHub (never from inside the Windows app); null when GitHub does not answer within ms
+async function latestRelease(ms){ if(!CO.desktop){ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),ms||10000);
+ try{ const r=await (await fetch(RELEASES_API,{headers:{'Accept':'application/vnd.github+json'},cache:'no-store',signal:ctl.signal})).json(); if(r&&r.tag_name) return r; }catch(e){} finally{ clearTimeout(t); } } return null; }
 async function releaseInfo(){ if(RELEASE) return RELEASE;
  try{ const r=await (await fetch('release.json',{cache:'no-store'})).json(); if(r&&r.version&&r.asset) RELEASE=r; }catch(e){}
- if(!RELEASE&&!CO.desktop){ try{ const r=await (await fetch(RELEASES_API,{headers:{'Accept':'application/vnd.github+json'}})).json(); if(r&&r.tag_name){ const a=(r.assets||[]).find(x=>/\.exe$/i.test(x.name)), s=(r.assets||[]).find(x=>/^SHA256SUMS/i.test(x.name));
+ if(!RELEASE&&!CO.desktop){ try{ const r=await latestRelease(); if(r){ const a=(r.assets||[]).find(x=>/\.exe$/i.test(x.name)), s=(r.assets||[]).find(x=>/^SHA256SUMS/i.test(x.name));
   RELEASE={version:r.tag_name.replace(/^v/,''),tag:r.tag_name,published:r.published_at,url:r.html_url,asset:a?{name:a.name,size:a.size,url:a.browser_download_url}:null,sums_url:s?s.browser_download_url:null,sha256:null,source:'github-api'};
   if(s&&a){ try{ const t=await (await fetch(s.browser_download_url)).text(); const m=t.split(/\r?\n/).find(l=>l.includes(a.name)); if(m) RELEASE.sha256=m.trim().split(/\s+/)[0]; }catch(e){} } } }catch(e){} }
  return RELEASE; }
@@ -101,7 +104,7 @@ function renderDownload(el){ if(!el) return; releaseInfo().then(R=>{ if(!el.isCo
 // clicked (the download comes from GitHub anyway; nothing is asked before) and the browser goes straight to that release's installer; if
 // GitHub cannot answer in 5 s, or a new tab or window is asked for, it opens GitHub's latest-release page. Never shown inside the app.
 async function ccsDownloadLatest(){ if(typeof ccsmTrack==='function') ccsmTrack('download_clicked'); let url=null;   /* counted only when usage reports are on (as the release links are) */
-  try{ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),5000); const r=await (await fetch(RELEASES_API,{headers:{'Accept':'application/vnd.github+json'},cache:'no-store',signal:ctl.signal})).json(); clearTimeout(t);
+  try{ const r=await latestRelease(5000);
    const a=(r&&r.assets||[]).find(x=>/^ClassicCartStudio-Setup-.*\.exe$/i.test(x.name))||(r&&r.assets||[]).find(x=>/\.exe$/i.test(x.name)); if(a&&/^https:\/\/github\.com\//.test(a.browser_download_url)) url=a.browser_download_url; }catch(err){}
   location.href=url||RELEASE_PAGE; }
 (function(){ const b=$('dlApp'); if(!b) return; if(window.__CCS_DESKTOP){ b.parentNode.hidden=true; return; }
