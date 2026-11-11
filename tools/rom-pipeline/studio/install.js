@@ -195,7 +195,7 @@ async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step
    await consoleStatus(); if(!ok()) return; const staged=(CONSOLE.status||{}).staged; let p=null;
    if(staged&&staged.layout==='install'){ p=await ensurePlan(!CONSOLE.plan||CONSOLE.plan.manifest_sha256===undefined||((CONSOLE.status.records||{}).staged_manifest_sha256&&CONSOLE.plan.manifest_sha256!==CONSOLE.status.records.staged_manifest_sha256)); if(!ok()) return; }
    const pf=p?await ensurePreflight():null; if(!ok()||!$('cPlan')) return;
-   $('cPlan').innerHTML=!staged?`<div class="msg na"><b>No console package yet.</b> Prepare the HOME menu above: it builds the console package of this collection, its loadout and Console Menu Setup on this computer.</div>`
+   $('cPlan').innerHTML=!staged?`<div class="msg na"><b>No console package yet.</b> Prepare the HOME menu above: it builds the console package of this collection, its lineup and Console Menu Setup on this computer.</div>`
     :CONSOLE.planErr?`<div class="msg warn"><b>No plan.</b> ${esc(CONSOLE.planErr)}<div class="acts" style="margin-top:6px"><span class="sp"></span><button class="btn sm hk" id="cReplan">Review Plan Again</button></div></div>`
     :planHtml(p,pf)+`<div class="acts" style="margin-top:6px"><span class="sp"></span><button class="btn sm secondary" id="cReplan">Review Plan Again</button></div>`;
    const rp=$('cReplan'); if(rp) rp.onclick=async()=>{ CONSOLE.plan=null; CONSOLE.preflight=null; await draw(); };
