@@ -87,11 +87,11 @@ function tvEnsure(){
   <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Preview Your Lineup</h2><span class="small" id="tvSub"></span></div></div>
    <div class="tvtools">
     <div class="tvmenu"><button type="button" class="btn sm tvmb" id="tvThemeBtn" aria-haspopup="true" aria-expanded="false" aria-controls="tvThemeMenu"><span class="lbl">Theme:</span> <b id="tvThemeName"></b> <span class="car" aria-hidden="true">▾</span></button>
-     <div class="tvdrop" id="tvThemeMenu" role="menu" aria-label="Theme (on the console: START, then Change Theme)" hidden>${HOME_THEME_META.map(t=>`<button type="button" role="menuitemradio" aria-checked="false" class="tvtheme" data-theme="${t.id}"><span>${esc(t.name)}</span><small>${esc(t.note)}</small></button>`).join('')}</div></div>
+     <div class="tvdrop" id="tvThemeMenu" role="menu" aria-label="Theme (on the console: START, then Change Theme)" hidden>${HOME_THEME_META.map(t=>`<button type="button" role="menuitemradio" aria-checked="false" class="tvtheme" data-theme="${t.id}"><span>${esc(t.name)}</span></button>`).join('')}</div></div>
     <div class="tvmenu"><button type="button" class="btn sm tvmb" id="tvDisplayBtn" aria-haspopup="true" aria-expanded="false" aria-controls="tvDisplayMenu">Display <span class="car" aria-hidden="true">▾</span></button>
-     <div class="tvdrop" id="tvDisplayMenu" role="menu" aria-label="Display" hidden><button type="button" role="menuitemradio" aria-checked="true" id="tvTrC" data-tr="clean"><span>Clean</span><small>The picture as it is</small></button><button type="button" role="menuitemradio" aria-checked="false" id="tvTrR" data-tr="retro"><span>Retro</span><small>A CRT-style look; the HOME stays 16:9</small></button></div></div>
+     <div class="tvdrop" id="tvDisplayMenu" role="menu" aria-label="Display" hidden><button type="button" role="menuitemradio" aria-checked="true" id="tvTrC" data-tr="clean"><span>Clean</span></button><button type="button" role="menuitemradio" aria-checked="false" id="tvTrR" data-tr="retro"><span>Retro</span></button></div></div>
     <div class="tvmenu"><button type="button" class="btn sm tvmb" id="tvMoreBtn" aria-haspopup="true" aria-expanded="false" aria-controls="tvMoreMenu">More <span class="car" aria-hidden="true">▾</span></button>
-     <div class="tvdrop" id="tvMoreMenu" role="menu" aria-label="More" hidden><button type="button" role="menuitem" id="tvSave"><span>Save Preview Image</span><small>The picture as a PNG file</small></button></div></div>
+     <div class="tvdrop" id="tvMoreMenu" role="menu" aria-label="More" hidden><button type="button" role="menuitem" id="tvSave"><span>Save Preview Image</span></button></div></div>
     <button type="button" class="btn sm" id="tvPop" hidden>Pop Out</button>
    </div>
    <button class="tvclose" id="tvClose" type="button" aria-label="Close the preview" title="Close (Esc)">✕</button></div>
