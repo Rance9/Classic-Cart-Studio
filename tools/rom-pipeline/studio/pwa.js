@@ -55,7 +55,7 @@ function pwaDialog(){ const app=pwaStandalone(), apple=pwaApple(), st=PWA.status
    <div class="pwa-h" role="row"><div class="pwa-c pwa-l" role="columnheader"><span class="sr">Feature</span></div><div class="pwa-c pwa-w" role="columnheader">${PWA_WEB_SVG}<b>Website App</b></div><div class="pwa-c pwa-x" role="columnheader">${PWA_WIN_SVG}<b>Windows App</b></div></div>
    ${rows.map(([l,w,x])=>`<div class="pwa-r" role="row"><div class="pwa-c pwa-l" role="rowheader">${l}</div><div class="pwa-c pwa-w" role="cell">${w}</div><div class="pwa-c pwa-x" role="cell">${x}</div></div>`).join('')}
   </div>
-  ${apple?'<p class="small pwanote2">On an iPhone or iPad, the Home Screen app keeps its own storage, separate from Safari. To bring your Studio over, choose <b>Back Up Everything…</b> in Safari, then in the app choose <b>Import Collection…</b> and pick that file.</p>':''}
+  ${apple?'<p class="small pwanote2">On an iPhone or iPad, the Home Screen app keeps its own storage, separate from Safari. To bring your Studio over, choose <b>Back Up All Collections…</b> in Safari, then in the app choose <b>Restore From a Backup File…</b> and pick that file.</p>':''}
   <div class="msgbox${st&&st.prepared?' ok':''}" id="pwaState" role="status">${st&&st.prepared?'The website app is ready for offline use on this device.':'The website app is not yet ready for offline use on this device.'}</div>
   <div class="acts"><span class="sp"></span><button class="btn" id="pwaNo">Close</button>${!st||!st.prepared?'<button class="btn" id="pwaPrep">Keep Ready for Offline Use</button>':''}</div>`);
  $('pwaNo').onclick=closeColl; try{ $('pwaNo').focus({preventScroll:true}); const cb=$('collBody'); cb.scrollTop=0; const mb=cb.closest('.mbox'); if(mb) mb.scrollTop=0; }catch(e){}
@@ -71,7 +71,7 @@ function pwaUpdateDialog(){ const play=typeof CCSPLAY!=='undefined'&&CCSPLAY.run
 async function pwaFresh(){ if(!pwaStandalone()) return; let any=false; try{ any=csList().some(c=>(c.sel||[]).length); }catch(e){}
  if(!any&&typeof CCSROMS!=='undefined'){ try{ any=(await CCSROMS.keys(true)).size>0; }catch(e){ any=true; } } if(any) return;   /* an unread store is not an empty one */
  const m=$('main'); if(!m||$('pwaNote')) return; const n=document.createElement('div'); n.id='pwaNote'; n.className='msgbox pwanote'; n.setAttribute('role','note');
- n.innerHTML='<b>Used Classic Cart Studio in your browser before?</b> This app may keep its own storage. To bring everything here, choose <b>Back Up Everything…</b> in the browser, then here choose <b>Import Collection…</b> and pick that file. <button type="button" class="btn sm" id="pwaNoteX">OK</button>';
+ n.innerHTML='<b>Used Classic Cart Studio in your browser before?</b> This app may keep its own storage. To bring everything here, choose <b>Back Up All Collections…</b> in the browser, then here choose <b>Restore From a Backup File…</b> and pick that file. <button type="button" class="btn sm" id="pwaNoteX">OK</button>';
  m.prepend(n); $('pwaNoteX').onclick=()=>n.remove(); }
 if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(navigator.serviceWorker.controller) pwaSwitched(); });
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); PWA.ask=e; pwaUi(); });
