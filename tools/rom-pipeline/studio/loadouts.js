@@ -5,7 +5,7 @@
 //      (folders, theme, HOME favorites); it references the collection's games and never copies game files. Loadouts are stored inside
 //      their collection's record (`loadouts`), so backups and transfers carry them.
 //      Editing a loadout opens it in the working copy (selection, decisions, HOME settings) while the collection waits in LO
-//      (collections.js), so the Tray, Preview Your Game Menu, Game Menu Setup and Install on NES Classic all work on exactly that loadout.
+//      (collections.js), so the Tray, Preview Your Lineup, Game Menu Setup and Install on NES Classic all work on exactly that loadout.
 //      Opening, switching or importing a collection never opens a loadout; Back to Collection always returns.
 const LO_DEFAULT_NAME='My NES Classic Setup';
 function loList(r){ r=r||csActive(); return (r&&Array.isArray(r.loadouts))?r.loadouts:[]; }
@@ -140,13 +140,13 @@ function loAdopt(){ if(!LO) return; const extra=[...sel].filter(id=>!LO.collSel.
  // the installation plan and the native HOME package name the loadout they were made from
  const _bm=buildManifest; buildManifest=function(){ const m=_bm.apply(this,arguments); const l=CS_COLLVIEW?null:loCur(); if(l&&csActive()){ m.loadout={id:l.id, target:'nes-classic', name:l.name, collection:csActive().name}; m.name=`${l.name} (${csActive().name})`; } return m; };
 })();
-// ---- console actions need a loadout: Preview Your Game Menu, Game Menu Setup and Install on NES Classic work on the open loadout; from the collection
+// ---- console actions need a loadout: Preview Your Lineup, Game Menu Setup and Install on NES Classic work on the open loadout; from the collection
 //      they ask which loadout (or create one) first, so a collection is never prepared for the console by accident ----
 document.addEventListener('click',e=>{ if(LO||!CS) return; const t=e.target.closest&&e.target.closest('#hkBtn,#trayHk,#tvBtn,#mTv,#homeBtn,[data-tvfocus]'); if(!t) return; e.preventDefault(); e.stopImmediatePropagation();
  const id=t.id, focus=t.dataset&&t.dataset.tvfocus; try{ $('details').classList.remove('open'); $('tray').classList.remove('open'); }catch(err){}
  const then=id==='tvBtn'||id==='mTv'||focus?()=>openTv(focus?{focus}:undefined):id==='homeBtn'?()=>{ if(typeof openFolders==='function') openFolders(); }:()=>openInstall();
- const what=id==='tvBtn'||id==='mTv'||focus?'Your game menu shows':id==='homeBtn'?'Game Menu Setup arranges':'Install on NES Classic installs';
- loPrepare({then, lead:`${what} a lineup. Choose one, or create one.`}); }, true);
+ const tv=id==='tvBtn'||id==='mTv'||focus, what=id==='homeBtn'?'Game Menu Setup arranges':'Install on NES Classic installs';
+ loPrepare({then, lead:tv?'Choose the lineup to preview, or create one.':`${what} a lineup. Choose one, or create one.`}); }, true);
 // ---- the interface ----
 const LO_ICON='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="1.5" y="4.5" width="13" height="8" rx="1.2"/><path d="M4 9.5h3M10.5 9.5h1.5"/><path d="M5 4.5V3h6v1.5"/></svg>';
 // the saved loadouts (the one being edited is checked), ONE New Loadout… (the dialog asks All N Collection Games or Choose Games),
