@@ -339,11 +339,6 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .letters a,.letters .lbl{flex:none}
 .row.store .notice,.row.store .notice *{white-space:normal;overflow:visible;text-overflow:clip}
 .row.store .notice{height:auto;line-height:1.35;flex-wrap:wrap;row-gap:2px}
-/* phones: the character parade wraps into rows inside the screen instead of being clipped at the edges; the floor band stays below */
-@media (max-width:640px){
- .parade{height:auto;min-height:64px;padding-bottom:22px;box-sizing:border-box}
- .parade .cast{position:static;flex-wrap:wrap;justify-content:center;align-items:flex-end;row-gap:4px;column-gap:6px;overflow:visible;animation:none!important;transform:none!important;padding:4px 10px 0;max-width:100%;box-sizing:border-box}
-}
 /* the NES Classic storage estimate lives in the tray only (owner decision): a full-width line under the tray header */
 #tray > .notice{display:flex;width:auto;margin:10px 14px 0;max-width:none;white-space:normal;justify-content:center;flex-wrap:wrap;row-gap:2px;line-height:1.35;height:auto;text-align:center}
 #tray > .notice .meter{width:90px}
@@ -1101,6 +1096,9 @@ img.px{image-rendering:pixelated}
 @media (max-width:640px){ .card .t{font-size:12.5px!important} .card .m{font-size:11px!important} .card .cover .cstar .star{width:28px;height:28px} }
 /* grid cards: year · publisher · genre on one line, wrapping only when the card is too narrow for it */
 .card .m{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.35}
+/* Back Up All Collections: what is and is not in the backup file */
+.fbhd{margin:12px 0 4px;font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.fbitems.fbnot{color:var(--muted)}
 /* Install the Website App: the "not the Windows app" callout and the website app / Windows app comparison */
 .pwacall{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;border:1px solid rgba(255,59,69,.5);border-left:3px solid var(--red3);border-radius:var(--r2);background:linear-gradient(90deg,rgba(228,0,15,.16),rgba(228,0,15,.05));color:var(--ink2);font-size:13.5px;line-height:1.5}
 .pwacall b{color:var(--ink)}
@@ -1131,3 +1129,11 @@ img.px{image-rendering:pixelated}
  .pwacmp .pwa-r .pwa-c.pwa-w{border-left:0}
  .pwacmp .pwa-r .pwa-w,.pwacmp .pwa-r .pwa-x{padding-top:5px}
 }
+
+/* the hero walkers march left to right (the way they face) across their lane between the wordmark and Download CCS, at one steady pace at
+   every width, phones included: the row is two copies of the cast, and sliding it by one copy loops without a seam (heroLane sets --dur) */
+.hero .parade .lane .cast{position:absolute;left:0;right:auto;bottom:0!important;width:max-content;max-width:none;display:flex;flex-wrap:nowrap;gap:0;padding:0;justify-content:flex-start;overflow:visible;animation:heroMarch var(--dur,30s) linear infinite}
+.hero .parade .lane .cast .set{display:flex;flex:none;align-items:flex-end;gap:clamp(10px,1.2vw,22px);padding-right:clamp(10px,1.2vw,22px)}
+@keyframes heroMarch{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+@media (max-width:640px){.hero .parade{height:64px;min-height:64px;padding-bottom:0;box-sizing:border-box}}
+@media (prefers-reduced-motion:reduce){.hero .parade .lane .cast{animation:none!important}}

@@ -742,6 +742,8 @@ function tbLayout(){ const t=$('toolbar'); if(matchMedia('(max-width:640px)').ma
   inn.style.setProperty('--barw',(two?0:barW+16)+'px'); inn.style.setProperty('--tbpt',(parseFloat(cs.paddingTop)||0)+'px'); inn.style.setProperty('--tbpr',pr+'px'); }
 // the header's walkers: their lane runs from the wordmark to the download button (measured); the whole width when the header stacks
 function heroLane(){ const p=document.querySelector('.hero .parade'), lk=document.querySelector('.hero .lockup'), dl=$('dlApp'); if(!p||!lk) return;
+  const cast=p.querySelector('.cast'); if(cast&&!cast.querySelector('.set')){ const s=document.createElement('span'); s.className='set'; s.append(...cast.childNodes); cast.append(s, s.cloneNode(true)); }
+  const set=cast&&cast.querySelector('.set'); if(set) cast.style.setProperty('--dur', Math.max(8, set.getBoundingClientRect().width/34).toFixed(1)+'s');   /* about 34 px a second at every width */
   const r=p.getBoundingClientRect(), stacked=matchMedia('(max-width:640px)').matches, d=dl&&dl.offsetParent?dl.getBoundingClientRect():null;
   p.style.setProperty('--pl',(stacked?0:Math.max(0,Math.round(lk.getBoundingClientRect().right-r.left+28)))+'px');
   p.style.setProperty('--pr',(stacked?0:Math.max(0,Math.round(r.right-(d?d.left:r.right-20)+28)))+'px'); }
@@ -772,9 +774,9 @@ CART_ICON = '<img class="px" src="brand/ccs/icon-cartridge.png" alt="" width="24
 M_COLL = ('<div class="menu wide" id="collMenu" role="menu" aria-label="My Collections" hidden>' + _mhead(CART_ICON, "My Collections", "", "csTotal", "Close My Collections")
     + '<div class="mcard" id="collCard" hidden><span class="mic" aria-hidden="true">🎮</span><div class="mct"><b id="collNameHead"></b><span class="mmeta"><span id="collGames">0 games</span><span class="stt" id="collStatus"><i></i>new</span></span></div><span class="mstate">Open</span></div>'
     + '<div class="mlabel" id="csSwitchL">My Collections</div><div class="mlist mtree" id="csQuick" role="group" aria-labelledby="csSwitchL"></div>'
-    + _mi("mNew", "", "New Collection…") + _mi("mImport", "", "Import Collection…")
+    + _mi("mNew", "", "New Collection…") + _mi("mImport", "", "Restore From a Backup File…")
     + '<div class="sep"></div>' + _mi("mTray", "", "Games in This Collection", trail='<span class="mtn" id="mTrayN">0</span>')
-    + _mi("mShare", "", "Back Up Collection…") + _mi("mRestore", "", "Restore Previous Version…")
+    + _mi("mShare", "", "Back Up This Collection…") + _mi("mRestore", "", "Go Back to an Earlier Version…")
     + '<div class="sep"></div>' + _mi("mManage", "", "Manage Collections…") + _mi("mLoManage", "", "Manage Lineups…", attrs='data-lo-act="manage"', hidden=True)
     + _mi("mLoadLocal", "", "Import Games Already on This Computer…", hidden=True)
     + '<div class="sep" id="mDesktopSep"></div>' + _mi("mDesktop", "", "Open or Install the Windows App…", hidden=True)
@@ -783,7 +785,7 @@ M_APP = ('<div class="menu wide" id="appMenu" role="menu" aria-label="Studio men
     + _mi("mGoHome", "🏠", "Home") + _mi("howBtn", "📖", "Help &amp; User Guide")
     + '<div class="sep" id="mPlayL" hidden></div>' + _mi("mPlaySet", "🎮", "Play on PC Settings…", hidden=True)
     + '<div class="sep" id="mDevL" hidden></div>' + _mi("mInstall", "📲", "Install the Website App…", hidden=True) + _mi("mUpdate", "⬆️", "Update Ready…", hidden=True)
-    + '<div class="sep"></div>' + _mi("mBackupAll", "🗄️", "Back Up Everything…") + _mi("sdExport", "📝", "Back Up Lists and Settings Only…") + _mi("sdImport", "🛟", "Restore Lists and Settings…")
+    + '<div class="sep"></div>' + _mi("mBackupAll", "🗄️", "Back Up All Collections…") + _mi("sdExport", "📝", "Back Up All Collections Without Game Files…") + _mi("sdImport", "🛟", "Restore From a Backup File…")
     + '<div class="sep"></div>' + _mi("mLegal", "⚖️", "Legal &amp; Privacy")
     + _mi("mUsage", "📊", "Usage Reporting…")
     + _mi("mMerch", "👕", "Classic Cart Studio Merch", trail="↗")
