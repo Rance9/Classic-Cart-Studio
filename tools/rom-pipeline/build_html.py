@@ -785,7 +785,7 @@ M_APP = ('<div class="menu wide" id="appMenu" role="menu" aria-label="Studio men
     + _mi("mGoHome", "🏠", "Home") + _mi("howBtn", "📖", "Help &amp; User Guide")
     + '<div class="sep" id="mPlayL" hidden></div>' + _mi("mPlaySet", "🎮", "Play on PC Settings…", hidden=True)
     + '<div class="sep" id="mDevL" hidden></div>' + _mi("mInstall", "📲", "Install the Website App…", hidden=True) + _mi("mUpdate", "⬆️", "Update Ready…", hidden=True)
-    + '<div class="sep"></div>' + _mi("mBackupAll", "🗄️", "Back Up All Collections…") + _mi("sdExport", "📝", "Back Up All Collections Without Game Files…") + _mi("sdImport", "🛟", "Restore From a Backup File…")
+    + '<div class="sep"></div>' + _mi("mBackupAll", "🗄️", "Back Up All Collections…") + _mi("sdImport", "🛟", "Restore From a Backup File…")
     + '<div class="sep"></div>' + _mi("mLegal", "⚖️", "Legal &amp; Privacy")
     + _mi("mUsage", "📊", "Usage Reporting…")
     + _mi("mMerch", "👕", "Classic Cart Studio Merch", trail="↗")
