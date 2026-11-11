@@ -958,3 +958,32 @@ img.px{image-rendering:pixelated}
 .mbox label.chk input[type=checkbox]{flex:none;margin-top:1px}
 /* W2: the installed app's note when it starts with nothing in its storage (on the page, not a popup) */
 #pwaNote{margin:12px 16px 0;display:block}#pwaNote .btn{margin-left:8px}
+/* 0.9.0 header (owner): the pixel wordmark (CLASSIC CART over STUDIO, as on the setup and the startup screens), the tagline under it,
+   and Classic Cart Studio's own pixel art at the right (Carty and a chest of finds) where a drawing of the console used to be */
+.hero h1 .brandhome.wmark{flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:"Pixelify Sans",var(--display);font-weight:400;text-transform:uppercase;letter-spacing:0;line-height:.86;text-shadow:2px 2px 0 #12091f}
+.hero h1 .wmark .wm1{color:#fff;font-size:18px}
+.hero h1 .wmark .wm2{color:var(--red3);font-size:28px;letter-spacing:1px}
+.hero .lede.tagline{font-size:12.5px;line-height:1.3;color:#d9d9e2;letter-spacing:.2px;margin:3px 0 2px}
+.hero h1{margin:0}
+.hardware.mascot{position:relative;display:flex;align-items:flex-end;gap:22px;padding:26px 6px 2px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+.hardware.mascot img{display:block;image-rendering:pixelated;max-width:none}
+.hardware.mascot .carty{width:32px;height:40px}
+.hardware.mascot .chest{width:32px;height:20px}
+.hardware.mascot .msc-items{position:absolute;left:0;right:0;top:0;height:22px}
+.hardware.mascot .msc-items img{position:absolute;animation:bob 2.4s ease-in-out infinite}
+.hardware.mascot .it1{width:24px;height:20px;left:2px;top:4px}
+.hardware.mascot .it2{width:16px;height:16px;left:30px;top:0;animation-delay:.4s!important}
+.hardware.mascot .it3{width:20px;height:16px;left:50px;top:6px;animation-delay:.8s!important}
+.hardware.mascot .it4{width:20px;height:16px;left:74px;top:2px;animation-delay:1.2s!important}
+.barhidden{display:none!important}
+/* the Preview Your Game Menu button is exactly as tall as the buttons beside it, at every width */
+.toolbar .row.bar .tvbtn{min-height:0!important;margin:0!important;align-self:stretch;padding-top:0;padding-bottom:0}
+.toolbar .row.bar .tvbtn img{width:auto!important;height:28px;max-height:28px}
+/* My Collections › Games in This Collection: its game count */
+.mtr .mtn{display:inline-block;min-width:22px;padding:2px 7px;border-radius:999px;background:#3d8dff;color:#fff;font:700 12px/16px var(--font);text-align:center}
+@media (max-width:640px){
+ .hero .lede.tagline{display:block!important;font-size:11.5px;margin:3px 0 0}
+ .hero h1 .wmark .wm1{font-size:15px}.hero h1 .wmark .wm2{font-size:22px}
+ .hero h1 .brandhome.wmark{align-items:flex-start}
+ .toolbar .row.bar .tvbtn{height:40px!important;align-self:center}.toolbar .row.bar .tvbtn img{height:26px;max-height:26px}
+}

@@ -96,7 +96,7 @@ async function fbOpen(){ document.querySelectorAll('.menu').forEach(x=>x.hidden=
 function fbRender(){ const app=fbApp(), n=FB.ids.length, need=FB.missing.length+FB.mismatched.length, ok=!need; const t=id=>esc(FB.titles[id]||id); const c=FB.contents&&FB.contents.summary;
  const gsl=(!app&&FB.gs)||{games:{}}; const nGs=app?(c?c.game_settings:0):Object.keys(gsl.games||{}).length; const np=FB.ids.filter(id=>/^p_/.test(id)).length;
  const list=arr=>`<ul class="small ccsmiss">${arr.slice(0,12).map(id=>`<li>${t(id)}</li>`).join('')}${arr.length>12?`<li>and ${arr.length-12} more</li>`:''}</ul>`;
- const items=[`<b>${csList().length} collection${csList().length===1?'':'s'}</b> with their loadouts and HOME settings`, `<b>${n} game${n===1?'':'s'}</b>${ok&&n?` with their ROM files (${fmt(FB.bytes)})`:''}`];
+ const items=[`<b>${csList().length} collection${csList().length===1?'':'s'}</b> with their lineups and HOME settings`, `<b>${n} game${n===1?'':'s'}</b>${ok&&n?` with their ROM files (${fmt(FB.bytes)})`:''}`];
  if(np) items.push(`The details and artwork of ${np} personal game${np===1?'':'s'}`);
  items.push('Favorites and the library view', `Game Settings: the Gameplay Defaults and ${nGs} game${nGs===1?'':'s'} with their own choices`);
  if(app&&c){ items.push(`Saved games of <b>${c.progress_games} game${c.progress_games===1?'':'s'}</b>${c.orphaned_progress?` (${c.orphaned_progress} not in any collection: their saves are included, their game files are not)`:''}${FB.contents.progress_bytes?` · ${fmt(FB.contents.progress_bytes)}`:''}`);

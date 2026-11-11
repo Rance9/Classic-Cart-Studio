@@ -31,7 +31,7 @@ async function pwaUpdate(){ const r=PWA.reg; if(!r||!r.waiting) return {ok:false
 function pwaSwitched(){ if(typeof CCSPLAY!=='undefined'&&CCSPLAY.running()){ PWA.reloadAfterGame=true; return; } PWA.updating=false; location.reload(); }
 function pwaUi(){ const i=$('mInstall'), u=$('mUpdate'), s=$('mDevL'); if(!i) return; const ok=pwaAllowed();
  i.hidden=!ok; if(s) s.hidden=!ok; if(u) u.hidden=!(PWA.reg&&PWA.reg.waiting);
- const d=i.querySelector('.d'); if(d) d.textContent=pwaStandalone()?(PWA.status&&PWA.status.prepared?'Installed · ready for offline use':'Installed · getting ready for offline use'):PWA.status&&PWA.status.prepared?'Ready for offline use on this device':'Add it to this device; open it without the internet'; }
+ miLabel(i, pwaStandalone()?(PWA.status&&PWA.status.prepared?'Ready for Offline Use':'Getting Ready for Offline Use…'):'Install as an App…'); }
 function pwaDialog(){ const app=pwaStandalone(), apple=pwaApple(), st=PWA.status;
  const how=app?'<p>Classic Cart Studio is installed on this device.</p>'
   :PWA.ask?'<p>Installing adds Classic Cart Studio to this device like an app (Start menu, taskbar or Home Screen) and keeps it ready to open without the internet.</p>'

@@ -47,16 +47,16 @@
    mm.querySelectorAll('[data-proxy]').forEach(b=>{ const t=$(b.dataset.proxy); if(!t) return; const tb=t.querySelector('.mtx b'); if(tb) miLabel(b, tb.textContent); if(t.hasAttribute('aria-label')) b.setAttribute('aria-label', t.getAttribute('aria-label')); if(t.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', t.getAttribute('aria-pressed')); b.disabled=t.disabled; }); });
   wireMenu('moreBtn','moreMenu');
   mm.addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; mm.hidden=true; if(b.dataset.view){ (view==='grid'?$('vList'):$('vGrid')).click(); return; } const t=$(b.dataset.proxy); if(t) t.click(); }); }
- // the phone action bar: Home first, then the top bar's actions (collection view: Tray, Loadouts, Back Up, Studio; loadout editor: Tray,
+ // the phone action bar: Home first, then the top bar's actions (collection view: Collections, Back Up, Studio; lineup editor: Collections,
  // Console Menu (Setup), Install, Studio). Home is the title link's action (D-62): an open loadout is saved and closed, the library at the top
  on('mbGoHome',()=>{ closeMenus(); goHome(); }); on('mGoHome',()=>{ closeMenus(); goHome(); });
- on('mbTray',()=>{ closeMenus(); $('trayBtn').click(); });
- on('mbLo',e=>{ e.stopPropagation(); const m=$('loMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('loBtn').click(); });
+ on('mbColl',e=>{ e.stopPropagation(); const m=$('collMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('collBtn').click(); });
+ on('mTray',()=>{ closeMenus(); $('trayBtn').click(); });
  on('mbShare',()=>{ closeMenus(); if(typeof ccsBackupDialog==='function') ccsBackupDialog(); });
  on('mbHome',()=>{ closeMenus(); $('homeBtn').click(); });
  on('mbInstall',()=>{ closeMenus(); $('hkBtn').click(); });
  on('mbMenu',e=>{ e.stopPropagation(); const m=$('appMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('appBtn').click(); });
- const _render=render; render=function(){ const r=_render.apply(this,arguments); try{ const n=$('mbTrayN'); if(n) n.textContent=$('trayBadge').textContent; }catch(e){} return r; };
+ const _render=render; render=function(){ const r=_render.apply(this,arguments); try{ const c=$('trayBadge').textContent; ['mbTrayN','mTrayN'].forEach(id=>{ const n=$(id); if(n) n.textContent=c; }); }catch(e){} return r; };
  // technical columns in the list (built-in status, ROM identity, emulator, size): off unless asked for in Filter & Sort
  const TKEY='studio-techcols-v1'; const tc=$('techCols'); const techOn=v=>{ document.body.classList.toggle('techcols',!!v); try{ localStorage.setItem(TKEY,v?'1':'0'); }catch(e){} };
  let t0=false; try{ t0=localStorage.getItem(TKEY)==='1'; }catch(e){} techOn(t0); if(tc){ tc.checked=t0; tc.onchange=()=>techOn(tc.checked); }
@@ -257,7 +257,7 @@ updateStatusLine(); csMenuRefresh();
  new MutationObserver(ms=>{ const ids=new Set(); ms.forEach(x=>{ if(x.target.id in MANAGED) ids.add(x.target.id); }); ids.forEach(settle); })
   .observe(document.body,{subtree:true, attributes:true, attributeFilter:['class']});
  // wireMenu remembers who opened a menu (a phone bar button opens the same menu through the toolbar button)
- document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[aria-haspopup="menu"],#mbLo,#mbMenu'); if(!b) return; setTimeout(()=>{ document.querySelectorAll('.menu:not([hidden])').forEach(m=>{ m._opener=b; }); },0); }, true);
+ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[aria-haspopup="menu"],#mbColl,#mbMenu'); if(!b) return; setTimeout(()=>{ document.querySelectorAll('.menu:not([hidden])').forEach(m=>{ m._opener=b; }); },0); }, true);
  document.addEventListener('keydown',e=>{ if(e.key!=='Tab'&&e.key!=='Escape') return; if(document.querySelector('.menu:not([hidden])')) return;   // an open menu handles its own keys
   if(e.key==='Escape'&&document.querySelector('#tip.open,#verpop.open')) return;   // a pinned tooltip or the version popover is above the dialog: Escape closes it first (their own handlers)
   const t=topSurface(); if(!t||SELF.includes(t.id)) return; const cfg=MANAGED[t.id];
