@@ -1,5 +1,5 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.8.0 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release installer.iss
+; Build: ISCC.exe /DAppVersion=0.9.0 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release installer.iss
 ; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe and the WebView2 assemblies, copied there by the release workflow. The wizard's
 ; pictures (tools/publish/make_installer_art.py) and the setup's icon come from the repository, relative to this script, like the legal files.
 ; Needs Inno Setup 6.7.0 or later (the dark style's hidebevels, WizardBackColor and WizardBackImageFile).
