@@ -1,5 +1,5 @@
 // ---- top navigation (one implementation for the website and the Windows app): My Collections (left), the collection's console
-//      actions (Tray, NES Classic Loadouts, Preview on TV, Console Menu Setup, Install), the Studio menu (Home, help, backup, legal); the Game Library
+//      actions (Tray, NES Classic Loadouts, Preview Your Game Menu, Game Menu Setup, Install), the Studio menu (Home, help, backup, legal); the Game Library
 //      tools below (search, Filter & Sort, Select = Game Library actions, List/Grid, Add Your Own Game). Capability differences only hide
 //      what cannot work.
 (function(){
@@ -146,7 +146,7 @@ updateStatusLine(); csMenuRefresh();
 //      save-name dialog): one keyboard model for all of them. Only the TOP open surface takes part. Focus enters it; Tab and Shift+Tab stay
 //      inside it (native ⋯ summaries and links included); Escape closes only it; closing returns focus to what opened it (a menu row
 //      counts as its menu's button; a control that was redrawn is found again, a removed one is not used). Surfaces that manage their own
-//      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, Preview on TV, the artwork editor) are left
+//      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, Preview Your Game Menu, the artwork editor) are left
 //      to it. A dialog running an operation (PROC) keeps its lock: Escape, the backdrop and the header Close do nothing until its Cancel. ----
 // ---- the page stays still behind every blocking surface (website and Windows app, phone to desktop). One lock, derived from what is
 //      open: any open dialog or full-screen panel, the open Tray at every width (a phone sheet or a docked right pane alike), and menus

@@ -1,12 +1,12 @@
-// ---- Console Menu Setup (folders, map shortcuts and theme for the console HOME; the console only browses them) ------------------------
+// ---- Game Menu Setup (folders, map shortcuts and theme for the console HOME; the console only browses them) ------------------------
 // Custom folders (up to five levels), per-folder game order, Adventure Map shortcuts, the default theme, and the mock console
-// sync. Edits live in the same HOME extras Preview on TV uses (localStorage studio-home-v1); in Classic Cart Studio for Windows
+// sync. Edits live in the same HOME extras Preview Your Game Menu uses (localStorage studio-home-v1); in Classic Cart Studio for Windows
 // they can also be saved to the backend and synchronized with the MOCK console store (no device; Gate G1 not approved).
 const HF={fid:null};
 function hfModel(){ if(TV.open&&TV.model) return TV.model; TV.proj=null; TV.model=homeModelFromStudio(); if(!TV.S) TV.S=homeInitialState(TV.model.theme); return TV.model; }
 function hfSave(){ homeExtrasSave(); if(TV.open) tvDraw(); try{ dispatchEvent(new CustomEvent('ccs-content-changed',{detail:{what:'folders'}})); }catch(e){} hfRender(); }
 function hfSelectedIds(){ return selectedGames().map(g=>g.game_id); }
-function openFolders(fid){ hfModel(); HF.fid=fid||HF.fid||((homeTopFolders(TV.model)[0]||{}).id||null); openColl('Console Menu Setup',`"${typeof tvPlanName==='function'?tvPlanName():COLL.name}" · folders, Adventure Map shortcuts and theme for the console HOME`,`<div id="hfBody"></div>`); hfRender(); }
+function openFolders(fid){ hfModel(); HF.fid=fid||HF.fid||((homeTopFolders(TV.model)[0]||{}).id||null); openColl('Game Menu Setup',`"${typeof tvPlanName==='function'?tvPlanName():COLL.name}" · folders, Adventure Map shortcuts and theme for the console HOME`,`<div id="hfBody"></div>`); hfRender(); }
 // the startup screen's preview: the chosen image, or the five Random picks from
 function hfStartupPreview(id){ const one=s=>`<img src="brand/startup/startup-${s.id}-thumb.jpg" alt="${esc(s.name)}" title="${esc(s.name)}" loading="lazy" width="480" height="270">`;
  return id==='random'?`<div class="hf-st-five">${HOME_STARTUP.map(one).join('')}</div>`:`<div class="hf-st-one">${one(HOME_STARTUP.find(s=>s.id===id)||HOME_STARTUP[0])}</div>`; }
@@ -30,7 +30,7 @@ function hfRender(){
    <div class="hf-startup" id="hfStartupPrev">${hfStartupPreview(m.startup_image||'random')}</div>
    <div class="small">Shown when the console starts, for at least five seconds while its HOME loads. ${(m.startup_image||'random')==='random'?'Random picks one of these five each time.':'This image every time.'} The theme is a separate choice.</div>
    <div class="small">${homeFavorites(m).length} favorite${homeFavorites(m).length===1?'':'s'} · ${homeHistoryEvents(m).length} launch${homeHistoryEvents(m).length===1?'':'es'} in the play history · ${Object.keys(m.sorts||{}).length||'no'} saved view sort${Object.keys(m.sorts||{}).length===1?'':'s'}</div>
-   <div class="hf-acts" style="margin-top:10px"><button class="btn sm" id="hfPreview">Preview on TV</button>${(typeof COMPANION!=='undefined'&&COMPANION.ok&&COMPANION.desktop)?`<button class="btn sm secondary" id="hfSync" title="Exchange folders, favorites and play history with a simulated console. No device is contacted.">Simulated Console Sync</button>`:'<span class="small">A simulated console sync is available in Classic Cart Studio for Windows.</span>'}</div>
+   <div class="hf-acts" style="margin-top:10px"><button class="btn sm" id="hfPreview">Preview Your Game Menu</button>${(typeof COMPANION!=='undefined'&&COMPANION.ok&&COMPANION.desktop)?`<button class="btn sm secondary" id="hfSync" title="Exchange folders, favorites and play history with a simulated console. No device is contacted.">Simulated Console Sync</button>`:'<span class="small">A simulated console sync is available in Classic Cart Studio for Windows.</span>'}</div>
    <div class="small" id="hfSyncOut"></div></div></div>`;
  box.querySelectorAll('.hf-f').forEach(el=>el.onclick=()=>{ HF.fid=el.dataset.f; hfRender(); });
  $('hfNew').onclick=()=>{ const n=prompt('Folder name'); if(n){ const nf=homeFolderCreate(m,n,null); HF.fid=nf.id; hfSave(); } };
