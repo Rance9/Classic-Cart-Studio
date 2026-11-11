@@ -146,7 +146,7 @@ function nhThemeHtml(){ const cur=nhTheme(); return `<div class="row" style="dis
   <select id="nhThemeSel">${HOME_THEME_META.map(t=>`<option value="${t.id}" ${t.id===cur?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
   <label class="small" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="nhApply" ${NHP.apply?'checked':''}> Also apply it at the next installation</label></div>
   <span class="small">All four themes are included; players switch with START › Change Theme. After an update, the console keeps the player’s choice unless this box is checked.</span>`; }
-// the HOME the backend packages. withKept (Preview Your Game Menu, playing the HOME on this computer): the collection's kept entries too, with their
+// the HOME the backend packages. withKept (Preview Your Lineup, playing the HOME on this computer): the collection's kept entries too, with their
 // sanitized details (M2-4); without (installing on the console): only games this computer resolves, as the install manifest lists them
 function nhHome(withKept){ const m=homeModelFromStudio(); const keep=id=>withKept||!!byId[id]; const order=(m.order||[]).filter(keep);
  return {schema:m.schema, theme:m.theme, order, games:(m.games||[]).filter(g=>keep(g.id)).map(g=>{ const o={id:g.id,title:g.title,version_label:g.version_label,kind:g.kind};

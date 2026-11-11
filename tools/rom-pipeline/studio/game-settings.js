@@ -156,7 +156,7 @@ function gsDrawDefaults(){ const d=GS.draft; const rows=GS_RAPID_ROWS.map(([p,k,
 // Controllers & Keyboard (HOME Settings): what this computer actually supports, honestly; not pairing or driver installation
 function gsControllers(){ GS.mode='controllers';
  const app=gsApp(); gsShow('Controllers & Keyboard', app?'The game window':'This browser', `<div class="gsset">
-  ${app?`<p>In the game window, choose who plays: hold SELECT + START (or press Esc) and choose <b>Controllers…</b>, or, in <b>Preview Your Game Menu</b>, open START › <b>Settings</b>. Each connected controller can be chosen for Player 1 or Player 2; the keyboard plays the player no controller plays.</p>
+  ${app?`<p>In the game window, choose who plays: hold SELECT + START (or press Esc) and choose <b>Controllers…</b>, or, in <b>Preview Your Lineup</b>, open START › <b>Settings</b>. Each connected controller can be chosen for Player 1 or Player 2; the keyboard plays the player no controller plays.</p>
    <p>Xbox-compatible controllers work at once. Other USB, Bluetooth or wireless controllers that Windows already lists are set up there with <b>Set Up a Controller…</b>. Pairing a Bluetooth controller is done in Windows Settings; Classic Cart Studio installs no drivers.</p>
    <p>Keys for both keyboard players, the picture and the player order are in <b>Play on PC Settings</b>.</p>`
   :`<p>In this browser the HOME and its games use the keyboard: arrows move, Z or Enter is A, X or Backspace is B, S is SELECT and M is START. A touch screen shows its own buttons.</p>

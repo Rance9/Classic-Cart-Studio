@@ -1,4 +1,4 @@
-// ---- "As Seen on TV": Preview Your Game Menu, now the console HOME runtime (four approved themes) over the user's own collection ------
+// ---- "As Seen on TV": Preview Your Lineup, now the console HOME runtime (four approved themes) over the user's own collection ------
 // Two layers, kept apart on purpose:
 //   1. tvProject(): a pure projection of the current collection into "proposed menu entries" (what the plan would show, with
 //      known / estimated / unknown labels). It reuses the collection rules (installClass, factoryVisible, decisions, installRequired,
@@ -8,7 +8,7 @@
 // Nothing here talks to a console, scans the computer or uploads anything. A launch is SIMULATED and labeled as such.
 const TV_KEY='studio-tv-v1', HOME_KEY='studio-home-v1';
 const TV_SAMPLE_NOTICE='This is a sample: the 30 built-in games every NES Classic ships with. Add games to see your own menu.';
-// what the preview shows: the open NES Classic Loadout (from a collection, Preview Your Game Menu asks for one first), else the collection
+// what the preview shows: the open NES Classic Loadout (from a collection, Preview Your Lineup asks for one first), else the collection
 function tvLoadout(){ try{ return (typeof loCur==='function')?loCur():null; }catch(e){ return null; } }
 function tvPlanWord(){ return tvLoadout()?'lineup':'collection'; }
 function tvPlanName(){ const l=tvLoadout(); return l?l.name:COLL.name; }
@@ -84,7 +84,7 @@ function tvEnsure(){
  if($('tv')) return;
  const m=document.createElement('div'); m.id='tv'; m.className='tvmodal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-labelledby','tvTitle'); m.hidden=true;
  m.innerHTML=`<div class="tvbox">
-  <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Preview Your Game Menu</h2><span class="small" id="tvSub"></span></div></div>
+  <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Preview Your Lineup</h2><span class="small" id="tvSub"></span></div></div>
    <div class="tvtools">
     <div class="tvmenu"><button type="button" class="btn sm tvmb" id="tvThemeBtn" aria-haspopup="true" aria-expanded="false" aria-controls="tvThemeMenu"><span class="lbl">Theme:</span> <b id="tvThemeName"></b> <span class="car" aria-hidden="true">▾</span></button>
      <div class="tvdrop" id="tvThemeMenu" role="menu" aria-label="Theme (on the console: START, then Change Theme)" hidden>${HOME_THEME_META.map(t=>`<button type="button" role="menuitemradio" aria-checked="false" class="tvtheme" data-theme="${t.id}"><span>${esc(t.name)}</span><small>${esc(t.note)}</small></button>`).join('')}</div></div>
@@ -270,7 +270,7 @@ async function tvSaveImage(){
   px+=tw+gap; }
  const g=ids.length?m.games.find(v=>v.id===ids[S.index]):null; if(g){ x.fillStyle='#fff'; x.font='700 48px "Segoe UI", system-ui, sans-serif'; x.textAlign='center'; x.fillText(g.title,W/2,ty+th*1.18+70); x.textAlign='left'; }
  x.fillStyle='#d6d4ce'; x.font='500 26px "Segoe UI", system-ui, sans-serif'; x.fillText('A launch · SELECT details · START menu · B back',60,H-50);
- c.toBlob(async b=>{ if(!b) { toast('The preview image could not be created. Try again.'); return; } const res=await ccsSaveFile(csSafeName(`${tvPlanName()||'Collection'} - Preview Your Game Menu`,'.png'), b, 'Preview Image'); if(res.ok) toast(res.download?`Your browser is saving "${res.name}" (1920 × 1080) to its downloads.`:`Saved "${res.name}" (1920 × 1080)`); },'image/png');
+ c.toBlob(async b=>{ if(!b) { toast('The preview image could not be created. Try again.'); return; } const res=await ccsSaveFile(csSafeName(`${tvPlanName()||'Collection'} - Preview Your Lineup`,'.png'), b, 'Preview Image'); if(res.ok) toast(res.download?`Your browser is saving "${res.name}" (1920 × 1080) to its downloads.`:`Saved "${res.name}" (1920 × 1080)`); },'image/png');
 }
 // test hook: the same drawing as a data size without a download
 async function tvExportSize(){ const ids=TV.model?homeListing(TV.model,TV.S,tvSearch()).ids:[]; const c=document.createElement('canvas'); c.width=1920; c.height=1080; const x=c.getContext('2d'); x.fillStyle='#0b0b0e'; x.fillRect(0,0,1920,1080); return {w:c.width,h:c.height,entries:ids.length}; }
