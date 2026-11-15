@@ -97,7 +97,10 @@ def main():
     cp_same = "function cpAsset(p){ return (typeof CP_ASSET_BASE==='string'?CP_ASSET_BASE:'play/')+p; }" in cps and not any(re.search(r"\bCP_ASSET_BASE\s*=(?!=)", open(f, encoding="utf-8", errors="replace").read()) for f in files(st, (".js", ".html")))   # nothing in the shipped page sets another base
     sw_same = "if(u.origin !== SCOPE.origin || !u.pathname.startsWith(SCOPE.pathname)) return;" in sws and r"/^art\/[A-Za-z0-9_./-]+\.(jpg|png|webp)$/.test(a)" in sws
     ok("web_player_fetches_only_this_sites_files", cp_same and sw_same, {"cpAsset_same_site": cp_same, "service_worker_same_origin": sw_same})
-    shared += [e for e in ext if (cp_same and e[0] == "ccs-play.js" and e[1].startswith("cpAsset(")) or (sw_same and e[0] == "sw.js" and e[1] in ("q", "at(a"))]   # (the scan stops at the first parenthesis)
+    # fresh(p): the worker's request for one of this site's own files (exactly a Request for at(p), at() inside the worker's own scope),
+    # used only as fresh(p) over this version's own file lists (M.shell, M.home) and fresh('sw.js') for its own script
+    sw_fresh = "const SCOPE = new URL(self.registration.scope), at = p => new URL(p, SCOPE).href;" in sws and "const fresh = p => new Request(at(p), {cache: 'reload'});" in sws
+    shared += [e for e in ext if (cp_same and e[0] == "ccs-play.js" and e[1].startswith("cpAsset(")) or (sw_same and e[0] == "sw.js" and (e[1] in ("q", "at(a") or (sw_fresh and e[1] in ("fresh(p", "fresh('sw.js'"))))]   # (the scan stops at the first parenthesis)
     shared += [e for e in ext if usage["page_ok"] and e[0] == "metrics.js" and e[1] == "CCSM.url"]   # the website's optional usage count (below)
     ok("optional_usage_reports_only", usage["ok"], usage["detail"])
     ok("interface_external_fetch_only_website_download_box", len(allowed) + len(shared) == len(ext) and len(allowed) <= 2 and len([e for e in shared if e[0] == "tv-native.js"]) <= 1, [(e[0], e[1]) for e in ext if e not in allowed and e not in shared][:5])
