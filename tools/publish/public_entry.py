@@ -2,7 +2,7 @@ r"""The public website's entry pages (GitHub Pages only; the Windows app's own c
 apply(out, mode) for `--public prelaunch` or `--public launch`, after the page and the static pages are in <out> and before the service
 worker's file list is made, so the entry pages and the worker's inventory always belong together.
 
-  prelaunch  /            a coming-soon page: the wordmark, YOUR CLASSICS. YOUR WAY. and COMING SOON, drawn with the site's own pixel font
+  prelaunch  /            a coming-soon page: the wordmark, YOUR CLASSICS. YOUR WAY. and COMING FEBRUARY 2027 (it may wrap on a narrow screen), drawn with the site's own pixel font
                           and CSS only (no picture, no link, no button); the only page offered to search engines. A tiny script sends an
                           installed web app (launched at its start address, /) and the app's own working links (?companion=, ?play=) on
                           to the app at /preview/, with their query and fragment; an ordinary browser stays on the page. It never registers
@@ -79,14 +79,14 @@ main{{flex:1 0 auto;display:flex;align-items:center;justify-content:center;paddi
 h1{{margin:0;font-weight:400;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * .5625)}}
 .w1{{font-size:var(--u);color:{WHITE}}}.w2{{font-size:calc(var(--u) * 1.25);color:{RED}}}
 .tag{{margin:calc(var(--u) * 1.05) 0 0;font-size:max(8px,min(calc(var(--u) * .4),17px));color:#fff;letter-spacing:.04em}}
-.soon{{margin:calc(var(--u) * 1.5) 0 0;font-size:max(11px,calc(var(--u) * .7));color:{CYAN};animation:soon {CYCLE:g}s linear infinite}}
+.soon{{margin:calc(var(--u) * 1.5) 0 0;font-size:max(11px,calc(var(--u) * .7));line-height:1.35;text-wrap:balance;color:{CYAN};animation:soon {CYCLE:g}s linear infinite}}
 {_keyframes()}
 @media (prefers-reduced-motion:reduce){{.soon{{animation:none}}}}
 footer{{position:relative;z-index:1;flex:none;padding:10px max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));text-align:center;
  font:400 13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#b8bdcc}}
 @media (max-height:420px){{footer{{font-size:12px;padding-top:6px}}main{{padding-top:max(10px,env(safe-area-inset-top))}}}}
 </style></head>
-<body><main><div class="c"><h1><span class="w1">Classic Cart</span><span class="w2">Studio</span></h1><p class="tag">Your Classics. Your Way.</p><p class="soon">Coming Soon</p></div></main>
+<body><main><div class="c"><h1><span class="w1">Classic Cart</span><span class="w2">Studio</span></h1><p class="tag">Your Classics. Your Way.</p><p class="soon">Coming February 2027</p></div></main>
 <footer>{FOOTER}</footer></body></html>
 """
 

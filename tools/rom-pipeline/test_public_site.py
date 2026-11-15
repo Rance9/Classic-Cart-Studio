@@ -105,7 +105,7 @@ def public_layout_checks(site, mode, idx, page, ok):
     if mode == "prelaunch":
         social(idx, PE.NAME, PE.DESC_SPLASH, SITE_URL + "/", "index,follow", "splash")
         body = idx[idx.index("<body>"):]
-        ok("splash_shows_only_its_text", re.sub(r"<[^>]+>", " ", body).split() == "Classic Cart Studio Your Classics. Your Way. Coming Soon An independent, open-source project. Not affiliated with or endorsed by any console maker or game publisher.".split()
+        ok("splash_shows_only_its_text", re.sub(r"<[^>]+>", " ", body).split() == "Classic Cart Studio Your Classics. Your Way. Coming February 2027 An independent, open-source project. Not affiliated with or endorsed by any console maker or game publisher.".split()
            and f"<footer>{PE.FOOTER}</footer>" in body and not re.search(r"<(a|button|img|svg|form|input|video|audio|iframe|picture)\b", idx), re.sub(r"<[^>]+>", " ", body)[:200])
         ok("splash_has_no_picture_or_external_file (the site's own font only)", re.findall(r'url\("([^"]+)"\)', idx) == ["brand/fonts/PressStart2P-Regular.ttf"] and not re.search(r'src="', idx) and "manifest" not in idx and "sw.js" not in idx)
         frames = re.search(r"@keyframes soon\{(.*?)\}\}", idx, re.S).group(1) + "}"; steps = re.findall(r"([0-9.]+)%\{([^}]*)\}", frames)
