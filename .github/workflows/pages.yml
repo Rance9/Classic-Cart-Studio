@@ -29,10 +29,10 @@ jobs:
         run: python tools/publish/legal_terms.py --check
       - name: The browser game player (W1) from this commit, with the pinned zig (version, URL and SHA-256 from toolchain.lock.json; FCEUmm is vendored)
         run: python tools/publish/build_web_player.py build/web-player
-      - name: Build the static site from the public data (it fails without the browser game player)
+      - name: Build the public website from the public data (it fails without the browser game player); --public prelaunch is the coming-soon page at / and the app at /preview/ (tools/publish/public_entry.py; --public launch at the launch)
         env:
           CCS_REQUIRE_WEB_PLAYER: "1"
-        run: python tools/publish/build_site_ci.py build/site
+        run: python tools/publish/build_site_ci.py build/site --public prelaunch
       - name: Prohibited-content scan of the site artifact (fails the build on any finding)
         run: python tools/publish/scan_prohibited.py build/site
       - name: Page checks (structure, no external assets, no private paths, sub-path safe)

@@ -1,5 +1,8 @@
 """Build the public static site inside the PUBLIC repository (CI and local checkouts): original sprites + the page generated from the
-public data in site-data/. No private workspace is needed.   python build_site_ci.py <out_dir>"""
+public data in site-data/. No private workspace is needed.   python build_site_ci.py <out_dir> [--public prelaunch|launch]
+Without --public: the site as the Windows app carries it (the release workflow), unchanged: the generated page as nes-catalog.html (the
+app's local document) and index.html. --public (the website workflow only): the public entry pages of public_entry.py, built before the
+service worker's inventory so they belong together."""
 from __future__ import annotations
 import os, sys, json, shutil, subprocess, stat
 HERE = os.path.dirname(os.path.abspath(__file__)); REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
@@ -8,7 +11,7 @@ def _writable_retry(func, path, exc):
     """rmtree helper: a read-only entry (Windows keeps the read-only flag on copied folders) is made writable and removed"""
     os.chmod(path, stat.S_IWRITE); func(path)
 
-def main(out: str):
+def main(out: str, public: str | None = None):
     out = os.path.abspath(out)
     # the previous output may hold read-only folders copied from site-data; without the helper the second local build fails
     if os.path.isdir(out): shutil.rmtree(out, **({"onexc": _writable_retry} if sys.version_info >= (3, 12) else {"onerror": _writable_retry}))
@@ -49,12 +52,15 @@ def main(out: str):
         h = hashlib.sha256(open(wp, "rb").read()).hexdigest(); json.dump({"schema": "ccs-web-player/1", "engine_sha256": h, "core": core, "toolchain": f"zig {zig} wasm32-wasi"}, open(os.path.join(pd, "engine.json"), "w"))
         print("browser player:", os.path.getsize(wp), "bytes, sha256", h[:16])
     elif os.environ.get("CCS_REQUIRE_WEB_PLAYER") == "1": raise SystemExit("the browser player engine is missing (build_player.sh <repo>/build/web-player web)")
-    pwa(out)
+    entry = None
+    if public:   # the public website's entry pages (never the Windows app's copy)
+        sys.path.insert(0, HERE); import public_entry; entry = public_entry.apply(out, public)
+    pwa(out, entry)
     open(os.path.join(out, ".nojekyll"), "w").close(); open(os.path.join(out, "robots.txt"), "w").write("User-agent: *\nAllow: /\n")
     if not os.path.exists(os.path.join(out, "release.json")): json.dump({"version": None, "note": "no companion release published yet"}, open(os.path.join(out, "release.json"), "w"))
     print("site built at", out)
 
-def pwa(out: str):
+def pwa(out: str, entry: dict | None = None):
     """W2: the web app manifest and the service worker. The worker's version is the SHA-256 of every file it keeps (path and bytes), so any
     change to the site makes a new version that is fetched completely beside the old one; shell = what the page needs to open and play,
     home = the HOME's art and music (kept when the app is installed or made ready for offline use). Covers are kept as they are used."""
@@ -69,16 +75,20 @@ def pwa(out: str):
         b = os.path.join(out, *parts)
         if os.path.isfile(b): return [rel(b)]
         return sorted(rel(os.path.join(r, f)) for r, _, fs in os.walk(b) for f in fs) if os.path.isdir(b) else []
-    shell = [p for p in ["index.html", "manifest.webmanifest", "favicon.ico", "icon-32.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png",
-                         "catalog.json", "builtin.json", "library.json", "rankings.json", "descriptions.json", "descriptions-library.json", "release.json"] if os.path.isfile(os.path.join(out, p))]
+    drop = set((entry or {}).get("drop") or [])
+    shell = [p for p in ["index.html", "preview/index.html", "manifest.webmanifest", "favicon.ico", "icon-32.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png",
+                         "catalog.json", "builtin.json", "library.json", "rankings.json", "descriptions.json", "descriptions-library.json", "release.json"] if os.path.isfile(os.path.join(out, p)) and p not in drop]
     shell += files("play") + files("brand", "fonts") + files("brand", "ccs") + files("brand", "public") + files("store")
     home = files("brand", "home") + files("brand", "startup")
-    h = hashlib.sha256()
-    for p in shell + home: h.update(p.encode() + b"\0" + hashlib.sha256(open(os.path.join(out, p), "rb").read()).digest())
+    h = hashlib.sha256(); sha = {}
+    for p in shell + home:
+        d = hashlib.sha256(open(os.path.join(out, p), "rb").read()); h.update(p.encode() + b"\0" + d.digest()); sha[p] = d.hexdigest()[:16]   # each file checked by the worker before it is kept
     sw = open(os.path.join(REPO, "tools", "rom-pipeline", "studio", "sw.js"), encoding="utf-8").read()
-    spec = {"version": h.hexdigest()[:20], "shell": shell, "home": home}
+    spec = {"version": h.hexdigest()[:20], "shell": shell, "home": home, "sha": sha, **({k: entry[k] for k in ("nav", "moved") if entry.get(k)} if entry else {})}   # nav, moved: the page addresses (public_entry.py)
     open(os.path.join(out, "sw.js"), "w", encoding="utf-8", newline="\n").write("self.CCS_SW = " + json.dumps(spec, separators=(",", ":")) + ";\n" + sw)
     print("service worker:", spec["version"], len(shell), "shell files,", len(home), "HOME files")
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "build", "site"))
+    import argparse
+    ap = argparse.ArgumentParser(); ap.add_argument("out", nargs="?", default=os.path.join(REPO, "build", "site")); ap.add_argument("--public", choices=("prelaunch", "launch"))
+    a = ap.parse_args(); main(a.out, a.public)
