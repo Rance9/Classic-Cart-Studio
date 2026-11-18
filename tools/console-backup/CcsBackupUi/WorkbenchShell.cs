@@ -1,12 +1,13 @@
 // Classic Cart Studio console backup and restore window. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // CCS Console Workbench: the window's frame, the same in the standalone CCS-Console-Workbench.exe and in Classic Cart Studio for Windows.
-//   Side column    the wordmark (as wide as the navigation under it) and the product's name; Dashboard; the section groups Console Operations,
+//   Side column    the wordmark (as wide as the navigation under it; a button: About Classic Cart Studio) and the product's name; Dashboard; the section groups Console Operations,
 //                  Backup Files and Advanced (each heading larger than the sections under it); then Settings, Help and About and, in the
 //                  standalone only, Get Full Classic Cart Studio (an introduction page inside this window).
 //   Console strip  the console family the window works with (ConsoleProfile) and what is known about the console in front of it: "Console not
 //                  checked" until an operation's own session identifies one. Choosing the family is the window's context only.
 //   Status strip   what the window is doing now: no task, a task running, or a console session that is still open.
-//   Dashboard      the opening page: the console's status, Back Up Console first, the three common tasks, the other tools and recent backups.
+//   Dashboard      the opening page: Back Up Console first, the three common tasks, the other tools and recent backups (with a refresh button
+//                  beside its heading). The console's status is the console strip's alone.
 // Nothing in this file starts a console session, a USB scan, a driver check, a full backup check or a network request. A web page opens only
 // when the person clicks a website button (Launch). Backup files opened offline never change what the console strip says.
 using CcsBackup.Browse;
@@ -135,10 +136,13 @@ namespace CcsBackup.Ui
             var mark = opt.Wordmark is BitmapSource bs ? Trimmed(bs) : opt.Wordmark;
             if (mark != null)
             {
-                var img = new Image { Source = mark, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 8), SnapsToDevicePixels = true };
+                // the wordmark is a button: About Classic Cart Studio (a click, or Tab then Enter or Space)
+                var img = new Image { Source = mark, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Stretch, SnapsToDevicePixels = true };
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
-                AutomationProperties.SetName(img, "Classic Cart Studio");
-                sp.Children.Add(img);
+                var logo = new Button { Content = img, Style = Res<Style>("Wb.Plain"), Padding = new Thickness(2), Margin = new Thickness(-4, -4, -4, 4), HorizontalAlignment = HorizontalAlignment.Stretch, ToolTip = "About Classic Cart Studio" };
+                AutomationProperties.SetName(logo, "About Classic Cart Studio"); AutomationProperties.SetHelpText(logo, "Opens a window about Classic Cart Studio");
+                logo.Click += (s, e) => OpenAboutStudio();
+                sp.Children.Add(logo);
             }
             sp.Children.Add(new TextBlock { Text = ProductTitle, Style = Res<Style>("T.Title"), FontSize = 15.5, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center });
             return sp;
@@ -257,7 +261,7 @@ namespace CcsBackup.Ui
             consoleChoice.SelectionChanged += (s, e) => OnStripProfileChanged();   // ApplyProfile: the one guarded change
             pick.Children.Add(consoleChoice); wrap.Children.Add(pick);
             var state = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 20, 4) };
-            consoleState.FontSize = Ty.Text; consoleState.VerticalAlignment = VerticalAlignment.Center;
+            SetNoTerms(consoleState, true); SetNoTerms(consoleEarlier, true); consoleState.FontSize = Ty.Text; consoleState.VerticalAlignment = VerticalAlignment.Center;
             state.Children.Add(consoleDot); state.Children.Add(consoleState);
             AutomationProperties.SetName(state, "Console status"); AutomationProperties.SetLiveSetting(consoleState, AutomationLiveSetting.Polite);
             wrap.Children.Add(state);
@@ -340,7 +344,7 @@ namespace CcsBackup.Ui
         {
             var g = new Grid { Background = Res<Brush>("B.Bar") }; g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.Children.Add(new Border { Height = 1, VerticalAlignment = VerticalAlignment.Top, Background = Res<Brush>("B.Line") }); Grid.SetColumnSpan(g.Children[0], 2);
-            statusText.Margin = new Thickness(22, 8, 16, 8); statusText.FontSize = Ty.Fine; statusText.Style = Res<Style>("T.Muted"); statusText.TextWrapping = TextWrapping.Wrap; statusText.VerticalAlignment = VerticalAlignment.Center;
+            SetNoTerms(statusText, true); statusText.Margin = new Thickness(22, 8, 16, 8); statusText.FontSize = Ty.Fine; statusText.Style = Res<Style>("T.Muted"); statusText.TextWrapping = TextWrapping.Wrap; statusText.VerticalAlignment = VerticalAlignment.Center;
             AutomationProperties.SetLiveSetting(statusText, AutomationLiveSetting.Polite);   // its own words are its name for screen readers
             g.Children.Add(statusText);
             if (!string.IsNullOrEmpty(opt.SimulatedConsole)) { var sim = Pill("Simulated console", "B.Warn"); sim.Margin = new Thickness(0, 6, 22, 6); Grid.SetColumn(sim, 1); g.Children.Add(sim); }
@@ -373,22 +377,18 @@ namespace CcsBackup.Ui
         {
             settings = Reload();
             var sp = PageHead("Dashboard", Tagline);
-            // the console's status and the first thing to do, side by side when there is room
-            var status = new StackPanel();
-            status.Children.Add(T("Your console", Ty.Small, true, true, new Thickness(0, 0, 0, 4)));
-            status.Children.Add(T(profile.Name, Ty.CardTitle, true, false, new Thickness(0, 0, 0, 8)));
-            var st = Pill(ConsoleStatusText(out var earlierSeen), seenNow == null ? "B.Muted" : "B.Ink2");
-            st.Margin = new Thickness(0, 0, 0, earlierSeen == null ? 10 : 4); status.Children.Add(st);
-            if (earlierSeen != null) status.Children.Add(T(earlierSeen, Ty.Small, false, true, new Thickness(0, 0, 0, 10)));
-            status.Children.Add(T("Workbench connects to a console only when you start a console task and follow its steps. Backups already on this PC can be browsed, checked and repaired without a console or a USB driver.", Ty.Text, false, true, new Thickness(0, 0, 0, 10)));
-            var about = new Button { Content = "About This Console", Style = Res<Style>("Btn.Link"), HorizontalAlignment = HorizontalAlignment.Left }; about.Click += (s, e) => OpenAboutConsole(); AutomationProperties.SetName(about, "About This Console"); status.Children.Add(about);
-            var first = new StackPanel();
-            first.Children.Add(T("Start here", Ty.Small, true, true, new Thickness(0, 0, 0, 4)));
-            first.Children.Add(T("Back Up Console", Ty.CardTitle, true, false, new Thickness(0, 0, 0, 8)));
-            first.Children.Add(T("Make a complete, checked copy of your " + Con + "'s built-in storage on this PC: its games, saves, settings and everything else on it, including other programs' files. A backup only reads the console; nothing on it changes.", Ty.Text, false, true, new Thickness(0, 0, 0, 14)));
-            var bb = B("Back Up Console", "Btn.Primary", () => { if (LeaveOk()) { Enter("Console Backup"); ShowBackup(); } }); bb.Margin = new Thickness(0);
-            first.Children.Add(bb);
-            sp.Children.Add(CardGrid(320, 2, Card(status), Card(first)));
+            // the first thing to do, across the page: its words on the left, its button on the right. The console line above names the
+            // console and what is known about it, so the Dashboard does not repeat it.
+            var first = new Grid(); first.ColumnDefinitions.Add(new ColumnDefinition()); first.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var words = new StackPanel { Margin = new Thickness(0, 0, 24, 0), MaxWidth = 720, HorizontalAlignment = HorizontalAlignment.Left };
+            words.Children.Add(T("Start here", Ty.Small, true, true, new Thickness(0, 0, 0, 4)));
+            words.Children.Add(T("Back Up Console", Ty.CardTitle, true, false, new Thickness(0, 0, 0, 8)));
+            words.Children.Add(T("Make a complete, checked copy of your " + Con + "'s built-in storage on this PC: its games, saves, settings and everything else on it, including other programs' files. A backup only reads the console; nothing on it changes.", Ty.Text, false, true, new Thickness(0, 0, 0, 8)));
+            words.Children.Add(T("Workbench connects to a console only when you start a console task. Backups already on this PC can be browsed, checked and repaired without a console or a USB driver.", Ty.Small, false, true, new Thickness(0)));
+            first.Children.Add(words);
+            var bb = B("Back Up Console", "Btn.Primary", () => { if (LeaveOk()) { Enter("Console Backup"); ShowBackup(); } }); bb.Margin = new Thickness(0); bb.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(bb, 1); first.Children.Add(bb);
+            sp.Children.Add(Card(first));
 
             sp.Children.Add(CardGrid(230, 3,
                 ActionCard("Browse a Backup", "Look through a backup on this PC by game, by type or as stored, and copy files out of it. No console needed.", "Btn", () => Go("Backup Browser")),
@@ -399,15 +399,55 @@ namespace CcsBackup.Ui
             var more = new StackPanel();
             more.Children.Add(ToolRow("Repair a Backup File", "Check a backup file on this PC and make a repaired copy. The original file is never changed.", () => Go("Backup Repair")));
             more.Children.Add(ToolRow("HOME Designer", "Design CCS HOME with your own pictures, colors, folders and game order. Part of Console Composer.", () => { Enter("Console Composer"); ShowDesigner(); }));
-            more.Children.Add(ToolRow("Set Up or Rebuild a Console", "Console Composer: start fresh with Classic Cart Studio, set a console up like another one, or rebuild it from your backups. Make a backup first.", () => Go("Console Composer"), last: true));
+            more.Children.Add(ToolRow("Set Up or Rebuild a Console", "Choose how to set up your console, with options for a fresh setup, a transfer from another console, or a rebuild from your backups. Part of Console Composer.", () => Go("Console Composer"), last: true));
             sp.Children.Add(Card(more, 8));
 
-            var rh = new Grid { Margin = new Thickness(0, 8, 0, 10) }; rh.ColumnDefinitions.Add(new ColumnDefinition()); rh.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            // Recent backups, with its small refresh button right beside the heading (shown only when there is a location to read again)
+            var rh = new Grid { Margin = new Thickness(0, 8, 0, 10) };
+            rh.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); rh.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            rh.ColumnDefinitions.Add(new ColumnDefinition()); rh.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var rt = Group("Recent backups", 0); rt.Margin = new Thickness(0); rt.VerticalAlignment = VerticalAlignment.Center; rh.Children.Add(rt);
-            var all = B("See All Backups", "Btn.Ghost", () => Go("Backup Browser")); all.Margin = new Thickness(0); Grid.SetColumn(all, 1); rh.Children.Add(all);
+            recentRefresh = RefreshButton(); Grid.SetColumn(recentRefresh, 1); rh.Children.Add(recentRefresh);
+            var all = B("See All Backups", "Btn.Ghost", () => Go("Backup Browser")); all.Margin = new Thickness(0); Grid.SetColumn(all, 3); rh.Children.Add(all);
             sp.Children.Add(rh);
-            sp.Children.Add(RecentBackups());
+            recentHost = new ContentControl { Focusable = false }; sp.Children.Add(recentHost);
+            FillRecent();
             Show(sp, "dashboard");
+        }
+
+        Button recentRefresh; ContentControl recentHost;
+
+        /// <summary>the small circular-arrow button beside Recent backups: reads the backup locations again (keyboard: Tab, then Enter or
+        /// Space). Not offered while a console task runs, while the list is being read, or when there is nothing to read yet.</summary>
+        Button RefreshButton()
+        {
+            var glyph = new TextBlock { Text = "\uE72C", FontFamily = Res<FontFamily>("F.Icons") ?? new FontFamily("Segoe MDL2 Assets"), FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var b = new Button { Content = glyph, Style = Res<Style>("Btn.Ghost"), Width = 32, Height = 32, MinWidth = 0, MinHeight = 0, Padding = new Thickness(0), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Refresh backup list" };
+            AutomationProperties.SetName(b, "Refresh backup list");
+            b.Click += (s, e) => RefreshRecent();
+            return b;
+        }
+
+        /// <summary>reads the backup locations again: the button is turned off (and says so) until the list is shown again; the rest of the
+        /// Dashboard, its scroll position and the keyboard focus stay as they are</summary>
+        void RefreshRecent()
+        {
+            if (recentRefresh == null || recentHost == null || Busy || !recentRefresh.IsEnabled) return;
+            bool focused = recentRefresh.IsKeyboardFocused;
+            recentRefresh.IsEnabled = false; recentRefresh.ToolTip = "Reading the backup list…";
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (recentHost == null || ((page.Content as FrameworkElement)?.Tag as string) != "dashboard") return;
+                settings = Reload(); FillRecent();
+                if (focused && recentRefresh.IsEnabled) recentRefresh.Focus();
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        void FillRecent()
+        {
+            recentHost.Content = RecentBackups(out bool canRefresh);
+            recentRefresh.Visibility = canRefresh ? Visibility.Visible : Visibility.Collapsed;
+            recentRefresh.IsEnabled = !Busy; recentRefresh.ToolTip = "Refresh backup list";
         }
 
         /// <summary>one of the Dashboard's other tools: its name and what it does, with an Open button</summary>
@@ -423,27 +463,45 @@ namespace CcsBackup.Ui
 
         /// <summary>the newest backups in the backup locations, one row per backup: when it was made, its console, its state as the list knows
         /// it, and its last passed file check (never a new check: the list reads names, records and the small description in each file)</summary>
-        UIElement RecentBackups()
+        /// <summary>the backup location's state for the Dashboard: a folder not made yet (the normal start: Workbench makes it with the first
+        /// backup), a drive that is not available, a readable folder with no backups, a folder that could not be read (never called empty),
+        /// or the backups it holds. canRefresh: whether reading it again can show something new (never for a folder not made yet).</summary>
+        UIElement RecentBackups(out bool canRefresh)
         {
-            var sp = new StackPanel();
+            var sp = new StackPanel(); canRefresh = true;
+            var folder = settings.PrimaryFolder;
+            bool folderThere = false, driveThere = true;
+            try { folderThere = Directory.Exists(folder); if (!folderThere) { var root = Path.GetPathRoot(folder); driveThere = !string.IsNullOrEmpty(root) && Directory.Exists(root); } } catch (Exception) { }
             List<BackupListEntry> list;
             try { list = BackupList.List(settings); }
             catch (Exception ex)
             {
-                sp.Children.Add(Note("Your backup location could not be read, so Workbench cannot list its backups. This doesn't mean you have none. If it is on a drive that is not connected, connect it and try again, or choose another location in Settings.", "bad"));
-                sp.Children.Add(Details("Technical details", "Location: " + settings.PrimaryFolder, "What Windows reported: " + ex.Message));
-                sp.Children.Add(Buttons(B("Try Again", "Btn", () => ShowDashboard()), B("Backup Locations", "Btn.Ghost", () => Go("Settings"))));
+                // the location is there but could not be read: this never says there are no backups
+                var c = new StackPanel();
+                c.Children.Add(T("Workbench could not read your backup location", Ty.Heading, true));
+                c.Children.Add(T("This does not mean there are no backups there. Check that you can open the folder in File Explorer, then refresh the list, or choose another location in Settings. A backup you already have elsewhere can still be opened.", Ty.Text, false, true));
+                c.Children.Add(PathText(folder));
+                c.Children.Add(Details("Technical details", "Location: " + folder, string.IsNullOrEmpty(settings.ArchiveFolder) ? null : "Additional copy location: " + settings.ArchiveFolder, "What Windows reported: " + ex.Message));
+                c.Children.Add(Buttons(B("Open a Backup File…", "Btn", OpenBackupFile), B("Backup Locations", "Btn.Ghost", () => Go("Settings"))));
+                var card = Card(c); card.BorderBrush = Res<Brush>("B.Red3"); sp.Children.Add(card);
                 return sp;
             }
             if (list.Count == 0)
             {
                 var c = new StackPanel();
-                c.Children.Add(T("No backups yet", Ty.Heading, true));
-                bool exists = false; try { exists = Directory.Exists(settings.PrimaryFolder); } catch (Exception) { }
-                c.Children.Add(T("To make your first backup, choose Back Up Console and follow its steps. Already have a console backup on this PC? Open it to look through it, or change your backup location in Settings.", Ty.Text, false, true));
-                if (!exists) c.Children.Add(T("Your backup location does not exist yet; Workbench creates it with your first backup. If it is on a drive that is not connected, connect the drive and choose Try Again.", Ty.Small, false, true));
-                var pt = PathText(settings.PrimaryFolder); c.Children.Add(pt);
-                c.Children.Add(Buttons(B("Open a Backup File…", "Btn", OpenBackupFile), B("Backup Locations", "Btn.Ghost", () => Go("Settings")), exists ? null : B("Try Again", "Btn.Ghost", () => ShowDashboard())));
+                if (!folderThere && !driveThere)
+                {
+                    c.Children.Add(T("Your backup location is not available", Ty.Heading, true));
+                    c.Children.Add(T("Its drive is not connected or cannot be found, so Workbench cannot see the backups there. Connect the drive and refresh the list, choose another location in Settings, or open a backup you already have.", Ty.Text, false, true));
+                }
+                else
+                {
+                    canRefresh = folderThere;   // a folder that is not made yet holds nothing to read again
+                    c.Children.Add(T("No backups in this location yet", Ty.Heading, true));
+                    c.Children.Add(T("Back up your console to get started, or open a backup you already have." + (folderThere ? "" : " Workbench makes this folder when it saves your first backup."), Ty.Text, false, true));
+                }
+                c.Children.Add(PathText(folder));
+                c.Children.Add(Buttons(B("Open a Backup File…", "Btn", OpenBackupFile), B("Backup Locations", "Btn.Ghost", () => Go("Settings"))));
                 sp.Children.Add(Card(c));
                 return sp;
             }
@@ -531,11 +589,7 @@ namespace CcsBackup.Ui
         void ShowFullApp()
         {
             var sp = PageHead("Classic Cart Studio", "Workbench looks after your console's backups. The full Classic Cart Studio app for Windows is where you build and play your NES game collection, and the same Workbench opens from inside it.");
-            sp.Children.Add(CardGrid(260, 2,
-                InfoCard("Organize your collection", "Bring in the NES game files you own, see them with their artwork and details, and arrange them in collections."),
-                InfoCard("Play", "Play NES games in the app on Windows, or on classiccartstudio.com in a web browser or on a phone where the browser supports it."),
-                InfoCard("Included Games", "Free games and demos whose developers gave permission, ready to play. No commercial Nintendo games are included."),
-                InfoCard("Your NES Classic's HOME", "Plan collections for your " + Con + " and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are still being tested on real consoles.")));
+            sp.Children.Add(StudioCards());
             var dl = new StackPanel();
             dl.Children.Add(T("Get Classic Cart Studio for Windows", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
             dl.Children.Add(T("The button opens classiccartstudio.com/app/, the official download page, in your web browser. Nothing is downloaded or installed until you choose to there. For Windows 10 and 11.", Ty.Text, false, true));
@@ -546,6 +600,93 @@ namespace CcsBackup.Ui
             dl.Children.Add(T("You don't need the full app to use Workbench: everything here works on its own.", Ty.Small, false, true, new Thickness(0, 4, 0, 0)));
             sp.Children.Add(Card(dl));
             Show(sp, "ccs-intro");
+        }
+
+        /// <summary>what the full Classic Cart Studio app gives you, the same in Get Full Classic Cart Studio and About Classic Cart Studio</summary>
+        CardPanel StudioCards() => CardGrid(260, 2,
+            InfoCard("Organize your collection", "Bring in the NES game files you own, see them with their artwork and details, and arrange them in collections."),
+            InfoCard("Play", "Play NES games in the app on Windows, or on classiccartstudio.com in a web browser or on a phone where the browser supports it."),
+            InfoCard("Included Games", "Free games and demos whose developers gave permission, ready to play. No commercial Nintendo games are included."),
+            InfoCard("Your NES Classic's HOME", "Plan collections for your " + Con + " and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are still being tested on real consoles."));
+
+        // ------------------------------------------------------------------ About Classic Cart Studio (the wordmark's window, both hosts)
+        /// <summary>the address the window's button opens, exactly (the site's front page)</summary>
+        internal const string HomepageUrl = "https://classiccartstudio.com/";
+        /// <summary>the window's pictures: screenshots of the current Classic Cart Studio with sample games (intro/*.png; where each came from:
+        /// intro/SOURCES.json), cropped to the page itself, without a window's or a panel's own buttons</summary>
+        static readonly (string file, string title, string caption)[] IntroShots =
+        {
+            ("collection", "Your collections", "A collection's games with their box art, each ready to play. Sample games."),
+            ("home", "HOME, previewed on a PC", "A collection's HOME in the Arcade Grid theme, as Classic Cart Studio previews it. Sample games."),
+            ("details", "Game Details", "Each game's box art, details and overview, with Play. Sample game."),
+        };
+
+        /// <summary>About Classic Cart Studio: what the name means, what the full app gives you, how Workbench relates to it, a few screenshots
+        /// that open larger, and a button that opens classiccartstudio.com in the browser (nothing opens, downloads or installs by itself)</summary>
+        internal Window AboutStudioWindow()
+        {
+            var w = Owned("About Classic Cart Studio", Math.Max(720, Math.Min(980, ActualWidth - 60)), true); w.Height = Math.Max(560, Math.Min(940, ActualHeight - 20)); w.MinWidth = 640; w.MinHeight = 480;
+            var root = new DockPanel();
+            var foot = new Border { BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0), Background = Res<Brush>("B.Bar"), Padding = new Thickness(28, 12, 28, 12) };
+            var fg = new Grid(); fg.ColumnDefinitions.Add(new ColumnDefinition()); fg.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var problem = new ContentControl { Focusable = false };
+            var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var visit = B("Visit classiccartstudio.com", "Btn.Primary", () => { problem.Content = Launch(HomepageUrl) ? null : Note("The web browser could not be opened. The address is " + HomepageUrl, "warn"); });
+            visit.Margin = new Thickness(0, 0, 14, 0); AutomationProperties.SetHelpText(visit, HomepageUrl);
+            var row = new WrapPanel(); row.Children.Add(visit);
+            row.Children.Add(T("Opens " + HomepageUrl + " in your web browser. Nothing is downloaded or installed.", Ty.Small, false, true, new Thickness(0, 9, 0, 0)));
+            left.Children.Add(row); left.Children.Add(problem); fg.Children.Add(left);
+            var close = B("Close", "Btn", () => w.Close()); close.Margin = new Thickness(16, 0, 0, 0); close.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(close, 1); fg.Children.Add(close);
+            foot.Child = fg; DockPanel.SetDock(foot, Dock.Bottom); root.Children.Add(foot);
+
+            var sp = new StackPanel { Margin = new Thickness(36, 26, 36, 24), MaxWidth = 900 };
+            // the approved wordmark and tagline, as on the website and the app
+            var mark = opt.Wordmark is BitmapSource bs ? Trimmed(bs) : opt.Wordmark;
+            if (mark != null)
+            {
+                var img = new Image { Source = mark, Stretch = Stretch.Uniform, MaxWidth = 340, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true, Margin = new Thickness(0, 4, 0, 10) };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality); AutomationProperties.SetName(img, "Classic Cart Studio"); sp.Children.Add(img);
+            }
+            else sp.Children.Add(new TextBlock { Text = "Classic Cart Studio", Style = Res<Style>("T.Title"), FontSize = 26, HorizontalAlignment = HorizontalAlignment.Center });
+            sp.Children.Add(new TextBlock { Text = "YOUR CLASSICS. YOUR WAY.", FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Muted"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 22) });
+            var lede = T("Classic Cart Studio, CCS for short, is a free app for your NES game collections. The name says what it is for: classic games from their cartridges, the carts, and a studio where you put them together into collections, play them and get them ready for your " + Con + ".", Ty.Body, false, false, new Thickness(0, 0, 0, 18));
+            lede.LineHeight = 21; lede.TextAlignment = TextAlignment.Center; lede.MaxWidth = 700; lede.HorizontalAlignment = HorizontalAlignment.Center; sp.Children.Add(lede);
+
+            var shots = IntroShots.Select(x => (x, src: Picture("intro/" + x.file + ".png"))).Where(x => x.src != null).Select(x => ShotCard(x.src, x.x.title, x.x.caption)).ToArray();
+            if (shots.Length > 0) sp.Children.Add(CardGrid(230, 3, shots));
+
+            sp.Children.Add(Group("What the full app gives you", 6));
+            sp.Children.Add(StudioCards());
+
+            var alone = new StackPanel();
+            alone.Children.Add(T(opt.HostedInFullApp ? "Workbench, here and on its own" : "Workbench works on its own", Ty.Heading, true, false, new Thickness(0, 0, 0, 6)));
+            alone.Children.Add(T(opt.HostedInFullApp
+                ? "You are using CCS Console Workbench inside Classic Cart Studio for Windows. It also comes as a standalone program with the same pages, for people who only want to look after their console's backups."
+                : "You don't need the full app to use this window: CCS Console Workbench is a standalone program, and everything in it works on its own. The same Workbench also opens inside Classic Cart Studio for Windows.", Ty.Text, false, true, new Thickness(0)));
+            sp.Children.Add(Card(alone, 18));
+
+            var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = sp, Focusable = false };
+            root.Children.Add(sv);
+            w.Content = root; w.Loaded += (s, e) => visit.Focus();
+            return w;
+        }
+        void OpenAboutStudio() => Modal(AboutStudioWindow());
+
+        /// <summary>a screenshot in a framed card: clearly a picture (its frame, the word Screenshot and its caption), opening larger with a
+        /// click, Enter or Space</summary>
+        UIElement ShotCard(BitmapSource src, string title, string caption)
+        {
+            var s = new StackPanel();
+            var img = new Image { Source = src, Stretch = Stretch.Uniform, SnapsToDevicePixels = true }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+            var frame = new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), Background = Res<Brush>("B.Bg"), Padding = new Thickness(6), CornerRadius = new CornerRadius(6), Child = img };
+            var b = new Button { Content = frame, Style = Res<Style>("Wb.Plain"), HorizontalAlignment = HorizontalAlignment.Stretch, ToolTip = "Select to see it larger" };
+            AutomationProperties.SetName(b, "Screenshot: " + title + ". Select to see it larger.");
+            b.Click += (o, e) => { ShowPicture(src, title, caption, "A screenshot of Classic Cart Studio with sample games: a picture, not the app itself.", Window.GetWindow(b)); b.Focus(); };
+            s.Children.Add(b);
+            s.Children.Add(new TextBlock { Text = "SCREENSHOT", FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(0, 8, 0, 2) });
+            s.Children.Add(T(title, Ty.Body, true, false, new Thickness(0, 0, 0, 2)));
+            s.Children.Add(T(caption, Ty.Small, false, true, new Thickness(0)));
+            var c = Card(s, 14); c.Margin = new Thickness(0); return c;
         }
 
         UIElement InfoCard(string title, string text)

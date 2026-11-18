@@ -30,7 +30,7 @@ function opsHtml(){ const ops=(CONSOLE.status&&CONSOLE.status.operations)||[];
 function when(iso){ try{ return new Date(iso).toLocaleString(); }catch(e){ return iso||''; } }
 function recordsHtml(){ const r=(CONSOLE.status&&CONSOLE.status.records)||{}; const lp=r.last_plan&&r.last_plan.plan; const op=(r.operations||[])[0];
  if(!lp&&!op) return '';
- return `<div class="msg"><b>Last review and rehearsal</b><dl class="tvkv">${lp?`<dt>Plan</dt><dd><code>${esc((lp.hash||'').slice(0,16))}</code> · ${esc(lp.label||'')} · ${r.last_plan_current?'matches the prepared package':'<b>out of date</b>: the package was prepared again since; review the plan again'}</dd>`:''}
+ return `<div class="msg"><b>Last review and rehearsal</b><dl class="tvkv">${lp?`<dt>Plan</dt><dd><code>${esc((lp.hash||'').slice(0,16))}</code> · <span data-no-terms>${esc(lp.label||'')}</span> · ${r.last_plan_current?'matches the prepared package':'<b>out of date</b>: the package was prepared again since; review the plan again'}</dd>`:''}
   ${op?`<dt>${op.kind==='rehearsal'||!op.kind?'Rehearsal':'Last console operation'}</dt><dd>${esc(OUTCOME[op.outcome]||op.outcome||'')} ${op.simulated?simBadge():''} · ${esc(op.kind==='rehearsal'||!op.kind?SCENARIO_NAME(op.scenario):op.kind)} · ${esc(when(op.ended||op.started))}</dd>`:''}</dl></div>`; }
 const OUTCOME={installed:'Installed and checked', 'no-change':'Nothing needed to change', refused:'Refused before any change', stopped:'Stopped and undone', cancelled:'Canceled and undone', 'rolled-back':'Undone and checked', 'rollback-incomplete':'Undo incomplete', unknown:'Unknown',
  uninstalled:'Removed and checked', incomplete:'Not complete', complete:'Every file copied and checked', partial:'Copied, with files left out', empty:'No saves there', failed:'Failed'};
@@ -221,7 +221,7 @@ async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step
   NHP.onDone=async()=>{ CONSOLE.plan=null; CONSOLE.preflight=null; CONSOLE.result=null; if(INST.step==='review') await draw(); };
   await draw(); return; }
  if(step==='install'){ $('hkSub').textContent='Install'; let p=CONSOLE.plan; const pf=p?await ensurePreflight():null; if(!live()) return; p=CONSOLE.plan; const canSim=!!(p&&pf);
-  body.innerHTML=stepperHtml()+(p?`<div class="msg"><b>Plan</b> <code>${esc(p.hash.slice(0,16))}</code> · ${esc(p.label||'')} · ${fmtB(p.bytes)} · ${esc(METHOD_NAME[p.method]||'')}${p.method==='mod'?` · CCS HOME at power-on: ${p.mod_start==='on'?'on':'off'}`:''} ${pf&&pf.ok?'':`<br><span class="small">Against this simulated console the installation would be refused before any change (${esc((pf||{}).why||'')}); rehearsing shows exactly that.</span>`}</div>`:`<div class="msg warn"><b>No plan yet.</b> Go back to Review Changes.</div>`)
+  body.innerHTML=stepperHtml()+(p?`<div class="msg"><b>Plan</b> <code>${esc(p.hash.slice(0,16))}</code> · <span data-no-terms>${esc(p.label||'')}</span> · ${fmtB(p.bytes)} · ${esc(METHOD_NAME[p.method]||'')}${p.method==='mod'?` · CCS HOME at power-on: ${p.mod_start==='on'?'on':'off'}`:''} ${pf&&pf.ok?'':`<br><span class="small">Against this simulated console the installation would be refused before any change (${esc((pf||{}).why||'')}); rehearsing shows exactly that.</span>`}</div>`:`<div class="msg warn"><b>No plan yet.</b> Go back to Review Changes.</div>`)
    +rehearseHtml(canSim)+`<div id="cPhys"></div>`+nav('review','verify','Next: Verify',!!CONSOLE.result);
   wire('review','verify'); physDraw();
   const sc=$('cScenario'); if(sc) sc.onchange=()=>{ CONSOLE.scenario=sc.value; };

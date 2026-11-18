@@ -82,6 +82,7 @@ namespace CcsBackup.Ui
                 var big = ThemePicture(cur, false); if (big == null) return;
                 ShowPicture(big, cur.Name + ": an example", cur.Description,
                     "An example of the " + cur.Name + " theme with the NES Classic's 30 built-in games. It is not your design, and it is not a check of your design: the editor's own preview and the design check are separate.");
+                b.Focus();   // back to the picture that opened it
             };
             choice.SelectionChanged += (s, e) => Refresh();
             Refresh();

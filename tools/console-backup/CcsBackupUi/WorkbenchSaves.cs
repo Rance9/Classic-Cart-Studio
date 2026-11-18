@@ -32,8 +32,7 @@ namespace CcsBackup.Ui
             var c = browsing; if (c == null) return;
             into.Children.Clear();
             into.Children.Add(T("Convert to a " + FileKinds.GameSaves, Ty.Body, true, false, new Thickness(0, 8, 0, 2)));
-            into.Children.Add(T("Makes a battery save Classic Cart Studio's player can use, as a new file you save on this PC with a report beside it. The save in the " + (c.Live ? "console" : "backup") + " is never changed.", Ty.Small, false, true));
-            into.Children.Add(Terms("battery-save", "suspend-point"));
+            into.Children.Add(T("Makes a battery save Classic Cart Studio's player can use, as a new file you save on this PC with a report beside it. The save in the " + (c.Live ? "console" : "backup") + " is never changed. Suspend points are not battery saves and are not converted.", Ty.Small, false, true));
             var wait = T("Checking the save...", 12.5, false, true); into.Children.Add(wait);
             Task.Run<(StockSaveInspection, SaveConversion, string)>(() =>
             {

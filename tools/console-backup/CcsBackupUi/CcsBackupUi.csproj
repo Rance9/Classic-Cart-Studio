@@ -27,10 +27,12 @@
     <EmbeddedResource Include="..\..\rom-pipeline\studio\guide.html" Link="credits\guide.html" LogicalName="credits/guide.html" />
     <!-- Help (WorkbenchHelp.cs): the guide and its pictures of the actual pages -->
     <EmbeddedResource Include="Help\help.txt" LogicalName="help/help.txt" />
+    <EmbeddedResource Include="..\..\rom-pipeline\studio\glossary.json" Link="glossary\glossary.json" LogicalName="glossary/glossary.json" />
     <Resource Include="Help\shots\*.png" />
     <Resource Include="Help\shots\*.jpg" />
     <!-- HOME Designer's starting-theme examples (WorkbenchThemeExamples.cs) -->
     <Resource Include="theme-examples\*.jpg" />
+    <Resource Include="intro\*.png" />
     <Resource Include="theme-examples\theme-examples.json" />
     <None Include="theme-examples\*.py" />
   </ItemGroup>

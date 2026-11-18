@@ -26,8 +26,7 @@ namespace CcsBackup.Ui
         void ShowBackupRepair(BackupListEntry justChecked = null, DateTime checkedFrom = default(DateTime))
         {
             settings = Reload();
-            var sp = SectionHead("Backup Repair", "Check, copy and repair your backup files on this PC, without a console: check a file, copy it to another folder, add recovery data that can repair it later, or make a repaired copy of a damaged one. A repair always writes a new file; the original stays exactly as it is.");
-            sp.Children.Add(Terms("file-check", "recovery-data"));
+            var sp = SectionHead("Backup Repair", "Check, copy and repair your backup files on this PC, without a console: run a file check, copy a file to another folder, add recovery data that can repair it later, or make a repaired copy of a damaged one. A repair always writes a new file; the original stays exactly as it is.");
             sp.Children.Add(T("This is not Console Rescue, which is for a console that no longer starts and changes the console.", Ty.Text, false, true, new Thickness(0, -8, 0, 12)));
             if (justChecked != null) sp.Children.Add(CheckedNote(justChecked, checkedFrom));
             sp.Children.Add(Group("Your backups", 0));

@@ -47,7 +47,9 @@ namespace CcsBackup.Engine
 
     public static class EngineInfo
     {
-        public const string Version = "1.0.0";
+        /// <summary>the product version this engine was built as (the build's -p:Version, the repository's VERSION in release builds), as
+        /// export records and the window's About show it; never a fixed number of its own</summary>
+        public static string Version => typeof(EngineInfo).Assembly.GetName().Version.ToString(3);
         public static string Engine => "CcsBackup " + typeof(EngineInfo).Assembly.GetName().Version;
     }
 

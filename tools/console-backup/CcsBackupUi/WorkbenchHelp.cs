@@ -220,7 +220,7 @@ namespace CcsBackup.Ui
         /// <summary>one topic: its title and summary, Back when it was reached from another topic, and its blocks</summary>
         FrameworkElement TopicView(HelpTopic t, Action back, Action<string> link)
         {
-            var sp = new StackPanel();
+            var sp = new StackPanel(); NewTermScope(sp);
             if (back != null) { var b = new Button { Content = "‹ Back", Style = Res<Style>("Btn.Link"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 8) }; AutomationProperties.SetName(b, "Back to the topic before"); b.Click += (s, e) => back(); sp.Children.Add(b); }
             sp.Children.Add(new TextBlock { Text = t.Title, Style = Res<Style>("T.Title"), FontSize = 20, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
             if (t.Summary != null) sp.Children.Add(new TextBlock { Text = t.Summary, Style = Res<Style>("T.Muted"), FontSize = 13.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) });
@@ -290,7 +290,8 @@ namespace CcsBackup.Ui
             return g;
         }
 
-        /// <summary>a picture of a page (sample data), as wide as the topic allows, with its caption; a click, Enter or Space opens it larger</summary>
+        /// <summary>a screenshot of a page (sample data), as wide as the topic allows, in a frame of its own with "Screenshot:" before its
+        /// caption, so it is never taken for the live page; a click, Enter or Space opens it larger, and closing that puts the focus back here</summary>
         FrameworkElement Shot(string name, string caption)
         {
             var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 14) };
@@ -298,12 +299,13 @@ namespace CcsBackup.Ui
             if (src == null) { sp.Children.Add(Note("Picture not available in this copy: " + caption, "info")); return sp; }
             var img = new Image { Source = src, Stretch = Stretch.Uniform, MaxWidth = src.PixelWidth, HorizontalAlignment = HorizontalAlignment.Left, SnapsToDevicePixels = true };
             RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
-            var frame = new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Child = img, HorizontalAlignment = HorizontalAlignment.Left };
+            var frame = new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Background = Res<Brush>("B.Bg"), Padding = new Thickness(6), Child = img, HorizontalAlignment = HorizontalAlignment.Left };
             var b = new Button { Content = frame, Style = Res<Style>("Wb.Plain"), HorizontalAlignment = HorizontalAlignment.Left };
-            AutomationProperties.SetName(b, "Picture: " + caption + " Select to see it larger."); b.ToolTip = "Select to see it larger";
-            b.Click += (s, e) => ShowPicture(src, "Picture from Help", caption, "A page of Workbench with sample data.", Window.GetWindow(b));   // over the window it was chosen in (Help or the main window)
+            AutomationProperties.SetName(b, "Screenshot: " + caption + " Select to see it larger."); b.ToolTip = "Select to see it larger";
+            // over the window it was chosen in (Help or the main window)
+            b.Click += (s, e) => { ShowPicture(src, "Screenshot from Help", caption, "A screenshot of a Workbench page with sample data: a picture, not the page itself.", Window.GetWindow(b)); b.Focus(); };
             sp.Children.Add(b);
-            sp.Children.Add(new TextBlock { Text = caption, FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
+            sp.Children.Add(new TextBlock { Text = "Screenshot: " + caption, FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
             return sp;
         }
 
@@ -328,7 +330,8 @@ namespace CcsBackup.Ui
         }
 
         /// <summary>a picture larger, in its own window (its whole width and height kept in proportion), with its name, a description and
-        /// what it is; Close or Escape</summary>
+        /// what it is. The picture sits in its own frame; the window's one Close button is below it, apart from the picture, beside a line
+        /// that says what the picture is. Close, Escape or the window's X shut it; the focus goes back to what opened it.</summary>
         internal void ShowPicture(ImageSource src, string title, string description, string note, Window owner = null) => Modal(PictureWindow(src, title, description, note, owner));
         internal Window PictureWindow(ImageSource src, string title, string description, string note, Window owner = null)
         {
@@ -338,13 +341,16 @@ namespace CcsBackup.Ui
             head.Children.Add(new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
             if (description != null) head.Children.Add(new TextBlock { Text = description, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
             root.Children.Add(head);
-            var foot = new StackPanel(); DockPanel.SetDock(foot, Dock.Bottom);
-            if (note != null) foot.Children.Add(new TextBlock { Text = note, FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) });
-            var close = B("Close", "Btn.Primary", () => w.Close()); close.Margin = new Thickness(0, 10, 0, 0); close.IsDefault = true; foot.Children.Add(close);
+            var foot = new Grid { Margin = new Thickness(0, 12, 0, 0) }; DockPanel.SetDock(foot, Dock.Bottom);
+            foot.ColumnDefinitions.Add(new ColumnDefinition()); foot.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            foot.Children.Add(new Border { Height = 1, Background = Res<Brush>("B.Line"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, 0, 0) }); Grid.SetColumnSpan(foot.Children[0], 2);
+            if (note != null) foot.Children.Add(new TextBlock { Text = note, FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 12, 16, 0) });
+            var close = B("Close", "Btn.Primary", () => w.Close()); close.Margin = new Thickness(0, 12, 0, 0); close.IsDefault = true; Grid.SetColumn(close, 1); foot.Children.Add(close);
             root.Children.Add(foot);
             var img = new Image { Source = src, Stretch = Stretch.Uniform }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
             AutomationProperties.SetName(img, description ?? title);
-            root.Children.Add(img);
+            // the picture in a frame of its own: a picture, apart from the window's own controls
+            root.Children.Add(new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Background = Res<Brush>("B.Surface2"), Padding = new Thickness(8), Child = img });
             w.Content = root; w.Loaded += (s, e) => close.Focus();
             return w;
         }
@@ -374,7 +380,7 @@ namespace CcsBackup.Ui
                 }
                 case "glossary":
                 {
-                    var sp = new StackPanel();
+                    var sp = new StackPanel(); SetNoTerms(sp, true);   // the explanations themselves
                     foreach (var t in Glossary.Terms)
                     {
                         sp.Children.Add(new TextBlock { Text = t.Word, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 2), TextWrapping = TextWrapping.Wrap });
