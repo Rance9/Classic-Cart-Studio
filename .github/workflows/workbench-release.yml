@@ -1,0 +1,174 @@
+name: CCS Console Workbench (build from the pinned engine and draft a release)
+
+on:
+  push:
+    tags: ["workbench-v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  pin:
+    runs-on: ubuntu-24.04
+    outputs:
+      commit: ${{ steps.p.outputs.commit }}
+      version: ${{ steps.p.outputs.version }}
+      engine_version: ${{ steps.p.outputs.engine_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        name: Read and check the engine pin
+        run: |
+          set -euo pipefail
+          read -r k1 commit k2 tree k3 arch < ENGINE-PIN.txt
+          [ "$k1" = commit ] && [ "$k2" = tree ] && [ "$k3" = sha256-of-source-archive ] || { echo "ENGINE-PIN.txt is malformed"; exit 1; }
+          git fetch --no-tags origin "$commit"
+          [ "$(git rev-parse "$commit^{tree}")" = "$tree" ] || { echo "the pinned commit's tree differs"; exit 1; }
+          git archive --format=tar "$commit" | sha256sum | cut -d' ' -f1 > got.txt
+          [ "$(cat got.txt)" = "$arch" ] || { echo "the pinned source archive differs"; exit 1; }
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "engine_version=$(git show "$commit:VERSION" | tr -d '\r\n')" >> "$GITHUB_OUTPUT"
+          v="${GITHUB_REF_NAME#workbench-v}"; [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || v=0.0.0
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  native:
+    needs: pin
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.pin.outputs.commit }}" }
+      - name: Toolchain (zig pinned and SHA-256 verified, qemu-user)
+        run: bash tools/console-simulator/scripts/wsl_setup.sh
+      - name: ccsboot (console boot-stage tool) and its tests
+        run: |
+          bash tools/console-backup/ram/ccsboot/build.sh build/ccsboot
+          python3 tools/console-backup/ram/ccsboot/test_ccsboot.py build/ccsboot
+      - name: Native console HOME and player
+        env: { CCS_SIM_BUILD: "${{ github.workspace }}/build/native" }
+        run: bash tools/console-simulator/scripts/wsl_build.sh "arm-musl-device"
+      - uses: actions/upload-artifact@v4
+        with: { name: native-home, path: build/native/arm-musl-device, if-no-files-found: error }
+      - uses: actions/upload-artifact@v4
+        with: { name: ccsboot, path: build/ccsboot/ccsboot, if-no-files-found: error }
+
+  images:
+    needs: [pin, native]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.pin.outputs.commit }}" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13.17" }
+      - uses: actions/download-artifact@v4
+        with: { name: ccsboot, path: build/ccsboot }
+      - uses: actions/download-artifact@v4
+        with: { name: native-home, path: build/native/arm-musl-device }
+      - name: The official Hakchi2 CE 3.9.3 package (size and SHA-256 verified) and the console programs
+        shell: pwsh
+        run: |
+          python -m pip install --quiet -r tools/publish/requirements-build.txt
+          python tools/publish/fetch_hakchi_package.py build/packages
+          python tools/console-backup/ram/build_images.py --hakchi-release $env:CCS_HAKCHI_PACKAGE --ccsboot build/ccsboot/ccsboot --out build/ram-images
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Embed the release HOME package and its notices
+        shell: pwsh
+        run: |
+          python tools/publish/build_site_ci.py build/site
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/console-nucleus/build_home_package.py --site build/site --player build/native/arm-musl-device/ccs-player-armv7 --runtime build/native/arm-musl-device/ccs-home-armv7 --out build/ram-images/ccs-home
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/companion/test_package_notices.py --site build/site
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with: { name: recovery-images, path: build/ram-images, if-no-files-found: error }
+
+  test-images:
+    needs: [pin, images]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.pin.outputs.commit }}" }
+      - run: bash tools/console-simulator/scripts/wsl_setup.sh
+      - uses: actions/download-artifact@v4
+        with: { name: recovery-images, path: build/ram-images }
+      - run: python3 tools/publish/fetch_hakchi_package.py build/packages
+      - run: python3 tools/console-backup/ram/test_recovery_images.py --images build/ram-images --hakchi-release "$CCS_HAKCHI_PACKAGE"
+
+  managed:
+    needs: [pin, test-images]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.pin.outputs.commit }}" }
+      - uses: actions/download-artifact@v4
+        with: { name: recovery-images, path: build/ram-images }
+      - uses: actions/setup-dotnet@v4
+        with: { global-json-file: tools/console-backup/global.json }
+      - name: The managed Workbench (the payload the native host carries)
+        shell: pwsh
+        run: |
+          dotnet build tools/console-backup/ccs-backup-utility/ccs-backup-utility.csproj -c Release -nologo "-p:Version=${{ needs.pin.outputs.engine_version }}" "-p:CcsRamImages=$PWD\build\ram-images"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with: { name: payload, path: build/console-backup/bin/ccs-backup-utility/Release/net48/CCS-Console-Workbench.exe, if-no-files-found: error }
+
+  host:
+    needs: [pin, managed]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.pin.outputs.commit }}" }
+      - run: bash tools/console-simulator/scripts/wsl_setup.sh
+      - uses: actions/download-artifact@v4
+        with: { name: payload, path: build/payload }
+      - name: The single-file Workbench for x64 and Arm64 Windows (the managed payload run from memory; libpar2 and the HOME renderer linked in)
+        run: bash tools/console-backup/native-host/build_host.sh --payload build/payload/CCS-Console-Workbench.exe --out build/host --arch all --version "${{ needs.pin.outputs.version }}" --cache build/par2-cache
+      - uses: actions/upload-artifact@v4
+        with: { name: par2-source, path: build/par2-cache/par2cmdline-1.4.0.tar.gz, if-no-files-found: error }
+      - uses: actions/upload-artifact@v4
+        with: { name: workbench, path: build/host, if-no-files-found: error }
+
+  release:
+    needs: [pin, host]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ needs.pin.outputs.commit }}" }
+      - uses: actions/download-artifact@v4
+        with: { name: workbench, path: build/host }
+      - uses: actions/download-artifact@v4
+        with: { name: par2-source, path: build/par2-cache }
+      - name: Files, checksums and the source archives (every file of the pinned commit the build reads, par2cmdline 1.4.0, LibUsbDotNet)
+        run: |
+          set -euo pipefail
+          v="${{ needs.pin.outputs.version }}"; mkdir -p out
+          cp build/host/x64/CCS-Console-Workbench.exe "out/CCS-Console-Workbench-$v.exe"
+          cp build/host/arm64/CCS-Console-Workbench.exe "out/CCS-Console-Workbench-$v-arm64.exe"
+          cp build/host/build-record.json out/build-record.json
+          git archive --format=zip -o out/engine-source.zip "${{ needs.pin.outputs.commit }}"
+          cp build/par2-cache/par2cmdline-1.4.0.tar.gz out/
+          # the LibUsbDotNet library the program embeds: the source of the commit its NuGet package names (any other tree is refused)
+          git init -q build/libusbdotnet-src
+          git -C build/libusbdotnet-src fetch -q --depth 1 https://github.com/LibUsbDotNet/LibUsbDotNet 5dd91a2fda393cf11db2072f2b45c3aee2750388
+          [ "$(git -C build/libusbdotnet-src rev-parse 'FETCH_HEAD^{tree}')" = f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a ] || { echo "the LibUsbDotNet source commit does not have its recorded tree"; exit 1; }
+          git -C build/libusbdotnet-src archive --format=tar --prefix=LibUsbDotNet-5dd91a2/ -o "$PWD/out/LibUsbDotNet-2.2.29-source-5dd91a2.tar" FETCH_HEAD
+          (cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+      - uses: actions/attest-build-provenance@v1
+        with: { subject-path: "out/*.exe" }
+      - name: Draft release on its own tag, with "latest" turned off (never an app update)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          {
+            echo "# CCS Console Workbench ${{ needs.pin.outputs.version }}"; echo
+            echo "Back up, restore, repair and compose your NES Classic. One program for Windows (x64 or Arm64) that runs without installation."; echo
+            echo "**Unsigned development preview. All console connections, writes and driver actions are disabled. No real-console or Arm64 qualification is claimed.**"; echo
+            echo "Pinned prebuilt upstream components have unresolved corresponding-source and redistribution questions. They remain included; available source archives do not resolve those gaps. See tools/console-backup/SOURCE-AUDIT.md at the pinned source commit."; echo
+            echo "## Files"; echo; echo '```'; cat out/SHA256SUMS.txt; echo '```'; echo
+            echo "## Build information"; echo; echo "- Engine source: main at ${{ needs.pin.outputs.commit }} (ENGINE-PIN.txt); built by GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; echo
+            echo "## Source code and licenses"; echo
+            echo "Classic Cart Studio's code in it is GPL-3.0-or-later; engine-source.zip is its source with the build files. par2cmdline-1.4.0.tar.gz (GPL-2.0-or-later) and LibUsbDotNet-2.2.29-source-5dd91a2.tar are the sources of the two libraries it contains. The console programs it sends to the console are built from Hakchi2 CE 3.9.3's prebuilt hakchi package and carry that package's programs unmodified, under their own licenses: tools/console-backup/NOTICE (also shown in the program) lists them with their notices and license texts. Credits: hakchi by madmonkey; hakchi2 by ClusterM; Hakchi2 CE by Team Shinkansen and contributors. Independent; not affiliated with Nintendo."
+          } > notes.md
+          gh release create "workbench-v${{ needs.pin.outputs.version }}" out/* --draft --prerelease --latest=false --title "CCS Console Workbench ${{ needs.pin.outputs.version }}" --notes-file notes.md
