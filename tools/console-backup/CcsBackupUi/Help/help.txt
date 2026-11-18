@@ -29,13 +29,13 @@ You can still open every console page in this version and read what each task wi
 
 ## Your first steps
 
-1. Look at the **Dashboard**, at the top of the side column. It shows your console, the main tasks and your newest backups. See [The Dashboard](#dashboard).
+1. Look at the **Dashboard**, at the top of the side column. It shows the first thing to do, the main tasks and your newest backups; the console line at the top of the window shows your console. See [The Dashboard](#dashboard).
 2. Choose where new backups are saved: open **Settings** in the side column. An additional copy on a second drive is a good idea. See [Settings](#settings).
 3. To make a backup, choose **Back Up Console** and follow its steps. See [Back Up Your Console](#backup) and [Connect Your Console](#connect).
 4. Check a backup file whenever you like with **Check the File**. See [Check a Backup File](#check-file).
 5. Already have a console backup on this PC? Choose **Open a Backup File…** to look through it. See [Look Through a Backup](#backup-browser).
 
-[shot 00b-dashboard-empty | The Dashboard before the first backup: No backups yet, with Open a Backup File… and Backup Locations.]
+[shot 00b-dashboard-empty | The Dashboard before the first backup: No backups in this location yet, with Open a Backup File… and Backup Locations.]
 
 ## How every console change works
 
@@ -61,22 +61,26 @@ Workbench comes two ways, with the same pages and the same steps:
 | The standalone CCS Console Workbench | One program file, with no installer. Your settings are kept only while it is open, unless you save them to a settings file of your own; when it closes with settings that are not saved, it asks first. When it closes, it may also offer to remove the USB driver it set up. |
 | Inside Classic Cart Studio for Windows | Opens from Classic Cart Studio and saves its settings automatically, with Classic Cart Studio's own settings. HOME Designer can also preview a design with the HOME menu Classic Cart Studio prepared on this PC. The Workbench window never removes the USB driver when it closes, because Classic Cart Studio may still use it; Classic Cart Studio asks when it closes instead. |
 
-For the parts of the window, see [The Workbench Window](#window). For words you may not know, see the [Glossary](#glossary). For how Help works, see [Using Help](#using-help).
+For the parts of the window, see [The Workbench Window](#window). Words you may not know have a dotted underline where they appear: choose one to see what it means, or see the [Glossary](#glossary). For how Help works, see [Using Help](#using-help).
 
 @end
 
 @topic dashboard
 @title The Dashboard
 @pages dashboard
-@summary The first page Workbench opens on: your console's status, the main tasks and your newest backups.
+@summary The first page Workbench opens on: the first thing to do, the main tasks and your newest backups.
 
 The Dashboard is the first page Workbench shows, and the first entry in the side column. Opening it never connects to a console and never starts a task.
 
 [shot 00-dashboard | The Dashboard with sample backups: one not checked yet, one damaged and one whose file check passed.]
 
-## Your console
+## Start here
 
-The **Your console** card names the console family Workbench works with and shows what the latest console task saw:
+**Start here** is the first thing to do: **Back Up Console**, with what a backup copies. Under it, a short line says that Workbench connects to a console only when you start a console task, and that backups already on this PC can be browsed, checked and repaired without a console or a USB driver.
+
+## The console line above the Dashboard
+
+The console line at the top of the window, above every page, names the console family Workbench works with and shows what the latest console task saw:
 
 | What it says | What it means |
 | Console not checked | No console task has run since Workbench opened. |
@@ -87,11 +91,11 @@ The **Your console** card names the console family Workbench works with and show
 
 A label such as Console 73f23039 is a short name worked out from the console's own hardware ID. It keeps backups of different consoles apart without showing the full ID. Workbench names a console only when the current task identified it; an earlier console is never shown as the one connected now.
 
-Workbench connects to a console only when you start a console task and follow its steps. **About This Console** opens a window about the console Workbench works with; your page stays as it is. See [About This Console](#about-console).
+Workbench connects to a console only when you start a console task and follow its steps. **About This Console**, at the right of the console line, opens a window about the console Workbench works with; your page stays as it is. See [About This Console](#about-console).
 
-[shot 00e-dashboard-console-seen | The Your console card after a task identified a sample console and ended.]
+[shot 00e-dashboard-console-seen | The console line after a task identified a sample console and ended.]
 
-[shot 00e2-dashboard-earlier-session | The Your console card when the latest task ended before identifying a console, with the earlier console shown underneath.]
+[shot 00e2-dashboard-earlier-session | The console line when the latest task ended before identifying a console, with the earlier console shown beside it.]
 
 ## Tasks on the Dashboard
 
@@ -104,6 +108,7 @@ Workbench connects to a console only when you start a console task and follow it
 | Open, beside HOME Designer | Opens HOME Designer, part of Console Composer. See [HOME Designer](#designer). |
 | Open, beside Set Up or Rebuild a Console | Opens Console Composer. See [Console Composer](#composer). |
 | See All Backups | Opens the Backup Browser's full list. |
+| The circular arrow beside Recent backups | **Refresh backup list**: reads your backup locations again, for example after you connect a drive or copy a backup into the folder. It is not shown before the folder exists, and it is turned off while a console task runs. |
 
 ## Recent backups
 
@@ -131,11 +136,16 @@ The list only reads file names, Workbench's records and a small description insi
 
 ## When no backups are listed
 
-- **No backups yet**: there is no backup in your backup location. Choose **Back Up Console**, or **Open a Backup File…** to open a console backup saved somewhere else on this PC. **Backup Locations** opens Settings.
-- **Your backup location does not exist yet**: Workbench creates it with your first backup. If the location is on a drive that is not connected, connect the drive and choose **Try Again**.
-- **Your backup location could not be read**: this does not mean you have no backups. Connect the drive if needed and choose **Try Again**, or choose another location with **Backup Locations**. **Technical details** shows what Windows reported, and **Copy Details** copies it.
+Each case says what it means and what you can do. **Open a Backup File…** is always there, to open a console backup saved anywhere on this PC, and **Backup Locations** opens Settings.
 
-[shot 00c-dashboard-missing-folder | Recent backups when the backup location is on a drive that is not connected, with Try Again.]
+- **No backups in this location yet**, the first time: the backup folder has not been made yet. That is normal: Workbench makes it when it saves your first backup. There is nothing to read again, so there is no refresh button.
+- **No backups in this location yet**, with the folder already there: the folder holds no backups. If you copy a backup into it, choose the circular arrow beside Recent backups to read it again.
+- **Your backup location is not available**: its drive is not connected or cannot be found, so Workbench cannot see the backups there. Connect the drive and choose the circular arrow, or choose another location.
+- **Workbench could not read your backup location**: the folder is there, but Windows did not let Workbench read it. This does not mean you have no backups. **Technical details** shows what Windows reported, and **Copy Details** copies it.
+
+[shot 00g-dashboard-first-launch | Recent backups the first time, before the backup folder exists: no refresh button.]
+
+[shot 00c-dashboard-missing-folder | Recent backups when the backup location is on a drive that is not connected.]
 
 [shot 00d-dashboard-unreadable | Recent backups when the backup location could not be read, with Technical details open.]
 
@@ -309,6 +319,10 @@ The side column on the left lists every part of Workbench. **Dashboard** is at t
 
 While a console task runs, the other entries are locked; they open again when the task finishes or is canceled.
 
+## The wordmark
+
+The Classic Cart Studio wordmark at the top of the side column is a button: choose it (click, or Tab to it and press Enter or Space) to open **About Classic Cart Studio**. See [About Classic Cart Studio](#about-studio).
+
 ## The console line at the top
 
 | Part | What it does |
@@ -327,7 +341,22 @@ The buttons at the top right of the window are **Minimize**, **Maximize** (it be
 
 **Close** asks first when something is not finished: settings that are not saved (in the standalone), a HOME design with changes, a console task that is running, or the USB driver Workbench set up. Each question has its own Cancel, and canceling one keeps the window open with everything as it was. See [Settings](#settings) and [Connect Your Console](#connect).
 
-[shot 00-dashboard | The Workbench window on the Dashboard: the side column, the console line at the top with Help on This Page and About This Console, and the status line at the bottom.]
+[shot 00w-window | The whole Workbench window on the Dashboard, its title bar included: the window buttons at the top right, the side column, the console line with Help on This Page and About This Console, and the status line at the bottom.]
+
+@end
+
+@topic about-studio
+@title About Classic Cart Studio
+@pages
+@summary The window the wordmark opens: what Classic Cart Studio is, what its name means and how Workbench relates to it.
+
+Choose the Classic Cart Studio wordmark at the top of the side column to open this window. It says what Classic Cart Studio is and what its name means, shows a few screenshots of the full app with sample games, and lists what the full app gives you. It also says how Workbench relates to it: the standalone Workbench works on its own, and the same Workbench opens inside Classic Cart Studio for Windows.
+
+- Choose a screenshot to see it larger.
+- **Visit classiccartstudio.com** opens https://classiccartstudio.com/ in your web browser. Nothing is downloaded or installed, and nothing opens until you choose the button.
+- **Close**, Escape or the window's X closes it; your page stays as it is.
+
+[shot 00h-about-studio | The About Classic Cart Studio window.]
 
 @end
 
@@ -1289,7 +1318,7 @@ A design can change pictures, the startup picture, text and colors (with the HOM
 
 [shot 46-designer | The HOME Designer start page, with Arcade Grid as the starting theme and its example picture.]
 
-[shot 46b-theme-example-large | The Arcade Grid example, larger, in its own window.]
+[shot 46b-theme-example-large | The Arcade Grid example picture, as it opens larger.]
 
 [shot 46c-designer-theme-adventure | The start page with Adventure Map chosen: the example picture follows the choice.]
 
@@ -2190,9 +2219,11 @@ Links on this page open in your web browser only when you choose them.
 @builtin glossary
 @summary Short explanations of the words Workbench uses that you may not know.
 
-On Workbench's pages, explained words have a dotted underline. Choose one (click, tap, Enter or Space) to open its explanation beside it; **Close** or Escape closes it.
+Explained words have a dotted underline where they appear: in the sentences and labels of Workbench's pages, its windows and Help. Choose one (click or tap it, or Tab to it and press Enter or Space) to open its short explanation just under it. **Close** or Escape closes it and puts you back on the word; clicking anywhere else closes it too. One explanation is open at a time, and nothing opens when the pointer only passes over a word. Words on buttons, check boxes and choices are not underlined: their explanation is in the sentence beside them.
 
-[shot 61-glossary-term | An explained word, opened: CCS Nucleus.]
+The same explanations are listed here, and the Classic Cart Studio website uses them too.
+
+[shot 61-glossary-term | An explained word in its sentence, opened: CCS Nucleus.]
 
 @end
 
@@ -2205,14 +2236,12 @@ On Workbench's pages, explained words have a dotted underline. Choose one (click
 - **Help and About**, in the side column, shows the same Help in the main window.
 - **Search Help** finds the topics that have all the words you type.
 - Links in a topic open another topic; **‹ Back** returns to the one before.
-- A picture of a page opens larger when you choose it; **Close** or Escape closes it. The pictures show sample backups and consoles.
+- Pictures in Help are screenshots: each has its own frame, with **Screenshot:** before its caption. A screenshot opens larger when you choose it; the larger view's **Close** button below the picture, Escape or the window's X closes it. Screenshots are only pictures: nothing in them can be clicked. They show sample backups and consoles.
 
 Help is part of Workbench: it works without a network connection, without a console and without a backup.
 
 [shot 52d-help-search | Help, searching for restore.]
 
 [shot 52h-help-window | The Help window beside Workbench, opened with Help on This Page.]
-
-[shot 52i-help-picture | A picture from Help, opened larger.]
 
 @end

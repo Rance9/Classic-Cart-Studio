@@ -35,19 +35,18 @@ namespace CcsBackup.Ui
         UIElement PolicyChoice()
         {
             var c = new StackPanel(); c.Children.Add(T("How Classic Cart Studio starts on this console", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
-            c.Children.Add(Terms("mod", "nucleus", "home"));
             CheckBox start = null;
             foreach (var (id, name, text) in new[]
             {
-                ("mod", "CCS Mod for Hakchi", "CCS HOME is an entry in the console's own menu; the console still starts in its own menu."),
-                ("nucleus", "CCS Nucleus", "A chooser: pick CCS HOME, the console's own system or one of your own system images."),
-                ("none", "Hakchi only", "Only hakchi's foundation, with no way to start CCS HOME yet. To add one later, prepare the console again and choose it."),
+                ("mod", "CCS Mod for Hakchi", "With CCS Mod, CCS HOME is an entry in the console's own menu; the console still starts in its own menu."),
+                ("nucleus", "CCS Nucleus", "With CCS Nucleus, a chooser opens when the console starts: pick CCS HOME, the console's own system or one of your own system images."),
+                ("none", "Hakchi only", "Only the foundation from Hakchi2 CE, with no way to start CCS HOME yet. To add one later, prepare the console again and choose it."),
             })
             {
-                var label = new StackPanel(); label.Children.Add(T(name, Ty.Body, true, false, new Thickness(0))); label.Children.Add(T(text, Ty.Small, false, true, new Thickness(0)));
-                var rb = new RadioButton { Content = label, GroupName = "policy", IsChecked = preparePolicy == id, Margin = new Thickness(0, 4, 0, 6), Foreground = Res<System.Windows.Media.Brush>("B.Ink"), VerticalContentAlignment = VerticalAlignment.Top };
-                System.Windows.Automation.AutomationProperties.SetName(rb, name);
+                var rb = new RadioButton { Content = T(name, Ty.Body, true, false, new Thickness(0)), GroupName = "policy", IsChecked = preparePolicy == id, Margin = new Thickness(0, 4, 0, 2), Foreground = Res<System.Windows.Media.Brush>("B.Ink"), VerticalContentAlignment = VerticalAlignment.Top };
+                System.Windows.Automation.AutomationProperties.SetName(rb, name); System.Windows.Automation.AutomationProperties.SetHelpText(rb, text);
                 var k = id; rb.Checked += (s, e) => { preparePolicy = k; if (start != null) start.IsEnabled = k == "mod"; }; c.Children.Add(rb);
+                c.Children.Add(T(text, Ty.Small, false, true, new Thickness(26, 0, 0, 6)));
                 if (id == "mod")
                 {   // CCS Mod's optional start, under its own choice (CCS Nucleus's chooser decides what starts there)
                     start = ModStartBox(prepareModStart, v => prepareModStart = v); start.IsEnabled = preparePolicy == "mod"; c.Children.Add(start);
@@ -68,7 +67,6 @@ namespace CcsBackup.Ui
             what.Children.Add(T("The two ways Classic Cart Studio starts", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
             what.Children.Add(KeyValues(("CCS Mod for Hakchi", "CCS HOME is an entry in the console's own menu. The console starts in its own menu, unless you choose to open CCS HOME when the console is turned on."),
                                         ("CCS Nucleus", "A chooser: you pick CCS HOME, the console's own system or one of your own system images.")));
-                                        what.Children.Add(Terms("mod", "nucleus", "home"));
             what.Children.Add(T("Removing one takes away that way of starting, and the console starts in its own menu again. Changing installs the other one in its place. Either way, games, saves, settings, other hakchi packages and your system images stay, and the change takes effect the next time the console starts normally.", Ty.Text));
             what.Children.Add(T("Only for a console Classic Cart Studio prepared; the review refuses any other. If neither is installed, choose one by preparing the console again (Prepare Console).", Ty.Small, false, true, new Thickness(0)));
             what.Children.Add(Details("Technical details", "CCS Mod is the hakchi package ccs-mod (ccs-mod.hmod) and CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod), both pinned in this build's preparation program.",
@@ -102,7 +100,6 @@ namespace CcsBackup.Ui
         void ShowFirmware()
         {
             var sp = SectionHead("Your System Images", "Add a system image file of your own from this PC as a start choice in CCS Nucleus on your " + Con + ", or remove one you added. This changes files on the console: you review it first, and the console is backed up before anything is written.");
-            sp.Children.Add(Terms("system-image", "nucleus"));
             var how = new StackPanel();
             how.Children.Add(T("How it works", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
             how.Children.Add(Numbered("You choose a system image file on this PC. Workbench does not supply or download system images.",
