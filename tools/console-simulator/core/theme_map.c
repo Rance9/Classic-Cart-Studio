@@ -30,7 +30,11 @@ static int mp_init(home *h, char *err, size_t errlen) {
         (void)c;
     }
     const jval *cells = json_get(sf, "cells"); for (size_t i = 0; cells && i < cells->n && a->ncells < 12; i++) if (!jbox_at(cells, i, &a->cells[a->ncells])) a->ncells++;
+    /* a design's control regions: the cover shelf (its frames follow its cells, its arrows are sprites); the information panel; the hints */
+    for (int i = 0; i < a->ncells; i++) region_move(h, UI_GAMES, &a->cells[i]);
+    box4 *pb[6] = { &a->pframe, &a->pcover, &a->ptitle, &a->ptags, &a->ptext, &a->prule }; for (int i = 0; i < 6; i++) region_move(h, UI_DETAILS, pb[i]); region_move(h, UI_HINTS, &a->legend);
     const jval *ms = json_get(h->pk, "map_shortcuts"); for (int i = 0; i < 2; i++) { const jval *v = ms && ms->t == J_ARR && (size_t)i < ms->n ? ms->items[i] : NULL; snprintf(a->shortcut[i], sizeof a->shortcut[i], "%s", v && v->t == J_STR ? v->s : ""); }
+    if (h->design && h->design->has_folders) for (int i = 0; i < 2; i++) snprintf(a->shortcut[i], sizeof a->shortcut[i], "%s", h->map_folder[i] >= 0 ? h->fold[h->map_folder[i]].name : "");
     if (fb_init(&a->frame, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
 }
@@ -93,9 +97,9 @@ static void mp_draw(home *h, framebuffer *fb) {
         stop band[2] = { { 0, 0, .78 }, { 1, 0, 0 } }; gfx_gradient(fb, FULL, c.x0, c.y0, c.x1 - c.x0, bandh, 1, band, 2);
         int base = baseline_in(f, c.y0 + 5, f->px * 1.5); T(fb, FULL, f, c.x0 + 7, base + 1, fit, 0, 255, 0); T(fb, FULL, f, c.x0 + 7, base, fit, 0xFFFFFF, 255, 0);
         box4 fr = { c.x0 - 10, c.y0 - 16, c.x1 + 10, c.y1 + 16 };
-        if (i == sel) { sprite_box(h, fb, "shelf-focus", fr, h->nav.zone == Z_GAMES ? 255 : 153, 1); LR(h, h->nav.zone == Z_GAMES ? "shelf-focus" : "shelf-selected", fr.x0, fr.y0, fr.x1, fr.y1); }
+        if (i == sel) { sprite_box(h, fb, "shelf-focus", fr, h->nav.zone == Z_GAMES ? 255 : 153, 1); LRI(h, h->nav.zone == Z_GAMES ? "shelf-focus" : "shelf-selected", i, fr.x0, fr.y0, fr.x1, fr.y1); }
         else sprite_box(h, fb, "shelf-frame", fr, 255, 1);
-        LR(h, "shelf-art", art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, i, c.x0, c.y0, c.x1, c.y1);
+        LRI(h, "shelf-art", i, art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, i, c.x0, c.y0, c.x1, c.y1);
     }
 }
 static void mp_render(home *h, framebuffer *fb, uint64_t now) {

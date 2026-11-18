@@ -30,6 +30,7 @@ namespace ClassicCartStudio
         internal string LastNavigation = "not yet";
         DispatcherTimer blockTimer; int blockStep; bool hitLogged;
         CoreWebView2Environment wvEnv; PlayerBridge bridge; bool exitConfirmed;   // the Preview's game player and the close that asked first (F6)
+        bool driverDecided;   // the USB driver question at close was answered (BackupWorkspace.DriverAtAppClose)
         int openGen;   // the Preview's latest "embed-open"; an earlier one still waiting for the previous player is dropped
 
         public MainWindow(string[] args)
@@ -38,22 +39,30 @@ namespace ClassicCartStudio
             App.LocalOrigin = backend.Base;   // the bundled interface, served by this window's backend
             foreach (var a in startupArgs) { var m = Regex.Match(a, @"^--devtools-port=(\d{4,5})$"); if (m.Success) devtoolsPort = int.Parse(m.Groups[1].Value); }
             InitializeComponent();
+            ApplyIcons();
             ApplyPlacement();
             // our hook must see WM_NCHITTEST / WM_GETMINMAXINFO before WindowChrome's own hook: subscribe first, attach the chrome after
             SourceInitialized += (s, e) => { Native.ApplyDarkChrome(this, 0x00202024); HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc); };
-            DpiChanged += (s, e) => Dispatcher.BeginInvoke(new Action(() => Native.ApplyTaskbarIcon(this)), DispatcherPriority.Background);   // in case WPF re-applies its own icon after a monitor change            System.Windows.Shell.WindowChrome.SetWindowChrome(this, new System.Windows.Shell.WindowChrome { CaptionHeight = 36, GlassFrameThickness = new Thickness(0, 0, 0, 1), ResizeBorderThickness = new Thickness(6), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
+            DpiChanged += (s, e) => { ApplyIcons(); Dispatcher.BeginInvoke(new Action(() => Native.ApplyTaskbarIcon(this)), DispatcherPriority.Background); };   // in case WPF re-applies its own icon after a monitor change            System.Windows.Shell.WindowChrome.SetWindowChrome(this, new System.Windows.Shell.WindowChrome { CaptionHeight = 36, GlassFrameThickness = new Thickness(0, 0, 0, 1), ResizeBorderThickness = new Thickness(6), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
             Loaded += (s, e) => { try { HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc); } catch { } Native.ApplyTaskbarIcon(this); };   // second registration: last-added hooks run first; the icon again once the button exists
             // right-aligned under the menu button, in the window's own coordinates (independent of DPI, monitor position or maximize state)
             menuPopup.CustomPopupPlacementCallback = (size, target, offset) => new[] { new System.Windows.Controls.Primitives.CustomPopupPlacement(new Point(target.Width - size.Width, target.Height + 4), System.Windows.Controls.Primitives.PopupPrimaryAxis.Horizontal) };
             // App tools: the first command takes keyboard focus; Escape closes it and returns focus to its button
             menuPopup.Opened += (s, e) => { foreach (var c in menuItems.Children) if (c is Button b) { b.Focus(); break; } };
-            Loaded += async (s, e) => { StartBlocks(); await InitAsync(); };
+            Loaded += async (s, e) => { ApplyIcons(); StartBlocks(); await InitAsync(); };
             Closing += OnClosingWindow;
             StateChanged += (s, e) => { UpdateMaxGlyph(); if (!closing) SavePlacement(); };
             SizeChanged += (s, e) => { if (IsLoaded && WindowState == WindowState.Normal && !closing) SavePlacement(); };
             LocationChanged += (s, e) => { if (IsLoaded && WindowState == WindowState.Normal && !closing) SavePlacement(); };
             PreviewKeyDown += OnPreviewKeyDown;
             titleBar.MouseRightButtonUp += (s, e) => { var p = PointToScreen(e.GetPosition(this)); SystemCommands.ShowSystemMenu(this, p); };
+        }
+
+        // the app icon's frame for each place this window draws it, at the window's scale (App.IconFrame); again when the scale changes
+        void ApplyIcons()
+        {
+            try { var k = VisualTreeHelper.GetDpi(this).DpiScaleX; titleIcon.Source = App.IconFrame(16, k); loadIcon.Source = App.IconFrame(48, k); menuIcon.Source = App.IconFrame(22, k); }
+            catch (Exception e) { App.Log("icon: " + e.Message); }
         }
 
         // ---------------- chrome ----------------
@@ -124,10 +133,10 @@ namespace ClassicCartStudio
 
         // menu actions
         void Menu_Reload(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; Navigate(); }
-        void Menu_OpenSite(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.OpenExternal(App.SiteUrl); }
+        void Menu_OpenSite(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.OpenExternal(App.WebsiteUrl); }
         void Menu_DataFolder(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; try { Directory.CreateDirectory(App.DataRoot); Process.Start(new ProcessStartInfo("explorer.exe", "\"" + App.DataRoot + "\"") { UseShellExecute = true }); } catch { } }
         void Menu_Diagnostics(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: diagnostics"); ShowDiagnostics(); }
-        void Menu_Updates(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.OpenExternal(App.UpdateUrl); }
+        void Menu_Updates(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; if (backend.Ready) _ = web.CoreWebView2?.ExecuteScriptAsync("window.__ccsCheckUpdates&&window.__ccsCheckUpdates()"); else App.OpenExternal(App.UpdateUrl); }
         void Menu_About(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: about"); try { new AboutWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("about failed: " + ex); MessageDialog.Show(this, "About", "The About window could not open. Try again.", ex.Message); } }
         void Menu_Exit(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; Close(); }
 
@@ -182,7 +191,11 @@ namespace ClassicCartStudio
                 var opts = new CoreWebView2EnvironmentOptions();
                 var extra = App.Dev ? (Environment.GetEnvironmentVariable("CCS_BROWSER_ARGS") ?? "") : "";   // development experiments only
                 if (devtoolsPort > 0 || extra.Length > 0) opts.AdditionalBrowserArguments = ((devtoolsPort > 0 ? "--remote-debugging-port=" + devtoolsPort + " " : "") + extra).Trim();
-                var env = await CoreWebView2Environment.CreateAsync(null, App.WebViewDataFolder, opts); wvEnv = env;
+                // the WebView2 Runtime: Microsoft's discovery, else a verified Microsoft Runtime folder (Runtime.cs); none usable is said plainly
+                var rt = Runtime.Find();
+                App.Log("webview2 runtime: " + rt.Kind + (rt.Version != null ? " " + rt.Version : "") + (rt.Folder != null ? " at " + rt.Folder : "") + (rt.Detail.Length > 0 ? " (" + rt.Detail + ")" : ""));
+                if (rt.Kind != "default" && rt.Kind != "folder") { RuntimeMissing(rt); return; }
+                var env = await CoreWebView2Environment.CreateAsync(rt.Kind == "folder" ? rt.Folder : null, App.WebViewDataFolder, opts); wvEnv = env;
                 await web.EnsureCoreWebView2Async(env);
                 var core = web.CoreWebView2;
                 core.Settings.IsStatusBarEnabled = false; core.Settings.AreDevToolsEnabled = App.Dev || devtoolsPort > 0; core.Settings.IsZoomControlEnabled = true;
@@ -207,13 +220,22 @@ namespace ClassicCartStudio
                 await Task.Delay(120);   // let the status text paint once before the site navigation replaces the page
                 Navigate();
             }
+            catch (WebView2RuntimeNotFoundException e) { App.Log("webview init: runtime not found: " + e); RuntimeMissing(new Runtime.Found { Detail = Runtime.Describe(e) }); }
             catch (Exception e)
             {
                 App.Log("webview init failed: " + e);
                 blockTimer?.Stop();
-                loadingText.Text = "Microsoft Edge WebView2 is not available";
-                MessageDialog.Show(this, "WebView2 Needed", "Classic Cart Studio needs Microsoft Edge WebView2, which comes with Microsoft Edge on Windows 10 and 11. Install or repair Microsoft Edge, then start Classic Cart Studio again.", e.Message);
+                loadingText.Text = "The window could not start";
+                MessageDialog.Show(this, "Classic Cart Studio Could Not Start Its Window", "The part of Windows that shows Classic Cart Studio's window (the Microsoft Edge WebView2 Runtime) is installed, but it did not start. Close Classic Cart Studio and open it again. If it keeps happening, restart the computer, then run the Classic Cart Studio installer again to repair it. Your collections are not affected.", Runtime.Describe(e));
             }
+        }
+
+        // no usable WebView2 Runtime: Setup normally adds it (offline, from its own copy of Microsoft's installer); say so, nothing else
+        void RuntimeMissing(Runtime.Found rt)
+        {
+            blockTimer?.Stop(); loadingText.Text = "Microsoft Edge WebView2 Runtime needed";
+            var why = rt.Kind == "old" ? "The version on this computer (" + rt.Version + ") is too old; Classic Cart Studio needs " + Runtime.Minimum + " or later." : "It was not found on this computer.";
+            MessageDialog.Show(this, "Microsoft Edge WebView2 Runtime Needed", "Classic Cart Studio shows its window with the Microsoft Edge WebView2 Runtime, a free part of Windows from Microsoft. " + why + " Run the Classic Cart Studio installer again: it adds the Runtime from its own copy, without an internet connection. Your collections are not affected.", rt.Detail + (rt.Seen.Count > 0 ? " | " + string.Join(" | ", rt.Seen) : ""));
         }
 
         // Only pages of the approved origin get the desktop session (token + port). Every other origin sees nothing.
@@ -319,7 +341,8 @@ namespace ClassicCartStudio
         static string JsonStr(string s) { return "\"" + (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "") + "\""; }
 
         // Messages come from the bundled recovery page (about:blank origin) and, for the Preview's game player only, from the bundled
-        // Studio (this window's own backend origin): "embed-open", "embed-cmd <one checked command>", "embed-dispose". Nothing else.
+        // Studio (this window's own backend origin): "embed-open", "embed-cmd <one checked command>", "embed-dispose", and "app-update-exit" (close the
+        // window, asking first if a game is open, after the backend started a checked update installer). Nothing else.
         void OnWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
             var source = e.Source ?? "";
@@ -330,6 +353,8 @@ namespace ClassicCartStudio
                 if (m == "embed-open") _ = OpenBridge(++openGen);
                 else if (m.StartsWith("embed-cmd ")) bridge?.Command(m.Substring(10));
                 else if (m == "embed-dispose") { openGen++; if (bridge != null && !bridge.Active) { bridge.Dispose(); bridge = null; } }
+                else if (m == "app-update-exit") { App.Log("update: closing for the installer"); Close(); }   // the installer waits for this window to close (installer.iss)
+                else if (m == "console-backup-open") OpenConsoleBackup();   // Console Backup & Restore (the first screen's button and the Studio menu)
                 return;
             }
             if (!source.StartsWith("about:")) return;
@@ -433,7 +458,7 @@ namespace ClassicCartStudio
         }
 
         internal void ShowDiagnostics() { try { new DiagnosticsWindow(this).ShowDialog(); } catch (Exception ex) { App.Log("diagnostics failed: " + ex); MessageDialog.Show(this, "Diagnostics", "The Diagnostics window could not open. Try again.", ex.Message); } }
-        internal string WebViewRuntime() { try { return CoreWebView2Environment.GetAvailableBrowserVersionString(); } catch { return "not found"; } }
+        internal string WebViewRuntime() { var r = Runtime.Find(); return r.Kind == "default" ? r.Version : r.Kind == "folder" ? r.Version + " (from " + r.Folder + ")" : r.Kind == "old" ? "too old: " + r.Version : "not found"; }
         internal bool WebsiteShown => firstPageShown && !recoveryShown;
 
         // ---------------- placement ----------------
@@ -457,9 +482,41 @@ namespace ClassicCartStudio
             settings.X = (int)b.X; settings.Y = (int)b.Y; settings.W = (int)b.Width; settings.H = (int)b.Height; settings.Save();
         }
 
+        // ---- Console Backup & Restore: the native window shared with the CCS Console Backup & Restore Utility (tools/console-backup/CcsBackupUi),
+        // without the Utility's "Get Full Classic Cart Studio" link. One window at a time; it needs no collection, game or console setup.
+        CcsBackup.Ui.BackupWorkspace backupWindow;
+        internal void OpenConsoleBackup()
+        {
+            try
+            {
+                if (backupWindow != null && backupWindow.IsLoaded) { if (backupWindow.WindowState == WindowState.Minimized) backupWindow.WindowState = WindowState.Normal; backupWindow.Activate(); return; }
+                string notice = null;
+                using (var s = typeof(CcsBackup.Ui.BackupWorkspace).Assembly.GetManifestResourceStream("NOTICE")) if (s != null) using (var r = new StreamReader(s)) notice = r.ReadToEnd();
+                var opt = new CcsBackup.Ui.WorkspaceOptions
+                {
+                    HostedInFullApp = true, ProductName = "Classic Cart Studio", Version = App.Version, NoticeText = notice,
+                    WorkerExe = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName,
+                    SimulatedConsole = App.SimulatedConsoleArg(startupArgs), SettingsPath = App.BackupSettingsArg(startupArgs),
+                    PreparedHomePackage = System.IO.Path.Combine(App.DataRoot, "native-home", "current"),   // HOME Designer's preview with the person's own games
+                };
+                try { var b = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/CcsBackupUi;component/brand-wordmark.png")); b.Freeze(); opt.Wordmark = b; } catch { }
+                opt.AppIcon = Icon;
+                backupWindow = new CcsBackup.Ui.BackupWorkspace(opt, this);
+                backupWindow.Closed += (s, e) => backupWindow = null;
+                backupWindow.Show(); App.Log("console backup: window opened");
+            }
+            catch (Exception ex) { App.Log("console backup failed: " + ex); MessageDialog.Show(this, "CCS Console Workbench", "CCS Console Workbench could not open. Try again.", ex.Message); }
+        }
+
         void OnClosingWindow(object sender, System.ComponentModel.CancelEventArgs e)
         {
             if (closing) return;
+            if (!exitConfirmed && backupWindow != null && backupWindow.Busy)
+            {
+                e.Cancel = true; App.Log("close asked while CCS Console Workbench is working");
+                Dispatcher.BeginInvoke(new Action(() => { if (PlayerBridge.Ask(this, "Close Classic Cart Studio?", "CCS Console Workbench is working with your console. If you close Classic Cart Studio, a backup stops (nothing on the console changes) and a restore stops after the part being written is finished and checked.", "Keep Studio Open", "Close Studio")) { exitConfirmed = true; Close(); } }));
+                return;
+            }
             // F6: the games and HOME this window owns close with it, after asking (Cancel is the default)
             if (!exitConfirmed && bridge != null && bridge.Active)
             {
@@ -471,6 +528,13 @@ namespace ClassicCartStudio
             {
                 e.Cancel = true;
                 Dispatcher.BeginInvoke(new Action(() => { if (PlayerBridge.Ask(this, "Close Classic Cart Studio?", "A game window from Classic Cart Studio is open. Closing Classic Cart Studio closes it too: it writes the game's own cartridge save and ends. Anything you have not saved to a save slot is lost.", "Keep Studio Open", "Close Studio")) { exitConfirmed = true; Close(); } }));
+                return;
+            }
+            // a USB driver a Workbench window here set up in this run: the same removal question as the standalone Workbench's close
+            if (!driverDecided && CcsBackup.Ui.BackupWorkspace.AppRunDriverPending)
+            {
+                e.Cancel = true;
+                Dispatcher.BeginInvoke(new Action(() => { if (CcsBackup.Ui.BackupWorkspace.DriverAtAppClose(this, App.Version)) { driverDecided = true; Close(); } }));
                 return;
             }
             closing = true; SavePlacement();

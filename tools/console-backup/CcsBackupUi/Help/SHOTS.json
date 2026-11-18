@@ -1,0 +1,1248 @@
+{
+ "schema": "ccs-workbench-help-shots/1",
+ "note": "Pictures of Workbench's own pages with sample data, drawn by the private page renderer from this source; one per [shot NAME] in help.txt.",
+ "shots": [
+  {
+   "name": "00-dashboard",
+   "file": "00-dashboard.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49779,
+   "sha256": "6eb95e5498e342d9d177ba7e06a0e6fe56f9ee23319b142972e3768f4a643e79",
+   "palette_error": 0.033
+  },
+  {
+   "name": "00b-dashboard-empty",
+   "file": "00b-dashboard-empty.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49700,
+   "sha256": "629738bc3f3d75da5a41af441463c5d709a69699a40751d4bef6e6541bc9124b",
+   "palette_error": 0.033
+  },
+  {
+   "name": "00c-dashboard-missing-folder",
+   "file": "00c-dashboard-missing-folder.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49760,
+   "sha256": "47355d847d28ec70395a393b62e1466c478fd476326902af8ad6e2099af9b471",
+   "palette_error": 0.033
+  },
+  {
+   "name": "00d-dashboard-unreadable",
+   "file": "00d-dashboard-unreadable.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49714,
+   "sha256": "5c1d7ce8602a1f8fc3aeddc7892e44d6d3c1fd8669870bf33681ed52d6ed2fe8",
+   "palette_error": 0.034
+  },
+  {
+   "name": "00e-dashboard-console-seen",
+   "file": "00e-dashboard-console-seen.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 51295,
+   "sha256": "36d8c538a07985f0b87ea47d6a4cb9562fbedeac4142fa580d5d046de55795af",
+   "palette_error": 0.038
+  },
+  {
+   "name": "00e2-dashboard-earlier-session",
+   "file": "00e2-dashboard-earlier-session.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 53344,
+   "sha256": "3f6cc12c20fa5b8ccd36acf66ced681d450c1ee0af74b817876f89368942faae",
+   "palette_error": 0.036
+  },
+  {
+   "name": "00f-hosted-dashboard",
+   "file": "00f-hosted-dashboard.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49779,
+   "sha256": "6eb95e5498e342d9d177ba7e06a0e6fe56f9ee23319b142972e3768f4a643e79",
+   "palette_error": 0.033
+  },
+  {
+   "name": "01-backup-home",
+   "file": "01-backup-home.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 41098,
+   "sha256": "2d902d17a4c93884ac748ea26472c31d80bb609051bbf6ac3634d1d054d3f478",
+   "palette_error": 0.038
+  },
+  {
+   "name": "01b-backup-home-selected",
+   "file": "01b-backup-home-selected.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 42981,
+   "sha256": "182387ef00970da3f2e62ee7812f9793ea646aac553e172c3e57b0dd18048ff8",
+   "palette_error": 0.044
+  },
+  {
+   "name": "02-backup-start",
+   "file": "02-backup-start.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 43449,
+   "sha256": "ed868508d57246da08baa3c514fea6a4cf612fa9db555828a115ef4af1fee562",
+   "palette_error": 0.024
+  },
+  {
+   "name": "03-backup-result-ok",
+   "file": "03-backup-result-ok.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49273,
+   "sha256": "bb9d87c671669fecfe291572cc4605d9f5ddab03eebc7b10d341168ef88eb41d",
+   "palette_error": 0.034
+  },
+  {
+   "name": "04-backup-result-stopped",
+   "file": "04-backup-result-stopped.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 26943,
+   "sha256": "a1fd926cd8308d2d98bcd8e7523d2bf2c1399b4b94f3c51e8e108dc32e7b7a29",
+   "palette_error": 0.015
+  },
+  {
+   "name": "05-restore-hub",
+   "file": "05-restore-hub.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 46664,
+   "sha256": "38e6ebfb7ff2008cd44e34ad022df487789b359d76fb7d78cc07feff800a0be4",
+   "palette_error": 0.035
+  },
+  {
+   "name": "06-restore-pick",
+   "file": "06-restore-pick.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 34323,
+   "sha256": "9572e6c6340af38bc11eac0b2c0ee0a26f2f705deb867e7bb547555f627a3914",
+   "palette_error": 0.031
+  },
+  {
+   "name": "07-restore-review",
+   "file": "07-restore-review.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 25614,
+   "sha256": "95fb6dc68485fc9b62f4e59bba96739592c44f1b0c17ab964b1d37fe0a2d95fd",
+   "palette_error": 0.011
+  },
+  {
+   "name": "08-restore-plan",
+   "file": "08-restore-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45643,
+   "sha256": "812f27f9d0275f37d5d8a7d5d9d885ed1988b40698237108526dc382d6de17d1",
+   "palette_error": 0.023
+  },
+  {
+   "name": "09-restore-result-ok",
+   "file": "09-restore-result-ok.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 28526,
+   "sha256": "4a275a74a9298d758940222a1da32de20aef45fe6751b30206ed91545b525db7",
+   "palette_error": 0.023
+  },
+  {
+   "name": "10-restore-result-stopped",
+   "file": "10-restore-result-stopped.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 32712,
+   "sha256": "0777b8afe84c8618ced3d4e52f0ad1ce911e84fe71f2f7af2d486b37f81eed97",
+   "palette_error": 0.018
+  },
+  {
+   "name": "11-prepare",
+   "file": "11-prepare.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 51753,
+   "sha256": "a77e0224571f111c54afe6b5629415cae13e214f93b031a14205253e8f7b95d5",
+   "palette_error": 0.026
+  },
+  {
+   "name": "12-prep-plan",
+   "file": "12-prep-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 36539,
+   "sha256": "47f2173793432d9732d159f66021259a51b06dda0a41706ca1b2dfbb13baaf85",
+   "palette_error": 0.019
+  },
+  {
+   "name": "12b-prep-plan-home",
+   "file": "12b-prep-plan-home.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 39903,
+   "sha256": "3d5839deff44c5b74dbc05e7a97543d0eeed9b5c45b5f029ca1bc7ac5a515e14",
+   "palette_error": 0.021
+  },
+  {
+   "name": "12c-prep-plan-already",
+   "file": "12c-prep-plan-already.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 37471,
+   "sha256": "fe845047568c0057b0a933b7632f24246093d616c61c44842ed7a78c65e48db1",
+   "palette_error": 0.021
+  },
+  {
+   "name": "12d-prep-plan-modstart",
+   "file": "12d-prep-plan-modstart.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 44505,
+   "sha256": "894c37d805144fba2a737d76c3cfc73a217f4ef3f8f9507b222f52a748f88b7c",
+   "palette_error": 0.022
+  },
+  {
+   "name": "13-prep-result",
+   "file": "13-prep-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 24164,
+   "sha256": "8407c07f8fc2f90ebc5da7dcde0f14af6a172992bb352eb8d9201e84390a36f1",
+   "palette_error": 0.017
+  },
+  {
+   "name": "13b-prep-result-scheduled",
+   "file": "13b-prep-result-scheduled.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 27311,
+   "sha256": "c992b95af170b25ca2ee69720864e6d61dfada0da4487963eb76ad13360a3ac8",
+   "palette_error": 0.019
+  },
+  {
+   "name": "13c-prep-result-home-placed",
+   "file": "13c-prep-result-home-placed.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 26189,
+   "sha256": "f992e7011bf89ece385f7830cd66c5be2c50b946e6680ef411dfe7f06dd2c5f1",
+   "palette_error": 0.02
+  },
+  {
+   "name": "14-return",
+   "file": "14-return.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 52793,
+   "sha256": "db0b6475de02a199bc4630a77a5d859e8e7b77c46102836891d946727f933ba3",
+   "palette_error": 0.027
+  },
+  {
+   "name": "15-return-plan",
+   "file": "15-return-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 37037,
+   "sha256": "59db8f924efb1050e83ef8aaf400635861c3f3bcbc800c7db8f453458efc7b88",
+   "palette_error": 0.019
+  },
+  {
+   "name": "16-return-result",
+   "file": "16-return-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 32428,
+   "sha256": "c91ce85b1ed98a7b16d4dba3336e0a8c53a4aec63c6a26fb8c0840181005ff51",
+   "palette_error": 0.026
+  },
+  {
+   "name": "17-methods",
+   "file": "17-methods.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 55273,
+   "sha256": "687f6b79c94c79251d47e0a6215bdfee15d5a3c64048336782ebfa4bb39e390b",
+   "palette_error": 0.031
+  },
+  {
+   "name": "18-method-plan",
+   "file": "18-method-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 54094,
+   "sha256": "89eafb94a0a83779eb142a6465c551bfa2a479fc1fc2daf9a137d895b776a079",
+   "palette_error": 0.024
+  },
+  {
+   "name": "18b-method-plan-remove",
+   "file": "18b-method-plan-remove.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45974,
+   "sha256": "d18719ab9e4935fe71d2a617c260f697e4f92e8f19e2b0d53748cf9d22ac63a9",
+   "palette_error": 0.027
+  },
+  {
+   "name": "19-method-result",
+   "file": "19-method-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 31015,
+   "sha256": "849c281690706ab33557dd54a02c960a8ce2ecb666e92d491125ac988b5dea55",
+   "palette_error": 0.021
+  },
+  {
+   "name": "19b-method-result-stopped",
+   "file": "19b-method-result-stopped.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 31664,
+   "sha256": "34173787f9816c3185b6fb1937893e8c32ec7976ade3fcf560c16ad7e3b63ae9",
+   "palette_error": 0.017
+  },
+  {
+   "name": "20-rescue",
+   "file": "20-rescue.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 47463,
+   "sha256": "1bbfcb74d4fd17610a99b7938c3df9f2c3d7b70448be59ee611aa4857ce370da",
+   "palette_error": 0.025
+  },
+  {
+   "name": "21-rescue-choice",
+   "file": "21-rescue-choice.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 32544,
+   "sha256": "0d3747fb5d3ef6e79f614dd530652d33e17b255e3dd63b09724fbc7361d58eb0",
+   "palette_error": 0.024
+  },
+  {
+   "name": "22-rescue-plan",
+   "file": "22-rescue-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 30426,
+   "sha256": "3f41e734862834a0ab062dfadf10f7539947d9b4e225313c69055fa3958b80e5",
+   "palette_error": 0.022
+  },
+  {
+   "name": "23-rescue-result",
+   "file": "23-rescue-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 24923,
+   "sha256": "db69a979c83a664b9aa60b53172b70f4b77ab7f4208bba06c26e55f34f74fad5",
+   "palette_error": 0.014
+  },
+  {
+   "name": "24-composer",
+   "file": "24-composer.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45763,
+   "sha256": "80baafc145a80aea09efd2590035f363af8f6cd533da440791828233f78b026f",
+   "palette_error": 0.033
+  },
+  {
+   "name": "25-composer-like",
+   "file": "25-composer-like.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 48135,
+   "sha256": "505afdca483b7ab77a3b237c357f88812eda8b93d04d88b1a658657fcba2a7a0",
+   "palette_error": 0.025
+  },
+  {
+   "name": "25b-composer-like-files",
+   "file": "25b-composer-like-files.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 54268,
+   "sha256": "1ae52f56220f10af044ba01718a91a13d86aa963b42ad403030ebb3fca80bfe9",
+   "palette_error": 0.03
+  },
+  {
+   "name": "26-composer-rebuild",
+   "file": "26-composer-rebuild.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 44663,
+   "sha256": "4a9fe2920fa2ceabfe1da68266c9a816d1c2353d2de58a8baa8183cda755d4ca",
+   "palette_error": 0.024
+  },
+  {
+   "name": "26b-composer-rebuild-again",
+   "file": "26b-composer-rebuild-again.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 54007,
+   "sha256": "4da102805d843afa84bd9ccb38b30a3c75f025f9721035ae1f72a9cf1d2421f5",
+   "palette_error": 0.028
+  },
+  {
+   "name": "27-compose-plan",
+   "file": "27-compose-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 50763,
+   "sha256": "29312765c21465608c2a2a9e3057f110a922bbc708028872c2b192cc6c459ecf",
+   "palette_error": 0.031
+  },
+  {
+   "name": "27b-compose-plan-package",
+   "file": "27b-compose-plan-package.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 43946,
+   "sha256": "924e7477a0edc962a803f6dcd3612a9828f66bb8b2024d30111ef824ba8b9cd1",
+   "palette_error": 0.032
+  },
+  {
+   "name": "28-compose-result",
+   "file": "28-compose-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 30027,
+   "sha256": "7af48fe6e233a7e77c8850d2129e5a4f79c48d70b4676c8e06b752a9c99f2971",
+   "palette_error": 0.024
+  },
+  {
+   "name": "28b-compose-result-stopped",
+   "file": "28b-compose-result-stopped.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 34724,
+   "sha256": "edb52c40f1188bb84971d1fa5dabf6d849e112ea91a45083dce17006d34fc82f",
+   "palette_error": 0.019
+  },
+  {
+   "name": "29-firmware",
+   "file": "29-firmware.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45385,
+   "sha256": "77e51c1a04122e9a4c062e36029fdb816724af0538f1c65461c8d822bb578950",
+   "palette_error": 0.034
+  },
+  {
+   "name": "29b-firmware-plan-snes",
+   "file": "29b-firmware-plan-snes.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 54121,
+   "sha256": "bc02b939617decd16917ac80a6a4778a2a8ec4f20a4ebd169ea31c7ac03e4c2d",
+   "palette_error": 0.025
+  },
+  {
+   "name": "29c-firmware-result-added",
+   "file": "29c-firmware-result-added.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 31068,
+   "sha256": "42a52d0545588b74a98e5a73c80f0bfc574bca16866b5130f5f735a49925cf7a",
+   "palette_error": 0.025
+  },
+  {
+   "name": "30-build-package",
+   "file": "30-build-package.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 35411,
+   "sha256": "056406ed1794eb84b620a51821057046450a62178259493afbcf1f0fe05ce2f8",
+   "palette_error": 0.024
+  },
+  {
+   "name": "30b-build-package-migrate",
+   "file": "30b-build-package-migrate.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 43814,
+   "sha256": "7ffed6bc7fa3ef7edb293731ba2d7760926eaa84554416eb8b19038e4dfe3021",
+   "palette_error": 0.026
+  },
+  {
+   "name": "30c-package-built",
+   "file": "30c-package-built.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 33381,
+   "sha256": "f64213fdd8a9996e05787dded52670fa2353445c9d30d763a341f45e997a378b",
+   "palette_error": 0.028
+  },
+  {
+   "name": "30d-apply-package",
+   "file": "30d-apply-package.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 44720,
+   "sha256": "b0925c31c7d530d58a3267d07a5a7df4dce7fbad6980e8d0db7114dc48f9cab9",
+   "palette_error": 0.024
+  },
+  {
+   "name": "30e-plan-share",
+   "file": "30e-plan-share.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 43287,
+   "sha256": "bb0d68e03e04828042116e9b0c81315ee609e534b480f1efedd6b8137fb39505",
+   "palette_error": 0.028
+  },
+  {
+   "name": "30f-plan-checklist",
+   "file": "30f-plan-checklist.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 42055,
+   "sha256": "449de649860a9b31db75bdb917acfb5e0492b16876371b079ab9768ae35304be",
+   "palette_error": 0.033
+  },
+  {
+   "name": "31-console-browser",
+   "file": "31-console-browser.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 47132,
+   "sha256": "b74d80bf4d0c2785b1fe4869e1bcea58c0499138311b2cea98cbbb5df084f0cc",
+   "palette_error": 0.034
+  },
+  {
+   "name": "32-checkup",
+   "file": "32-checkup.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 39690,
+   "sha256": "4bfd52ae5946078fdcf302407b9cf1f3339ad461a2113fe4dabaa2f973bfc2b8",
+   "palette_error": 0.022
+  },
+  {
+   "name": "33-expert-intro",
+   "file": "33-expert-intro.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 46468,
+   "sha256": "31073723294471396069aa5a6ccc8e3aa454b1b34dab54315d650d9260349e9a",
+   "palette_error": 0.03
+  },
+  {
+   "name": "34-files-point",
+   "file": "34-files-point.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 29359,
+   "sha256": "3856a07bd92617a1226230609ac63fb6232e0f0ad51f74e842c8d9cdf383a191",
+   "palette_error": 0.018
+  },
+  {
+   "name": "35-files-session",
+   "file": "35-files-session.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 37525,
+   "sha256": "c34eaac02545aacf0c80e6ee45eec72cf893b21a0e0edfc99aacbfe5b1afbe19",
+   "palette_error": 0.02
+  },
+  {
+   "name": "36-files-plan",
+   "file": "36-files-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 30777,
+   "sha256": "0a32d8de7d25a26fd3e8407d3f3cbdc7eb8af2f30f81497e7019436706af5870",
+   "palette_error": 0.025
+  },
+  {
+   "name": "38-developer",
+   "file": "38-developer.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 51742,
+   "sha256": "f3b5de0aaae676cc02234f4ee82748a1cbfc730c6066457e7e31baf52b67ad5e",
+   "palette_error": 0.036
+  },
+  {
+   "name": "38b-test-boot-intro",
+   "file": "38b-test-boot-intro.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 46392,
+   "sha256": "6b53536dd8bdc70a7241679a6bc49d0fc4591ef3814add962b7f77585c283cb1",
+   "palette_error": 0.026
+  },
+  {
+   "name": "38b2-test-boot-intro-empty",
+   "file": "38b2-test-boot-intro-empty.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 42825,
+   "sha256": "836556b3821a06f6075e61a7f3e1d68eecdca5c99df92edbbac5ab558b0ff304",
+   "palette_error": 0.025
+  },
+  {
+   "name": "38c-test-boot-plan-image",
+   "file": "38c-test-boot-plan-image.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 48627,
+   "sha256": "c4b5f92cc763ce18fc2dcb5ca9ef499ab6f16b288858e5d1a8f6d8356d59b3c7",
+   "palette_error": 0.027
+  },
+  {
+   "name": "38d-test-boot-plan-own",
+   "file": "38d-test-boot-plan-own.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45463,
+   "sha256": "00bbfc9476b60f2f09914fa906ddb1515ae0bae36831c7b47d61d5b214cf6209",
+   "palette_error": 0.033
+  },
+  {
+   "name": "38e-system-plan",
+   "file": "38e-system-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49549,
+   "sha256": "5bdee5fab2e9ab3b114c5a0e01f71ea403e933a655c9a7e93929255c00d5c7f7",
+   "palette_error": 0.027
+  },
+  {
+   "name": "38f-kernel-plan-dev",
+   "file": "38f-kernel-plan-dev.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 46302,
+   "sha256": "e1555170e07e8aef18771165fc7bc3bec988a4c4f52aa97d253fa5e31b372a0e",
+   "palette_error": 0.034
+  },
+  {
+   "name": "38g-developer-return",
+   "file": "38g-developer-return.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 41668,
+   "sha256": "cce03732be312058d5269b14f7848ff87683955bebf998b3c86062dc0176f210",
+   "palette_error": 0.036
+  },
+  {
+   "name": "38g2-developer-return-empty",
+   "file": "38g2-developer-return-empty.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45256,
+   "sha256": "0acedada534a1468bb4da79113147fd3cb0c4fd85d8585d11dd9e9adc9ebe6e3",
+   "palette_error": 0.034
+  },
+  {
+   "name": "38h-test-boot-result-sent",
+   "file": "38h-test-boot-result-sent.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 31391,
+   "sha256": "220f9df5073a63e7ae95968fb1ae6e6142f6bef1aeba4ad20bd24acae5987fe7",
+   "palette_error": 0.018
+  },
+  {
+   "name": "38i-test-boot-result-refused",
+   "file": "38i-test-boot-result-refused.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 27116,
+   "sha256": "9137e767004a03edfeb13cd5809c86f43ab44b81cd7881affc169d5b78001154",
+   "palette_error": 0.016
+  },
+  {
+   "name": "38j-test-boot-result-unavailable",
+   "file": "38j-test-boot-result-unavailable.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 23419,
+   "sha256": "db17180ac49a39fd825ad3916968a32493c1cfb95f73e19bd8d46d72aa86be02",
+   "palette_error": 0.013
+  },
+  {
+   "name": "39-backup-browser",
+   "file": "39-backup-browser.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 47787,
+   "sha256": "40c4ce11c7c5579cf69f88c07cab3f8277b15419b45b2348abaaa43a5e9262db",
+   "palette_error": 0.039
+  },
+  {
+   "name": "39b-backup-browser-empty",
+   "file": "39b-backup-browser-empty.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 35036,
+   "sha256": "751d5c9c6792f3f454c93939df1c95228a89ed777f3ff08495937ec4dd8e1265",
+   "palette_error": 0.025
+  },
+  {
+   "name": "39c-backup-browser-unreadable",
+   "file": "39c-backup-browser-unreadable.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 34957,
+   "sha256": "f2d1f38c713621bf0786ba852dcd6d0e7298f8d4c34a18708d3d459728cdfeed",
+   "palette_error": 0.018
+  },
+  {
+   "name": "39d-backup-browser-checked",
+   "file": "39d-backup-browser-checked.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 48883,
+   "sha256": "b65df991b66da26d911c9c074868925e6272d32680563c2c6ab793dc01166211",
+   "palette_error": 0.037
+  },
+  {
+   "name": "40-browse-game",
+   "file": "40-browse-game.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 25173,
+   "sha256": "7ca59397503c75e0afc3e2e4e9f915ffacb94efc788d71ea2f82164d078bc230",
+   "palette_error": 0.012
+  },
+  {
+   "name": "40c-browse-open-failed",
+   "file": "40c-browse-open-failed.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 34160,
+   "sha256": "2cfba178e075f6f213fbc34aaa81f0653b55c0f939da63374a7188d5b074fc46",
+   "palette_error": 0.018
+  },
+  {
+   "name": "40d-export-result",
+   "file": "40d-export-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 31720,
+   "sha256": "eda3407d387648ba08cdff46521b9082d9c2e231d418301dbcccecc4a7913262",
+   "palette_error": 0.021
+  },
+  {
+   "name": "41-browse-type",
+   "file": "41-browse-type.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 54391,
+   "sha256": "3edc93c9fae4855c7013726ec66a0f4fb205613ea08657e3688bd9bc287f9aee",
+   "palette_error": 0.034
+  },
+  {
+   "name": "42-browse-all",
+   "file": "42-browse-all.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 41452,
+   "sha256": "726ab8e197b21ac17916c5d90f38a0e07fa953ff56240979da933700ea7a0ae4",
+   "palette_error": 0.027
+  },
+  {
+   "name": "42b-browse-folder-open",
+   "file": "42b-browse-folder-open.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 42913,
+   "sha256": "8c1bf18c3f102bca6a292bce48e7b84b4e318f8b91e952cace788813ff88a433",
+   "palette_error": 0.027
+  },
+  {
+   "name": "42c-browse-salvage",
+   "file": "42c-browse-salvage.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49186,
+   "sha256": "19bf991714a58bd83bd1d5e248c7b4cfb2df56a934726368c3e1f0638df61d55",
+   "palette_error": 0.035
+  },
+  {
+   "name": "42h-browse-save-convert",
+   "file": "42h-browse-save-convert.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 48370,
+   "sha256": "02c67841960de78e1af32c8ab78468d85a9f1666059f373e7d81bb10ba340cbc",
+   "palette_error": 0.03
+  },
+  {
+   "name": "43-backup-repair",
+   "file": "43-backup-repair.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49316,
+   "sha256": "ce22d36ce19fd72e97af68412e90f74f5b2c4ea8c2e715e1070d7bbf9f024eed",
+   "palette_error": 0.039
+  },
+  {
+   "name": "43b-backup-repair-empty",
+   "file": "43b-backup-repair-empty.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49192,
+   "sha256": "04d18c7d6f3b05fa5382e94f423bc8622f1fb34b4a453d246e7fff3dbdbb265a",
+   "palette_error": 0.03
+  },
+  {
+   "name": "44-repair-routes",
+   "file": "44-repair-routes.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 55740,
+   "sha256": "ebb010eba7c7f66165aeac7031e3d6955b73122ee38994e27aae5ef132bd2c53",
+   "palette_error": 0.03
+  },
+  {
+   "name": "44b-supply",
+   "file": "44b-supply.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 26133,
+   "sha256": "08dc2d6c3d18501119ddf4980d2698f9cb21856c9b4ed1535ae9760b5fe867af",
+   "palette_error": 0.012
+  },
+  {
+   "name": "44d-repair-result",
+   "file": "44d-repair-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 41795,
+   "sha256": "5a5eaa99690b757dc0bf0bf576a04e292ccb95bd385e89e6a28576a29a69bd33",
+   "palette_error": 0.031
+  },
+  {
+   "name": "44e-repair-result-failed",
+   "file": "44e-repair-result-failed.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 30084,
+   "sha256": "8e1619b6e8be02a610eb76278164b2515e2f436925933ad0596c5b5c14534adf",
+   "palette_error": 0.016
+  },
+  {
+   "name": "45-parity",
+   "file": "45-parity.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 48141,
+   "sha256": "bb36fba08143528277b53e0dd545a841c257d73a4173269571fee09f5ff904e4",
+   "palette_error": 0.032
+  },
+  {
+   "name": "45b-parity-result",
+   "file": "45b-parity-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 26783,
+   "sha256": "1ae0070b5d5a3ac199d615482db20e6469d6020377390664512cadef9e83c243",
+   "palette_error": 0.013
+  },
+  {
+   "name": "46-designer",
+   "file": "46-designer.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 71537,
+   "sha256": "b2aa36432b2a4e735eac45cd410ce22e7bb814df4d0aa13fefce64786bda59b3",
+   "palette_error": 0.427
+  },
+  {
+   "name": "46b-theme-example-large",
+   "file": "46b-theme-example-large.jpg",
+   "width": 1107,
+   "height": 705,
+   "bytes": 291824,
+   "sha256": "1467d7babb921743be3b8550fed710b2151881e8685f767a6157e837589f3130",
+   "palette_error": 2.725
+  },
+  {
+   "name": "46c-designer-theme-adventure",
+   "file": "46c-designer-theme-adventure.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 77155,
+   "sha256": "8cef66f7e2ccaaa2e5b1be00f9e53ab15c2ca641bfe52c48ac529468b0715517",
+   "palette_error": 0.348
+  },
+  {
+   "name": "47-designer-editor",
+   "file": "47-designer-editor.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 71161,
+   "sha256": "d926f751c9b916938084f9487566007a932105fb0b021a8f3ea10e72bb35ff60",
+   "palette_error": 0.464
+  },
+  {
+   "name": "48-designer-share",
+   "file": "48-designer-share.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 38206,
+   "sha256": "6ab098c216cac3d95b8b601570f74b9c010302e1076fb49522dc7db75a3b1322",
+   "palette_error": 0.03
+  },
+  {
+   "name": "49-designer-console",
+   "file": "49-designer-console.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 44969,
+   "sha256": "881782c033ebdf3f01fd8bb4c31a7dd113c6acdb2c3932a974a181d7833fd631",
+   "palette_error": 0.025
+  },
+  {
+   "name": "49b-design-check",
+   "file": "49b-design-check.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 28643,
+   "sha256": "9b1716c535c7dff9f1bc5078ac5485b2d36746fdf7688b31c56489885f541d25",
+   "palette_error": 0.021
+  },
+  {
+   "name": "49c-design-check-failed",
+   "file": "49c-design-check-failed.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 31119,
+   "sha256": "0543252374bcf1a8098df5cb08a3abd57b072c0113af44aa8d6a2cc369cc4dbc",
+   "palette_error": 0.017
+  },
+  {
+   "name": "50-design-plan",
+   "file": "50-design-plan.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 40719,
+   "sha256": "6e1907ed619813d0f577fc182af07da7256e6982198d89c72617b98492a82b50",
+   "palette_error": 0.031
+  },
+  {
+   "name": "50b-design-plan-revert",
+   "file": "50b-design-plan-revert.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 39492,
+   "sha256": "5a022250d5fe9522c96154e8720bca7cf17992890c2ed734a5cea424ff588a75",
+   "palette_error": 0.028
+  },
+  {
+   "name": "51-design-result",
+   "file": "51-design-result.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 30240,
+   "sha256": "3d3670741f55f4018d8c38532b35741f3f1af17dc2cf917a2554fa945f3d5c0f",
+   "palette_error": 0.024
+  },
+  {
+   "name": "52d-help-search",
+   "file": "52d-help-search.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 65549,
+   "sha256": "ddaf846ee08fc8a6b88ccea3e2a9d1275ed1794f1eb1c91d822ffeefc801b1a4",
+   "palette_error": 0.029
+  },
+  {
+   "name": "52g-help-about-app",
+   "file": "52g-help-about-app.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 61106,
+   "sha256": "1841182adbe8dd011689b5fa76e606fe794075e86b34b94dd2015c678504c302",
+   "palette_error": 0.042
+  },
+  {
+   "name": "52h-help-window",
+   "file": "52h-help-window.png",
+   "width": 1067,
+   "height": 725,
+   "bytes": 59531,
+   "sha256": "351e2897255ff28a0187c8656ac461507921c6423dd80f389ebe3d7b49a1bad1",
+   "palette_error": 0.015
+  },
+  {
+   "name": "52i-help-picture",
+   "file": "52i-help-picture.png",
+   "width": 1107,
+   "height": 705,
+   "bytes": 41988,
+   "sha256": "51b90e10f095fa5b3fe3c17784c3762227f2d8a2b59c5258f4c793802cd3df85",
+   "palette_error": 0.056
+  },
+  {
+   "name": "53-folders",
+   "file": "53-folders.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45042,
+   "sha256": "a9a3705c264d5466bea7dd83c1e2cbfd78bdfa6d3558eb0aca5cc5e9093b990b",
+   "palette_error": 0.022
+  },
+  {
+   "name": "53b-settings-additional-copy",
+   "file": "53b-settings-additional-copy.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 42620,
+   "sha256": "84ebb5cc433c1da6ac2027c3fd2d22a94bc9fb849b4d5a8b6f80535f0ab7f2fa",
+   "palette_error": 0.031
+  },
+  {
+   "name": "53c-hosted-settings",
+   "file": "53c-hosted-settings.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 41031,
+   "sha256": "e020898a30354ea5c995fa1788fdfbe65e38da1b7194b363037b68f6a08a0c82",
+   "palette_error": 0.023
+  },
+  {
+   "name": "53d-settings-unsaved",
+   "file": "53d-settings-unsaved.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45142,
+   "sha256": "f07547348bc38f81a853ab4f41896ef3dfdca45cd1cbeb39cf0ae0bb9b12ecae",
+   "palette_error": 0.029
+  },
+  {
+   "name": "53e-settings-file",
+   "file": "53e-settings-file.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 42323,
+   "sha256": "9d36a9c20e2c88238729bf4710e72f9adc158b7eb2fe5906d6c77c5ccff2c3fd",
+   "palette_error": 0.024
+  },
+  {
+   "name": "53f-hosted-settings-failed",
+   "file": "53f-hosted-settings-failed.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 39883,
+   "sha256": "a3c5a879acab557a27ce4a8da0f91af29ec75c139236fae1f689c5dc1050a542",
+   "palette_error": 0.022
+  },
+  {
+   "name": "54-progress",
+   "file": "54-progress.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 27919,
+   "sha256": "38ebfd1efb0a58dadf84cdcaf41ccf5bb817452cf3cc40eb1476758adb3cf097",
+   "palette_error": 0.013
+  },
+  {
+   "name": "55-driver-setup",
+   "file": "55-driver-setup.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 59451,
+   "sha256": "56deab87bf07000b6a6bdba763d485d4e023b95a8f12bb66ef1f0364e25aa895",
+   "palette_error": 0.026
+  },
+  {
+   "name": "55b-driver-cannot-use",
+   "file": "55b-driver-cannot-use.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 42237,
+   "sha256": "e6209241c909cd5a5972d34ba4538302601f647ed97d586815be2f6c590855d2",
+   "palette_error": 0.024
+  },
+  {
+   "name": "55c-driver-read-failed",
+   "file": "55c-driver-read-failed.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 26331,
+   "sha256": "3661e1f51411939b62e1e4c7b1f4338cff10dbb30aa12e28cf72a8ab188773fa",
+   "palette_error": 0.014
+  },
+  {
+   "name": "55d-driver-blocked",
+   "file": "55d-driver-blocked.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 36002,
+   "sha256": "6d4ab2f8dabb6531cf1345a9f2f9c7387aaeb214438779e3b946eae3f60bb4c1",
+   "palette_error": 0.021
+  },
+  {
+   "name": "55e-driver-close-question",
+   "file": "55e-driver-close-question.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 29017,
+   "sha256": "4f5c4f5899dd116cdeb12c56ff2bc718b4408e94c9d2dfdfb3b2f514391b1825",
+   "palette_error": 0.017
+  },
+  {
+   "name": "55f-driver-removal-restart",
+   "file": "55f-driver-removal-restart.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 26723,
+   "sha256": "dd40bc5e7c4f793a53632b0a0d3a127293a6fffa5149a5abae047531e0410ca7",
+   "palette_error": 0.012
+  },
+  {
+   "name": "55g-driver-startup-notice",
+   "file": "55g-driver-startup-notice.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 28191,
+   "sha256": "44590dbf96d59e5ec629bc08609dcac9e730caeff87844be5403d12a440ad172",
+   "palette_error": 0.013
+  },
+  {
+   "name": "55h-driver-cleanup-question",
+   "file": "55h-driver-cleanup-question.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 32784,
+   "sha256": "f4dc0518a7b7f18de35344ad33d7a253b74905cc5bd803074bb572b35d83d0c1",
+   "palette_error": 0.02
+  },
+  {
+   "name": "56-message",
+   "file": "56-message.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 24408,
+   "sha256": "50bcb05f7961a7476be93e13a84fee9d208466de4ed198c4a011e841829cd4a9",
+   "palette_error": 0.013
+  },
+  {
+   "name": "58-credits",
+   "file": "58-credits.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 74878,
+   "sha256": "ac74b28fd43fddbecdccf7e2c8c809335964ec00894512ac163bf3b0c58c9a0d",
+   "palette_error": 0.04
+  },
+  {
+   "name": "58b-credits-notice",
+   "file": "58b-credits-notice.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 74878,
+   "sha256": "ac74b28fd43fddbecdccf7e2c8c809335964ec00894512ac163bf3b0c58c9a0d",
+   "palette_error": 0.04
+  },
+  {
+   "name": "59-about-console",
+   "file": "59-about-console.png",
+   "width": 707,
+   "height": 665,
+   "bytes": 32739,
+   "sha256": "0f57b2aa84f4951c5e8ef817172cb8082f259753a7feac7a2157a163a1cdebb6",
+   "palette_error": 0.011
+  },
+  {
+   "name": "59b-about-console-other",
+   "file": "59b-about-console-other.png",
+   "width": 707,
+   "height": 665,
+   "bytes": 18922,
+   "sha256": "5ce1b70b57e36e76546e3df3fe8014a1c259ca4da8e77b9fd3b2b99416c043cb",
+   "palette_error": 0.014
+  },
+  {
+   "name": "59c-about-console-use-question",
+   "file": "59c-about-console-use-question.png",
+   "width": 547,
+   "height": 295,
+   "bytes": 13208,
+   "sha256": "d7db2d87ec8ed8e5bb4f4b48667395669fa545504e7da26b680b34d657c191d7",
+   "palette_error": 0.013
+  },
+  {
+   "name": "60-close-settings-question",
+   "file": "60-close-settings-question.png",
+   "width": 547,
+   "height": 189,
+   "bytes": 8298,
+   "sha256": "31259186aee0c8c3f158c0df3af21e8f2b5bd756805ca60c44888c2d2b86c3b2",
+   "palette_error": 0.007
+  },
+  {
+   "name": "60b-hosted-close-failed-question",
+   "file": "60b-hosted-close-failed-question.png",
+   "width": 547,
+   "height": 189,
+   "bytes": 7216,
+   "sha256": "a28d691375a8372db54f998dcdbfbeafccbfff197fc2eab304a53418b3755c34",
+   "palette_error": 0.006
+  },
+  {
+   "name": "61-glossary-term",
+   "file": "61-glossary-term.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 28856,
+   "sha256": "22ed3c3883e12a69f2a54123e9fb714d0da90c8ce1e60c4786db39452d659280",
+   "palette_error": 0.019
+  },
+  {
+   "name": "f8-39-backup-browser",
+   "file": "f8-39-backup-browser.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 45128,
+   "sha256": "f1e2293faed5efb5c16ecf992435d2aaef09ef9024ad16ad03cb87138ecae44a",
+   "palette_error": 0.032
+  },
+  {
+   "name": "f8-44c-browse-damaged",
+   "file": "f8-44c-browse-damaged.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 49181,
+   "sha256": "6a0555fcbc0e0cb756ef713eb34b7725004a786bf29d9970775cd821ad5649b5",
+   "palette_error": 0.025
+  },
+  {
+   "name": "f9-42e-browse-startup",
+   "file": "f9-42e-browse-startup.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 41749,
+   "sha256": "2fcecf920eab03bf61691b31668e9f60cac2ee8145845deea1d64ae29986fe55",
+   "palette_error": 0.026
+  },
+  {
+   "name": "f9-42f-browse-system",
+   "file": "f9-42f-browse-system.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 41722,
+   "sha256": "f9306507f1ce537f0acf93aa70b24f7ed8f42a0903967a66b55e21069875c4be",
+   "palette_error": 0.026
+  },
+  {
+   "name": "f9-42g-browse-system-nokey",
+   "file": "f9-42g-browse-system-nokey.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 37568,
+   "sha256": "42cdd52d3249e77de641d76e3a4fb23e7f0d188143991b3f609a3c8555b45349",
+   "palette_error": 0.024
+  }
+ ]
+}

@@ -1,0 +1,75 @@
+#!/bin/sh
+# ccsfiles: Expert Mode's and Developer Mode's file changes on the console's data storage. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# It runs in the console's RAM, in the Classic Cart Studio files image only (profile "files"), and does fixed steps the PC asks for one at a
+# time (tools/console-backup/CcsBackup Engine/FilesEngine.cs), each under the PC's own boundary (Expert: Gate.ExpertWrites, Developer:
+# Gate.DeveloperWrites) and under the session's restore point:
+#   stat SCOPE PATH                   read-only: "result stat ok <sha256|absent|folder|link|special> <bytes>" for PATH
+#   put  SCOPE PATH SIZE SHA256 OLD   exactly SIZE bytes from the PC kept in RAM and checked (SHA256); then, with the data storage mounted
+#                                     read-write: every folder on the way must be a real folder (never a link), the file there must
+#                                     still be OLD (its SHA-256, or "absent"); written to a new name beside it, synced, renamed into
+#                                     place, synced, read back (SHA256), the storage unmounted
+#   del  SCOPE PATH OLD               the same checks; the file removed, synced, its absence checked, the storage unmounted
+# PATH is relative to the data storage (what the console mounts at /var/lib): letters, digits and . _ - + ( ) space and /, no "..", no empty
+# or hidden-dot-only parts, no leading "/". SCOPE "user" (Expert Mode) allows only user files: clover/profiles/ (Nintendo HOME's saves and
+# settings), hakchi/games/ (games added with hakchi: game files and their artwork), ccs/data/ (Classic Cart Studio's saves and settings).
+# SCOPE "dev" (Developer Mode) allows any regular file on the data storage, including hakchi's system overlay (hakchi/rootfs/); never a
+# device, a link, a folder, or anything outside the data storage. SCOPE "compose" (Console Composer, strict policy on the PC) allows
+# clover/profiles/, hakchi/games/ and ccs/. Nothing is retried; no step formats, repairs (fsck) or repartitions.
+CCS=$(cd "$(dirname "$0")/.." && pwd)
+. "$CCS/env" || exit 90
+[ "$(cat "$CCS/profile" 2>/dev/null)" = files ] || { echo "ccsfiles: this image cannot change files" >&2; exit 13; }
+M="$NEWROOT/var/lib"
+r(){ echo "result $1 $2"; [ "$2" = ok ] || [ "${2#ok}" != "$2" ] && exit 0; exit 17; }
+
+step=$1; scope=$2; path=$3
+case "$step" in stat|put|del) ;; *) echo "ccsfiles: unknown step" >&2; exit 2;; esac
+case "$scope" in user|dev|compose) ;; *) r "$step" "refused scope";; esac
+echo "$path" | grep -qE '^[A-Za-z0-9._+() -]+(/[A-Za-z0-9._+() -]+)*$' || r "$step" "refused path"
+case "/$path/" in */../*|*/./*|*//*) r "$step" "refused path";; esac
+if [ "$scope" = user ]; then
+  case "$path" in clover/profiles/?*|hakchi/games/?*|ccs/data/?*) ;; *) r "$step" "refused not a user file";; esac
+fi
+if [ "$scope" = compose ]; then
+  case "$path" in clover/profiles/?*|hakchi/games/?*|ccs/?*) ;; *) r "$step" "refused not something Console Composer moves";; esac
+fi
+
+# the data storage, read-only for stat, read-write for put/del; always unmounted again
+mounted=no
+mountdata(){ mountpoint -q "$M" && { r "$step" "refused the data storage is already mounted"; }
+  mkdir -p "$M"; mount -o "$1,noatime" "$DEV/nandc" "$M" && mounted=yes || r "$step" "failed mount"; }
+done_(){ [ "$mounted" = yes ] && { sync; umount "$M" || { echo "result $step failed unmount"; exit 17; }; }; mounted=no; }
+state(){ f="$M/$path"
+  if [ -L "$f" ]; then echo link; elif [ -d "$f" ]; then echo folder; elif [ -f "$f" ]; then sha256sum "$f" | cut -d' ' -f1; elif [ -e "$f" ]; then echo special; else echo absent; fi; }
+nolinks(){ p="$M"; IFS=/; for part in $1; do p="$p/$part"; [ -L "$p" ] && { IFS=' '; return 1; }; done; IFS=' '; return 0; }
+
+case "$step" in
+  stat)
+    mountdata ro,noload; s=$(state); n=0; [ -f "$M/$path" ] && [ ! -L "$M/$path" ] && n=$(wc -c < "$M/$path" | tr -d ' '); done_
+    r stat "ok $s $n" ;;
+  put)
+    size=$4; want=$5; old=$6
+    echo "$size" | grep -qE '^(0|[1-9][0-9]{0,9})$' && echo "$want" | grep -qE '^[0-9a-f]{64}$' && echo "$old" | grep -qE '^([0-9a-f]{64}|absent)$' || r put "refused request"
+    stage="$ST/files-stage.bin"; rm -f "$stage"; head -c "$size" > "$stage"
+    got=$(sha256sum "$stage" | cut -d' ' -f1); n=$(wc -c < "$stage" | tr -d ' ')
+    [ "$n" = "$size" ] && [ "$got" = "$want" ] || { rm -f "$stage"; r put "refused received-mismatch $got $n"; }
+    mountdata rw
+    nolinks "$path" || { done_; rm -f "$stage"; r put "refused a link on the way"; }
+    now=$(state); [ "$now" = "$old" ] || { done_; rm -f "$stage"; r put "refused the file changed since the review ($now)"; }
+    dir=$(dirname "$M/$path"); mkdir -p "$dir" || { done_; r put "failed folder"; }
+    nolinks "$path" || { done_; rm -f "$stage"; r put "refused a link on the way"; }
+    echo "began put"
+    cp "$stage" "$M/$path.ccs-new" && sync && mv -f "$M/$path.ccs-new" "$M/$path" && sync || { rm -f "$M/$path.ccs-new"; done_; rm -f "$stage"; r put "failed write (not written again)"; }
+    rm -f "$stage"; back=$(state); done_
+    [ "$back" = "$want" ] || r put "failed readback $back"
+    r put "ok $want" ;;
+  del)
+    old=$4; echo "$old" | grep -qE '^[0-9a-f]{64}$' || r del "refused request"
+    mountdata rw
+    nolinks "$path" || { done_; r del "refused a link on the way"; }
+    now=$(state); [ "$now" = "$old" ] || { done_; r del "refused the file changed since the review ($now)"; }
+    echo "began del"
+    rm -f "$M/$path" && sync || { done_; r del "failed remove"; }
+    back=$(state); done_
+    [ "$back" = absent ] || r del "failed readback $back"
+    r del "ok absent" ;;
+esac

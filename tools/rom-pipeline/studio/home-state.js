@@ -59,6 +59,29 @@ function homeGridMove(index, n, cols, dir){ if(!n) return 0; const r=Math.floor(
  if(dir==='left') return c>0?index-1:index; if(dir==='right') return c<cols-1&&index+1<n?index+1:index;
  if(dir==='up') return r>0?index-cols:index; if(dir==='down'){ if(r>=rows-1) return index; const t=index+cols; return t<n?t:n-1; }   // short last row: nearest column, clamped
  return index; }
+// Browse: folders and games fill rows of `cols`; the automatic categories start a new row under their header (hmBrowse, home.c TILE_Y).
+// A move follows those displayed rows (Left/Right within a row; Up/Down to the row above/below, nearest column), never the plain list order.
+function homeBrowseMove(index, nfg, m, cols, dir){ if(!m) return 0; const start=b=>b?nfg:0, len=b=>b?m-nfg:nfg, rowsOf=b=>Math.ceil(len(b)/cols);
+ const b=index<nfg?0:1, off=index-start(b), r=Math.floor(off/cols), c=off%cols;
+ if(dir==='left') return c>0?index-1:index; if(dir==='right') return c<cols-1&&off+1<len(b)?index+1:index;
+ let tb=b, tr=r+(dir==='down'?1:-1);
+ if(tr<0){ if(b===1&&nfg>0){ tb=0; tr=rowsOf(0)-1; } else return index; }
+ else if(tr>=rowsOf(b)){ if(b===0&&m>nfg){ tb=1; tr=0; } else return index; }
+ const rowLen=Math.min(cols, len(tb)-tr*cols); return start(tb)+tr*cols+Math.min(c, rowLen-1); }
+// Arcade Grid (theme_arcade.c grid_move): a page shows cells.length games in the cover cells in reading order; a move goes to the cell
+// visually in that direction; Up/Down past the first or last row turn the page; Up from the first row of the first page enters the tabs
+function homeArcadeRows(cells){ const ys=cells.map(c=>c[1]).slice().sort((a,b)=>a-b), tops=[]; ys.forEach(y=>{ if(!tops.length||y-tops[tops.length-1]>20) tops.push(y); });
+ return cells.map(c=>{ let r=0; tops.forEach((t,i)=>{ if(c[1]>=t-20) r=i; }); return r; }); }
+function homeArcadeMove(index, n, cells, dir){ const S=cells.length; if(!n||!S) return {index:0, tabs:dir==='up'};
+ const row=homeArcadeRows(cells), rows=Math.max(...row)+1, cx=k=>(cells[k][0]+cells[k][2])/2, avail=p=>Math.max(0, Math.min(S, n-p*S)), pages=Math.ceil(n/S);
+ const page=Math.floor(index/S), slot=index%S, r=row[slot], x=cx(slot);
+ if(dir==='left'||dir==='right'){ let best=-1, bd=0; for(let k=0;k<avail(page);k++){ if(row[k]!==r||k===slot) continue; const d=cx(k)-x; if((dir==='right'&&d<=0)||(dir==='left'&&d>=0)) continue; const ad=Math.abs(d); if(best<0||ad<bd){ best=k; bd=ad; } }
+  return {index:best<0?index:page*S+best, tabs:false}; }
+ let tr=r+(dir==='down'?1:-1), tp=page; if(tr<0){ if(page===0) return {index, tabs:true}; tp=page-1; tr=rows-1; } else if(tr>=rows){ if(page+1>=pages) return {index, tabs:false}; tp=page+1; tr=0; }
+ let best=-1, bd=0; for(let k=0;k<avail(tp);k++){ if(row[k]!==tr) continue; const ad=Math.abs(cx(k)-x); if(best<0||ad<bd){ best=k; bd=ad; } }
+ return {index:best<0?index:tp*S+best, tabs:false}; }
+// the tab/sidebar entry of the section shown (entering the tabs highlights it, as on the console: home_active_nav)
+function homeNavIndexOf(S){ const t=S.section.type, id=t==='folder'||t==='category'?'browse':t==='history'?'recent':t; return Math.max(0, HOME_NAV.findIndex(x=>x.id===id)); }
 function homeLineMove(index,n,dir,before,after){ if(!n) return 0; if(dir===before) return index>0?index-1:index; if(dir===after) return index<n-1?index+1:index; return index; }
 
 // ---- held-button repeat: pure timing over the simulation clock (ms) ----
@@ -82,8 +105,11 @@ function homeDispatch(S0, model, action, env){
    if(action==='b'){ S.overlay=null; return {state:S,effects:fx}; }
    if(action==='start'){ S.overlay={type:'start',index:0,below:o,game:o.id}; return {state:S,effects:fx}; }
    if(action==='select') return {state:S,effects:fx};
-   if(action==='up'){ if(S.detailsFocus==='desc'){ if(S.descScroll>0) S.descScroll--; else S.detailsFocus='gset'; } else if(S.detailsFocus==='gset') S.detailsFocus='fav'; else if(S.detailsFocus==='fav') S.detailsFocus='play'; }
-   else if(action==='down'){ if(S.detailsFocus==='play') S.detailsFocus='fav'; else if(S.detailsFocus==='fav') S.detailsFocus='gset'; else if(S.detailsFocus==='gset'&&hasDesc) S.detailsFocus='desc'; else if(S.detailsFocus==='desc'&&S.descScroll<descMax) S.descScroll++; }
+   // the buttons sit in one row: Left/Right move along it; Down goes to the description, Up comes back to the button it left (home.c)
+   if(action==='left'){ if(S.detailsFocus==='fav') S.detailsFocus='play'; else if(S.detailsFocus==='gset') S.detailsFocus='fav'; }
+   else if(action==='right'){ if(S.detailsFocus==='play') S.detailsFocus='fav'; else if(S.detailsFocus==='fav') S.detailsFocus='gset'; }
+   else if(action==='down'){ if(S.detailsFocus==='desc'){ if(S.descScroll<descMax) S.descScroll++; } else if(hasDesc){ S.detailsButton=S.detailsFocus; S.detailsFocus='desc'; } }
+   else if(action==='up'){ if(S.detailsFocus==='desc'){ if(S.descScroll>0) S.descScroll--; else S.detailsFocus=S.detailsButton||'play'; } }
    else if(action==='a'){ if(S.detailsFocus==='play'){ S.overlay=null; launch(o.id); } else if(S.detailsFocus==='fav'){ const on=!homeIsFavorite(model,o.id); fx.push({type:'favorite',id:o.id,on}); fx.push({type:'persist'}); say(on?'Added to Favorites':'Removed from Favorites'); } else if(S.detailsFocus==='gset') fx.push({type:'game_settings',id:o.id}); }
    return {state:S,effects:fx}; }
   if(o.type==='start'){ const items=HOME_START_MENU.filter(it=>it.id!=='sort'||homeSortable(S.section)); const n=items.length;
@@ -96,10 +122,10 @@ function homeDispatch(S0, model, action, env){
      else if(o.below&&o.below.type==='details'&&o.below.id===gid) S.overlay=o.below; else { S.overlay=null; openDetails(gid); } }
     else if(it.id==='return') S.overlay=o.below||null; else if(it.id==='theme') S.overlay={type:'theme',index:HOME_THEMES.indexOf(S.theme),below:o.below||null}; else if(it.id==='sort'){ const cur=homeSortFor(model,homeLocKey(S.section)); S.overlay={type:'sort',index:Math.max(0,HOME_SORTS.findIndex(s=>s.id===cur))}; } else { S.overlay=null; dest(it.id); } }
    return {state:S,effects:fx}; }
-  if(o.type==='theme'){ if(action==='b'||action==='start'){ S.overlay=o.below||null; return {state:S,effects:fx}; } if(action==='left'||action==='up') o.index=Math.max(0,o.index-1); else if(action==='right'||action==='down') o.index=Math.min(HOME_THEMES.length-1,o.index+1); else if(action==='a'){ S.theme=HOME_THEMES[o.index]; S.overlay=null; fx.push({type:'theme',id:S.theme}); fx.push({type:'persist'}); say('Theme: '+S.theme); } return {state:S,effects:fx}; }
+  if(o.type==='theme'){ if(action==='b'||action==='start'){ S.overlay=o.below||null; return {state:S,effects:fx}; } if(action==='left') o.index=Math.max(0,o.index-1); else if(action==='right') o.index=Math.min(HOME_THEMES.length-1,o.index+1);   /* one row of themes: Left/Right */ else if(action==='a'){ S.theme=HOME_THEMES[o.index]; S.overlay=null; fx.push({type:'theme',id:S.theme}); fx.push({type:'persist'}); say('Theme: '+S.theme); } return {state:S,effects:fx}; }
   if(o.type==='sort'){ if(action==='b'||action==='start'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='up') o.index=Math.max(0,o.index-1); else if(action==='down') o.index=Math.min(HOME_SORTS.length-1,o.index+1); else if(action==='a'){ const cur=currentGame(); fx.push({type:'sort',location:homeLocKey(S.section),sort:HOME_SORTS[o.index].id}); S.overlay=null; S.pendingFocus=cur; fx.push({type:'persist'}); } return {state:S,effects:fx}; }
   if(o.type==='mapdest'){ const items=HOME_NAV; if(action==='b'||action==='select'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='start'){ S.overlay={type:'start',index:0,below:null,game:currentGame()}; return {state:S,effects:fx}; } if(action==='up') o.index=Math.max(0,o.index-1); else if(action==='down') o.index=Math.min(items.length-1,o.index+1); else if(action==='a'){ S.overlay=null; dest(items[o.index].id); } return {state:S,effects:fx}; }
-  if(o.type==='confirm'){ if(action==='b'||action==='start'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='left'||action==='right'||action==='up'||action==='down') o.index=o.index?0:1; else if(action==='a'){ if(o.index===1&&o.what==='clear-history'){ fx.push({type:'clear-history'}); fx.push({type:'persist'}); say('Play history cleared on this console and, when connected, on Windows.'); } S.overlay=null; } return {state:S,effects:fx}; }
+  if(o.type==='confirm'){ if(action==='b'||action==='start'){ S.overlay=null; return {state:S,effects:fx}; } if(action==='left') o.index=0; else if(action==='right') o.index=1;   /* the two answers sit side by side */ else if(action==='a'){ if(o.index===1&&o.what==='clear-history'){ fx.push({type:'clear-history'}); fx.push({type:'persist'}); say('Play history cleared on this console and, when connected, on Windows.'); } S.overlay=null; } return {state:S,effects:fx}; }
  }
  // ---- START anywhere opens the main menu overlay ----
  if(action==='start'){ S.overlay={type:'start',index:0,below:null,game:currentGame()}; return {state:S,effects:fx}; }
@@ -121,7 +147,7 @@ function homeDispatch(S0, model, action, env){
  // ---- Browse (folders first, then categories) ----
  if(sec.type==='browse'){ const B=homeBrowseItems(model,S); const items=B.items; const m=items.length; const cols=geo.browseCols||4;
   if(S.browseIndex>=m) S.browseIndex=Math.max(0,m-1);
-  if(['up','down','left','right'].includes(action)){ const before=S.browseIndex; S.browseIndex=homeGridMove(S.browseIndex,m,cols,action); if(action==='up'&&S.browseIndex===before&&Math.floor(before/cols)===0) S.zone=!!geo.map?'map':'nav'; return {state:S,effects:fx}; }
+  if(['up','down','left','right'].includes(action)){ const before=S.browseIndex; S.browseIndex=homeBrowseMove(S.browseIndex,B.folders.length+B.games.length,m,cols,action); if(action==='up'&&S.browseIndex===before&&!geo.map){ S.zone='nav'; S.navIndex=homeNavIndexOf(S); } return {state:S,effects:fx}; }   // the map's signs are under the panel: an edge there
   if(action==='a'){ const it=items[S.browseIndex]; if(!it) return {state:S,effects:fx}; if(it.type==='game'){ launch(it.id); return {state:S,effects:fx}; } if(it.type==='folder'){ const kids=homeChildFolders(model,it.id); S.memo['browse-parent:'+it.id]={index:S.browseIndex}; if(kids.length) go({type:'browse',id:it.id}); else go({type:'folder',id:it.id}); } else go({type:'category',id:it.id}); return {state:S,effects:fx}; }
   if(action==='b'){ if(sec.id){ const f=homeFolder(model,sec.id); const up=f&&f.parent?{type:'browse',id:f.parent}:{type:'browse'}; const mem=S.memo['browse-parent:'+sec.id]; go(up); if(mem) S.browseIndex=mem.index; } else { const prev=S.memo.__prevSection; go(prev&&prev.type!=='browse'?prev:{type:'allgames'}); } return {state:S,effects:fx}; }
   if(action==='select'){ const it=items[S.browseIndex]; if(it&&it.type==='game') openDetails(it.id); return {state:S,effects:fx}; }
@@ -145,7 +171,7 @@ function homeDispatch(S0, model, action, env){
    return {state:S,effects:fx}; }
   if(S.zone==='results'){ if(!rn){ S.zone='keyboard'; return {state:S,effects:fx}; } const cols=geo.resultCols||1; if(S.resultIndex>=rn) S.resultIndex=rn-1;
    if(action==='down'){ const t=homeGridMove(S.resultIndex,rn,cols,'down'); if(t===S.resultIndex){ S.zone=sugg.length?'suggest':'keyboard'; } else S.resultIndex=t; }
-   else if(action==='up'){ const t=homeGridMove(S.resultIndex,rn,cols,'up'); if(t===S.resultIndex&&geo.navAxis!=='vertical') S.zone=!!geo.map?'map':'nav'; else S.resultIndex=t; }
+   else if(action==='up'){ const t=homeGridMove(S.resultIndex,rn,cols,'up'); if(t===S.resultIndex&&geo.navAxis!=='vertical'){ if(!geo.map) S.zone='nav'; } else S.resultIndex=t; }
    else if(action==='left'||action==='right') S.resultIndex=homeGridMove(S.resultIndex,rn,cols,action);
    else if(action==='a') launch(ids[S.resultIndex]); else if(action==='select') openDetails(ids[S.resultIndex]); else if(action==='b') S.zone='keyboard';
    return {state:S,effects:fx}; }
@@ -161,7 +187,7 @@ function homeDispatch(S0, model, action, env){
   return {state:S,effects:fx}; }
  // ---- Settings ----
  if(sec.type==='settings'){ const items=homeSettingsItems(model,S); const m=items.length; if(S.settingsIndex>=m) S.settingsIndex=m-1;
-  if(action==='up'){ if(S.settingsIndex>0) S.settingsIndex--; else S.zone=!!geo.map?'map':'nav'; } else if(action==='down') S.settingsIndex=Math.min(m-1,S.settingsIndex+1);
+  if(action==='up'){ if(S.settingsIndex>0) S.settingsIndex--; else if(!geo.map) S.zone='nav'; } else if(action==='down') S.settingsIndex=Math.min(m-1,S.settingsIndex+1);
   else if(action==='left'&&geo.navAxis==='vertical') S.zone='nav';
   else if(action==='a'){ const it=items[S.settingsIndex]; if(it.id==='controllers') fx.push({type:'controllers'}); else if(it.id==='gpdefaults') fx.push({type:'gameplay_defaults'}); else if(it.id==='gamesettings') fx.push({type:'game_settings',id:S.gsTarget&&model.games.some(g=>g.id===S.gsTarget)?S.gsTarget:null}); else if(it.id==='theme') S.overlay={type:'theme',index:HOME_THEMES.indexOf(S.theme),below:null}; else if(it.id==='reduced'){ fx.push({type:'setting',key:'reduced_motion',value:!model.settings.reduced_motion}); fx.push({type:'persist'}); } else if(it.id==='hints'){ fx.push({type:'setting',key:'hints',value:!model.settings.hints}); fx.push({type:'persist'}); } else if(it.id==='music'){ fx.push({type:'music'}); say('HOME Music '+(homeMusicValue()==='On'?'Off':'On')); } else if(it.id==='history') go({type:'history'}); else if(it.id==='clear') S.overlay={type:'confirm',what:'clear-history',index:0,text:'Clear Play History? This removes the launch history on this console and, when connected, in Classic Cart Studio for Windows. Favorites, games and folders are not affected. This cannot be undone.'}; }
   else if(action==='b'){ const prev=S.memo.__prevSection; go(prev&&prev.type!=='settings'?prev:{type:'allgames'}); }
@@ -169,8 +195,9 @@ function homeDispatch(S0, model, action, env){
  // ---- game listings (All Games, folder, category, Favorites, Recently Played) ----
  if(!n){ if(action==='up') S.zone=sec.type==='recent'?'viewall':!!geo.map?'map':'nav'; else if(action==='b'&&sec.type!=='allgames'){ const prev=S.memo.__prevSection; go(prev&&homeLocKey(prev)!==homeLocKey(sec)?prev:{type:'allgames'}); } else if(action==='left'&&geo.navAxis==='vertical') S.zone='nav'; return {state:S,effects:fx}; }
  if(['up','down','left','right'].includes(action)){ const before=S.index;
-  if(geo.kind==='grid'){ S.index=homeGridMove(S.index,n,geo.cols||5,action); if(action==='up'&&S.index===before&&Math.floor(before/(geo.cols||5))===0) S.zone='nav'; if(action==='left'&&S.index===before&&geo.navAxis==='vertical') S.zone='nav'; if(action==='up'&&sec.type==='recent'&&S.index===before) S.zone='viewall'; }
-  else { S.index=homeLineMove(S.index,n,action,'left','right'); if(action==='up'){ if(sec.type==='recent') S.zone='viewall'; else S.zone=!!geo.map?'map':'nav'; } if(action==='left'&&S.index===before&&geo.navAxis==='vertical') S.zone='nav'; }
+  if(geo.kind==='arcade'){ const mv=homeArcadeMove(S.index,n,geo.cells,action); if(mv.tabs){ if(sec.type==='recent') S.zone='viewall'; else { S.zone='nav'; S.navIndex=homeNavIndexOf(S); } } else S.index=mv.index; }
+  else if(geo.kind==='grid'){ S.index=homeGridMove(S.index,n,geo.cols||5,action); if(action==='up'&&S.index===before&&Math.floor(before/(geo.cols||5))===0) S.zone='nav'; if(action==='left'&&S.index===before&&geo.navAxis==='vertical') S.zone='nav'; if(action==='up'&&sec.type==='recent'&&S.index===before) S.zone='viewall'; }
+  else { S.index=homeLineMove(S.index,n,action,'left','right'); if(action==='up'){ if(sec.type==='recent') S.zone='viewall'; else { S.zone=!!geo.map?'map':'nav'; S.navIndex=homeNavIndexOf(S); } } if(action==='left'&&S.index===before&&geo.navAxis==='vertical') S.zone='nav'; }
   if(S.index!==before) fx.push({type:'persist'}); return {state:S,effects:fx}; }
  if(action==='a') launch(ids[S.index]);
  else if(action==='select') openDetails(ids[S.index]);
@@ -200,7 +227,7 @@ function homeFooterItems(S,model,env){ const it=(typeof hmLegendItems==='functio
 function homeStep(S, model, action, env){
  if(S.footer!=null&&!(S.overlay&&S.overlay.type!=='details')){ const items=homeFooterItems(S,model,env), T=JSON.parse(JSON.stringify(S)); let f=Math.min(T.footer,Math.max(0,items.length-1));
   if(action==='left'){ T.footer=Math.max(0,f-1); return {state:T,effects:[]}; } if(action==='right'){ T.footer=Math.min(items.length-1,f+1); return {state:T,effects:[]}; }
-  if(action==='up'||action==='b'||action==='down'){ T.footer=null; return {state:T,effects:[]}; }
+  if(action==='up'||action==='b'){ T.footer=null; return {state:T,effects:[]}; } if(action==='down') return {state:T,effects:[]};   // the lowest row: Down is an edge
   if(action==='a'&&items.length){ const it=items[f]; if(it==='music') return {state:T,effects:[{type:'music'}]}; T.footer=null; return homeStep(T,model,it,env); }   // exactly that hint's action, once
   T.footer=null; S=T; }   // START and SELECT: their own actions
  const r=homeDispatch(S,model,action,env);

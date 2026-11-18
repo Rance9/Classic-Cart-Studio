@@ -61,7 +61,7 @@ ALLOWED: set = set()
 #      an exact-origin, authenticated caller (the only one besides this server's own page). The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "package-jobs", "studio-backup", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides", "play-on-pc", "play-embedded"]
+CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "package-jobs", "studio-backup", "game-saves", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides", "play-on-pc", "play-embedded", "included-games"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -103,6 +103,9 @@ def handoff_validate(body: dict) -> tuple[dict | None, str]:
     man = body.get("collection")
     if not isinstance(man, dict): return None, "The collection could not be read. Reload the page and try again."
     if not isinstance(man.get("schema"), str) or not man["schema"].startswith("nes-classic-collection/"): return None, "This collection comes from an unknown or newer version of Classic Cart Studio. Update the Windows app, then try again."
+    import platform_ids
+    tgt = platform_ids.resolve_target(man, "collection", man.get("selections"), man.get("games"), man.get("personal_library"))
+    if not tgt["ok"]: return None, tgt["text"]
     games = man.get("selections") if isinstance(man.get("selections"), list) else man.get("games")   # schema 4 uses "selections"; older files "games"
     if not isinstance(games, list) or len(games) > 2000: return None, "The collection has more than 2000 games, or could not be read. Use Export Collection (.ccs) instead."
     for g in games:
@@ -117,18 +120,29 @@ def home_state_path(): return data_path("home-state.json")
 NATIVE_JOBS: dict[str, dict] = {}
 
 def console_package_stage(manifest, home, pack_dir) -> dict:
-    """the console package of this configuration (install layout), staged under <native HOME root>/console: built into a new folder, checked,
-    then put in place of the previous one (which is removed only after that). Nothing is sent anywhere"""
+    """the console package of this configuration, staged under <native HOME root>/console/current in both install methods' layouts (mod/:
+    CCS Mod, the app's install policy for a console that has neither; nucleus/: CCS Nucleus, for a console the CCS Console Workbench prepared
+    with it; the same files but session.json, whose leave item says where leaving CCS HOME goes). The installation's check reads which method
+    the console uses and takes that layout's plan. Built into a new folder, checked, then put in place of the previous one as a whole (which
+    is removed only after that). Nothing is sent anywhere"""
     from native_home import package as nhp, console_package as cpk; import shutil
-    root = os.path.join(nhp.package_root(), "console"); os.makedirs(root, exist_ok=True); stage = os.path.join(root, "staging-" + secrets.token_hex(4))
-    r = cpk.build_console(manifest, home, stage, layout="install", pack_dir=pack_dir, label=str(manifest.get("name") or "HOME")[:80])
-    if not r.get("ok"): return {"ok": False, "error": r.get("error")}
-    v = cpk.verify(stage)
-    if not v["ok"]: shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": "the console package did not check out: " + "; ".join(v["problems"][:3])}
+    root = os.path.join(nhp.package_root(), "console"); os.makedirs(root, exist_ok=True); stage = os.path.join(root, "staging-" + secrets.token_hex(4)); os.makedirs(stage)
+    r = cpk.build_console(manifest, home, os.path.join(stage, "mod"), layout="mod", pack_dir=pack_dir, label=str(manifest.get("name") or "HOME")[:80])
+    if not r.get("ok"): shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": r.get("error")}
+    un = (r.get("manifest") or {}).get("unavailable") or []
+    if un:   # the whole collection or nothing: a console package never leaves out a game whose ROM file is not usable here
+        shutil.rmtree(stage, ignore_errors=True); import play as _pl
+        return {"ok": False, "code": "incomplete", "error": _pl._incomplete_text(un), "unavailable": un[:50]}
+    n = cpk.derive_layout(os.path.join(stage, "mod"), os.path.join(stage, "nucleus"), "nucleus")
+    if not n.get("ok"): shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": n.get("error")}
+    for lay in ("mod", "nucleus"):
+        v = cpk.verify(os.path.join(stage, lay), notices=True)
+        if not v["ok"]: shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": "the console package did not check out: " + "; ".join(v["problems"][:3])}
     cur = os.path.join(root, "current"); old = os.path.join(root, "previous-" + secrets.token_hex(4))
     if os.path.isdir(cur): os.replace(cur, old)
     os.replace(stage, cur); shutil.rmtree(old, ignore_errors=True)
-    m = r["manifest"]; return {"ok": True, "games": m["games"], "playable": m["playable"], "unavailable": m["unavailable"][:50], "startup": m["startup"], "sizes": m["sizes"], "total_bytes": m["total_bytes"], "files": len(m["files"])}
+    m = r["manifest"]; return {"ok": True, "games": m["games"], "playable": m["playable"], "unavailable": m["unavailable"][:50], "startup": m["startup"], "sizes": m["sizes"], "total_bytes": m["total_bytes"], "files": len(m["files"]),
+                               "layouts": ["mod", "nucleus"]}
 
 def native_package_start(manifest, home) -> dict:
     """starts building the console's native HOME package from the user's collection and HOME configuration (staged on this PC
@@ -200,7 +214,7 @@ def save_manifest(man: dict) -> str:
 
 # ---- Classic Cart Studio's HOME on the console (K3; docs/console-install-architecture.md sections 13 and 14) ----
 HOME_OPS = [   # the distinct operations, in the order the app shows them; availability is read from the gate in code, never from the page
-    {"id": "prepare", "label": "Prepare the console package", "tier": None, "text": "Builds the HOME menu, the game player and the exact ROM files of this collection on this computer."},
+    {"id": "prepare", "label": "Prepare the console package", "tier": None, "text": "Builds the HOME menu, the game player and the exact game files of this collection on this computer."},
     {"id": "rehearse", "label": "Rehearse on a simulated console", "tier": "simulate", "text": "Runs every step against a disposable stand-in on this computer: install, update, repair, an interruption, removal and the saves copy."},
     {"id": "inspect", "label": "Check the console", "tier": "inspect", "text": "Reads your NES Classic over USB: its software, the room left and what is installed. Not available in this version."},
     {"id": "ram-test", "label": "RAM-only test session", "tier": "ram", "text": "A test that runs from the console's memory only. It needs its own authorization for that exact session and runs from its own helper, not from this app."},
@@ -210,7 +224,8 @@ HOME_OPS = [   # the distinct operations, in the order the app shows them; avail
     {"id": "export", "label": "Copy the console's saves", "tier": "inspect", "text": "Copies the console's saves, slots and settings to this computer and checks every file. Not available in this version."},
 ]
 HOME_PROFILES_UI = [{"name": "hakchi-ready", "label": "NES Classic with hakchi, room to spare"}, {"name": "nearly-full", "label": "NES Classic with hakchi, nearly full"},
-                    {"name": "other-module", "label": "NES Classic with another start-up module"}, {"name": "stock", "label": "NES Classic without hakchi (first-time setup needed)"}]
+                    {"name": "mod-module", "label": "NES Classic with CCS Mod already installed"}, {"name": "other-module", "label": "NES Classic with CCS Nucleus already installed"},
+                    {"name": "both-methods", "label": "NES Classic with both CCS Mod and CCS Nucleus (a change that did not finish)"}, {"name": "stock", "label": "NES Classic without hakchi (first-time setup needed)"}]
 HOME_SCENARIOS_UI = {"first-install": "First installation", "update": "Update from an earlier HOME", "repeat": "The same HOME again", "repair": "Repair a changed file", "interrupted": "Connection lost during the installation"}
 def _transport_worker() -> dict:
     """the console transport worker shipped beside the app (tools/console-worker): identified, never started for a connection here"""
@@ -230,14 +245,18 @@ def console_home_status() -> dict:
     from native_home import package as nhp
     from console_engine import gate as cg
     from console_engine.worker import read_home_records
+    from console_engine import ccs_install as CI
     import console_home
-    man = None; staged = None; f = os.path.join(nhp.package_root(), "console", "current", "MANIFEST.json")
-    try:
-        with open(f, "rb") as fh: mb = fh.read()
-        m = json.loads(mb); staged = hashlib.sha256(mb).hexdigest()
-        man = {"label": m.get("label"), "games": m.get("games"), "playable": m.get("playable"), "total_bytes": m.get("total_bytes"), "startup": m.get("startup"),
-               "layout": m.get("layout"), "version": staged[:16], "unavailable": (m.get("unavailable") or [])[:50]}
-    except (OSError, ValueError): pass
+    man = None; staged = {}   # each staged layout's MANIFEST.json SHA-256; the summary is CCS Mod's (the default), the other layouts by version
+    for lay, d in CI.staged_packages(os.path.join(nhp.package_root(), "console", "current")).items():
+        try:
+            with open(os.path.join(d, "MANIFEST.json"), "rb") as fh: mb = fh.read()
+            m = json.loads(mb); staged[lay] = hashlib.sha256(mb).hexdigest()
+            if man is None or lay == CI.DEFAULT_METHOD:
+                man = {"label": m.get("label"), "games": m.get("games"), "playable": m.get("playable"), "total_bytes": m.get("total_bytes"), "startup": m.get("startup"),
+                       "layout": m.get("layout"), "version": staged[lay][:16], "unavailable": (m.get("unavailable") or [])[:50]}
+        except (OSError, ValueError): pass
+    if man: man["layouts"] = {lay: sha[:16] for lay, sha in sorted(staged.items())}
     recs = read_home_records(os.path.join(cr.ROOT, "records"), staged)
     allowed = console_home.DISPATCH.allowed   # the dispatcher's gate: the code constants in the app (a test's own dispatcher answers for itself)
     st = cg.state(); ops = [dict(o, available=(o["tier"] is None or o["tier"] == "simulate" or (o["tier"] in ("inspect", "install") and allowed(o["tier"])))) for o in HOME_OPS]
@@ -470,6 +489,10 @@ class H(http.server.BaseHTTPRequestHandler):
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_post(self, path, body)   # N3: TV Preview (desktop principal)
         if path.startswith("/api/play/"): import play as pl; return pl.handle_post(self, path, body)   # M3: Play on PC (desktop principal)
         if path.startswith("/api/metrics/"): import metrics_relay as mr; return mr.handle(self, "POST", path, body, data_path, VERSION)   # optional usage counts: desktop principal
+        if path.startswith("/api/update/"):   # the update check and the in-place update (app_update.py): desktop principal only
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
+            import app_update as au; return au.handle(self, path, body, data_path, VERSION)
         if path in ("/api/handoff/take", "/api/handoff/discard", "/api/desktop/state", "/api/shutdown") or path.startswith("/api/console/") or path.startswith("/api/home/"):
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
@@ -560,8 +583,8 @@ class H(http.server.BaseHTTPRequestHandler):
             try:
                 if path == "/api/import/pick":
                     mode = str(body.get("mode") or "files")
-                    if mode == "folder": f = ps.pick_folder("Add games from a folder (ROM files and ZIP archives inside it)"); items = [f] if f else []
-                    else: items = ps.pick_files("Add games from files (ROM files or ZIP archives)", [("NES ROMs and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")])
+                    if mode == "folder": f = ps.pick_folder("Add games from a folder (game files and ZIP archives inside it)"); items = [f] if f else []
+                    else: items = ps.pick_files("Add games from files (game files or ZIP archives)", [("NES game files and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")])
                     if not items: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, "job": ps.start_import(items), "items": len(items)})
                 if path == "/api/import/start":
@@ -572,7 +595,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 if path == "/api/library/locate":
                     vid = re.sub(r"[^0-9a-f]", "", str(body.get("version_id") or ""))[:16]
                     if not ps.version_known(vid): return self._json(409, {"ok": False, "error": "This game version is not in the Game Library."})
-                    f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else (ps.pick_files("Locate the game file for this version", [("NES ROMs and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")]) or [""])[0]
+                    f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else (ps.pick_files("Locate the game file for this version", [("NES game files and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")]) or [""])[0]
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.locate_version(vid, f)})
             except ValueError as e: return self._json(409, {"ok": False, "error": str(e)})
@@ -592,15 +615,37 @@ class H(http.server.BaseHTTPRequestHandler):
             try:
                 root = os.path.dirname(CFG["hakchi_exe"]); eid = str(body.get("id") or "")
                 if path == "/api/personal/pick":
-                    f = ps.pick_file("Add Your Own Game — choose a ROM file or ZIP", [("NES ROMs and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
+                    f = ps.pick_file("Add Your Own Game — choose a game file or ZIP", [("NES game files and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.ingest(f)})
+                if path == "/api/personal/included":   # the Included Games shipped in this app's site (included/index.json): each file checked against its record, then kept like a person's own game
+                    # with the record's details (title, version, its text: description, author, year, license and source, year, author as
+                    # publisher) merged under the personal store's merge policy: a field the person edited or deliberately cleared is never
+                    # changed, and adding them again changes nothing the person wrote (Codex v1p F4)
+                    idx = json.load(open(os.path.join(ROOT, "included", "index.json"), encoding="utf-8")); out = []
+                    if idx.get("schema") not in ("ccs-included/1", "ccs-included/2"): return self._json(500, {"ok": False, "error": "this installation's Included Games list is not readable"})
+                    want = body.get("keys"); want = {str(k) for k in want} if isinstance(want, list) else None   # some of them (Play / Add to Collection), or all
+                    for g in idx.get("games") or []:
+                        if want is not None and g.get("key") not in want: continue
+                        if g.get("hosted") is False or (g.get("grant") or {}).get("windows_installer") is False: continue   # only builds whose grant covers this app
+                        fn = os.path.basename(str(g.get("file_name") or "")); fp = os.path.join(ROOT, "included", fn)
+                        if not fn.lower().endswith(".nes") or not os.path.isfile(fp): return self._json(500, {"ok": False, "error": f"the included game {fn or '?'} is missing from this installation"})
+                        with open(fp, "rb") as f: h = hashlib.sha256(f.read()).hexdigest()
+                        if h != g.get("file_sha256") or os.path.getsize(fp) != g.get("size"): return self._json(500, {"ok": False, "error": f"the included game {fn} does not match its record"})
+                        r = ps.ingest(fp, origin="included")
+                        if r.get("entry"):
+                            meta = {"title": g.get("title"), "version_label": g.get("version"), "description": g.get("text"), "year": g.get("year"), "publisher": g.get("creator")}
+                            m = ps.merge_metadata(r["entry"]["id"], meta); r = dict(r, entry=m["entry"], details_added=m["changed"])
+                        out.append(r)
+                    return self._json(200, {"ok": True, "games": out})
                 if path == "/api/personal/ingest-path":
                     if not CFG.get("rehearsal_tree"): return self._json(403, {"ok": False, "error": "path ingestion is available only in rehearsal configurations"})
                     return self._json(200, {"ok": True, **ps.ingest(str(body.get("path") or ""), origin=str(body.get("origin") or "file"), local_code=str(body.get("local_code") or ""), local_name=str(body.get("local_name") or ""))})
                 if path == "/api/personal/relink":
-                    f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Locate the game file", [("NES ROMs and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
+                    f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Locate the game file", [("NES game files and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
                     if not f: return self._json(200, {"ok": False, "canceled": True})
+                    want = str(body.get("content_sha256") or "")   # a game a collection names by its content, with no record here yet (Codex v1p4 F2)
+                    if want and eid not in (ps.load_index().get("entries") or {}): return self._json(200, {"ok": True, **ps.locate_exact(eid, f, want)})
                     return self._json(200, {"ok": True, **ps.relink(eid, f)})
                 if path == "/api/personal/update": return self._json(200, {"ok": True, **ps.update_user(eid, body.get("user") or {})})
                 if path == "/api/personal/merge":   # a collection's kept details (and artwork) for a game whose ROM file is now here (merge policy in personal.py)

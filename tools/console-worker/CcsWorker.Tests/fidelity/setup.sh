@@ -4,8 +4,8 @@
 # hakchi's BusyBox 1.29 and rsync), all ARM binaries under qemu-arm. Nothing here touches a device. Prints the folder.
 set -e
 QEMU="$HOME/.cache/ccs-sim/toolchain/deb/usr/bin/qemu-arm"
-ROOTFS=/mnt/c/NES/work/h0/rootfs
-INITRAMFS=/mnt/c/NES/work/h0/hakchi/initramfs
+ROOTFS="${CCS_H0_ROOTFS:?set CCS_H0_ROOTFS to the extracted console root file system}"
+INITRAMFS="${CCS_H0_INITRAMFS:?set CCS_H0_INITRAMFS to the extracted hakchi initramfs}"
 HK=$INITRAMFS/hakchi/rootfs/etc/preinit.d
 [ -x "$QEMU" ] && [ -f "$ROOTFS/bin/busybox" ] && [ -f "$INITRAMFS/bin/busybox" ] && [ -f "$HK/b0030_package" ] || { echo "unavailable" >&2; exit 3; }
 SYS=/tmp/ccs-hksys

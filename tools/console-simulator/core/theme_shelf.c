@@ -27,6 +27,9 @@ static int sh_init(home *h, char *err, size_t errlen) {
     const jval *rows = json_get(info, "rows"); for (int i = 0; i < 3; i++) if (jbox_at(rows, (size_t)i, &a->rows[i])) { snprintf(err, errlen, "featured-shelf rows missing"); return -1; }
     const jval *cells = json_get(sf, "cells"); for (size_t i = 0; cells && i < cells->n && a->ncells < 12; i++) if (!jbox_at(cells, i, &a->cells[a->ncells])) a->ncells++;
     if (a->ncells < 1) { snprintf(err, errlen, "featured-shelf cells missing"); return -1; }
+    /* a design's control regions: the shelf (its focus frame and arrows follow its cells); the label and title; the facts and text; the hints */
+    for (int i = 0; i < a->ncells; i++) region_move(h, UI_GAMES, &a->cells[i]);
+    region_move(h, UI_TITLE, &a->label); region_move(h, UI_TITLE, &a->title); for (int i = 0; i < 3; i++) region_move(h, UI_DETAILS, &a->rows[i]); region_move(h, UI_DETAILS, &a->text); region_move(h, UI_HINTS, &a->legend);
     if (fb_init(&a->frame, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
 }
@@ -102,6 +105,7 @@ static void draw_hero(home *h, framebuffer *fb, int gi) {
         if (text_w(&h->f[TAGF[k]], t, strlen(t), 0) <= lw) { snprintf(tag, sizeof tag, "%s", t); tf = TAGF[k]; break; } }
     if (!tag[0] && np) snprintf(tag, sizeof tag, "%s", parts[0]);
     if (tag[0]) { const font *ft = &h->f[tf]; int w = text_w(ft, tag, strlen(tag), 1); double x = right ? X0 + lw - w : X0; int base = baseline_normal(ft, tag_y);
+        gfx_fill(fb, clip, iround(x) - 4, base - ft->ascent - 2, w + 8, ft->ascent + ft->descent + 4, RGBA(0, 140));   /* a small dark plate: legible over a bright sky (home.css .tag) */
         text_draw(fb, NULL, clip, ft, x + 1, base + 1, tag, strlen(tag), RGBA(0, 255), 1, 0); text_draw(fb, NULL, clip, ft, x, base, tag, strlen(tag), RGBA(0xC8C4BC, 255), 1, 0); }
     LR(h, "hero", B.x0, B.y0, B.x1, B.y1); LT(h, HT_GAME, gi, B.x0, B.y0, B.x1, B.y1);
 }
@@ -141,9 +145,9 @@ static void sh_draw(home *h, framebuffer *fb) {
     if (al) gfx_image(fb, FULL, &al->im, al->box.x0, al->box.y0, start == 0 ? 89 : 255); if (ar) gfx_image(fb, FULL, &ar->im, ar->box.x0, ar->box.y0, start + a->ncells >= (int)h->n ? 89 : 255);
     if (al) LT(h, HT_PREV, 0, al->box.x0, al->box.y0, al->box.x1, al->box.y1); if (ar) LT(h, HT_NEXT, 0, ar->box.x0, ar->box.y0, ar->box.x1, ar->box.y1);
     for (int k = 0; k < a->ncells; k++) {   /* the shelf: whole covers, the selected one in the authored focus frame */
-        int i = start + k; if (i >= (int)h->n) break; box4 c = a->cells[k], art; draw_cover(h, fb, i, c, i == sel, &art); LR(h, "shelf-art", art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, i, c.x0, c.y0, c.x1, c.y1);
+        int i = start + k; if (i >= (int)h->n) break; box4 c = a->cells[k], art; draw_cover(h, fb, i, c, i == sel, &art); LRI(h, "shelf-art", i, art.x0, art.y0, art.x1, art.y1); LT(h, HT_GAME, i, c.x0, c.y0, c.x1, c.y1);
         if (i == sel) { box4 f = { c.x0 - 10, c.y0 - 13, c.x1 + 10, c.y1 + 11 }; image tmp; const image *im = sprite_scaled(h, "shelf-focus", f.x1 - f.x0, f.y1 - f.y0, 0, &tmp);
-            if (im) gfx_image(fb, FULL, im, f.x0, f.y0, h->nav.zone == Z_GAMES ? 255 : 140); img_free(&tmp); LR(h, h->nav.zone == Z_GAMES ? "shelf-focus" : "shelf-selected", f.x0, f.y0, f.x1, f.y1); }
+            if (im) gfx_image(fb, FULL, im, f.x0, f.y0, h->nav.zone == Z_GAMES ? 255 : 140); img_free(&tmp); LRI(h, h->nav.zone == Z_GAMES ? "shelf-focus" : "shelf-selected", i, f.x0, f.y0, f.x1, f.y1); }
     }
 }
 static void sh_render(home *h, framebuffer *fb, uint64_t now) {

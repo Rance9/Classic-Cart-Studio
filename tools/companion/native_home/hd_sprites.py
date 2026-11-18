@@ -218,7 +218,8 @@ def boxart(name: str, w: int, h: int) -> Image.Image | None:
         for k in range(16):   # the scalloped rim
             a = 2 * math.pi * k / 16; px_, py_ = cx + r * .86 * math.cos(a), cy + r * .86 * math.sin(a); q = r * .1; d.ellipse(c.s(px_ - q, py_ - q, px_ + q, py_ + q), fill=_rgba("#e0bb85"))
         ri = r * .62; d.ellipse(c.s(cx - ri, cy - ri, cx + ri, cy + ri), fill=_rgba("#f1e7d6"), outline=_rgba("#8f6b45"), width=int(r * .06 * SS))
-        for k, yy in enumerate((-.22, 0, .22)): ww = ri * (.62 if k != 1 else .82); d.rounded_rectangle(c.s(cx - ww, cy + yy * r - r * .045, cx + ww, cy + yy * r + r * .045), radius=r * .04 * SS, fill=_rgba("#8a6a48"))
+        # CCS's own seal, a star (the three text-like lines read as another company's seal of quality)
+        d.polygon([c.s(cx + ri * (.78 if k % 2 == 0 else .33) * math.cos(-math.pi / 2 + k * math.pi / 5), cy + ri * .06 + ri * (.78 if k % 2 == 0 else .33) * math.sin(-math.pi / 2 + k * math.pi / 5))[0:2] for k in range(10)], fill=_rgba("#8a6a48"))
         c.add(im)
     else: return None
     return c.done()

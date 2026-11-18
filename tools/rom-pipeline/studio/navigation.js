@@ -1,17 +1,21 @@
-// ---- top navigation (one implementation for the website and the Windows app): My Collections (left), the collection's console
-//      actions (Tray, NES Classic Loadouts, Preview Your Lineup, Game Menu Setup, Install), the Studio menu (Home, help, backup, legal); the Game Library
-//      tools below (search, Filter & Sort, Select = Game Library actions, List/Grid, Add Your Own Game). Capability differences only hide
-//      what cannot work.
+// ---- top navigation (one implementation for the website and the Windows app): Open HOME and the collection menu (switch, new,
+//      rename, duplicate, remove, back up, restore, HOME Settings) on the left; Add ROM Files, Restore a Backup, NES Classic and the Studio
+//      menu (Home, help, backup, settings, legal) on the right; below them the collection's own tools (search, Filter & Sort, View, List/Grid)
+//      and the Game Catalog lookup. Capability differences only hide what cannot work.
 (function(){
  const on=(id,fn)=>{ const b=$(id); if(b) b.onclick=fn; };
  const closeMenus=()=>document.querySelectorAll('.menu').forEach(x=>x.hidden=true);
  on('homeBtn',()=>{ closeMenus(); if(typeof openFolders==='function') openFolders(); });
- on('ownBtn',()=>{ closeMenus(); addOwnGame(); });
+ on('catBtn',()=>{ closeMenus(); cvCatalog(CV_MODE!=='catalog'); });
+ on('addBtn',()=>{ closeMenus(); cvAddFiles(); }); on('restoreBtn',()=>{ closeMenus(); cvRestore(); });
+ on('hvPref',e=>{ e.stopPropagation(); closeMenus(); hvSetPref(!HV.on); toast(HV.on?'Hover Cover Previews are on: hold the pointer still on a cover to enlarge it.':'Hover Cover Previews are off. A game\'s details still show its full box art.'); });
+ (()=>{ const b=$('hvPref'); if(b) b.setAttribute('aria-checked', String(HV.on)); })();
  // the legacy hidden controls other parts still click
  on('export',()=>csExport()); on('importBtn',()=>csImportPick());
  // Favorites from the Select menu: a view of the library (the Selection filter "Favorites only"); it never changes what is selected
  function favActive(){ const f=$('fSel'); return !!f&&f.value==='fav'; }
  function favLabel(){ const b=$('favView'); if(!b) return; const n=fav.size; miLabel(b, favActive()?'Show All Games':`Show Favorites${n?` (${n})`:''}`); b.setAttribute('aria-pressed',String(favActive())); }
+ window.favLabelRefresh=favLabel;   // a star changed (favSet): the count in the label follows at once
  window.showFavorites=function(onOff){ const f=$('fSel'); if(!f) return; f.value=onOff?'fav':''; try{ f.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){} render(); favLabel();
   if(onOff&&!fav.size) toast('No favorites yet: click the ★ on any game to add it'); };
  on('favView',e=>{ e.stopPropagation(); closeMenus(); window.showFavorites(!favActive()); });
@@ -47,14 +51,11 @@
    mm.querySelectorAll('[data-proxy]').forEach(b=>{ const t=$(b.dataset.proxy); if(!t) return; const tb=t.querySelector('.mtx b'); if(tb) miLabel(b, tb.textContent); if(t.hasAttribute('aria-label')) b.setAttribute('aria-label', t.getAttribute('aria-label')); if(t.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', t.getAttribute('aria-pressed')); b.disabled=t.disabled; }); });
   wireMenu('moreBtn','moreMenu');
   mm.addEventListener('click',e=>{ const b=e.target.closest('.mi'); if(!b) return; mm.hidden=true; if(b.dataset.view){ (view==='grid'?$('vList'):$('vGrid')).click(); return; } const t=$(b.dataset.proxy); if(t) t.click(); }); }
- // the phone action bar: Home first, then the top bar's actions (collection view: Collections, Back Up, Studio; lineup editor: Collections,
- // Console Menu (Setup), Install, Studio). Home is the title link's action: an open loadout is saved and closed, the library at the top
+ // the phone action bar: Home first (the title link's action: the open collection at the top), then Collections, Add, HOME, Studio
  on('mbGoHome',()=>{ closeMenus(); goHome(); }); on('mGoHome',()=>{ closeMenus(); goHome(); });
  on('mbColl',e=>{ e.stopPropagation(); const m=$('collMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('collBtn').click(); });
- on('mTray',()=>{ closeMenus(); $('trayBtn').click(); });
- on('mbShare',()=>{ closeMenus(); if(typeof ccsBackupDialog==='function') ccsBackupDialog(); });
- on('mbHome',()=>{ closeMenus(); $('homeBtn').click(); });
- on('mbInstall',()=>{ closeMenus(); $('hkBtn').click(); });
+ on('mbAdd',()=>{ closeMenus(); cvAddFiles(); });
+ on('mbHome',()=>{ closeMenus(); $('tvBtn').click(); });
  on('mbMenu',e=>{ e.stopPropagation(); const m=$('appMenu'); const open=!!m&&!m.hidden; closeMenus(); if(!open) $('appBtn').click(); });
  const _render=render; render=function(){ const r=_render.apply(this,arguments); try{ const c=$('trayBadge').textContent; ['mbTrayN','mTrayN'].forEach(id=>{ const n=$(id); if(n) n.textContent=c; }); }catch(e){} return r; };
  // technical columns in the list (built-in status, ROM identity, emulator, size): off unless asked for in Filter & Sort
@@ -146,7 +147,7 @@ updateStatusLine(); csMenuRefresh();
 //      save-name dialog): one keyboard model for all of them. Only the TOP open surface takes part. Focus enters it; Tab and Shift+Tab stay
 //      inside it (native ⋯ summaries and links included); Escape closes only it; closing returns focus to what opened it (a menu row
 //      counts as its menu's button; a control that was redrawn is found again, a removed one is not used). Surfaces that manage their own
-//      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, Preview Your Lineup, the artwork editor) are left
+//      keyboard (Technical Details, the ROM acknowledgment, the guide, the screenshot viewer, HOME, the artwork editor) are left
 //      to it. A dialog running an operation (PROC) keeps its lock: Escape, the backdrop and the header Close do nothing until its Cancel. ----
 // ---- the page stays still behind every blocking surface (website and Windows app, phone to desktop). One lock, derived from what is
 //      open: any open dialog or full-screen panel, the open Tray at every width (a phone sheet or a docked right pane alike), and menus
@@ -204,7 +205,7 @@ updateStatusLine(); csMenuRefresh();
  new MutationObserver(sync).observe(document.body,{subtree:true, attributes:true, attributeFilter:['class','hidden']});
  [SHEETS].forEach(m=>{ try{ m.addEventListener('change', sync); }catch(e){ m.addListener(sync); } });
  window.pageLock={sync, state:()=>({locked, css:document.documentElement.classList.contains('page-locked'), top:topEl&&(topEl.id||topEl.className)})}; sync(); })();
-// ---- the branding is Home, on every device: the Game Library at the top. A loadout being edited is saved and closed (Back to Collection);
+// ---- the branding is Home, on every device: the open collection at the top (the Game Catalog lookup closes);
 //      menus, panels and dialogs close. A running operation keeps its lock and unsaved text asks first, as their own Close does. The website
 //      goes to its root page ("./": the plain "/" in production, sub-path safe) when it is on another address (a test page keeps only its companion port); the Windows app stays in its
 //      own window and never navigates. Modified clicks on the website open "/" as a normal link. ----
@@ -221,7 +222,7 @@ updateStatusLine(); csMenuRefresh();
   try{ if($('filters').classList.contains('open')&&typeof fcancel==='function') fcancel(); }catch(e){}
   ['details','hkpanel','tray','glight'].forEach(id=>{ const x=$(id); if(x) x.classList.remove('open'); });
   if($('collm').classList.contains('open')) closeColl();
-  if(typeof LO!=='undefined'&&LO&&typeof loClose==='function') loClose();
+  if(typeof CV_MODE!=='undefined'&&CV_MODE==='catalog'&&typeof cvCatalog==='function') cvCatalog(false);
   const go=target(); if(go){ location.assign(go); return true; }
   try{ if(typeof VL!=='undefined'&&VL.hold){ VL.hold=false; clearTimeout(VL.holdT); } }catch(e){}   // a list restore still settling never pulls Home back down
   window.scrollTo({top:0, left:0, behavior:'instant'}); return true; };

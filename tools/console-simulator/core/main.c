@@ -12,16 +12,23 @@
  *            | home-layout (the rectangles the current frame draws, for overlap checks) | home-select <index> (tests only)
  *            | home-theme <id> [save] (tooling: switch the theme as the controller would; `save` also stores the choice)
  *            | home-music on|off (the TV Preview: offer HOME Music in the HOME's own Settings with this computer's choice; this process never plays sound)
+ * Designs:   design-root <dir> | design <dir> (before `home`: the console's design folder, or one compiled design)
+ *            --render-check --pack DIR --work DIR [--design DIR] [--frames DIR] [--default-frames]: the HOME Designer's render check, one
+ *            JSON report on stdout, exit 0 passed / 1 failed / 2 could not run;  --design-boot --pack DIR --design-root DIR --work DIR
+ *            [--frame FILE.ppm]: a cold start with the console's design folder (which design came up, its first frame's SHA-256)
  * Faults:    --fault=startup-fail | --fault=startup-hang | --fault=slow-start=<ms> | --fault=crash-after-inputs=<n>
  *            --fault=crash-on-launch | --fault=frame-fail      --mem-budget-kb=<n>  --repeat=<delay>,<rate>
  * Stub:      --game-stub [--exit-code=<n>] [--delay-ms=<n>] [--crash]
  * Device:    --device --pack <dir> --state-dir <dir> ... | --inspect-input | --inspect-fb   (Linux only: device.c, the H1 console adapter)
+ * Chooser:   --choose <choices file> ...: CCS Nucleus's start chooser on the console's screen, or with --script driven by commands (chooser.c)
  */
 #ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "ccs_sim.h"
 #include "home.h"
+#include "design_check.h"
+#include "chooser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,7 +77,7 @@ static void SLEEP_MS(unsigned ms) { struct timespec ts = { ms / 1000, (long)(ms 
 typedef struct {
     model m; int loaded; input_state in; lstate st; size_t cursor; uint64_t frames, inputs, launches;
     uint32_t last_crc; size_t mem_budget; int fault_crash_after_inputs, fault_crash_on_launch, fault_frame_fail; framebuffer fb;
-    home *hm; int repeat_set, cover_budget; char state_dir[900];   /* the native HOME, when a pack is loaded; --cover-budget for interactive viewers; the theme-choice folder */
+    home *hm; int repeat_set, cover_budget; char state_dir[900], design_root[900], design_dir[900];   /* the native HOME, when a pack is loaded; --cover-budget for interactive viewers; the theme-choice folder; a HOME design */
 } core;
 
 static void emit(const char *json_line) { fputs(json_line, stdout); fputc('\n', stdout); fflush(stdout); }
@@ -131,6 +138,25 @@ static void render(core *c) {
 }
 
 int device_main(int argc, char **argv); int device_inspect_input(int argc, char **argv); int device_inspect_fb(int argc, char **argv);
+static const char *opt(int argc, char **argv, const char *k) { for (int i = 1; i + 1 < argc; i++) if (!strcmp(argv[i], k)) return argv[i + 1]; return NULL; }
+static int has(int argc, char **argv, const char *k) { for (int i = 1; i < argc; i++) if (!strcmp(argv[i], k)) return 1; return 0; }
+static int render_check_main(int argc, char **argv) {   /* the HOME Designer's render check (design_check.h) */
+    const char *pack = opt(argc, argv, "--pack"), *work = opt(argc, argv, "--work");
+    if (!pack || !work) { fprintf(stderr, "--render-check needs --pack DIR --work DIR [--design DIR] [--frames DIR]\n"); return 64; }
+    ccs_home_check_request q; memset(&q, 0, sizeof q); q.size = sizeof q; q.pack_dir = pack; q.work_dir = work; q.design_dir = opt(argc, argv, "--design"); q.frames_dir = opt(argc, argv, "--frames");
+    if (q.frames_dir) q.flags |= CCS_HOME_CHECK_FRAMES;
+    if (has(argc, argv, "--default-frames")) q.flags |= CCS_HOME_CHECK_DEFAULT_FRAMES;
+    uint32_t cap = 1u << 20, len = 0; char *r = malloc(cap); if (!r) return 2; int rc = ccs_home_render_check(&q, r, cap, &len);
+    if (rc == CCS_HOME_CHECK_SMALL) { free(r); cap = len + 1; r = malloc(cap); if (!r) return 2; rc = ccs_home_render_check(&q, r, cap, &len); }
+    fputs(r, stdout); fputc('\n', stdout); fflush(stdout); free(r); return rc == CCS_HOME_CHECK_PASSED ? 0 : rc == CCS_HOME_CHECK_FAILED ? 1 : 2;
+}
+static int design_boot_main(int argc, char **argv) {
+    const char *pack = opt(argc, argv, "--pack"), *work = opt(argc, argv, "--work");
+    if (!pack || !work) { fprintf(stderr, "--design-boot needs --pack DIR --design-root DIR --work DIR [--frame FILE.ppm]\n"); return 64; }
+    char r[8192]; uint32_t len = 0; int rc = ccs_home_design_boot(pack, opt(argc, argv, "--design-root"), work, opt(argc, argv, "--frame"), r, sizeof r, &len);
+    if (rc != CCS_HOME_CHECK_PASSED && rc != CCS_HOME_CHECK_ERROR) return 2;
+    fputs(r, stdout); fputc('\n', stdout); fflush(stdout); return rc == CCS_HOME_CHECK_PASSED ? 0 : 2;
+}
 
 static int game_stub(int argc, char **argv) {
     int code = 0, delay = 50, crash = 0;
@@ -150,6 +176,9 @@ int main(int argc, char **argv) {
         if (!strcmp(argv[i], "--device")) return device_main(argc, argv);
         if (!strcmp(argv[i], "--inspect-input")) return device_inspect_input(argc, argv);
         if (!strcmp(argv[i], "--inspect-fb")) return device_inspect_fb(argc, argv);
+        if (!strcmp(argv[i], "--render-check")) return render_check_main(argc, argv);
+        if (!strcmp(argv[i], "--design-boot")) return design_boot_main(argc, argv);
+        if (!strcmp(argv[i], "--choose")) return chooser_main(argc, argv);   /* CCS Nucleus's start chooser (chooser.c) */
     }
     core c; memset(&c, 0, sizeof c); input_init(&c.in); c.st = S_BOOT;
     int startup_fail = 0, startup_hang = 0, slow_start = 0;
@@ -186,13 +215,15 @@ int main(int argc, char **argv) {
             for (size_t i = 0; i < c.m.rejected_n; i++) { char r1[256], r2[512]; jstr(c.m.rejected[i].record, r1, sizeof r1); jstr(c.m.rejected[i].reason, r2, sizeof r2); emitf("{\"ev\":\"record_rejected\",\"record\":%s,\"reason\":%s}", r1, r2); }
         } else if (!strcmp(cmd, "home") && arg) {
             if (c.hm) { home_free(c.hm); c.hm = NULL; }
-            char err[300]; c.hm = home_load2(arg, c.state_dir[0] ? c.state_dir : NULL, emit, err, sizeof err);
+            char err[300]; c.hm = home_load3(arg, c.state_dir[0] ? c.state_dir : NULL, c.design_root[0] ? c.design_root : NULL, c.design_dir[0] ? c.design_dir : NULL, emit, err, sizeof err);
             if (!c.hm) { jstr(err, esc, sizeof esc); emitf("{\"ev\":\"home_rejected\",\"error\":%s}", esc); continue; }
             home_set_cover_budget(c.hm, c.cover_budget);
             if (!c.repeat_set) { c.in.repeat_delay_ms = 400; c.in.repeat_rate_ms = 110; c.in.repeat_fast_after = 6; c.in.repeat_fast_rate = 55; }   /* HOME_REPEAT */
             emitf("{\"ev\":\"home_loaded\",\"theme\":\"%s\",\"games\":%zu,\"bytes\":%zu,\"repeat\":[%u,%u,%u,%u]}", home_theme(c.hm), home_games(c.hm), home_bytes(c.hm), c.in.repeat_delay_ms, c.in.repeat_rate_ms, c.in.repeat_fast_after, c.in.repeat_fast_rate);
             home_emit_state(c.hm);
-        } else if (!strcmp(cmd, "state-dir") && arg) { snprintf(c.state_dir, sizeof c.state_dir, "%s", arg); jstr(arg, esc, sizeof esc); emitf("{\"ev\":\"state_dir\",\"path\":%s}", esc); }
+        } else if (!strcmp(cmd, "design-root") && arg) { snprintf(c.design_root, sizeof c.design_root, "%s", arg); c.design_dir[0] = 0; jstr(arg, esc, sizeof esc); emitf("{\"ev\":\"design_root\",\"path\":%s}", esc); }
+        else if (!strcmp(cmd, "design") && arg) { snprintf(c.design_dir, sizeof c.design_dir, "%s", arg); c.design_root[0] = 0; jstr(arg, esc, sizeof esc); emitf("{\"ev\":\"design_dir\",\"path\":%s}", esc); }
+        else if (!strcmp(cmd, "state-dir") && arg) { snprintf(c.state_dir, sizeof c.state_dir, "%s", arg); jstr(arg, esc, sizeof esc); emitf("{\"ev\":\"state_dir\",\"path\":%s}", esc); }
         else if (!strcmp(cmd, "home-theme") && arg) {
             if (!c.hm) { emit("{\"ev\":\"error\",\"error\":\"no HOME loaded\"}"); continue; }
             char *sv = strchr(arg, ' '); int save = 0; if (sv) { *sv++ = 0; save = !strcmp(sv, "save"); }

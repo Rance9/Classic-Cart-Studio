@@ -15,13 +15,13 @@ def rd(p, mode="rb"):
 def wr(p, b):
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "wb" if isinstance(b, bytes) else "w") as f: f.write(b)
-def make_package(d: str, tag: str = "a", layout: str = "install", extra: dict | None = None, modes: dict | None = None) -> str:
+def make_package(d: str, tag: str = "a", layout: str = "mod", extra: dict | None = None, modes: dict | None = None) -> str:
     files = {"bin/ccs-player-armv7": b"\x7fELF\x01" + tag.encode() * 4000, "session.json": json.dumps({"schema": "ccs-play-session/1", "tag": tag}).encode(),
              "home/pack.json": b'{"schema":"ccs-native-home-pack/2"}', "roms/" + "ab" * 32 + ".nes": b"NES\x1a" + bytes(24576), "startup/startup.json": b'{"choice":"random"}',
              "config/controller-map.txt": b"key 304 a\n"} | (extra or {})
     for rel, b in files.items(): wr(os.path.join(d, *rel.split("/")), b)
     man = {"schema": "ccs-console-package/1", "layout": layout, "label": f"test {tag}", "games": 1, "playable": 1, "startup": {"choice": "random"}, "player": {"sha256": sha(files["bin/ccs-player-armv7"])},
-           "console_paths": {"pkg": "/tmp/ccs/pkg"} if layout == "install" else {"pkg": "/hakchi/ccs/pkg"},
+           "console_paths": {"pkg": "/tmp/ccs/pkg"} if layout in ("install", "mod", "nucleus") else {"pkg": "/hakchi/ccs/pkg"},
            "files": {rel: {"size": len(b), "sha256": sha(b), "kind": "x", "mode": (modes or {}).get(rel, "0o755" if rel.startswith("bin/") else "0o644")} for rel, b in files.items()}}
     wr(os.path.join(d, "MANIFEST.json"), json.dumps(man)); return d
 def tree(root: str) -> dict:   # the whole stand-in, byte for byte (its link table included)
@@ -55,6 +55,10 @@ class Plan(Base):
         self.assertIn("pack_install", " ".join(self.plan["never_written"]), "the plan says that hakchi's module install writes its overlay and uninstall list")
     def test_02_ram_test_changed_and_misplaced_packages_are_refused(self):
         with self.assertRaises(CI.PlanError): CI.build_plan(make_package(os.path.join(self.t, "ram"), layout="ram-test"))
+        with self.assertRaises(CI.PlanError) as e: CI.build_plan(make_package(os.path.join(self.t, "s81"), layout="install"))
+        self.assertIn("removes at every start", str(e.exception), "a package for the earlier start-up module is refused: hakchi deletes that start file at every start")
+        self.assertEqual(self.plan["method"], "mod"); self.assertEqual(self.plan["module"]["name"], "ccs-mod")
+        self.assertEqual(CI.build_plan(make_package(os.path.join(self.t, "nu"), layout="nucleus"))["module"]["name"], "ccs-nucleus")
         b = make_package(os.path.join(self.t, "bad")); wr(os.path.join(b, "session.json"), rd(os.path.join(b, "session.json")) + b"x")
         with self.assertRaises(CI.PlanError): CI.build_plan(b)
         m = make_package(os.path.join(self.t, "old-place")); man = json.loads(rd(os.path.join(m, "MANIFEST.json"))); man["console_paths"] = {"pkg": "/var/lib/ccs/pkg/current"}; wr(os.path.join(m, "MANIFEST.json"), json.dumps(man))
@@ -79,9 +83,15 @@ class Install(Base):
         case("foreign-current", lambda root: CI.FakeConsole(root).link(CI.POINTER, "/var/lib/ccs/pkg/someone-elses"), "not this program's pointer")
         case("unknown-pointer", lambda root: wr(os.path.join(root, "var/lib/ccs/pkg/current"), "0123456789abcdef.01234567\n"), "records do not know")
         case("root-link", lambda root: (shutil.rmtree(os.path.join(root, "var/lib/ccs")), CI.FakeConsole(root).link("/var/lib/ccs", "/var/saves")), "a link")
-        case("foreign-s81", lambda root: wr(os.path.join(root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp"), b"#!/bin/sh\nother\n"), "another hakchi module")
         case("foreign-ccs-home", lambda root: (wr(os.path.join(root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp"), b"#!/bin/sh\nnot ours\n"),
                                                wr(os.path.join(root, "var/lib/hakchi/hmod/uninstall-ccs-home"), 'rm -f "$rootfs/./etc/init.d/S81clover-mcp"\n')), "did not make")
+        nuc = CI.method_package("nucleus"); mod = CI.method_package("mod")
+        case("other-method", lambda root: CI.FakeConsole(root).pack_install(nuc["name"], nuc["hmod"]), "this console uses CCS Nucleus")
+        def changed(root): CI.FakeConsole(root).pack_install(mod["name"], mod["hmod"]); wr(os.path.join(root, "var/lib/hakchi/rootfs/bin/ccs-mod"), b"#!/bin/sh\n# changed by someone\n")
+        case("changed-method", changed, "were changed")
+        def unknown(root): CI.FakeConsole(root).pack_install(mod["name"], mod["hmod"]); f = os.path.join(root, "var/lib/hakchi/rootfs/etc/ccs/mod/VERSION"); wr(f, rd(f).replace(mod["package_id"].encode(), b"not-a-package-record"))
+        case("unknown-method-package", unknown, "does not recognize")
+        case("program-without-package", lambda root: wr(os.path.join(root, "var/lib/hakchi/rootfs/bin/ccs-mod"), b"#!/bin/sh\n"), "hakchi does not list its package")
         case("damaged-record", lambda root: wr(os.path.join(root, "var/lib/ccs/install/v-0123456789abcdef.01234567.json"), b"{not json"), "cannot all be read")
         case("pending-attempt", lambda root: wr(os.path.join(root, "var/lib/ccs/install/attempt-0badc0de.json"), json.dumps({"schema": "ccs-install-attempt/1", "attempt": "0badc0de"})), "did not finish")
         case("other-saves", lambda root: wr(os.path.join(root, "var/lib/ccs/data/IDENTITY.json"), json.dumps({"schema": "ccs-console-data/1", "state_identity": {"platform": "windows-x86_64", "core": "fceumm", "core_version": "ac0d00a7"}})), "another player build")
@@ -89,10 +99,13 @@ class Install(Base):
         before = tree(self.root); r = self.inst().run(); self.assertTrue(r["ok"], r); self.assertEqual(r["result"], "installed")
         copy = r["copy"]; self.assertRegex(copy, CI.COPY_RE); self.assertEqual(self.pointer(), copy); c = self.con()
         for f in self.plan["files"]: self.assertEqual(c.sha256(f"{CI.PKG_DIR}/{copy}/{f['path']}"), f["sha256"])
-        self.assertEqual(rd(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp")).decode(), CI.S81_OVERRIDE)
-        self.assertIn("exec /usr/bin/clover-mcp", CI.S81_OVERRIDE)
+        mp = CI.method_package("mod"); mf = c.method_files("ccs-mod")
+        self.assertEqual(mf["package"], mp["package_id"]); self.assertEqual({p: s for p, s in mf["files"].items()}, mp["files"], "CCS Mod's package installed through hakchi's pack_install: every file it lists, unchanged")
+        self.assertFalse(os.path.exists(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp")), "no start file that hakchi deletes at every start is written")
+        self.assertTrue(rd(os.path.join(self.root, "var/lib/hakchi/hmod/uninstall-ccs-mod")).startswith(b"# CCS Mod for Hakchi: removal"), "hakchi keeps the package's own removal ahead of its generated list")
         ch = changes(before, tree(self.root))
-        self.assertTrue(all(k.startswith(("var/lib/ccs/pkg/" + copy, "var/lib/ccs/pkg/current", "var/lib/ccs/install", "var/lib/ccs/data", "var/lib/hakchi/rootfs/etc", "var/lib/hakchi/hmod/uninstall-ccs-home")) for k in ch), ch)
+        self.assertTrue(all(k.startswith(("var/lib/ccs/pkg/" + copy, "var/lib/ccs/pkg/current", "var/lib/ccs/install", "var/lib/ccs/data", "var/lib/hakchi/rootfs/bin/ccs-mod", "var/lib/hakchi/rootfs/etc/ccs", "var/lib/hakchi/hmod/uninstall-ccs-mod"))
+                            or k in ("var/lib/hakchi/rootfs/bin/", "var/lib/hakchi/rootfs/etc/") for k in ch), ch)
         self.assertEqual(CI.stock_digest(self.root), {rel: sha(b) for rel, b in CI.STOCK_SAMPLE.items()}, "stock games, saves, the stock script, hakchi's other module and the unknown folder unchanged")
         recs = CI.read_records(c); self.assertEqual(list(recs["versions"]), [copy]); self.assertEqual(recs["attempts"], {}, "the attempt record is closed"); self.assertEqual(len(recs["modules"]), 1)
         self.assertTrue(r["record_closed"]); self.assertIn("/var/lib/ccs/pkg/someone-elses", r["kept_changed_or_unknown"])
@@ -113,6 +126,12 @@ class Install(Base):
         r = self.inst().run(); self.assertTrue(r["ok"], r); self.assertNotEqual(r["copy"], a["copy"]); self.assertEqual(self.pointer(), r["copy"])
         self.assertEqual(sorted(os.listdir(live)), ["session.json"], "the changed file of the earlier copy is kept, its unchanged files removed")
         self.assertIn(f"/var/lib/ccs/pkg/{a['copy']}/session.json", r["kept_changed_or_unknown"])
+
+    def test_15_another_version_of_ccs_mod_is_updated_by_its_own_install(self):
+        mp = CI.method_package("mod"); CI.FakeConsole(self.root).pack_install(mp["name"], mp["hmod"])   # e.g. placed by an earlier Workbench
+        f = os.path.join(self.root, "var/lib/hakchi/rootfs/etc/ccs/mod/VERSION"); wr(f, rd(f).replace(mp["package_id"].encode(), b"a" * 64))
+        r = self.inst().run(); self.assertTrue(r["ok"], r); self.assertEqual(r["preflight"]["module"], "older")
+        self.assertEqual(self.con().method_files("ccs-mod")["package"], mp["package_id"], "CCS Mod's own install updated it")
 
 class Faults(Base):
     """every console change of a first install, an update and a repair fails in turn, before and after it happens"""
@@ -143,14 +162,19 @@ class Faults(Base):
         self.plan_x, self.pkg_x = self.plan, self.pkg; self.sweep("first", lambda root: None)
     def test_21_update(self):
         self.assertTrue(self.inst().run()["ok"]); pkg_b = make_package(os.path.join(self.t, "pkg-b"), "b"); self.plan_x, self.pkg_x = CI.build_plan(pkg_b), pkg_b; self.sweep("update", lambda root: None)
-    def test_22_repair_and_an_older_module(self):
+    def test_22_repair_over_the_earlier_start_up_module(self):
+        """a console where an earlier version installed its start-up module ccs-home (recorded; its start file already deleted by hakchi at a
+        start): the repair installs CCS Mod and only then retires the earlier module through hakchi's pack_uninstall of its own list"""
         self.assertTrue(self.inst().run()["ok"]); copy = self.pointer()
         s = os.path.join(self.root, "var/lib/ccs/pkg", copy, "session.json"); wr(s, rd(s) + b" ")
-        old = b"#!/bin/sh\n# an earlier Classic Cart Studio start-up\nexec /usr/bin/clover-mcp\n"   # an earlier module of this program (recorded)
-        wr(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp"), old)
-        wr(os.path.join(self.root, f"var/lib/ccs/install/module-{sha(old)[:16]}.json"), json.dumps({"schema": "ccs-owned-module/1", "name": "ccs-home", "path": CI.HOOK_FILE, "sha256": sha(old)}))
+        CI.FakeConsole(self.root).pack_uninstall("ccs-mod"); os.remove(os.path.join(self.root, f"var/lib/ccs/install/module-{CI.method_package('mod')['sha256'][:16]}.json"))
+        old = CI.S81_OVERRIDE.encode()
+        wr(os.path.join(self.root, "var/lib/hakchi/hmod/uninstall-ccs-home"), '\n# auto-generated\nrm -f "$rootfs/./etc/init.d/S81clover-mcp"\nrmdir --ignore-fail-on-non-empty "$rootfs/./etc/init.d"\n')
+        wr(os.path.join(self.root, f"var/lib/ccs/install/module-{sha(old)[:16]}.json"), json.dumps({"schema": "ccs-owned-module/1", "name": "ccs-home", "path": CI.LEGACY_FILE, "sha256": sha(old)}))
         self.plan_x, self.pkg_x = self.plan, self.pkg; self.sweep("repair", lambda root: None)
-        r = self.inst().run(); self.assertTrue(r["ok"]); self.assertEqual(self.con().overlay_sha256(CI.HOOK_FILE), CI.module_sha())
+        r = self.inst().run(); self.assertTrue(r["ok"], r); c = self.con()
+        self.assertEqual(c.pack_files("ccs-home"), {}, "the earlier module retired"); self.assertEqual(c.method_files("ccs-mod")["package"], CI.method_package("mod")["package_id"])
+        self.assertNotIn(f"module-{sha(old)[:16]}.json", os.listdir(os.path.join(self.root, "var/lib/ccs/install")), "and its record tidied once nothing of it is installed")
     def test_23_a_crash_after_any_change_is_recovered_from_that_attempts_journal(self):
         self.assertTrue(self.inst().run()["ok"]); pkg_b = make_package(os.path.join(self.t, "pkg-b"), "b"); plan_b = CI.build_plan(pkg_b)
         self.plan_x, self.pkg_x = plan_b, pkg_b; total = self.count(lambda root: None)
@@ -203,17 +227,21 @@ class Uninstall(Base):
         pristine = tree(self.root); a = self.inst().run(); self.assertTrue(a["ok"])
         wr(os.path.join(self.root, "var/lib/ccs/data/saves/x/cart.sav"), b"battery"); wr(os.path.join(self.root, "var/lib/ccs/pkg", a["copy"], "owner-notes.txt"), b"KEEP")
         wr(os.path.join(self.root, "var/lib/ccs/pkg/0123456789abcdef.staging/owner.txt"), b"KEEP")
-        p = CI.uninstall_plan(self.con()); self.assertTrue(p["ok"]); self.assertTrue(any("start-up module" in x for x in p["remove"]))
+        p = CI.uninstall_plan(self.con()); self.assertTrue(p["ok"]); self.assertTrue(any("CCS Mod (ccs-mod" in x for x in p["remove"]), p["remove"])
         self.assertTrue(any("owner-notes.txt" in x for x in p["keep"]) and any("0123456789abcdef.staging" in x for x in p["keep"]) and any("saves" in x for x in p["keep"]), p)
         r = CI.uninstall(self.con()); self.assertTrue(r["ok"], r); self.assertEqual(r["data"], "kept")
-        self.assertIsNone(self.con().overlay_sha256(CI.HOOK_FILE)); self.assertFalse(os.path.exists(os.path.join(self.root, "var/lib/hakchi/hmod/uninstall-ccs-home")))
+        self.assertIsNone(self.con().method_files("ccs-mod")); self.assertIsNone(self.con().overlay_sha256("/bin/ccs-mod")); self.assertFalse(os.path.exists(os.path.join(self.root, "var/lib/hakchi/hmod/uninstall-ccs-mod")))
         self.assertEqual(rd(os.path.join(self.root, "var/lib/ccs/data/saves/x/cart.sav")), b"battery"); self.assertTrue(os.path.isfile(os.path.join(self.root, "var/lib/ccs/pkg", a["copy"], "owner-notes.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.root, "var/lib/ccs/pkg/0123456789abcdef.staging/owner.txt"))); self.assertEqual(CI.stock_digest(self.root), {k: sha(v) for k, v in CI.STOCK_SAMPLE.items()})
-        self.assertIn("Nintendo's HOME", r["after_restart"])
+        self.assertIn("its own menu", r["after_restart"])
         r = CI.uninstall(self.con(), keep_data=False); self.assertTrue(r["ok"]); self.assertFalse(os.path.exists(os.path.join(self.root, "var/lib/ccs/data")))
-    def test_41_uninstall_refuses_a_module_it_did_not_make(self):
-        self.assertTrue(self.inst().run()["ok"]); wr(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp"), b"#!/bin/sh\nchanged by someone\n"); snap = tree(self.root)
-        r = CI.uninstall(self.con()); self.assertEqual(r["result"], "refused"); self.assertEqual(changes(snap, tree(self.root)), [])
+    def test_41_uninstall_keeps_a_package_it_does_not_recognize_and_changed_method_files(self):
+        self.assertTrue(self.inst().run()["ok"]); f = os.path.join(self.root, "var/lib/hakchi/rootfs/etc/ccs/mod/VERSION")
+        good = rd(f); wr(f, good.replace(CI.method_package("mod")["package_id"].encode(), b"not-a-package-record"))
+        p = CI.uninstall_plan(self.con()); self.assertTrue(p["ok"]); self.assertFalse(any(a["op"] == "method-uninstall" for a in p["actions"])); self.assertTrue(any("does not recognize" in k for k in p["keep"]), p["keep"])
+        wr(f, good); wr(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/ccs/mod/entry.png"), b"changed by someone")
+        r = CI.uninstall(self.con()); self.assertTrue(r["verified"]["module_removed"], r)
+        self.assertEqual(rd(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/ccs/mod/entry.png")), b"changed by someone", "the package's own removal keeps a file someone changed")
     def test_42_an_interrupted_uninstall_is_finished_by_running_it_again(self):
         self.assertTrue(self.inst().run()["ok"]); base = self.fork("installed"); c = self.con(self.fork("count-u")); self.assertTrue(CI.uninstall(c)["ok"]); total = c.nchanges
         for n in range(1, total + 1):
@@ -223,7 +251,7 @@ class Uninstall(Base):
                     try: CI.uninstall(self.con(root, **{kind: n}))
                     except (ConnectionError, OSError): pass
                     r = CI.uninstall(self.con(root)); self.assertTrue(r["ok"], r)
-                    self.assertIsNone(self.con(root).overlay_sha256(CI.HOOK_FILE)); self.assertEqual(CI.stock_digest(root), {k: sha(v) for k, v in CI.STOCK_SAMPLE.items()})
+                    self.assertIsNone(self.con(root).method_files("ccs-mod")); self.assertEqual(CI.stock_digest(root), {k: sha(v) for k, v in CI.STOCK_SAMPLE.items()})
                     shutil.rmtree(root, ignore_errors=True)
     def test_43_data_export_copies_verifies_and_never_follows_a_link(self):
         self.assertTrue(self.inst().run()["ok"]); c = self.con()
@@ -247,39 +275,21 @@ class Gate(Base):
         with self.assertRaises(gate.GateClosed): CI.export_data(r, os.path.join(self.t, "x"))
         with self.assertRaises(gate.GateClosed): CI.Installer.resume(type("I", (), {"c": r})())
 
-class Launcher(Base):
-    """the start-up script under the console's own BusyBox 1.24.1 (qemu-arm in WSL), paths moved into a disposable folder"""
-    BB = "/mnt/c/NES/work/h0/rootfs"
-    def test_60_start_up_runs_the_copy_named_by_the_pointer_and_always_ends_in_clover_mcp(self):
-        qemu = "$HOME/.cache/ccs-sim/toolchain/deb/usr/bin/qemu-arm"   # inside WSL (script files: wsl.exe re-expands command lines)
-        work = "/mnt/c/NES/work/cs/launcher-test"; lw = r"C:\NES\work\cs\launcher-test"; shutil.rmtree(lw, ignore_errors=True); os.makedirs(lw)
-        wr(os.path.join(lw, "probe.sh"), f"test -x {qemu} && test -f {self.BB}/bin/busybox && echo yes\n".encode())
-        try: probe = subprocess.run(["wsl.exe", "-d", "Ubuntu", "--", "bash", f"{work}/probe.sh"], capture_output=True, timeout=60)
-        except (OSError, subprocess.TimeoutExpired): probe = None
-        if not probe or b"yes" not in probe.stdout.replace(b"\0", b""): self.skipTest("SKIPPED: WSL, qemu-arm or the console's BusyBox is not available (not a pass)")
-        wr(os.path.join(lw, "S81"), CI.S81_OVERRIDE.encode())
-        script = f"""#!/bin/bash
-set -u; Q={qemu}; B="$Q -L {self.BB} {self.BB}/bin/busybox"; S={work}/S81
-run() {{  # case-name setup
-  R=$(mktemp -d /tmp/k3-launch-XXXX); mkdir -p $R/var/lib/ccs/pkg $R/usr/bin $R/tmp
-  printf '#!/bin/sh\\necho CLOVER >> %s\\n' "{work}/out-$1" > $R/usr/bin/clover-mcp; chmod +x $R/usr/bin/clover-mcp
-  C=0123456789abcdef.89abcdef; mkdir -p $R/var/lib/ccs/pkg/$C/bin; echo '{{}}' > $R/var/lib/ccs/pkg/$C/session.json
-  printf '#!/bin/sh\\necho "PLAYER $*" >> %s\\nexit 3\\n' "{work}/out-$1" > $R/var/lib/ccs/pkg/$C/bin/ccs-player-armv7; chmod +x $R/var/lib/ccs/pkg/$C/bin/ccs-player-armv7
-  eval "$2"
-  sed -e "s#/var/lib/ccs#$R/var/lib/ccs#g" -e "s#/tmp/ccs#$R/tmp/ccs#g" -e "s#/usr/bin/clover-mcp#$R/usr/bin/clover-mcp#g" $S > $R/S81
-  : > {work}/out-$1; $B sh $R/S81 start > {work}/log-$1 2>&1; echo "rc=$?" >> {work}/log-$1; rm -rf $R; }}
-run good 'echo $C > $R/var/lib/ccs/pkg/current'
-run none ':'
-run link 'ln -s $R/var/lib/ccs/pkg/$C $R/var/lib/ccs/pkg/current'
-run garbage 'echo "../../etc" > $R/var/lib/ccs/pkg/current'
-run missing 'echo fedcba9876543210.89abcdef > $R/var/lib/ccs/pkg/current'
-run linkedcopy 'mv $R/var/lib/ccs/pkg/$C $R/var/lib/ccs/pkg/real; ln -s $R/var/lib/ccs/pkg/real $R/var/lib/ccs/pkg/$C; echo $C > $R/var/lib/ccs/pkg/current'
-"""
-        wr(os.path.join(lw, "run.sh"), script.encode()); subprocess.run(["wsl.exe", "-d", "Ubuntu", "--", "bash", f"{work}/run.sh"], capture_output=True, env=dict(os.environ, MSYS_NO_PATHCONV="1"), timeout=300)
-        out = {k: rd(os.path.join(lw, f"out-{k}"), "r") for k in ("good", "none", "link", "garbage", "missing", "linkedcopy")}
-        self.assertIn("PLAYER --session ", out["good"]); self.assertIn("/tmp/ccs/pkg/session.json --trace", out["good"]); self.assertTrue(out["good"].rstrip().endswith("CLOVER"), out["good"])
-        for k in ("none", "link", "garbage", "missing", "linkedcopy"): self.assertEqual(out[k].strip(), "CLOVER", (k, out[k], rd(os.path.join(lw, f"log-{k}"), "r")))
-        shutil.rmtree(lw, ignore_errors=True)
+class Method(Base):
+    """the start-up is the shared CCS Mod / CCS Nucleus policy, never the start file hakchi deletes (what CCS Mod and CCS Nucleus do on a console,
+    with hakchi's own pack_install, preinit and rcS: tools/console-nucleus/test_nucleus.py under qemu-arm)"""
+    def test_60_the_method_package_is_the_workbench_preparation_images_pinned_build(self):
+        sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "console-backup", "ram")))
+        import build_images as BI
+        for m, n in CI.METHODS.items(): self.assertEqual(CI.method_package(m)["sha256"], BI.METHOD_SHAS[n], f"{n}: the app installs the same bytes the Workbench places")
+        worker = rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "console-worker", "CcsWorker", "Ops", "ConsolePath.cs")).decode()
+        for n, s in BI.METHOD_SHAS.items(): self.assertIn(f'{{ "{n}", "{s}" }}', worker, f"the transport worker pins {n} to the same build")
+    def test_61_nothing_installs_the_start_file_hakchi_removes(self):
+        self.assertNotIn(CI.LEGACY_FILE, json.dumps({k: v for k, v in self.plan.items() if k != "never_written"}), "the plan names no S81clover-mcp")
+        self.assertTrue(self.inst().run()["ok"])
+        self.assertFalse(os.path.exists(os.path.join(self.root, "var/lib/hakchi/rootfs" + CI.LEGACY_FILE)) and not os.path.exists(os.path.join(self.root, "var/lib/hakchi/hmod/uninstall-ccs-home")))
+        hp = CI.make_stand_in(os.path.join(self.t, "nu"), "other-module"); before = tree(hp.root); r = self.inst(root=hp.root).run()
+        self.assertEqual(r["result"], "refused"); self.assertIn("CCS Nucleus", r["why"]); self.assertEqual(changes(before, tree(hp.root)), [], "the other method installed: refused, nothing changed")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

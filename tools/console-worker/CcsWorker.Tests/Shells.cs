@@ -74,7 +74,7 @@ namespace CcsWorker.Tests
         public static BusyboxShell Create()
         {
             var scripts = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fidelity");
-            var work = Path.Combine(@"C:\NES\work\cs\console-worker\fidelity-work", Guid.NewGuid().ToString("N").Substring(0, 8));
+            var work = Path.Combine(Environment.GetEnvironmentVariable("CCS_FIDELITY_WORK") ?? Path.Combine(Path.GetTempPath(), "ccs-fidelity-work"), Guid.NewGuid().ToString("N").Substring(0, 8));
             if (!File.Exists(Path.Combine(scripts, "setup.sh"))) throw new SkipException("fidelity scripts are missing");
             var r = Wsl(new[] { "bash", Wsl(Path.Combine(scripts, "setup.sh")) }, null, 300000);
             var sim = r.Item2.Trim().Split('\n').LastOrDefault()?.Trim();

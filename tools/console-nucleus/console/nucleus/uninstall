@@ -1,0 +1,7 @@
+# CCS Nucleus: removal through hakchi (pack_uninstall sources this file). Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# Nucleus is taken out of charge first (one rename), then only its own files that are still unchanged are removed (its ownership
+# journal); a changed one is kept and reported. Its registry, state and the owner's imported system images are kept. The list hakchi
+# appends below this line removes every file the package carried whether or not someone changed it since, so it is never reached:
+# this script returns first.
+[ -f "$rootfs/bin/ccs-nucleus" ] && CCS_ROOT="$mountpoint" sh "$rootfs/bin/ccs-nucleus" remove keep
+return 0

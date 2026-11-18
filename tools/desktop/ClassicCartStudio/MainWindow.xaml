@@ -21,7 +21,7 @@
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-        <Image Source="pack://application:,,,/app.ico" Width="16" Height="16" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+        <Image x:Name="titleIcon" Width="16" Height="16" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
         <TextBlock Text="Classic Cart Studio" Margin="9,0,0,1" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{StaticResource B.Ink}"/>
         <Border Width="6" Height="6" CornerRadius="3" Background="{StaticResource B.Red}" Margin="8,1,0,0" VerticalAlignment="Center" ToolTip="Classic Cart Studio for Windows" x:Name="accentDot"/>
         <TextBlock x:Name="stateText" Margin="10,0,0,1" FontSize="12" VerticalAlignment="Center" Foreground="{StaticResource B.Muted}" Text=""/>
@@ -43,9 +43,10 @@
     <!-- loading state: branded, lightweight, shown only until the website has rendered -->
     <Grid Grid.Row="1" x:Name="loading" Background="{StaticResource B.Bg}">
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="360">
-        <Image Source="pack://application:,,,/app.ico" Width="48" Height="48" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,0,14"/>
-        <TextBlock Text="CLASSIC CART" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource B.Ink}" TextOptions.TextFormattingMode="Ideal"><TextBlock.RenderTransform><TranslateTransform/></TextBlock.RenderTransform></TextBlock>
-        <TextBlock Text="STUDIO" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource B.Red3}" Margin="0,-6,0,16"/>
+        <!-- the app icon: the frame of app.ico that fits this size at the window's scale (MainWindow.ApplyIcons), never the stretched 16 px one -->
+        <Image x:Name="loadIcon" Width="48" Height="48" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,0,14" AutomationProperties.Name=""/>
+        <!-- the approved wordmark (tools/publish/assets/brand-wordmark.png, drawn by make_installer_art.py) -->
+        <Image Source="pack://application:,,,/brand-wordmark.png" Width="192" Height="46" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,0,16" AutomationProperties.Name="Classic Cart Studio"/>
         <!-- pixel-style progress: eight blocks that light up left to right (paused when the system has animations off) -->
         <StackPanel x:Name="blocks" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
           <Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/><Border Width="18" Height="8" Margin="2,0" Background="{StaticResource B.Surface2}"/>
@@ -64,7 +65,7 @@
           <Border Height="3" Background="{StaticResource B.Accent}"/>
           <Grid Margin="12,10,12,6">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <Border Width="36" Height="36" CornerRadius="10" Background="{StaticResource B.Badge}"><Image Source="pack://application:,,,/app.ico" Width="22" Height="22" RenderOptions.BitmapScalingMode="HighQuality"/></Border>
+            <Border Width="36" Height="36" CornerRadius="10" Background="{StaticResource B.Badge}"><Image x:Name="menuIcon" Width="22" Height="22" RenderOptions.BitmapScalingMode="HighQuality"/></Border>
             <StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center">
               <TextBlock Text="App Tools" FontSize="15" FontWeight="Bold"/>
               <TextBlock Text="Classic Cart Studio for Windows" Style="{StaticResource T.Muted}" FontSize="12"/>

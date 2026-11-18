@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- CCS Console Workbench (standalone, CCS-Console-Workbench.exe; earlier versions were the CCS Console Backup & Restore Utility): one
+       executable, no installer. Its managed parts (the engine, the window, the FEL loader,
+       LibUsbDotNet) are embedded in it and loaded from memory (Embedded.cs); the recovery images are embedded in the engine. Only the
+       executable is distributed. GPL-3.0-or-later. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>CCS-Console-Workbench</AssemblyName>
+    <RootNamespace>CcsBackup.Utility</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Product>CCS Console Workbench</Product>
+    <AssemblyTitle>CCS Console Workbench</AssemblyTitle>
+    <Company>Rance9 LLC</Company>
+    <Copyright>Copyright (C) 2026 Rance9. GPL-3.0-or-later. Independent; not affiliated with Nintendo.</Copyright>
+    <Version>1.0.0</Version>
+    <FileVersion>$(Version)</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+    <ApplicationIcon>..\..\publish\assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>CcsBackup.Utility.Program</StartupObject>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CcsBackupUi\CcsBackupUi.csproj" />
+    <ProjectReference Include="..\CcsBackup\CcsBackup.csproj" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+  <!-- every referenced DLL goes INTO the executable (resource "asm/<name>.dll"); Embedded.Resolve loads it from memory -->
+  <Target Name="CcsEmbedReferences" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <EmbeddedResource Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Extension)' == '.dll'">
+        <LogicalName>asm/%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+</Project>

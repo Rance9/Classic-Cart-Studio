@@ -204,6 +204,9 @@ const CCSPLAY={
       const S={game, surface, mod, gen:(CCSPLAY._gen=(CCSPLAY._gen||0)+1), t0:performance.now(), frames:0, pushed:0, used:0, aq:0, last:null, ended:false, result:null, fail:null, view:0, owned:true, crc:[]};
       const imports={wasi_snapshot_preview1:cpWasi(S), ccs:cpImports(S)}; const inst=await WebAssembly.instantiate(mod, imports); S.inst=inst; S.x=inst.exports; S.mem=inst.exports.memory;
       if(S.x._initialize) S.x._initialize(); S.in=S.x.web_input();
+      // what is held right now reaches the player before it opens, so its settle at open (gp_open) makes a held button count only after
+      // release: an A still down from the HOME (or from a menu) never confirms the start screen's first choice (the events it carries are dropped)
+      try{ cpFeed(Object.assign(Object.create(S), {surface:{win:surface.win||window}})); }catch(e){}
       const sp=S.x.web_malloc(64); cpPutStr(S.mem, sp, 64, '/run/session.json'); const rc=S.x.web_open(sp); S.x.web_free(sp);
       if(rc){ throw new Error('The game player could not open this game ('+rc+').'); }
       CPL.s=S; S.release=release; release=null; surface.attach(S); cpInputBind(S, surface.win||window);

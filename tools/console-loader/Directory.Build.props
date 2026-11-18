@@ -1,0 +1,17 @@
+<Project>
+  <!-- build output goes to the repository's ignored build folder (build\console-loader\) unless CcsBuildRoot names another folder
+       (the release build passes its own); release builds carry no debug information, so the same source gives the same bytes anywhere -->
+  <PropertyGroup>
+    <CcsBuildRoot Condition="'$(CcsBuildRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'console-loader'))</CcsBuildRoot>
+    <CcsBuildRoot Condition="!HasTrailingSlash('$(CcsBuildRoot)')">$(CcsBuildRoot)\</CcsBuildRoot>
+    <BaseIntermediateOutputPath>$(CcsBuildRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(CcsBuildRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+</Project>

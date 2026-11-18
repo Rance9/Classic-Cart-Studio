@@ -1,4 +1,4 @@
-// ---- "As Seen on TV": Preview Your Lineup, now the console HOME runtime (four approved themes) over the user's own collection ------
+// ---- "As Seen on TV": HOME, the console HOME runtime (four approved themes) over the user's own collection ------
 // Two layers, kept apart on purpose:
 //   1. tvProject(): a pure projection of the current collection into "proposed menu entries" (what the plan would show, with
 //      known / estimated / unknown labels). It reuses the collection rules (installClass, factoryVisible, decisions, installRequired,
@@ -8,10 +8,9 @@
 // Nothing here talks to a console, scans the computer or uploads anything. A launch is SIMULATED and labeled as such.
 const TV_KEY='studio-tv-v1', HOME_KEY='studio-home-v1';
 const TV_SAMPLE_NOTICE='This is a sample: the 30 built-in games every NES Classic ships with. Add games to see your own menu.';
-// what the preview shows: the open NES Classic Loadout (from a collection, Preview Your Lineup asks for one first), else the collection
-function tvLoadout(){ try{ return (typeof loCur==='function')?loCur():null; }catch(e){ return null; } }
-function tvPlanWord(){ return tvLoadout()?'lineup':'collection'; }
-function tvPlanName(){ const l=tvLoadout(); return l?l.name:COLL.name; }
+// what HOME shows: the open collection (there are no separate lineups)
+function tvPlanWord(){ return 'collection'; }
+function tvPlanName(){ return COLL.name; }
 function tvPl(n,w){ return `${n} ${w}${n===1?'':'s'}`; }
 function tvCoreText(c){ const s=String(c||'unknown'); return /kachikachi/i.test(s)?'Built-in NES Classic emulator (kachikachi)':/retroarch/i.test(s)?'RetroArch (add-on module)':s==='unknown'?'Not known for this game':s; }   // F15: the recommendation for the console; the PC and the browser play with FCEUmm
 const TV_SECTION_NAMES={allgames:'All Games',browse:'Browse',favorites:'Favorites',history:'Recently Played',search:'Search',settings:'Settings'};
@@ -33,7 +32,8 @@ function tvEntryFor(g){
  const core=g.recommended_emulator||'unknown';
  const kept=!!g.kept, app=typeof COMPANION!=='undefined'&&COMPANION.ok;   // a kept entry: its file is checked like Back Up Collection does (keptAvail)
  const ka=kept&&typeof keptAvail==='function'?keptAvail(g.game_id):null;
- const ready=kept?(app?(ka==='here'?'ready':ka==='none'?'missing':'unknown'):'unknown'):(app&&installRequired(g))?(fileAvailable(g.game_id)?'ready':'missing'):(installRequired(g)?'unknown':'n/a');
+ const rs=typeof RDY!=='undefined'?RDY.st.get(g.game_id):null;   // the collection's readiness check (studio/collview.js), when it has run
+ const ready=rs==='ready'?'ready':(rs==='missing'||rs==='wrong')?'missing':kept?(app?(ka==='here'?'ready':ka==='none'?'missing':'unknown'):'unknown'):(app&&installRequired(g))?(fileAvailable(g.game_id)?'ready':'missing'):(installRequired(g)?'unknown':'n/a');
  return {id:g.game_id,title_id:g.title_id,title,version,kind,core,ready,art:g.art||'',players:g.players||'',publisher:g.publisher||'',year:g.year||'',genre:g.genre||'',hardware:g.input_level!=='unknown'&&needsHardware(g)?(g.input_special_accessory||'special input hardware'):'',install:installRequired(g),personal:g.source==='personal',kept,ext:!!g.ext,sort:tvSortTitle(title),builtin_code:g.builtin_code||null};
 }
 // The projection. mode 'proposed' = the menu the plan proposes (selected games; unselected built-ins hidden by the plan). Deterministic; memoized by collection fingerprint + mode + backend state.
@@ -52,7 +52,7 @@ function tvProject(mode){
   {level:'unknown',text:'What is on your console right now is not checked by this preview.'}];
  const nk=entries.filter(e=>e.kept).length;   // imported games shown from the collection's own details: say where their ROM files are
  if(!sample&&nk){ const app=typeof COMPANION!=='undefined'&&COMPANION.ok, nr=entries.filter(e=>e.kept&&e.ready==='ready').length;
-  assumptions.splice(1,0,{level:'known',text:`${tvPl(nk,'imported game')} ${nk===1?'shows':'show'} the details kept with this collection. `+(app?`${nr} of them ${nr===1?'has its':'have their'} ROM file on this computer.`:(()=>{ const nb=entries.filter(e=>e.kept&&typeof tpFileText==='function'&&/ready to play/.test(tpFileText(e))).length; return `${nb} of them ${nb===1?'is':'are'} kept in this browser for playing.`; })())}); }
+  assumptions.splice(1,0,{level:'known',text:`${tvPl(nk,'imported game')} ${nk===1?'shows':'show'} the details kept with this collection. `+(app?`${nr} of them ${nr===1?'has its':'have their'} game file on this computer.`:(()=>{ const nb=entries.filter(e=>e.kept&&typeof tpFileText==='function'&&/ready to play/.test(tpFileText(e))).length; return `${nb} of them ${nb===1?'is':'are'} kept in this browser for playing.`; })())}); }
  const proj={fp,mode,sample,entries,count:entries.length,hidden:hiddenCodes.map(cd=>({code:cd,title:tvFactoryTitle(cd)})),assumptions,
   counts:{builtin:entries.filter(e=>e.kind==='builtin').length,kept:entries.filter(e=>e.kind==='factory-kept').length,added:entries.filter(e=>e.kind==='added').length,alternate:entries.filter(e=>e.kind==='alternate').length,missing:entries.filter(e=>e.ready==='missing').length,ready:entries.filter(e=>e.ready==='ready').length,hardware:entries.filter(e=>e.hardware).length}};
  TV.proj=proj; return proj;
@@ -62,7 +62,10 @@ function tvEntries(){ return tvProject(TV.mode).entries.slice(); }
 // ---- HOME model from the projection (one collection model; folders, favorites, history, sorts and theme persist beside it) ----
 function homeExtrasLoad(){ try{ return JSON.parse(localStorage.getItem(HOME_KEY)||'{}')||{}; }catch(e){ return {}; } }
 function homeExtrasSave(){ if(!TV.model) return; const m=TV.model; try{ const saved=JSON.parse(localStorage.getItem(HOME_KEY)||'null'); if(saved&&saved.history) m.history=homeReconcileHistory(saved.history,m.history); if(saved&&saved.favorites) m.favorites=homeReconcileFavorites(saved.favorites,m.favorites); }catch(e){}   // another tab's History clear or play, and its Favorites changes (per game: higher revision, then later change), are never overwritten by stale memory
- try{ localStorage.setItem(HOME_KEY,JSON.stringify({v:1,folders:m.folders,favorites:m.favorites,history:m.history,map_shortcuts:m.map_shortcuts,sorts:m.sorts,theme:m.theme,settings:m.settings,startup_image:m.startup_image||'random',state:TV.S})); }catch(e){} }
+ try{ const prev=JSON.parse(localStorage.getItem(HOME_KEY)||'null'), keep={}; if(prev&&typeof prev==='object'&&!Array.isArray(prev)) for(const k of Object.keys(prev)) if(!HOME_SAVED_KEYS.includes(k)) keep[k]=prev[k];   // members a newer version (or HOME Designer) added stay exactly
+  if(m.design!==undefined) keep.design=m.design;
+  localStorage.setItem(HOME_KEY,JSON.stringify(Object.assign(keep,{v:1,folders:m.folders,favorites:m.favorites,history:m.history,map_shortcuts:m.map_shortcuts,sorts:m.sorts,theme:m.theme,settings:m.settings,startup_image:m.startup_image||'random',startup_custom:m.startup_custom||null,state:TV.S}))); }catch(e){} }
+const HOME_SAVED_KEYS=['v','folders','favorites','history','map_shortcuts','sorts','theme','settings','startup_image','startup_custom','state'];   // what homeExtrasSave writes itself
 // another tab saved the HOME: take its History and Favorites into this tab at once (the same reconciliation), so the screen never shows cleared plays
 window.addEventListener('storage',e=>{ if(e.key!==HOME_KEY||!TV.model||!e.newValue) return; try{ const x=JSON.parse(e.newValue); if(x&&(x.history||x.favorites)){ if(x.history) TV.model.history=homeReconcileHistory(x.history,TV.model.history); if(x.favorites) TV.model.favorites=homeReconcileFavorites(x.favorites,TV.model.favorites); if(TV.open){ TV.S=homeReconcileState(TV.S,TV.model,tvSearch()); tvDraw(true); } } }catch(err){} });
 // a kept entry's row for the HOME: the sanitized kept row plus its own kept description (plain text; the HOME escapes every text)
@@ -71,7 +74,7 @@ function tvChosenRow(id){ const r=typeof keptRow==='function'?keptRow(id):null; 
 function homeModelFromStudio(){
  const p=tvProject(TV.mode); const prev=homeExtrasLoad(); const sels=p.entries.map(e=>({game_id:e.id,title_id:e.title_id,display_title:e.title,nointro_name:e.version==='factory version'?'':e.version,builtin_code:e.builtin_code,install_required:e.install,source:e.personal?'personal':'catalog',art:e.art,builtin_factory_version:e.version==='factory version'?'factory':null}));
  const readiness={}; let known=false; p.entries.forEach(e=>{ if(e.ready==='ready'||e.ready==='missing'){ readiness[e.id]=e.ready; known=true; } });
- const generated={}; p.entries.forEach(e=>{ const g=byId[e.id]; const s=g&&!g.art?(g.art_generated||(typeof mockCoverUrl==='function'?mockCoverUrl(g):'')):''; if(s) generated[e.id]=s; });   // rows without authentic art or the person's image: the pre-made placeholder or the page-drawn mock cover
+ const generated={}; p.entries.forEach(e=>{ const g=byId[e.id]; const s=g&&!g.art?(g.art_generated||(typeof mockCoverUrl==='function'?mockCoverUrl(g):'')):''; if(s) generated[e.id]=s; });   // rows without authentic art or the person's image: the pre-made generated cover or the page-drawn one
  // kept entries resolve from their sanitized rows (with their own description), never through byId; ids stay data (own-property lookups only)
  const kr=new Map(); p.entries.forEach(e=>{ if(e.kept){ const r=tvChosenRow(e.id); if(r) kr.set(e.id, r); } });
  const look=kr.size?new Proxy(byId,{get:(t,k)=>typeof k!=='string'?undefined:Object.prototype.hasOwnProperty.call(t,k)?t[k]:kr.get(k)}):byId;
@@ -84,7 +87,7 @@ function tvEnsure(){
  if($('tv')) return;
  const m=document.createElement('div'); m.id='tv'; m.className='tvmodal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-labelledby','tvTitle'); m.hidden=true;
  m.innerHTML=`<div class="tvbox">
-  <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">Preview Your Lineup</h2><span class="small" id="tvSub"></span></div></div>
+  <div class="tvhd"><div class="tvt"><div><h2 id="tvTitle">HOME</h2><span class="small" id="tvSub"></span></div></div>
    <div class="tvtools">
     <div class="tvmenu"><button type="button" class="btn sm tvmb" id="tvThemeBtn" aria-haspopup="true" aria-expanded="false" aria-controls="tvThemeMenu"><span class="lbl">Theme:</span> <b id="tvThemeName"></b> <span class="car" aria-hidden="true">▾</span></button>
      <div class="tvdrop" id="tvThemeMenu" role="menu" aria-label="Theme (on the console: START, then Change Theme)" hidden>${HOME_THEME_META.map(t=>`<button type="button" role="menuitemradio" aria-checked="false" class="tvtheme" data-theme="${t.id}"><span>${esc(t.name)}</span></button>`).join('')}</div></div>
@@ -221,13 +224,13 @@ function tvShownTheme(){ return (typeof TP!=='undefined'&&TP.app&&TP.on&&typeof 
 function tvSide(e){
  const p=tvProject(TV.mode); const s=$('tvSide'); if(!s) return; const m=TV.model, S=TV.S;
  const th=(HOME_THEME_META.find(t=>t.id===tvShownTheme())||{}).name||tvShownTheme();
- let h=p.sample?`<div class="tvs sample"><div class="lbl">No games yet</div><b>Sample: the 30 built-in games</b><div class="small">${esc(TV_SAMPLE_NOTICE)}</div></div>`:`<div class="tvs"><div class="lbl">${tvLoadout()?'Lineup':'Collection'}</div><b>${esc(tvPlanName())}</b><div class="small">${tvPl(p.count,'game')} in this HOME · ${p.counts.builtin+p.counts.kept} built-in kept · ${p.counts.added+p.counts.alternate} added · ${p.hidden.length} built-in hidden</div></div>`;
- h+=`<div class="tvs"><div class="lbl">HOME</div><b>${esc(th)}</b><div class="small">${esc(S.section.type==='folder'?('Folder: '+((homeFolder(m,S.section.id)||{}).name||'')):S.section.type==='category'?('Category: '+((homeCategory(m,S.section.id)||{}).label||'')):(TV_SECTION_NAMES[S.section.type]||S.section.type))} · ${tvPl((m.folders||[]).length,'folder')} · ${tvPl(homeFavorites(m).length,'favorite')} · ${homeHistoryEvents(m).length} launch${homeHistoryEvents(m).length===1?'':'es'} recorded</div><div class="small">Folders come from Game Menu Setup; favorites and play history are kept with this ${tvPlanWord()}. START → Change Theme switches themes; the Theme menu above is a shortcut.</div></div>`;
+ let h=p.sample?`<div class="tvs sample"><div class="lbl">No games yet</div><b>Sample: the 30 built-in games</b><div class="small">${esc(TV_SAMPLE_NOTICE)}</div></div>`:`<div class="tvs"><div class="lbl">Collection</div><b>${esc(tvPlanName())}</b><div class="small">${tvPl(p.count,'game')} in this HOME · ${p.counts.builtin+p.counts.kept} built-in kept · ${p.counts.added+p.counts.alternate} added · ${p.hidden.length} built-in hidden</div></div>`;
+ h+=`<div class="tvs"><div class="lbl">HOME</div><b>${esc(th)}</b><div class="small">${esc(S.section.type==='folder'?('Folder: '+((homeFolder(m,S.section.id)||{}).name||'')):S.section.type==='category'?('Category: '+((homeCategory(m,S.section.id)||{}).label||'')):(TV_SECTION_NAMES[S.section.type]||S.section.type))} · ${tvPl((m.folders||[]).length,'folder')} · ${tvPl(homeFavorites(m).length,'favorite')} · ${homeHistoryEvents(m).length} launch${homeHistoryEvents(m).length===1?'':'es'} recorded</div><div class="small">Folders come from HOME Settings; favorites and play history are kept with this ${tvPlanWord()}. START → Change Theme switches themes; the Theme menu above is a shortcut.</div></div>`;
  if(e){ h+=`<div class="tvs"><div class="lbl">Selected game</div><b>${esc(e.title)}</b><div class="small">${esc(e.version)}</div>
   <dl class="tvkv"><dt>Status</dt><dd>${esc(tvKindText(e.kind))}</dd>
   <dt>Game file</dt><dd>${e.ready==='n/a'?'not needed (built into the console)':typeof tpFileText==='function'&&tpFileText(e)?tpFileText(e):e.ready==='ready'?'ready on this computer':e.ready==='missing'?'missing on this computer':'shown in the Windows app'}</dd>
-  <dt>On the NES Classic</dt><dd>${esc(tvCoreText(e.core))}</dd><dt>Here (Play)</dt><dd>FCEUmm, the emulator built into Classic Cart Studio</dd>${e.hardware?`<dt>Controller</dt><dd>${esc(e.hardware)}</dd>`:''}${e.personal?`<dt>Source</dt><dd>your own game</dd>`:e.kept?`<dt>Source</dt><dd>imported with this collection</dd>`:''}
-  <dt>Cover</dt><dd>${(()=>{ const g=m.games.find(x=>x.id===e.id); const pv=g&&g.art?g.art.provenance:'none'; if(typeof OVR!=='undefined'&&OVR.games&&OVR.games[e.id]&&OVR.games[e.id].art) return 'your replacement artwork'; return pv==='generated'?'generated placeholder (marked GENERATED COVER)':e.kept&&pv!=='none'?'the image kept with this collection':pv==='authentic'?'Game Library box art':pv==='uploaded'?'your own image':'none'; })()}</dd></dl></div>`; }
+  <dt>On the NES Classic</dt><dd>${esc(tvCoreText(e.core))}</dd><dt>Here (Play)</dt><dd>FCEUmm, the emulator built into Classic Cart Studio</dd>${e.hardware?`<dt>Controller</dt><dd>${esc(e.hardware)}</dd>`:''}${e.personal||e.kept?`<dt>Source</dt><dd>${typeof incOfId==='function'&&incOfId(e.id)&&incGames().some(x=>x.content_sha256===incOfId(e.id).content_sha256)?'one of the Included Games':e.personal?'your own game':'imported with this collection'}</dd>`:''}
+  <dt>Cover</dt><dd>${(()=>{ const g=m.games.find(x=>x.id===e.id); const pv=g&&g.art?g.art.provenance:'none'; if(typeof OVR!=='undefined'&&OVR.games&&OVR.games[e.id]&&OVR.games[e.id].art) return 'your replacement artwork'; const r=typeof gameOf==='function'?gameOf(e.id):null; if(r&&r.art_source==='included') return `the game's own ${r.art_kind==='title screen'?'title screen':'game screen'}, from its author`; return pv==='generated'?'generated cover (marked GENERATED COVER)':e.kept&&pv!=='none'?'the image kept with this collection':pv==='authentic'?'Game Library box art':pv==='uploaded'?'your own image':'none'; })()}</dd></dl></div>`; }
  h+=`<div class="tvs"><div class="lbl">Controls</div><div class="small">The console has only the D-pad, A, B, START and SELECT. A launches, SELECT opens the game's details, START opens the menu, B goes back.</div></div>`;
  if(!p.sample) h+=tvCompareHtml();
  const was=s.querySelector('#tvSnap'), keep=was?was.value:'';   // the chosen comparison survives a redraw (a new highlight, a theme, the games kept here arriving)
@@ -249,7 +252,7 @@ function tvDiffHtml(i){
 }
 
 // ---- Preview for: Browser HOME (high resolution, the default each time the Studio opens) or NES Classic Console HOME (the console's pixel
-//      appearance). Appearance only: the theme, the selected game, the collection or loadout and its order, the open menu and every setting
+//      appearance). Appearance only: the theme, the selected game, the collection and its order, the open menu and every setting
 //      stay as they are; nothing launches and the console's chosen theme is never changed. Play This HOME on PC is always high resolution. ----
 let tvAppearanceHook=null;   // tv-native.js: the Windows app's native renderer switches its own appearance
 function tvSetAppearance(ap){ TV.appearance=ap==='console'?'console':'browser'; HM_HD=TV.appearance==='browser';
@@ -270,7 +273,7 @@ async function tvSaveImage(){
   px+=tw+gap; }
  const g=ids.length?m.games.find(v=>v.id===ids[S.index]):null; if(g){ x.fillStyle='#fff'; x.font='700 48px "Segoe UI", system-ui, sans-serif'; x.textAlign='center'; x.fillText(g.title,W/2,ty+th*1.18+70); x.textAlign='left'; }
  x.fillStyle='#d6d4ce'; x.font='500 26px "Segoe UI", system-ui, sans-serif'; x.fillText('A launch · SELECT details · START menu · B back',60,H-50);
- c.toBlob(async b=>{ if(!b) { toast('The preview image could not be created. Try again.'); return; } const res=await ccsSaveFile(csSafeName(`${tvPlanName()||'Collection'} - Preview Your Lineup`,'.png'), b, 'Preview Image'); if(res.ok) toast(res.download?`Your browser is saving "${res.name}" (1920 × 1080) to its downloads.`:`Saved "${res.name}" (1920 × 1080)`); },'image/png');
+ c.toBlob(async b=>{ if(!b) { toast('The preview image could not be created. Try again.'); return; } const res=await ccsSaveFile(csSafeName(`${tvPlanName()||'Collection'} - HOME`,'.png'), b, 'Preview Image'); if(res.ok) toast(res.download?`Your browser is saving "${res.name}" (1920 × 1080) to its downloads.`:`Saved "${res.name}" (1920 × 1080)`); },'image/png');
 }
 // test hook: the same drawing as a data size without a download
 async function tvExportSize(){ const ids=TV.model?homeListing(TV.model,TV.S,tvSearch()).ids:[]; const c=document.createElement('canvas'); c.width=1920; c.height=1080; const x=c.getContext('2d'); x.fillStyle='#0b0b0e'; x.fillRect(0,0,1920,1080); return {w:c.width,h:c.height,entries:ids.length}; }

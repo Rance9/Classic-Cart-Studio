@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Classic Cart Studio console backup and restore engine: the one implementation behind Console Backup & Restore in Classic Cart Studio
+       for Windows and the CCS Console Backup & Restore Utility (capture, the console backup ZIP, verification, copies, records, restore,
+       the maintenance-write prerequisite, the recovery session). It also carries the clovershell shell derived from Hakchi2 CE 3.9.3
+       (compiled here from tools/console-worker/CcsWorker/Shell, where the files stay, so the transport worker and this engine use one
+       copy). GPL-3.0-or-later. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>CcsBackup</AssemblyName>
+    <RootNamespace>CcsBackup</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Product>CCS Console Backup &amp; Restore</Product>
+    <Company>Rance9 LLC</Company>
+    <Copyright>Copyright (C) 2026 Rance9; derived parts (C) Hakchi2 CE authors. GPL-3.0-or-later.</Copyright>
+    <Version>1.0.0</Version>
+    <NoWarn>$(NoWarn);CS0162;CS0429</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LibUsbDotNet" Version="2.2.29" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Security" />
+    <ProjectReference Include="..\..\console-loader\CcsConsole\CcsConsole.csproj" />
+    <Compile Include="..\..\console-worker\CcsWorker\Shell\IConsoleShell.cs" Link="Shell\IConsoleShell.cs" />
+    <Compile Include="..\..\console-worker\CcsWorker\Shell\IBulkPipe.cs" Link="Shell\IBulkPipe.cs" />
+    <Compile Include="..\..\console-worker\CcsWorker\Shell\ClovershellShell.cs" Link="Shell\ClovershellShell.cs" />
+    <Compile Include="..\..\console-worker\CcsWorker\Shell\LibUsbBulkPipe.cs" Link="Shell\LibUsbBulkPipe.cs" />
+    <InternalsVisibleTo Include="CcsWorker" />
+    <InternalsVisibleTo Include="CcsWorker.Tests" />
+    <InternalsVisibleTo Include="CcsBackup.Tests" />
+    <!-- the platform registry, the same bytes the website and the Windows app's backend read -->
+    <EmbeddedResource Include="..\..\platform\ccs-platform-registry.json" LogicalName="platform/ccs-platform-registry.json" />
+  </ItemGroup>
+  <!-- the recovery images (ram/build_images.py output), embedded and loaded from memory (RecoveryImages); a build without them can never
+       open a console session (and every session is closed by Gate in this version anyway) -->
+  <!-- CCS Console Workbench: every console program is in this shared engine, so the standalone and the embedded Workbench carry the
+       same bytes and offer the same functions (preparation and its way back, rescue) -->
+  <ItemGroup Condition="'$(CcsRamImages)' != ''">
+    <EmbeddedResource Include="$(CcsRamImages)\ccs-backup\*" LogicalName="ram/ccs-backup/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(CcsRamImages)\ccs-restore\*" LogicalName="ram/ccs-restore/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(CcsRamImages)\ccs-prepare\*" LogicalName="ram/ccs-prepare/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(CcsRamImages)\ccs-rescue\*" LogicalName="ram/ccs-rescue/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(CcsRamImages)\ccs-files\*" LogicalName="ram/ccs-files/%(Filename)%(Extension)" />
+    <!-- the release-built CCS HOME package (tools/console-nucleus/build_home_package.py, written into the same folder as ccs-home/): placed on
+         the console after the preparation image runs (Engine/HomePackage); a build without it refuses to install a method without a HOME -->
+    <EmbeddedResource Include="$(CcsRamImages)\ccs-home\*" LogicalName="ram/ccs-home/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

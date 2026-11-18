@@ -378,14 +378,14 @@ static int hexval(char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && 
 int gp_rom_load(const char *path, const char *header_hex, const char *want, gp_rom *out, char *why, size_t whylen) {
     memset(out, 0, sizeof *out); uint8_t *b; size_t n;
     int r = gp_read_file(path, &b, &n, 16u << 20);
-    if (r) { snprintf(why, whylen, r == -2 ? "The ROM file is larger than any NES game." : "The ROM file could not be read."); return -1; }
+    if (r) { snprintf(why, whylen, r == -2 ? "The game file is larger than any NES game." : "The game file could not be read."); return -1; }
     int headered = n >= 16 && b[0] == 'N' && b[1] == 'E' && b[2] == 'S' && b[3] == 0x1A;
     size_t skip = headered ? 16 + ((b[6] & 0x04) ? 512 : 0) : 0;
-    if (skip > n) { free(b); snprintf(why, whylen, "The ROM file is damaged (it ends inside its header)."); return -1; }
+    if (skip > n) { free(b); snprintf(why, whylen, "The game file is damaged (it ends inside its header)."); return -1; }
     gp_sha256(b + skip, n - skip, out->content_sha256);
-    if (want && *want && strcmp(want, out->content_sha256)) { free(b); snprintf(why, whylen, "The ROM file is not this version of the game any more (its content changed). Locate the right file in the Studio."); return -1; }
+    if (want && *want && strcmp(want, out->content_sha256)) { free(b); snprintf(why, whylen, "The game file is not this version of the game any more (its content changed). Locate the right file in the Studio."); return -1; }
     if (headered) { out->data = b; out->len = n; return 0; }
-    if (!header_hex || strlen(header_hex) != 32) { free(b); snprintf(why, whylen, "This ROM file has no header and the Game Library has no header information for it, so it cannot be played (nothing is guessed)."); return -1; }
+    if (!header_hex || strlen(header_hex) != 32) { free(b); snprintf(why, whylen, "This game file has no header and the Game Library has no header information for it, so it cannot be played (nothing is guessed)."); return -1; }
     uint8_t *o = malloc(n + 16); if (!o) { free(b); snprintf(why, whylen, "Out of memory."); return -1; }
     for (int i = 0; i < 16; i++) { int hi = hexval(header_hex[2 * i]), lo = hexval(header_hex[2 * i + 1]); if (hi < 0 || lo < 0) { free(b); free(o); snprintf(why, whylen, "The header information for this game is not valid."); return -1; } o[i] = (uint8_t)(hi << 4 | lo); }
     if (!(o[0] == 'N' && o[1] == 'E' && o[2] == 'S' && o[3] == 0x1A)) { free(b); free(o); snprintf(why, whylen, "The header information for this game is not an iNES header."); return -1; }

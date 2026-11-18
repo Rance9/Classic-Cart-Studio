@@ -1,0 +1,40 @@
+#!/bin/sh
+# Classic Cart Studio recovery environment: start. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# In the Classic Cart Studio recovery images this file REPLACES hakchi's /hakchi/init. The image's /init (hakchi 3.9.3's, changed only at
+# its end by the builder) has already loaded the NAND driver, opened the system partition's encryption read-only (the command line keeps
+# "ro") and mounted the system read-only at /newroot; it runs this file and, whatever happens here, never starts the console's normal
+# system afterwards (the builder replaced that hand-over with ccs-idle).
+#
+# This file never mounts, checks, repairs or writes the console's storage. It does not source hakchi's scripts (their default path mounts
+# the data partition read-write, script/config, script/base and mount_base), starts no hakchi service, no network and no installer.
+# It marks every NAND block device read-only (an extra guard: the console's kernel decides whether that refuses writes; nothing here
+# writes either way), turns the USB port into a clovershell gadget (1F3A:EFE8, the same identity and Windows driver as the console's
+# FEL mode) and starts hakchi's clovershell daemon, then waits in RAM. The PC asks for the fixed ccsbr verbs only.
+CCS=/ccs
+. "$CCS/env" || exec sh "$CCS/bin/ccs-idle"
+export PATH="$CCS/bin:/bin:/sbin:/usr/bin:/usr/sbin"
+mkdir -p "$ST"
+log(){ echo "$(cat /proc/uptime | cut -d' ' -f1) $*" >> "$ST/start.log"; }
+log "start $(cat "$CCS/image-id") profile $(cat "$CCS/profile")"
+sh "$CCS/bin/ccsbr" card starting
+
+for d in nand nanda nandb nandc nandd nande; do
+  [ -b "$DEV/$d" ] && { blockdev --setro "$DEV/$d"; log "setro $d $?"; }
+done
+for d in /dev/dm-*; do [ -b "$d" ] && blockdev --setro "$d"; done
+
+# the USB port as a clovershell gadget (hakchi's script/shell f_clovershell and b0040_usb switchToUsbDevice, without hakchi's scripts)
+G="$SYSFS/devices/virtual/android_usb/android0"
+R="$SYSFS/devices/sunxi_usb/usb_role"
+if [ -f "$R" ] && [ "$(cat "$R")" != 2 ]; then echo 0 > "$G/enable"; echo 0 > "$R"; echo 2 > "$R"; fi
+echo 0 > "$G/enable"
+echo 1f3a > "$G/idVendor"
+echo efe8 > "$G/idProduct"
+echo clover > "$G/functions"
+echo 1 > "$G/enable"
+log "gadget $(cat "$G/functions" 2>/dev/null) $(cat "$G/enable" 2>/dev/null)"
+
+env -i USER=root LOGNAME=root HOME=/root SHELL=/bin/sh PATH="$PATH" TERM=linux /hakchi/shell/clovershell &
+log "clovershell $!"
+sh "$CCS/bin/ccsbr" card connected
+exec sh "$CCS/bin/ccs-idle"

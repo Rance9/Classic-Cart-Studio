@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Classic Cart Studio for Windows: a WPF window (custom dark chrome) that shows the live website (https://classiccartstudio.com/)
        in WebView2 and starts, supervises and stops the Python backend (ClassicCartStudioBackend.exe, headless).
-       .NET Framework 4.8 is part of Windows 10/11, so nothing else has to be installed; the WebView2 runtime ships with Microsoft Edge. -->
+       .NET Framework 4.8 is part of Windows 10/11. The Microsoft Edge WebView2 Runtime is a separate Microsoft component: Setup checks it
+       (ClassicCartStudio.exe with its runtime-check option) and installs it from Microsoft's bundled offline installer when it is missing (installer.iss). -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
@@ -14,12 +15,12 @@
     <Platforms>x64</Platforms>
     <ApplicationIcon>..\..\publish\assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.10.1</Version>
+    <Version>0.11.0</Version>
     <FileVersion>$(Version)</FileVersion>
     <InformationalVersion>$(Version)</InformationalVersion>
     <Product>Classic Cart Studio</Product>
     <AssemblyTitle>Classic Cart Studio</AssemblyTitle>
-    <Company>Classic Cart Studio Project - Rance9</Company>
+    <Company>Rance9 LLC</Company>
     <Copyright>Classic Cart Studio project (independent; not affiliated with Nintendo)</Copyright>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
@@ -30,8 +31,14 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3296.44" />
+    <!-- Console Backup & Restore: the same window and engine as the CCS Console Backup & Restore Utility (tools/console-backup) -->
+    <ProjectReference Include="..\..\console-backup\CcsBackupUi\CcsBackupUi.csproj" />
+    <ProjectReference Include="..\..\console-backup\CcsBackup\CcsBackup.csproj" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
     <EmbeddedResource Include="Recovery.html" LogicalName="Recovery.html" />
     <EmbeddedResource Include="Loading.html" LogicalName="Loading.html" />
     <Resource Include="..\..\publish\assets\app.ico" Link="app.ico" />
+    <Resource Include="..\..\publish\assets\brand-wordmark.png" Link="brand-wordmark.png" />
   </ItemGroup>
 </Project>

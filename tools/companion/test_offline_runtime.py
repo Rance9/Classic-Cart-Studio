@@ -4,7 +4,9 @@ Every source file that ships in Classic Cart Studio for Windows (the backend's P
 JavaScript) is scanned. Network calls may only go to this computer (127.0.0.1 / localhost); the only exception is the public website's
 download box, which asks GitHub for the latest release and never runs inside the desktop application (guarded by !CO.desktop), and the
 optional usage reports: one fixed collector address, contacted only while the person's choice is On, never needed for any
-feature and never a download (the app's backend relay, the website's own fetch; checked exactly in optional_usage_reports_only). Ordinary links the user clicks (help, source code, licenses) are not downloads and are not counted. Exit code 0 = PASS.
+feature and never a download (the app's backend relay, the website's own fetch; checked exactly in optional_usage_reports_only), and the
+app's update check: this project's latest-release information on GitHub and, only after Update Now, that release's own
+files, from one function of companion/app_update.py (checked exactly in app_update_only). Ordinary links the user clicks (help, source code, licenses) are not downloads and are not counted. Exit code 0 = PASS.
 
   python test_offline_runtime.py"""
 from __future__ import annotations
@@ -59,6 +61,31 @@ def usage_reports():
     relay_lines = {f"companion{os.sep}metrics_relay.py:{k}: {rl[k - 1].strip()[:140]}" for k in lines} if good else set()
     return {"ok": good, "page_ok": good, "relay_lines": relay_lines, "detail": d}
 
+RELEASES_API = "https://api.github.com/repos/Rance9/Classic-Cart-Studio/releases/latest"
+DOWNLOADS = "https://github.com/Rance9/Classic-Cart-Studio/releases/download/"
+FEED_RE = r"http://127\.0\.0\.1:\d{2,5}/"
+def app_updates():
+    """the app's update check and in-place update, exactly: companion/app_update.py names only RELEASES_API and DOWNLOADS (and a loopback
+    test feed pattern), its one network function _get refuses any other address before it opens one, the test feed is honored only when it
+    is a loopback address, nothing else calls the network, and install() reads the installer again and compares it with its checked SHA-256
+    before it starts it"""
+    import ast
+    d = {}
+    with open(os.path.join(HERE, "app_update.py"), encoding="utf-8") as f: us = f.read()
+    t = ast.parse(us); fn = {n.name: n for n in t.body if isinstance(n, ast.FunctionDef)}
+    consts = {getattr(x, "id", ""): n.value.value for n in t.body if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant) for x in n.targets}
+    d["update_two_fixed_addresses"] = consts.get("RELEASES_API") == RELEASES_API and consts.get("DOWNLOADS") == DOWNLOADS and sorted(set(URL.findall(us))) == sorted({RELEASES_API, DOWNLOADS, FEED_RE})
+    d["update_feed_loopback_only"] = f'if not re.fullmatch(r"{FEED_RE}", _FEED): _FEED = ""' in us and "API, DL = (_FEED + \"latest.json\", _FEED) if _FEED else (RELEASES_API, DOWNLOADS)" in us
+    get, ul = fn.get("_get"), us.splitlines(); lines = [i for i, line in enumerate(ul, 1) if PY_NET.search(line)]
+    gs = ast.get_source_segment(us, get) if get else ""
+    d["update_net_only_in_get"] = bool(get) and bool(lines) and all(get.lineno <= i <= get.end_lineno for i in lines)
+    d["update_get_refuses_other_addresses"] = gs.find('if not (url == API or url.startswith(DL)): raise') == gs.find("if not (url ==") > 0 and gs.find("if not (url ==") < gs.find("urlopen(")
+    ins = ast.get_source_segment(us, fn["install"]) if "install" in fn else ""
+    d["update_installer_checked_when_started"] = 0 <= ins.find("_sha(p) != want") < ins.find("subprocess.Popen(")
+    good = all(d.values())
+    upd_lines = {f"companion{os.sep}app_update.py:{k}: {ul[k - 1].strip()[:140]}" for k in lines} if good else set()
+    return {"ok": good, "lines": upd_lines, "detail": d}
+
 def main():
     checks = []; ok = lambda k, v, n="": checks.append((k, bool(v), n))
     # Python modules bundled with the backend (tools/companion and the rom-pipeline modules it imports)
@@ -71,6 +98,7 @@ def main():
     bundled_pipeline = {"common.py", "import_selected.py", "manifest_v4.py", "library_lookup.py", "personal_store.py", "catalog.py"}
     hits = [h for h in hits if not h.startswith("rom-pipeline") or os.path.basename(h.split(":")[0]) in bundled_pipeline]
     usage = usage_reports(); hits = [h for h in hits if h not in usage["relay_lines"]]   # the optional usage reports' one send (checked below)
+    upd = app_updates(); hits = [h for h in hits if h not in upd["lines"]]   # the app's update check and download (checked below)
     ok("backend_no_external_network_calls", not hits, hits[:5])
     # the desktop host
     # (WebRequest to Base / baseUrl: the application's own backend on 127.0.0.1, Backend.cs)
@@ -103,6 +131,7 @@ def main():
     shared += [e for e in ext if (cp_same and e[0] == "ccs-play.js" and e[1].startswith("cpAsset(")) or (sw_same and e[0] == "sw.js" and (e[1] in ("q", "at(a") or (sw_fresh and e[1] in ("fresh(p", "fresh('sw.js'"))))]   # (the scan stops at the first parenthesis)
     shared += [e for e in ext if usage["page_ok"] and e[0] == "metrics.js" and e[1] == "CCSM.url"]   # the website's optional usage count (below)
     ok("optional_usage_reports_only", usage["ok"], usage["detail"])
+    ok("app_update_only", upd["ok"], upd["detail"])
     ok("interface_external_fetch_only_website_download_box", len(allowed) + len(shared) == len(ext) and len(allowed) <= 2 and len([e for e in shared if e[0] == "tv-native.js"]) <= 1, [(e[0], e[1]) for e in ext if e not in allowed and e not in shared][:5])
     src = open(os.path.join(TOOLS, "rom-pipeline", "studio", "share.js"), encoding="utf-8").read() if os.path.exists(os.path.join(TOOLS, "rom-pipeline", "studio", "share.js")) else ""
     ok("no_sharing_service_calls", not re.search(r"\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|share\.classiccartstudio\.com/api", src) and not os.path.exists(os.path.join(TOOLS, "publish", "site-static", "share-config.json")))   # .ccs files are made locally; nothing is uploaded

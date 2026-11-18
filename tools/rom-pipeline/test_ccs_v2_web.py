@@ -13,7 +13,7 @@ the browser's resource timing), and no request may leave 127.0.0.1 or carry ROM 
 from __future__ import annotations
 import argparse, base64, json, os, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-from test_loadouts_web import EdgeSession, serve, READY, CALM
+from studio_harness import EdgeSession, serve, READY, CALM, SETTLED, NEW_COLL
 
 NET = r"""(()=>{ if(window.__net) return 1; window.__net=[]; const S='CCS-SENTINEL-ROM-BYTES';
  const scan=async b=>{ try{ if(!b) return false; let u8=null; if(typeof b==='string') return b.includes(S); if(b instanceof Blob) u8=new Uint8Array(await b.arrayBuffer()); else if(b instanceof ArrayBuffer) u8=new Uint8Array(b); else if(ArrayBuffer.isView(b)) u8=new Uint8Array(b.buffer,b.byteOffset,b.byteLength); else if(b instanceof FormData){ for(const [,v] of b) if(await scan(v)) return true; return false; }
@@ -40,23 +40,22 @@ def main():
     web = serve(a.site); URL = f"http://127.0.0.1:{web.server_address[1]}/index.html"
     with EdgeSession(width=1440, height=900, profile=tempfile.mkdtemp(prefix="ccs-v2-"), call_timeout=600) as ed:
         J = lambda e: json.loads(ed.js(e))
-        ed.navigate(URL.replace("index.html", "robots.txt")); ed.js("localStorage.clear(); 1"); ed.navigate(URL); ed.wait_for(READY, timeout=120); time.sleep(1); ed.js(CALM); ed.js(NET); ed.js(ROMS)
-        # ---- a collection of five synthetic games (three headered, two headerless) with a loadout of three ----
-        J(r"""(async()=>{ window.R=[]; for(let i=0;i<5;i++) R.push(await mkRom(i, i<3)); sel.clear(); R.forEach(x=>sel.add(x.id)); COLL.name='Sentinel Collection'; saveColl(); persist(); render(); csSaveActiveNow();
-   const r=csActive(); r.loadouts=[{id:loNewId(), target:'nes-classic', name:'Three', created:csNow(), modified:csNow(), sel:R.slice(0,3).map(x=>x.id), decisions:{}, home:null}]; csWrite(); return JSON.stringify(1); })()""")
+        ed.navigate(URL.replace("index.html", "robots.txt")); ed.js("localStorage.clear(); 1"); ed.navigate(URL); ed.wait_for(READY, timeout=120); time.sleep(1); ed.js(CALM); ed.wait_for(SETTLED, timeout=90); ed.js(NEW_COLL); ed.js(NET); ed.js(ROMS)
+        # ---- a collection of five synthetic games (three headered, two headerless); collections carry no lineups now ----
+        J(r"""(async()=>{ window.R=[]; for(let i=0;i<5;i++) R.push(await mkRom(i, i<3)); sel.clear(); R.forEach(x=>sel.add(x.id)); COLL.name='Sentinel Collection'; saveColl(); persist(); render(); csSaveActiveNow(); return JSON.stringify(1); })()""")
         st = J("""(async()=>{ ccsBackupDialog(); await new Promise(r=>setTimeout(r,800)); return JSON.stringify({missing:CCS.missing.length, ready:CCS.ready.length, exp:$('ccsExp').disabled, send:!!$('ccsSend'), only:!!$('ccsOnly'), acts:[...document.querySelectorAll('#collm .acts button')].map(b=>b.textContent.trim()), title:$('collTitle').textContent, pick:!!$('ccsPick'), text:$('collBody').innerText}); })()""")
-        ok("missing_roms_block_the_backup", st["missing"] == 5 and st["exp"] is True and "5 of 5 games need their ROM file" in st["text"] and st["pick"] and st["title"] == "Back Up Collection", st)
+        ok("missing_roms_block_the_backup", st["missing"] == 5 and st["exp"] is True and "5 of 5 games need their game file" in st["text"] and st["pick"] and st["title"] == "Back Up Collection", st)
         ok("backup_dialog_has_no_share_or_partial_action", not st["send"] and not st["only"] and st["acts"] == ["Cancel", "Create Backup…"], st)
         st = J("""(async()=>{ await ccsAddRomSources(R.map(x=>x.file)); await ccsCheck(); return JSON.stringify({missing:CCS.missing.length, ready:CCS.ready.length, exp:$('ccsExp').disabled, text:$('collBody').innerText}); })()""")
         ok("chosen_rom_files_make_every_game_ready", st["missing"] == 0 and st["ready"] == 5 and st["exp"] is False and "5 ROM files are ready" in st["text"] and "All " not in st["text"], st)
         pk = J("""(async()=>{ const b=await ccsBuild(CCS.parts); window.PKG=b; const i=await ccsInspect(b); const ids=(i.data.ccs_collection||{}).sel||[];
    return JSON.stringify({ok:i.ok, schema:i.manifest.schema, kind:i.manifest.kind, roms:i.roms.length, verified:i.roms.every(r=>r.verified), inc:(i.manifest.roms.included||[]).length, missingKey:'missing' in (i.manifest.roms||{}), games:ids.length, everyHasRom:ids.every(id=>i.roms.some(r=>r.version_id===id)), loadout:(i.data.ccs_collection.loadouts||[]).map(l=>l.sel.length), size:b.size, problems:i.problems}); })()""")
         ok("complete_package_every_game_has_a_verified_rom", pk["ok"] and pk["schema"] == "ccs-package/2" and pk["kind"] == "collection" and pk["roms"] == 5 and pk["verified"] and pk["inc"] == 5 and pk["games"] == 5 and pk["everyHasRom"] and not pk["missingKey"], pk)
-        ok("package_keeps_loadouts", pk["loadout"] == [3], pk["loadout"])
+        ok("package_carries_no_lineups (collections only)", pk["loadout"] == [], pk["loadout"])
         open(os.path.join(a.out, "web-complete.ccs"), "wb").write(base64.b64decode(ed.js("(async()=>{ const u8=new Uint8Array(await PKG.arrayBuffer()); let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); })()")))
         # ---- one missing ROM: the whole backup is blocked; no smaller selection is offered ----
         st = J("""(async()=>{ ROMSRC.clear(); await ccsAddRomSources(R.slice(0,4).map(x=>x.file)); await ccsCheck(); return JSON.stringify({missing:CCS.missing.length, exp:$('ccsExp').disabled, only:!!$('ccsOnly'), subset:typeof window.ccsSubsetRecord, text:$('collBody').innerText}); })()""")
-        ok("one_missing_rom_blocks_the_whole_backup", st["missing"] == 1 and st["exp"] is True and "1 of 5 games needs its ROM file" in st["text"], st)
+        ok("one_missing_rom_blocks_the_whole_backup", st["missing"] == 1 and st["exp"] is True and "1 of 5 games needs its game file" in st["text"], st)
         ok("no_partial_backup_option", not st["only"] and st["subset"] == "undefined" and "Only" not in st["text"], st)
         # ---- identity: wrong revision, missing ROM in a package, old ROM-free package ----
         st = J(r"""(async()=>{ const id=R[0].id, other=new Uint8Array(await R[1].file.arrayBuffer()); const parts=await ccsCollectionParts(CS.items[CCS.cid]); ROMSRC.clear(); await ccsAddRomSources(R.map(x=>x.file));
@@ -65,13 +64,13 @@ def main():
    const man={format:CCS_FORMAT, schema:'ccs-package/1', kind:'collection', files:[]}; const old=ccsZipBlob([(await ccsJsonEntry(CCS_MANIFEST, JSON.stringify(man))).entry]); let olderr=''; try{ await ccsInspect(old); }catch(e){ olderr=e.message; }
    return JSON.stringify({wrong:wrong.ok, wrongWhy:(wrong.problems||[]).map(p=>p.problem).join('; '), nobuild, olderr}); })()""")
         ok("rom_of_a_different_version_is_refused", st["wrong"] is False and "different version" in st["wrongWhy"], st)
-        ok("package_cannot_be_built_without_every_rom", "missing ROM" in st["nobuild"], st["nobuild"])
-        ok("old_rom_free_package_refused_plainly", "does not include its ROM files" in st["olderr"], st["olderr"])
+        ok("package_cannot_be_built_without_every_rom", "missing game file" in st["nobuild"], st["nobuild"])
+        ok("old_rom_free_package_refused_plainly", "does not include its game files" in st["olderr"], st["olderr"])
         st = J(r"""(async()=>{ const z=await ccsUnzip(PKG); const keep=z.entries.filter(e=>!e.name.startsWith('roms/'+R[2].id)); const entries=[]; for(const e of keep){ entries.push({name:e.name, method:e.method, crc:e.crc, usize:e.usize, csize:e.csize, body:await z.raw(e)}); }
    const man=JSON.parse(new TextDecoder().decode(await z.read(z.entries.find(e=>e.name===CCS_MANIFEST), 1e9))); man.files=man.files.filter(f=>!f.path.startsWith('roms/'+R[2].id)); man.roms.included=man.roms.included.filter(f=>f.version_id!==R[2].id);
    const mi=entries.findIndex(e=>e.name===CCS_MANIFEST); entries[mi]=(await ccsJsonEntry(CCS_MANIFEST, JSON.stringify(man))).entry; const b=ccsZipBlob(entries); const i=await ccsInspect(b);
    ccsOpenFile(new File([b],'Incomplete.ccs')); await new Promise(r=>setTimeout(r,1500)); return JSON.stringify({ok:i.ok, why:i.problems.map(p=>p.problem).join('; '), dialog:$('collBody').innerText, save:!!$('ccsGo')}); })()""")
-        ok("incomplete_package_refused_and_not_importable", st["ok"] is False and "no ROM file" in st["why"] and "cannot be opened" in st["dialog"] and not st["save"], st)
+        ok("incomplete_package_refused_and_not_importable", st["ok"] is False and "no game file" in st["why"] and "cannot be opened" in st["dialog"] and not st["save"], st)
         # ---- import on the website, then back it up again without choosing files ----
         st = J(r"""(async()=>{ ROMSRC.clear(); closeColl(); const n0=csList().length; ccsOpenFile(new File([PKG],'Sentinel Collection.ccs')); for(let i=0;i<40&&!$('ccsGo');i++) await new Promise(r=>setTimeout(r,250));
    const text=$('collBody').innerText; $('ccsGo').click(); await new Promise(r=>setTimeout(r,800)); const n1=csList().length; const rec=csList().find(r=>r.name.startsWith('Sentinel Collection')&&r.id!==CCS.cid);
@@ -100,7 +99,7 @@ def main():
         # ---- size: thousands of games, forced ZIP64, and > 4 GB archive structure ----
         t0 = time.time()
         st = J(r"""(async()=>{ const N=3000; const ids=[], files=[]; for(let i=0;i<N;i++){ const x=await mkRom('big'+i, i%2===0, 8192); ids.push(x.id); files.push(x.file); }
-   ROMSRC.clear(); await ccsAddRomSources(files); const r=csCreate('Three Thousand', {sel:ids, decisions:{}, coll:{}, home:null, loadouts:[]}); const parts=await ccsCollectionParts(r); const b=await ccsBuild(parts); const i=await ccsInspect(b);
+   ROMSRC.clear(); await ccsAddRomSources(files); const r=csCreate('Three Thousand', {sel:ids, decisions:{}, coll:{}, home:null}); const parts=await ccsCollectionParts(r); const b=await ccsBuild(parts); const i=await ccsInspect(b);
    return JSON.stringify({games:ids.length, ok:i.ok, roms:i.roms.length, size:b.size}); })()""")
         ok("three_thousand_games_package_and_verify", st["ok"] and st["roms"] == 3000, st); print(f"   3000 games: {st['size']:,} bytes in {time.time()-t0:.1f}s")
         st = J(r"""(async()=>{ window.CCS_FORCE_ZIP64=true; const parts=await ccsCollectionParts(csList().find(r=>r.name==='Sentinel Collection')); ROMSRC.clear(); await ccsAddRomSources(R.map(x=>x.file)); const b=await ccsBuild(parts); window.CCS_FORCE_ZIP64=false; window.PKG64=b; const i=await ccsInspect(b); return JSON.stringify({ok:i.ok, roms:i.roms.length}); })()""")

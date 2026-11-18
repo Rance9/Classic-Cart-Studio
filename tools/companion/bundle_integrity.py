@@ -30,14 +30,15 @@ COMPONENTS = {
     "interface": ("Interface, game library and artwork", ["site/"]),
     "fonts": ("HOME fonts", ["native_home/fonts/"]),
     "scripts": ("Hakchi helper scripts", ["Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1", "Close-Hakchi.ps1"]),
-    "notices": ("License notices", ["THIRD_PARTY_NOTICES.md"]),
+    "notices": ("License notices", ["THIRD_PARTY_NOTICES.md", "notices/"]),
     "console-worker": ("Console transport worker (its real connections are closed in this version)", ["console-worker/"]),
 }
 # files that must be in every release build (companion.spec refuses to build without them)
 REQUIRED_FILES = ["packages/hakchi2-ce-3.9.3-portable.zip", "native/ccs-home-armv7", "native/ccs-player-armv7", "startup/startup-images.json", "native/ccs-sim-core.exe", "site/index.html", "site/catalog.json",
                   "site/library.json", "site/builtin.json", "site/brand/home/home-art.json", "Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1",
-                  "Close-Hakchi.ps1", "THIRD_PARTY_NOTICES.md", "player/ccs-player.exe", "player/fonts/sans400_17.ccsf",
-                  "console-worker/ccs-console-worker.exe", "console-worker/CcsWorker.dll", "console-worker/BUILD-INFO.json", "console-worker/NOTICE",
+                  "Close-Hakchi.ps1", "THIRD_PARTY_NOTICES.md", "notices/THIRD_PARTY_NOTICES.md", "notices/tools/console-worker/licenses/GPL-3.0.txt",
+                  "notices/tools/player/third_party/fceumm/LICENSE.pic16c5x.txt", "player/ccs-player.exe", "player/fonts/sans400_17.ccsf",
+                  "console-worker/ccs-console-worker.exe", "console-worker/CcsWorker.dll", "console-worker/CcsBackup.dll", "console-worker/BUILD-INFO.json", "console-worker/NOTICE",
                   "console-worker/SOURCE.md"]
 
 

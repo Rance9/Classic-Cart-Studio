@@ -2,10 +2,11 @@
 
 Evidence sources, in priority order:
  1. Curated overrides (tools/rom-pipeline/data/input-overrides.json) — researched per title from published accessory lists
-    (Wikipedia NES Zapper / Power Pad / Four Score lists, NESdev input-device pages, manuals); each entry carries its URLs.
- 2. The Mesen 2 / NewRisingSun NES 2.0 database "default expansion device" code recorded for the ROM (C:/NES/work/db/
-    MesenNesDB.txt column 14, keyed by PRG+CHR CRC32). Codes follow the NES 2.0 header specification
-    (https://www.nesdev.org/wiki/NES_2.0#Default_Expansion_Device).
+    (Wikipedia NES Zapper / Power Pad / Four Score lists, NESdev input-device pages, manuals); each entry carries its public
+    sources: an http(s) URL, or a citation {"source", "url", "note"}. A local path or file: URI is refused (curated_evidence).
+ 2. The Mesen 2 / NewRisingSun NES 2.0 database "default expansion device" code recorded for the ROM (MesenNesDB.txt column 14,
+    keyed by PRG+CHR CRC32; the pipeline reads a local copy of Mesen 2's public UI/Dependencies/MesenNesDB.txt, MESEN_DB_URL).
+    Codes follow the NES 2.0 header specification (https://www.nesdev.org/wiki/NES_2.0#Default_Expansion_Device).
  3. Otherwise: unknown (never assumed playable).
 
 The classification never changes emulator routing or ROM identity. "nes_classic_support" describes the 2018 NES Classic
@@ -16,6 +17,8 @@ from __future__ import annotations
 import os, json, re, unicodedata
 
 NESDEV_URL = "https://www.nesdev.org/wiki/NES_2.0#Default_Expansion_Device"
+# Mesen 2's game database, the same bytes as the pipeline's copy (SHA-256 37b25ade...10d9; header: generated 2022-07-21)
+MESEN_DB_URL = "https://github.com/SourMesen/Mesen2/blob/b9fa69ddc6d0a331fb103fdb5eef6904305703c2/UI/Dependencies/MesenNesDB.txt"
 # NES 2.0 default expansion device codes (decimal) -> (device, family)
 EXPANSION = {
     0: ("unspecified", "unknown"), 1: ("standard controllers", "standard"), 2: ("NES Four Score / Satellite", "four-score"), 3: ("Famicom Four Players Adapter", "four-score"),
@@ -55,6 +58,16 @@ def load_overrides() -> dict:
         for a in e.get("aliases", []): out[norm(a)] = e
     return out
 
+def curated_evidence(sources: list) -> list:
+    """A curated entry's sources as public evidence. A string is a URL ("curated accessory list"); an object is a citation with its own
+    source name, URL and note. Every URL must be public http(s): a local path or file: URI would publish a link to the build computer."""
+    out = []
+    for s in sources:
+        e = {"source": "curated accessory list", "url": s} if isinstance(s, str) else {k: s[k] for k in ("source", "url", "note") if s.get(k)}
+        if not re.match(r"https?://", str(e.get("url", ""))): raise ValueError(f"curated accessory source is not a public http(s) URL: {str(e.get('url', s))[:80]}")
+        out.append(e)
+    return out
+
 def classify(row: dict, mesen_code, overrides: dict) -> dict:
     """row: catalog row (display_title, players, nointro_name). mesen_code: int or None. Returns the input_* fields."""
     players = (row.get("players") or "").strip()
@@ -68,7 +81,7 @@ def classify(row: dict, mesen_code, overrides: dict) -> dict:
         modes = ["standard-controller"] if scp in ("true", "partial") else []
         modes.append(fam)
         base.update(input_primary=(fam if req == "required" else "standard-controller"), input_modes=modes, input_special_accessory=acc, input_accessory_requirement=req, input_standard_controller_playable=scp,
-                    input_nes_classic_support=support, input_evidence=[{"source": "curated accessory list", "url": u} for u in ov.get("sources", [])], input_notes=ov.get("notes", ""),
+                    input_nes_classic_support=support, input_evidence=curated_evidence(ov.get("sources", [])), input_notes=ov.get("notes", ""),
                     input_min_controllers=int(ov.get("min_controllers", 1)))
         base["input_level"] = "required" if (req == "required" and scp == "false") else "partial" if (req == "mode-specific" or scp == "partial") else "optional" if req == "optional" else "info"
         return base

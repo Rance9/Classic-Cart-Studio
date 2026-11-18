@@ -26,6 +26,7 @@ where each file is identified by its own content hash: exact versions only, neve
 This module never uses the network."""
 from __future__ import annotations
 import hashlib, json, os, re, stat, time, zipfile, zlib
+import startup_picture, platform_ids
 
 FORMAT = "classic-cart-studio-package"; SCHEMA = "ccs-package/2"; MANIFEST = "ccs-manifest.json"; KIND = "collection"
 MEDIA_TYPE = "application/vnd.classiccartstudio.collection+zip"
@@ -40,31 +41,33 @@ FIXED = {MANIFEST: "manifest", "collection.json": "collection", "README.txt": "r
 # Full Studio Backup (kind "studio", the same format): studio.json instead of collection.json, every listed game's ROM as above, and the
 # Windows app's saved progress and custom content as plain hashed files. Released readers refuse this kind ("not a collection package").
 KIND_STUDIO = "studio"; STUDIO_SCHEMA = "ccs-studio-archive/1"; KINDS = (KIND, KIND_STUDIO)
-PROG_RE = re.compile(r"^progress/[0-9a-f]{64}/(cart\.sav|slot[1-4]\.ccsstate|last-used\.json|continue\.ccsstate|game\.json|cart-set-aside-[0-9]{1,20}(-[0-9]{1,3})?\.sav)$")
+PROG_RE = re.compile(r"^progress/[0-9a-f]{64}/(cart\.sav|slot[1-4]\.ccsstate|last-used\.json|continue\.ccsstate|game\.json|slot-names\.json|cart-set-aside-[0-9]{1,20}(-[0-9]{1,3})?\.sav)$")
 CUSTOM_RE = re.compile(r"^custom/[A-Za-z0-9_.-]{1,64}(/[A-Za-z0-9_.-]{1,96}){0,3}$")
 FIXED_STUDIO = {MANIFEST: "manifest", "studio.json": "studio", "README.txt": "readme"}
 README = """Classic Cart Studio collection package (.ccs)
 
-This file holds a complete game collection made with Classic Cart Studio: every game in it with its ROM file (exact versions),
-its NES Classic Loadouts, HOME settings and artwork.
+This file holds a complete game collection made with Classic Cart Studio: every game in it with its game file (exact versions),
+the collection's HOME settings and artwork.
 
 Open it with Classic Cart Studio for Windows (double-click the file once the app is installed), or on the website:
-https://classiccartstudio.com  ->  My Collections  ->  Import Collection
+https://classiccartstudio.com  ->  Restore a Backup
 
-Classic Cart Studio does not provide or host game files. You are responsible for having the rights to copy and use the game files
-in this backup. Creating a backup does not grant permission to redistribute copyrighted games.
+Classic Cart Studio supplies only its Included Games, which their authors license or permit it to share; it does not supply or fetch
+original commercial NES games. The other game files in this backup are your own: you are responsible for having the rights to copy
+and use them. Creating a backup does not grant permission to redistribute copyrighted games.
 """
 README_STUDIO = """Classic Cart Studio Full Studio Backup (.ccs)
 
-This file holds everything needed to rebuild a Classic Cart Studio: every collection with every listed game's ROM file (exact
-versions), loadouts, HOME settings, favorites and Game Settings, and from the Windows app also its saved games, Play on PC Settings,
+This file holds everything needed to rebuild a Classic Cart Studio: every collection with the game file of every listed game (exact
+versions), HOME settings, favorites and Game Settings, and from the Windows app also its saved games, Play on PC Settings,
 controller setups and custom artwork and text.
 
-Restore it with Classic Cart Studio (My Collections -> Import Collection, or double-click the file in the Windows app). Versions of
+Restore it with Classic Cart Studio (Restore a Backup, or double-click the file in the Windows app). Versions of
 Classic Cart Studio before this kind of backup existed say that it is not a collection package.
 
-Classic Cart Studio does not provide or host game files. You are responsible for having the rights to copy and use the game files
-in this backup. Creating a backup does not grant permission to redistribute copyrighted games.
+Classic Cart Studio supplies only its Included Games, which their authors license or permit it to share; it does not supply or fetch
+original commercial NES games. The other game files in this backup are your own: you are responsible for having the rights to copy
+and use them. Creating a backup does not grant permission to redistribute copyrighted games.
 """
 
 class PackageError(ValueError):
@@ -170,6 +173,8 @@ def check_complete(collection: dict, roms: list, *, cancel=lambda: False, progre
     streaming it into the package and refuses the package if a file changed, so a stale cached identity can never produce a wrong package."""
     ids = _game_ids(collection)
     if ids is None: raise PackageError("The collection has no game list, so it can't be packaged.")
+    bad = startup_picture.problems(collection, STUDIO_SCHEMA)   # a startup picture the backup names travels inside it, or nothing is written
+    if bad: raise PackageError(f'The startup picture of the collection "{bad[0][0]}" is not with the backup ({bad[0][1]}){f" (and {len(bad) - 1} more)" if len(bad) > 1 else ""}, so no file was saved. Try again; if it happens again, open that collection\'s HOME Settings › Startup screen to choose the picture again or remove it.', startup=[{"collection": n, "why": w} for n, w in bad])
     titles = _titles(collection, roms); by = {}
     for r in roms or []:
         if isinstance(r, dict) and isinstance(r.get("version_id"), str): by.setdefault(r["version_id"], r)
@@ -185,9 +190,9 @@ def check_complete(collection: dict, roms: list, *, cancel=lambda: False, progre
             plan.append({"version_id": i, "title": str(by[i].get("title") or titles.get(i) or "")[:120], "path": p, "sha256": ident["sha256"], "size": ident["size"],
                          "content_sha256": ident["content_sha256"], "ext": ".nes" if ident.get("magic", ident["headered"]) else ".unh"})
     det = {"missing": missing, "mismatched": mismatched, "unidentified": unidentified}
-    if unidentified: raise PackageError(f"These games don't have a known ROM file, so they can't be packaged: {_names(unidentified, titles)}. Remove them from the selection or locate their files.", **det)
-    if missing: raise PackageError(f"The ROM files of these games aren't on this computer: {_names(missing, titles)}. Locate the files or remove the games, then try again.", **det)
-    if mismatched: raise PackageError(f"These ROM files are a different version than the game in the collection: {_names(mismatched, titles)}. Locate the exact version or remove the games, then try again.", **det)
+    if unidentified: raise PackageError(f"These games don't have a known game file, so they can't be packaged: {_names(unidentified, titles)}. Remove them from the selection or locate their files.", **det)
+    if missing: raise PackageError(f"The game files of these games aren't on this computer: {_names(missing, titles)}. Locate the files or remove the games, then try again.", **det)
+    if mismatched: raise PackageError(f"These game files are a different version than the game in the collection: {_names(mismatched, titles)}. Locate the exact version or remove the games, then try again.", **det)
     return plan
 
 def write(out_path: str, *, collection: dict, roms: list | None = None, art: dict | None = None, summary: dict | None = None, app_version: str = "",
@@ -233,7 +238,7 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
                     # (progress already counted these bytes once; it never moves backward, so the second write is not counted again)
                     z.fp.seek(start); z.fp.truncate(); z.start_dir = start; z.filelist.pop(); z.NameToInfo.pop(n, None)
                     got = _write_rom(z, n, now, zipfile.ZIP_STORED, r, cancel, lambda k: None)
-                if got["sha256"] != r["sha256"] or got["size"] != r["size"]: raise PackageError(f"The ROM file of {r['title'] or r['version_id']} changed while the package was being made. Nothing was saved. Try again.")
+                if got["sha256"] != r["sha256"] or got["size"] != r["size"]: raise PackageError(f"The game file of {r['title'] or r['version_id']} changed while the package was being made. Nothing was saved. Try again.")
                 rec = {"path": n, "sha256": r["sha256"], "size": r["size"], "kind": "rom", "version_id": r["version_id"], "title": r["title"], "content_sha256": r["content_sha256"]}
                 files.append(rec); included.append({k: rec[k] for k in ("version_id", "title", "path", "sha256", "size", "content_sha256")}); rom_done(len(included), len(plan))
             readme = (README_STUDIO if kind == KIND_STUDIO else README).encode("utf-8")
@@ -351,17 +356,19 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
         if not isinstance(man, dict) or man.get("format") != FORMAT: raise PackageError("This is not a Classic Cart Studio package.")
         sch = man.get("schema"); m = re.fullmatch(r"ccs-package/(\d{1,6})", sch) if isinstance(sch, str) else None
         if not m: raise PackageError("The package contents list is damaged.")
-        if int(m.group(1)) == 1: raise PackageError("This .ccs file uses an older format that doesn't always include its ROM files, so it can't be opened. Ask for a new .ccs file.")
+        if int(m.group(1)) == 1: raise PackageError("This .ccs file uses an older format that doesn't always include its game files, so it can't be opened. Ask for a new .ccs file.")
         if int(m.group(1)) > 2: raise PackageError("This package was made by a newer version of Classic Cart Studio. Update the app to open it.")
         if man.get("kind") == "backup": raise PackageError("This .ccs file is an old Studio backup, not a collection package, so it can't be opened.")
         if man.get("kind") not in KINDS: raise PackageError("This .ccs file is not a collection package, so it can't be opened.")
         kind = man["kind"]; main_name = "studio.json" if kind == KIND_STUDIO else "collection.json"
+        tgt = platform_ids.resolve_target(man, "ccs-package")   # a package for a game system this version does not support
+        if not tgt["ok"]: raise PackageError(tgt["text"])
         for i in infos:
             if not safe_name(i.filename, kind): raise PackageError(f"The package contains an unsafe or unexpected entry ({i.filename[:60]}).")
         listed = man.get("files"); rl = man.get("roms")
         if not isinstance(listed, list) or not all(isinstance(f, dict) for f in listed): raise PackageError("The package contents list is damaged.")
         if not isinstance(rl, dict) or not isinstance(rl.get("included"), list) or not all(isinstance(r, dict) for r in rl["included"]): raise PackageError("The package contents list is damaged.")
-        if rl.get("missing"): raise PackageError("This package leaves out some ROM files, so it can't be opened. Ask for a new .ccs file.")
+        if rl.get("missing"): raise PackageError("This package leaves out some game files, so it can't be opened. Ask for a new .ccs file.")
         lp = [f.get("path") for f in listed]
         if len(set(lp)) != len(lp): raise PackageError("The package contents list names a file twice.")
         for f in listed:
@@ -376,14 +383,14 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
         lmap = {f["path"]: f for f in listed}; inc_ids = []; rom_recs = []
         for r in rl["included"]:
             vid, p = r.get("version_id"), r.get("path"); mm = ROM_RE.match(p) if isinstance(p, str) else None
-            if not mm or mm.group(1) != vid: raise PackageError("The package contents list is damaged (a ROM file is listed under the wrong game).")
+            if not mm or mm.group(1) != vid: raise PackageError("The package contents list is damaged (a game file is listed under the wrong game).")
             f = lmap.get(p)
-            if not f or f.get("sha256") != r.get("sha256") or f.get("size") != r.get("size") or (f.get("content_sha256") not in (None, r.get("content_sha256"))): raise PackageError("The package contents list is damaged (its ROM list and file list disagree).")
-            if not id_matches(vid, r.get("content_sha256")): raise PackageError(f"The package lists a ROM file that is not the version its game names ({str(r.get('title') or vid)[:60]}), so it can't be opened.")
+            if not f or f.get("sha256") != r.get("sha256") or f.get("size") != r.get("size") or (f.get("content_sha256") not in (None, r.get("content_sha256"))): raise PackageError("The package contents list is damaged (its list of game files and its list of files disagree).")
+            if not id_matches(vid, r.get("content_sha256")): raise PackageError(f"The package lists a game file that is not the version its game names ({str(r.get('title') or vid)[:60]}), so it can't be opened.")
             inc_ids.append(vid); rom_recs.append(r)
-        if len(set(inc_ids)) != len(inc_ids): raise PackageError("The package contents list names a game's ROM file twice.")
+        if len(set(inc_ids)) != len(inc_ids): raise PackageError("The package contents list names a game file twice.")
         listed_roms = {f["path"] for f in listed if f["path"].startswith("roms/")}
-        if listed_roms != {r["path"] for r in rom_recs}: raise PackageError("The package contains ROM files that its game list does not account for.")
+        if listed_roms != {r["path"] for r in rom_recs}: raise PackageError("The package contains game files that its game list does not account for.")
         # ---- integrity of every listed file ----
         problems, roms, main = [], [], None; total_rom = sum(r["size"] for r in rom_recs)
         for f in listed:
@@ -405,11 +412,14 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
             if problems: raise PackageError("The collection inside the package is damaged, so nothing can be imported.")
             raise PackageError("The package holds no collection.")
         if kind == KIND_STUDIO and (not isinstance(main, dict) or main.get("schema") != STUDIO_SCHEMA): raise PackageError("The backup's contents are not valid.")
+        if isinstance(main, dict):   # (anything else is refused below for having no game list)
+            tgt = platform_ids.resolve_target(main, "collection", *[main.get(k) for k in ("selections", "games", "personal_library")])
+            if not tgt["ok"]: raise PackageError(tgt["text"])
         ids = _game_ids(main)
         if ids is None: raise PackageError("The collection inside the package has no game list.")
         unidentified = [i for i in ids if not is_identity_id(i)]
-        if unidentified: raise PackageError(f"The package includes games without a known ROM file ({', '.join(x[:40] for x in unidentified[:3])}), so it can't be opened.")
-        if set(ids) != set(inc_ids): raise PackageError("This package doesn't include a ROM file for every game in it, so it can't be opened. Ask for a new .ccs file.")
+        if unidentified: raise PackageError(f"The package includes games without a known game file ({', '.join(x[:40] for x in unidentified[:3])}), so it can't be opened.")
+        if set(ids) != set(inc_ids): raise PackageError("This package doesn't include a game file for every game in it, so it can't be opened. Ask for a new .ccs file.")
         done = 0
         for r in rom_recs:
             rec = {k: r.get(k) for k in ("version_id", "title", "path", "sha256", "size", "content_sha256")}
@@ -420,7 +430,7 @@ def inspect(path: str, *, verify_roms: bool = True, cancel=lambda: False, progre
             done += r["size"]
             if progress: progress(done, total_rom)
             if got["sha256"] != r["sha256"]: problems.append({"path": r["path"], "problem": "checksum does not match (damaged or altered)"}); roms.append(dict(rec, verified=False)); continue
-            if got["content_sha256"] != r["content_sha256"]: problems.append({"path": r["path"], "problem": "the ROM is not the version its game names"}); roms.append(dict(rec, verified=False)); continue
+            if got["content_sha256"] != r["content_sha256"]: problems.append({"path": r["path"], "problem": "the game file is not the version its game names"}); roms.append(dict(rec, verified=False)); continue
             roms.append(dict(rec, verified=True))
         order = {v: n for n, v in enumerate(ids)}; roms.sort(key=lambda r: order.get(r["version_id"], 0))
         return {"manifest": man, "kind": kind, "data": main, "roms": roms, "problems": problems, "size": size, "ok": not problems,
@@ -501,7 +511,7 @@ def import_roms(path: str, accept: list[str] | None = None, *, ingest=None, canc
     meta = package_metadata(info["data"], info["manifest"]) if merge and ps is not None else {}; merged = []
     try: _import_each(path, info, want, ps, ingest, cancel, progress, merge, meta, src, note, imported, rejected, merged, total)
     except (PackageError, OSError) as e:   # stopped part way: the files already added stay (each is a complete, verified copy) and are named
-        msg = str(e) if isinstance(e, PackageError) else f"The ROM files could not be saved on this computer ({e.strerror or e})."
+        msg = str(e) if isinstance(e, PackageError) else f"The game files could not be saved on this computer ({e.strerror or e})."
         raise PackageError(msg, imported=imported, rejected=rejected, merged=merged) from e
     return {"imported": imported, "rejected": rejected, "merged": merged}
 

@@ -2,8 +2,10 @@
 - the layout: the Windows app's copy (build_site_ci.py without --public: nes-catalog.html, the app's local document, and the same
   page as index.html), or the public website's entry pages (public_entry.py): prelaunch (index.html the coming-soon page, preview/ the
   app, not indexed) or launch (index.html the app, preview/ its transition copy); nes-catalog.html is not published there. Each entry
-  page's title, description, robots, canonical, link-preview card and data; the splash: only its text, no link/button/picture, its
-  flicker within three dips in any second, steady with reduced motion; the service worker's page addresses and file checks
+  page's title, description, robots, canonical, link-preview card and data; the splash: only its text, no link/picture, its
+  flicker within three dips in any second, steady with reduced motion; its one button the sound control (the page without it byte for
+  byte the coming-soon page; its files as recorded; nothing of it stored, preloaded or kept by the worker: test_splash_sound.py drives it);
+  the service worker's page addresses and file checks
 - required files (index.html, data JSON, .nojekyll, robots.txt, release.json, original sprites + index + provenance)
 - every src/href/url() reference is relative (works under the /Classic-Cart-Studio/ sub-path and on localhost), exists, and
   nothing is fetched from a third-party host except the explicit GitHub links/API named in the page
@@ -23,6 +25,7 @@ def main(site: str):
     missing = [n for n in need if not os.path.exists(os.path.join(site, n))]; ok("required_files", not missing, str(missing))
     if mode == "windows":
         page = open(os.path.join(site, "nes-catalog.html"), encoding="utf-8").read(); ok("index_is_the_page", page == idx)
+        ok("no_splash_sound_in_the_windows_copy", not os.path.exists(os.path.join(site, "brand", "splash")) and 'id="snd"' not in idx)
     else:
         page = open(os.path.join(site, "preview", "index.html"), encoding="utf-8").read() if mode == "prelaunch" else idx
         public_layout_checks(site, mode, idx, page, ok)
@@ -40,7 +43,9 @@ def main(site: str):
     ok("no_unexpected_public_folder_art", page.replace("brand/public/as-seen-on-tv.png", "").count("brand/public/") == 0 and page.count("brand/help/") >= 20)
     refs = set(re.findall(r'(?:src|href)="([^"]+)"', page)) | set(re.findall(r'url\("([^"]+)"\)', page))
     refs = {r for r in refs if not r.startswith(("data:", "#", "blob:", "mailto:")) and "${" not in r}
-    ext = sorted(r for r in refs if re.match(r"^[a-z]+:", r)); allowed_ext = ("https://github.com/", "https://rance9.github.io/", "https://ClassicCartStudio.com/", "https://classiccartstudio.com/", "https://api.github.com/", "http://127.0.0.1:", "https://www.nintendo.com/", "https://www.ebay.com/itm/302788782864", "https://commons.wikimedia.org/wiki/File:", "https://classic-cart-studio.printful.me/")   # the seller recommendation, the photo credits and the merch store (M2-1: the verified Printful address, exactly) are plain anchors, not assets
+    ext = sorted(r for r in refs if re.match(r"^[a-z]+:", r)); allowed_ext = ("https://github.com/", "https://rance9.github.io/", "https://ClassicCartStudio.com/", "https://classiccartstudio.com/", "https://api.github.com/", "http://127.0.0.1:", "https://www.nintendo.com/", "https://www.ebay.com/itm/302788782864", "https://commons.wikimedia.org/wiki/File:", "https://classic-cart-studio.printful.me/",
+        "https://ansimuz.com/", "https://opengameart.org/content/magic-cliffs-environment", "https://opengameart.org/content/sunnyland-forest-of-illusion",
+        "https://opengameart.org/content/gothicvania-patreons-collection", "https://opengameart.org/content/sideview-fantasy-patreon-collection", "https://pineight.com/")   # credit anchors: the scene artwork's artist and sources (CC BY 3.0 asks for the source), the Included Games' author   # the seller recommendation, the photo credits and the merch store (M2-1: the verified Printful address, exactly) are plain anchors, not assets
     bad_ext = [r for r in ext if not r.startswith(allowed_ext)]; ok("external_links_are_only_github_and_loopback", not bad_ext, str(bad_ext)[:200])
     rel = [r for r in refs if not re.match(r"^[a-z]+:", r)]; abs_ = [r for r in rel if r.startswith("/")]; ok("no_root_absolute_references (sub-path safe)", not abs_, str(abs_)[:200])
     miss = [r for r in rel if not os.path.exists(os.path.join(site, r.split("?")[0]))]; ok("relative_references_exist", not miss, str(miss)[:200])
@@ -51,6 +56,8 @@ def main(site: str):
         ok("no_secret_patterns_in_page", not S.SECRET.search(page))
         for n in ("catalog.json", "library.json", "builtin.json"):
             t = open(os.path.join(site, n), encoding="utf-8").read(); ok(f"no_private_paths_in_{n}", not S.PRIVATE_PATH.search(t))
+            lp = [m.group(0)[:40] for m in S.LOCAL_PATH.finditer(t)][:3]; ok(f"no_local_file_paths_in_{n} (file: URIs, C:/NES, ...)", not lp, str(lp))
+        lp = [m.group(0)[:40] for m in S.LOCAL_PATH.finditer(page)][:3]; ok("no_local_file_paths_in_page", not lp, str(lp))
     except ImportError: ok("scanner_available", False)
     cat = json.load(open(os.path.join(site, "catalog.json"), encoding="utf-8")); with_art = [g for g in cat["games"] if g.get("art")]
     # N3.1 artwork audit: 5 catalog scans that showed another product or region were hidden on purpose (the generated cover shows instead)
@@ -77,7 +84,8 @@ def main(site: str):
     ok("source_shortlink_redirects_to_repo", src.count("https://github.com/Rance9/Classic-Cart-Studio") >= 3 and 'location.replace("https://github.com/Rance9/Classic-Cart-Studio")' in src and 'http-equiv="refresh" content="0; url=https://github.com/Rance9/Classic-Cart-Studio"' in src and "<title>Classic Cart Studio | Source Code</title>" in src and "releases/latest" not in src, len(src))
     ok("footer_links_branded_source", 'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>' in page and "download: <a href=\"https://github.com/Rance9/Classic-Cart-Studio\"" not in page)
     ok("footer_cast_pauses_on_hover", "footer .castwrap:hover .cast,footer .castwrap:focus-within .cast{animation-play-state:paused}" in page)
-    ok("app_shortlink_redirects_to_latest_release", app.count("https://github.com/Rance9/Classic-Cart-Studio/releases/latest") >= 3 and "location.replace(" in app and 'http-equiv="refresh"' in app and "<title>Classic Cart Studio | Windows App</title>" in app and "NES-Classic-Collection-Studio" not in app)
+    ok("app_download_page_is_first_party", 'http-equiv="refresh"' not in app and "location.replace(" not in app and "<title>Classic Cart Studio | Windows Downloads</title>" in app and 'href="https://classiccartstudio.com/app/"' in app and 'name="robots" content="noindex,follow"' in app)
+    ok("app_download_page_separates_preview_products", "/releases/download/v0.11.0/ClassicCartStudio-Setup-0.11.0.exe" in app and "/releases/download/workbench-v1.0.0/CCS-Console-Workbench-1.0.0.exe" in app and "Development previews" in app and "unsigned" in app and "Console connections, console writes and USB driver actions are disabled" in app and "/releases/latest" not in app and 'href="https://github.com/Rance9/Classic-Cart-Studio"' not in app)
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
 
 SITE_URL = "https://classiccartstudio.com"
@@ -104,10 +112,32 @@ def public_layout_checks(site, mode, idx, page, ok):
     ok("nes_catalog_not_published (the Windows app's local document only)", not os.path.exists(os.path.join(site, "nes-catalog.html")))
     if mode == "prelaunch":
         social(idx, PE.NAME, PE.DESC_SPLASH, SITE_URL + "/", "index,follow", "splash")
-        body = idx[idx.index("<body>"):]
+        # the sound control (public_entry.sound_parts) is the one addition to the page: without it, the page is the coming-soon page, byte for byte
+        snd = PE.sound_config(site); css, ctl = PE.sound_parts(snd); bare = idx.replace(css, "", 1).replace(ctl, "", 1)
+        ok("splash_sound_control_once (its CSS, its button and its script)", idx.count(css) == 1 and idx.count(ctl) == 1 and idx.count("<button") == 1 and idx.count('id="snd"') == 1 and idx.index(ctl) == idx.index("<body>") + 6)
+        ok("splash_is_the_page_plus_only_its_sound_control (byte for byte)", bare == PE.splash_html())
+        body = bare[bare.index("<body>"):]
         ok("splash_shows_only_its_text", re.sub(r"<[^>]+>", " ", body).split() == "Classic Cart Studio Your Classics. Your Way. Coming February 2027 An independent, open-source project. Not affiliated with or endorsed by any console maker or game publisher.".split()
-           and f"<footer>{PE.FOOTER}</footer>" in body and not re.search(r"<(a|button|img|svg|form|input|video|audio|iframe|picture)\b", idx), re.sub(r"<[^>]+>", " ", body)[:200])
+           and f"<footer>{PE.FOOTER}</footer>" in body and not re.search(r"<(a|button|img|svg|form|input|video|audio|iframe|picture)\b", bare), re.sub(r"<[^>]+>", " ", body)[:200])
         ok("splash_has_no_picture_or_external_file (the site's own font only)", re.findall(r'url\("([^"]+)"\)', idx) == ["brand/fonts/PressStart2P-Regular.ttf"] and not re.search(r'src="', idx) and "manifest" not in idx and "sw.js" not in idx)
+        js = ctl[ctl.index("<script>") + 8:ctl.rindex("</script>")]
+        ok("splash_sound_button (native type=button, labeled Turn sound on, decorative icon hidden from screen readers, no text)",
+           ctl.startswith('<button type="button" id="snd" aria-label="Turn sound on" hidden><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">') and re.sub(r"<[^>]+>", "", ctl[:ctl.index("<script>")]) == ""
+           and '"Turn sound off"' in js and '"Turn sound on"' in js)
+        ok("splash_sound_nothing_before_a_press (no audio element, preload, prefetch, embedded sound, storage, cookie or worker)",
+           not re.search(r"<(audio|video|link[^>]+(preload|prefetch))\b", idx) and "data:audio" not in idx and not re.search(r"localStorage|sessionStorage|indexedDB|cookie|serviceWorker|caches|preload|autoplay|setInterval", js)
+           and js.count("fetch(") == 1 and js.count("new AC(") == 2 and "decodeAudioData" in js)
+        ok("splash_sound_loops_the_decoded_song (Web Audio loop, no restart on ended, gain 0.3)", "s.loop=true" in js and "loopStart" not in js and "loopEnd" not in js and ".onended=function(){if(S.s===s)off();}" in js and "gain.value=0.3" in js and "currentTime" not in js)
+        mp3 = os.path.join(site, *snd["mp3"].split("/")); aac = os.path.join(site, *snd["aac"].split("/"))
+        import hashlib
+        ok("splash_sound_files (the HOME theme's AAC as published; the MP3 fallback as recorded)", os.path.isfile(mp3) and os.path.getsize(mp3) == snd["mp3_bytes"] and hashlib.sha256(open(mp3, "rb").read()).hexdigest() == snd["mp3_sha256"]
+           and os.path.getsize(aac) == snd["aac_bytes"] and hashlib.sha256(open(aac, "rb").read()).hexdigest() == snd["aac_sha256"] and snd["mp3"].startswith(PE.SOUND_DIR + "/")
+           and sorted(os.listdir(os.path.join(site, *PE.SOUND_DIR.split("/")))) == [os.path.basename(mp3)], (snd["mp3"], snd["mp3_bytes"]))
+        ok("splash_sound_not_one_of_the_workers_files (its MP3 neither kept nor answered by the worker)", not any(p.startswith(PE.SOUND_DIR + "/") or p.endswith(".mp3") for p in every) and not re.match(r"^(art|brand/help|included)/", snd["mp3"]))
+        node = shutil.which("node")
+        if node:
+            p = os.path.join(site, "_sound_check.js"); open(p, "w", encoding="utf-8").write(js); r = subprocess.run([node, "--check", p], capture_output=True, text=True); os.remove(p)
+            ok("splash_sound_script_parses", r.returncode == 0, r.stderr[:200])
         frames = re.search(r"@keyframes soon\{(.*?)\}\}", idx, re.S).group(1) + "}"; steps = re.findall(r"([0-9.]+)%\{([^}]*)\}", frames)
         dur = float(re.search(r"animation:soon ([0-9.]+)s", idx).group(1)); starts = []; dim = False
         for pc, css in steps:
@@ -122,16 +152,20 @@ def public_layout_checks(site, mode, idx, page, ok):
         ok("preview_files_at_the_root (base first in the head) and its in-page links kept in it", page.find('<base href="../">') == page.find('<meta charset="utf-8">') + len('<meta charset="utf-8">') and 'id="brandHome" href="preview/"' in page and PE.FRAGMENTS in page)
         ok("worker_pages_prelaunch", spec.get("nav") == {"": "index.html", "index.html": "index.html", "preview/": "preview/index.html", "preview/index.html": "preview/index.html"} and not spec.get("moved") and {"index.html", "preview/index.html"} <= set(spec["shell"]))
         st = open(os.path.join(site, "store", "index.html"), encoding="utf-8").read(); ok("store_back_links_to_the_app", 'href="/"' not in st and st.count('href="/preview/"') >= 3)
+        for n in ("app", "source"):   # "Back to the website" goes to the app; the page's own release or source link is unchanged
+            h = open(os.path.join(site, n, "index.html"), encoding="utf-8").read()
+            ok(f"{n}_back_link_to_the_app", PE.BACK_ROOT not in h and h.count(PE.BACK_PREVIEW) == 1 and "github.com/Rance9/Classic-Cart-Studio" in h)
     else:
         social(idx, PE.NAME, PE.DESC_APP, SITE_URL + "/", "index,follow", "launch_root")
         prev = open(os.path.join(site, "preview", "index.html"), encoding="utf-8").read(); social(prev, PE.NAME, PE.DESC_APP, SITE_URL + "/", "noindex,follow", "launch_preview_copy")
         ok("launch_root_is_the_app_at_the_root (no base, no splash)", "<base " not in idx and 'class="soon"' not in idx and 'id="brandHome" href="./"' in idx)
         ok("worker_pages_launch (preview redirected by the worker, never cached)", spec.get("nav") == {"": "index.html", "index.html": "index.html"} and spec.get("moved") == {"preview/": "", "preview/index.html": "", "preview": ""} and "preview/index.html" not in spec["shell"])
+        ok("no_splash_sound_at_the_launch (no splash, no MP3)", not os.path.exists(os.path.join(site, *PE.SOUND_DIR.split("/"))) and 'id="snd"' not in idx)
     rb = open(os.path.join(site, "robots.txt"), encoding="utf-8").read(); ok("robots_allows_crawling (noindex is read, not blocked)", "Disallow" not in rb)
     sm = os.path.join(site, "sitemap.xml"); ok("no_sitemap_or_only_indexable_pages", not os.path.exists(sm) or "/preview" not in open(sm, encoding="utf-8").read())
     for n in ("app", "source", "store"):
         p = os.path.join(site, n, "index.html")
-        if os.path.exists(p): ok(f"{n}_page_keeps_noindex", '<meta name="robots" content="noindex">' in open(p, encoding="utf-8").read())
+        if os.path.exists(p): ok(f"{n}_page_keeps_noindex", bool(re.search(r'<meta name="robots" content="noindex(?:,[^"]*)?">', open(p, encoding="utf-8").read())))
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "build", "site"))

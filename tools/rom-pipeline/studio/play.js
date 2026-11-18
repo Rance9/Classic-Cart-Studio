@@ -15,14 +15,14 @@ async function playAvailability(id){
 // ---- Game Details: Play on PC ----
 async function playDetails(id){
  if(!playCapable()) return; const tech=$('dTech'); const bar=tech&&tech.parentElement; if(!bar||$('dPlay')) return;
- const b=document.createElement('button'); b.type='button'; b.className='btn sm playbtn'; b.id='dPlay'; b.disabled=true; b.innerHTML='<span aria-hidden="true">▶</span> Play on PC'; b.title='Checking this computer for this version’s ROM file…';
+ const b=document.createElement('button'); b.type='button'; b.className='btn sm playbtn'; b.id='dPlay'; b.disabled=true; b.innerHTML='<span aria-hidden="true">▶</span> Play on PC'; b.title='Checking this computer for this version’s game file…';
  bar.insertBefore(b, tech); const note=document.createElement('p'); note.className='small playnote'; note.id='dPlayNote'; note.hidden=true; bar.after(note);
  const a=await playAvailability(id); if(!b.isConnected||$('details').dataset.game!==id) return;   // Game Details moved on meanwhile
  playDetailsState(a); b.onclick=()=>playDirect(id); }
 function playDetailsState(a){ const b=$('dPlay'), note=$('dPlayNote'); if(!b) return; if(a) b._a=a; a=b._a||a||{};
  const why=PLAY.running?playBusyText():(a.playable?'':(a.reason||''));
  b.disabled=!!why; b.title=why||'Play this exact version in the game window'; if(note){ note.hidden=!why; note.textContent=why?'Play on PC: '+why:''; } }
-(function(){ const _od=openDetails; openDetails=function(id){ const r=_od.apply(this,arguments); try{ playDetails(id); }catch(e){} return r; }; })();
+// (Game Details' Play is the collection's own Play now: studio/collview.js cvPlay checks the ROM file, then calls playDirect here)
 async function playDirect(id){
  if(PLAY.running){ toast(playBusyText()); return; } const b=$('dPlay'); if(b) b.disabled=true;
  let r; try{ r=await capi('/api/play/direct',{method:'POST',body:{id},timeout:60000}); }catch(e){ r={ok:false,error:String(e)}; }

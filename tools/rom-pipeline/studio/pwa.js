@@ -44,9 +44,9 @@ function pwaDialog(){ const app=pwaStandalone(), apple=pwaApple(), st=PWA.status
  const rows=[['What it is','<span>This website, added to this device by your browser</span>','<span>A program you download and install on your PC</span>'],
   ['Works on','<span>Windows, Mac, iPhone, iPad and Android</span>','<span>Windows 10 and 11</span>'],
   ['Without the internet',yes('Once it is ready for offline use'),yes('Always')],
-  ['Collections, lineups and Preview Your Lineup',yes(),yes()],
+  ['Collections and HOME',yes(),yes()],
   ['Play games',yes('Once this browser keeps the game file'),yes('Also in its own game window')],
-  ['Add Your Own Game and Find ROM Files',no,yes()],
+  ['Add Your Own Game and Find Game Files',no,yes()],
   ['Install on NES Classic',no,yes('With Hakchi2 CE, included')],
   ['Your collections are kept','<span>In this browser, on this device</span>','<span>On this computer</span>'],
   ['Get it',getWeb,getWin]];

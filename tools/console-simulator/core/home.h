@@ -56,6 +56,14 @@ int text_draw(framebuffer *fb, mask *m, rect clip, const font *f, double x, int 
 size_t text_fit(const font *f, const char *s, int maxw, double spacing, char *out, size_t outlen);   /* ellipsis */
 typedef struct { size_t start, len; } span;
 size_t text_wrap(const font *f, const char *s, int maxw, double spacing, span *out, size_t max);
+int font_has(const font *f, uint32_t cp);   /* the face has its own glyph for cp */
+/* the render check's probes (design_check.c; NULL / 0 in every ordinary run): ccs_text_off leaves text out of the picture; with
+   ccs_text_bg (the same picture without text) each drawn text reports its contrast histogram (tenths of a ratio, 0..63) */
+typedef void (*ccs_text_rec_fn)(const char *s, size_t len, const font *f, color c, const int box[4], const uint16_t *hist, int npx);
+typedef void (*ccs_missing_glyph_fn)(const font *f, uint32_t cp);
+extern int ccs_text_off, ccs_text_label; extern const uint8_t *ccs_text_bg; extern ccs_text_rec_fn ccs_text_rec; extern ccs_missing_glyph_fn ccs_missing_glyph;
+extern void (*ccs_overlay_begin)(void);   /* the render check: a shared panel (menu, notice, theme picker) starts drawing now */
+uint32_t ccs_luminance(uint32_t rgb); int ccs_contrast10(uint32_t a, uint32_t b);
 
 /* ---------- the HOME (four themes: arcade-grid, box-art-showcase, featured-shelf, adventure-map) ---------- */
 typedef struct home home;
@@ -63,6 +71,13 @@ typedef void (*home_emit_fn)(const char *json_line);
 home *home_load(const char *pack_dir, home_emit_fn emit, char *err, size_t errlen);
 /* state_dir: the writable folder where the console keeps its HOME theme choice (home-prefs.json), separate from the package */
 home *home_load2(const char *pack_dir, const char *state_dir, home_emit_fn emit, char *err, size_t errlen);
+/* a HOME design (design.h): design_root is the console's design folder (read order current ->
+   known-good -> the theme defaults); design_dir a compiled design used directly (the PC's render check). Both NULL: the theme defaults.
+   A design that does not check out completely is set aside (never partly shown); the HOME then starts as without it. */
+home *home_load3(const char *pack_dir, const char *state_dir, const char *design_root, const char *design_dir, home_emit_fn emit, char *err, size_t errlen);
+const char *home_design_id(const home *h);                     /* the design in use ("" none) */
+const char *home_design_source(const home *h, const char **why);   /* current | known-good | explicit | defaults | chosen-defaults | none | rejected */
+void home_invalidate(home *h);                                 /* the render check: every cached picture of the theme is drawn again */
 int home_set_theme(home *h, const char *theme_id, int save);   /* the controller's theme picker does this; tooling may too */
 const char *home_theme(const home *h);
 void home_free(home *h);

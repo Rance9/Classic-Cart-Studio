@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse, base64, json, os, shutil, sys, tempfile, time, zipfile
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.dirname(HERE); sys.path[:0] = [HERE, os.path.join(TOOLS, "companion")]
 import ccs_package as cp
-from test_loadouts_web import EdgeSession, serve, free_port, READY, CALM, PERSONAL, CCS_EXPORT_UI, page_file, page_bytes, net_take, net_report
+from studio_harness import EdgeSession, serve, free_port, READY, CALM, PERSONAL, CCS_EXPORT_UI, page_file, page_bytes, net_take, net_report
 from test_ccs_v2_web import NET, ROMS
 
 MARK = b"CCS-SENTINEL-ROM-BYTES"

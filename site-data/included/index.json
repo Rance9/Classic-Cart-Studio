@@ -1,0 +1,118 @@
+{
+ "schema": "ccs-included/2",
+ "collection": "Included Games",
+ "note": "The games Classic Cart Studio hosts and includes because each author's published license or written grant allows it (each record quotes its license and the uses it covers). Each game file is the author's own exact build, unchanged; where the license asks for it, its source is beside it. Classic Cart Studio supplies no original commercial NES game. known_builds lists builds Classic Cart Studio can recognize by their exact content (for example a full game its author sells) without hosting them.",
+ "games": [
+  {
+   "key": "thwaite",
+   "title": "Thwaite",
+   "version": "0.03",
+   "year": "2011",
+   "players": "1 or 2 (cooperative)",
+   "genre": "Shooter",
+   "kind": "complete",
+   "creator": "Damian Yerrick",
+   "author_page": "https://pineight.com/nes/",
+   "license": "GPL-3.0-or-later",
+   "license_text": "The accompanying game program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.",
+   "description": "Defend the villages of Thwaite from falling missiles: aim and fire your own to burst them in the air, alone or with a friend. An original game by Damian Yerrick in the style of the arcade classic Missile Command.",
+   "file": "included/thwaite.nes",
+   "file_name": "thwaite.nes",
+   "file_sha256": "3543ebf804f80abb19acfde4630a909a7485e2d69487900fd93b5698c412adc5",
+   "size": 24592,
+   "content_sha256": "91908290bcd7277d64d21bfc349957263efefa483243edc365c3da3a254db79a",
+   "content_size": 24576,
+   "header_hex": "4e45531a010101000000000000000000",
+   "mapper": 0,
+   "source": "included/source/thwaite/",
+   "license_file": "included/source/thwaite/gpl-3.0.txt",
+   "original_archive": {
+    "name": "thwaite-0.03.zip",
+    "sha256": "a782f6f22bac791fd30eef16933ee59d61fb83b68e3247d87b1df603c894ecd9",
+    "files_kept": 48
+   },
+   "text": "Defend the villages of Thwaite from falling missiles: aim and fire your own to burst them in the air, alone or with a friend. An original game by Damian Yerrick in the style of the arcade classic Missile Command. Made by Damian Yerrick (2011) and shared under the GNU General Public License, version 3 or later. Its source code comes with Classic Cart Studio, in included/source/thwaite/.",
+   "build": "thwaite-0.03",
+   "family": "thwaite",
+   "edition": "full",
+   "hosted": true,
+   "links": {
+    "author": "https://pineight.com/nes/",
+    "store": null
+   },
+   "grant": {
+    "basis": "published license",
+    "license": "GPL-3.0-or-later",
+    "website": true,
+    "windows_installer": true,
+    "console_packages": true,
+    "offline": true,
+    "captures": true
+   },
+   "cover": {
+    "file": "art/thwaite-cover.png",
+    "sha256": "2541b13d7a9ca282914c2c94163afcf76247e3b1ff3dae7a862437a0a95785ad",
+    "kind": "title screen",
+    "source": "source/thwaite/docs/manual_title.png",
+    "source_sha256": "1c19c3b76881f97110df9d664c97d42c341bdaafc2a069d786d0720f2ee5e812",
+    "credit": "Damian Yerrick's own title screen of Thwaite, from the game's published archive (GPL-3.0-or-later)"
+   }
+  },
+  {
+   "key": "concentration-room",
+   "title": "Concentration Room",
+   "version": "0.02",
+   "year": "2010",
+   "players": "1 or 2",
+   "genre": "Puzzle",
+   "kind": "complete",
+   "creator": "Damian Yerrick",
+   "author_page": "https://pineight.com/croom/",
+   "license": "GPL-3.0-or-later",
+   "license_text": "The accompanying program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License, version 3 or later. As a special exception, you may copy and distribute exact copies of the program, as published by Damian Yerrick, in iNES or UNIF executable form without source code.",
+   "description": "Turn over two cards at a time and find every matching pair: a memory game against the clock, a computer opponent or a friend. An original game by Damian Yerrick.",
+   "file": "included/croom.nes",
+   "file_name": "croom.nes",
+   "file_sha256": "6a43202f8b7793f78832c47b67ca3aeb12165140a1e38f0a5043855b2e3d53cd",
+   "size": 24592,
+   "content_sha256": "98bc7fdf506876fa5b42415726c82ee5efdc4dcce4212695273df3aa152bb585",
+   "content_size": 24576,
+   "header_hex": "4e45531a010101000000000000000000",
+   "mapper": 0,
+   "source": "included/source/concentration-room/",
+   "license_file": "included/source/concentration-room/GPLv3.txt",
+   "original_archive": {
+    "name": "ConcentrationRoom-0.02.zip",
+    "sha256": "0e9773924b5d8b53d727f3359b62f3730ec95f139d64242236cb9ec28f871566",
+    "files_kept": 37
+   },
+   "text": "Turn over two cards at a time and find every matching pair: a memory game against the clock, a computer opponent or a friend. An original game by Damian Yerrick. Made by Damian Yerrick (2010) and shared under the GNU General Public License, version 3 or later. Its source code comes with Classic Cart Studio, in included/source/concentration-room/.",
+   "build": "concentration-room-0.02",
+   "family": "concentration-room",
+   "edition": "full",
+   "hosted": true,
+   "links": {
+    "author": "https://pineight.com/croom/",
+    "store": null
+   },
+   "grant": {
+    "basis": "published license",
+    "license": "GPL-3.0-or-later",
+    "website": true,
+    "windows_installer": true,
+    "console_packages": true,
+    "offline": true,
+    "captures": true
+   },
+   "cover": {
+    "file": "art/concentration-room-cover.png",
+    "sha256": "dacc8670cc948d89d2bc66da59ae836b82500dd279f9fa987750f286cd1d7636",
+    "kind": "game screen",
+    "source": "source/concentration-room/docs/croom_screenshot01.png",
+    "source_sha256": "4417afbcc496a7e5f879cc78a04d8192398c738b2ca41878eb02c0657b9f3147",
+    "credit": "Damian Yerrick's own game screen of Concentration Room, from the game's published archive (GPL-3.0-or-later)"
+   }
+  }
+ ],
+ "known_builds": []
+}

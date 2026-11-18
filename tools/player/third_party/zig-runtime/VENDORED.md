@@ -6,6 +6,9 @@ zig links parts of the C runtime it carries into each program:
 - `ccs-player.exe` (Windows, `x86_64-windows-gnu`): the mingw-w64 runtime (`lib/libc/mingw` in the zig distribution) and compiler-rt.
 - `play/ccs-player.wasm` (the website's game player, `wasm32-wasi`): wasi-libc (`lib/libc/wasi`, with its musl, cloudlibc and dlmalloc
   parts) and compiler-rt.
+- `ccs-player-armv7` and `ccs-home-armv7` (the console's game player and HOME program, `arm-linux-musleabihf`, static): musl libc
+  (`lib/libc/musl`) and compiler-rt. Every console HOME package carries `musl-COPYRIGHT` and `wasi-libc-LICENSE-APACHE-LLVM` (as
+  `licenses/musl-COPYRIGHT.txt` and `licenses/Apache-2.0-with-LLVM-Exceptions.txt`, tools/companion/native_home/notices.py).
 
 The license files below are copied unchanged from the zig 0.17.0 distribution (paths inside it in parentheses):
 

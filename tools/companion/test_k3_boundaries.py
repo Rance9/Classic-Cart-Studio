@@ -14,8 +14,9 @@ from test_ccs_install import make_package, tree, changes, rd, wr, sha   # noqa: 
 def boot_state(root: str) -> str:
     """what the console would start, as its start-up script decides it: "nintendo", or "ccs:<copy>" for a complete copy; "INCOMPLETE:<copy>"
     when the script would start a copy whose files do not all match its record (the state no interruption may ever leave)"""
-    c = CI.FakeConsole(root); mod = c.pack_files(CI.HOOK_NAME)
-    if mod != {CI.HOOK_FILE: CI.module_sha()} or c.overlay_sha256(CI.HOOK_FILE) != CI.module_sha(): return "nintendo" if not mod and c.overlay_sha256(CI.HOOK_FILE) is None else "MODULE-PARTIAL"
+    c = CI.FakeConsole(root); mp = CI.method_package("mod"); mf = c.method_files(mp["name"])   # CCS Mod: CCS HOME's entry in the console's menu
+    if mf is None: return "nintendo" if c.overlay_sha256("/bin/ccs-mod") is None else "MODULE-PARTIAL"
+    if mf.get("package") != mp["package_id"] or any((mf.get("files") or {}).get(p) != s for p, s in mp["files"].items()): return "MODULE-PARTIAL"
     b = c.read(CI.POINTER, 64); v = (b or b"").decode(errors="replace").strip()
     if not CI.COPY_RE.match(v) or c.stat(f"{CI.PKG_DIR}/{v}")["type"] != "dir" or c.stat(f"{CI.PKG_DIR}/{v}/bin/ccs-player-armv7")["type"] != "file" or c.stat(f"{CI.PKG_DIR}/{v}/session.json")["type"] != "file": return "nintendo"
     rec = json.loads(c.read(f"{CI.INST_DIR}/v-{v}.json") or b"{}")
@@ -113,9 +114,9 @@ class Ownership(Base):
             inst = CI.Installer(self.con(after=n), self.plan, self.pkg, self.jnew(), policy="stop"); r = inst.run()
             if r.get("at") == "transfer" and any(e.get("op") == "module" for e in CI.Installer.entries(inst.journal)): break
             self.assertLess(n, 60)
-        wr(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp"), b"#!/bin/sh\n# changed by something else\n")
+        wr(os.path.join(self.root, "var/lib/hakchi/rootfs/bin/ccs-mod"), b"#!/bin/sh\n# changed by something else\n")
         rr = CI.Installer(self.con(), self.plan, self.pkg, inst.journal).resume(); self.assertEqual(rr["result"], "rollback-incomplete", rr)
-        self.assertEqual(rd(os.path.join(self.root, "var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp")), b"#!/bin/sh\n# changed by something else\n")
+        self.assertEqual(rd(os.path.join(self.root, "var/lib/hakchi/rootfs/bin/ccs-mod")), b"#!/bin/sh\n# changed by something else\n")
 
     def test_08_the_removal_runs_only_as_reviewed(self):
         a = CI.Installer(self.con(), self.plan, self.pkg, self.jnew()).run(); self.assertTrue(a["ok"])
@@ -283,7 +284,7 @@ class Export(Base):
 class Inspect(Base):
     def test_50_inspect_and_verify_read_what_the_console_starts(self):
         i = CI.inspect_console(self.con()); self.assertTrue(i["ok"]); self.assertEqual(i["module"], "absent"); self.assertIsNone(i["in_use"])
-        a = CI.Installer(self.con(), self.plan, self.pkg, self.jnew()).run(); i = CI.inspect_console(self.con()); self.assertEqual(i["module"], "current"); self.assertEqual(i["in_use"]["copy"], a["copy"])
+        a = CI.Installer(self.con(), self.plan, self.pkg, self.jnew()).run(); i = CI.inspect_console(self.con()); self.assertEqual(i["methods"], [{"name": "ccs-mod", "method": "mod", "package": CI.method_package("mod")["package_id"], "state": "current"}]); self.assertEqual(i["in_use"]["copy"], a["copy"])
         self.assertTrue(CI.verify_installed(self.con(), self.plan)["verified"])
         wr(os.path.join(self.root, "var/lib/ccs/pkg", a["copy"], "session.json"), b"x"); v = CI.verify_installed(self.con(), self.plan); self.assertFalse(v["verified"]); self.assertEqual(v["mismatches"], ["session.json"])
         self.assertFalse(CI.verify_installed(self.con(), self.plan, device="sim-OTHER")["ok"])

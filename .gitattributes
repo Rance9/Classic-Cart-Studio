@@ -5,3 +5,7 @@
 *.png binary
 *.ico binary
 *.ttf binary
+# exact third-party bytes: the Included Games as their authors published them, and runtime license texts as their projects publish them
+site-data/included/** -text
+tools/publish/assets/legal/runtime/** -text
+tools/player/third_party/fceumm/LICENSE.pic16c5x.txt -text

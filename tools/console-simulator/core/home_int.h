@@ -4,6 +4,7 @@
 #ifndef CCS_HOME_INT_H
 #define CCS_HOME_INT_H
 #include "home.h"
+#include "design.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,7 +30,10 @@
 enum { FONT_LIST(FONT_ENUM) F_COUNT };
 #undef FONT_ENUM
 
-#define RED 0xE4000F
+#define RED_DEF 0xE4000F
+/* the HOME's focus and highlight color: RED_DEF, or a HOME design's accent color (set by home.c before anything is drawn) */
+extern uint32_t ccs_accent;
+#define RED ccs_accent
 #define RED2 0xFF3B47
 #define NAVY 0x2F3F8C
 #define MAX_CELLS 24
@@ -50,14 +54,14 @@ enum { HT_NONE, HT_GAME, HT_NAV, HT_LANDMARK, HT_TILE, HT_MENU, HT_THEME, HT_PAN
 typedef struct { int x0, y0, x1, y1; } box4;
 typedef struct { char *id, *title, *version_label, *year, *players, *genre, *publisher, *developer, *cover, *cover_kind, *hero, *hero_kind, *hero_wide, *text, *blurb, *mblurb, *ftext;
                  double ht_x, ht_y, ht_w; int ht_right; } hgame;   /* ht_*: the measured title slot of the game's key art (Featured Shelf) */
-typedef struct { char *id, *name, *art; int parent, *games, ng, nchild; image tile; } hfolder;   /* a Windows folder: games are indices into the package order; tile = its artwork at the current tile size */
+typedef struct { char *id, *name, *art; int parent, *games, ng, nchild, art_abs; image tile; } hfolder;   /* a Windows folder: games are indices into the package order; tile = its artwork at the current tile size; art_abs: art is a full path (a HOME design's picture) */
 typedef struct { char *label, *kind; int *games, ng; } hcat;                         /* an automatic category (genre, year, publisher, players) */
 typedef struct { int kind, idx; } bitem;                                             /* a Browse tile: BI_FOLDER / BI_GAME (package index) / BI_CAT */
 enum { BI_FOLDER, BI_GAME, BI_CAT };
 typedef struct { int game, w, h, mode; image im; uint64_t used; } centry;
 typedef struct { int game; uint8_t *buf; size_t len; uint64_t used; } bentry;
 typedef struct { int font; uint32_t rgb; double y_top, line_h; char *s; size_t len; double spacing, shear; int bold; } dline;
-typedef struct { char name[24]; box4 b; } layrec;
+typedef struct { char name[24]; box4 b; int idx; } layrec;   /* idx: the game/tile drawn (home-layout), -1 for none */
 typedef struct { box4 b; int kind, idx; } hittgt;   /* the computer's mouse: what is drawn where (HT_*), recorded only while a pointer event waits */
 typedef struct { int kind, x, y, d; uint64_t t; } ptev;
 typedef struct { char name[24]; image im; box4 box; } tsprite;
@@ -138,7 +142,24 @@ struct home {
     int *memo_folder, *memo_cat, *memo_browse, memo_all;   /* the selection each listing / Browse level had when the player left it */
     bitem *bi; int nbi, bi_folders, bi_games;               /* the current Browse tiles: folders, then the parent's own games, then categories */
     unsigned gen;                                          /* bumped on every input and section change: themes with a cached frame redraw */
+    /* a HOME design (design.h): its pictures and decorations skin its own base theme; its colors, menu lettering, folders, game order,
+       startup choice and music default apply in every theme. design_src: which step of the read order gave it (or none) */
+    hdesign *design; char design_root[900], design_src[16], design_why[600], design_seen[65];
+    uint32_t accent; int composed;                         /* composed: the active theme's background carries the design */
+    int own_sprites;                                       /* the design changed that background: the theme's sprites are drawn from their own pixels (file_own) */
+    int roff[UI_COUNT][2];                                 /* the design's control regions in its base theme: each group's move (x, y); zero elsewhere */
 };
+
+/* ---------- a HOME design's control regions (home.c) ---------- */
+#define BOXART_LEGEND ((box4){ 38, 668, 659, 700 })        /* Box Art Showcase's hints (no geometry entry: home-themes.js hmBoxArt's box) */
+int region_default(const jval *geo, int theme, int ui, box4 *out);   /* the theme's own place of a group (from the package's geometry); -1: none */
+int region_fixed(const jval *geo, int theme, box4 *out, const char **names, int max);   /* the controls that never move; [0] is the navigation */
+box4 region_browse(int theme);                                /* the Browse panel, drawn over the theme's games area */
+/* a design's regions against the package's own layout: each group the base theme has, at its theme's size, inside the safe area, no
+   group over another or over a control that never moves, the game list below the navigation and the hints below the game list and the
+   Browse panel (the controller's Up and Down between them). 0 with each group's move in off; -1 with why */
+int design_layout(const jval *pk, const hdesign *d, int off[UI_COUNT][2], char *why, size_t n);
+void region_move(const home *h, int ui, box4 *b);             /* a box of that group, where the design put the group (the theme's own place otherwise) */
 
 /* ---------- helpers shared by the themes (home.c) ---------- */
 extern rect FULL;
@@ -152,6 +173,7 @@ int T(framebuffer *fb, rect clip, const font *f, double x, int base, const char 
 int Tb(framebuffer *fb, rect clip, const font *f, double x, int base, const char *s, uint32_t rgb, int a, double sp);   /* synthetic bold (+1 px) */
 void emit_json(home *h, const char *fmt, ...);
 void LR(home *h, const char *name, int x0, int y0, int x1, int y1);
+void LRI(home *h, const char *name, int idx, int x0, int y0, int x1, int y1);   /* LR naming the game or Browse tile drawn there */
 void LT(home *h, int kind, int idx, int x0, int y0, int x1, int y1);   /* a mouse target (recorded only while home_pointer has an event waiting) */
 void LRtext(home *h, const char *name, const font *f, double x, int base, const char *s, size_t len, double sp);
 int gbox(const jval *o, const char *k, box4 *b);             /* a [x0,y0,x1,y1] array member */
@@ -183,4 +205,10 @@ void home_go_all(home *h);
 void home_go_browse(home *h, int parent);
 void home_go_folder(home *h, int f);
 int home_back(home *h);                                       /* B in a listing or in Browse: one level up; 0 when already at the top */
+/* a HOME design (home.c): the shared panels' colors and lettering (the START menu, Settings, notices, the theme picker, Browse) */
+int design_menu_font(const home *h, int title, int def);
+uint32_t design_panel(const home *h, uint32_t def, int *alpha);
+uint32_t design_text(const home *h, uint32_t def);
+void design_upper_if_needed(const font *f, const char *s, char *out, size_t n);   /* a face without small letters draws capitals */
+int home_reduced_motion(const home *h);
 #endif

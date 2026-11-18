@@ -1,0 +1,18 @@
+# CCS Nucleus: installation. hakchi's pack_install sources this file in the package's unpacked folder, with hakchi's own functions
+# ($rootfs, $mountpoint, transfer_default). Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# 1. every file the package would copy into hakchi's overlay may be written (nothing there, CCS Nucleus's own unchanged file, or the
+#    same bytes); otherwise nothing is copied, nothing is recorded, and hakchi keeps no uninstall list for it ("no-uninstall")
+# 2. hakchi's own transfer_default copies the files, exactly as for any other package
+# 3. the copies are checked and recorded (CCS Nucleus's ownership journal); the first registry (the console's own system and CCS HOME)
+#    is written when there is none; the menu entry is added
+# Like other packages that copy their own files, this script then returns 1, so hakchi does not copy them a second time.
+ccsnucleus_install(){
+  local out
+  out="$(CCS_ROOT="$mountpoint" sh ./bin/ccs-nucleus preinstall ./etc/ccs/nucleus/FILES 2>&1)"
+  echo "$out"
+  case "$out" in *"result preinstall ok"*) ;; *) echo "no-uninstall" >> ./uninstall; return 1 ;; esac
+  transfer_default || { echo "result install failed copy"; return 1; }
+  CCS_ROOT="$mountpoint" sh "$rootfs/bin/ccs-nucleus" postinstall "$rootfs/etc/ccs/nucleus/FILES" 2>&1
+}
+ccsnucleus_install
+return 1

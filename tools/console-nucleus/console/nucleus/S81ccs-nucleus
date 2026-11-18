@@ -1,0 +1,12 @@
+#!/bin/sh
+# CCS Nucleus (Classic Cart Studio): the chooser on the TV when the console starts. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# hakchi's rcS runs the start scripts in name order: this one runs after the S80 scripts (the controllers' and graphics drivers) and
+# before the console's own menu start, S81clover-mcp, which it never replaces or changes. It returns when the console's own system is
+# chosen (its start then continues exactly as without Nucleus: S81clover-mcp, or whatever start the owner already had), and does nothing
+# at all when this start is in an owner's system image or when Nucleus is not in charge. Later menu restarts (hakchi's uistart) run
+# S81clover-mcp only, never this script.
+case "$1" in
+  start) sh "${CCS_ROOT:-}/var/lib/hakchi/rootfs/bin/ccs-nucleus" ui-start >/dev/null 2>&1; exit 0 ;;
+  stop) sh "${CCS_ROOT:-}/var/lib/hakchi/rootfs/bin/ccs-nucleus" ui-stop >/dev/null 2>&1; exit 0 ;;
+  *) exit 0 ;;
+esac

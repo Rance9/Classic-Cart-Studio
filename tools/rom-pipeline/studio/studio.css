@@ -460,7 +460,7 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .lob-why{background:none;border:none;color:var(--ink2);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:0 2px;margin-left:4px}.lob-why:hover{color:#fff}
 .lob-hint{font-size:12px;color:var(--muted)}
 body.lomode .toolbar{box-shadow:inset 0 3px 0 var(--red3),0 8px 30px rgba(0,0,0,.45)}
-body:not(.lomode) [data-tvfocus]{display:none}
+/* (Show in HOME is in every collection game's details now: studio/collview.js) */
 .lotray{margin-top:6px;padding:6px 8px;border-left:3px solid var(--red3);background:rgba(228,0,15,.07);border-radius:4px;color:var(--ink2)}.lotray .btn{margin-left:6px}
 .shlo{margin:8px 0;padding:8px 10px;border:1px solid var(--line2);border-radius:var(--r2)}.shlo ul{margin:4px 0 0 18px;padding:0}
 details.lotech summary{cursor:pointer;color:var(--ink2);font-size:12.5px;margin-top:8px}
@@ -541,7 +541,7 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
  .grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}
  .card .body{padding:6px 6px 6px!important;gap:2px!important}.card .t{font-size:12px!important;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
  .card .m{font-size:10.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- .card .body>div:not(.t):not(.m):not(.ctl){display:none!important}.card .t .badgeP:not(.badgeK),.card .t .badgeE{display:none}   /* "No ROM file here" stays on compact cards */
+ .card .body>div:not(.t):not(.m):not(.ctl):not(.cacts){display:none!important}   /* compact cards keep Play */.card .t .badgeP:not(.badgeK),.card .t .badgeE{display:none}   /* "No ROM file here" stays on compact cards */
  .card .ctl{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:2px}.card .ctl .det{font-size:10px!important;padding:0 6px!important;height:20px}.card .ctl .star{font-size:14px}
  .card .rankbadge{display:none}.selbadge{font-size:9px!important;padding:2px 6px!important;left:5px!important;top:5px!important}
  body:not(.techcols) #t td:nth-child(13){display:none!important}
@@ -571,7 +571,7 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
 .mbar button{justify-content:flex-start;padding-top:4px}.mbar button span{line-height:1}   /* a two-line label (Console Menu) fits the bar's usual 52 px height */
 .mbar .mbadge{left:calc(50% + 3px);right:auto;width:max-content;min-width:17px;max-width:calc(50% - 5px);box-sizing:border-box;overflow:hidden;text-overflow:ellipsis}
 
- body.lomode .mbar .co,body:not(.lomode) .mbar .lo{display:none}
+ /* the phone bar: Home, Collections, Add, HOME, Studio */
  body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
  .toast{bottom:calc(70px + env(safe-area-inset-bottom))!important}
  #tray{z-index:42;width:100vw!important}#tray .ft{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
@@ -1067,7 +1067,7 @@ img.px{image-rendering:pixelated}
 @media (max-width:640px){
  .hero .hero-inner{display:flex!important;flex-direction:column;align-items:center;gap:12px;padding:10px 12px 12px!important;text-align:center}
  .hero .lockup{align-items:center}
- .hero .hardware.dlwrap{display:flex!important;justify-content:center}
+ .hero .hardware.dlwrap:not([hidden]){display:flex!important;justify-content:center}
  .hero .parade{display:block!important;position:relative;height:52px!important}
 }
 
@@ -1134,6 +1134,72 @@ img.px{image-rendering:pixelated}
    every width, phones included: the row is two copies of the cast, and sliding it by one copy loops without a seam (heroLane sets --dur) */
 .hero .parade .lane .cast{position:absolute;left:0;right:auto;bottom:0!important;width:max-content;max-width:none;display:flex;flex-wrap:nowrap;gap:0;padding:0;justify-content:flex-start;overflow:visible;animation:heroMarch var(--dur,30s) linear infinite}
 .hero .parade .lane .cast .set{display:flex;flex:none;align-items:flex-end;gap:clamp(10px,1.2vw,22px);padding-right:clamp(10px,1.2vw,22px)}
-@keyframes heroMarch{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+@keyframes heroMarch{from{transform:translateX(var(--from,-50%))}to{transform:translateX(0)}}
+/* the lane's ends fade: the cast walks in out of nothing and away into nothing, never cut off by an invisible edge */
+.hero .parade .lane{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 44px,#000 calc(100% - 44px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 44px,#000 calc(100% - 44px),transparent 100%)}
 @media (max-width:640px){.hero .parade{height:64px;min-height:64px;padding-bottom:0;box-sizing:border-box}}
 @media (prefers-reduced-motion:reduce){.hero .parade .lane .cast{animation:none!important}}
+
+/* ---- the collection view: Play on each game, the ROM mark (hover, focus and tap explain it), the panel above the games, the Game
+   Catalog lookup, the browser's game window. No animation; every control at least 44 px tall on touch screens ---- */
+.card .cacts{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.card .cacts .btn{min-height:34px}
+.btn.cvplay{font-weight:700}
+.btn.cvplay.off{opacity:.62}
+.cvcell,.cvth{width:96px;white-space:nowrap}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.rdyx{display:inline-flex;align-items:center;gap:5px;font:700 12.5px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;border-radius:999px;padding:4px 10px;cursor:pointer;border:1px solid rgba(255,110,110,.85);background:#7a0710;color:#fff;min-height:28px}
+.rdyx.rdy-unknown{border-color:rgba(255,205,90,.8);background:#5b4300}
+.rdyx:hover,.rdyx:focus-visible{background:#a10a16;outline:2px solid #fff;outline-offset:1px}
+.rdyx.rdy-unknown:hover,.rdyx.rdy-unknown:focus-visible{background:#7a5a00}
+.card .crdy{position:absolute;left:6px;right:6px;bottom:6px;z-index:3;display:flex;justify-content:center}
+.card.rdyprob{box-shadow:inset 0 0 0 2px rgba(255,90,90,.7)}
+.card.rdyprob .cover img,.card.rdyprob .cover .ph{filter:grayscale(.55) brightness(.72)}
+tr.pick .rdyx{margin-left:8px;vertical-align:middle}
+.cvpanel{margin:10px 0 12px;display:flex;flex-direction:column;gap:10px}
+.cvpanel[hidden]{display:none}
+.cvbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-radius:var(--r2);border:1px solid var(--line2);background:rgba(255,255,255,.045)}
+.cvbar>div{flex:1;min-width:220px;display:flex;flex-direction:column;gap:3px}
+.cvbar b{color:#fff}
+.cvbar.bad{border-color:rgba(255,90,90,.65);background:rgba(255,60,60,.09)}
+.cvbar.warn{border-color:rgba(255,200,80,.55);background:rgba(255,200,80,.07)}
+.cvbar.cat{border-color:rgba(228,0,15,.55);border-left:5px solid var(--red3)}
+.cvempty{padding:28px 18px;text-align:center;border:1px dashed var(--line2);border-radius:var(--r2)}
+.cvempty h2{margin:0 0 6px;font-size:20px}
+.cvempty p{margin:0 auto;max-width:560px;color:var(--ink2)}
+.cvempty.small1{padding:16px}
+.cvacts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.cvintro{color:var(--ink2);padding:0 2px}
+body.cvcat .toolbar{box-shadow:inset 0 3px 0 var(--red3),0 8px 30px rgba(0,0,0,.45)}
+.dacts{display:flex;flex-direction:column;gap:6px;margin:10px 0 4px}
+.dacts .btn{align-self:flex-start}
+.dacts .msgbox{margin:0}
+.rdylist{margin:6px 0 0;padding-left:18px}
+.linkbtn{background:none;border:none;color:#fff;text-decoration:underline;cursor:pointer;padding:2px 0;font:inherit;min-height:28px;text-align:left}
+.playv{position:fixed;inset:0;z-index:90;background:#000;display:flex;flex-direction:column}
+.playv[hidden]{display:none}
+.playvhd{display:flex;align-items:center;gap:12px;padding:6px 12px;background:#121216;color:var(--ink2);flex-wrap:wrap;font-size:13px}
+.playvhd b{color:#fff;font-size:15px}
+.playvhd .btn{margin-left:auto}
+.playvhost{flex:1;min-height:0;position:relative}
+body.playv-open{overflow:hidden}
+.appbtn{position:relative}
+.appbtn.hasupd::after{content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--red3);box-shadow:0 0 0 2px #15151a}
+.mi[role=menuitemcheckbox] .mtr::before{content:""}
+.mi[role=menuitemcheckbox][aria-checked=true] .mtx b::after{content:"  ✓";color:var(--ink2)}
+p.mempty{margin:6px 12px;color:var(--muted)}
+@media (pointer:coarse){.card .cacts .btn,.rdyx,.linkbtn{min-height:44px}.cvcell .btn{min-height:44px}}
+@media (max-width:640px){.actions #restoreBtn .bl,.actions #hkBtn #hkLabel{display:none}.actions #addBtn .bl{display:inline}}
+#catBtn .cbs{display:none}
+@media (max-width:640px){#catBtn .cbl{display:none}#catBtn .cbs{display:inline}#catBtn{flex:0 0 auto;white-space:nowrap}}
+/* Included Games (hosted Play / Add to Collection, the demo's full-game check) and Game Saves export/import: plain cards, 44 px touch targets */
+.inccard{margin:10px 0;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r2);background:rgba(255,255,255,.03)}.inccard .inchd{font-size:15px}.inccard p{margin:6px 0}
+.incbadge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;border:1px solid var(--line2);font-size:11px;color:var(--ink2);vertical-align:middle}.incbadge.demo{border-color:rgba(240,160,48,.6);color:#ffd59a}
+.inccard .acts,.incbuy .acts,.incdirect .acts{flex-wrap:wrap;gap:8px}.inccard .acts .btn,.incbuy .btn,.incdirect .btn{min-height:44px}.incto{display:inline-flex;align-items:center;gap:6px}.incto select{min-height:44px;max-width:220px}
+.incbuy{margin:8px 0}.incbuy .msgbox{margin-top:4px}.incdirect .btn.big{font-size:17px;padding:10px 26px}
+.gxgame{margin:12px 0;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r2)}.gxgame h3{margin:0 0 6px;font-size:15px}
+.gxrow{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line)}.gxrow:first-of-type{border-top:0}.gxrow select{min-height:44px;max-width:100%}
+.hbform{white-space:pre-wrap;font:12.5px/1.5 var(--font);padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r2);background:rgba(0,0,0,.25);color:var(--ink2);user-select:text}
+/* right-click menus (context-menu.js): at the pointer, over Details and dialogs, the same plain rows as the other menus */
+.menu.ctxmenu{position:fixed;top:auto;right:auto;z-index:66;min-width:200px;max-width:min(320px,calc(100vw - 16px))}
+.hf-st-draft{max-width:440px}   /* framing your own startup picture: a larger preview (startup-custom.js) */

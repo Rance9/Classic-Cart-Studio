@@ -68,19 +68,19 @@ def _candidates(path: str, single: bool = False):
     """Yield (open function, declared size, display file name, note) for every ROM in a file: the file itself, or each ROM member of a ZIP.
     single: the file must hold exactly one ROM (Add Your Own Game, Locate). Untrusted input rules apply; nothing is read here."""
     if not os.path.isfile(path): raise ValueError("The file was not found. Choose it again.")
-    if os.path.islink(path): raise ValueError("Links to files are not accepted. Choose the ROM file itself.")
+    if os.path.islink(path): raise ValueError("Links to files are not accepted. Choose the game file itself.")
     ext = os.path.splitext(path)[1].lower()
     if ext == ".zip":
         try: z = zipfile.ZipFile(path)
         except (zipfile.BadZipFile, OSError, ValueError): raise ValueError(f"{os.path.basename(path)} is not a readable ZIP file (it may be damaged).")
         with z:
             roms = _zip_roms(z, path)
-            if not roms: raise ValueError("The ZIP file has no ROM file (.nes, .unh, .bin or .fds) in it.")
-            if single and len(roms) > 1: raise ValueError("The ZIP file holds more than one ROM file. Use Add Games from Files to add them all, or extract the one you want.")
+            if not roms: raise ValueError("The ZIP file has no game file (.nes, .unh, .bin or .fds) in it.")
+            if single and len(roms) > 1: raise ValueError("The ZIP file holds more than one game file. Use Add Games from Files to add them all, or extract the one you want.")
             for m in roms: yield (lambda m=m: z.open(m)), m.file_size, os.path.basename(m.filename.replace("\\", "/")), f"from archive {os.path.basename(path)}"
         return
-    if ext in (".7z", ".rar"): raise ValueError("7z and RAR files are not supported. Extract the ROM file first.")
-    if ext not in ROM_EXT: raise ValueError(f"This is an unsupported file type ({ext or 'no extension'}). Choose an NES ROM file or a ZIP file.")
+    if ext in (".7z", ".rar"): raise ValueError("7z and RAR files are not supported. Extract the game file first.")
+    if ext not in ROM_EXT: raise ValueError(f"This is an unsupported file type ({ext or 'no extension'}). Choose an NES game file or a ZIP file.")
     yield (lambda: open(path, "rb")), os.path.getsize(path), os.path.basename(path), ""
 
 def spool(open_fn, declared: int, fname: str, cancel=lambda: False) -> tuple[str, dict]:
@@ -104,7 +104,7 @@ def spool(open_fn, declared: int, fname: str, cancel=lambda: False) -> tuple[str
                 h.update(b); out.write(b)
         if n != declared: raise ValueError(f"{fname} ended early (the file is damaged or changed while it was read).")
         got = h.finish()
-        if got["size"] - (16 if got["magic"] else 0) < MIN_CONTENT: raise ValueError("The file is too small to be an NES ROM.")
+        if got["size"] - (16 if got["magic"] else 0) < MIN_CONTENT: raise ValueError("The file is too small to be an NES game file.")
     except (zipfile.BadZipFile, zlib.error, EOFError, NotImplementedError):
         _rm(tmp); raise ValueError(f"{fname} is damaged or uses an unsupported compression, so it was not used.")
     except BaseException:
@@ -132,9 +132,20 @@ def _spool_one(path: str) -> tuple[str, dict, str, str]:
     return tmp, ident, fname, note
 
 MIN_CONTENT = 8192   # no NES program is smaller than one 8 KiB bank; anything smaller is not a game file
+UNH_WHY = ("has no NES header, and its contents are not a game Classic Cart Studio knows, so the cartridge hardware it needs cannot be "
+           "determined. Use the .nes file with its header")
+def known_header(content_sha256: str) -> str:
+    """the recorded iNES header of an Included Games build or a known build (site included/index.json, ccs-included/1 or /2) of exactly this
+    content, else "" (never guessed from a name)"""
+    try: idx = json.load(open(site_path("included", "index.json"), encoding="utf-8"))
+    except (OSError, ValueError): return ""
+    for g in list(idx.get("games") or []) + list(idx.get("known_builds") or []):
+        h = str(g.get("header_hex") or "")
+        if g.get("content_sha256") == content_sha256 and re.fullmatch(r"4e45531a[0-9a-f]{24}", h): return h
+    return ""
 def version_known(version_id: str) -> bool: return version_id in _lib()["by_id"]
 def identify_bytes(data: bytes) -> dict:
-    if len(data) - (16 if data[:4] == NES_MAGIC else 0) < MIN_CONTENT: raise ValueError("The file is too small to be an NES ROM.")
+    if len(data) - (16 if data[:4] == NES_MAGIC else 0) < MIN_CONTENT: raise ValueError("The file is too small to be an NES game file.")
     fmt = detect_format(data)
     if fmt == "unknown":
         fmt = "iNES" if data[:4] == NES_MAGIC else "headerless"
@@ -183,14 +194,19 @@ def adopt(tmp: str, ident: dict, fname: str, src: str, note: str, origin: str = 
     finally: _rm(tmp)
 
 def _personal_entry(tmp: str, ident: dict, fname: str, src: str, note: str, origin: str, local_code: str, local_name: str) -> dict:
+    hdr = ident["header"]
+    if not hdr:   # F2: a headerless file is usable only when its exact content's header is known
+        kh = known_header(ident["content_sha256"])
+        if kh: hdr = parse_header(bytes.fromhex(kh)); hdr["header_hex"] = kh
+        elif origin == "file": raise ValueError(f"{fname} {UNH_WHY}.")   # Add ROM Files and Locate; a restore keeps a backup's exact files as before
     idx = load_index(); eid = "p_" + ident["content_sha256"][:16]; os.makedirs(FILES_DIR, exist_ok=True)
     ext = ".nes" if ident["format"] != "headerless" else ".unh"; managed = os.path.join(FILES_DIR, eid + ext)
     _place(tmp, managed, ident["file_sha256"])
-    hdr = ident["header"]; det = {"title": re.sub(r"\s*\(.*?\)|\s*\[.*?\]", "", os.path.splitext(fname)[0]).strip() or fname, **{k: hdr.get(k) for k in ("mapper", "submapper", "prg", "chr", "mirroring", "battery", "header_hex")}}
+    det = {"title": re.sub(r"\s*\(.*?\)|\s*\[.*?\]", "", os.path.splitext(fname)[0]).strip() or fname, **{k: hdr.get(k) for k in ("mapper", "submapper", "prg", "chr", "mirroring", "battery", "header_hex")}}
     if hdr:
         cp = compat({"title": det["title"], "mapper": hdr["mapper"], "four_screen": hdr["mirroring"] == "four-screen", "licensed": "unknown", "cart_system": "", "mesen_system": "", "mesen_mapper": None, "cart_board": ""})
         det.update(emulator=cp["recommended_emulator"], core=cp["core"], launch_command=cp["launch_command"], compat_notes=cp["compat_notes"], compat_confidence=cp["compat_confidence"])
-    else: det.update(emulator="unknown", core="", launch_command="", compat_notes="no header: the ROM's mapper is unknown, so it cannot be prepared for the console", compat_confidence="none")
+    else: det.update(emulator="unknown", core="", launch_command="", compat_notes="no header: the game file's mapper is unknown, so it cannot be prepared for the console", compat_confidence="none")
     old = idx["entries"].get(eid, {})
     e = {"id": eid, "origin": old.get("origin") or origin, "added": old.get("added") or time.strftime("%Y-%m-%dT%H:%M:%S"), "file_name": fname, "source_path": src, "note": note, "format": ident["format"], "file_sha256": ident["file_sha256"], "file_size": ident["file_size"],
          "content_sha256": ident["content_sha256"], "content_size": ident["content_size"], "content_crc32": ident["content_crc32"], "managed_copy": managed, "detected": det, "user": old.get("user") or {"title": local_name or det["title"], "version_label": "", "description": "", "year": "", "publisher": "", "art": _kept_art(eid)},
@@ -223,11 +239,20 @@ def relink(entry_id: str, path: str) -> dict:
     if not e: raise ValueError("That game is no longer among your own games.")
     tmp, ident, fname, note = _spool_one(path)
     try:
-        if ident["content_sha256"] != e["content_sha256"]: raise ValueError("This file is a different ROM than the one this game was added with, so nothing was changed.")
+        if ident["content_sha256"] != e["content_sha256"]: raise ValueError("This is a different game file than the one this game was added with, so nothing was changed.")
         os.makedirs(FILES_DIR, exist_ok=True); managed = e.get("managed_copy") or os.path.join(FILES_DIR, entry_id + (".nes" if ident["format"] != "headerless" else ".unh"))
         _place(tmp, managed, ident["file_sha256"], replace=True)
     finally: _rm(tmp)
     e["managed_copy"] = managed; e["source_path"] = path; e["file_name"] = fname; save_index(idx); return {"entry": public(e)}
+
+def locate_exact(entry_id: str, path: str, content_sha256: str) -> dict:
+    """Locate for a game a collection names by its exact content when this computer has no record of it yet (Codex v1p4 F2): the chosen
+    file is kept only when its content IS that game, the way Add ROM Files keeps it (a known Game Library version's managed copy, else a
+    personal entry); anything else changes nothing."""
+    if not re.fullmatch(r"[0-9a-f]{64}", content_sha256 or "") or entry_id != "p_" + content_sha256[:16]: raise ValueError("That game is no longer among your own games.")
+    tmp, ident, fname, note = _spool_one(path)
+    if ident["content_sha256"] != content_sha256: _rm(tmp); raise ValueError("This is a different game file than the one the collection names, so nothing was changed.")
+    return adopt(tmp, ident, fname, path, note)
 
 def update_user(entry_id: str, user: dict) -> dict:
     idx = load_index(); e = idx["entries"].get(entry_id)
@@ -463,7 +488,7 @@ def collect_paths(items: list[str]) -> list[str]:
 
 def start_import(items: list[str], origin: str = "file") -> str:
     paths = collect_paths(items); jid = "imp_" + hashlib.sha256((str(time.time()) + "|".join(paths[:5])).encode()).hexdigest()[:12]
-    job = {"id": jid, "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "total": len(paths), "done": 0, "canceled": False, "finished": False, "current": "", "known": 0, "known_new_copies": 0, "personal": 0, "personal_new": 0, "duplicates": 0, "errors": [], "items": [], "seen_contents": set()}
+    job = {"id": jid, "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "total": len(paths), "done": 0, "canceled": False, "finished": False, "current": "", "known": 0, "known_new_copies": 0, "personal": 0, "personal_new": 0, "duplicates": 0, "errors": [], "ids": [], "items": [], "seen_contents": set()}
     JOBS[jid] = job
     def run():
         for p in paths:
@@ -480,6 +505,7 @@ def start_import(items: list[str], origin: str = "file") -> str:
                     except Exception as e:   # one damaged or unsuitable member does not stop the rest of its ZIP
                         if job["canceled"]: break
                         job["errors"].append({"file": os.path.basename(p), "member": fname, "error": str(e)[:160]}); job["items"].append({"file": os.path.basename(p), "member": fname, "result": "error: " + str(e)[:120]}); continue
+                    job["ids"].append(r["known"]["version_id"] if "known" in r else r["entry"]["id"])   # every game this import verified (Add ROM Files adds them all)
                     if "known" in r:
                         job["known"] += 1; job["known_new_copies"] += 0 if r["library_copy"].get("reused") else 1
                         job["items"].append({"file": os.path.basename(p), "member": fname, "result": "known: " + r["known"]["name"], "version_id": r["known"]["version_id"], "title": r["known"]["title"], "curated": r["known"]["curated"], "reused": r["library_copy"].get("reused")})

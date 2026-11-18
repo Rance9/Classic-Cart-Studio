@@ -1,35 +1,19 @@
 [
  {
-  "name": "welcome",
-  "size": [
-   1400,
-   566
-  ],
-  "bytes": 69013
- },
- {
   "name": "toolbar",
   "size": [
    1400,
    62
   ],
-  "bytes": 10685
+  "bytes": 17737
  },
  {
   "name": "tools-row",
   "size": [
    1400,
-   96
+   91
   ],
-  "bytes": 21360
- },
- {
-  "name": "search-dr-mario",
-  "size": [
-   1400,
-   1
-  ],
-  "bytes": 184
+  "bytes": 15797
  },
  {
   "name": "selected-rows",
@@ -37,7 +21,7 @@
    1400,
    484
   ],
-  "bytes": 134551
+  "bytes": 47585
  },
  {
   "name": "grid-cards",
@@ -45,7 +29,23 @@
    1400,
    535
   ],
-  "bytes": 223153
+  "bytes": 211095
+ },
+ {
+  "name": "rom-missing",
+  "size": [
+   1400,
+   687
+  ],
+  "bytes": 246326
+ },
+ {
+  "name": "search-dr-mario",
+  "size": [
+   1400,
+   389
+  ],
+  "bytes": 48163
  },
  {
   "name": "list-rows",
@@ -53,15 +53,15 @@
    1400,
    484
   ],
-  "bytes": 46435
+  "bytes": 50183
  },
  {
   "name": "version-chip",
   "size": [
-   876,
+   884,
    715
   ],
-  "bytes": 49450
+  "bytes": 47972
  },
  {
   "name": "filters",
@@ -69,31 +69,23 @@
    1400,
    966
   ],
-  "bytes": 101404
+  "bytes": 66588
  },
  {
   "name": "select-menu",
   "size": [
    636,
-   474
+   268
   ],
-  "bytes": 13541
- },
- {
-  "name": "tray",
-  "size": [
-   880,
-   1424
-  ],
-  "bytes": 82057
+  "bytes": 21249
  },
  {
   "name": "details",
   "size": [
    1400,
-   1066
+   912
   ],
-  "bytes": 275337
+  "bytes": 232275
  },
  {
   "name": "game-settings",
@@ -101,47 +93,39 @@
    1400,
    1082
   ],
-  "bytes": 144504
+  "bytes": 147859
  },
  {
   "name": "my-collection-menu",
   "size": [
    636,
-   782
+   1060
   ],
-  "bytes": 22790
+  "bytes": 43226
  },
  {
   "name": "backup",
   "size": [
    1400,
-   446
+   529
   ],
-  "bytes": 50728
- },
- {
-  "name": "loadout-band",
-  "size": [
-   1400,
-   139
-  ],
-  "bytes": 51697
+  "bytes": 80486
  },
  {
   "name": "will-it-fit",
   "size": [
    1400,
-   853
+   856
   ],
-  "bytes": 85593
+  "bytes": 88277
  },
  {
   "name": "tv-preview",
   "size": [
    1600,
-   891
+   900
   ],
-  "bytes": 284290
+  "bytes": 284501
  },
  {
   "name": "tv-pad",
@@ -149,15 +133,15 @@
    1400,
    221
   ],
-  "bytes": 46024
+  "bytes": 42413
  },
  {
   "name": "tv-side-panel",
   "size": [
    680,
-   1373
+   1408
   ],
-  "bytes": 94081
+  "bytes": 95970
  },
  {
   "name": "tv-themes",
@@ -165,7 +149,7 @@
    1400,
    788
   ],
-  "bytes": 164425
+  "bytes": 162869
  },
  {
   "name": "tv-search",
@@ -173,7 +157,7 @@
    1400,
    788
   ],
-  "bytes": 143015
+  "bytes": 141107
  },
  {
   "name": "desktop-invitation",
@@ -181,7 +165,7 @@
    1400,
    364
   ],
-  "bytes": 53506
+  "bytes": 54416
  },
  {
   "name": "install-check",
@@ -189,7 +173,7 @@
    1400,
    791
   ],
-  "bytes": 135368
+  "bytes": 137567
  },
  {
   "name": "install-connect",
@@ -197,7 +181,7 @@
    1400,
    761
   ],
-  "bytes": 101375
+  "bytes": 103612
  },
  {
   "name": "install-console-state",
@@ -205,7 +189,7 @@
    1400,
    526
   ],
-  "bytes": 70097
+  "bytes": 73042
  },
  {
   "name": "install-review",
@@ -213,23 +197,15 @@
    1400,
    726
   ],
-  "bytes": 123980
+  "bytes": 124884
  },
  {
   "name": "install-rehearse",
   "size": [
    1400,
-   714
-  ],
-  "bytes": 121698
- },
- {
-  "name": "install-authorize",
-  "size": [
-   1400,
    737
   ],
-  "bytes": 128722
+  "bytes": 130486
  },
  {
   "name": "install-verify",
@@ -237,7 +213,7 @@
    1400,
    737
   ],
-  "bytes": 128523
+  "bytes": 130188
  },
  {
   "name": "tv-sample",
@@ -245,7 +221,7 @@
    1400,
    788
   ],
-  "bytes": 369090
+  "bytes": 368932
  },
  {
   "name": "phone-toolbar",
@@ -253,7 +229,7 @@
    560,
    1212
   ],
-  "bytes": 170763
+  "bytes": 173346
  },
  {
   "name": "rance9-avatar",
@@ -262,5 +238,29 @@
    480
   ],
   "bytes": 108139
+ },
+ {
+  "name": "included-games",
+  "size": [
+   960,
+   548
+  ],
+  "bytes": 107339
+ },
+ {
+  "name": "context-menu",
+  "size": [
+   561,
+   471
+  ],
+  "bytes": 21762
+ },
+ {
+  "name": "startup-picture",
+  "size": [
+   586,
+   753
+  ],
+  "bytes": 101694
  }
 ]

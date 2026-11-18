@@ -26,11 +26,14 @@ namespace CcsWorker.Tests
         /// <summary>opener: what "connect" reaches; by default TestOpeners.Never (a test never reaches a console; the closed-gate tests pass
         /// RealTransports.Open themselves, only while its gate is closed). writes: whether the attached test shell may be changed (the
         /// production server asks Gate.PhysicalWriteEnabled instead).</summary>
-        public Harness(IConsoleShell attached = null, string package = null, Func<string, IConsoleShell> opener = null, bool writes = true)
+        /// <summary>admitted: whether the attached test shell starts with a backup admission (the existing operation tests); the admission
+        /// tests pass false and their own admitter (production: CcsBackup.Engine.Admission.Use).</summary>
+        public Harness(IConsoleShell attached = null, string package = null, Func<string, IConsoleShell> opener = null, bool writes = true,
+                       bool admitted = true, Func<string, string, string, string, CcsBackup.Engine.LiveTree, CcsBackup.Engine.AdmissionResult> admitter = null)
         {
             inW = new AnonymousPipeServerStream(PipeDirection.Out); inR = new AnonymousPipeClientStream(PipeDirection.In, inW.ClientSafePipeHandle);
             outR = new AnonymousPipeServerStream(PipeDirection.In); outW = new AnonymousPipeClientStream(PipeDirection.Out, outR.ClientSafePipeHandle);
-            var s = new WorkerServer(inR, outW, package, opener ?? TestOpeners.Never, attached, () => writes);
+            var s = new WorkerServer(inR, outW, package, opener ?? TestOpeners.Never, attached, () => writes, admitter, admitted && attached != null);
             server = new Thread(() => { ExitCode = s.Run(); try { outW.Dispose(); } catch { } }) { IsBackground = true }; server.Start();
             reader = new Thread(() => { var r = new StreamReader(outR, new UTF8Encoding(false)); string l; while ((l = r.ReadLine()) != null) Lines.Add(l); Lines.CompleteAdding(); }) { IsBackground = true };
             reader.Start();

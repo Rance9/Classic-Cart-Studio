@@ -15,6 +15,10 @@
   <ItemGroup>
     <PackageReference Include="LibUsbDotNet" Version="2.2.29" />
     <ProjectReference Include="..\Renci.SshNet\Renci.SshNet.csproj" />
+    <!-- the console backup engine: the backup prerequisite every write command needs (Admission), the one console lock, and the
+         clovershell shell this worker shares with it (its files stay in Shell/ and are compiled once, in CcsBackup) -->
+    <ProjectReference Include="..\..\console-backup\CcsBackup\CcsBackup.csproj" />
+    <Compile Remove="Shell\IConsoleShell.cs;Shell\IBulkPipe.cs;Shell\ClovershellShell.cs;Shell\LibUsbBulkPipe.cs" />
     <Reference Include="System.Web.Extensions" />
     <InternalsVisibleTo Include="CcsWorker.Tests" />
   </ItemGroup>

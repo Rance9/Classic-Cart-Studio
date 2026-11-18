@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Classic Cart Studio console engine (FEL RAM boot). GPL-3.0-or-later; includes FelLib (GPL-3.0) code. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>CcsConsole</AssemblyName>
+    <RootNamespace>CcsConsole</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Product>Classic Cart Studio</Product>
+    <Copyright>Copyright (C) 2026 Rance9; FelLib (C) Hakchi2 CE authors. GPL-3.0-or-later.</Copyright>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LibUsbDotNet" Version="2.2.29" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+</Project>

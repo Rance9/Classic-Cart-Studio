@@ -298,7 +298,7 @@ def user_cover(src: str, crop: dict | None, out: str, box: tuple = COVER_BOX):
     save_jpeg(im, out)
 
 def mock(title: str, publisher: str | None, year: str | None, game_id: str, out: str, theme_root: str | None = None, box: tuple = COVER_BOX):
-    """the NES-style mock cover (tools/rom-pipeline/mock_cover.py, the approved generated-placeholder design) for one game"""
+    """the NES-style mock cover (tools/rom-pipeline/mock_cover.py, the approved generated-cover design) for one game"""
     import sys
     rp = os.path.normpath(os.path.join(HERE, "..", "..", "rom-pipeline"))
     if rp not in sys.path: sys.path.insert(0, rp)

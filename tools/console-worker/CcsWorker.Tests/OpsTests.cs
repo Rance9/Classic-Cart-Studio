@@ -14,6 +14,12 @@ namespace CcsWorker.Tests
 {
     static class OpsTests
     {
+        /// <summary>a stand-in package for the scripted shell (its bytes are pinned for that ConsoleOps only; the shipped pins are the real
+        /// builds: tools/companion/test_ccs_install.py keeps ConsolePath.MethodPackages equal to build_images.METHOD_SHAS)</summary>
+        static readonly byte[] TestHmod = Encoding.ASCII.GetBytes("a stand-in CCS Mod package (tests only)");
+        static ConsoleOps PinnedOps(CcsWorker.Shell.IConsoleShell s) => new ConsoleOps(s, null) { MethodPins = new Dictionary<string, string> { { "ccs-mod", ConsoleOps.Sha(TestHmod) }, { "ccs-nucleus", new string('9', 64) } } };
+        static Tuple<int, string, string> Uninstalled(ref bool installed) { installed = false; return R(0, "uninstalling ccs-mod...\nresult remove ok keep\npackage ccs-mod uninstalled\n"); }
+
         static Dictionary<string, object> A(params object[] kv) { var d = new Dictionary<string, object>(); for (int i = 0; i < kv.Length; i += 2) d[(string)kv[i]] = kv[i + 1]; return d; }
         static Tuple<int, string, string> R(int c, string o = "", string e = "") => Tuple.Create(c, o, e);
         const string Chain3 = "for q in '/var/lib/ccs' '/var/lib/ccs/pkg' '/var/lib/ccs/pkg/v'; do if [ -L \"$q\" ] || [ ! -d \"$q\" ]; then echo 'parent-not-folder' >&2; exit 4; fi; done; ";
@@ -31,7 +37,9 @@ namespace CcsWorker.Tests
                                              "/var/lib/ccs/$x", "/var/lib/ccs/a\nb", "/var/lib/ccsX/a", "/etc/passwd", "/var/saves/x", "/usr/share/games/x", "/var/lib/hakchi/rootfs/etc/x", "/var/lib/ccs/" + new string('a', 520) })
                     T.Eq("path-refused", T.Code(() => ConsolePath.Write(bad), "write " + bad), "write " + bad);
                 foreach (var ok in new[] { "/var/lib/ccs", "/var/lib/ccs/pkg/0123456789abcdef.00112233/bin/x", "/tmp/ccs", "/tmp/ccs/hmod-1/a.hmod" }) T.Eq(ok, ConsolePath.Write(ok), "write " + ok);
-                foreach (var ok in new[] { "/var/lib/hakchi/hmod/uninstall-ccs-home", "/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp", "/etc/init.d/S81clover-mcp", "/var/version", "/var/lib" }) T.Eq(ok, ConsolePath.Read(ok), "read " + ok);
+                foreach (var ok in new[] { "/var/lib/hakchi/hmod/uninstall-ccs-home", "/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp", "/etc/init.d/S81clover-mcp", "/var/version", "/var/lib",
+                                           "/var/lib/hakchi/rootfs/bin/ccs-mod", "/var/lib/hakchi/rootfs/etc/ccs/mod/FILES", "/var/lib/hakchi/rootfs/etc/preinit.d/p7060_ccsnucleus" }) T.Eq(ok, ConsolePath.Read(ok), "read " + ok);
+                foreach (var bad in new[] { "/var/lib/hakchi/rootfs/bin/ccs-mod", "/var/lib/hakchi/rootfs/etc/ccs/mod/FILES" }) T.Eq("path-refused", T.Code(() => ConsolePath.Write(bad), "write " + bad), "the method's files are read, never written: " + bad);
                 foreach (var bad in new[] { "/var/lib/hakchi/rootfs/etc/passwd", "/etc/shadow", "/var/lib/clover", "/var/saves", "/" }) T.Eq("path-refused", T.Code(() => ConsolePath.Read(bad), "read " + bad), "read " + bad);
                 T.Eq("path-refused", T.Code(() => ConsolePath.Write("/var/lib/hakchi/hmod/uninstall-ccs-home"), "hakchi's list is read only"), "hakchi's list");
             });
@@ -172,53 +180,69 @@ namespace CcsWorker.Tests
                 T.True(ConsoleOps.Version("v1.0.4-118") >= new Version(1, 0, 4, 118) && ConsoleOps.Version("3.4.112-00") < new Version(3, 4, 113), "ConvertVersion");
             });
 
-            T.Add("ops", "module archive: the same bytes every time; ustar entries owned by root, time 0, valid checksums, mode kept", () =>
+            T.Add("ops", "method package install/uninstall/files: only the pinned CCS Mod / CCS Nucleus builds, sent, checked, hakchi's pack_install, its own answer and list", () =>
             {
-                var s81 = Encoding.UTF8.GetBytes("#!/bin/sh\necho ccs\n");
-                var files = new SortedDictionary<string, KeyValuePair<byte[], int>> { ["/etc/init.d/S81clover-mcp"] = new KeyValuePair<byte[], int>(s81, 0x1ED) };
-                var a = Hmod.Build(files); var b = Hmod.Build(files); T.True(T.Same(a, b), "deterministic");
-                var tar = new MemoryStream(); using (var z = new GZipStream(new MemoryStream(a), CompressionMode.Decompress)) z.CopyTo(tar);
-                var t = tar.ToArray(); var names = new List<string>(); int pos = 0;
-                while (pos + 512 <= t.Length && t[pos] != 0)
-                {
-                    var h = t.Skip(pos).Take(512).ToArray(); var name = Encoding.ASCII.GetString(h, 0, 100).TrimEnd('\0'); names.Add(name);
-                    int sum = h.Select((x, i) => i >= 148 && i < 156 ? 32 : x).Sum(); T.Eq(Convert.ToString(sum, 8).PadLeft(6, '0'), Encoding.ASCII.GetString(h, 148, 6), "checksum of " + name);
-                    T.Eq("0000000", Encoding.ASCII.GetString(h, 108, 7), "uid"); T.Eq("00000000000", Encoding.ASCII.GetString(h, 136, 11), "mtime"); T.Eq("ustar", Encoding.ASCII.GetString(h, 257, 5), "magic");
-                    long size = Convert.ToInt64(Encoding.ASCII.GetString(h, 124, 11), 8);
-                    if (name.EndsWith("S81clover-mcp")) { T.Eq("0000755", Encoding.ASCII.GetString(h, 100, 7), "mode"); T.True(T.Same(s81, t.Skip(pos + 512).Take((int)size).ToArray()), "content"); }
-                    pos += 512 + (int)((size + 511) / 512 * 512);
-                }
-                T.True(names.SequenceEqual(new[] { "./etc/", "./etc/init.d/", "./etc/init.d/S81clover-mcp" }), "entries: " + string.Join(",", names));
+                var hm = TestHmod; var sha = ConsoleOps.Sha(hm);
+                T.True(ConsolePath.MethodPackages.Count == 2 && ConsolePath.MethodPackages.Values.All(v => Regex.IsMatch(v, "^[0-9a-f]{64}$")), "the shipped worker pins exactly two packages");
+                const string list = "# CCS Mod for Hakchi: removal\nreturn 0\n\n# auto-generated\nrm -f \"$rootfs/./uninstall\" \"$rootfs/./bin/ccs-mod\"\n";
+                var s = new ScriptedShell(); var installed = true;
+                s.Answer = (c, i) => c.Contains("cat > \"$d/ccs-mod.hmod\"") ? R(0, ConsoleOps.Sha(i) + "  /tmp/ccs/hmod-x/ccs-mod.hmod\n") : c.StartsWith("hakchi pack_install") ? R(0, "installing ccs-mod...\nresult preinstall ok\nresult postinstall ok in-charge; entry ok /var/lib/hakchi/games/000/CLV-H-CCSMD\npackage ccs-mod installed\n")
+                    : c.StartsWith("u=") ? R(0, installed ? "present\n" + list : "absent\n") : c.StartsWith("hakchi pack_uninstall") ? Uninstalled(ref installed) : R(0);
+                var ops = PinnedOps(s);
+                T.Eq("not-pinned", T.Code(() => new ConsoleOps(s, null).ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", sha))), "the shipped pins"), "with the shipped pins, only the real build is installed");
+                var r = ops.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", sha)));
+                T.True(Regex.IsMatch(s.Commands[0], "^set -C; r='/tmp/ccs'; d='/tmp/ccs/hmod-[0-9a-f]{8}'; if \\[ -L \"\\$r\" \\]; then exit 4; fi; if \\[ ! -d \"\\$r\" \\]; then mkdir \"\\$r\" \\|\\| exit 4; fi; if \\[ -e \"\\$d\" \\] \\|\\| \\[ -L \"\\$d\" \\]; then exit 3; fi; mkdir \"\\$d\" && cat > \"\\$d/ccs-mod.hmod\" && sha256sum \"\\$d/ccs-mod.hmod\"$"), "transfer: " + s.Commands[0]);
+                var dir = Regex.Match(s.Commands[0], "/tmp/ccs/hmod-[0-9a-f]{8}").Value;
+                T.Eq("hakchi pack_install '" + dir + "/ccs-mod.hmod'; r=$?; rm -rf '" + dir + "'; exit $r", s.Commands[1], "hakchi's own pack_install");
+                T.True(T.Same(hm, s.Inputs[0]), "the package's own bytes were streamed"); T.Eq("result postinstall ok in-charge; entry ok /var/lib/hakchi/games/000/CLV-H-CCSMD", r["postinstall"] as string, "the package's own answer");
+                T.True(((string)r["uninstall_list"]).Contains("auto-generated"), "hakchi's uninstall list returned");
+                ops.ModuleUninstall("ccs-mod"); T.Eq("hakchi pack_uninstall 'ccs-mod'", s.Commands[s.Commands.Count - 2], "pack_uninstall (then the list read again)");
+                T.Eq("not-pinned", T.Code(() => ops.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(new byte[] { 1, 2 }), "sha256", ConsoleOps.Sha(new byte[] { 1, 2 })))), "another package"), "only the pinned build");
+                T.Eq("not-pinned", T.Code(() => ops.ModuleInstall(A("name", "ccs-nucleus", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", sha))), "the other name"), "a package under the other method's name");
+                T.Eq("bad-args", T.Code(() => ops.ModuleInstall(A("name", "ccs-home", "hmod", A("b64", "AA==", "sha256", ConsoleOps.Sha(new byte[1])))), "the earlier module"), "the earlier start-up module is never installed");
+                T.Eq("bad-args", T.Code(() => ops.ModuleUninstall("clovercon"), "another package"), "only CCS's own packages are removed");
+                T.Eq("source-mismatch", T.Code(() => ops.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(new byte[] { 1 }), "sha256", sha))), "bytes that are not the pinned ones"), "the bytes must be the pinned ones");
+                var n0 = s.Commands.Count; s.Answer = (c, i) => c.Contains("cat > ") ? R(0, H1 + "  x\n") : R(0);
+                T.Eq("readback-mismatch", T.Code(() => ops.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", sha))), "damaged"), "a damaged transfer is not installed");
+                T.True(!s.Commands.Skip(n0).Any(c => c.StartsWith("hakchi pack_install")), "pack_install not run after a damaged transfer");
+                s.Answer = (c, i) => c.Contains("cat > ") ? R(0, ConsoleOps.Sha(i) + "  x\n") : c.StartsWith("hakchi pack_install") ? R(0, "result preinstall refused nothing was copied\npackage ccs-mod installed\n") : c.StartsWith("u=") ? R(0, "absent\n") : R(0);
+                T.Eq("module-failed", T.Code(() => ops.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", sha))), "refused by its own script"), "the package's own refusal is a failure, not an installation");
             });
 
-            T.Add("ops", "module install/uninstall/files: transfer, hakchi's pack_install, the uninstall list as pack_install writes it", () =>
+            T.Add("ops", "mod-start: CCS Mod's own autostart command, exact text, only while hakchi lists CCS Mod; anything but its plain success is a failure", () =>
             {
-                var s81 = Encoding.UTF8.GetBytes("#!/bin/sh\necho ccs\n"); var sha = ConsoleOps.Sha(s81);
-                const string list = "\n# auto-generated\nrm -f \"$rootfs/./uninstall\" \"$rootfs/./etc/init.d/S81clover-mcp\"\nrmdir --ignore-fail-on-non-empty \"$rootfs/./etc/init.d\" \"$rootfs/./etc\"\n";
-                var s = new ScriptedShell();
-                s.Answer = (c, i) => c.Contains("cat > \"$d/ccs-home.hmod\"") ? R(0, ConsoleOps.Sha(i) + "  /tmp/ccs/hmod-x/ccs-home.hmod\n") : c.StartsWith("hakchi pack_install") ? R(0, "installing ccs-home...\npackage ccs-home installed\n")
-                    : c.StartsWith("u=") ? R(0, "present\n" + list) : c.StartsWith("for p in") ? R(0, sha + "  /var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp\n") : R(0, "package ccs-home uninstalled\n");
+                var s = new ScriptedShell(); string answer = "result autostart ok on\n"; bool listed = true;
+                s.Answer = (c, i) => c.StartsWith("u=") ? R(0, listed ? "present\n# CCS Mod\n" : "absent\n") : c.StartsWith("p='/var/lib/hakchi/rootfs/bin/ccs-mod'") ? R(answer.Contains(" ok ") ? 0 : 17, answer) : R(0);
                 var ops = new ConsoleOps(s, null);
-                var r = ops.ModuleInstall(A("name", "ccs-home", "files", A("/etc/init.d/S81clover-mcp", A("b64", Convert.ToBase64String(s81), "mode", "0755", "sha256", sha))));
-                T.True(Regex.IsMatch(s.Commands[0], "^set -C; r='/tmp/ccs'; d='/tmp/ccs/hmod-[0-9a-f]{8}'; if \\[ -L \"\\$r\" \\]; then exit 4; fi; if \\[ ! -d \"\\$r\" \\]; then mkdir \"\\$r\" \\|\\| exit 4; fi; if \\[ -e \"\\$d\" \\] \\|\\| \\[ -L \"\\$d\" \\]; then exit 3; fi; mkdir \"\\$d\" && cat > \"\\$d/ccs-home.hmod\" && sha256sum \"\\$d/ccs-home.hmod\"$"), "transfer: " + s.Commands[0]);
-                var dir = Regex.Match(s.Commands[0], "/tmp/ccs/hmod-[0-9a-f]{8}").Value;
-                T.Eq("hakchi pack_install '" + dir + "/ccs-home.hmod'; r=$?; rm -rf '" + dir + "'; exit $r", s.Commands[1], "pack_install");
-                T.True(T.Same(Hmod.Build(new SortedDictionary<string, KeyValuePair<byte[], int>> { ["/etc/init.d/S81clover-mcp"] = new KeyValuePair<byte[], int>(s81, 0x1ED) }), s.Inputs[0]), "the module archive was streamed");
-                T.True(((string)r["uninstall_list"]).Contains("S81clover-mcp"), "uninstall list returned"); T.True(((string)r["output"]).Contains("installed"), "output");
-                var mf = ops.ModuleFiles("ccs-home"); var files = (Dictionary<string, object>)mf["files"];
-                T.Eq(1, files.Count, "one file"); T.Eq(sha, files["/etc/init.d/S81clover-mcp"] as string, "its hash"); T.Eq(true, (bool)mf["present"], "present");
-                T.True(((List<object>)mf["ignored"]).SequenceEqual(new object[] { "/uninstall" }), "pack_install's own uninstall entry ignored");
-                T.Eq("for p in '/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp'; do if [ -f \"$p\" ] && [ ! -L \"$p\" ]; then sha256sum \"$p\" || echo \"- $p\"; else echo \"- $p\"; fi; done", s.Commands.Last(), "hash of the overlay file");
-                ops.ModuleUninstall("ccs-home"); T.Eq("hakchi pack_uninstall 'ccs-home'", s.Commands.Last(), "pack_uninstall");
-                s.Answer = (c, i) => c.StartsWith("u=") ? R(0, "present\nrm -f \"$rootfs/./etc/init.d/S81clover-mcp\" \"$rootfs/./etc/passwd\"\n") : R(0, sha + "  /var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp\n");
-                mf = ops.ModuleFiles("ccs-home"); files = (Dictionary<string, object>)mf["files"];
-                T.True(files.ContainsKey("/etc/passwd") && files["/etc/passwd"] == null && ((List<object>)mf["unreadable"]).Contains("/etc/passwd"), "a foreign path in the list is reported, never read");
-                s.Answer = (c, i) => R(0, "absent\n"); mf = ops.ModuleFiles("ccs-home"); T.Eq(false, (bool)mf["present"], "absent"); T.Eq(0, ((Dictionary<string, object>)mf["files"]).Count, "no files");
-                T.Eq("bad-args", T.Code(() => ops.ModuleUninstall("clovercon"), "another module"), "only ccs-home");
-                T.Eq("path-refused", T.Code(() => ops.ModuleInstall(A("name", "ccs-home", "files", A("/etc/passwd", A("b64", "AA==", "mode", "0644", "sha256", ConsoleOps.Sha(new byte[1]))))), "other file"), "only S81");
-                s.Answer = (c, i) => c.Contains("cat > ") ? R(0, H1 + "  x\n") : R(0);
-                T.Eq("readback-mismatch", T.Code(() => ops.ModuleInstall(A("name", "ccs-home", "files", A("/etc/init.d/S81clover-mcp", A("b64", Convert.ToBase64String(s81), "mode", "0755", "sha256", sha)))), "damaged"), "a damaged transfer is not installed");
-                T.True(!s.Commands.Last().StartsWith("hakchi pack_install"), "pack_install not run after a damaged transfer");
+                var r = ops.ModStart("on"); T.Eq("result autostart ok on", r["result"] as string, "on");
+                Golden(s, 1, "p='/var/lib/hakchi/rootfs/bin/ccs-mod'; if [ -L \"$p\" ] || [ ! -f \"$p\" ]; then exit 4; fi; CCS_ROOT=\"${p%/var/lib/hakchi/rootfs/bin/ccs-mod}\" sh \"$p\" autostart on");
+                answer = "result autostart ok off kept-changed /var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod (it is no longer the file CCS Mod wrote, so it was left as it is)\n";
+                T.Eq("module-failed", T.Code(() => ops.ModStart("off"), "kept"), "a start script someone changed is kept: not a success");
+                answer = "result autostart refused belongs-to-someone-else /var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod\n";
+                T.Eq("module-failed", T.Code(() => ops.ModStart("on"), "refused"), "its own refusal is a failure");
+                var n = s.Commands.Count; listed = false;
+                T.Eq("not-installed", T.Code(() => ops.ModStart("on"), "not listed"), "refused while hakchi does not list CCS Mod");
+                T.True(!s.Commands.Skip(n).Any(c => c.Contains("autostart")), "and its command is never run then");
+                T.Eq("bad-args", T.Code(() => ops.ModStart("on; reboot"), "text"), "only on or off: never shell text");
+            });
+
+            T.Add("ops", "method package files: hakchi's list, the package's VERSION and FILES, every listed file's hash in hakchi's overlay; the earlier module's list", () =>
+            {
+                var files = "1111111111111111111111111111111111111111111111111111111111111111 0755 bin/ccs-mod\n2222222222222222222222222222222222222222222222222222222222222222 0644 etc/ccs/mod/lib.sh\n3333333333333333333333333333333333333333333333333333333333333333 0644 etc/passwd\n";
+                var s = new ScriptedShell();
+                s.Answer = (c, i) => c.StartsWith("u=") ? R(0, "present\n# CCS Mod\n") : c.Contains("/etc/ccs/mod/VERSION") && c.StartsWith("p=") ? R(0, "schema=ccs-method-package/1\npackage=" + new string('a', 64) + "\n")
+                    : c.Contains("/etc/ccs/mod/FILES") && c.StartsWith("p=") ? R(0, files) : c.StartsWith("for p in") ? R(0, new string('1', 64) + "  /var/lib/hakchi/rootfs/bin/ccs-mod\n- /var/lib/hakchi/rootfs/etc/ccs/mod/lib.sh\n" + new string('9', 64) + "  /var/lib/hakchi/rootfs/etc/ccs/mod/FILES\n") : R(0);
+                var ops = new ConsoleOps(s, null); var mf = ops.ModuleFiles("ccs-mod"); var f = (Dictionary<string, object>)mf["files"];
+                T.Eq(true, (bool)mf["present"], "present"); T.Eq(new string('a', 64), mf["package"] as string, "its package id");
+                T.Eq(new string('1', 64), f["/bin/ccs-mod"] as string, "its program's hash"); T.True(f.ContainsKey("/etc/ccs/mod/lib.sh") && f["/etc/ccs/mod/lib.sh"] == null, "a missing file reads null");
+                T.True(f.ContainsKey("/etc/passwd") && f["/etc/passwd"] == null && ((List<object>)mf["unreadable"]).Contains("/etc/passwd"), "a listed path outside the method's places is reported, never read");
+                T.True(!s.Commands.Any(c => c.Contains("'/var/lib/hakchi/rootfs/etc/passwd'")), "and no command named it");
+                s.Answer = (c, i) => R(0, "absent\n"); T.Eq(false, (bool)ops.ModuleFiles("ccs-nucleus")["present"], "not listed: absent");
+                // the earlier start-up module: only read (its list) and removed
+                var s81 = new string('5', 64);
+                s.Answer = (c, i) => c.StartsWith("u=") ? R(0, "present\n\n# auto-generated\nrm -f \"$rootfs/./uninstall\" \"$rootfs/./etc/init.d/S81clover-mcp\"\n") : c.StartsWith("for p in") ? R(0, s81 + "  /var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp\n") : R(0);
+                var lf = ops.ModuleFiles("ccs-home"); var lff = (Dictionary<string, object>)lf["files"];
+                T.Eq(1, lff.Count, "one file"); T.Eq(s81, lff["/etc/init.d/S81clover-mcp"] as string, "its hash"); T.True(((List<object>)lf["ignored"]).SequenceEqual(new object[] { "/uninstall" }), "pack_install's own uninstall entry ignored");
             });
 
             T.Add("ops", "read in pieces: exact text, the size line, whole files below, above and at multiples of the old 1 MB limit, past the end", () =>

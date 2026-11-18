@@ -1,0 +1,82 @@
+{
+ "schema": "ccs-splash-music-asset/1",
+ "purpose": "The public pre-launch splash's sound control (tools/publish/public_entry.py): the CCS HOME theme, whole and looped, only after a visitor turns it on. Not part of HOME, the app or its offline files.",
+ "song": {
+  "record": "../home-music/music.json",
+  "pcm_sha256": "dc6dde85f4ad5ec2e1f9476bb5489cd89b271cf1a0eafc97ac6642f73e8763fc",
+  "frames": 2976768,
+  "rate": 48000,
+  "seconds": 62.016
+ },
+ "aac": {
+  "published": "brand/home/music/ccs-home-theme-7d07857f25e3.m4a",
+  "sha256": "7d07857f25e3ae4ffd3d38a4a200c43e25b97891fb6195671c486c9aabdd2c68",
+  "bytes": 1529985,
+  "packets": 2908,
+  "edit_list": {
+   "media_time": 1024,
+   "duration": 2976768
+  },
+  "lead_frames": 1024,
+  "tail_frames": 0,
+  "trims": [
+   [
+    0,
+    0
+   ],
+   [
+    1024,
+    1024
+   ]
+  ],
+  "made": "unchanged: the HOME theme's own browser file (music.json)"
+ },
+ "mp3": {
+  "file": "ccs-home-theme-daa9119f2061.mp3",
+  "published": "brand/splash/ccs-home-theme-daa9119f2061.mp3",
+  "sha256": "daa9119f206186b66fb91b02ac93f6087b66d552369750d3059ef2c2ae8eb60e",
+  "bytes": 1489536,
+  "frames": 2585,
+  "lame_tag": {
+   "delay": 576,
+   "padding": 576
+  },
+  "decoder_delay": 529,
+  "lead_frames": 1105,
+  "tail_frames": 47,
+  "trims": [
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    47
+   ],
+   [
+    1105,
+    1105
+   ],
+   [
+    1105,
+    1152
+   ],
+   [
+    2257,
+    2304
+   ]
+  ],
+  "decoded_frames": 2976768,
+  "alignment_lag_start": 0,
+  "alignment_lag_end": 0,
+  "snr_db": 25.3,
+  "settings": "MPEG-1 Layer III, CBR 192 kbit/s, 48,000 Hz, joint stereo, bit-exact, no ID3 tags, LAME Info frame",
+  "tool": {
+   "pyav": "19.0.0",
+   "ffmpeg": "9.0.2",
+   "libavcodec": "63.1.102",
+   "encoder": "libmp3lame"
+  },
+  "made": "every frame of ccs-home-theme.wav encoded once (make_splash_music.py): nothing trimmed, no fade, no level change"
+ }
+}

@@ -1,0 +1,114 @@
+#!/bin/sh
+# ccsdev: Developer Mode's startup-software and system-part steps on the console. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# It runs in the console's RAM, in the Classic Cart Studio files image only (profile "files"), and does fixed steps the PC asks for one at a
+# time (tools/console-backup/CcsBackup Engine/DeveloperEngine.cs, DeveloperSystem.cs) under the PC's own boundary Gate.DeveloperWrites and
+# the session's restore point (which must hold what each step changes):
+#   kstage SIZE MD5        the developer's startup image (an Android boot image) from the PC, exactly SIZE bytes, kept in RAM and checked
+#                          (MD5, the flash tool's image check WITHOUT fixing anything); nothing is written to storage
+#   kburn NOW WANT         the staged image written once as the startup software (slot 30), only when the startup software is still NOW and
+#                          the staged image is still WANT; read back; never written a second time. The spare slot (68), the bootloaders,
+#                          the storage table and the data storage are never written here.
+#   sinfo                  read-only: the system part (nandb) as the console's startup opens it: "system=crypt|plain|none", "key=yes|no",
+#                          "part_bytes=", the current SquashFS superblock's "comp=" and "bytes_used=", "board=", "mem_free=" (bytes)
+#   sstage SIZE SHA256     a system image from the PC, exactly SIZE bytes, kept in RAM and checked: SHA-256, SquashFS 4.0, no larger than
+#                          the system part, the current system's compression; nothing is written to storage
+#   sburn NOWMD5 WANT      the staged system image written once onto the system part: through the console's own encryption mapping
+#                          (hakchi 3.9.3's parameters: plain dm-crypt, aes-xts-plain, the key its startup software holds) when the part is
+#                          encrypted, directly when it is a plain SquashFS; only when the part still reads NOWMD5 raw and the staged image is
+#                          still WANT; read back through the same mapping; never written a second time; the system then mounted read-only
+#                          again as the image's /init mounts it. Nothing else is written: not the startup software, the startup stages, the
+#                          storage table or the data storage.
+# The same rule as every write: no retry, no repair.
+CCS=$(cd "$(dirname "$0")/.." && pwd)
+. "$CCS/env" || exit 90
+[ "$(cat "$CCS/profile" 2>/dev/null)" = files ] || { echo "ccsdev: this image cannot change the startup software" >&2; exit 13; }
+r(){ echo "result $1 $2"; [ "$2" = ok ] || [ "${2#ok}" != "$2" ] && exit 0; exit 17; }
+stage="$ST/dev-kernel.img"
+SYS="$DEV/nandb"; MAP="$DEV/mapper/root-crypt"; KEY="${NEWROOT%/*}/key-file"; MEM="${PARTS%/*}/meminfo"; sstage_f="$ST/dev-system.img"
+u32(){ hexdump -e '1/4 "%u"' -s "$2" -n 4 "$1" 2>/dev/null; }
+u16(){ hexdump -e '1/2 "%u"' -s "$2" -n 2 "$1" 2>/dev/null; }
+isfs(){ [ "$(head -c 4 "$1" 2>/dev/null)" = hsqs ]; }
+size_of(){ if [ "$DEVKIND" = file ]; then wc -c < "$1" | tr -d ' '; else blockdev --getsize64 "$1"; fi; }
+# the system as the console's startup reads it: the read-only mapping the image's /init opened, or the part itself when it is plain
+plain(){ isfs "$SYS"; }
+cur(){ if plain; then echo "$SYS"; else echo "$MAP"; fi; }
+mkdir -p "$ST"
+case "$1" in
+  kstage)
+    size=$2; want=$3
+    echo "$size" | grep -qE '^[1-9][0-9]{0,7}$' && echo "$want" | grep -qE '^[0-9a-f]{32}$' || r kstage "refused request"
+    [ "$size" -le 7340032 ] || r kstage "refused larger than the startup slot"
+    rm -f "$stage"; head -c "$size" > "$stage"
+    got=$(md5sum < "$stage" | cut -d' ' -f1); n=$(wc -c < "$stage" | tr -d ' ')
+    [ "$n" = "$size" ] && [ "$got" = "$want" ] || { rm -f "$stage"; r kstage "refused received-mismatch $got $n"; }
+    [ "$(head -c 8 "$stage")" = "ANDROID!" ] && sntool check "$stage" >/dev/null || { rm -f "$stage"; r kstage "refused not a valid startup image"; }
+    r kstage "ok $want $size" ;;
+  kburn)
+    now=$2; want=$3
+    echo "$now" | grep -qE '^[0-9a-f]{32}$' && echo "$want" | grep -qE '^[0-9a-f]{32}$' || r kburn "refused md5"
+    [ -f "$stage" ] && [ "$(md5sum < "$stage" | cut -d' ' -f1)" = "$want" ] || r kburn "refused the staged image is not the reviewed one"
+    [ "$(sunxi-flash read_boot2 2>/dev/null | md5sum | cut -d' ' -f1)" = "$now" ] || r kburn "refused the startup software changed since the review"
+    echo "began kburn"
+    dd status=none bs=128K "if=$stage" | sunxi-flash burn_boot2 30; brc=$?
+    back=$(sunxi-flash read_boot2 2>/dev/null | md5sum | cut -d' ' -f1)
+    [ "$brc" = 0 ] && [ "$back" = "$want" ] || r kburn "failed readback $back burn=$brc (not burned again)"
+    r kburn "ok $want" ;;
+  sinfo)
+    [ -z "$2" ] || r sinfo "refused request"
+    echo "board=$(cat "$NEWROOT/etc/clover/boardtype" 2>/dev/null | tr -cd 'A-Za-z0-9_.-')"
+    echo "mem_free=$(awk '/^MemFree:/ {printf "%.0f", $2 * 1024}' "$MEM" 2>/dev/null)"
+    [ -e "$SYS" ] || { echo "system=none"; r sinfo ok; }
+    echo "part_bytes=$(size_of "$SYS")"
+    if plain; then echo "system=plain"; echo "key=yes"; else echo "system=crypt"; if [ -f "$KEY" ]; then echo "key=yes"; else echo "key=no"; fi; fi
+    c=$(cur)
+    if isfs "$c" && [ "$(u32 "$c" 44)" = 0 ]; then echo "comp=$(u16 "$c" 20)"; echo "bytes_used=$(u32 "$c" 40)"; else echo "comp=none"; fi
+    r sinfo ok ;;
+  sstage)
+    size=$2; want=$3
+    echo "$size" | grep -qE '^[1-9][0-9]{0,8}$' && echo "$want" | grep -qE '^[0-9a-f]{64}$' || r sstage "refused request"
+    rm -f "$sstage_f"
+    [ -e "$SYS" ] || r sstage "refused no system part"
+    [ "$size" -le "$(size_of "$SYS")" ] || r sstage "refused larger than the system part"
+    [ $((size % 4096)) = 0 ] || r sstage "refused not a whole number of 4,096-byte blocks"
+    free=$(awk '/^MemFree:/ {printf "%.0f", $2 * 1024}' "$MEM" 2>/dev/null)
+    [ -n "$free" ] && [ "$free" -ge $((size + 32000000)) ] || r sstage "refused not enough free memory to hold it"
+    head -c "$size" > "$sstage_f"
+    got=$(sha256sum < "$sstage_f" | cut -d' ' -f1); n=$(wc -c < "$sstage_f" | tr -d ' ')
+    [ "$n" = "$size" ] && [ "$got" = "$want" ] || { rm -f "$sstage_f"; r sstage "refused received-mismatch $got $n"; }
+    isfs "$sstage_f" && [ "$(u16 "$sstage_f" 28)" = 4 ] && [ "$(u16 "$sstage_f" 30)" = 0 ] && [ "$(u32 "$sstage_f" 44)" = 0 ] && [ "$(u32 "$sstage_f" 40)" -le "$size" ] \
+      || { rm -f "$sstage_f"; r sstage "refused not a SquashFS 4.0 system"; }
+    c=$(cur)
+    isfs "$c" && [ "$(u16 "$c" 20)" = "$(u16 "$sstage_f" 20)" ] || { rm -f "$sstage_f"; r sstage "refused its compression is not the current system's"; }
+    r sstage "ok $want $size" ;;
+  sburn)
+    now=$2; want=$3
+    echo "$now" | grep -qE '^[0-9a-f]{32}$' && echo "$want" | grep -qE '^[0-9a-f]{64}$' || r sburn "refused request"
+    [ -f "$sstage_f" ] && [ "$(sha256sum < "$sstage_f" | cut -d' ' -f1)" = "$want" ] || r sburn "refused the staged system is not the reviewed one"
+    [ -e "$SYS" ] || r sburn "refused no system part"
+    [ "$(md5sum < "$SYS" | cut -d' ' -f1)" = "$now" ] || r sburn "refused the system part changed since the review"
+    size=$(wc -c < "$sstage_f" | tr -d ' ')
+    if plain; then enc=no; tgt="$SYS"; else enc=yes; tgt="$MAP"; [ -f "$KEY" ] || r sburn "refused the console's key is not available"; fi
+    # the session's read-only system as the image's /init opens and mounts it (after a refusal and after the write; a failure here is
+    # reported, never repaired)
+    ro_again(){ blockdev --setro "$SYS" 2>/dev/null
+      if [ "$enc" = yes ] && [ ! -e "$MAP" ]; then cryptsetup open "$SYS" root-crypt --readonly --type plain --cipher aes-xts-plain --key-file "$KEY" 2>/dev/null; fi
+      mountpoint -q "$NEWROOT" || mount -o ro,noatime "$(cur)" "$NEWROOT" 2>/dev/null || echo "note the system was not mounted again"; }
+    # the read-only system the image's /init mounted is let go first (nothing writes yet); if it cannot be, nothing is written
+    if mountpoint -q "$NEWROOT"; then umount "$NEWROOT" || r sburn "refused the system part is in use"; fi
+    if [ "$enc" = yes ]; then
+      cryptsetup close root-crypt 2>/dev/null
+      [ -e "$MAP" ] && { ro_again; r sburn "refused the system part is in use"; }
+    fi
+    blockdev --setrw "$SYS" 2>/dev/null
+    if [ "$enc" = yes ]; then cryptsetup open "$SYS" root-crypt --type plain --cipher aes-xts-plain --key-file "$KEY" || { ro_again; r sburn "refused the system part could not be opened for writing"; }; fi
+    echo "began sburn"
+    dd "if=$sstage_f" "of=$tgt" bs=131072 conv=notrunc,fsync 2>/dev/null; wrc=$?
+    sync; blockdev --flushbufs "$tgt" 2>/dev/null; echo 3 > "$PROCSYS/vm/drop_caches" 2>/dev/null
+    back=$(dd "if=$tgt" bs=131072 2>/dev/null | head -c "$size" | sha256sum | cut -d' ' -f1)
+    [ "$enc" = yes ] && cryptsetup close root-crypt
+    raw=$(md5sum < "$SYS" | cut -d' ' -f1); rm -f "$sstage_f"
+    ro_again
+    [ "$wrc" = 0 ] && [ "$back" = "$want" ] || r sburn "failed readback $back write=$wrc (not written again)"
+    r sburn "ok $want $raw" ;;
+  *) echo "ccsdev: unknown step" >&2; exit 2 ;;
+esac

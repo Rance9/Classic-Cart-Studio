@@ -1,5 +1,5 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.10.1 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release installer.iss
+; Build: ISCC.exe /DAppVersion=0.11.0 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release installer.iss
 ; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe and the WebView2 assemblies, copied there by the release workflow. The wizard's
 ; pictures (tools/publish/make_installer_art.py) and the setup's icon come from the repository, relative to this script, like the legal files.
 ; Needs Inno Setup 6.7.0 or later (the dark style's hidebevels, WizardBackColor and WizardBackImageFile).
@@ -14,10 +14,14 @@
 #ifndef OutDir
   #define OutDir "..\..\build\release"
 #endif
+; Microsoft's Evergreen Standalone WebView2 Runtime installers and their record (tools/publish/webview2_prereq.py writes this folder)
+#ifndef WebView2Dir
+  #define WebView2Dir "..\..\build\webview2"
+#endif
 #define AppName "Classic Cart Studio"
 #define AppExe "ClassicCartStudio.exe"
 #define BackendExe "ClassicCartStudioBackend.exe"
-#define AppPublisher "Classic Cart Studio Project - Rance9"
+#define AppPublisher "Rance9 LLC"
 #define AppURL "https://classiccartstudio.com/"
 #define RepoURL "https://github.com/Rance9/Classic-Cart-Studio"
 #if Ver < EncodeVer(6, 7, 0)
@@ -25,6 +29,12 @@
 #endif
 
 [Setup]
+#ifdef CCS_SIGN
+; A signed release (tools/publish/signing.py iscc-args defines the "ccs" SignTool on ISCC's command line): Inno Setup signs the uninstaller,
+; its own temporary copies and the setup itself, in that order. An unsigned build has no SignTool and says so in its release information.
+SignTool=ccs
+SignedUninstaller=yes
+#endif
 AppId={{7E4C1C3A-6B0C-4B59-9F3D-2A1D5C0E9B11}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -70,17 +80,49 @@ VersionInfoDescription={#AppName} installer
 VersionInfoProductName={#AppName}
 
 [Messages]
+; every page in plain words (no technical terms anywhere in the installer)
+SetupWindowTitle=Install %1
 WelcomeLabel1=Welcome to Classic Cart Studio
-WelcomeLabel2=This installs [name/ver] for your Windows account. No administrator rights are needed.%n%nYour ROM files are never uploaded, and your collections and backups stay on this computer.
-SelectTasksLabel2=Select the additional tasks you would like Setup to perform while installing [name], then click Install.
+WelcomeLabel2=Classic Cart Studio helps you choose your NES games, organize them into collections and put them on your NES Classic.%n%nIt installs just for you on this computer. Your games and collections stay on this computer.
+ClickNext=Click Next to get started.
+ExitSetupTitle=Stop Installing?
+ExitSetupMessage=Classic Cart Studio is not installed yet. You can run this installer again anytime.%n%nStop now?
+WizardSelectTasks=Shortcuts
+SelectTasksDesc=Where would you like to find Classic Cart Studio?
+SelectTasksLabel2=Classic Cart Studio will be in your Start menu. You can also put it on your desktop. Then click Install.
+WizardPreparing=Getting Ready
+PreparingDesc=Getting ready to install Classic Cart Studio.
+ApplicationsFound=Classic Cart Studio is open. It needs to close so it can be updated.
+ApplicationsFound2=Classic Cart Studio is open. It needs to close so it can be updated.
+CloseApplications=&Close it for me (recommended)
+DontCloseApplications=&Don't close it (restart the computer later to finish)
+WizardInstalling=Installing
+InstallingLabel=Please wait while Classic Cart Studio is installed. This can take a minute or two.
+StatusClosingApplications=Closing Classic Cart Studio...
+StatusCreateDirs=Getting ready...
+StatusExtractFiles=Copying files...
+StatusCreateIcons=Adding shortcuts...
+StatusCreateIniEntries=Finishing up...
+StatusCreateRegistryEntries=Finishing up...
+StatusRegisterFiles=Finishing up...
+StatusSavingUninstall=Finishing up...
+StatusRunProgram=Finishing up...
+StatusRestartingApplications=Starting Classic Cart Studio...
+StatusRollback=Undoing changes...
 FinishedHeadingLabel=Classic Cart Studio is ready
-FinishedLabel=[name] is installed. Start it now, or later from the Start menu.
+FinishedLabel=Classic Cart Studio is installed. You will find it in your Start menu.
+FinishedLabelNoIcons=Classic Cart Studio is installed. You will find it in your Start menu.
+ClickFinish=Click Finish to close this window.
+UninstallAppFullTitle=Remove %1
+ConfirmUninstall=Remove Classic Cart Studio from this computer?%n%nYour collections, games and backups are kept.
+UninstallStatusLabel=Please wait while Classic Cart Studio is removed.
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
+; checked unless the person unchecked it in an earlier installation
+Name: "desktopicon"; Description: "Put Classic Cart Studio on my &desktop"
 
 [Files]
 ; FIRST, the small files the pages need before anything is installed (extracted for them): with solid compression a file is reached only
@@ -88,16 +130,28 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 ; the wordmark at every display scale: the page header loads the one drawn for this display's scale (ShowWordmark)
 Source: "..\publish\assets\installer\wizard-wordmark-*.png"; Flags: dontcopy
 ; the Installation Terms (tools/publish/legal_terms.py writes this copy from the one maintained source) and the licenses: shown by the
-; Licenses and Important Risks page (extracted for it, nothing installed yet) and installed beside the program, readable offline
+; Before You Install page (extracted for it, nothing installed yet) and installed beside the program, readable offline
 Source: "..\publish\assets\legal\INSTALLATION-TERMS.txt"; DestName: "ccs-terms.txt"; Flags: dontcopy
 Source: "..\..\LICENSE"; DestName: "ccs-license.txt"; Flags: dontcopy
 Source: "..\..\THIRD_PARTY_NOTICES.md"; DestName: "ccs-notices.txt"; Flags: dontcopy
-; what the optional usage reports collect (the setup's "What is collected?" and a copy beside the program)
+; what the optional usage reports collect (the setup's "What Is Sent?" and a copy beside the program)
 Source: "..\publish\assets\legal\USAGE-REPORTS.txt"; DestName: "ccs-usage.txt"; Flags: dontcopy
 Source: "..\publish\assets\legal\INSTALLATION-TERMS.txt"; DestDir: "{app}\legal"; Flags: ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}\legal"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "..\..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}\legal"; DestName: "THIRD_PARTY_NOTICES.txt"; Flags: ignoreversion
 Source: "..\publish\assets\legal\USAGE-REPORTS.txt"; DestDir: "{app}\legal"; Flags: ignoreversion
+; the Microsoft Edge WebView2 Runtime: before anything is installed, Setup runs the app itself in its runtime-check mode
+; (Runtime.cs; these few files are extracted for it), and only when no usable Runtime is found Microsoft's own offline installer for this
+; computer's architecture, silently. Microsoft's installers are stored as they are, in their own part of this setup file, so an ordinary
+; installation never unpacks them. What Setup carries is recorded in legal\webview2-prereq.json.
+Source: "{#SourceDir}\{#AppExe}"; Flags: dontcopy
+Source: "{#SourceDir}\{#AppExe}.config"; Flags: dontcopy
+Source: "{#SourceDir}\Microsoft.Web.WebView2.Core.dll"; Flags: dontcopy
+Source: "{#SourceDir}\Microsoft.Web.WebView2.Wpf.dll"; Flags: dontcopy
+Source: "{#SourceDir}\WebView2Loader.dll"; Flags: dontcopy
+Source: "{#WebView2Dir}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; Flags: dontcopy nocompression solidbreak
+Source: "{#WebView2Dir}\MicrosoftEdgeWebView2RuntimeInstallerARM64.exe"; Flags: dontcopy nocompression
+Source: "{#WebView2Dir}\webview2-prereq.json"; DestDir: "{app}\legal"; Flags: ignoreversion solidbreak
 ; the program
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -136,6 +190,8 @@ Root: HKCU; Subkey: "Software\Classes\Applications\{#AppExe}\shell\open\command"
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Start Classic Cart Studio now"; Flags: nowait postinstall skipifsilent
+; an update the app started (Update Now): quiet, so it starts the app again itself
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: UpdateRunQuiet
 
 [InstallDelete]
 ; the Start menu folder of earlier versions (app shortcut + website shortcut): replaced by the single entry above
@@ -159,15 +215,16 @@ Type: filesandordirs; Name: "{localappdata}\Programs\NESClassicCollectionStudio"
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Code]
-// ---- Licenses and Important Risks: after Welcome, before anything is installed. The full Installation Terms, the GNU GPL and the
+// ---- Before You Install (the terms): after Welcome, before anything is installed. The full Installation Terms, the GNU GPL and the
 // third-party notices are readable here (from the setup itself, offline) and can be saved; the agreement box starts unchecked and
 // Continue stays unavailable until it is checked. Nothing is recorded or sent: no receipt is kept. A silent setup (/SILENT, /VERYSILENT)
 // shows no pages, so no one agrees there: it installs without recording any agreement, and the same terms are installed in legal\
 // ---- Optional usage and error reports: a separate page after the terms, its own choice (never part of the agreement). The box starts
-// UNCHECKED on every new installation: nothing the setup can read reliably establishes where it runs or which opt-in rule applies
-// (Windows' Country or region and time zone are settings a person can change, and an EU visitor on a US-set laptop looks the same), so the
-// agreed fallback for unknown applicability applies (Codex K3F-F3): only the person turns it on. No network or location lookup.
-// (k3f6 started it checked for a US region with a US time zone; removed in k3f7.) A choice already kept on this computer (usage-reporting.json in the app's data folder: an earlier setup or the
+// CHECKED, except where an opt-in rule applies ("deselected by default for EU and other nations requiring
+// that"): it starts UNCHECKED when this computer's Windows region (its two-letter country) OR its time zone belongs to the EU, the EEA, the
+// UK or Switzerland, or when the region cannot be read (UsageStartsChecked). Both are settings, not proof of where the person is; either one
+// is enough, so most people there start unchecked even on a computer set up elsewhere. The person can change it on the page and anytime in
+// the Studio menu. No network or location lookup, and never the display language. A choice already kept on this computer (usage-reporting.json in the app's data folder: an earlier setup or the
 // Studio menu's Usage Reporting) is kept as it is: the page is skipped and nothing is written, so an upgrade, repair or reinstall never
 // changes it, and an opt-out stays; any usage-reporting.json already there, even one the app would not accept, is never overwritten (no
 // choice there means off, and the Studio menu can set it). The choice is written once the program files are in place, before the app can
@@ -179,9 +236,14 @@ Type: filesandordirs; Name: "{app}\_internal"
 const
   USAGE_SCHEMA = 'ccs-usage-choice/1';
   OBM_CHECKBOXES = 32759; CHECK_OFFSET = 4;   // TNewCheckListBox: its check width is a quarter of Windows' check-box bitmap, with 4 px either side
-  WORDMARK_W = 92; WORDMARK_H = 28;   // the wordmark's size at 100 % (tools/publish/make_installer_art.py draws it at every scale)
-  USAGE_LABEL = 'Help improve Classic Cart Studio with basic usage and error reports (recommended)';
-  AGREE_LABEL = 'I agree to the Installation Terms and acknowledge the important risks. My GPL and non-waivable legal rights remain unchanged.';
+  WORDMARK_W = 100; WORDMARK_H = 26;   // the wordmark's size at 100 % (tools/publish/make_installer_art.py draws it at every scale)
+  HORIZON_PCT = 80;   // the background's glowing horizon line, in percent of the window's height (make_installer_art.py back()): no words reach it
+  USAGE_LABEL = 'Send optional usage and diagnostic data (recommended)';
+  // where the usage box starts unchecked: the EU, the EEA (Iceland, Liechtenstein, Norway), the UK and Switzerland, with their European
+  // territories, by Windows region (ISO 3166 code) or by Windows time zone
+  OPTIN_REGIONS = ',AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO,GB,CH,GF,GP,MQ,RE,YT,MF,AX,GI,JE,GG,IM,';
+  OPTIN_ZONES = ',GMT Standard Time,Greenwich Standard Time,W. Europe Standard Time,Central Europe Standard Time,Romance Standard Time,Central European Standard Time,GTB Standard Time,FLE Standard Time,Azores Standard Time,';
+  AGREE_LABEL = 'I agree to the terms and understand the risks.';
 var
   TermsPage: TWizardPage; TermsShow: TNewComboBox; TermsText: TNewMemo; TermsAgree: TNewCheckListBox; TermsSave: TNewButton;
   TermsFiles: array[0..2] of String; TermsNames: array[0..2] of String;
@@ -194,6 +256,21 @@ type
 function LoadBitmapW(Inst: Longint; Name: Longint): Longint; external 'LoadBitmapW@user32.dll stdcall';
 function GetObjectW(Obj: Longint; Size: Integer; var Bm: TWinBitmap): Integer; external 'GetObjectW@gdi32.dll stdcall';
 function DeleteObject(Obj: Longint): Boolean; external 'DeleteObject@gdi32.dll stdcall';
+function GetUserDefaultGeoName(Buf: String; Count: Integer): Integer; external 'GetUserDefaultGeoName@kernel32.dll stdcall delayload';
+
+function UsageStartsChecked: Boolean;   // checked, except by Windows region or time zone in OPTIN_REGIONS / OPTIN_ZONES, or an unreadable region
+var Buf, Region, Zone: String; N: Integer;
+begin
+  Region := '';
+  try
+    Buf := StringOfChar(' ', 16); N := GetUserDefaultGeoName(Buf, 16);   // the count includes the closing null
+    if N > 1 then Region := Uppercase(Copy(Buf, 1, N - 1));
+  except
+    Region := '';
+  end;
+  if not RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\TimeZoneInformation', 'TimeZoneKeyName', Zone) then Zone := '';
+  Result := (Region <> '') and (Pos(',' + Region + ',', OPTIN_REGIONS) = 0) and ((Zone = '') or (Pos(',' + Zone + ',', OPTIN_ZONES) = 0));
+end;
 
 function CheckLabelIndent: Integer;   // as TNewCheckListBox places a check box's words: its check width + 4 + 4 + 1 (22 px at 100 %, 34 at 200 %)
 var H: Longint; Bm: TWinBitmap;
@@ -277,6 +354,15 @@ begin
   L.MinItemHeight := H + ScaleY(4); L.Height := H + ScaleY(8);
 end;
 
+function SafeBottom(Surface: TWinControl): Integer;   // the lowest point words may reach on a page: a margin above the background's horizon line
+var C: TControl; Y: Integer;
+begin
+  Y := 0; C := Surface;
+  while C.Parent <> nil do begin Y := Y + C.Top; C := C.Parent; end;   // the page's top within the window
+  Result := WizardForm.ClientHeight * HORIZON_PCT div 100 - ScaleY(10) - Y;
+  if Result > Surface.Height then Result := Surface.Height;
+end;
+
 procedure ShowWordmark;   // the wordmark at the top right of every page after Welcome: the picture drawn for this display's scale, at its own size
 var Img: TBitmapImage; W, H, Gap, Pct, I: Integer; F: String; Scales: array[0..5] of Integer;
 begin
@@ -292,12 +378,12 @@ begin
   WizardForm.PageDescriptionLabel.Width := Img.Left - WizardForm.PageDescriptionLabel.Left - ScaleX(8);
 end;
 
-procedure UsageDetailsClick(Sender: TObject);   // "What is collected?": the bundled text, offline
+procedure UsageDetailsClick(Sender: TObject);   // "View Details": the bundled text, offline
 var F: TSetupForm; M: TNewMemo; B: TNewButton;
 begin
   F := CreateCustomForm(ScaleX(560), ScaleY(440), False, True);
   try
-    F.Caption := 'What is collected?';
+    F.Caption := 'Usage and Diagnostics: Details';
     F.ClientWidth := WizardForm.ClientWidth; F.ClientHeight := WizardForm.ClientHeight;
     F.Position := poDesigned; F.Left := WizardForm.Left + (WizardForm.Width - F.Width) div 2; F.Top := WizardForm.Top + (WizardForm.Height - F.Height) div 2;   // the setup's own size, over it (at 200% scaling the requested size came out about 2.5 times larger)
     B := TNewButton.Create(F); B.Parent := F; B.Caption := 'Close'; B.Width := ScaleX(90); B.Height := ScaleY(26);
@@ -314,19 +400,143 @@ procedure CreateUsagePage;
 var Desc: TNewStaticText; More: TNewButton;
 begin
   ExtractTemporaryFile('ccs-usage.txt'); UsageStored := UsageChoiceKept;
-  UsagePage := CreateCustomPage(TermsPage.ID, 'Optional Usage and Error Reports', 'A separate choice, not part of the agreement. All features work either way.');
+  UsagePage := CreateCustomPage(TermsPage.ID, 'Usage and Diagnostics', 'Choose whether to share usage and diagnostic data.');
   UsageBox := TNewCheckListBox.Create(UsagePage);
   UsageBox.Parent := UsagePage.Surface; UsageBox.Left := 0; UsageBox.Top := 0; UsageBox.Width := UsagePage.SurfaceWidth; UsageBox.Height := ScaleY(22);
   UsageBox.Flat := True; UsageBox.BorderStyle := bsNone; UsageBox.ParentColor := True;
   UsageBox.WantTabs := True;   // a plain check box on the page: no list background or selection bar on the dark style (as the terms' agreement)
-  UsageBox.AddCheckBox(USAGE_LABEL, '', 0, False, True, False, False, nil);   // starts unchecked: only the person turns it on (see above) FitCheckRow(UsageBox, USAGE_LABEL);
+  UsageBox.AddCheckBox(USAGE_LABEL, '', 0, UsageStartsChecked, True, False, False, nil);   // checked, or unchecked where opt-in applies (see above)
+  FitCheckRow(UsageBox, USAGE_LABEL);   // as tall as its words wrap (a one-line row cut them off)
   Desc := TNewStaticText.Create(UsagePage);
   Desc.Parent := UsagePage.Surface; Desc.Left := LabelIndent; Desc.Top := UsageBox.Top + UsageBox.Height + ScaleY(6); Desc.Width := UsagePage.SurfaceWidth - LabelIndent; Desc.WordWrap := True; Desc.AutoSize := True;
-  Desc.Caption := 'These reports help us understand which features are useful and spot common problems, so we can prioritize fixes and make CCS more reliable. They never include your ROMs, game names, collections, saves or personal file details. You can turn reporting off now or anytime in the Studio menu, under Usage Reporting. All features work either way.';
+  Desc.Caption := 'Help improve Classic Cart Studio''s performance and reliability. Reports contain no personal identifiers and are never used for advertising or marketing. You can change this setting at any time under Studio ' + #$2192 + ' Usage Reporting.';
   More := TNewButton.Create(UsagePage);
-  More.Parent := UsagePage.Surface; More.Caption := '&What is collected?'; More.Width := ScaleX(150); More.Height := ScaleY(26);
+  More.Parent := UsagePage.Surface; More.Caption := '&View Details'; More.Width := ScaleX(150); More.Height := ScaleY(26);
   More.Left := LabelIndent; More.Top := Desc.Top + Desc.Height + ScaleY(14); More.OnClick := @UsageDetailsClick;
   UsageBox.TabOrder := 0; More.TabOrder := 1;
+end;
+
+// ---- The Microsoft Edge WebView2 Runtime: Classic Cart Studio shows its window with it. Before anything is installed,
+// Setup runs the app itself in its runtime-check mode (Runtime.cs: Microsoft's discovery, else a verified Microsoft Runtime folder, and a
+// real start of the Runtime). Only when no usable Runtime is found does Setup run Microsoft's Evergreen Standalone installer for this
+// computer's architecture (only when none was found or it is too old), bundled in this file (no download), with Microsoft's silent switches (/silent /install): no Microsoft window
+// appears; this page says what is happening. Setup runs without administrator rights, so Microsoft's installer adds the Runtime for this
+// user (or Windows' existing per-machine Runtime is updated by Microsoft's own updater); Windows' security prompts are never bypassed.
+// Then the check runs again. If no usable Runtime is there afterwards, Setup stops honestly with nothing of Classic Cart Studio installed
+// and says why (it does not claim nothing changed: Microsoft's installer may have done part of its work). Both checks and Microsoft's exit
+// code are kept in the data folder's logs\setup-webview2-runtime.json (the messages name it in short words; the codes stay in the log).
+// Cancel is on every page before Install. The Getting Ready page is Inno Setup's progress page, which shows no buttons: the check takes
+// seconds, and Microsoft's installer is waited for (stopping it halfway could leave a shared Windows part broken).
+// The Runtime is shared by many apps: removing Classic Cart Studio never removes it.
+var
+  RuntimePage: TOutputMarqueeProgressWizardPage; RuntimeLog: String;
+
+function RuntimeCheck(const Tag: String; var Json: String): Integer;
+var Code: Integer; OutF: String; A: AnsiString;
+begin
+  OutF := ExpandConstant('{tmp}\ccs-runtime-' + Tag + '.json'); DeleteFile(OutF);
+  if not Exec(ExpandConstant('{tmp}\{#AppExe}'), '--runtime-check "' + OutF + '"', ExpandConstant('{tmp}'), SW_HIDE, ewWaitUntilTerminated, Code) then Code := -1;
+  Json := '';
+  if LoadStringFromFile(OutF, A) then Json := UTF8Decode(A);
+  Log('WebView2 Runtime check (' + Tag + '): ' + IntToStr(Code) + ' ' + Json);
+  Result := Code;
+end;
+
+// where the details are, in words that wrap on the page (the full path did not fit at 200 %)
+function RuntimeLogNote: String;
+begin
+  Result := '';
+  if RuntimeLog <> '' then Result := ' The details are saved in setup-webview2-runtime.json, in the logs folder of %LOCALAPPDATA%\' + ExtractFileName(UsageDataDir) + '.';
+end;
+
+procedure RuntimeKeepLog(const Before, After, Installer: String; Code: Integer);
+var Dir: String;
+begin
+  Dir := UsageDataDir + '\logs';
+  if not ForceDirectories(Dir) then Exit;
+  RuntimeLog := Dir + '\setup-webview2-runtime.json';
+  SaveStringToFile(RuntimeLog, '{"schema":"ccs-setup-runtime/1","setup":"{#AppVersion}","before":' + Before + ',"installer":"' + Installer + '","installer_exit":' + IntToStr(Code) + ',"after":' + After + '}', False);
+end;
+
+function RuntimeUsable(Code: Integer): Boolean;
+begin
+  Result := (Code = 0) or (Code = 1);   // 0: Microsoft's discovery; 1: a verified Microsoft Runtime folder (Runtime.cs)
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var Before, After, Code: Integer; J1, J2, F: String; Shown: Boolean;
+begin
+  Result := ''; Shown := False;
+  ExtractTemporaryFile('{#AppExe}'); ExtractTemporaryFile('{#AppExe}.config'); ExtractTemporaryFile('Microsoft.Web.WebView2.Core.dll');
+  ExtractTemporaryFile('Microsoft.Web.WebView2.Wpf.dll'); ExtractTemporaryFile('WebView2Loader.dll');
+  if not WizardSilent then begin
+    RuntimePage.SetText('Checking for the Microsoft Edge WebView2 Runtime' + #$2026, 'Classic Cart Studio uses this part of Windows to show its window.');
+    RuntimePage.Show; Shown := True;
+  end;
+  try
+    Before := RuntimeCheck('before', J1);
+    if J1 = '' then J1 := 'null';
+    if RuntimeUsable(Before) then begin RuntimeKeepLog(J1, 'null', '', 0); Exit; end;
+    if Before = -1 then begin   // the check itself could not run: the WebView2 Runtime is not the problem to fix
+      RuntimeKeepLog('null', 'null', '', -1);
+      Result := 'Classic Cart Studio was not installed. Setup could not run its own check on this computer. Classic Cart Studio needs Windows 10 version 1903 or later, or Windows 11, with .NET Framework 4.8.';
+      Result := Result + RuntimeLogNote;
+      Exit;
+    end;
+    if (Before <> 2) and (Before <> 3) then begin   // a Runtime is there but did not start (4), or the check did not finish (8, 9): Microsoft's installer is only for a missing or too-old Runtime
+      RuntimeKeepLog(J1, 'null', '', 0);
+      if Before = 4 then Result := 'Classic Cart Studio was not installed. The Microsoft Edge WebView2 Runtime, a free part of Windows from Microsoft that Classic Cart Studio needs, is on this computer but did not start.'
+      else Result := 'Classic Cart Studio was not installed. Setup could not finish checking for the Microsoft Edge WebView2 Runtime, a free part of Windows from Microsoft that Classic Cart Studio needs.';
+      Result := Result + #13#10#13#10 + 'Restart the computer, then run this installer again.' + RuntimeLogNote;
+      Exit;
+    end;
+    if IsArm64 then F := 'MicrosoftEdgeWebView2RuntimeInstallerARM64.exe' else F := 'MicrosoftEdgeWebView2RuntimeInstallerX64.exe';
+    if Shown then begin
+      RuntimePage.SetText('Adding the Microsoft Edge WebView2 Runtime' + #$2026, 'This can take a few minutes. Please wait.');   // (one line: this label does not wrap)
+      WizardForm.CancelButton.Enabled := False;
+    end;
+    ExtractTemporaryFile(F);
+    if not Exec(ExpandConstant('{tmp}\') + F, '/silent /install', ExpandConstant('{tmp}'), SW_HIDE, ewWaitUntilTerminated, Code) then Code := -1;
+    Log('Microsoft Edge WebView2 Runtime installer ' + F + ' returned ' + IntToStr(Code));
+    if Shown then begin
+      WizardForm.CancelButton.Enabled := True;
+      RuntimePage.SetText('Checking the Microsoft Edge WebView2 Runtime' + #$2026, '');
+    end;
+    After := RuntimeCheck('after', J2);
+    if J2 = '' then J2 := 'null';
+    RuntimeKeepLog(J1, J2, F, Code);
+    if RuntimeUsable(After) then Exit;
+    Result := 'Classic Cart Studio was not installed. It needs the Microsoft Edge WebView2 Runtime, a free part of Windows from Microsoft, and Setup could not add it.'
+      + #13#10#13#10 + 'Restart the computer, then run this installer again.' + RuntimeLogNote;   // Microsoft's code and the checks are in the log
+  finally
+    if Shown then RuntimePage.Hide;
+  end;
+end;
+
+// ---- An update the app started (Update Now: /CCSUPDATE=1): the app closes itself after starting this setup. Setup waits up to a minute for
+// it to close (its single-instance mutex), and stops without changing anything if it is still open. A quiet update starts the app again.
+function UpdateRun: Boolean;
+begin
+  Result := ExpandConstant('{param:CCSUPDATE|0}') = '1';
+end;
+
+function UpdateRunQuiet: Boolean;
+begin
+  Result := UpdateRun and WizardSilent;
+end;
+
+function InitializeSetup: Boolean;
+var
+  I: Integer;
+begin
+  Result := True;
+  if not UpdateRun then Exit;
+  I := 0;
+  while CheckForMutexes('Local\ClassicCartStudio.Main') and (I < 120) do begin Sleep(500); I := I + 1; end;
+  if CheckForMutexes('Local\ClassicCartStudio.Main') then begin
+    if not WizardSilent then MsgBox('Close Classic Cart Studio, then run this installer again to update it.', mbInformation, MB_OK);
+    Result := False;
+  end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -351,16 +561,16 @@ var Intro, Note: TNewStaticText; Top: Integer;
 begin
   ShowWordmark; LabelIndent := CheckLabelIndent;
   TermsFiles[0] := 'ccs-terms.txt'; TermsFiles[1] := 'ccs-license.txt'; TermsFiles[2] := 'ccs-notices.txt';
-  TermsNames[0] := 'Classic Cart Studio Installation Terms 1.0.txt'; TermsNames[1] := 'GNU General Public License v3.txt'; TermsNames[2] := 'Classic Cart Studio Third-Party Notices.txt';
+  TermsNames[0] := 'Classic Cart Studio Installation Terms 1.3.txt'; TermsNames[1] := 'GNU General Public License v3.txt'; TermsNames[2] := 'Classic Cart Studio Third-Party Notices.txt';
   ExtractTemporaryFile(TermsFiles[0]); ExtractTemporaryFile(TermsFiles[1]); ExtractTemporaryFile(TermsFiles[2]);
-  TermsPage := CreateCustomPage(wpWelcome, 'Licenses and Important Risks', 'Please read these before continuing.');
+  TermsPage := CreateCustomPage(wpWelcome, 'Before You Install', 'Please read the terms, then check the box to agree.');
   Intro := TNewStaticText.Create(TermsPage);
   Intro.Parent := TermsPage.Surface; Intro.Left := 0; Intro.Top := 0; Intro.Width := TermsPage.SurfaceWidth; Intro.WordWrap := True; Intro.AutoSize := True;
-  Intro.Caption := 'Classic Cart Studio is independent, open-source software. Please review its licenses and the important software, backup and console risks before continuing. Your GPL and non-waivable legal rights remain unchanged.';
+  Intro.Caption := 'Classic Cart Studio is free, independent software. The terms below explain the risks of using it, of relying on backups and of changing your NES Classic.';
   Top := Intro.Top + Intro.Height + ScaleY(10);
   TermsShow := TNewComboBox.Create(TermsPage);
   TermsShow.Parent := TermsPage.Surface; TermsShow.Style := csDropDownList; TermsShow.Left := 0; TermsShow.Top := Top; TermsShow.Width := TermsPage.SurfaceWidth - ScaleX(120);
-  TermsShow.Items.Add('Installation Terms (EULA)'); TermsShow.Items.Add('GNU General Public License v3'); TermsShow.Items.Add('Third-party notices');
+  TermsShow.Items.Add('Terms of Use'); TermsShow.Items.Add('Free Software License (GNU GPL)'); TermsShow.Items.Add('Credits for Other Software');
   TermsShow.ItemIndex := 0; TermsShow.OnChange := @TermsShowChange;
   TermsSave := TNewButton.Create(TermsPage);
   TermsSave.Parent := TermsPage.Surface; TermsSave.Caption := '&Save a Copy...'; TermsSave.Width := ScaleX(110); TermsSave.Height := TermsShow.Height + ScaleY(2);
@@ -368,14 +578,14 @@ begin
   Top := Top + TermsShow.Height + ScaleY(8);
   Note := TNewStaticText.Create(TermsPage);   // under the agreement's own words (its left edge is theirs)
   Note.Parent := TermsPage.Surface; Note.Left := LabelIndent; Note.Width := TermsPage.SurfaceWidth - LabelIndent; Note.WordWrap := True; Note.AutoSize := True;
-  Note.Caption := 'This does not restrict your open-source rights or authorize console changes, advertising tracking or purchases.';
+  Note.Caption := 'Your open-source rights and rights protected by law are preserved. Installing Classic Cart Studio does not, by itself, authorize console changes. Any console modification requires a separate review and your explicit approval.';
   TermsAgree := TNewCheckListBox.Create(TermsPage);
   TermsAgree.Parent := TermsPage.Surface; TermsAgree.Left := 0; TermsAgree.Width := TermsPage.SurfaceWidth; TermsAgree.Flat := True; TermsAgree.BorderStyle := bsNone;
   TermsAgree.ParentColor := True;
   TermsAgree.WantTabs := True;   // checkbox-like (Inno's own pattern): no list background or selection bar on the dark style, Space toggles
   TermsAgree.AddCheckBox(AGREE_LABEL, '', 0, False, True, False, False, nil); FitCheckRow(TermsAgree, AGREE_LABEL); TermsAgree.OnClickCheck := @TermsAgreeClick;
-  // from the bottom up: the note (always visible), the agreement above it, the text filling what is left
-  Note.Top := TermsPage.SurfaceHeight - Note.Height;
+  // from the bottom up, above the background's horizon line: the note (always visible), the agreement above it, the text filling what is left
+  Note.Top := SafeBottom(TermsPage.Surface) - Note.Height;
   TermsAgree.Top := Note.Top - TermsAgree.Height - ScaleY(2);
   TermsText := TNewMemo.Create(TermsPage);
   TermsText.Parent := TermsPage.Surface; TermsText.Left := 0; TermsText.Top := Top; TermsText.Width := TermsPage.SurfaceWidth;
@@ -384,6 +594,7 @@ begin
   // keyboard order: the document choice, Save a Copy, the text, the agreement
   TermsShow.TabOrder := 0; TermsSave.TabOrder := 1; TermsText.TabOrder := 2; TermsAgree.TabOrder := 3;
   CreateUsagePage;
+  RuntimePage := CreateOutputMarqueeProgressPage('Getting Ready', 'Making sure this computer has what Classic Cart Studio needs.');
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
@@ -401,7 +612,7 @@ begin
   Result := True;
   if (CurPageID = TermsPage.ID) and not TermsAgree.Checked[0] then begin
     if WizardSilent then Exit;   // silent setup: no page was shown and nothing is recorded as agreed (see above)
-    MsgBox('To continue, check the box to agree to the Installation Terms. You can also go Back, or Cancel the setup.', mbInformation, MB_OK);
+    MsgBox('To keep going, check the box that says you agree. You can also go Back or Cancel.', mbInformation, MB_OK);
     Result := False;
   end;
 end;
@@ -438,9 +649,9 @@ begin
     DataDir := ExpandConstant('{localappdata}') + '\ClassicCartStudio';
     if DirExists(DataDir) then
     begin
-      if MsgBox('Classic Cart Studio was removed from this computer. Your collections, settings and imported ROM files were not deleted.' + #13#10#13#10 +
+      if MsgBox('Classic Cart Studio was removed from this computer. Your collections, settings and games were not deleted.' + #13#10#13#10 +
                 'They are still saved here:' + #13#10 + DataDir + #13#10#13#10 +
-                'Delete that folder yourself if you no longer need them. Open it now?', mbInformation, MB_YESNO) = IDYES then
+                'You can delete that folder yourself if you no longer need them. Open it now?', mbInformation, MB_YESNO) = IDYES then
         ShellExec('open', DataDir, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
     end
     else

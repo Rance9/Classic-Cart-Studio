@@ -1,0 +1,14 @@
+# Classic Cart Studio's build environment: one Python version and these exact package versions for the release workflow, the website
+# workflow and the local candidate builds and release preflight (tools/publish/check_build_env.py refuses anything else).
+# python==3.13.17
+# 3.13.17 is the newest Python 3.13 with a Windows build (python.org, and GitHub's setup-python manifest); Python 3.12 has none after
+# 3.12.10. Moving to 3.14 is a separate, deliberate toolchain change (this file, both workflows, the runtime notice in
+# tools/publish/assets/legal/runtime, then a full candidate build).
+pillow==12.3.0
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8
+altgraph==0.17.5
+pefile==2024.8.26
+pywin32-ctypes==0.2.3
+packaging==26.3
+setuptools==84.0.0

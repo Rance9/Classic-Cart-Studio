@@ -215,7 +215,8 @@ html.vp-short .tvt>div{min-width:0}html.vp-short #tvSub{display:block;white-spac
 .cpsurf.nocursor canvas.cpgame{cursor:none}
 .cpsurf .cpx{position:absolute;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));z-index:3;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(20,20,26,.72);color:#fff;font-size:18px;cursor:pointer}
 .cpsurf .cpx:focus-visible{outline:2px solid var(--red3);outline-offset:2px}
-.cpsurf .cpbrand{position:absolute;top:max(8px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:3;font-family:var(--display,inherit);font-size:12px;letter-spacing:1.5px;color:#e4000f;font-weight:800;pointer-events:none;opacity:.9}
+.cpsurf .cpbrand{position:absolute;top:max(8px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:3;flex-direction:column;align-items:center;gap:4px;font-family:var(--pixel);font-weight:400;font-size:8px;line-height:1;letter-spacing:0;color:#f5f6fc;pointer-events:none;opacity:.9}
+.cpsurf .cpbrand span{font-size:10px;color:#ff344b}
 .cpsurf .cptouch{display:none}
 .cpsurf .cpsound{position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:4}
 .cpsurf .cpsound[hidden]{display:none}
@@ -242,7 +243,7 @@ body.tppopbody .tppopstage{position:fixed;inset:0;width:100vw;height:100vh;max-w
 .cpsurf.cpfull{position:fixed;inset:auto;left:var(--tvl-vx,0px);top:var(--tvl-vy,0px);width:var(--tvl-vw,100vw);height:var(--tvl-vh,100dvh);z-index:15;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);box-sizing:border-box}
 .cpsurf .cpsafe{position:absolute;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 .cpsurf .cpbrand{display:none}
-.cpsurf.cpfull .cpbrand{display:block;color:#fff;font-size:11px;line-height:1;letter-spacing:1.2px}.cpsurf.cpfull .cpbrand span{color:#e4000f}
+.cpsurf.cpfull .cpbrand{display:flex}
 @media (pointer:coarse){
  .cpsurf.cpfull .cpdpad{left:calc(env(safe-area-inset-left) + (var(--cp-col,176px) - min(150px,34vh)) / 2);top:50%;bottom:auto;transform:translateY(-50%)}
  .cpsurf.cpfull .cpab{right:calc(env(safe-area-inset-right) + (var(--cp-col,176px) - 2 * min(66px,15vh) - 14px) / 2);top:50%;bottom:auto;transform:translateY(-50%)}

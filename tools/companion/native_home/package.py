@@ -12,7 +12,8 @@ selected games' (the union of what the four themes draw for them):
   per game      its effective cover (user replacement > authentic art > NES-style mock cover; fitted whole; one image serves all
                 four themes and Details), its own approved hero as the Details backdrop and as the Featured Shelf key art, its
                 effective texts (user overrides > canonical) and the short previews the themes show
-  shared        each theme's scene, the sprites its renderer draws and its picker thumbnail, the icons at the sizes drawn, the
+  shared        each theme's scene, the sprites its renderer draws (with the own pixels of each one it draws over the background, for a
+                HOME design's background: own_sprites.py) and its picker thumbnail, the icons at the sizes drawn, the
                 universal fallback backdrop and key art (only when some game uses them), fonts baked per role for the
                 characters the package shows, the native runtime executable, and the licenses that must travel with them
   theme         the Windows-chosen default theme; with "apply", a one-time request that the console switch to it
@@ -36,14 +37,15 @@ PACKAGE_SCHEMA = "ccs-native-home-package/2"; PACK_SCHEMA = "ccs-native-home-pac
 OWNED = ".ccs-native-home-owned"
 HOME_THEMES = ("arcade-grid", "box-art-showcase", "featured-shelf", "adventure-map")
 CATEGORIES = ("executable", "shared", "theme-arcade-grid", "theme-box-art-showcase", "theme-featured-shelf", "theme-adventure-map", "game-covers",
-              "game-details-artwork", "game-theme-artwork", "folder-artwork", "font", "music", "catalog", "descriptions", "configuration", "other")
+              "game-details-artwork", "game-theme-artwork", "folder-artwork", "font", "music", "catalog", "descriptions", "configuration", "home-design", "other")
 # what the native runtime (tools/console-simulator/core) can display: reachability is decided against this, not against what the
 # Windows application or the browser HOME can show. N3: all four themes and switching between them on the console.
 RUNTIME_FEATURES = {"all-games": True, "game-details": True, "themes": list(HOME_THEMES), "theme-switching": True, "theme-preference-persistence": True,
                     "browse-folders": True, "categories": True, "favorites": False, "recently-played": False, "search": False, "settings": False, "launch": False,
-                    "home-music": True}   # START > Settings offers HOME Music On / Off; the console keeps the choice in its state folder
+                    "home-music": True,   # START > Settings offers HOME Music On / Off; the console keeps the choice in its state folder
+                    "home-design": True}  # HOME Designer: a compiled design (design/, from the one C# compiler) skins its base theme
 THEMES = {   # theme -> what its native renderer draws (sprites by name; the scene; the card trim for Arcade Grid)
-    "arcade-grid": {"scene": "scene-arcade-grid.png", "ref": "ref-arcade-grid.png", "thumb": "thumb-arcade-grid.jpg", "card_trim": True,
+    "arcade-grid": {"scene": "scene-arcade-grid.png", "thumb": "thumb-arcade-grid.jpg", "card_trim": "sprite-arcade-grid-card-trim.png",
                     "sprites": ["card-frame", "tab-bar", "tab-active", "badge-a", "icon-games", "icon-folder", "icon-star", "icon-clock", "icon-gear", "stat-icon-games"]},
     "box-art-showcase": {"scene": "scene-box-art-showcase.png", "thumb": "thumb-box-art-showcase.jpg",
                          "sprites": ["badge-brand", "seal", "logo-mark", "arrow-l", "arrow-r"]},
@@ -104,7 +106,7 @@ class Builder:
     def __init__(self, cfg: dict, root: str, progress=None, cache_root: str | None = None):
         self.cfg = cfg; self.root = root; self.progress = progress or (lambda stage, done, total, text="": None)
         self.cache = DV.Cache(cache_root or os.path.join(root, "cache")); self.files: dict[str, dict] = {}; self.blockers: list[dict] = []; self.warnings: list[str] = []
-        self.excluded: list[dict] = []; self.stage = None
+        self.excluded: list[dict] = []; self.stage = None; self.design_tmp = None; self.design_result = None
 
     def put(self, rel: str, src: str, category: str, kind: str, **meta):
         """place one file into the staging tree (relative path, deduplicated by path); records category and type for accounting"""
@@ -121,10 +123,12 @@ class Builder:
         self.stage = os.path.join(self.root, f"staging-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"); os.makedirs(self.stage); _touch(os.path.join(self.stage, OWNED))
         try:
             res = self._assemble(); res.update(self._validate())
+            if self.design_result: res["design"] = self.design_result
             if not res["valid"]: return {"ok": False, "status": "invalid", "ready": False, "error": "the package did not validate: " + "; ".join(res["problems"][:5]), **res}
             final = self._swap(); res["package_dir"] = final; return res
         finally:
             if self.stage and os.path.isdir(self.stage): self._remove_owned(self.stage)
+            if self.design_tmp: shutil.rmtree(self.design_tmp, ignore_errors=True)
 
     def cached(self, kind: str, src_hash: str, params: str, ext: str, make) -> str: return self.cache.get(kind, src_hash, params, ext, make)
 
@@ -143,6 +147,15 @@ class Builder:
         def make(out):
             with Image.open(src) as im: HDS.scene_hd(theme, im, geometry).save(out, "PNG", optimize=True)
         return self.cached("hd-scene", DV.sha256_file(src), f"{theme}|{json.dumps(geometry, sort_keys=True)}|{HDS.VERSION}", ".png", make)
+
+    def own_sprite(self, theme: str, name: str, src: str) -> str | None:
+        """the sprite with only its own pixels, for a HOME design's background (own_sprites.py), cached by the sprite and the rule version"""
+        from PIL import Image
+        from native_home import own_sprites as OS
+        if not OS.has(theme, name): return None
+        def make(out):
+            with Image.open(src) as im: OS.render(theme, name, im).save(out, "PNG", optimize=True)
+        return self.cached("own-sprite", DV.sha256_file(src), f"{theme}|{name}|{OS.VERSION}", ".png", make)
 
     def hd_sprite(self, theme: str, name: str, src: str) -> str | None:
         """the high-resolution redrawing of a theme overlay (hd_sprites.py), cached by the sprite's content and the drawing version"""
@@ -184,9 +197,11 @@ class Builder:
                     if p2: sprites[name]["file_2x"] = self.put(f"theme/{tid}/sprite-{name}-2x.png", p2, cat, "sprite-png")
             for name in T["sprites"]:
                 if name not in th["sprites"]: self.excluded.append({"asset": f"{THEME_NAMES[tid]} sprite {name}", "reason": "not drawn by the native renderer"})
-            if th.get("card_trim"):
-                ref = os.path.join(troot, th["ref"]); p = self.cached("trim", DV.sha256_file(ref), json.dumps(T["geometry"]["card"], sort_keys=True), ".png", lambda out, ref=ref, T=T: DV.card_trim(ref, T["geometry"], out))
-                sprites["card-trim"] = {"file": self.put(f"theme/{tid}/sprite-card-trim.png", p, cat, "sprite-png"), "box": T["geometry"]["card"]["frame"]}
+            if th.get("card_trim"):   # the card frame's own pixels, cut once from the theme's approved design by derive.card_trim (the design's reference picture no longer ships)
+                sprites["card-trim"] = {"file": self.put(f"theme/{tid}/sprite-card-trim.png", os.path.join(troot, th["card_trim"]), cat, "sprite-png"), "box": T["geometry"]["card"]["frame"]}
+            for name, s in sprites.items():   # over a HOME design's own background: each sprite drawn over the background, with only its own pixels
+                po = self.own_sprite(tid, name, os.path.join(troot, th["card_trim"] if name == "card-trim" else T["sprites"][name]["file"]))
+                if po: s["file_own"] = self.put(f"theme/{tid}/sprite-{name}-own.png", po, cat, "sprite-png")
             tsrc = os.path.join(troot, th["thumb"]); tp = self.cached("thumb", DV.sha256_file(tsrc), "q88", ".jpg", lambda out, tsrc=tsrc: DV.thumb(tsrc, out))
             themes[tid] = {"name": THEME_NAMES[tid], "scene": scene, "thumb": self.put(f"theme/{tid}/thumb.jpg", tp, "shared", "thumb-jpeg"), "geometry": T["geometry"], "sprites": sprites}
             if scene2:
@@ -199,26 +214,32 @@ class Builder:
                 if cfg["mode"] == "play":   # the computer: the same icon drawn at twice the size
                     p2 = self.cached("icon", DV.sha256_bytes(k.encode()), str(sz * 2), ".png", lambda out, k=k, sz=sz: DV.meta_icon(k, out, sz * 2)); icons2[f"{k}-{sz}"] = self.put(f"theme/icon-{k}-{sz}-2x.png", p2, "shared", "icon-png")
         done += 4; tick("themes")
-        # games: effective cover (user > authentic > mock), the Details backdrop (own hero or the shared fallback), the Featured
-        # Shelf key art (own hero or the shared fallback), effective texts and their previews
-        recs = []; fb = {}; chars = set(DV.UI_TEXT); titles = set(); n_kind = {"user": 0, "authentic": 0, "mock": 0}
-        def fallback(kind):
-            if kind not in fb:
-                src = os.path.join(troot, art["hero_fallback"]); h = DV.sha256_file(src)
-                if kind == "details": p = self.cached("hero", h, f"fallback{DV.DETAILS_ART}", ".jpg", lambda out: DV.hero(src, "fallback", out)); fb[kind] = self.put(f"hero/{DV.sha256_file(p)[:16]}.jpg", p, "shared", "backdrop-jpeg")
-                else: p = self.cached("hero-wide", h, f"{DV.HERO_WIDE}", ".jpg", lambda out: DV.hero_wide(src, out)); fb[kind] = self.put(f"wide/{DV.sha256_file(p)[:16]}.jpg", p, "shared", "keyart-jpeg")
-            return fb[kind]
+        # games: effective cover (user > authentic > mock), the Details backdrop and the Featured Shelf key art (the shared scene of
+        # the game's genre, config.py; the same five source images as the website's HOME), effective texts and their previews
+        recs = []; chars = set(DV.UI_TEXT); titles = set(); n_kind = {"user": 0, "authentic": 0, "mock": 0}
+        design = None   # a compiled HOME design: its bytes as the C# compiler wrote them; its labels and folder names need their glyphs
+        if cfg.get("design_embed") is not None and not cfg.get("design_compiled_dir"):   # the collection's carried .ccshome: compiled by the one C# compiler for these games
+            import tempfile
+            from native_home import design_compile as DC
+            self.design_tmp = tempfile.mkdtemp(prefix="ccs-design-"); out = os.path.join(self.design_tmp, "design")
+            r = DC.compile_carried(cfg["design_embed"], games, out); cfg["design_compiled_dir"] = out
+            self.design_result = {k: r.get(k) for k in ("id", "schema_name", "theme", "name", "left_out", "not_shown")}
+        if cfg.get("design_compiled_dir"):
+            from native_home import design_ingest as DI
+            design = DI.place(self, cfg["design_compiled_dir"])
+            ddoc = json.loads(open(os.path.join(cfg["design_compiled_dir"], DI.JSON_NAME), encoding="utf-8").read())
+            for t in [l.get("text") or "" for l in ddoc.get("layers") or [] if l.get("kind") == "label"] + [f.get("name") or "" for f in ddoc.get("folders") or []]: chars |= set(t); titles |= set(t)
         for g in games:
             rec = {k: g.get(k) for k in ("id", "title", "version_label", "year", "players", "genre", "publisher", "developer")}
             rec["home_kind"] = g.get("home_kind"); rec["source"] = g.get("source"); rec["builtin_code"] = g.get("builtin_code")
             rec["cover"], kind, rec["cover_source"] = self.game_cover(g); rec["cover_kind"] = kind; n_kind[kind] += 1
             hs = CF._art_path(g.get("hero"))
+            if not hs: raise CF.ConfigError(f"the shared scene image {g.get('hero')!r} is missing (tools/publish/make_scenes.py)")
             if hs:
                 h = DV.sha256_file(hs)
-                p = self.cached("hero", h, f"hero{DV.DETAILS_ART}", ".jpg", lambda out, hs=hs: DV.hero(hs, "hero", out)); rec["hero"] = self.put(f"hero/{DV.sha256_file(p)[:16]}.jpg", p, "game-details-artwork", "backdrop-jpeg")
-                p = self.cached("hero-wide", h, f"{DV.HERO_WIDE}", ".jpg", lambda out, hs=hs: DV.hero_wide(hs, out)); rec["hero_wide"] = self.put(f"wide/{DV.sha256_file(p)[:16]}.jpg", p, "game-theme-artwork", "keyart-jpeg")
-                rec["hero_kind"] = "hero"; rec["hero_title"] = {k: v for k, v in (g.get("hero_title") or {}).items() if k in ("x", "y", "w", "align")} or None
-            else: rec["hero"] = fallback("details"); rec["hero_wide"] = fallback("wide"); rec["hero_kind"] = "fallback"
+                p = self.cached("hero", h, f"hero{DV.DETAILS_ART}", ".jpg", lambda out, hs=hs: DV.hero(hs, "hero", out)); rec["hero"] = self.put(f"hero/{DV.sha256_file(p)[:16]}.jpg", p, "shared", "backdrop-jpeg")
+                p = self.cached("hero-wide", h, f"{DV.HERO_WIDE}", ".jpg", lambda out, hs=hs: DV.hero_wide(hs, out)); rec["hero_wide"] = self.put(f"wide/{DV.sha256_file(p)[:16]}.jpg", p, "shared", "keyart-jpeg")
+                rec["hero_kind"] = "hero"; rec["scene"] = g.get("scene"); rec["hero_title"] = {k: v for k, v in (g.get("hero_title") or {}).items() if k in ("x", "y", "w", "align")} or None
             t = g.get("texts")
             if t:
                 body = {k: v for k, v in t.items() if v is not None}
@@ -297,6 +318,9 @@ class Builder:
         # the runtime index (pack.json, games.json) and the configuration snapshot
         pack = {"schema": PACK_SCHEMA, "stage": [1280, 720], "theme_default": cfg["theme"], "theme_apply": cfg.get("theme_apply_epoch"), "themes": themes, "icons": icons, **({"icons_2x": icons2} if icons2 else {}),
                 "fonts": fonts, **({"music": music} if music else {}), "games": "games.json", "count": len(recs), "counts": {"games": len(recs), "folders": len(cfg.get("folders") or []), "favorites": len(cfg.get("favorites") or [])}, "map_shortcuts": cfg.get("map_shortcuts") or [None, None], "map_folders": browse["map_folders"], "browse": {"folders": browse["folders"], "categories": browse["categories"]}}
+        if design: pack["design"] = design   # the console HOME shows it when the console has no design of its own (design.h read order)
+        from native_home import design_ingest as DI
+        pack["design_schemas"] = list(DI.SCHEMAS)   # the compiled designs this package's HOME shows (an earlier HOME sets a /2 design aside): DesignApplyEngine.PackageRefuses
         gdoc = {"schema": GAMES_SCHEMA, "collection": cfg["collection"].get("name"), "count": len(recs), "games": recs}
         self.put_bytes("games.json", json.dumps(gdoc, ensure_ascii=False, indent=0).encode("utf-8"), "catalog", "games-json")
         self.put_bytes("pack.json", json.dumps(pack, ensure_ascii=False, indent=1).encode("utf-8"), "catalog", "pack-json")
@@ -331,10 +355,11 @@ class Builder:
         if on_disk != listed: problems.append(f"files and manifest differ: extra {sorted(on_disk - listed)[:3]}, missing {sorted(listed - on_disk)[:3]}")
         pack = _jload(os.path.join(self.stage, "pack.json")); gd = _jload(os.path.join(self.stage, "games.json"))
         refs = [pack["games"]] + list(pack["icons"].values()) + list((pack.get("icons_2x") or {}).values()) + [f["file"] for f in pack["fonts"].values()] + [f["file_2x"] for f in pack["fonts"].values() if f.get("file_2x")]
-        for t in pack["themes"].values(): refs += [t["scene"], t["thumb"]] + [t[k] for k in ("scene_2x", "thumb_2x") if t.get(k)] + [s["file"] for s in t["sprites"].values()] + [s["file_2x"] for s in t["sprites"].values() if s.get("file_2x")]
+        for t in pack["themes"].values(): refs += [t["scene"], t["thumb"]] + [t[k] for k in ("scene_2x", "thumb_2x") if t.get(k)] + [s["file"] for s in t["sprites"].values()] + [s[k] for s in t["sprites"].values() for k in ("file_2x", "file_own") if s.get(k)]
         for g in gd["games"]: refs += [x for x in (g.get("cover"), g.get("hero"), g.get("hero_wide"), g.get("text")) if x]
         refs += [f["art"] for f in (pack.get("browse") or {}).get("folders") or [] if f.get("art")]   # folder tile artwork (Browse)
         if (pack.get("music") or {}).get("file"): refs.append(pack["music"]["file"])   # HOME Music
+        refs += (pack.get("design") or {}).get("files") or []   # a compiled HOME design
         if set(pack["themes"]) != set(HOME_THEMES): problems.append("not all four themes are in the package")
         for r in refs:
             if r not in listed: problems.append(f"unresolved reference {r}")
@@ -433,10 +458,18 @@ def _build(manifest, home, *, mode, root, progress, apply_epoch, cache_root=None
         try: cfg = CF.resolve(manifest, home)
         except CF.ConfigError as e: return {"ok": False, "status": "invalid-configuration", "ready": False, "error": str(e)}
         cfg["mode"] = mode; cfg["home_music"] = "off" if isinstance(home, dict) and home.get("home_music") == "off" else "on"   # a TV Preview shows this computer's HOME Music choice
+        if isinstance(home, dict) and home.get("design_compiled_dir"): cfg["design_compiled_dir"] = home["design_compiled_dir"]   # compiled by CcsBackup DesignCompiler (C#)
+        elif isinstance(home, dict) and home.get("design") is not None: cfg["design_embed"] = home["design"]   # a carried design: compiled at the build by the same compiler (design_compile.py), never left out
         if cfg.get("theme_apply") and mode == "deployment": cfg["theme_apply_epoch"] = apply_epoch or next_apply_epoch(root)
     elif mode == "development": cfg = CF.development_full_catalog()
     else: return {"ok": False, "status": "invalid-configuration", "ready": False, "error": f"unknown mode {mode!r}"}
-    t0 = time.time(); res = Builder(cfg, root, progress, cache_root).build(); res["seconds"] = round(time.time() - t0, 2); res["mode"] = mode; return res
+    t0 = time.time()
+    try: res = Builder(cfg, root, progress, cache_root).build()
+    except ValueError as e:   # a carried HOME design that cannot be used stops the build with its reason (it is never left out silently)
+        from native_home import design_compile as DC
+        if not isinstance(e, DC.CompileRefused): raise
+        return {"ok": False, "status": "design", "ready": False, "error": str(e), "mode": mode}
+    res["seconds"] = round(time.time() - t0, 2); res["mode"] = mode; return res
 
 def inspect(root: str | None = None, name: str = "current") -> dict | None:
     p = os.path.join(root or package_root(), name, "manifest.json")

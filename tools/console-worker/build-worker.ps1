@@ -4,10 +4,12 @@ Classic Cart Studio console transport worker: the release build (README.md, SOUR
   build-worker.ps1 -HakchiSource DIR -Out DIR [-BuildRoot DIR] [-SourceRevision TEXT]
 
 1. Verifies the pinned Hakchi2 CE 3.9.3 tree (get-hakchi-source.ps1 -UseExisting: commits, submodules, hakchi-inputs.sha256).
-2. Builds the worker and its tests (Release; the .NET SDK named in global.json) in BuildRoot\a, runs the offline tests (gate, protocol,
-   clovershell, ssh, ops; the BusyBox fidelity tests need WSL and the console's extracted files and are not part of this build), builds the
-   worker again in BuildRoot\b and requires the same bytes.
-3. Writes Out (a new folder): the worker's five files, NOTICE, SOURCE.md, licenses\, BUILD-INFO.json (schema ccs-console-worker-build/1:
+2. Builds the worker and its tests (Release; the .NET SDK named in global.json) in BuildRoot\a, runs the offline tests (gate, admission,
+   protocol, clovershell, ssh, ops; the BusyBox fidelity tests need WSL and the console's extracted files and are not part of this build),
+   builds the worker again in BuildRoot\b and requires the same bytes. The worker links Classic Cart Studio's console backup engine
+   (tools/console-backup CcsBackup.dll, for the backup prerequisite at its write boundary, and CcsConsole.dll from tools/console-loader,
+   which the engine references); this build carries no recovery images, so its CcsBackup.dll can never open a recovery session.
+3. Writes Out (a new folder): the worker's seven files, NOTICE, SOURCE.md, licenses\, BUILD-INFO.json (schema ccs-console-worker-build/1:
    every shipped file with its size and SHA-256, the upstream commits, the toolchain) and console-worker-source.zip (this folder's source
    and the exact Hakchi2 CE files it compiles, links or derives from, with their licenses: the corresponding source).
 Nothing in Out may name a build machine's folders. Any failure stops with a non-zero exit. BuildRoot defaults to the repository's ignored
@@ -18,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $Src = $PSScriptRoot; $Repo = (Resolve-Path (Join-Path $Src '..\..')).Path
 function Fail($why) { Write-Host "STOP  $why" -ForegroundColor Red; exit 1 }
 function Sha($p) { (Get-FileHash -Algorithm SHA256 -LiteralPath $p).Hash.ToLowerInvariant() }
-$Files = 'ccs-console-worker.exe', 'ccs-console-worker.exe.config', 'CcsWorker.dll', 'Renci.SshNet.dll', 'LibUsbDotNet.LibUsbDotNet.dll'
+$Files = 'ccs-console-worker.exe', 'ccs-console-worker.exe.config', 'CcsWorker.dll', 'CcsBackup.dll', 'CcsConsole.dll', 'Renci.SshNet.dll', 'LibUsbDotNet.LibUsbDotNet.dll'
 $LibUsbSha = 'b6de87ff6fdde6d0a245ef37fe81fac49523c35115c61bc002e4935d99875508'   # NuGet LibUsbDotNet 2.2.29 = the copy Hakchi2 CE 3.9.3 embeds
 
 # 1. the pinned upstream tree
@@ -41,7 +43,7 @@ try {
     # 2. build, test, build again elsewhere
     Build $A 'ccs-console-worker\ccs-console-worker.csproj'; Build $A 'CcsWorker.Tests\CcsWorker.Tests.csproj'
     $oldTemp = $env:TEMP; $oldTmp = $env:TMP; $env:TEMP = $env:TMP = (Join-Path $BuildRoot "$stamp-tmp")   # the tests' own temporary folders
-    try { $t = & (Join-Path $A 'bin\CcsWorker.Tests\Release\net48\CcsWorker.Tests.exe') --only gate,protocol,clovershell,ssh,ops; $trc = $LASTEXITCODE }
+    try { $t = & (Join-Path $A 'bin\CcsWorker.Tests\Release\net48\CcsWorker.Tests.exe') --only gate,admission,protocol,clovershell,ssh,ops; $trc = $LASTEXITCODE }
     finally { $env:TEMP = $oldTemp; $env:TMP = $oldTmp }
     $t | ForEach-Object { Write-Host $_ }
     $result = ($t | Where-Object { $_ -match '^RESULT ' } | Select-Object -Last 1)
@@ -56,18 +58,30 @@ foreach ($f in $Files) {
     if ((Sha (Join-Path $binA $f)) -ne (Sha (Join-Path $binB $f))) { Fail "$f differs between two build folders (not reproducible)" }
 }
 if ((Sha (Join-Path $binA 'LibUsbDotNet.LibUsbDotNet.dll')) -ne $LibUsbSha) { Fail "LibUsbDotNet.LibUsbDotNet.dll is not NuGet LibUsbDotNet 2.2.29 as recorded" }
-Write-Host "PASS  the five files are byte-identical from two build folders"
+Write-Host "PASS  the seven files are byte-identical from two build folders"
 
 # 3. the release folder
 New-Item -ItemType Directory -Force $Out | Out-Null; $Out = (Resolve-Path $Out).Path
 foreach ($f in $Files) { Copy-Item (Join-Path $binA $f) $Out }
+# a signed release (tools/publish/signing.py, CCS_SIGNING): Classic Cart Studio's own worker program and library are signed and timestamped
+# here, after the reproducibility check; BUILD-INFO.json lists the shipped (signed) files and keeps the unsigned builds' SHA-256 beside them.
+# The third-party libraries keep their own state. Without CCS_SIGNING the files stay as built (signing.py exits 3) and BUILD-INFO says unsigned.
+$Own = 'ccs-console-worker.exe', 'CcsWorker.dll', 'CcsBackup.dll', 'CcsConsole.dll'; $unsignedSha = [ordered]@{}; foreach ($f in $Own) { $unsignedSha[$f] = Sha (Join-Path $Out $f) }
+& python (Join-Path $Repo 'tools\publish\signing.py') sign @($Own | ForEach-Object { Join-Path $Out $_ }) | Out-Host; $signRc = $LASTEXITCODE
+if ($signRc -ne 0 -and $signRc -ne 3) { Fail "signing the worker failed (signing.py exit $signRc)" }
+$signedFiles = [ordered]@{}; foreach ($f in $Own) { $signedFiles[$f] = [ordered]@{ unsigned_sha256 = $unsignedSha[$f] } }
+$signing = [ordered]@{ signed = ($signRc -eq 0); files = $(if ($signRc -eq 0) { $signedFiles } else { $null }) }
 Copy-Item (Join-Path $Src 'NOTICE'), (Join-Path $Src 'SOURCE.md') $Out; Copy-Item -Recurse (Join-Path $Src 'licenses') (Join-Path $Out 'licenses')
 # the corresponding source: this folder (without build output) and the recorded upstream files, entries sorted, one fixed time
 Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
 $zipPath = Join-Path $Out 'console-worker-source.zip'; $when = [DateTimeOffset]::new(2026, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
 $entries = New-Object 'System.Collections.Generic.SortedDictionary[string,string]' ([StringComparer]::Ordinal)
-Get-ChildItem -Recurse -File -Force $Src | Where-Object { $_.FullName.Substring($Src.Length) -notmatch '^\\(bin|obj)\\|\\(bin|obj)\\' } |
-    ForEach-Object { $entries['console-worker/' + ($_.FullName.Substring($Src.Length + 1) -replace '\\', '/')] = $_.FullName }
+# the worker's folder and the two Classic Cart Studio folders it builds from (siblings, as in the repository's tools\ folder)
+foreach ($dir in 'console-worker', 'console-backup', 'console-loader') {
+    $root = Join-Path (Split-Path $Src) $dir
+    Get-ChildItem -Recurse -File -Force $root | Where-Object { $_.FullName.Substring($root.Length) -notmatch '^\\(bin|obj|__pycache__)\\|\\(bin|obj|__pycache__)\\' } |
+        ForEach-Object { $entries["$dir/" + ($_.FullName.Substring($root.Length + 1) -replace '\\', '/')] = $_.FullName }
+}
 $inputs = @(Get-Content (Join-Path $Src 'hakchi-inputs.sha256') | Where-Object { $_ -and $_ -notmatch '^#' } | ForEach-Object { ($_ -split '  ', 2)[1] })
 foreach ($rel in $inputs) { $entries["upstream/Hakchi2-CE-3.9.3/$rel"] = Join-Path $HakchiSource ($rel -replace '/', '\') }
 $readme = @"
@@ -75,10 +89,14 @@ Classic Cart Studio console transport worker (ccs-console-worker): corresponding
 Copyright (C) 2026 Rance9. GPL-3.0-or-later (console-worker/NOTICE, console-worker/licenses/).
 
 console-worker/              the worker's own source (tools/console-worker in the Classic Cart Studio repository)
+console-backup/              Classic Cart Studio's console backup engine the worker links (CcsBackup.dll; tools/console-backup)
+console-loader/              Classic Cart Studio's console loader library the engine references (CcsConsole.dll; tools/console-loader)
 upstream/Hakchi2-CE-3.9.3/   the files of Hakchi2 CE 3.9.3 (https://github.com/TeamShinkansen/Hakchi2-CE, tag v3.9.3, commit
                              25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc) the worker compiles (SSH.NET, submodule Libraries/SSH.NET at
-                             32181aeb4ce69e8f07e5e1d585fd592a44017bc1, compiled unchanged), links (LibUsbDotNet 2.2.29, whose source is
-                             submodule Libraries/LibUsbDotNet at 91e84390acd83ded475798488740961da9e3307c) or derives from, and their
+                             32181aeb4ce69e8f07e5e1d585fd592a44017bc1, compiled unchanged), links (LibUsbDotNet 2.2.29: the NuGet package's
+                             DLL, whose source is github.com/LibUsbDotNet/LibUsbDotNet at 5dd91a2fda393cf11db2072f2b45c3aee2750388,
+                             attached to each release; the submodule Libraries/LibUsbDotNet files here are Hakchi2 CE's copy, a
+                             different line) or derives from, and their
                              licenses; console-worker/hakchi-inputs.sha256 lists each with its SHA-256
 
 Build (Windows, the .NET SDK in console-worker/global.json): build-worker.ps1 -HakchiSource <the full pinned tree> -Out <folder>
@@ -103,11 +121,12 @@ $info = [ordered]@{
     schema = 'ccs-console-worker-build/1'; worker = 'ccs-console-worker'; version = $ver; protocol = 1
     hakchi = [ordered]@{ repository = 'https://github.com/TeamShinkansen/Hakchi2-CE'; tag = 'v3.9.3'; commit = (& git -C $HakchiSource rev-parse HEAD).Trim(); submodules = $subs }
     sshnet = [ordered]@{ source = 'Hakchi2 CE submodule Libraries/SSH.NET (TeamShinkansen fork)'; commit = $subs['Libraries/SSH.NET']; compiled = 'from source, unchanged (Renci.SshNet/Renci.SshNet.csproj)' }
-    libusbdotnet = [ordered]@{ nuget = 'LibUsbDotNet'; version = '2.2.29'; file = 'LibUsbDotNet.LibUsbDotNet.dll'; sha256 = $LibUsbSha; source = "Hakchi2 CE submodule Libraries/LibUsbDotNet at $($subs['Libraries/LibUsbDotNet'])" }
+    libusbdotnet = [ordered]@{ nuget = 'LibUsbDotNet'; version = '2.2.29'; file = 'LibUsbDotNet.LibUsbDotNet.dll'; sha256 = $LibUsbSha; source = 'https://github.com/LibUsbDotNet/LibUsbDotNet at 5dd91a2fda393cf11db2072f2b45c3aee2750388 (the commit the package names)'; hakchi_submodule = "Libraries/LibUsbDotNet at $($subs['Libraries/LibUsbDotNet']) (a different line, kept as Hakchi2 CE's copy)" }
     inputs = [ordered]@{ list = 'hakchi-inputs.sha256'; sha256 = (Sha (Join-Path $Src 'hakchi-inputs.sha256')); files = $inputs.Count }
     toolchain = [ordered]@{ dotnet_sdk = $sdk; msbuild = $msb; target = 'net48'; configuration = 'Release'; deterministic = $true }
-    reproducible = 'the five program files byte-identical from two build folders'
-    tests = [ordered]@{ run = 'gate,protocol,clovershell,ssh,ops'; result = ($result -replace '^RESULT ', '') }
+    reproducible = 'the seven program files byte-identical from two build folders (before signing)'
+    signing = $signing
+    tests = [ordered]@{ run = 'gate,admission,protocol,clovershell,ssh,ops'; result = ($result -replace '^RESULT ', '') }
     source_revision = $(if ($SourceRevision) { $SourceRevision } else { $null })
     files = $shipped
     source_zip = [ordered]@{ name = 'console-worker-source.zip'; size = $zipInfo.Length; sha256 = (Sha $zipPath); entries = $entries.Count + 1 }

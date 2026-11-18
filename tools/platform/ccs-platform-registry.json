@@ -1,0 +1,83 @@
+{
+  "schema": "ccs-platform-registry/1",
+  "about": "The identifiers Classic Cart Studio files and programs use to say which game system, core, console model, console software, installation method, storage layout, controller, boot option, save format, driver and capability something is for. Each axis is independent: a console model is not its software, its software is not a game system, and a game system is not a core. status 'supported' means this version may use the entry (every other check, gate and approval still applies); status 'reserved' means the name exists so files and code can refer to it, and it is denied everywhere: in the website and the Windows app, in the shared engine, in the workers and before any console program. Nothing read from a file, a URL, a request or a setting can change an entry's status; only a reviewed release can. GPL-3.0-or-later.",
+  "target": {
+    "key": "ccs_target",
+    "schema": "ccs-target/1",
+    "fields": {
+      "game_system": "game-system",
+      "core": "core",
+      "physical_model": "physical-model",
+      "firmware": "firmware",
+      "method": "method",
+      "layout": "layout"
+    },
+    "entry_key": "game_system"
+  },
+  "document_defaults": {
+    "collection": {"game_system": "nes", "core": "fceumm"},
+    "ccs-package": {"game_system": "nes", "core": "fceumm"},
+    "game-saves": {"game_system": "nes", "core": "fceumm"},
+    "console-package": {"game_system": "nes", "core": "fceumm", "physical_model": "nes-classic-edition", "method": "ccs-home-autostart"},
+    "console-backup": {"physical_model": "nes-classic-edition", "firmware": "nintendo-nes-classic", "layout": "nes-classic-nand-512m"},
+    "stock-save": {"game_system": "nes", "physical_model": "nes-classic-edition", "firmware": "nintendo-nes-classic"},
+    "worker-request": {"game_system": "nes", "physical_model": "nes-classic-edition"}
+  },
+  "entries": [
+    {"kind": "game-system", "id": "nes", "status": "supported", "input": "nes-pad", "cores": ["fceumm"]},
+    {"kind": "game-system", "id": "snes", "status": "reserved", "input": "snes-pad", "cores": [], "reason": "No core is selected, licensed, built or qualified for this system."},
+
+    {"kind": "core", "id": "fceumm", "status": "supported", "game_system": "nes", "bundled": true, "license": "GPL-2.0-or-later",
+     "upstream": "https://github.com/libretro/libretro-fceumm", "pin": "ac0d00a7fc01166f84c7bac01d1084ebfd2b865e",
+     "source": "tools/player/third_party/fceumm", "notices": ["tools/player/third_party/fceumm/VENDORED.md", "THIRD_PARTY_NOTICES.md"]},
+    {"kind": "core", "id": "snes-unselected", "status": "reserved", "game_system": "snes", "bundled": false, "license": null, "upstream": null, "pin": null,
+     "source": null, "notices": [], "reason": "A placeholder for a core that has not been chosen. Nothing is bundled for it."},
+
+    {"kind": "physical-model", "id": "nes-classic-edition", "status": "supported", "boards": ["dp-nes"], "layouts": ["nes-classic-nand-512m"]},
+    {"kind": "physical-model", "id": "snes-classic-edition", "status": "reserved", "boards": [], "layouts": [],
+     "reason": "Backing up or restoring this console needs its own hardware and storage-layout proof; it is separate from playing its games."},
+
+    {"kind": "firmware", "id": "nintendo-nes-classic", "status": "supported", "physical_model": "nes-classic-edition",
+     "note": "The console's own software, as Nintendo shipped it or with hakchi added."},
+    {"kind": "firmware", "id": "nintendo-snes-classic", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "A copy of this software supplied by the owner is a console software environment, never a Classic Cart Studio core, on any hardware."},
+
+    {"kind": "method", "id": "ccs-home-autostart", "status": "supported", "physical_model": "nes-classic-edition",
+     "note": "Classic Cart Studio HOME started by the console's startup under the pinned hakchi (the current installation)."},
+
+    {"kind": "layout", "id": "nes-classic-nand-512m", "status": "supported", "physical_model": "nes-classic-edition", "nandinfo": "2048 64 4096",
+     "labels": ["boot", "rootfs", "data", "private", "UDISK", "rootfs_data"]},
+    {"kind": "layout", "id": "snes-classic-unproven", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "No storage layout of this console has been read or proved."},
+
+    {"kind": "input", "id": "nes-pad", "status": "supported", "game_system": "nes", "players": 2,
+     "actions": ["up", "down", "left", "right", "a", "b", "select", "start"]},
+    {"kind": "input", "id": "snes-pad", "status": "reserved", "game_system": "snes", "players": 2,
+     "actions": ["up", "down", "left", "right", "a", "b", "x", "y", "l", "r", "select", "start"]},
+
+    {"kind": "boot-option", "id": "ccs-home", "status": "supported", "game_system": "nes", "visible": true},
+    {"kind": "boot-option", "id": "native-menu", "status": "supported", "visible": true},
+    {"kind": "boot-option", "id": "ccs-snes", "status": "reserved", "game_system": "snes", "visible": false,
+     "reason": "Never shown or installed: there is no supported provider and no verified payload."},
+
+    {"kind": "save-adapter", "id": "ccs-fceumm-battery", "status": "supported", "game_system": "nes", "core": "fceumm",
+     "note": "cart.sav: the core's battery memory, exact bytes, no header."},
+    {"kind": "save-adapter", "id": "nes-classic-stock-battery", "status": "supported", "game_system": "nes", "firmware": "nintendo-nes-classic",
+     "note": "Inspection, and conversion only for the exact games and sizes this version recognizes."},
+    {"kind": "save-adapter", "id": "snes-classic-stock-battery", "status": "reserved", "game_system": "snes", "firmware": "nintendo-snes-classic",
+     "reason": "Its files are kept and exported as they are; nothing converts them."},
+
+    {"kind": "driver", "id": "clovershell-usb", "status": "supported", "physical_model": "nes-classic-edition", "gate": "ConsoleSessions"},
+
+    {"kind": "capability", "id": "nes-gameplay", "status": "supported", "game_system": "nes", "core": "fceumm"},
+    {"kind": "capability", "id": "snes-gameplay", "status": "reserved", "game_system": "snes"},
+    {"kind": "capability", "id": "nes-classic-backup", "status": "supported", "physical_model": "nes-classic-edition", "gate": "ConsoleSessions"},
+    {"kind": "capability", "id": "nes-classic-restore", "status": "supported", "physical_model": "nes-classic-edition", "gate": "RestoreWrites"},
+    {"kind": "capability", "id": "nes-classic-preparation", "status": "supported", "physical_model": "nes-classic-edition", "gate": "PreparationWrites"},
+    {"kind": "capability", "id": "nes-classic-return", "status": "supported", "physical_model": "nes-classic-edition", "gate": "ReturnWrites"},
+    {"kind": "capability", "id": "snes-classic-backup", "status": "reserved", "physical_model": "snes-classic-edition"},
+    {"kind": "capability", "id": "snes-classic-restore", "status": "reserved", "physical_model": "snes-classic-edition"},
+    {"kind": "capability", "id": "nes-stock-save-conversion", "status": "supported", "game_system": "nes"},
+    {"kind": "capability", "id": "snes-stock-save-conversion", "status": "reserved", "game_system": "snes"}
+  ]
+}

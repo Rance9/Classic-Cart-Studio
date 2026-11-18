@@ -1,7 +1,10 @@
 // Classic Cart Studio console transport worker tests. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The device side of clovershell on an injected IBulkPipe, byte for byte in the upstream frame format (command, argument, 16-bit
 // little-endian length, data): PING/PONG, kill-all, EXEC_NEW_REQ answered with an id and the command text, stdin frames until an empty
-// one, the flow status, stdout/stderr frames each ended by an empty frame, EXEC_RESULT. Faults: silent, gone, a backlog.
+// one, the flow status, stdout/stderr frames each ended by an empty frame, EXEC_RESULT. Faults: silent, gone, a backlog, held flow
+// reports (late reports, released by the test, so the host's back-off is tested without depending on thread timing). Lifecycle: ids
+// reused like the console's daemon (the lowest free slot, freed at the result or a kill), and an EXEC_KILL write held inside the host's
+// write (so a late send is made to wait for the device boundary while the command's end is in progress).
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -18,6 +21,13 @@ namespace CcsWorker.Tests
         public volatile bool Gone;              // the USB device is gone: reads and writes fail
         public volatile bool SilentAfterExec;   // goes silent right after accepting a command
         public int BacklogUntilRequests;        // the queue reports full until the host has asked for its status that many times
+        public volatile bool HoldReports;       // flow reports are kept back (in order) until ReleaseReports
+        public readonly ManualResetEventSlim StatusRequested = new ManualResetEventSlim();   // set at the host's first EXEC_STDIN_FLOW_STAT_REQ
+        public volatile bool ReuseIds;          // the lowest free id from 0, freed at the result or a kill (the daemon's slots)
+        public ManualResetEventSlim HoldKill;   // when set to an unset event: an EXEC_KILL write does not return until it is set
+        public readonly ManualResetEventSlim KillWriting = new ManualResetEventSlim();   // an EXEC_KILL write has arrived
+        public readonly List<Tuple<int, string, byte[]>> Started = new List<Tuple<int, string, byte[]>>();   // id, command, the stdin it got (at its end)
+        readonly List<Tuple<byte, byte[]>> held = new List<Tuple<byte, byte[]>>();
         int statusRequests;
         public int DeviceChunk = 16000;
         public readonly List<Tuple<byte, byte, int>> HostFrames = new List<Tuple<byte, byte, int>>();
@@ -81,8 +91,8 @@ namespace CcsWorker.Tests
             {
                 case 0: Send(1, 0, data, 0, data.Length); break;   // PING -> PONG
                 case 9:   // EXEC_NEW_REQ
-                    var e = new Exec { Id = nextId++, Command = Encoding.UTF8.GetString(data) };
-                    lock (execs) execs[e.Id] = e;
+                    var e = new Exec { Command = Encoding.UTF8.GetString(data) };
+                    lock (execs) { if (ReuseIds) { int i = 0; while (execs.ContainsKey(i)) i++; e.Id = i; } else e.Id = nextId++; execs[e.Id] = e; }
                     Send(10, (byte)e.Id, data, 0, data.Length);
                     if (SilentAfterExec) { Silent = true; return; }
                     new Thread(() => Run(e)) { IsBackground = true }.Start();
@@ -93,23 +103,38 @@ namespace CcsWorker.Tests
                     if (data.Length == 0) x.Eof.Set(); else { lock (x.Stdin) x.Stdin.Write(data, 0, data.Length); StdinFrames++; FlowStat(arg, false); }
                     break;
                 case 19: FlowStat(arg, true); break;   // EXEC_STDIN_FLOW_STAT_REQ
-                case 16: lock (execs) if (execs.TryGetValue(arg, out var k)) { k.Killed = true; Killed.Add(arg); } break;   // EXEC_KILL
+                case 16:   // EXEC_KILL
+                    KillWriting.Set(); HoldKill?.Wait();
+                    lock (execs) if (execs.TryGetValue(arg, out var k)) { k.Killed = true; Killed.Add(arg); if (ReuseIds) execs.Remove(arg); }
+                    break;
             }
         }
 
         void FlowStat(byte id, bool request)
         {
             int q; lock (this) { if (request) statusRequests++; q = statusRequests < BacklogUntilRequests ? 40000 : 0; }
+            if (request) StatusRequested.Set();
             var d = new byte[8]; BitConverter.GetBytes(q).CopyTo(d, 0); BitConverter.GetBytes(65536).CopyTo(d, 4);
+            lock (held) { if (HoldReports) { held.Add(Tuple.Create(id, d)); return; } }
             Send(18, id, d, 0, 8);
+        }
+
+        public List<Tuple<byte, byte, int>> Frames() { lock (this) return new List<Tuple<byte, byte, int>>(HostFrames); }   // a copy safe to read while the host still writes
+
+        public void ReleaseReports()
+        {
+            lock (held) { HoldReports = false; foreach (var h in held) Send(18, h.Item1, h.Item2, 0, 8); held.Clear(); }
         }
 
         void Run(Exec e)
         {
             Func<byte[]> stdin = () => { e.Eof.Wait(); lock (e.Stdin) return e.Stdin.ToArray(); };
             var r = Handler(e.Command, stdin);
+            byte[] got; lock (e.Stdin) got = e.Stdin.ToArray();
+            lock (Started) Started.Add(Tuple.Create(e.Id, e.Command, got));
             if (e.Killed) return;
             Chunks(13, (byte)e.Id, r.Item2); Chunks(14, (byte)e.Id, r.Item3);
+            lock (execs) if (ReuseIds) execs.Remove(e.Id);   // the slot is free again once the result is on its way
             Send(15, (byte)e.Id, new[] { (byte)r.Item1 }, 0, 1);
         }
 

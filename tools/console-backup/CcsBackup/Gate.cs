@@ -1,0 +1,69 @@
+// Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+// The physical boundaries, in code: not a setting, not an environment variable, not an argument, not a request field. Each is opened by
+// a reviewed code change released as its own milestone (G1 and G3 stay closed here).
+//   ConsoleSessions      connecting to a real console at all: the FEL RAM boot of a Classic Cart Studio recovery image and the
+//                        clovershell link to it (reads only). Backup needs this one alone.
+//   RestoreWrites        writing a console's storage to put back a captured state (G3).
+//   PreparationWrites    the first-time preparation of a console (G1).
+//   ReturnWrites         returning a console Classic Cart Studio prepared to its original software (Return to Original Software:
+//                        hakchi's own uninstall steps, checked; the data storage then comes back by a restore). Its own boundary: an
+//                        open preparation boundary never opens it.
+//   RescueWrites         Console Rescue: writing this console's own boot0 or boot1 back from its verified backup. Its own
+//                        boundary; no other boundary opens it.
+//   ExpertWrites         Expert Mode inside Console Browser: user files (game files, saves, artwork, settings) changed under a session
+//                        restore point. Its own boundary.
+//   ComposerWrites       Console Composer: chosen saves, settings, hakchi games and Classic Cart Studio data from verified backups onto this
+//                        console's data storage, under the strict policy (a backup in the same session). Its own boundary.
+//   DeveloperWrites      Developer Mode: writable file areas, developer kernel/system images under a session restore point. Its own
+//                        boundary; custom boot0/boot1/partition-table writes are not part of it (they do not exist in this version).
+//   DeveloperTestBoot    Developer Mode's test boot: a startup image that is not a Classic Cart Studio console program, sent to the
+//                        console's memory over FEL and started (DeveloperTestBoot.OpenReal). Nothing is written to storage by Workbench,
+//                        but the image's own code controls the console once it runs. Its own boundary; DeveloperWrites never opens it.
+//   FirmwareWrites       Console Composer's Browse for Firmware: an owner's system image (.hsqs) written to CCS Nucleus's own folder and
+//                        added to (or removed from) its start choices (ccsprep rput, rimport, rdrop)
+//   MethodWrites         CCS Mod / CCS Nucleus after preparation: removing one, or changing from one to the other, by placing a package or
+//                        a removal list in hakchi's transfer folder (MethodEngine; hakchi applies it at the next start). Its own boundary;
+//                        installing a method as part of a preparation is under PreparationWrites.
+//   DriverChanges        this PC, not the console: setting up or removing Workbench's USB driver package and its certificate (the elevated
+//                        --driver-action mode, Driver/DriverActionHost.cs). Its own boundary; it opens no console boundary and none opens it.
+// A restore, a preparation or a return needs ConsoleSessions AND its own write boundary; RecoveryConsole asks the write boundary again before
+// every write command. With a constant false, the compiler leaves the code behind it out (CS0162): no path in this version reaches
+// the hardware. A simulated console (a folder of files on the PC, SimulatedConsole) is not behind these boundaries: it can only ever
+// change files on the PC, and every backup it makes is marked simulated and refused for a real console.
+using System;
+
+namespace CcsBackup
+{
+    public static class Gate
+    {
+        public const bool ConsoleSessions = false;      // reading a real console (recovery image in RAM): NOT approved in this version
+        public const bool RestoreWrites = false;        // G3: writes that put back a captured state: NOT approved
+        public const bool PreparationWrites = false;    // G1: first-time console preparation writes: NOT approved
+        public const bool ReturnWrites = false;         // returning a CCS-prepared console to its original software: NOT approved
+        public const bool RescueWrites = false;         // Console Rescue boot0/boot1 writes: NOT approved
+        public const bool ExpertWrites = false;         // Expert Mode user-file changes: NOT approved
+        public const bool DeveloperWrites = false;      // Developer Mode writes: NOT approved
+        public const bool DeveloperTestBoot = false;    // Developer Mode's test boot of a startup image in the console's memory: NOT approved
+        public const bool ComposerWrites = false;       // Console Composer's file composition: NOT approved
+        public const bool MethodWrites = false;         // removing or changing CCS Mod / CCS Nucleus on a real console: NOT approved
+        public const bool FirmwareWrites = false;       // an owner's system image added to or removed from CCS Nucleus on a real console: NOT approved
+        public const bool DriverChanges = false;        // setting up or removing the USB driver package and its certificate on this PC: NOT approved
+        public const string SessionsText = "Connecting to a real console is not available in this version.";
+        public const string RestoreText = "Restoring a real console is not available in this version.";
+        public const string PreparationText = "Preparing a real console is not available in this version.";
+        public const string ReturnText = "Returning a real console to its original software is not available in this version.";
+        public const string RescueText = "Repairing a real console's startup stages is not available in this version.";
+        public const string ExpertText = "Changing files on a real console is not available in this version.";
+        public const string DeveloperText = "Developer changes to a real console are not available in this version.";
+        public const string DeveloperTestBootText = "Starting a startup image in a real console's memory is not available in this version.";
+        public const string ComposerText = "Composing a real console is not available in this version.";
+        public const string MethodText = "Removing or changing CCS Mod or CCS Nucleus on a real console is not available in this version.";
+        public const string FirmwareText = "Adding or removing a system image on a real console is not available in this version.";
+        public const string DriverText = "Setting up or removing the USB driver on this PC is not available in this version.";
+    }
+
+    public sealed class GateClosedException : Exception
+    {
+        public GateClosedException(string text, string what) : base(text + " (" + what + ": closed in code)") { }
+    }
+}

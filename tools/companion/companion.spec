@@ -38,7 +38,7 @@ if os.environ.get("CCS_REQUIRE_NATIVE") and len(NATIVE) - len(PLAYER) != 3:
 # files and BUILD-INFO.json are bundled in console-worker/ and covered by the installation's file list; console-worker-source.zip (the
 # corresponding source) is published beside the installer, not bundled.
 WORKER_HAKCHI = "25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc"; WORKER_SSHNET = "32181aeb4ce69e8f07e5e1d585fd592a44017bc1"
-WORKER_FILES = ("ccs-console-worker.exe", "ccs-console-worker.exe.config", "CcsWorker.dll", "Renci.SshNet.dll", "LibUsbDotNet.LibUsbDotNet.dll", "NOTICE", "SOURCE.md")
+WORKER_FILES = ("ccs-console-worker.exe", "ccs-console-worker.exe.config", "CcsWorker.dll", "CcsBackup.dll", "CcsConsole.dll", "Renci.SshNet.dll", "LibUsbDotNet.LibUsbDotNet.dll", "NOTICE", "SOURCE.md")
 def _console_worker(d):
     import hashlib as _hl, json as _js
     def _sha(p):
@@ -79,6 +79,10 @@ RELEASE = bool(os.environ.get("CCS_RELEASE_BUILD") or os.environ.get("CCS_REQUIR
 _tpn = os.path.join(PROJECT, "tools", "publish", "repo-files", "THIRD_PARTY_NOTICES.md")
 _tpn = _tpn if os.path.isfile(_tpn) else os.path.join(PROJECT, "THIRD_PARTY_NOTICES.md")   # the public repository keeps it at the root
 EXTRA += [(_tpn, ".")] if os.path.isfile(_tpn) else []
+# CCS Mod / CCS Nucleus (tools/console-nucleus): the installer builds the same pinned package the CCS Console Workbench places (console_engine/
+# ccs_install.py method_package); the sources and their builder ship, never a separately built package
+_nu = os.path.join(PROJECT, "tools", "console-nucleus")
+EXTRA += [(os.path.join(_nu, "console"), os.path.join("console-nucleus", "console")), (os.path.join(_nu, "build_packages.py"), "console-nucleus")]
 # the website's Store (site/store: curated seller links, Amazon Associates links once published) is never part of the application:
 # Amazon Associates forbids Special Links in installable client software, and the app opens https://classiccartstudio.com/store/ in the
 # browser instead. PyInstaller copies a data folder whole, so the site is bundled from a staging copy without store/ (hard links where
@@ -103,7 +107,11 @@ if not os.path.isfile(os.path.join(_hm, "ccs-home-theme.wav")): raise SystemExit
 # the five console startup images (1280 x 720 derivatives, thumbnails, manifest) for the console packages this app builds
 _st = os.path.join(PROJECT, "tools", "publish", "assets", "startup")
 if not os.path.isfile(os.path.join(_st, "startup-images.json")): raise SystemExit(f"the console startup images are missing: {_st!r}")
-DATAS = [(SITE_BUNDLED, "site"), (os.path.join(HERE, "native_home", "fonts"), os.path.join("native_home", "fonts")), (_hm, "home-music"), (_st, "startup")] + NATIVE + EXTRA + [(os.path.join(HERE, "Read-HakchiSelection.ps1"), "."), (os.path.join(HERE, "Get-ProcessWindows.ps1"), "."), (os.path.join(HERE, "Close-Hakchi.ps1"), ".")]
+# the records every console package's notices are made from (native_home/notices.py RECORDS), at their repository paths under notices/
+import sys; sys.path[:0] = [HERE, os.path.join(PROJECT, "tools", "rom-pipeline")]
+from native_home import notices as _notices
+_nt = _notices.stage(os.path.join(tempfile.mkdtemp(prefix="ccs-notices-"), "notices")); atexit.register(shutil.rmtree, os.path.dirname(_nt), True)
+DATAS = [(SITE_BUNDLED, "site"), (_nt, "notices"), (os.path.join(HERE, "native_home", "fonts"), os.path.join("native_home", "fonts")), (_hm, "home-music"), (_st, "startup")] + NATIVE + EXTRA + [(os.path.join(HERE, "Read-HakchiSelection.ps1"), "."), (os.path.join(HERE, "Get-ProcessWindows.ps1"), "."), (os.path.join(HERE, "Close-Hakchi.ps1"), ".")]
 # the installation's file list (every bundled file with its size and SHA-256): the installed application checks itself against it and
 # reports a missing or damaged component as an installation to repair (tools/companion/bundle_integrity.py)
 import sys, hashlib, json, tempfile
@@ -119,9 +127,32 @@ _excl = [f for f in _man["files"] if any(f.lower().startswith(f"site/{x}/") for 
 if _excl: raise SystemExit(f"the website's store must never be bundled in the application: {_excl[:5]}")
 _mdir = tempfile.mkdtemp(prefix="ccs-bundle-"); _mp = os.path.join(_mdir, BI.MANIFEST_NAME)
 json.dump(_man, open(_mp, "w", encoding="utf-8"), indent=0); DATAS.append((_mp, "."))
+# v1.0 payload audit (v1p): proven leftovers left out of the frozen application.
+#   PIL._avif (7.9 MB): the AVIF codec. CCS accepts PNG, JPEG, WebP, GIF and BMP only (overrides.FORMATS, folder_art.ALLOWED); an AVIF
+#     file is refused with the same message either way, and Pillow's AvifImagePlugin registers nothing without it (SUPPORTED = False).
+#   Tcl's time-zone database (_tcl_data/tzdata, 1.2 MB): only Tcl's clock command with time zones reads it; CCS uses Tk for the native
+#     file, folder and Save As pickers and the standalone status window (filedialog, messagebox, ttk), none of which do.
+#   pyreadline3: a console line editor that PyInstaller substitutes for readline (wanted only by the code module and sqlite3's command
+#     line, which a windowless backend never runs) when it happens to be installed on the build computer; the release workflow never
+#     installs it, so leaving it out also makes a local build match the published one.
+PRUNED_MODULES = ["PIL._avif", "pyreadline3"]
+PRUNED_DATA = ("_tcl_data/tzdata/",)
+# The runtime's own notices (v1p): the build's Python and Pillow license files (the exact texts of the copies bundled: Python, bzip2,
+# libffi and Microsoft's redistributable runtime; Pillow and the image libraries it carries) and the texts kept in the repository
+# (tools/publish/assets/legal/runtime: the incorporated-software notices of the build's CPython version, with OpenSSL, expat, libffi, zlib and
+# libmpdec; Tcl/Tk).
+import importlib.metadata as _md
+_lic_py = os.path.join(sys.base_prefix, "LICENSE.txt")
+_pil = _md.distribution("pillow"); _lic_pil = [str(_pil.locate_file(f)) for f in (_pil.files or []) if os.path.basename(str(f)).upper().startswith("LICENSE")]
+if not os.path.isfile(_lic_py) or not _lic_pil: raise SystemExit("the build environment's Python or Pillow license file was not found")
+_rt = os.path.join(PROJECT, "tools", "publish", "assets", "legal", "runtime"); _cpy = os.path.join(_rt, "cpython-%d.%d-license.rst" % sys.version_info[:2])
+if not os.path.isfile(_cpy): raise SystemExit(f"no CPython incorporated-software notice for Python {sys.version_info[0]}.{sys.version_info[1]} in {_rt}: add that version's Doc/license.rst")
+LICENSES = [(_lic_py, os.path.join("licenses", "python")), (_lic_pil[0], os.path.join("licenses", "pillow")), (_cpy, os.path.join("licenses", "runtime")),
+            (os.path.join(_rt, "tcl-tk-8.6-license.terms"), os.path.join("licenses", "runtime")), (os.path.join(_rt, "README.md"), os.path.join("licenses", "runtime"))]
 a = Analysis([os.path.join(HERE, "companion_app.py")], pathex=[HERE, os.path.join(PROJECT, "tools", "rom-pipeline")],
-             binaries=[], datas=DATAS,
-             hiddenimports=["bundle_integrity", "metrics_relay", "package_api", "ccs_package", "console_engine.storage_model", "tkinter", "tkinter.filedialog", "tkinter.ttk", "console_engine", "console_engine.worker", "console_engine.engine", "console_engine.plan", "console_engine.profiles", "console_engine.transport", "console_engine.journal", "console_engine.gate", "console_engine.ccs_install", "console_engine.worker_console", "console_runs", "console_home", "console_confirm", "native_preview", "overrides", "mock_cover", "native_home", "native_home.package", "native_home.config", "native_home.derive", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont", "PIL.JpegImagePlugin", "PIL.PngImagePlugin"], hookspath=[], runtime_hooks=[], excludes=["matplotlib", "numpy", "pytest", "IPython"], noarchive=False)
+             binaries=[], datas=DATAS + LICENSES,
+             hiddenimports=["bundle_integrity", "metrics_relay", "app_update", "authenticode", "package_api", "ccs_package", "startup_picture", "console_engine.storage_model", "tkinter", "tkinter.filedialog", "tkinter.ttk", "console_engine", "console_engine.worker", "console_engine.engine", "console_engine.plan", "console_engine.profiles", "console_engine.transport", "console_engine.journal", "console_engine.gate", "console_engine.ccs_install", "console_engine.worker_console", "console_runs", "console_home", "console_confirm", "native_preview", "overrides", "mock_cover", "native_home", "native_home.package", "native_home.config", "native_home.derive", "native_home.design_ingest", "native_home.design_compile", "native_home.own_sprites", "design_embed", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont", "PIL.JpegImagePlugin", "PIL.PngImagePlugin"], hookspath=[], runtime_hooks=[], excludes=["matplotlib", "numpy", "pytest", "IPython"] + PRUNED_MODULES, noarchive=False)
+a.datas = [d for d in a.datas if not d[0].replace("\\", "/").startswith(PRUNED_DATA)]
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="ClassicCartStudioBackend", debug=False, bootloader_ignore_signals=False, strip=False, upx=False, console=False,
           icon=ICON if os.path.exists(ICON) else None, version=os.path.join(HERE, "version_info.txt") if os.path.exists(os.path.join(HERE, "version_info.txt")) else None)
