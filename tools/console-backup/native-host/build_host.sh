@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 #
 #   bash build_host.sh --payload <managed CCS-Console-Workbench.exe> --out <folder> [--arch x86_64|aarch64|all]
-#                      [--name CCS-Console-Workbench] [--version 1.0.0] [--cache DIR] [--work DIR] [--measure] [--dll]
+#                      [--name CCS-Console-Workbench] [--version N.N.N; default: repository VERSION] [--cache DIR] [--work DIR] [--measure] [--dll]
 #   bash build_host.sh --dll-only --out DIR [--arch ...]      only ccs-par2.dll (Classic Cart Studio for Windows; no payload needed)
 #
 # --payload   the managed Workbench executable (.NET Framework 4.8, AnyCPU) that the host carries and runs from memory
@@ -28,7 +28,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZIG="${ZIG:-$HOME/.cache/ccs-sim/toolchain/zig/zig}"
-PAYLOAD=""; OUT=""; ARCH="all"; NAME="CCS-Console-Workbench"; VERSION="1.0.0"; CACHE=""; WORK=""; MEASURE=0; DLL=0; EXE_ON=1
+PAYLOAD=""; OUT=""; ARCH="all"; NAME="CCS-Console-Workbench"; VERSION="$(tr -d '\r\n' < "$HERE/../../../VERSION")"; CACHE=""; WORK=""; MEASURE=0; DLL=0; EXE_ON=1
 
 topath() { case "$1" in [A-Za-z]:\\*|[A-Za-z]:/*) wslpath -u "$1" ;; *) echo "$1" ;; esac; }
 while [ $# -gt 0 ]; do
