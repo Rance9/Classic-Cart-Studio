@@ -1,5 +1,8 @@
 # CCS Console Workbench: source and release plan (for approval; nothing here has been created or pushed)
 
+> Current development previews use separate app and Workbench releases. The standalone's public branch is `CCS-Console-Workbench`; its ENGINE-PIN.txt identifies the exact app/engine source commit, tree and archive hash. Workflow dispatch can rebuild that pinned source without changing release tags. The templates in branch-root mirror the deployed Workbench workflow. All console/driver boundaries remain closed, and upstream source/redistribution gaps remain disclosed rather than resolved.
+
+
 ## Structure
 
 - **One repository, one engine.** The public branch **`CCS-Console-Workbench`** in the existing repository carries a developer-facing

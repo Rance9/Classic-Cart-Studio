@@ -4,6 +4,11 @@ on:
   push:
     tags: ["workbench-v*.*.*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: Workbench version (x.y.z)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -31,7 +36,8 @@ jobs:
           [ "$(cat got.txt)" = "$arch" ] || { echo "the pinned source archive differs"; exit 1; }
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
           echo "engine_version=$(git show "$commit:VERSION" | tr -d '\r\n')" >> "$GITHUB_OUTPUT"
-          v="${GITHUB_REF_NAME#workbench-v}"; [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || v=0.0.0
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then v="${{ inputs.version }}"; else v="${GITHUB_REF_NAME#workbench-v}"; fi
+          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid Workbench version"; exit 1; }
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
   native:
@@ -44,7 +50,7 @@ jobs:
         run: bash tools/console-simulator/scripts/wsl_setup.sh
       - name: ccsboot (console boot-stage tool) and its tests
         run: |
-          bash tools/console-backup/ram/ccsboot/build.sh build/ccsboot
+          bash tools/console-backup/ram/ccsboot/build.sh "$GITHUB_WORKSPACE/build/ccsboot"
           python3 tools/console-backup/ram/ccsboot/test_ccsboot.py build/ccsboot
       - name: Native console HOME and player
         env: { CCS_SIM_BUILD: "${{ github.workspace }}/build/native" }
@@ -66,11 +72,13 @@ jobs:
         with: { name: ccsboot, path: build/ccsboot }
       - uses: actions/download-artifact@v4
         with: { name: native-home, path: build/native/arm-musl-device }
-      - name: The official Hakchi2 CE 3.9.3 package (size and SHA-256 verified) and the console programs
+      - name: Build tools
+        run: python -m pip install --quiet -r tools/publish/requirements-build.txt
+      - name: The official Hakchi2 CE 3.9.3 package (size and SHA-256 verified)
+        run: python tools/publish/fetch_hakchi_package.py build/packages
+      - name: Build the console programs (the verified package path is available in this step)
         shell: pwsh
         run: |
-          python -m pip install --quiet -r tools/publish/requirements-build.txt
-          python tools/publish/fetch_hakchi_package.py build/packages
           python tools/console-backup/ram/build_images.py --hakchi-release $env:CCS_HAKCHI_PACKAGE --ccsboot build/ccsboot/ccsboot --out build/ram-images
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Embed the release HOME package and its notices
@@ -171,4 +179,4 @@ jobs:
             echo "## Source code and licenses"; echo
             echo "Classic Cart Studio's code in it is GPL-3.0-or-later; engine-source.zip is its source with the build files. par2cmdline-1.4.0.tar.gz (GPL-2.0-or-later) and LibUsbDotNet-2.2.29-source-5dd91a2.tar are the sources of the two libraries it contains. The console programs it sends to the console are built from Hakchi2 CE 3.9.3's prebuilt hakchi package and carry that package's programs unmodified, under their own licenses: tools/console-backup/NOTICE (also shown in the program) lists them with their notices and license texts. Credits: hakchi by madmonkey; hakchi2 by ClusterM; Hakchi2 CE by Team Shinkansen and contributors. Independent; not affiliated with Nintendo."
           } > notes.md
-          gh release create "workbench-v${{ needs.pin.outputs.version }}" out/* --draft --prerelease --latest=false --title "CCS Console Workbench ${{ needs.pin.outputs.version }}" --notes-file notes.md
+          gh release create "workbench-v${{ needs.pin.outputs.version }}" out/* --verify-tag --draft --prerelease --latest=false --title "CCS Console Workbench ${{ needs.pin.outputs.version }}" --notes-file notes.md
