@@ -1,126 +1,63 @@
-# Classic Cart Studio
+# CCS Console Workbench
 
-> **Current development preview:** unsigned. All console connections, writes and driver actions are compiled off pending real-console qualification. The standalone Workbench is a separate preview. Pinned upstream binaries remain bundled with unresolved source/redistribution questions disclosed in [SOURCE-AUDIT.md](tools/console-backup/SOURCE-AUDIT.md); available source archives do not establish complete corresponding source.
+> **Unsigned development preview:** console connections, console writes and driver actions are disabled. PC/offline features are available; real-console and Windows on Arm qualification remain incomplete.
 
-**A free, open-source studio for collecting, organizing and playing your own NES games.**
+**Back up, restore, repair and compose your NES Classic.**
 
-Play in your web browser, in the installable website app or in Classic Cart Studio for Windows, with the open-source FCEUmm emulator built in, and prepare lineups for a Nintendo NES Classic Edition.
+CCS Console Workbench is a Windows program for the NES Classic Edition. It runs from one file without installing the application. The
+same Workbench is built into Classic Cart Studio for Windows. This branch holds its developer-facing information and release files. Its
+engine source lives in `tools/console-backup/` on `main` at the commit named in `ENGINE-PIN.txt`.
 
-**Website:** [https://ClassicCartStudio.com](https://ClassicCartStudio.com) · **Windows App:** [https://ClassicCartStudio.com/app](https://ClassicCartStudio.com/app) (always the latest release)
+## What it does
 
-Classic Cart Studio is one Studio in two places. The **website** lets you browse the NES game library, choose games and the exact versions you prefer, build and save collections, and read the complete Help & User Guide, with nothing to install. **Classic Cart Studio for Windows** shows the same Studio in its own application window, installed with it so it works offline, and adds everything that needs your computer: reading the games already set up on your PC, importing your own game files (ZIP archives included), keeping managed copies, and preparing the collection for Hakchi2 CE. A collection you build on the website continues in the Windows application with **Continue in Desktop App**; your selections, including the exact versions you chose, come with you.
+| Section | What it does |
+|---|---|
+| Console Backup | a complete, checked backup of the console's built-in storage, one ZIP file per backup |
+| Console Restore | a backup put back on the same console; the way back from Classic Cart Studio's preparation |
+| Console Rescue | the console's own boot0/boot1 written back from one of its backups, when one is damaged |
+| Console Composer | setting up a console from your own backups and files; HOME Designer |
+| Console Browser | a check-up of the console and its files, read in a session that runs in the console's memory; Expert Mode |
+| Backup Browser / Backup Repair | backup files by game, by type or as stored; checking, copying and repairing them without a console |
+| Developer Mode | changing files anywhere on the console's data storage, under a restore point |
 
-> Classic Cart Studio is an independent, open-source project and is not produced, licensed, sponsored, approved, or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Game titles, publisher names, artwork and box art are used to identify and present games; all rights remain with their owners. **No original commercial game files, Nintendo firmware or Nintendo software are distributed by this project;** the only game files it supplies are its Included Games, homebrew whose authors license or permit it to share them. The Windows installer includes the separate open-source Hakchi2 CE 3.9.3 package, unmodified, with its own license (see below).
+Console sessions use the console's own recovery mode (USB, RESET held at power-on). Each write has its own boundary in
+`tools/console-backup/CcsBackup/Gate.cs`. Writes to a real console are turned on only after each kind has been checked on real hardware.
+`tools/console-backup/WRITE-MATRIX.md` lists what each mode may write and what software cannot undo.
 
-## What you can do
+## Downloads and source
 
-- Browse a library of 773 curated North American releases plus an extended index of regional releases, revisions, translations and other versions, with version chips, technical details (mapper, header, hashes, emulator) and controller-compatibility notes.
-- Preview on TV: the AS SEEN ON TV badge opens an interactive 16:9 simulation of the menu your collection proposes for the NES Classic, with every statement labeled known, estimated or unknown; a simulation, not a console capture.
-- Build a collection: the 30 games that came with the console are already there; choose what stays visible and what you add. Back it up as a complete `.ccs` file (every game with its game file) or back up everything at once, keep automatic snapshots, and restore.
-- Continue in the Windows application: the collection you built on the website is handed over as it is (names, exact game versions, factory-game choices). The application then helps you find the matching game files on your computer: individual files, several files, ZIP archives or whole folders, every file identified by its exact content, never by file name.
-- Add your own homebrew with artwork, load the games already set up on your computer (an existing Hakchi2 CE library), and prepare the collection for Hakchi2 CE.
-- Installation on the console is done by Hakchi2 CE under your control. This version prepares everything on the PC and shows the console steps honestly as not automated.
-
-## Website vs Windows application
-
-| | Website only | Classic Cart Studio for Windows |
-|---|---|---|
-| Browse, filter, plan, save/load collections, read the guide | yes | yes (the same Studio, installed with it) |
-| Continue a website collection without starting over | — | yes (Continue in Desktop App) |
-| Read the games already on your computer | no | yes |
-| Add games from files / folders / ZIPs | no | yes |
-| Prepare a collection for Hakchi2 CE, open Hakchi | no | yes |
-| Anything sent to the console by this software | never | never (this release's console features are turned off) |
-
-The Windows application starts a small backend that listens only on your own computer (`127.0.0.1`). The application window talks to it over a session that exists only while the application runs; there is no pairing step inside the application. The public website never connects to that backend on its own: when you choose something that needs your computer, it hands your collection to the application (Edge asks once whether the website may access apps on your device; see the guide chapter *Continuing in the Desktop App*), or sends you to [ClassicCartStudio.com/app](https://ClassicCartStudio.com/app) to install it.
-
-## Installation (Windows 10/11)
-
-1. On the website, choose **Continue in Desktop App** (My Collection menu or Install on NES Classic) or go to [ClassicCartStudio.com/app](https://ClassicCartStudio.com/app), which always opens the latest release (also on the [GitHub releases page](https://github.com/Rance9/Classic-Cart-Studio/releases)).
-2. Download `ClassicCartStudio-Setup-<version>.exe`.
-3. **Check it** (recommended): in PowerShell run
-   `Get-FileHash -Algorithm SHA256 "$env:USERPROFILE\Downloads\ClassicCartStudio-Setup-<version>.exe"`
-   and compare the result with `SHA256SUMS.txt` on the release (the website shows the same value with a Copy button).
-4. Run the installer. It shows the Installation Terms, the GNU General Public License and the third-party notices, and installs only after you check the agreement box. It installs for your user account only (no administrator rights), under `%LOCALAPPDATA%\Programs\ClassicCartStudio`, adds a Start-menu entry **Classic Cart Studio**, and keeps a copy of those documents in the program's `legal` folder. A silent installation (`/SILENT`, `/VERYSILENT`) shows no pages and records no agreement.
-5. Start Classic Cart Studio from the Start menu. It opens the Studio in its own window with the backend already connected. If you came from the website with Continue in Desktop App, the application shows the collection and asks before opening it.
-
-Classic Cart Studio needs .NET Framework 4.8, which is part of Windows 10 (version 1903 and later) and Windows 11, and the Microsoft Edge WebView2 Runtime, a separate Microsoft component (not the Microsoft Edge browser) that Windows 11 includes and most Windows 10 computers already have. The installer checks for a usable Runtime before it installs anything; when there is none, it adds it from its own copy of Microsoft's offline installer, silently and without an internet connection, and stops with an explanation if that does not work. Removing Classic Cart Studio leaves the Runtime in place, because other apps share it. No internet connection is needed to use it (it checks GitHub for updates when it can, which you can turn off): its interface, library and artwork are installed with it.
-
-**Upgrading from an earlier release**: from 0.11.0 on, the app offers new versions itself (**Update Now**); or run the new installer; it replaces the program and keeps your data (imported games, personal games, collections, Hakchi setup) in `%LOCALAPPDATA%\ClassicCartStudio`. The Start-menu entry is now Classic Cart Studio. **Uninstalling**: Windows Settings → Apps. Your data folder stays until you delete it yourself.
-
-### Why the installer is not signed
-
-A signed installer names its publisher; an installer without a signature shows "unknown publisher", and Windows SmartScreen can warn about a new publisher or a new download either way, until Windows has seen it often enough. Each release says whether its installer is signed. What you get instead: every release is built by a public GitHub Actions workflow from the tagged source, the workflow run is linked from the release notes, a build-provenance attestation is attached, and the SHA-256 of the installer is published. If the hash you compute does not match, do not run the file. A matching hash proves the download is the file the workflow built; it does not by itself prove who published it, which is what the attestation and the public workflow are for.
-
-### Hakchi2 CE and the console driver
-
-Preparing a collection needs [Hakchi2 CE](https://github.com/TeamShinkansen/Hakchi2-CE) 3.9.3 (GPL v3, a separate program by Team Shinkansen; thank you). The installer includes the unmodified official release package with its license, verified by size and SHA-256 against the values pinned in `tools/companion/hakchi_bridge.py`, so the application sets up the portable build without downloading anything. It can also run Hakchi's bundled console USB driver installer (that one step asks for administrator rights, because installing a driver requires it). Nothing is written to the console by this project.
-
-## Your game files
-
-Apart from its Included Games (homebrew it hosts and ships under each author's license or permission, fetched only from ClassicCartStudio.com or the installed app when you play or add one), the Studio never downloads or ships games. It works with files **you already own**, for example dumps of your own cartridges. When you add files, the application keeps its own copy and never modifies, moves or deletes your original. Games that are in the library but have no file on your computer are shown as **missing**: use **Find My Game Files** or **Locate Game File…** to point the Studio at your copy; it accepts the file only if its content is exactly that version (no substitutions). The Internet Archive and similar sites are referenced in the documentation only as *provenance* of public identification data (hashes, names); this project includes no downloader and does not encourage downloading copyrighted games.
-
-## Privacy
-
-The website keeps your collections and settings, and the games you import or choose to play with their saved games, in your browser's storage for this site; the browser can clear it, and on an iPhone Safari and the Home Screen app keep separate stores, so keep your `.ccs` backups. The Windows application keeps its data in `%LOCALAPPDATA%\ClassicCartStudio` on your PC. Game files and backups are never uploaded. The website loads its own files (GitHub Pages, delivered through Cloudflare), asks GitHub for the latest release, and counts visits and page performance with Cloudflare Web Analytics (no cookies); the Windows app's own interface does not include it. Optional **Usage Reporting** sends a few counts, such as "a game started" with the release version and browser family, to the project's Cloudflare collector, never game files, names, saves or identifiers. On the website nothing is sent until you turn it on. The Windows setup asks on its own page, separate from the Installation Terms: the box starts checked (unchecked in the EU, the EEA, the UK and Switzerland; uncheck it to send nothing), and a choice already saved on the computer is kept. Change it anytime in the Studio menu; every feature works either way. Turning it off does not cover the website's Cloudflare Web Analytics or the ordinary delivery of the website and downloads by GitHub and Cloudflare, which process connection information under their own terms. There is no account and no advertising. Details: [PRIVACY.md](PRIVACY.md).
+Windows preview downloads and checksums are available at [ClassicCartStudio.com/app/](https://classiccartstudio.com/app/).
+The x64 file is the default Windows download. The Arm64 build has not been run on Arm64 hardware.
 
 ## Building
 
-This repository holds what is needed to build the application and the website; the two workflows in `.github/workflows/` are the build.
+`ENGINE-PIN.txt` names the exact public source commit, tree and SHA-256 of its uncompressed git archive.
+The release workflow checks all three before building. It builds the console HOME/player, five recovery programs and HOME package,
+then the managed engine using the app's VERSION, and the single-file x64 and Arm64 hosts using Workbench's own version.
+See [.github/workflows/workbench-release.yml](.github/workflows/workbench-release.yml) for the complete pinned build steps.
+A Workbench tag names the product version; it never changes the shared engine's assembly version.
 
-```
-python -m pip install pillow pyinstaller==6.22.3
-python tools/publish/build_site_ci.py build/site                     # the website (and the copy the application bundles) from site-data/
-bash tools/console-simulator/scripts/wsl_setup.sh                    # pinned zig toolchain (Linux or WSL)
-bash tools/console-simulator/scripts/wsl_build.sh "windows-x86_64 arm-musl-device"   # the native HOME renderer: console runtime + Windows preview core
-python tools/publish/fetch_hakchi_package.py build/packages          # the official Hakchi2 CE package, verified
-pyinstaller tools/companion/companion.spec                           # the backend, one folder (NES_SITE_DIR, CCS_NATIVE_HOME_RUNTIME, CCS_NATIVE_PREVIEW_CORE, CCS_HAKCHI_PACKAGE)
-dotnet build tools/desktop/ClassicCartStudio -c Release              # Classic Cart Studio for Windows (WPF + WebView2, .NET Framework 4.8)
-ISCC tools/companion/installer.iss                                   # the installer (Inno Setup 6)
-```
+The release includes engine-source.zip and available third-party source archives. The app and standalone carry the same four
+managed libraries and console programs; `tools/console-backup/check_shared_engine.py` checks their hashes from both actual hosts.
+The pin proves source identity; the built-host report proves byte identity for the released pair.
 
-`release.yml` runs these steps with its checks (release layout, desktop self-test, content scans, checksums, build attestation); `pages.yml` builds, checks and deploys the website.
+## Formats
 
-Layout: `tools/rom-pipeline/` (data model, page generator, the Studio front end in `studio/`), `tools/companion/` (the backend, Hakchi bridge, native HOME packager, installer script), `tools/desktop/ClassicCartStudio/` (the Windows application), `tools/console-simulator/` (the native HOME renderer: C sources and the pinned toolchain), `tools/publish/` (website build, content scanner, release helpers, assets), `site-data/` (library data and artwork).
-
-## Support
-
-Classic Cart Studio is free and open source. If you've found it useful, optional contributions through [GitHub Sponsors](https://github.com/sponsors/Rance9) are always appreciated and help support continued independent development. Nothing in the Studio depends on it: no paid features, no gates, no prompts.
-
-The console the creator used was bought from an eBay seller recommended in the guide's "Getting an NES Classic" chapter. That is a personal recommendation, not a sponsored listing or affiliate relationship: no commission or referral compensation is received, and it is independent of GitHub Sponsors.
-
-## How Classic Cart Studio is made
-
-Classic Cart Studio runs on FCEUmm, an open-source NES emulator written by its own authors. I build it from unmodified source, pinned to one exact version. The included homebrew games are their creators' builds, unchanged, and the games you add are your own files. I didn't write the emulator or any of the games, and neither did my tools.
-
-The app around them is what I build: the collection tools, the menus, the player, the installer and the help. I build it with AI agents. They write the code, and I direct the work. I set each task, review what comes back, send it back until it's right, and decide what ships. It's been a second job since day one, part-time every week on top of my full-time one.
-
-Anything that touches a console stays switched off until it has passed on real hardware. Automated checks back that up: a pinned emulator version, game identification by file contents, and a public build record for every release.
-
-The pixel characters and many of the icons and diagrams are drawn in code by the AI agents. Artwork by human artists is credited separately and kept apart from those characters, and these Credits point out any generated imagery that remains. Game covers and screenshots are scans and captures of the original games. The HOME music was made with Suno, and I spent several days shaping it. The console transfer component is adapted from Hakchi2 CE source, credited here. Its license notices ship with the app, and its source is published alongside each release.
-
-Classic Cart Studio is developed by Rance9 and published by Rance9 LLC.
+- Console backup ZIP: `tools/console-backup/FORMAT.md`
+- Composer files (shared composition, `.ccshome`, private restore package): `tools/console-backup/COMPOSER-FORMATS.md`
+- Battery saves: `tools/console-backup/SAVE-FORMATS.md`
 
 ## Credits and licenses
 
-- This project's code: GNU General Public License v3 or later, `GPL-3.0-or-later` (see `LICENSE` and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
-- The Studio's pixel characters, interface icons and walkway are original Classic Cart Studio artwork drawn in code (`tools/publish/make_ccs_cast.py`). The four HOME theme designs and the console startup pictures were made with image generators for this project and show Classic Cart Studio's own characters, not characters from the games. The five scene backgrounds behind the HOME and on game details are pixel art by Luis Zuno (Ansimuz): Magic Cliffs under CC BY 3.0, the others under CC0 (each composed from the artist's own layers, cropped and enlarged by whole pixels; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)). The HOME music was made with Suno.
-- Included Games: Thwaite and Concentration Room by Damian Yerrick, GNU GPL v3 or later, the author's own builds with their source (`site-data/included`).
-- [FCEUmm](https://github.com/libretro/libretro-fceumm) (libretro-fceumm, GPL v2 or later) is the emulator inside the game player, built from unmodified source pinned to one commit. Box art from community thumbnail collections identifies the games. All rights in the games remain with their owners; third-party material is not covered by this project's license (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
-- [Hakchi2 CE](https://github.com/TeamShinkansen/Hakchi2-CE) 3.9.3 by TeamShinkansen and contributors (GPL v3) does the console side. The Windows installer includes its official, unmodified portable package so that everything works offline; its license and source information are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-- Microsoft Edge WebView2 (the SDK, and Microsoft's Runtime installers for computers without the Runtime) displays the Studio's interface inside the Windows application; .NET Framework 4.8 runs the host.
-- "Press Start 2P" font: SIL Open Font License.
-- Game identification data compiled from No-Intro, NesCartDB and Mesen database releases.
+Classic Cart Studio's code in CCS Console Workbench is GPL-3.0-or-later; parts adapted from Hakchi2 CE, FelLib and hakchi's `sntool`
+(GPL-3.0) keep those projects' terms. It builds its console programs from Hakchi2 CE 3.9.3's prebuilt hakchi package, whose programs (the
+Linux kernel and its modules, u-boot, fes1, sntool, BusyBox and others) they carry unmodified under their own licenses. Credits: hakchi by
+madmonkey; hakchi2 by ClusterM; Hakchi2 CE by Team Shinkansen and contributors. `ccsboot` is derived from hakchi's `sntool` source.
+`tools/console-backup/NOTICE` lists every component with its license, its notices and the license texts. Each release attaches the source
+of Classic Cart Studio's code with its build files, and the sources of the PAR2 and LibUsbDotNet libraries the program contains.
+Independent; not affiliated with Nintendo. It does not include or offer Nintendo games or keys; the u-boot its console programs carry
+includes the board configuration block hakchi's build takes from the NES Classic's stock u-boot (`NOTICE`).
 
-## Legal, privacy and third-party notices
+## Upstream source gaps
 
-- [LICENSE](LICENSE): GNU General Public License v3 for this project's own code (GPL-3.0-or-later).
-- [Installation Terms](tools/publish/assets/legal/INSTALLATION-TERMS.md) (version 1.3): the terms and risk notices the Windows setup shows before it installs. They do not replace or restrict the GPL; they are also in the Studio's Help & User Guide → Installation Terms (EULA).
-- [PRIVACY.md](PRIVACY.md): what the website and the Windows application store and transmit.
-- Game files, backups and copyright: Classic Cart Studio supplies no game files except its Included Games (homebrew shared under each author's license or permission), and it never uploads your game files or backups or hosts them. Users supply their own game files and are responsible for having the rights to use and back them up; creating a backup does not grant permission to distribute it. The full statement is in the Help & User Guide → Legal, Privacy & Disclaimers.
-- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): Hakchi2 CE, WebView2, fonts, identification databases, artwork and build tools, with what is bundled and what is downloaded separately.
-- The same information, in plain words, is in the Studio's Help & User Guide → Legal, Privacy & Disclaimers.
-
-## Security
-
-See `SECURITY.md` for what the Windows application and its backend do, how to verify downloads and how to report a problem.
+Pinned upstream binaries remain included with unresolved source/redistribution questions. The component-by-component disclosure is [SOURCE-AUDIT.md](tools/console-backup/SOURCE-AUDIT.md) at the engine source commit in ENGINE-PIN.txt. Available source archives are not a claim of complete corresponding source.
