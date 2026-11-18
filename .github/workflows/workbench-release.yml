@@ -72,11 +72,13 @@ jobs:
         with: { name: ccsboot, path: build/ccsboot }
       - uses: actions/download-artifact@v4
         with: { name: native-home, path: build/native/arm-musl-device }
-      - name: The official Hakchi2 CE 3.9.3 package (size and SHA-256 verified) and the console programs
+      - name: Build tools
+        run: python -m pip install --quiet -r tools/publish/requirements-build.txt
+      - name: The official Hakchi2 CE 3.9.3 package (size and SHA-256 verified)
+        run: python tools/publish/fetch_hakchi_package.py build/packages
+      - name: Build the console programs (the verified package path is available in this step)
         shell: pwsh
         run: |
-          python -m pip install --quiet -r tools/publish/requirements-build.txt
-          python tools/publish/fetch_hakchi_package.py build/packages
           python tools/console-backup/ram/build_images.py --hakchi-release $env:CCS_HAKCHI_PACKAGE --ccsboot build/ccsboot/ccsboot --out build/ram-images
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Embed the release HOME package and its notices
