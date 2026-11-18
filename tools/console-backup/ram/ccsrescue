@@ -1,0 +1,83 @@
+#!/bin/sh
+# ccsrescue: Classic Cart Studio's Console Rescue steps for the console's boot stages (boot0, boot1/u-boot). Copyright (C) 2026 Rance9.
+# GPL-3.0-or-later. It runs in the console's RAM, in the Classic Cart Studio rescue image only (profile "rescue"), and does fixed steps
+# the PC asks for one at a time (tools/console-backup/CcsBackup Engine/RescueEngine.cs), each under the PC's own write boundary:
+#   diag                read-only: each boot stage read by ccsboot (Classic Cart Studio's boot-stage reader, built from published source)
+#                       and by the image's flash tool, with validity, size and MD5; nothing is written. A stage is its MD5 when it reads
+#                       as a valid image, or one typed word from ccsboot's own result (never one word for every failure):
+#                         invalid     read, but its checksum or structure does not hold
+#                         noimage     read, but no recognizable boot image is there (erased, overwritten or another format)
+#                         unreadable  the driver answers, but a block of the stage cannot be read
+#                         nodriver    the NAND driver could not be opened or did not answer: nothing about the stage is known, and
+#                                     nothing is ever written on that basis
+#                       The flash tool's own result is its MD5 or "damaged" (it does not say why).
+#   stage0 SIZE MD5     THIS console's boot0 from a verified backup of it (the PC sends exactly SIZE bytes), kept in RAM only; refused
+#   stage1 SIZE MD5     unless size, MD5 and image (ccsboot check) are the reviewed ones; nothing is written to storage
+#   burn1 NOW WANT      the staged boot1 written once by ccsboot, only when boot1 on the console is still NOW (ccsboot's MD5 or typed
+#                       word, as the PC's diagnosis found it; never nodriver) and the flash tool agrees (the same MD5, or "damaged" for a
+#                       damaged stage) and the staged file is WANT; read back by both readers, which must both give WANT. ccsboot stops at a
+#                       block it cannot read before writing it; only NOW = unreadable (diagnosed, and acknowledged on the PC) uses
+#                       "ccsboot burn1-unreadable", which writes such a block without a comparison and still reads every block back
+#   burn0 NOW WANT      the staged boot0 written once through the driver's boot0 writer (ccsboot burn0), under the same rules; read back
+#                       by ccsboot, which must give WANT. The driver may adjust a boot0 for the NAND it writes to: equality with the
+#                       console's own earlier boot0 is the expected result, and anything else stops and is reported, never retried.
+# Every step prints "result <step> ok ..." or "result <step> refused|failed <why>"; nothing is retried, nothing else is written: no
+# kernel, no storage table, no data storage, no physical write.
+CCS=$(cd "$(dirname "$0")/.." && pwd)
+. "$CCS/env" || exit 90
+[ "$(cat "$CCS/profile" 2>/dev/null)" = rescue ] || { echo "ccsrescue: this image cannot rescue a console" >&2; exit 13; }
+B="$CCS/bin/ccsboot"
+
+r(){ echo "result $1 $2"; [ "$2" = ok ] || [ "${2#ok}" != "$2" ] && exit 0; exit 17; }
+md5of(){ md5sum | cut -d' ' -f1; }
+# a stage's state from one ccsboot read: its MD5, or the typed word for ccsboot's exit code (ram/ccsboot/ccsboot.c)
+stateof(){
+  t="$ST/rescue-read.bin"; "$B" "$1" > "$t" 2>/dev/null; rc=$?
+  case $rc in 0) md5of < "$t" ;; 3) echo unreadable ;; 4) echo noimage ;; 5) echo invalid ;; *) echo nodriver ;; esac
+  rm -f "$t"
+}
+state1(){ stateof read1; }
+state0(){ stateof read0; }
+state1b(){ if sunxi-flash read_boot1 >/dev/null 2>&1; then sunxi-flash read_boot1 2>/dev/null | md5of; else echo damaged; fi; }
+# the flash tool agrees with NOW: the same MD5, or a failure for a stage ccsboot also found damaged
+agrees(){ if echo "$1" | grep -qE '^[0-9a-f]{32}$'; then [ "$2" = "$1" ]; else [ "$2" = damaged ]; fi; }
+
+case "$1" in
+  diag)
+    echo "boot0=$(state0)"; echo "boot0_size=$("$B" read0 2>/dev/null | wc -c | tr -d ' ')"
+    echo "boot1=$(state1)"; echo "boot1_flash_tool=$(state1b)"; echo "boot1_size=$("$B" read1 2>/dev/null | wc -c | tr -d ' ')"
+    r diag "ok" ;;
+  stage0|stage1)
+    step=$1; size=$2; want=$3; kind=boot${step#stage}
+    echo "$size" | grep -qE '^[1-9][0-9]{0,6}$' && echo "$want" | grep -qE '^[0-9a-f]{32}$' || r "$step" "refused request"
+    stage="$ST/rescue-$kind.bin"; rm -f "$stage"
+    head -c "$size" > "$stage"
+    got=$(md5of < "$stage"); n=$(wc -c < "$stage" | tr -d ' ')
+    [ "$n" = "$size" ] && [ "$got" = "$want" ] || { rm -f "$stage"; r "$step" "refused received-mismatch $got $n"; }
+    "$B" check "$stage" 2>/dev/null | grep -q " $kind\$" || { rm -f "$stage"; r "$step" "refused not a complete $kind image"; }
+    r "$step" "ok $want $size" ;;
+  burn1)
+    now=$2; want=$3; stage="$ST/rescue-boot1.bin"
+    echo "$now" | grep -qE '^([0-9a-f]{32}|invalid|noimage|unreadable)$' && echo "$want" | grep -qE '^[0-9a-f]{32}$' || r burn1 "refused md5"
+    [ -f "$stage" ] && [ "$(md5of < "$stage")" = "$want" ] || r burn1 "refused the staged boot1 is not the reviewed one"
+    a=$(state1); b=$(state1b)
+    [ "$a" = "$now" ] && agrees "$now" "$b" || r burn1 "refused boot1 changed since the review ($a $b)"
+    mode=burn1; [ "$now" = unreadable ] && mode=burn1-unreadable
+    echo "began burn1 $mode"
+    out=$("$B" $mode "$stage" 2>/dev/null) || r burn1 "failed burn $(echo $out) (not burned again)"
+    a=$("$B" read1 2>/dev/null | md5of); b=$(sunxi-flash read_boot1 2>/dev/null | md5of)
+    [ "$a" = "$want" ] && [ "$b" = "$want" ] || r burn1 "failed readback $a $b (not burned again)"
+    r burn1 "ok $want" ;;
+  burn0)
+    now=$2; want=$3; stage="$ST/rescue-boot0.bin"
+    echo "$now" | grep -qE '^([0-9a-f]{32}|invalid|noimage|unreadable)$' && echo "$want" | grep -qE '^[0-9a-f]{32}$' || r burn0 "refused md5"
+    [ -f "$stage" ] && [ "$(md5of < "$stage")" = "$want" ] || r burn0 "refused the staged boot0 is not the reviewed one"
+    a=$(state0)
+    [ "$a" = "$now" ] || r burn0 "refused boot0 changed since the review ($a)"
+    echo "began burn0"
+    out=$("$B" burn0 "$stage" 2>/dev/null) || r burn0 "failed burn $(echo $out) (not burned again)"
+    a=$("$B" read0 2>/dev/null | md5of)
+    [ "$a" = "$want" ] || r burn0 "failed readback $a (not burned again)"
+    r burn0 "ok $want" ;;
+  *) echo "ccsrescue: unknown step" >&2; exit 2 ;;
+esac

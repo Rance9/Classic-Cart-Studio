@@ -2,7 +2,7 @@
 // Each theme is the master mockup itself (scene layer: the master scaled to 1280 x 720 with only the dynamic content inpainted)
 // plus live content drawn into the exact boxes measured on the master (HOME_ART.themes[theme].geometry, stage pixels) and the
 // authored frames, plates, icons and markers cut from the master as sprites. Nothing fictional baked into the art remains
-// visible: real titles, real covers (or marked placeholders), measured counts, real time, original-controller legends.
+// visible: real titles, real covers (or marked generated covers), measured counts, real time, original-controller legends.
 const HOME_THEME_META=[{id:'arcade-grid',name:'Arcade Grid',note:'bright pixel-art landscape, cover grid, top tabs'},{id:'box-art-showcase',name:'Box Art Showcase',note:'moonlit 3-D boxes, one game center stage'},{id:'featured-shelf',name:'Featured Shelf',note:'left navigation, wide hero, cover shelf'},{id:'adventure-map',name:'Adventure Map',note:'illustrated overworld with landmarks and a shelf'}];
 const HOME_MAP_NEIGHBORS={allgames:{right:'browse'},browse:{left:'allgames',right:'favorites'},favorites:{left:'browse',right:'folder1'},folder1:{left:'favorites',right:'folder2'},folder2:{left:'folder1',right:'settings'},settings:{left:'folder2'}};
 const HM_ARCADE_COLS=5;   // the small-cover columns right of the large card; the state machine's grid clamping uses this width
@@ -18,13 +18,15 @@ function hmArt(theme){ const a=(typeof HOME_ART!=='undefined'&&HOME_ART.themes&&
  const hd=hmHdTheme(theme)||{}; const c=Object.assign({},a,{sprites:{}}); Object.entries(a.sprites||{}).forEach(([n,sp])=>{ c.sprites[n]=hd.sprites&&hd.sprites[n]?Object.assign({},sp,{file:'hd/'+hd.sprites[n]}):sp; }); return (HM_ART_HD[theme]=c); }
 function hmSceneFile(theme){ const hd=HM_HD&&hmHdTheme(theme); return hd&&hd.scene_2x?'hd/'+hd.scene_2x:`scene-${theme}.png`; }
 function hmThumbFile(theme){ const hd=HM_HD&&hmHdTheme(theme); return hd&&hd.thumb_2x?'hd/'+hd.thumb_2x:`thumb-${theme}.jpg`; }
+// the decorative night sky behind a game's Details hero when no shared scene is loaded: the file home-art.json names (hero_sky)
+function hmHeroSky(){ const f=typeof HOME_ART!=='undefined'&&HOME_ART&&HOME_ART.hero_sky; return typeof f==='string'&&/^[A-Za-z0-9][A-Za-z0-9._-]*\.(png|jpg|jpeg|webp)$/i.test(f)?f:'hero-sky.png'; }
 function hmGeo(theme){ const a=hmArt(theme); return a?a.geometry:null; }
 function homeGeometry(theme, model){
  const base={browseCols:4,resultCols:4};
  if(theme==='box-art-showcase') return Object.assign(base,{kind:'carousel'});
  if(theme==='featured-shelf') return Object.assign(base,{kind:'shelf',navAxis:'vertical'});
  if(theme==='adventure-map'){ const g=hmGeo(theme); const lms=(g?g.landmarks:[]).map(l=>({id:l.id,dest:l.id==='folder1'?'folder:'+(model.map_shortcuts[0]||'none'):l.id==='folder2'?'folder:'+(model.map_shortcuts[1]||'none'):l.id,label:l.id})); return Object.assign(base,{kind:'shelf',map:{landmarks:lms,neighbors:HOME_MAP_NEIGHBORS}}); }
- return Object.assign(base,{kind:'grid',cols:HM_ARCADE_COLS});
+ const ga=hmGeo('arcade-grid'); return Object.assign(base,{kind:'arcade',cols:HM_ARCADE_COLS,cells:ga&&ga.cells?ga.cells:[]});   /* the console's page of cells (theme_arcade.c) */
 }
 function hmEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function hmGame(model,id){ return model.games.find(g=>g.id===id)||null; }
@@ -129,10 +131,11 @@ function hmArcade(model,S,ctx){ const T='arcade-grid', G=hmGeo(T); const L=homeL
   if(i<HOME_NAV.length-1&&!isA&&active!==HOME_NAV[i+1].id) tabs+=`<div class="tabsep" style="left:${x+tabW-1}px;top:${tb[1]+10}px"></div>`; });
  const rows=G.stats.rows; const sIcons=['stat-icon-games','icon-folder','icon-star']; const stats=[['GAMES',st.games],['FOLDERS',st.folders],['FAVORITES',st.favorites]].map(([l,v],i)=>hmSpriteAt(T,sIcons[i],[G.stats.icon_x+2,rows[i][1]+2,G.stats.icon_x+32,rows[i][1]+30])+`<div class="stat" style="left:${rows[i][0]}px;top:${rows[i][1]}px">${l}<b>${v}</b></div>`).join('');
  const games=()=>{ if(!ids.length) return hmEmpty(L.empty,[G.card.frame[0],G.card.frame[1]+80,G.cells[4][2],G.card.frame[1]+280]); const g=hmGame(model,ids[S.index]);
-  // the large card shows the focused game; the small cells show the games that follow it (the master: first game large, the rest in the grid)
-  let h=`<div class="abs" style="${hmBox([G.card.cover[0]-2,G.card.cover[1]-2,G.card.caption[2]+2,G.card.caption[3]+2])}background:#0b0b12"></div>`+hmCover(model,ids[S.index],G.card.cover,S.zone==='games','','fit')+hmSprite(T,'card-frame')+`<div class="cap" style="${hmBox(G.card.caption)}"><span class="ttl focus-title">${hmEsc(g.title)}</span><small>${[g.players?g.players+' player'+(g.players==='1'?'':'s'):null,g.genre,g.year].filter(Boolean).map(hmEsc).join('  ·  ')||'&nbsp;'}</small></div>`;
-  const W=G.cells.length+1; let start=Math.floor(S.index/W)*W; if(ids.length>W&&start+W>ids.length) start=ids.length-W; const others=[]; for(let i=start;i<Math.min(ids.length,start+W);i++) if(i!==S.index) others.push(i);
-  G.cells.forEach((c,k)=>{ const i=others[k]; if(i!==undefined) h+=hmCover(model,ids[i],c,false,'','cell'); }); return h; };
+  // as on the console (theme_arcade.c): a page is the 16 cells' games in reading order, the selected cell has the focus ring, the large
+  // card previews the selected game; the selection never leaves its cell, so a move looks like the move it is
+  let h=`<div class="abs" style="${hmBox([G.card.cover[0]-2,G.card.cover[1]-2,G.card.caption[2]+2,G.card.caption[3]+2])}background:#0b0b12"></div>`+hmCover(model,ids[S.index],G.card.cover,false,'','fit')+hmSprite(T,'card-frame')+`<div class="cap" style="${hmBox(G.card.caption)}"><span class="ttl focus-title">${hmEsc(g.title)}</span><small>${[g.players?g.players+' player'+(g.players==='1'?'':'s'):null,g.genre,g.year].filter(Boolean).map(hmEsc).join('  ·  ')||'&nbsp;'}</small></div>`;
+  const P=G.cells.length, start=Math.floor(S.index/P)*P;
+  G.cells.forEach((c,k)=>{ const i=start+k; if(i<ids.length) h+=hmCover(model,ids[i],c,i===S.index&&S.zone==='games','','cell'); }); return h; };
  return `${clk?`<div class="clock abs" style="${hmBox(G.clock)}">${hmEsc(clk.time)}</div>`:''}${tabs}${stats}${hmViewAll(S,G.card.frame[0],G.tabbar[3]+6)}${hmSectionOrGames(model,S,T,ctx,games)}${hmLegend(T,S,G.legend,model)}`; }
 // ---- Box Art Showcase: volumetric boxes (front, spine, top faces) in the master's envelopes, floor reflections and contact shadows ----
 function hmBox3(model,id,env,theme,center){ const g=hmGame(model,id); const b=env.box; const w=b[2]-b[0], h=b[3]-b[1]; const spine=Math.max(10,Math.round(w*hmGeo(theme).spine_ratio*1.25)); const art=g&&g.art&&g.art.src; const gen=g&&g.art&&g.art.provenance==='generated'; const br=hmArt(theme).sprites;
@@ -162,7 +165,7 @@ function hmBoxArt(model,S,ctx){ const T='box-art-showcase', G=hmGeo(T); const L=
 // blend so black becomes sky); the cover illustration (packaging strips cropped away) large at the left, feathered into the
 // world on every side; chunky two-tone lettering (the master's title treatment) with a red rule and the year / genre /
 // publisher line. Nothing is stretched or blurred. Without a gameplay screen the world is a glow in the cover's own tone.
-// An owner-supplied widescreen image (`hero`, reports/art/hero/<id>.png) replaces the composition for that game.
+// D-131: every game now has its genre's shared scene (hmKeyArt), so the composition below draws only when no scene definition is loaded.
 function hmHeroLines(title,font,maxw){ const c=hmHeroLines.c||(hmHeroLines.c=document.createElement('canvas').getContext('2d')); c.font=font; const words=String(title).split(' '); const lines=[]; let cur='';
  for(const w of words){ const t=(cur+' '+w).trim(); if(c.measureText(t).width<=maxw||!cur) cur=t; else { lines.push(cur); cur=w; } } if(cur) lines.push(cur); return {lines,over:lines.some(l=>c.measureText(l).width>maxw)}; }
 function hmHeroFit(title,maxw){ let fs=46, L=null, best=null, bfs=20;
@@ -172,19 +175,19 @@ function hmHeroText(title,maxw,H,topAlign,topY){ const f=hmHeroFit(title,maxw); 
  const text=`<div class="lbg" style="top:${y0-26}px;height:${L.lines.length*lh+78}px"></div>`+L.lines.map((l,i)=>`<div class="hl${i===L.lines.length-1&&L.lines.length>1?' red':''}" style="top:${y0+i*lh}px;font-size:${fs}px">${hmEsc(l)}</div>`).join('');
  return {text, ruleTop:y0+L.lines.length*lh+4, tagTop:y0+L.lines.length*lh+14}; }
 function hmHeroTag(parts,maxw){ const c=hmHeroLines.c||(hmHeroLines.c=document.createElement('canvas').getContext('2d')); let items=parts.filter(Boolean).map(String); for(let fs=13;fs>=10;fs--){ c.font=`${fs}px Silkscreen, "Press Start 2P", monospace`; for(let n=items.length;n>=1;n--){ const t=items.slice(0,n).join(' · '); if(c.measureText(t).width<=maxw) return {text:t,fs}; } } return {text:items[0]||'',fs:10}; }
-// key art for a game: its own approved/candidate hero, else the universal fallback scene when one is installed (home-art.json hero_fallback)
-function hmKeyArt(g){ if(g&&g.hero) return {src:g.hero, kind:'hero'}; const fb=(typeof HOME_ART!=='undefined'&&HOME_ART.hero_fallback)?HM_BASE+HOME_ART.hero_fallback:null; return fb?{src:fb, kind:'fallback'}:null; }
+// key art for a game (D-131): the shared scene of its genre, always resolved now (homeScene); a value stored with an older model is never used
+function hmKeyArt(g){ const sc=g&&homeScene(g.genre); return sc?{src:sc.src, kind:'hero', title:sc.title}:null; }
 function hmHero(model,g,box){ const ka=hmKeyArt(g); const hero=ka&&ka.src; const W=box[2]-box[0], H=box[3]-box[1]; const title=(g?g.title:'').toUpperCase();
  const tag=[g&&g.year,g&&g.genre,g&&g.publisher].filter(Boolean).map(hmEsc).join(' · ');
  if(hero){   // optional tb.w = per-game title width (fraction of the hero box); without it the lettering runs to the right margin as before. Imported key art: the lettering sits in the upper right third like the master's title treatment, fitted to its own box
-  const tb=(ka.kind==='hero'&&g.hero_title)||{x:0.50,y:0.09}; const lx=Math.round(W*tb.x), lw=(tb.w>0&&tb.w<=1)?Math.min(Math.round(W*tb.w),W-lx-Math.round(W*0.035)):W-lx-Math.round(W*0.035); const T=hmHeroText(title,lw,H,true,Math.round(H*tb.y)); const right=tb.align==='right'; const tg=hmHeroTag([g&&g.year,g&&g.genre,g&&g.publisher],lw);   // per-image title slot (measured at import) keeps the lettering off the subject; alternate slots hug the right margin
+  const tb=ka.title||{x:0.50,y:0.09}; const lx=Math.round(W*tb.x), lw=(tb.w>0&&tb.w<=1)?Math.min(Math.round(W*tb.w),W-lx-Math.round(W*0.035)):W-lx-Math.round(W*0.035); const T=hmHeroText(title,lw,H,true,Math.round(H*tb.y)); const right=tb.align==='right'; const tg=hmHeroTag([g&&g.year,g&&g.genre,g&&g.publisher],lw);   // per-image title slot (measured at import) keeps the lettering off the subject; alternate slots hug the right margin
   return `<img class="wide" src="${hmEsc(hero)}" alt=""><div class="shade art"></div><div class="lett${right?' ra':''}" style="left:${lx}px;width:${lw}px">${T.text}<div class="rule" style="top:${T.ruleTop}px"></div><div class="tag" style="top:${T.tagTop}px;font-size:${tg.fs}px">${hmEsc(tg.text)}</div></div>`; }
  const art=g&&g.art&&g.art.src; const gen=g&&g.art&&g.art.provenance==='generated'; const snap=g&&g.snap; const bands=(g&&g.bands)||[0,0]; const size=(g&&g.art_size)||[480,685]; const tone=(g&&g.tone)||'#5a3a7a';
  const ph=Math.round(H*0.92); const visible=1-bands[0]-bands[1]; const ih=Math.round(ph/visible); const pw=Math.round(size[0]*ih/size[1]); const px=Math.round(W*0.04), py=Math.round((H-ph)/2);
  const world=snap?`<img class="world" src="${hmEsc(snap)}" alt="">`:`<div class="glow" style="background:radial-gradient(ellipse at 30% 60%,${hmEsc(tone)} 0%,rgba(0,0,0,0) 62%)"></div>`;
  const ill=`<div class="ill cover${gen?' gen':''} focus" data-id="${hmEsc(g?g.id:'')}" style="left:${px}px;top:${py}px;width:${pw}px;height:${ph}px">${art?`<img src="${hmEsc(art)}" alt="" style="height:${ih}px;top:${-Math.round(bands[0]*ih)}px">`:`<div class="noart">${hmEsc(g?g.title:'')}</div>`}</div>`;
  const x=px+pw-Math.round(pw*0.06); const maxw=W-x-Math.round(W*0.04); const T=hmHeroText(title,maxw,H,false);
- return `<img class="sky" src="${HM_BASE}hero-sky.png" alt="">${world}<div class="shade"></div>${ill}<div class="lett" style="left:${x}px;width:${maxw}px">${T.text}<div class="rule" style="top:${T.ruleTop}px"></div><div class="tag" style="top:${T.tagTop}px">${tag}</div></div>`; }
+ return `<img class="sky" src="${hmEsc(HM_BASE)}${hmEsc(hmHeroSky())}" alt="">${world}<div class="shade"></div>${ill}<div class="lett" style="left:${x}px;width:${maxw}px">${T.text}<div class="rule" style="top:${T.ruleTop}px"></div><div class="tag" style="top:${T.tagTop}px">${tag}</div></div>`; }
 function hmShelf(model,S,ctx){ const T='featured-shelf', G=hmGeo(T); const L=homeListing(model,S,ctx.search); const ids=L.ids; const active=hmActiveNav(S); const clk=hmClock(ctx);
  const icons={allgames:'icon-home',browse:'icon-folder',search:null,favorites:'icon-star',recent:null,settings:'icon-gear'}; const sd=G.side; let side='';
  HOME_NAV.forEach((n,i)=>{ const y=sd.first_y+i*sd.pitch; const isA=n.id===active; const foc=S.zone==='nav'&&i===S.navIndex; const sp=icons[n.id]?hmArt(T).sprites[icons[n.id]]:null;

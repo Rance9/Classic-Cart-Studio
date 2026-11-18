@@ -11,6 +11,38 @@ namespace ClassicCartStudio
 {
     internal static class App
     {
+        // The app icon at the size it is drawn. app.ico holds code-drawn frames from 16 to 256 px, but a WPF Image given the .ico shows only its
+        // first (16 px) frame, stretched: a blurry controller on the startup screen (48 DIP is 96 device pixels at 200 %). This is the smallest
+        // frame at least as large as the drawn size in device pixels (scaled down, never up), or else the largest one.
+        public static System.Windows.Media.Imaging.BitmapSource IconFrame(double dip, double scale)
+        {
+            var px = (int)Math.Ceiling(dip * (scale > 0 ? scale : 1));
+            using (var s = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/app.ico")).Stream)
+            {
+                var dec = new System.Windows.Media.Imaging.IconBitmapDecoder(s, System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
+                System.Windows.Media.Imaging.BitmapFrame best = null, largest = null;
+                foreach (var f in dec.Frames) { if (largest == null || f.PixelWidth > largest.PixelWidth) largest = f; if (f.PixelWidth >= px && (best == null || f.PixelWidth < best.PixelWidth)) best = f; }
+                var r = best ?? largest; if (r.CanFreeze) r.Freeze(); return r;
+            }
+        }
+
+        /// <summary>--simulated-console FOLDER: Console Backup & Restore with a simulated console (tests and demonstrations only; files on the PC
+        /// stand in for a console, and every backup made from it is marked simulated)</summary>
+        public static string SimulatedConsoleArg(string[] args)
+        {
+            int i = Array.IndexOf(args ?? new string[0], "--simulated-console");
+            return i >= 0 && i + 1 < args.Length && Directory.Exists(args[i + 1]) ? args[i + 1] : null;
+        }
+
+        /// <summary>--backup-settings FILE: Console Backup & Restore's settings file (its backup folders) instead of the shared one in
+        /// %LOCALAPPDATA%\CCS Console Backup (tests and demonstrations, so they never write into the person's own backup folders; the
+        /// Utility's --settings is the same)</summary>
+        public static string BackupSettingsArg(string[] args)
+        {
+            int i = Array.IndexOf(args ?? new string[0], "--backup-settings");
+            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+        }
+
         public static string Version
         {
             get
@@ -25,6 +57,9 @@ namespace ClassicCartStudio
         // The production website. The github.io project URL is a legacy redirect, not a production dependency.
         public const string CanonicalOrigin = "https://classiccartstudio.com";
         public const string SiteUrl = CanonicalOrigin + "/";
+        // where Open Website takes a person: the usable site. During the pre-launch period the root is a coming-soon page and the site is at
+        // /preview/; at the launch the host redirects /preview/ to / permanently, so this address keeps working (LAUNCH-RUNBOOK.md)
+        public const string WebsiteUrl = CanonicalOrigin + "/preview/";
         public static readonly string[] SiteOrigins = { CanonicalOrigin, "https://www.classiccartstudio.com" };
         public const string RepoUrl = "https://github.com/Rance9/Classic-Cart-Studio";
         public const string UpdateUrl = "https://ClassicCartStudio.com/app";

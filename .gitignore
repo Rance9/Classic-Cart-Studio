@@ -27,3 +27,7 @@ rollback/
 dev-paths.json
 companion.json
 *.log
+# the Included Games (site-data/included/index.json): game files published under their authors' licenses, pinned by
+# SHA-256 in tools/publish/included-games.sha256, with their corresponding source
+!site-data/included/
+!site-data/included/**

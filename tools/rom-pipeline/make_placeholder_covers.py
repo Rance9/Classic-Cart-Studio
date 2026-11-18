@@ -1,4 +1,4 @@
-"""Generated placeholder covers for games without box art (website, Windows app and all four HOME themes share them).
+"""Generated covers for games without box art (website, Windows app and all four HOME themes share them).
 
 Deterministic, procedural, offline, in the look of an NES box front: black top band with the Studio wordmark and the
 three pixel bars, a pixel-art night landscape drawn from the title's hash (sky bands, stars, two mountain ridges, a
@@ -9,7 +9,7 @@ catalog art: the files go to reports/art/generated/<game_id>.png and catalog row
 "generated") while `art` stays empty. When authentic art appears for a game later, build_html prefers `art`.
 
   python make_placeholder_covers.py            -> writes the covers and updates reports/catalog.json
-  python make_placeholder_covers.py --force    -> regenerates every placeholder (otherwise only missing files)
+  python make_placeholder_covers.py --force    -> regenerates every generated cover (otherwise only missing files)
 """
 from __future__ import annotations
 import os, sys, json, hashlib, random
@@ -96,7 +96,7 @@ def cover(title: str, publisher: str | None, year: str | None, seed: str) -> Ima
     return im
 
 def ensure(games: list, force: bool = False) -> tuple[int, int]:
-    """write a placeholder for every game without art (idempotent) and set art_generated on those rows; rows with art lose any stale field"""
+    """write a generated cover for every game without art (idempotent) and set art_generated on those rows; rows with art lose any stale field"""
     os.makedirs(OUT, exist_ok=True); made = kept = 0
     for g in games:
         if g.get("art"): g.pop("art_generated", None); g.pop("art_generated_provenance", None); continue

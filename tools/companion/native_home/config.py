@@ -8,9 +8,10 @@ Rules (the Studio's own, not new ones):
   titles        as the HOME model shows them (factory-kept games carry their factory title there)
   metadata      catalog row; Extended versions: version, then the curated sibling, then the title (studio.js extRow);
                 personal: the user's own fields
-  cover         catalog: approved art, else the marked generated placeholder; Extended: the version's own scan, else a same-region scan of the same title
+  cover         catalog: approved art, else the marked generated cover; Extended: the version's own scan, else a same-region scan of the same title
                 (art_family, N3.1 art audit; studio.js extRow); never another region's box; personal: the user's uploaded art; otherwise none (the runtime's title placeholder)
-  hero          only the version's own approved hero (catalog art_hero); otherwise the shared universal fallback backdrop
+  hero          D-131: every game's background is the shared scene of its genre (native_home/scenes.py, the same rule as the website's
+                HOME); a game without a listed genre gets the fallback scene. No per-game background exists any more.
   texts         the approved description dataset by exact id (Official description + Game overview); other versions of a curated
                 title share its approved overview (same game identity); other library identities use the researched library
                 overview (reports/descriptions-library.json, by title identity); personal: the user's own description; otherwise none
@@ -27,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.normpath(os.p
 for p in (os.path.join(TOOLS, "rom-pipeline"), os.path.join(TOOLS, "companion")):
     if p not in sys.path: sys.path.insert(0, p)
 import library_lookup as LL   # noqa: E402
+from native_home import scenes as SC   # noqa: E402
 from common import site_path, data_path, art_alias, REPORTS   # noqa: E402
 
 CONFIG_SCHEMA = "ccs-native-home-config/1"
@@ -93,6 +95,32 @@ def _art_path(rel: str | None) -> str | None:
     if alias != rel.split("?")[0] and os.path.isfile(site_path(*alias.split("/"))): return site_path(*alias.split("/"))
     return None
 
+_INCL_COVERS = None
+_INCL_GENRES = None
+def included_genre(content_sha256) -> str | None:
+    """an Included Game's genre (site included/index.json) by exact content identity: it chooses the game's HOME scene, as for a catalog game"""
+    global _INCL_GENRES
+    if _INCL_GENRES is None:
+        _INCL_GENRES = {}
+        try: d = json.load(open(site_path("included", "index.json"), encoding="utf-8"))
+        except (OSError, ValueError): d = {}
+        for g in list(d.get("games") or []) + list(d.get("known_builds") or []):
+            if g.get("content_sha256") and isinstance(g.get("genre"), str) and g["genre"]: _INCL_GENRES[g["content_sha256"]] = g["genre"]
+    return _INCL_GENRES.get(content_sha256) if isinstance(content_sha256, str) else None
+
+def included_cover(content_sha256) -> str | None:
+    """an Included Game's own cover (its author's screen on a black card; site included/index.json "cover") by exact content identity,
+    for a personal record without an image of the person's own; None for any other game"""
+    global _INCL_COVERS
+    if _INCL_COVERS is None:
+        _INCL_COVERS = {}
+        try: d = json.load(open(site_path("included", "index.json"), encoding="utf-8"))
+        except (OSError, ValueError): d = {}
+        for g in list(d.get("games") or []) + list(d.get("known_builds") or []):
+            c = g.get("cover") or {}
+            if c.get("file") and g.get("content_sha256"): _INCL_COVERS[g["content_sha256"]] = "included/" + c["file"]
+    return _INCL_COVERS.get(content_sha256) if isinstance(content_sha256, str) else None
+
 def cover_source(g: dict) -> dict:
     """the one effective-cover rule for a resolved game record (the Studio's catalog view applies the same order: customize.js ovApply,
     studio.js extRow): the user's replacement > authentic art (catalog art; Extended: the version's own scan, else its title family)
@@ -126,14 +154,14 @@ def resolve_game(gid: str, descriptions: dict, library_overviews: dict | None = 
         texts = descriptions.get(gid)
         return {"source": "catalog", "title": g.get("display_title"), "version_label": g.get("nointro_name"), "year": s("year"), "players": s("players"), "genre": s("genre"),
                 "publisher": s("publisher"), "developer": s("developer"), "art": g.get("art") or g.get("art_generated") or None, "cover_generated": not g.get("art") and bool(g.get("art_generated")),
-                "hero": g.get("art_hero") or None, "hero_title": g.get("art_hero_title") if g.get("art_hero") else None, "texts": {"official": texts.get("official") or None, "overview": texts.get("overview") or None} if texts is not None and (texts.get("official") or texts.get("overview")) else None,
+                "hero": None, "texts": {"official": texts.get("official") or None, "overview": texts.get("overview") or None} if texts is not None and (texts.get("official") or texts.get("overview")) else None,
                 "builtin_code": g.get("builtin_code") or None, "title_id": LL.title_id_for(gid)}
     if gid.startswith("p_"):
         e = LL.personal_index()["entries"].get(gid)
         if not e: return None
         u = e.get("user") or {}; det = e.get("detected") or {}
         return {"source": "personal", "title": u.get("title") or det.get("title") or e.get("file_name"), "version_label": u.get("version_label") or None, "year": u.get("year") or None,
-                "players": None, "genre": None, "publisher": u.get("publisher") or None, "developer": None, "art": u.get("art") or None, "hero": None,
+                "players": None, "genre": included_genre(e.get("content_sha256")), "publisher": u.get("publisher") or None, "developer": None, "art": u.get("art") or included_cover(e.get("content_sha256")), "hero": None,
                 "texts": {"description": u.get("description")} if u.get("description") else None, "title_id": e.get("title_id") or None}
     x = _extended(gid)
     if x:   # another version of a curated title is the same game: it shares the approved overview (never the release-specific
@@ -144,6 +172,10 @@ def resolve_game(gid: str, descriptions: dict, library_overviews: dict | None = 
         off = le.get("official")   # a verified Official description of this identity's own release (Nintendo of Europe page), if one exists
         x["texts"] = {"official": off, "overview": ov} if (ov or off) else None; x["overview_source"] = "curated-title" if sib else ("library" if ov else None)
     return x
+
+def with_scene(g: dict) -> dict:
+    """D-131: a game's background is the shared scene of its genre, for every game whatever its source (native_home/scenes.py)"""
+    sc = SC.scene_for(g.get("genre")); g["hero"] = sc["file"]; g["hero_title"] = sc["title"]; g["scene"] = sc["id"]; return g
 
 def _kept_text(v, n: int = 200) -> str | None:
     return v.strip()[:n] if isinstance(v, str) and v.strip() else None
@@ -186,6 +218,9 @@ def fingerprint(obj) -> str: return hashlib.sha256(json.dumps(obj, sort_keys=Tru
 def resolve(manifest: dict, home: dict) -> dict:
     """the effective configuration (deployment): exactly the games the configured HOME can show, in its order"""
     if not isinstance(manifest, dict) or manifest.get("schema") not in COLLECTION_SCHEMAS: raise ConfigError("the collection is missing or not a nes-classic-collection/4 document")
+    import platform_ids   # SNES-GROUNDWORK.md: a collection for a game system this version does not support is never configured as NES
+    tgt = platform_ids.resolve_target(manifest, "collection", manifest.get("selections"), manifest.get("personal_library"))
+    if not tgt["ok"]: raise ConfigError(tgt["text"])
     if not isinstance(home, dict): raise ConfigError("the HOME configuration is missing")
     if home.get("sample"): raise ConfigError("the tray is empty: the HOME shows a sample of the built-in games, which is not a configuration to install")
     theme = home.get("theme")
@@ -207,7 +242,8 @@ def resolve(manifest: dict, home: dict) -> dict:
         rec["id"] = gid; rec["title"] = h.get("title") or s.get("display_title") or rec["title"]; rec["version_label"] = h.get("version_label") if h.get("version_label") is not None else rec.get("version_label")
         rec["home_kind"] = h.get("kind") or ("factory" if s.get("builtin_code") and not s.get("install_required") else ("personal" if s.get("source") == "personal" else "added"))
         rec["builtin_code"] = s.get("builtin_code") or rec.get("builtin_code"); rec["install_required"] = bool(s.get("install_required"))
-        games.append(rec if rec.get("source") == "kept" else effective(gid, rec))
+        g = rec if rec.get("source") == "kept" else effective(gid, rec)
+        games.append(with_scene(g))
     if unknown: raise ConfigError(f"{len(unknown)} selected game(s) are not in this library: {', '.join(unknown[:5])}")
     installed = set(order)
     folders = [{"id": f.get("id"), "name": f.get("name"), "parent": f.get("parent"), "pos": f.get("pos") or 0, "order": [x for x in f.get("order") or [] if x in installed], "art": bool((f.get("art") or {}).get("src"))}
@@ -236,7 +272,7 @@ def development_full_catalog(theme: str = "arcade-grid") -> dict:
         if kept: rec["title"] = g.get("builtin_title") or g.get("display_title")
         version = (g.get("builtin_factory_version") or "factory version") if kept else (g.get("nointro_name") or g.get("display_title"))
         rec["version_label"] = ("" if version == "factory version" else version) or ("factory version" if g.get("builtin_code") and not install else "")
-        rec["home_kind"] = "factory" if g.get("builtin_code") and not install else "added"; games.append(rec)
+        rec["home_kind"] = "factory" if g.get("builtin_code") and not install else "added"; games.append(with_scene(rec))
     key = lambda r: ((r["title"] or "").lower()[4:] if (r["title"] or "").lower().startswith("the ") else (r["title"] or "").lower(), r["id"])
     games.sort(key=key)
     cfg = {"schema": CONFIG_SCHEMA, "mode": "development", "theme": theme, "theme_apply": False, "themes_enabled": list(HOME_THEMES), "collection": {"name": "development: full default catalog", "fingerprint": None},

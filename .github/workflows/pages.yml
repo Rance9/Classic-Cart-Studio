@@ -19,12 +19,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install build dependencies (Pillow for the original sprites)
-        run: python -m pip install --quiet pillow
+          python-version: "3.13.17"   # the one build Python (tools/publish/requirements-build.txt), also the Windows release's
+      - name: Install the build's exact packages (Pillow draws the original sprites)
+        run: python -m pip install --quiet -r tools/publish/requirements-build.txt
+      - name: The build environment is exactly the pinned one (Python and package versions)
+        run: python tools/publish/check_build_env.py
       - name: Unit tests that need no game files
         run: |
           python tools/rom-pipeline/test_manifest_v4_pure.py
+          python tools/publish/test_scan_prohibited.py
       - name: The Installation Terms (the Help chapter, the installer's and the release's copies are the one maintained source's)
         run: python tools/publish/legal_terms.py --check
       - name: The browser game player (W1) from this commit, with the pinned zig (version, URL and SHA-256 from toolchain.lock.json; FCEUmm is vendored)
@@ -44,7 +47,9 @@ jobs:
       - name: Attach the latest companion release information for the download section
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python tools/publish/release_notes.py --write-release-json build/site/release.json
+        run: |
+          python tools/publish/release_notes.py --include-prereleases --write-release-json build/site/release.json
+          python tools/publish/release_notes.py --include-prereleases --write-workbench-json build/site/workbench-release.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/site

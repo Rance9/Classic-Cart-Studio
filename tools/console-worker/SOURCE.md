@@ -6,7 +6,7 @@
 |---|---|---|
 | Hakchi2 CE | https://github.com/TeamShinkansen/Hakchi2-CE | tag `v3.9.3`, commit `25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc` (GPL-3.0) |
 | SSH.NET (TeamShinkansen fork) | Hakchi2 CE submodule `Libraries/SSH.NET` | commit `32181aeb4ce69e8f07e5e1d585fd592a44017bc1` (MIT) |
-| LibUsbDotNet | NuGet `LibUsbDotNet` 2.2.29 (`lib/net45/LibUsbDotNet.LibUsbDotNet.dll`) | SHA-256 `b6de87ff6fdde6d0a245ef37fe81fac49523c35115c61bc002e4935d99875508`, byte-identical to the copy Hakchi2 CE 3.9.3 embeds (LGPL-3.0); its source is Hakchi2 CE submodule `Libraries/LibUsbDotNet`, commit `91e84390acd83ded475798488740961da9e3307c` |
+| LibUsbDotNet | NuGet `LibUsbDotNet` 2.2.29 (`lib/net45/LibUsbDotNet.LibUsbDotNet.dll`) | SHA-256 `b6de87ff6fdde6d0a245ef37fe81fac49523c35115c61bc002e4935d99875508`, the same NuGet package Hakchi2 CE 3.9.3 uses. Its source is https://github.com/LibUsbDotNet/LibUsbDotNet at commit `5dd91a2fda393cf11db2072f2b45c3aee2750388` (tree `f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a`), the commit the package names; each release attaches an archive of it (`LibUsbDotNet-2.2.29-source-5dd91a2.tar`). Its repository's `LICENSE` is the LGPL-3.0; its source files state the GPL 2.0 or later. Hakchi2 CE's submodule `Libraries/LibUsbDotNet` (TeamShinkansen fork, `91e84390acd83ded475798488740961da9e3307c`) is a different line, not the DLL's source; `console-worker-source.zip` keeps its files as Hakchi2 CE's copy |
 
 Get the pinned tree with `get-hakchi-source.ps1 -Dest <new folder>`: it clones tag `v3.9.3` with its eight submodules at the commits
 the tag records and verifies every commit and, byte for byte, every upstream file listed in `hakchi-inputs.sha256` (what the worker
@@ -24,8 +24,13 @@ are in `console-worker-source.zip`, which accompanies every Classic Cart Studio 
 | `CcsWorker/Ops/ConsoleOps.cs` (`Identify`, `Version`) | `hakchi.cs` (`Shell_OnConnected`, `ConvertVersion`, `SystemRequiresReflash`, `SystemRequiresRootfsUpdate`) | The same commands in the same order, the same minimum versions and CanInteract rule; the running kernel from `/proc/sys/kernel/osrelease` (the stock BusyBox has no `uname`). |
 | `Renci.SshNet/Renci.SshNet.csproj` | `Libraries/SSH.NET/src/Renci.SshNet/Renci.SshNet.csproj` | The same Compile list and Release `DefineConstants`, in an SDK-style net48 project that compiles the pinned files in place. No source file is copied or changed. |
 
-Everything else (`Gate.cs`, `RealTransports.cs`, `IBulkPipe.cs`, `ConsolePath.cs`, the other operations, `Hmod.cs`, `WorkerServer.cs`,
+Everything else (`Gate.cs`, `RealTransports.cs`, `IBulkPipe.cs`, `ConsolePath.cs`, the other operations, `WorkerServer.cs`,
 the program and the tests) is new: Copyright (C) 2026 Rance9, GPL-3.0-or-later.
+
+The worker also links Classic Cart Studio's console backup engine, `CcsBackup.dll` (`tools/console-backup`: the backup prerequisite
+every write command needs, the same implementation Console Backup & Restore uses), and `CcsConsole.dll` (`tools/console-loader`, which
+the engine references). The engine compiles the four `CcsWorker/Shell` files above in place (one copy for both programs). Its own
+derived parts are listed in `tools/console-backup/NOTICE`; in this build it carries no recovery images.
 
 ## Build
 
@@ -33,10 +38,11 @@ the program and the tests) is new: Copyright (C) 2026 Rance9, GPL-3.0-or-later.
 
 It verifies the tree, builds the worker and its tests (Release, the .NET SDK in `global.json`), runs the offline tests, builds the
 worker again in a second folder and requires the same bytes, then writes the release folder: `ccs-console-worker.exe`,
-`ccs-console-worker.exe.config`, `CcsWorker.dll`, `Renci.SshNet.dll`, `LibUsbDotNet.LibUsbDotNet.dll`, `NOTICE`, this file, `licenses/`,
+`ccs-console-worker.exe.config`, `CcsWorker.dll`, `CcsBackup.dll`, `CcsConsole.dll`, `Renci.SshNet.dll`, `LibUsbDotNet.LibUsbDotNet.dll`,
+`NOTICE`, this file, `licenses/`,
 `BUILD-INFO.json` (every shipped file with its size and SHA-256, the upstream commits and the toolchain) and
 `console-worker-source.zip`. Release builds have no debug information and do not record the git checkout they were built in, so the
 same source gives the same bytes in any folder; each release's `BUILD-INFO.json` names its files' SHA-256.
 
-Distribution with the program: `console-worker-source.zip` (this folder's source and the upstream files), `NOTICE`, `licenses/` (GPL-3.0, SSH.NET's MIT notice, LibUsbDotNet's LGPL notice) and
+Distribution with the program: `console-worker-source.zip` (this folder's source, the engine's and loader's source folders and the upstream files), `NOTICE`, `licenses/` (GPL-3.0, SSH.NET's MIT notice, LibUsbDotNet's LGPL notice) and
 this file. Nothing proprietary is in the source or the build: no Nintendo files, firmware, root filesystem, NAND image, ROM or BIOS.

@@ -1,0 +1,11 @@
+#!/bin/sh
+# CCS Mod for Hakchi: the optional start of CCS HOME, written only when the owner turns it on (ccs-mod autostart on) and removed when it
+# is turned off. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# hakchi's rcS runs the start scripts in name order: this one runs after the S80 scripts (the controllers' and graphics drivers) and
+# before the console's own menu start, S81clover-mcp, which it never replaces or changes. It returns when CCS HOME is left, and the
+# console's start then continues exactly as it would without it (S81clover-mcp, or whatever start the owner already had there).
+# Later menu restarts (hakchi's uistart, after a game or a menu switch) run S81clover-mcp only, never this script.
+case "$1" in
+  start) sh "${CCS_ROOT:-}/var/lib/hakchi/rootfs/bin/ccs-mod" autostart-run >/dev/null 2>&1; exit 0 ;;
+  *) exit 0 ;;
+esac

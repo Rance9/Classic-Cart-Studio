@@ -124,7 +124,7 @@ async function tpWebLaunch(id){
  if(res&&res.error&&res.code==='no_rom'){ tpNeedRom(g); return; }
  if(res&&res.error) tpNotice(res.code==='busy'||res.code==='read'?g.title+' did not start':'The game stopped', res.error); else if(res&&res.writes_failed) tpNotice('A save was not written', res.writes_failed);
  if(TP.closeAfter){ TP.closeAfter=false; tpReallyClose(); return; }
- tvDraw(true); tpStage().focus({preventScroll:true}); }
+ tvDraw(true); (TP.pop&&!TP.pop.closed?TP.popStage:tpStage()).focus({preventScroll:true}); }   // focus where the game was: the pop-out's HOME when it played there
 function tpNotice(title, sub){ const st=TP.pop&&!TP.pop.closed?TP.popStage:tpStage(); let m=st.querySelector('.tpnote'); if(!m){ m=st.ownerDocument.createElement('div'); m.className='tpload tpnote'; m.setAttribute('role','alert'); st.appendChild(m); }
  m.innerHTML=`<div class="tpbox"><b>${esc(title)}</b>${sub?`<span>${esc(sub)}</span>`:''}<div class="tpacts"><button type="button" class="btn sm hk" data-tp="ok">OK</button></div></div>`;
  const b=m.querySelector('[data-tp=ok]'); b.onclick=e=>{ e.stopPropagation(); m.remove(); tpStage().focus({preventScroll:true}); }; b.focus({preventScroll:true}); }
@@ -197,14 +197,25 @@ function tpMenus(){ const m=$('tv'); if(!m||m.dataset.tpmenus) return; m.dataset
 // focused. Any connected controller moves through the HOME, as on the console: one with the standard layout or a known or saved setup
 // fully, one with no setup by its D-pad and stick only. Each press is one HOME press; directions repeat as the keyboard's do
 // the controller setups saved in this browser, read again (a setup made in a game's own menu counts here after it closes)
+// the HOME moves one way at a time: a stick pushed slightly off its axis counts only along its stronger axis (D-pad diagonals and the
+// game's own input are unchanged)
+function tpStickOneAxis(p, act){ let x=0, y=0, dpad=false;
+ if(p.kind===1&&p.gp){ x=p.gp.axes[0]||0; y=p.gp.axes[1]||0; const b=i=>!!(p.gp.buttons[i]&&(p.gp.buttons[i].pressed||p.gp.buttons[i].value>0.5)); dpad=b(12)||b(13)||b(14)||b(15); }
+ else if(p.raw){ x=(p.raw.axis[0]||0)/1000; y=(p.raw.axis[1]||0)/1000; dpad=p.raw.pov>=0&&p.raw.pov<36000; }
+ if(dpad||Math.abs(x)<=0.5||Math.abs(y)<=0.5) return act; if(Math.abs(x)>=Math.abs(y)){ act.up=false; act.down=false; } else { act.left=false; act.right=false; } return act; }
 function tpPadMaps(){ if(typeof cpPadMapsLoad==='function') cpPadMapsLoad(); }
-function tpPadLoop(){ if(TP.padRaf) return; let held=new Set(); tpPadMaps(); TP.padTold=new Set();
+// Each time the HOME takes the controllers back (a game ended, a menu or covering window closed, the window got focus again) what is held
+// then settles: it counts only after it is released, as on the console. The A or START that chose Exit in a game's menu is often still
+// down when the HOME returns; it must not start the highlighted game (the one just left) again.
+function tpPadLoop(){ if(TP.padRaf) return; let held=new Set(), owned=false; tpPadMaps(); TP.padTold=new Set();
  const tick=()=>{ TP.padRaf=0; if(!TV.open||TP.app) { held.clear(); return; }
   const win=TP.pop&&!TP.pop.closed?TP.pop:window, ok=!TP.webGame&&!TP.menuOpen&&win.document.hasFocus()&&!win.document.hidden&&!tpCovered();
   let now=new Set();
-  if(ok&&typeof cpPads==='function'){ for(const p of cpPads(win)){ const act=cpPadActs(p); for(const a of CP_ACT) if(act[a]) now.add(a);
+  if(ok&&typeof cpPads==='function'){ for(const p of cpPads(win)){ const act=tpStickOneAxis(p, Object.assign({}, cpPadActs(p))); for(const a of CP_ACT) if(act[a]) now.add(a);
     // F17 (D-99): a controller with no known layout and no setup moves with its D-pad; its buttons are not guessed: the first press says how to set it up
     if(p.kind===2&&!p.configured&&p.raw.btn.some(Boolean)&&!TP.padTold.has(p.key)){ TP.padTold.add(p.key); tpNotice('This controller needs a one-time setup', 'Its D-pad already works here. Its buttons are not guessed: start any game and press one of them, and the player walks you through setting it up. After that it works here too.'); } } }
+  if(ok&&!owned){ owned=true; held=now; TP.padRaf=(win.requestAnimationFrame||requestAnimationFrame)(tick); return; }   // input just came back: settle
+  if(!ok) owned=false;
   const note=(TP.pop&&!TP.pop.closed?TP.popStage:tpStage()).querySelector('.tpnote [data-tp=ok]');   // a notice over the picture owns the controller: A or B is its OK
   if(note){ if(TV.held) tvReleaseAll(); for(const a of now) if(!held.has(a)&&(a==='a'||a==='b')) note.click(); }
   else { for(const a of now) if(!held.has(a)) tvPress(a);

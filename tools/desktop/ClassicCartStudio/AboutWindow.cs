@@ -14,7 +14,8 @@ namespace ClassicCartStudio
             var stack = new StackPanel();
             var head = new Grid(); head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); head.ColumnDefinitions.Add(new ColumnDefinition());
             var icon = new Image { Width = 56, Height = 56, Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Top };
-            try { icon.Source = new BitmapImage(new System.Uri("pack://application:,,,/app.ico")); RenderOptions.SetBitmapScalingMode(icon, BitmapScalingMode.HighQuality); } catch { }
+            try { icon.Source = App.IconFrame(56, VisualTreeHelper.GetDpi(owner).DpiScaleX); RenderOptions.SetBitmapScalingMode(icon, BitmapScalingMode.HighQuality); } catch { }   // the frame that fits (App.IconFrame)
+            Loaded += (s, e) => { try { icon.Source = App.IconFrame(56, VisualTreeHelper.GetDpi(this).DpiScaleX); } catch { } };
             head.Children.Add(icon);
             var titles = new StackPanel(); Grid.SetColumn(titles, 1);
             var t = new TextBlock { Style = (Style)Application.Current.FindResource("T.Title"), Margin = new Thickness(0, 2, 0, 0) };
@@ -22,18 +23,19 @@ namespace ClassicCartStudio
             t.Inlines.Add(new System.Windows.Documents.Run("Studio") { Foreground = (Brush)Application.Current.FindResource("B.Red3") });
             titles.Children.Add(t);
             titles.Children.Add(Text("for Windows · version " + App.Version, "T.Muted", 13, new Thickness(0, 2, 0, 0)));
+            titles.Children.Add(Text("By Rance9 · Published by Rance9 LLC", "T.Muted", 12, new Thickness(0, 2, 0, 0)));
             head.Children.Add(titles);
             stack.Children.Add(head);
-            stack.Children.Add(Text("An independent game collection manager for the NES Classic Edition. Everything it needs, including the Game Library and its artwork, is installed on this computer, so it works without an internet connection (sharing links needs one).", null, 13, new Thickness(0, 16, 0, 0)));
+            stack.Children.Add(Text("An independent game collection manager for the NES Classic Edition. Everything it needs, including the Game Library and its artwork, is installed on this computer, so it works without an internet connection (it checks for updates when it can) (sharing links needs one).", null, 13, new Thickness(0, 16, 0, 0)));
 
             var links = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
             links.Children.Add(Row("Website", Link("ClassicCartStudio.com", "https://ClassicCartStudio.com/")));
             links.Children.Add(Row("Download", Link("ClassicCartStudio.com/app", App.UpdateUrl)));
-            links.Children.Add(Row("Source code", Link("github.com/Rance9/Classic-Cart-Studio", App.RepoUrl)));
-            links.Children.Add(Row("License", Link("GPL-3.0 · open-source credits and licenses", App.RepoUrl + "/blob/main/THIRD_PARTY_NOTICES.md")));
+            links.Children.Add(Row("Source code", Link("ClassicCartStudio.com/source", "https://classiccartstudio.com/source/")));
+            links.Children.Add(Row("License", Link("GPL-3.0 · open-source credits and licenses", "https://classiccartstudio.com/source/")));
             stack.Children.Add(links);
 
-            stack.Children.Add(Text("Classic Cart Studio is an independent, open-source project and is not produced, licensed, sponsored, approved, or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. No game files or console software are distributed with this software.", "T.Muted", 11.5, new Thickness(0, 16, 0, 0)));
+            stack.Children.Add(Text("Classic Cart Studio is an independent, open-source project and is not produced, licensed, sponsored, approved, or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo. Apart from its Included Games, which their authors share under their own licenses, no game files or console software are distributed with this software.", "T.Muted", 11.5, new Thickness(0, 16, 0, 0)));
 
             var acts = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 18, 0, 0) };
             acts.Children.Add(Btn("All Releases", "Btn.Ghost", (s, e) => App.OpenExternal(App.RepoUrl + "/releases")));

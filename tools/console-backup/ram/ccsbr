@@ -1,0 +1,163 @@
+#!/bin/sh
+# ccsbr: Classic Cart Studio console backup and restore helper. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# It runs in the NES Classic's RAM, inside the Classic Cart Studio recovery image (tools/console-backup/ram/build_images.py), and is
+# the only thing the Windows engine (tools/console-backup/CcsBackup, RecoveryConsole) asks the console to do. The verbs are fixed; the
+# PC never sends a path, a device or shell text, only a verb and a target name from the list below.
+#
+#   identify             the console's identity, storage layout and state, as key=value lines
+#   read TARGET          TARGET's bytes on stdout; afterwards "sum TARGET" gives the console's own MD5, byte count and exit statuses
+#   sum TARGET           "<md5> <bytes> <source status> <tee status>" for the last read or digest of TARGET
+#   digest TARGET        reads TARGET again on the console without sending it (MD5 and byte count: a readback check)
+#   card NAME            shows one of the image's status pictures on the TV
+#   finish               restarts the console into its normal start after a short delay (nothing is written)
+#   write TARGET SIZE MD5    (restore image only) SIZE bytes from stdin onto TARGET, then a readback; see the write section
+#
+# The image's profile (CCS/profile) is "backup" or "restore". The backup image's copy of this file is built WITHOUT the write section
+# (everything between the write markers is removed by the builder), so the backup image contains no code that writes the console's
+# storage. Paths come from CCS/env, CCS being the folder above this script (/ccs on the console; a disposable folder in the tests, whose
+# own env names plain files as its devices: DEVKIND=file there, DEVKIND=block in every image).
+CCS=$(cd "$(dirname "$0")/.." && pwd)
+. "$CCS/env" || exit 90
+PROFILE=$(cat "$CCS/profile" 2>/dev/null)
+mkdir -p "$ST" || exit 91
+
+TARGETS="boot0 boot1 boot2 boot2-68 nand nanda nandb nandc nandd nande phy parttable"
+valid_target(){ for x in $TARGETS; do [ "$x" = "$1" ] && return 0; done; return 1; }
+
+# the fixed source of each target (read only): the pinned flash tool's boot-area reads, the NAND driver's logical partitions, the
+# physical image (reference only) and the partition table as the flash tool prints it
+src(){
+  case "$1" in
+    boot0) sunxi-flash read_boot0 ;;
+    boot1) sunxi-flash read_boot1 ;;
+    boot2) sunxi-flash read_boot2 ;;
+    boot2-68) sunxi-flash read_boot2 68 ;;
+    nand|nanda|nandb|nandc|nandd|nande)
+      if [ -n "$RANGE_COUNT" ]; then dd "if=$DEV/$1" bs=4096 "skip=$RANGE_SKIP" "count=$RANGE_COUNT" 2>/dev/null
+      else dd "if=$DEV/$1" bs=131072 2>/dev/null; fi ;;
+    phy) sntool sunxi_flash phy_read 0 ;;
+    parttable) sunxi-part ;;
+    *) return 2 ;;
+  esac
+}
+
+# runs the source once: its bytes go to stdout when $2 is "send" (else nowhere) and, through two pipes, to md5sum and wc on the console
+pass(){
+  t=$1
+  rm -f "$ST/$t.sum" "$ST/$t.rc" "$ST/$t.md5" "$ST/$t.n" "$ST/p1" "$ST/p2"
+  mkfifo "$ST/p1" "$ST/p2" || return 3
+  md5sum < "$ST/p1" > "$ST/$t.md5" & m=$!
+  wc -c < "$ST/p2" > "$ST/$t.n" & w=$!
+  if [ "$2" = send ]; then { src "$t"; echo $? > "$ST/$t.rc"; } | tee "$ST/p1" "$ST/p2"; trc=$?
+  else { src "$t"; echo $? > "$ST/$t.rc"; } | tee "$ST/p1" "$ST/p2" > /dev/null; trc=$?; fi
+  wait $m; wait $w
+  rm -f "$ST/p1" "$ST/p2"
+  rc=$(cat "$ST/$t.rc" 2>/dev/null); [ -n "$rc" ] || rc=99
+  md5=$(cut -d' ' -f1 "$ST/$t.md5" 2>/dev/null); n=$(tr -d ' \n' < "$ST/$t.n" 2>/dev/null)
+  echo "${md5:-none} ${n:-0} $rc $trc" > "$ST/$t.sum"
+  [ "$rc" = 0 ] && [ "$trc" = 0 ]
+}
+
+kv(){ printf '%s=%s\n' "$1" "$2"; }
+
+identify(){
+  kv ccsbr 1
+  kv image "$(cat "$CCS/image-id" 2>/dev/null)"
+  kv profile "$PROFILE"
+  kv kernel "$(uname -r)"
+  kv hwid "$(sntool devmem 0x01c23800 32 | hexdump -e '1/4 "%.8x "' -n16 | xargs)"
+  kv nandinfo "$(sunxi-flash nandinfo 2>/dev/null | xargs)"
+  kv partitions "$(awk 'NR>2 && $4 ~ /^nand/ {printf "%s:%s,", $4, $3}' "$PARTS")"
+  # the partition table as the pinned flash tool prints it (device:label:512-byte blocks), read only
+  kv parttable "$(sunxi-part 2>/dev/null | grep -oE '(mbr|nand[a-z]):[A-Za-z0-9_-]*:[0-9]+' | xargs)"
+  kv board "$(cat "$NEWROOT/etc/clover/boardtype" 2>/dev/null)"
+  kv region "$(cat "$NEWROOT/etc/clover/REGION" 2>/dev/null)"
+  kv oem_version "$(sed -n 's/^VERSION=//p' "$NEWROOT/etc/clover/VERSION" 2>/dev/null)"
+  kv system_mounted "$(awk -v r="$NEWROOT" '$2 == r {print $1 ":" $3 ":" $4}' "$MOUNTS")"
+  # every mount of a storage device other than the read-only system mapping: must be empty (the console's storage is not mounted)
+  kv storage_mounts "$(awk -v r="$NEWROOT" '($1 ~ /nand|mmc|\/dev\/sd/) && $2 != r {printf "%s:%s:%s;", $1, $2, $4}' "$MOUNTS")"
+  kv readonly "$(for d in nand nanda nandb nandc nandd nande; do [ -b "$DEV/$d" ] && printf '%s:%s,' "$d" "$(blockdev --getro "$DEV/$d" 2>/dev/null)"; done)"
+  if sunxi-flash read_boot2 > "$ST/active.img" 2>/dev/null; then
+    kv active_md5 "$(md5sum < "$ST/active.img" | cut -d' ' -f1)"; kv active_size "$(wc -c < "$ST/active.img" | tr -d ' ')"
+  else kv active_md5 none; fi
+  rm -f "$ST/active.img"
+  kv active_hakchi_entries "$(sunxi-flash ramdisk 2>/dev/null | cpio -t 2>/dev/null | grep -cF hakchi)"
+  if sunxi-flash read_boot2 68 > "$ST/slot68.img" 2>/dev/null; then
+    kv slot68 valid; kv slot68_md5 "$(md5sum < "$ST/slot68.img" | cut -d' ' -f1)"; kv slot68_size "$(wc -c < "$ST/slot68.img" | tr -d ' ')"
+  else kv slot68 absent; fi
+  rm -f "$ST/slot68.img"
+  kv usb_role "$(cat "$SYSFS/devices/sunxi_usb/usb_role" 2>/dev/null)"
+  kv end 1
+}
+
+card(){
+  case "$1" in *[!a-z0-9-]*|"") return 2;; esac
+  [ -f "$CCS/cards/$1.png" ] || return 2
+  decodepng "$CCS/cards/$1.png" > "$FB" 2>/dev/null &
+  return 0
+}
+
+case "$1" in
+  identify) identify ;;
+  read) valid_target "$2" || { echo "ccsbr: unknown target" >&2; exit 2; }; pass "$2" send ;;
+  range)
+    # Console Browser: part of one logical storage part (nanda..nande), read only: OFFSET and LENGTH in bytes, multiples of 4096, at most
+    # 16,777,216 bytes; checked end to end like a whole read (its MD5 and count in "sum TARGET")
+    case "$2" in nanda|nandb|nandc|nandd|nande) ;; *) echo "ccsbr: unknown target" >&2; exit 2;; esac
+    case "$3$4" in ''|*[!0-9]*) echo "ccsbr: bad range" >&2; exit 2;; esac
+    [ $(($3 % 4096)) = 0 ] && [ $(($4 % 4096)) = 0 ] && [ "$4" -gt 0 ] && [ "$4" -le 16777216 ] || { echo "ccsbr: bad range" >&2; exit 2; }
+    RANGE_SKIP=$(($3 / 4096)); RANGE_COUNT=$(($4 / 4096)); pass "$2" send ;;
+  digest) valid_target "$2" || { echo "ccsbr: unknown target" >&2; exit 2; }; pass "$2" quiet; cat "$ST/$2.sum" ;;
+  sum) valid_target "$2" || exit 2; cat "$ST/$2.sum" ;;
+  card) card "$2" ;;
+  finish) card restarting; ( sleep 3; sync; reboot -f ) >/dev/null 2>&1 & echo restarting ;;
+#<write>
+  write)
+    # restore image only. TARGET is one of the restore targets; SIZE is the exact byte count expected on stdin and MD5 its digest. Small
+    # targets (the boot images and every partition except nandc) are received into RAM and checked before anything is written. nandc
+    # (about 394 MiB, more than the console's free RAM) is written as it arrives, exactly as Hakchi2 CE's own "Flash user data
+    # partition" does; its received digest and a full readback are compared afterwards. Every write is followed by a readback of the
+    # target from storage. There is no second attempt: a failed check stops with a report, and the PC stops every later write.
+    [ "$PROFILE" = restore ] || { echo "ccsbr: this image cannot write" >&2; exit 13; }
+    t=$2; size=$3; want=$4
+    case "$t" in boot2|boot2-68|nanda|nandb|nandc|nandd|nande) ;; *) echo "result $t refused not-a-restore-target"; exit 14;; esac
+    case "$size" in ''|*[!0-9]*) echo "result $t refused size"; exit 14;; esac
+    case "$want" in [0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;; *) echo "result $t refused md5"; exit 14;; esac
+    stage="$ST/stage.img"; rm -f "$stage"
+    if [ "$t" != nandc ]; then
+      [ "$size" -le 33554432 ] || { echo "result $t refused too-large-to-stage"; exit 14; }
+      head -c "$size" > "$stage"
+      got=$(md5sum < "$stage" | cut -d' ' -f1); n=$(wc -c < "$stage" | tr -d ' ')
+      [ "$n" = "$size" ] && [ "$got" = "$want" ] || { rm -f "$stage"; echo "result $t refused received-mismatch $got $n"; exit 15; }
+    fi
+    case "$t" in
+      boot2|boot2-68)
+        off=30; [ "$t" = boot2-68 ] && off=68
+        sntool check "$stage" > /dev/null && sntool check -f "$stage" > /dev/null || { rm -f "$stage"; echo "result $t refused invalid-boot-image"; exit 16; }
+        echo "began $t"
+        dd status=none bs=128K "if=$stage" | sunxi-flash burn_boot2 "$off"; brc=$?
+        rm -f "$stage"
+        back=$(sunxi-flash read_boot2 "$off" 2>/dev/null | md5sum | cut -d' ' -f1)
+        [ "$brc" = 0 ] && [ "$back" = "$want" ] && { echo "result $t ok $back $size"; exit 0; }
+        echo "result $t failed readback $back burn=$brc"; exit 17 ;;
+      *)
+        dev="$DEV/$t"
+        [ -b "$dev" ] || { [ "$DEVKIND" = file ] && [ -f "$dev" ]; } || { rm -f "$stage"; echo "result $t refused no-device"; exit 16; }
+        blockdev --setrw "$dev" 2>/dev/null
+        echo "began $t"
+        if [ "$t" = nandc ]; then
+          rm -f "$ST/w1"; mkfifo "$ST/w1"; md5sum < "$ST/w1" > "$ST/w.md5" & m=$!
+          head -c "$size" | tee "$ST/w1" | dd "of=$dev" bs=131072 conv=fsync 2>/dev/null; wrc=$?
+          wait $m; rm -f "$ST/w1"; got=$(cut -d' ' -f1 "$ST/w.md5")
+        else
+          dd "if=$stage" "of=$dev" bs=131072 conv=fsync 2>/dev/null; wrc=$?; got=$want; rm -f "$stage"
+        fi
+        sync; blockdev --flushbufs "$dev" 2>/dev/null; echo 3 > "$PROCSYS/vm/drop_caches" 2>/dev/null
+        blockdev --setro "$dev" 2>/dev/null
+        back=$(dd "if=$dev" bs=131072 2>/dev/null | head -c "$size" | md5sum | cut -d' ' -f1)
+        [ "$wrc" = 0 ] && [ "$got" = "$want" ] && [ "$back" = "$want" ] && { echo "result $t ok $back $size"; exit 0; }
+        echo "result $t failed readback $back received=$got write=$wrc"; exit 17 ;;
+    esac ;;
+#</write>
+  *) echo "ccsbr: unknown verb" >&2; exit 2 ;;
+esac

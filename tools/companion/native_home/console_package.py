@@ -10,24 +10,32 @@ The package (one folder, every file listed with its size and SHA-256 in MANIFEST
   fonts/         the player's menu fonts
   roms/          each game's exact ROM file, named by its content SHA-256 (the bytes after any iNES header): a game whose file is missing or
                  is another version is in the package as unavailable (the HOME says so; nothing is substituted)
-  startup/       the five startup images and startup.json: Random (the default) or one fixed image, independent of the HOME theme
+  startup/       the five startup images and startup.json: Random (the default) or one fixed image, independent of the HOME theme; when the
+                 collection's own picture is the choice (D-174), it too (startup-custom-<16 hex>.jpg, listed first)
   config/        player-settings.json (the picture: TV proportions), controller-map.txt (the console controllers' codes)
   session.json   the player's session for this package's place on the console (layout): where it reads and where it writes
+  licenses/      NOTICE.txt (each part of the package, its terms and its exact source) and the license texts those parts require, made
+                 from Classic Cart Studio's records by notices.py; a file no part covers stops the build
 Layouts: ram-test (K2: the package is inside the RAM image, everything written goes to /tmp/ccs, nothing persistent) and install (K3,
 prepared only: the package in its own folder under /var/lib/ccs/pkg, which the start-up links in RAM as /tmp/ccs/pkg at each start (the paths in
 session.json), saves and settings under /var/lib/ccs/data; the console's own games, saves and Nintendo's
-HOME keep their places). Saves stay on the console: the package never carries saves or Game Settings from this computer.
+HOME keep their places). mod and nucleus: the install layout's places for CCS Mod and CCS Nucleus (tools/console-nucleus), whose HOME's
+leave item goes back to the console's own menu (mod) or to the start chooser (nucleus); derive_layout gives a built package the other one
+(the two differ only in session.json and MANIFEST.json). Saves stay on the console: the package never carries saves or Game Settings from
+this computer.
 Copyright (C) 2026 Rance9, GPL-3.0-or-later."""
 from __future__ import annotations
-import argparse, hashlib, json, os, re, shutil, sys, tempfile, time
+import argparse, hashlib, io, json, os, re, shutil, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.normpath(os.path.join(HERE, "..", ".."))
 for _p in (os.path.dirname(HERE), os.path.join(TOOLS, "rom-pipeline")):
     if _p not in sys.path: sys.path.insert(0, _p)
 from common import FROZEN, BUNDLE, site_path, WORK   # noqa: E402
+import startup_picture   # noqa: E402
 
 SCHEMA = "ccs-console-package/1"; STARTUP_SCHEMA = "ccs-startup/1"
 STARTUP_IDS = ("forgotten-keep", "galactic-frontier", "kingdoms-beyond", "neon-highway", "pixel-worlds")
 MIN_VISIBLE_MS = 5000
+CUSTOM_RE = re.compile(r"^custom-[0-9a-f]{16}$")   # the collection's own picture (its checks: tools/companion/startup_picture.py)
 CONTROLLER_MAP = """# The NES Classic's controllers (clovercon), as Linux input codes. Written by Classic Cart Studio; a RAM test confirms them on the console.
 device Nintendo Clovercon - controller1
 device Nintendo Clovercon - controller2
@@ -47,6 +55,13 @@ LAYOUTS = {
     "install": {"pkg": "/tmp/ccs/pkg", "data": "/var/lib/ccs/data", "scratch": "/tmp/ccs/scratch", "logs": "/tmp/ccs/logs",
                 "leave": {"label": "Switch to Nintendo HOME", "sub": "Its games and saves are kept; this HOME returns at the next start", "title": "Switch to Nintendo's HOME?",
                           "text": "Nintendo's original HOME opens with its own games and saves. Classic Cart Studio's HOME comes back the next time the console is turned on."}},
+    # the two install methods (tools/console-nucleus/DESIGN.md): the same places as "install"; leaving says where it goes back to
+    "mod": {"pkg": "/tmp/ccs/pkg", "data": "/var/lib/ccs/data", "scratch": "/tmp/ccs/scratch", "logs": "/tmp/ccs/logs",
+            "leave": {"label": "Return to Your Console's Menu", "sub": "", "title": "Return to your console's menu?",
+                      "text": "Your console's own menu opens with its own games and saves. Open CCS HOME again from its CCS HOME entry there."}},
+    "nucleus": {"pkg": "/tmp/ccs/pkg", "data": "/var/lib/ccs/data", "scratch": "/tmp/ccs/scratch", "logs": "/tmp/ccs/logs",
+                "leave": {"label": "Choose Another System", "sub": "", "title": "Choose another system?",
+                          "text": "The chooser opens with your console's own menu, CCS HOME and your other systems. Your games and saves here are kept."}},
 }
 
 def _sha(b: bytes) -> str: return hashlib.sha256(b).hexdigest()
@@ -71,8 +86,27 @@ def startup_root() -> str:
     raise FileNotFoundError("the startup images (startup-images.json) were not found")
 
 def startup_choice(home: dict | None) -> str:
+    """Random, one of the five, or the collection's own picture (custom-<16 hex>; startup_custom checks it); anything else is Random"""
     v = (home or {}).get("startup_image") if isinstance(home, dict) else None
-    return v if isinstance(v, str) and v in STARTUP_IDS else "random"
+    return v if isinstance(v, str) and (v in STARTUP_IDS or CUSTOM_RE.match(v)) else "random"
+
+def startup_custom(home: dict | None) -> tuple[dict | None, bytes | None, str | None]:
+    """the collection's own startup picture when it is the choice: (its startup.json entry, the bytes to write, None), (None, None, None)
+    when another startup screen is chosen, or (None, None, reason) when it cannot be used"""
+    choice = startup_choice(home)
+    if not CUSTOM_RE.match(choice): return None, None, None
+    c = (home or {}).get("startup_custom")
+    if not isinstance(c, dict) or c.get("id") != choice: return None, None, "the collection does not describe the picture"
+    raw, why = startup_picture.check(c)   # the same rules as every backup the app writes (tools/companion/startup_picture.py)
+    if why: return None, None, why + (" (choose it again in HOME Settings)" if "not with the collection" in why else "")
+    sha = c["sha256"]
+    try:
+        from PIL import Image
+        px = Image.open(io.BytesIO(raw)).convert("RGB"); out = io.BytesIO()
+        Image.frombytes("RGB", px.size, px.tobytes()).save(out, "JPEG", quality=92, optimize=True)   # a new image from the pixels only: no EXIF, ICC profile or comment carries over
+    except Exception as e: return None, None, f"the picture could not be read ({type(e).__name__})"
+    b = out.getvalue(); name = re.sub(r"[\x00-\x1f]", " ", str(c.get("name") or "Your picture")).strip()[:80] or "Your picture"
+    return {"id": choice, "name": name, "file": f"startup-{choice}.jpg", "sha256": _sha(b), "source_sha256": sha}, b, None
 
 def startup_files() -> tuple[dict, dict[str, bytes]]:
     """the five derivatives, checked against their manifest (size and SHA-256); one that does not match stops the build"""
@@ -104,7 +138,7 @@ def default_rom_resolver(vid: str, title: str, ctx: dict) -> dict:
     return play.rom_for(vid, title, ctx)
 
 def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-test", rom_resolver=None, player: str | None = None,
-                  pack_root: str | None = None, label: str | None = None, pack_dir: str | None = None) -> dict:
+                  pack_root: str | None = None, label: str | None = None, pack_dir: str | None = None, created_utc: str | None = None) -> dict:
     """build the package into out (a new folder; refused when it exists). rom_resolver(id, title, ctx) -> {playable, rom, header_hex,
     content_sha256, reason, code} (default: the Studio's own, play.rom_for). pack_dir: a native HOME package of this same configuration
     built a moment ago (the Studio's Prepare HOME Menu), used as it is instead of building it again"""
@@ -129,9 +163,12 @@ def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-te
         for f in sorted(os.listdir(fd)):
             if f.endswith(".ccsf") and "-2x" not in f or f.startswith("OFL-"): st.put("fonts/" + f, open(os.path.join(fd, f), "rb").read(), "font")   # the console draws at 1x
         sman, sfiles = startup_files(); choice = startup_choice(home)
+        custom, cbytes, cwhy = startup_custom(home)
+        if cwhy: raise ValueError(f"The startup picture chosen for this collection cannot be used: {cwhy}. Choose it again in HOME Settings, or choose another startup screen.")
         for n, b in sfiles.items(): st.put("startup/" + n, b, "startup-image")
+        if custom: st.put("startup/" + custom["file"], cbytes, "startup-image")
         scfg = {"schema": STARTUP_SCHEMA, "choice": choice, "min_visible_ms": MIN_VISIBLE_MS,
-                "images": [{"id": i["id"], "name": i["name"], "file": i["file"], "sha256": i["sha256"]} for i in sman["images"]]}
+                "images": ([{k: custom[k] for k in ("id", "name", "file", "sha256")}] if custom else []) + [{"id": i["id"], "name": i["name"], "file": i["file"], "sha256": i["sha256"]} for i in sman["images"]]}
         st.put("startup/startup.json", (json.dumps(scfg, indent=1) + "\n").encode(), "configuration")
         st.put("config/player-settings.json", b'{"tv_aspect": true, "integer_scale": false}\n', "configuration")
         st.put("config/controller-map.txt", CONTROLLER_MAP.encode(), "configuration")
@@ -142,24 +179,26 @@ def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-te
             r = resolver(vid, title, ctx); g = {"id": vid, "title": title, "version_label": str(e.get("version_label") or "")[:200], "rom": "", "header_hex": "", "content_sha256": "", "unavailable": ""}
             if r.get("playable"):
                 b = open(r["rom"], "rb").read(); cs = content_sha256(b)
-                if cs != r.get("content_sha256"): r = {"playable": False, "code": "mismatched", "reason": "The ROM file changed since it was matched to this version, so it is not used (nothing is substituted)."}
+                if cs != r.get("content_sha256"): r = {"playable": False, "code": "mismatched", "reason": "The game file changed since it was matched to this version, so it is not used (nothing is substituted)."}
                 else:
                     rel = f"roms/{cs}.nes"
                     if rel not in st.files: st.put(rel, b, "rom")
                     g.update(rom=f"{L['pkg']}/{rel}", header_hex=r.get("header_hex") or "", content_sha256=cs)
-            if not r.get("playable"): g["unavailable"] = str(r.get("reason") or "The ROM file of this game is not in this package."); unavailable.append({"id": vid, "title": title, "code": r.get("code")})
+            if not r.get("playable"): g["unavailable"] = str(r.get("reason") or "The game file for this game is not in this package."); unavailable.append({"id": vid, "title": title, "code": r.get("code")})
             games.append(g)
         if not games: raise ValueError("this HOME has no games")
         mus = (json.load(open(os.path.join(pack, "pack.json"), encoding="utf-8")).get("music") or {}).get("file")
         sess = {"schema": "ccs-play-session/1", "mode": "home", "saves_root": f"{L['data']}/saves", "fonts_dir": f"{L['pkg']}/fonts", "scratch_dir": L["scratch"],
                 "result_path": f"{L['logs']}/result.json", "settings_path": f"{L['pkg']}/config/player-settings.json", "display_path": f"{L['data']}/state/player-display.json",
                 "game_settings_dir": f"{L['data']}/game-settings", "studio_pid": 0, "games": games, "direct_id": "",
-                "home": {"pack": f"{L['pkg']}/home", "state_dir": f"{L['data']}/state", "music": {"asset": f"{L['pkg']}/home/{mus}" if mus else "", "pref": f"{L['data']}/state/home-music.json"},
+                "home": {"pack": f"{L['pkg']}/home", "state_dir": f"{L['data']}/state", "design_root": f"{L['data']}/home-design", "music": {"asset": f"{L['pkg']}/home/{mus}" if mus else "", "pref": f"{L['data']}/state/home-music.json"},
                          "leave": L["leave"]}}
         st.put("session.json", (json.dumps(sess, indent=1, ensure_ascii=False) + "\n").encode("utf-8"), "configuration")
+        from native_home import notices as NT
+        NT.write(st, pg, label or (manifest.get("name") or "HOME"))   # the package's notices (licenses/), checked before the package is listed
         man = {"schema": SCHEMA, "label": label or (manifest.get("name") or "HOME"), "layout": layout, "console_paths": {k: L[k] for k in ("pkg", "data", "scratch", "logs")},
-               "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "games": len(games), "playable": len(games) - len(unavailable), "unavailable": unavailable,
-               "startup": {"choice": choice, "min_visible_ms": MIN_VISIBLE_MS}, "home_package": {"fingerprint": (res.get("manifest") or {}).get("configuration", {}).get("fingerprint"), "files": res.get("files")},
+               "created_utc": created_utc or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "games": len(games), "playable": len(games) - len(unavailable), "unavailable": unavailable,
+               "startup": {"choice": choice, "min_visible_ms": MIN_VISIBLE_MS, **({"custom": {"name": custom["name"], "sha256": custom["sha256"], "source_sha256": custom["source_sha256"]}} if custom else {})}, "home_package": {"fingerprint": (res.get("manifest") or {}).get("configuration", {}).get("fingerprint"), "files": res.get("files")},
                "player": {"file": "bin/ccs-player-armv7", "sha256": _sha(pb), "size": len(pb), "core": "fceumm ac0d00a7"},
                "sizes": {k: sum(f["size"] for f in st.files.values() if f["kind"] == k) for k in sorted({f["kind"] for f in st.files.values()})},
                "total_bytes": sum(f["size"] for f in st.files.values()), "files": dict(sorted(st.files.items()))}
@@ -174,8 +213,44 @@ def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-te
     finally:
         if tmp and not pack_root: shutil.rmtree(tmp, ignore_errors=True)
 
-def verify(out: str) -> dict:
-    """every file listed is there with its size and SHA-256, and nothing else is"""
+def derive_layout(src: str, out: str, layout: str) -> dict:
+    """the package in src (built by build_console) in another install method's layout whose console places are the same (mod and nucleus):
+    every file but session.json is the source's own (a hard link where the storage allows one, else a copy: the bytes are identical),
+    session.json gets that layout's leave item, and MANIFEST.json and SHA256SUMS are written for it exactly as build_console writes them.
+    Built into a new folder; the source is not changed"""
+    if layout not in LAYOUTS: return {"ok": False, "error": f"unknown layout {layout!r}"}
+    if os.path.exists(out): return {"ok": False, "error": f"{out} exists; a package is always built into a new folder"}
+    with open(os.path.join(src, "MANIFEST.json"), "rb") as f: man = json.loads(f.read())
+    A, L = LAYOUTS.get(man.get("layout")), LAYOUTS[layout]
+    if not A or any(A[k] != L[k] for k in ("pkg", "data", "scratch", "logs")): return {"ok": False, "error": f"the {man.get('layout')!r} package cannot be given the {layout!r} layout (its console places differ)"}
+    os.makedirs(out)
+    try:
+        files = {}
+        for rel, info in man["files"].items():
+            s = os.path.join(src, *rel.split("/")); d = os.path.join(out, *rel.split("/")); os.makedirs(os.path.dirname(d), exist_ok=True)
+            if rel == "session.json":
+                with open(s, "rb") as f: sess = json.loads(f.read())
+                sess["home"]["leave"] = L["leave"]
+                b = (json.dumps(sess, indent=1, ensure_ascii=False) + "\n").encode("utf-8")
+                with open(d, "wb") as f: f.write(b)
+                files[rel] = dict(info, size=len(b), sha256=_sha(b)); continue
+            try: os.link(s, d)
+            except OSError: shutil.copyfile(s, d)
+            files[rel] = dict(info)
+        man = dict(man, layout=layout, files=files)
+        man["sizes"] = {k: sum(f["size"] for f in files.values() if f["kind"] == k) for k in sorted({f["kind"] for f in files.values()})}; man["total_bytes"] = sum(f["size"] for f in files.values())
+        mb = (json.dumps(man, indent=1, ensure_ascii=False) + "\n").encode("utf-8")
+        with open(os.path.join(out, "MANIFEST.json"), "wb") as f: f.write(mb)
+        with open(os.path.join(out, "SHA256SUMS"), "w", newline="\n") as f:
+            for rel, info in sorted(files.items()): f.write(f"{info['sha256']}  {rel}\n")
+            f.write(f"{_sha(mb)}  MANIFEST.json\n")
+        return {"ok": True, "out": out, "manifest": man}
+    except Exception as e:
+        shutil.rmtree(out, ignore_errors=True); return {"ok": False, "error": str(e)}
+
+def verify(out: str, notices: bool = False) -> dict:
+    """every file listed is there with its size and SHA-256, and nothing else is; notices: also every part's notice and license
+    texts (notices.py; the release build and the app's staging ask for it)"""
     man = json.load(open(os.path.join(out, "MANIFEST.json"), encoding="utf-8")); bad = []; seen = set()
     for rel, info in man["files"].items():
         p = os.path.join(out, *rel.split("/")); seen.add(rel)
@@ -186,6 +261,9 @@ def verify(out: str) -> dict:
         for f in fs:
             rel = os.path.relpath(os.path.join(r, f), out).replace("\\", "/")
             if rel not in seen and rel not in ("MANIFEST.json", "SHA256SUMS"): bad.append(f"extra {rel}")
+    if notices and not bad:
+        from native_home import notices as NT
+        bad += NT.check_dir(out)
     return {"ok": not bad, "problems": bad, "files": len(man["files"])}
 
 def main():

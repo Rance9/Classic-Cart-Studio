@@ -42,7 +42,7 @@ def serve(folder):
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", free_port()), functools.partial(Q, directory=folder)); threading.Thread(target=srv.serve_forever, daemon=True).start(); return srv
 
 def main():
-    from test_loadouts_web import CCS_EXPORT_UI, page_file, page_bytes, net_take, net_report   # here: those modules import this one's neighbors
+    from studio_harness import CCS_EXPORT_UI, page_file, page_bytes, net_take, net_report   # here: those modules import this one's neighbors
     from test_ccs_v2_web import NET, ROMS
     ap = argparse.ArgumentParser(); ap.add_argument("site"); ap.add_argument("--shots", default=""); a = ap.parse_args()
     shots = a.shots or os.path.join(tempfile.gettempdir(), "ccs-web-shots"); os.makedirs(shots, exist_ok=True)
@@ -127,7 +127,7 @@ def main():
             st = json.loads(ed.js(f"(async()=>JSON.stringify(await ccsExportUi('{aid}', null)))()"))
             open(os.path.join(shots, "backup-dialog-roms-needed.png"), "wb").write(ed.screenshot())
             titles = json.loads(ed.js(f"JSON.stringify({json.dumps(pick[:3])}.map(i=>byId[i].display_title))"))
-            ok("backup_without_roms_lists_the_games_and_makes_nothing", st["exp"] and st["send"] and sorted(st["missing"]) == sorted(pick[:3]) and "3 of 3 games need their ROM file" in st["text"] and all(t in st["text"] for t in titles) and st["pick"] and not st.get("name"), st)
+            ok("backup_without_roms_lists_the_games_and_makes_nothing", st["exp"] and st["send"] and sorted(st["missing"]) == sorted(pick[:3]) and "3 of 3 games need their game file" in st["text"] and all(t in st["text"] for t in titles) and st["pick"] and not st.get("name"), st)
             ed.js("closeColl(); 1")
             ok("collection_without_roms_unchanged", sorted(json.loads(ed.js(f"JSON.stringify(CS.items['{aid}'].sel)"))) == sorted(pick[:3]) and ed.js("csActive().name") == "Alpha")
             # a collection of synthetic games with their ROM files: backed up as a complete .ccs file through Back Up Collection

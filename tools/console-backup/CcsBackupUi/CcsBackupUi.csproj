@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- CCS Console Workbench: the native window shared by the standalone CCS-Console-Workbench.exe and Classic Cart Studio for Windows.
+       It uses the Windows app's own theme (linked from tools/desktop; Workbench.xaml adds the Workbench's own parts) and wordmark.
+       GPL-3.0-or-later. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>CcsBackupUi</AssemblyName>
+    <RootNamespace>CcsBackup.Ui</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Product>CCS Console Workbench</Product>
+    <Company>Rance9 LLC</Company>
+    <Copyright>Copyright (C) 2026 Rance9. GPL-3.0-or-later.</Copyright>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CcsBackup\CcsBackup.csproj" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Page Include="..\..\desktop\ClassicCartStudio\Theme.xaml" Link="Theme.xaml" />
+    <Resource Include="..\..\publish\assets\brand-wordmark.png" Link="brand-wordmark.png" />
+    <Resource Include="..\..\publish\assets\app.ico" Link="app.ico" />
+    <EmbeddedResource Include="..\NOTICE" Link="NOTICE" LogicalName="NOTICE" />
+    <!-- Credits: Classic Cart Studio's approved Credits, read from its own Help (WorkbenchCredits.cs); never a second copy -->
+    <EmbeddedResource Include="..\..\rom-pipeline\studio\guide.html" Link="credits\guide.html" LogicalName="credits/guide.html" />
+    <!-- Help (WorkbenchHelp.cs): the guide and its pictures of the actual pages -->
+    <EmbeddedResource Include="Help\help.txt" LogicalName="help/help.txt" />
+    <Resource Include="Help\shots\*.png" />
+    <Resource Include="Help\shots\*.jpg" />
+    <!-- HOME Designer's starting-theme examples (WorkbenchThemeExamples.cs) -->
+    <Resource Include="theme-examples\*.jpg" />
+    <Resource Include="theme-examples\theme-examples.json" />
+    <None Include="theme-examples\*.py" />
+  </ItemGroup>
+</Project>

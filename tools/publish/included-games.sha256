@@ -1,0 +1,4 @@
+# The only game files the content gate accepts (scan_prohibited.py): SHA-256 and published path. Each is a game Classic Cart Studio includes under
+# its author's published license (site-data/included/index.json). Change this list only with that record and its review.
+3543ebf804f80abb19acfde4630a909a7485e2d69487900fd93b5698c412adc5  included/thwaite.nes
+6a43202f8b7793f78832c47b67ca3aeb12165140a1e38f0a5043855b2e3d53cd  included/croom.nes

@@ -1,29 +1,32 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Classic Cart Studio | Windows App</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex">
-<meta http-equiv="refresh" content="0; url=https://github.com/Rance9/Classic-Cart-Studio/releases/latest">
-<link rel="canonical" href="https://github.com/Rance9/Classic-Cart-Studio/releases/latest">
-<link rel="icon" href="../favicon.ico">
+<html lang="en"><head>
+<meta charset="utf-8"><title>Classic Cart Studio | Windows Downloads</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,follow">
+<meta name="description" content="Download the Windows previews of Classic Cart Studio and CCS Console Workbench.">
+<link rel="canonical" href="https://classiccartstudio.com/app/"><link rel="icon" href="../favicon.ico">
 <style>
-html{background:#131317;color:#e8e8ee;font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif}
-body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}
-main{max-width:520px;text-align:center}
-h1{font-size:20px;margin:0 0 8px}
-p{margin:6px 0;color:#b9b9c6}
-a{color:#ff5a63;font-weight:600}
-</style>
-<script>location.replace("https://github.com/Rance9/Classic-Cart-Studio/releases/latest");</script>
-</head>
-<body>
-<main>
-<img src="../icon-192.png" width="64" height="64" alt="" style="image-rendering:pixelated;margin-bottom:10px"><h1>Classic Cart Studio for Windows</h1>
-<p>Taking you to the latest release&hellip;</p>
-<p>If nothing happens, open <a href="https://github.com/Rance9/Classic-Cart-Studio/releases/latest">the latest Classic Cart Studio release on GitHub</a>.</p>
-<p><a href="https://ClassicCartStudio.com/">Back to the website</a></p>
-</main>
-</body>
-</html>
+html{background:#131317;color:#e8e8ee;font:16px/1.6 system-ui,Segoe UI,Arial,sans-serif}
+body{margin:0;padding:clamp(20px,5vw,64px);box-sizing:border-box}main{max-width:880px;margin:auto}
+header{display:flex;gap:18px;align-items:center;margin-bottom:24px}header img{width:64px;height:64px;image-rendering:pixelated}
+h1{font-size:clamp(24px,5vw,36px);line-height:1.25;margin:0}h2{font-size:22px;line-height:1.35;margin:0 0 10px}
+p{margin:10px 0;color:#c2c2cf}.notice{border-left:3px solid #ffd05e;padding:12px 16px;background:#232127;border-radius:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px;margin:24px 0}
+article{background:#1c1c23;border:1px solid #34343e;border-radius:12px;padding:24px;display:flex;flex-direction:column}
+a{color:#ff6974}a:focus-visible{outline:3px solid #63d9ee;outline-offset:5px}
+.button{display:inline-block;text-decoration:none;background:#e42035;color:white;border-radius:7px;padding:11px 18px;font-weight:650;align-self:flex-start;margin:12px 0 4px}
+.secondary{display:inline-block;margin:8px 0}.fine{font-size:14px}footer{padding-top:16px;border-top:1px solid #34343e}
+</style></head><body><main>
+<header><img src="../icon-192.png" width="64" height="64" alt=""><div><h1>Windows downloads</h1><p>Classic Cart Studio and CCS Console Workbench</p></div></header>
+<div class="notice"><strong>Development previews · unsigned</strong><p>These builds are available for PC and offline review. Console connections, console writes and USB driver actions are disabled. They have not been qualified on a real console. Windows may show a trust warning.</p></div>
+<div class="cards">
+<article><h2>Classic Cart Studio</h2><p>Organize and play your NES collection on Windows. Includes the Studio and the embedded Console Workbench.</p><p class="fine">Preview 0.11.0 · Windows 10/11 · installer</p>
+<a class="button" href="https://github.com/Rance9/Classic-Cart-Studio/releases/download/v0.11.0/ClassicCartStudio-Setup-0.11.0.exe">Download Classic Cart Studio</a>
+<a class="secondary fine" href="https://github.com/Rance9/Classic-Cart-Studio/releases/download/v0.11.0/SHA256SUMS.txt">Installer checksums</a></article>
+<article><h2>CCS Console Workbench</h2><p>The same Workbench engine in one Windows program, without an application installer. Browse, verify and export files from existing supported backups offline.</p><p class="fine">Preview 1.0.0 · shared engine 0.11.0 · Windows 10/11</p>
+<a class="button" href="https://github.com/Rance9/Classic-Cart-Studio/releases/download/workbench-v1.0.0/CCS-Console-Workbench-1.0.0.exe">Download Workbench for x64</a>
+<a class="secondary" href="https://github.com/Rance9/Classic-Cart-Studio/releases/download/workbench-v1.0.0/CCS-Console-Workbench-1.0.0-arm64.exe">Workbench for Windows on Arm</a><p class="fine">The Arm64 build has not been run on an Arm64 PC.</p>
+<a class="secondary fine" href="https://github.com/Rance9/Classic-Cart-Studio/releases/download/workbench-v1.0.0/SHA256SUMS.txt">Workbench checksums</a></article>
+</div>
+<p class="fine">Both previews retain the pinned Hakchi components. Exact corresponding source for some upstream binaries remains unresolved. The notices and source information distinguish the available source from those gaps; they do not claim that every component's source is available.</p>
+<footer><p><a href="/preview/">Back to the website</a> · <a href="../source/">Source information</a></p><p class="fine">Published by Rance9 LLC. Independent; not affiliated with or endorsed by any console maker or game publisher.</p></footer>
+</main></body></html>

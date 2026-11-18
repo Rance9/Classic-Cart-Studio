@@ -1,0 +1,27 @@
+# CCS Nucleus (Classic Cart Studio): which system this start uses, decided before hakchi loads a system image. Copyright (C) 2026
+# Rance9. GPL-3.0-or-later.
+# hakchi's preinit joins every p????_* file of its preinit.d in name order into one script and sources it: this one comes after
+# p7020_usb (USB storage is mounted) and before p7070_firmware (loadFirmware reads cfg_firmware). It defines ccsn_early and runs it once;
+# the decision itself is made by a separate program, so a mistake in that program cannot stop hakchi's own start: anything but a
+# complete, checked answer leaves cfg_firmware exactly as the owner set it. For an owner's system image, cfg_firmware names that image
+# for THIS start only: p7071_ccsnucleus puts the owner's value back right after p7070_firmware, before anything saves hakchi's settings.
+ccsn_early(){
+  local p="$rootfs/bin/ccs-nucleus" d
+  [ -f "$p" ] || return 0
+  d="$(CCS_ROOT="$mountpoint" sh "$p" early "$cfg_firmware" 2>/dev/null | grep '^ccsn-decision ' | tail -n 1)"
+  set -- $d
+  [ "$#" -eq 6 ] && [ "$1" = ccsn-decision ] || return 0
+  case "$5" in
+    -) ;;
+    *[!A-Za-z0-9._/-]*|*/../*) ;;
+    auto|_nand_|/*) cfg_firmware="$5" ;;
+  esac
+  [ "$2" = owner-root ] || return 0
+  case "$4" in /var/lib/ccs/nucleus/roots/*.hsqs|/var/lib/hakchi/firmware/*.hsqs|/media/hakchi/firmware/*.hsqs) ;; *) return 0 ;; esac
+  case "$4" in *[!A-Za-z0-9._/-]*|*/../*) return 0 ;; esac
+  checkFirmware "$mountpoint$4" || return 0
+  ccsn_saved="$cfg_firmware"
+  ccsn_selected="$4"
+  cfg_firmware="$4"
+}
+ccsn_early

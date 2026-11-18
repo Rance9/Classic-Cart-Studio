@@ -19,13 +19,35 @@ def main(out: str, public: str | None = None):
     sd = os.path.join(REPO, "site-data")
     shutil.copytree(os.path.join(sd, "brand", "ccs"), os.path.join(out, "brand", "ccs"), dirs_exist_ok=True)   # the CCS cast (tools/publish/make_ccs_cast.py)
     shutil.copytree(os.path.join(sd, "art"), os.path.join(out, "art"), dirs_exist_ok=True)
+    # D-131/D-163: five shared scenes (site-data/art/scenes, tools/publish/make_scenes.py) replace every per-game background. The retired backgrounds
+    # are never published, and a missing scene image stops the build rather than leaving a HOME without its picture.
+    if os.path.exists(os.path.join(out, "art", "hero")): raise SystemExit("retired per-game backgrounds (art/hero) must not be published")
+    scn = json.load(open(os.path.join(out, "art", "scenes", "index.json"), encoding="utf-8"))
+    miss = [v["file"] for v in scn["scenes"].values() if not os.path.isfile(os.path.join(out, *v["file"].split("/")))]
+    if miss: raise SystemExit("the shared scene images are missing (run tools/publish/make_scenes.py on the artist's layer files): " + ", ".join(miss))
+    # The Included Games (site-data/included/index.json): games published under their authors' licenses, each with its corresponding
+    # source beside it. Only listed game files whose SHA-256 matches both the record and the content gate's pinned list are published.
+    inc = os.path.join(sd, "included")
+    if os.path.isdir(inc):
+        import hashlib
+        pinned = {l.split(None, 1)[1].strip(): l.split(None, 1)[0].lower() for l in open(os.path.join(REPO, "tools", "publish", "included-games.sha256"), encoding="utf-8") if l.strip() and not l.startswith("#")}
+        idx = json.load(open(os.path.join(inc, "index.json"), encoding="utf-8")); listed = {g["file"]: g for g in idx["games"]}
+        for rel, g in listed.items():
+            b = open(os.path.join(sd, *rel.split("/")), "rb").read(); h = hashlib.sha256(b).hexdigest()
+            if h != g["file_sha256"] or pinned.get(rel) != h or len(b) != g["size"]: raise SystemExit(f"included game {rel} does not match its record and the pinned list")
+            if not os.path.isfile(os.path.join(sd, *g["license_file"].split("/"))): raise SystemExit(f"included game {rel}: its license text is missing")
+        for d0, _, fs in os.walk(inc):
+            for f in fs:
+                rel = os.path.relpath(os.path.join(d0, f), sd).replace("\\", "/")
+                if f.lower().endswith((".nes", ".unf", ".unif", ".fds")) and rel not in listed: raise SystemExit(f"an unlisted game file is in site-data/included: {rel}")
+        shutil.copytree(inc, os.path.join(out, "included"), dirs_exist_ok=True)
     os.makedirs(os.path.join(out, "brand", "public"), exist_ok=True); shutil.copy2(os.path.join(REPO, "tools", "publish", "assets", "app.ico"), os.path.join(out, "brand", "public", "app.ico"))   # companion icon at the path the installer expects
     for n in ("catalog.json", "builtin.json", "library.json", "rankings.json", "descriptions.json", "descriptions-library.json"):   # descriptions-library.json: the extended games' overview and official texts (customize.js, native HOME)
         if os.path.exists(os.path.join(sd, n)): shutil.copy2(os.path.join(sd, n), out)
     shutil.copytree(os.path.join(sd, "brand", "fonts"), os.path.join(out, "brand", "fonts"), dirs_exist_ok=True)
-    # the console HOME (Preview on TV) runtime: theme scenes, thumbnails, sprites, HOME fonts, hero sky and the universal fallback,
-    # copied from the public assets exactly as build_public_repo.py does (game hero images come with site-data/art/hero)
-    shutil.copytree(os.path.join(REPO, "tools", "publish", "assets", "home"), os.path.join(out, "brand", "home"), dirs_exist_ok=True)
+    # the console HOME (Preview on TV) runtime: theme scenes, thumbnails, sprites, HOME fonts and the hero sky (the shared scenes come with
+    # site-data/art/scenes). D-131: a theme's reference picture or the old universal fallback is never published, even if one reappears.
+    shutil.copytree(os.path.join(REPO, "tools", "publish", "assets", "home"), os.path.join(out, "brand", "home"), ignore=shutil.ignore_patterns("ref-*.png", "hero-fallback.png"), dirs_exist_ok=True)
     # the console startup screen's preview (D-113): the five thumbnails and their manifest only (the console images ship in the app)
     sd2 = os.path.join(REPO, "tools", "publish", "assets", "startup"); os.makedirs(os.path.join(out, "brand", "startup"), exist_ok=True)
     for n in sorted(os.listdir(sd2)):
@@ -63,7 +85,8 @@ def main(out: str, public: str | None = None):
 def pwa(out: str, entry: dict | None = None):
     """W2: the web app manifest and the service worker. The worker's version is the SHA-256 of every file it keeps (path and bytes), so any
     change to the site makes a new version that is fetched completely beside the old one; shell = what the page needs to open and play,
-    home = the HOME's art and music (kept when the app is installed or made ready for offline use). Covers are kept as they are used."""
+    home = the HOME's art and music, the five shared scenes included (kept when the app is installed or made ready for offline use). Covers are
+    kept as they are used; the retired per-game backgrounds are removed from that kept set (sw.js tidy)."""
     import hashlib
     man = {"name": "Classic Cart Studio", "short_name": "Cart Studio", "id": "./", "start_url": "./", "scope": "./", "display": "standalone", "orientation": "any",
            "background_color": "#101014", "theme_color": "#101014", "description": "Browse NES games, build your collections, back them up, and plan NES Classic Loadouts.",
@@ -79,7 +102,9 @@ def pwa(out: str, entry: dict | None = None):
     shell = [p for p in ["index.html", "preview/index.html", "manifest.webmanifest", "favicon.ico", "icon-32.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png",
                          "catalog.json", "builtin.json", "library.json", "rankings.json", "descriptions.json", "descriptions-library.json", "release.json"] if os.path.isfile(os.path.join(out, p)) and p not in drop]
     shell += files("play") + files("brand", "fonts") + files("brand", "ccs") + files("brand", "public") + files("store")
-    home = files("brand", "home") + files("brand", "startup")
+    home = files("brand", "home") + files("brand", "startup") + [p for p in files("art", "scenes") if p.endswith(".png")]   # D-131/D-163: the five shared scenes are HOME art
+    # the public splash's own sound (public_entry.py: its MP3 fallback in brand/splash/) belongs to that page only: never one of the app's files
+    if any(p.startswith("brand/splash/") or p.lower().endswith(".mp3") for p in shell + home): raise SystemExit("the splash's sound must not be one of the service worker's files")
     h = hashlib.sha256(); sha = {}
     for p in shell + home:
         d = hashlib.sha256(open(os.path.join(out, p), "rb").read()); h.update(p.encode() + b"\0" + d.digest()); sha[p] = d.hexdigest()[:16]   # each file checked by the worker before it is kept

@@ -33,6 +33,7 @@
 #include "host.h"
 #include "../../console-simulator/core/devio.h"
 #include "../../console-simulator/core/home.h"
+#include "../../console-simulator/core/design.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -189,19 +190,25 @@ static int splash_show(host *H, const char *path, const char *want_sha, char *wh
     image im; char e[200]; int r = img_decode(b, len, &im, 0, e, sizeof e); free(b); if (r) { snprintf(why, n, "the image cannot be decoded (%s)", e); return -1; }
     if (im.w != CCS_FB_W || im.h != CCS_FB_H || im.ch != 3) { snprintf(why, n, "the image is %dx%d, not 1280x720", im.w, im.h); img_free(&im); return -1; }
     framebuffer f = { CCS_FB_W, CCS_FB_H, im.px }; int fl = 0; char w2[200] = ""; dio_fb_present(&H->fb, &f, &fl, w2, sizeof w2); fell(H, fl, w2); img_free(&im); return 0; }
-static void splash_start(host *H, const char *cfg_path) {
+static void splash_start(host *H, const char *cfg_path, const char *droot) {
     char why[300] = ""; H->splash_min = 5000; uint8_t *b; size_t len; jval *j = NULL; char err[160];
     if (gp_read_file(cfg_path, &b, &len, 1u << 20)) snprintf(why, sizeof why, "the startup settings cannot be read");
     else { j = json_parse((const char *)b, len, err, sizeof err); free(b); if (!j || j->t != J_OBJ || !json_get(j, "schema") || json_get(j, "schema")->t != J_STR || strcmp(json_get(j, "schema")->s, "ccs-startup/1")) { snprintf(why, sizeof why, "the startup settings are not valid"); json_free(j); j = NULL; } }
     char dir[1100]; dir_of(cfg_path, dir, sizeof dir); const jval *ims = j ? json_get(j, "images") : NULL; int ni = ims && ims->t == J_ARR ? (int)ims->n : 0; if (ni > 16) ni = 16;
     const jval *mv = j ? json_get(j, "min_visible_ms") : NULL; if (mv && mv->t == J_NUM && mv->num >= 5000 && mv->num <= 60000) H->splash_min = (int)mv->num;   /* never less than five seconds */
     const jval *cv = j ? json_get(j, "choice") : NULL; const char *choice = cv && cv->t == J_STR ? cv->s : "random"; int pick = -1, fixed = 0;
+    /* a HOME design's startup choice (tools/console-backup/HOME-DESIGNER.md): its own picture first (its SHA-256 checked as it is read),
+       else one of the five, or Random; a design picture that cannot be shown falls back to the package's own choice, then to a card */
+    char dpath[1100] = "", dsha[65] = "", db[40] = ""; int dmode = droot && droot[0] ? design_peek_startup(droot, dpath, sizeof dpath, dsha, db, sizeof db) : DSU_NONE, shown = 0;
+    if (dmode == DSU_BUILTIN) choice = db; else if (dmode == DSU_RANDOM) choice = "random";
+    if (dmode == DSU_IMAGE) { char w[300]; if (!splash_show(H, dpath, dsha, w, sizeof w)) { snprintf(H->splash_id, sizeof H->splash_id, "design"); shown = 1; }
+        else { size_t L = strlen(why); snprintf(why + L, sizeof why - L, "%sthe design's startup picture: %.200s", L ? "; " : "", w); } }
     for (int i = 0; i < ni; i++) { const jval *id = json_get(ims->items[i], "id"); if (id && id->t == J_STR && !strcmp(id->s, choice)) { pick = i; fixed = 1; } }
     if (j && strcmp(choice, "random") && pick < 0) { size_t L = strlen(why); snprintf(why + L, sizeof why - L, "%sthe chosen image \"%.60s\" is not one of the five", L ? "; " : "", choice); }
     if (pick < 0 && ni) pick = (int)(rnd32() % (uint32_t)ni);
-    snprintf(H->splash_src, sizeof H->splash_src, "%s", fixed ? "fixed" : "random"); size_t wl = 0; H->splash_why[0] = 0;
+    snprintf(H->splash_src, sizeof H->splash_src, "%s", shown ? "design" : fixed ? "fixed" : "random"); size_t wl = 0; H->splash_why[0] = 0;
     if (why[0]) wl += (size_t)snprintf(H->splash_why + wl, sizeof H->splash_why - wl, "%s", why);
-    for (int k = 0; k < ni; k++) { int i = (pick + k) % ni; const jval *x = ims->items[i]; const jval *id = json_get(x, "id"), *f = json_get(x, "file"), *s = json_get(x, "sha256");
+    for (int k = 0; k < ni && !shown; k++) { int i = (pick + k) % ni; const jval *x = ims->items[i]; const jval *id = json_get(x, "id"), *f = json_get(x, "file"), *s = json_get(x, "sha256");
         if (!id || id->t != J_STR || !f || f->t != J_STR || strchr(f->s, '/') || strstr(f->s, "..")) continue; char p[1300], w[300]; snprintf(p, sizeof p, "%s/%s", dir, f->s);
         if (!splash_show(H, p, s && s->t == J_STR ? s->s : "", w, sizeof w)) { snprintf(H->splash_id, sizeof H->splash_id, "%s", id->s); if (k) snprintf(H->splash_src, sizeof H->splash_src, "fallback"); break; }
         if (wl < sizeof H->splash_why - 2) wl += (size_t)snprintf(H->splash_why + wl, sizeof H->splash_why - wl, "%s%s: %s", wl ? "; " : "", id->s, w); }
@@ -420,8 +427,10 @@ host *host_open(const host_config *c, const gp_settings *s, char *err, size_t n)
       char d[700]; dio_fb_describe(&H->fb, d, sizeof d); host_trace(H, "{\"ev\":\"fb\",%s,\"pages\":%d,\"page_flip\":%s}", d, H->fb.pages, H->fb.flip ? "true" : "false"); }
     H->prev = malloc((size_t)CCS_FB_W * CCS_FB_H * 3); H->ring = malloc((size_t)RING_FRAMES * 4);   /* fixed, once: nothing is allocated per frame */
     if (!H->prev || !H->ring) { snprintf(err, n, "out of memory"); dio_fb_close(&H->fb, 0, NULL, 0); if (H->trace) fclose(H->trace); free(H->prev); free(H->ring); free(H); g_h = NULL; unconfine(); return NULL; }
-    /* 4. the startup image, at once: the HOME loads behind it */
-    if (startup) splash_start(H, startup);
+    /* 4. the startup image, at once: the HOME loads behind it (a HOME design's own choice first: the session's home.design_root) */
+    { char droot[1100] = ""; uint8_t *b; size_t len; if (startup && c->session_path && !gp_read_file(c->session_path, &b, &len, 32u << 20)) { char e[80]; jval *j = json_parse((const char *)b, len, e, sizeof e); free(b);
+        const jval *h = j ? json_get(j, "home") : NULL, *dr = h && h->t == J_OBJ ? json_get(h, "design_root") : NULL; if (dr && dr->t == J_STR) snprintf(droot, sizeof droot, "%s", dr->s); json_free(j); }
+      if (startup) splash_start(H, startup, droot); }
     /* 5. the controllers, found by name; the state folder keeps who plays */
     if (strcmp(input, "auto")) { H->in.fixed = input; char list[600], *save = NULL; snprintf(list, sizeof list, "%s", input);   /* tests: one or two streams (ports 1, 2) */
         for (char *p = strtok_r(list, ",", &save); p; p = strtok_r(NULL, ",", &save)) if (dio_inputs_open_fixed(&H->in, p, (uint64_t)H->settle_ms, seen_dev, H)) { char e[700]; json_escape(p, e, sizeof e); host_trace(H, "{\"ev\":\"input_missing\",\"path\":%s}", e); } }

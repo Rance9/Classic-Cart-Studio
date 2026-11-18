@@ -15,10 +15,22 @@ namespace CcsWorker.Ops
     public static class ConsolePath
     {
         public static readonly string[] WriteRoots = { "/var/lib/ccs", "/tmp/ccs" };
-        public static readonly string[] ReadRoots = { "/var/lib/ccs", "/tmp/ccs", "/var/lib/hakchi/hmod" };
-        public static readonly string[] ReadExact = { "/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp", "/etc/init.d/S81clover-mcp", "/var/version", "/var/lib" };
+        // the install method's files in hakchi's overlay are read (CCS Mod / CCS Nucleus: their program, records and start files), never written
+        public static readonly string[] ReadRoots = { "/var/lib/ccs", "/tmp/ccs", "/var/lib/hakchi/hmod", "/var/lib/hakchi/rootfs/etc/ccs" };
+        public static readonly string[] ReadExact = { "/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp", "/etc/init.d/S81clover-mcp", "/var/version", "/var/lib",
+            "/var/lib/hakchi/rootfs/bin/ccs-mod", "/var/lib/hakchi/rootfs/bin/ccs-nucleus", "/var/lib/hakchi/rootfs/etc/preinit.d/p7060_ccsnucleus",
+            "/var/lib/hakchi/rootfs/etc/preinit.d/p7071_ccsnucleus", "/var/lib/hakchi/rootfs/etc/init.d/S81ccs-nucleus", "/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod" };
+        /// <summary>the earlier start-up module (read and removed only: hakchi deletes its one file at every start)</summary>
         public const string ModuleName = "ccs-home";
         public const string ModuleFile = "/etc/init.d/S81clover-mcp";
+        /// <summary>the CCS Mod and CCS Nucleus packages this worker installs: only these exact builds (tools/console-nucleus/build_packages.py,
+        /// the same bytes the CCS Console Workbench's preparation image carries: tools/console-backup/ram/build_images.py METHOD_SHAS; a test
+        /// keeps the two lists equal)</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, string> MethodPackages = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "ccs-mod", "0274a29108416151a7673aac147ae4dc870f725dea66cd1dd6127fcdc9fda662" },
+            { "ccs-nucleus", "88bb6c841ee6547c954c55d2bb9b266b6482a47c9cff60cbddd410ea33da1e2e" },
+        };
         public const string HakchiRootfs = "/var/lib/hakchi/rootfs";
         public const string UninstallDir = "/var/lib/hakchi/hmod";
 

@@ -1,0 +1,246 @@
+{
+ "schema": "ccs-scenes/1",
+ "note": "The five shared HOME scenes (D-163): the one rule for every game's background in the website's HOME and in the console and computer HOME packages. A game's scene follows its genre; a game without a listed genre (no genre, imported, personal) gets the fallback. No title is assigned by hand, and nothing a collection stores chooses a scene. Each scene is static human-made pixel art by Luis Zuno (Ansimuz), composed by tools/publish/make_scenes.py from the artist's own published layer files (their checksums, the license and the changes are recorded with each scene).",
+ "fallback": "sunny-rocky-mountains",
+ "genres": {
+  "RPG": "magic-cliffs",
+  "Adventure": "forest-of-illusion",
+  "Strategy": "magic-cliffs",
+  "Shooter": "town-at-night",
+  "Shooter (light gun)": "town-at-night",
+  "Simulation": "magic-cliffs",
+  "Racing": "sunny-rocky-mountains",
+  "Sports": "sunny-rocky-mountains",
+  "Platformer": "forest-of-illusion",
+  "Action": "old-dark-castle",
+  "Fighting": "old-dark-castle",
+  "Puzzle": "magic-cliffs",
+  "Educational": "magic-cliffs",
+  "Board/Card": "magic-cliffs",
+  "Pinball": "town-at-night",
+  "Compilation": "sunny-rocky-mountains",
+  "Various": "sunny-rocky-mountains",
+  "Casual Game": "magic-cliffs"
+ },
+ "scenes": {
+  "magic-cliffs": {
+   "name": "Magic Cliffs",
+   "file": "art/scenes/magic-cliffs.png",
+   "title": {
+    "x": 0.5,
+    "y": 0.09
+   },
+   "credit": {
+    "id": "C01",
+    "title": "Magic Cliffs Environment",
+    "artist": "Luis Zuno (Ansimuz)",
+    "license": "CC BY 3.0",
+    "license_url": "https://creativecommons.org/licenses/by/3.0/",
+    "source": "https://opengameart.org/content/magic-cliffs-environment",
+    "changes": "Composed from the artist's background layers at their native pixel size, cropped to 16:9 and enlarged by a whole number with nearest-neighbor sampling (each original pixel kept as a sharp square). Nothing drawn, generated or retouched.",
+    "note": "Used under the CC BY 3.0 license included with the artist's files."
+   },
+   "sha256": "e74d88e7be4004210716ff3ac9f4976b9cacc84980eb3bc96bcf547e8dae35a8",
+   "bytes": 19909,
+   "size": [
+    1920,
+    1080
+   ],
+   "native": [
+    480,
+    270
+   ],
+   "scale": 4,
+   "layers": [
+    {
+     "file": "sky.png",
+     "sha256": "546a7b1d41872c72db182ea6c029b7833d4f5e586d91ac6d097a4350daec4306"
+    },
+    {
+     "file": "clouds.png",
+     "sha256": "378bff555e7e3944dd9e74f40c77c6b52102c06ff5959405d571e80e34f3a313"
+    },
+    {
+     "file": "sea.png",
+     "sha256": "bb06b53e63f2039311175a8945d5883e746e616af15e48d7eb9c52dac5b9f860"
+    },
+    {
+     "file": "far-grounds.png",
+     "sha256": "5fccdc75271a3fc37964c35b1eb3c0ad86b91a6a73943dbe7f0c8cf9db6a088c"
+    }
+   ]
+  },
+  "forest-of-illusion": {
+   "name": "Forest of Illusion",
+   "file": "art/scenes/forest-of-illusion.png",
+   "title": {
+    "x": 0.5,
+    "y": 0.09
+   },
+   "credit": {
+    "id": "C04",
+    "title": "Sunnyland Forest of Illusion",
+    "artist": "Luis Zuno (Ansimuz)",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source": "https://opengameart.org/content/sunnyland-forest-of-illusion",
+    "changes": "Composed from the artist's background layers at their native pixel size, cropped to 16:9 and enlarged by a whole number with nearest-neighbor sampling (each original pixel kept as a sharp square). Nothing drawn, generated or retouched.",
+    "note": "Dedicated to the public domain by the artist; credited by choice."
+   },
+   "sha256": "0904040e3ddbfa759fef4eb69b72591d4712dfade9ddfe38fecc62254b7133a1",
+   "bytes": 43022,
+   "size": [
+    1920,
+    1080
+   ],
+   "native": [
+    384,
+    216
+   ],
+   "scale": 5,
+   "layers": [
+    {
+     "file": "back.png",
+     "sha256": "2bad4228ba3a64e220b6ac1090106df35b9bc3d3d41eeed7cf2e3771f1e439c3"
+    },
+    {
+     "file": "middle.png",
+     "sha256": "2a8978b4281afb279bb2036d24919f0a5cf426f1573d946fbdb7175616e9bc11"
+    }
+   ]
+  },
+  "town-at-night": {
+   "name": "Town at Night",
+   "file": "art/scenes/town-at-night.png",
+   "title": {
+    "x": 0.5,
+    "y": 0.09
+   },
+   "credit": {
+    "id": "C05",
+    "title": "Night Town Background (Gothicvania Patreon's Collection)",
+    "artist": "Luis Zuno (Ansimuz)",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source": "https://opengameart.org/content/gothicvania-patreons-collection",
+    "changes": "Composed from the artist's background layers at their native pixel size, cropped to 16:9 and enlarged by a whole number with nearest-neighbor sampling (each original pixel kept as a sharp square). Nothing drawn, generated or retouched.",
+    "note": "Dedicated to the public domain by the artist; credited by choice."
+   },
+   "sha256": "d18c473c1ecace551d906aac74680c02496408714b1e64a608c7c94132f7f56c",
+   "bytes": 26346,
+   "size": [
+    1920,
+    1080
+   ],
+   "native": [
+    384,
+    216
+   ],
+   "scale": 5,
+   "layers": [
+    {
+     "file": "night-town-background-sky.png",
+     "sha256": "2e61ea60be5ca3fee5e23a9b7501a89e89259d8f274e5908bedd6e4c988d6097"
+    },
+    {
+     "file": "night-town-background-clouds.png",
+     "sha256": "e95503a89ba77ec2f6481504d749065b1dba90c1a497bba50bd65e592160d20b"
+    },
+    {
+     "file": "night-town-background-mountains.png",
+     "sha256": "95a116e92d7f90649dcb100a33e6af08d15df6c59347806281f396d6d4832f98"
+    },
+    {
+     "file": "night-town-background-far-buildings.png",
+     "sha256": "dd550f031548c5ba14eb1d020e503607365da16fd54b5b6763f120067045a576"
+    },
+    {
+     "file": "night-town-background-forest.png",
+     "sha256": "8856996283340f232a71a08ec66d4d251651568d6fdc3a61e974af1acda2e6ab"
+    },
+    {
+     "file": "night-town-background-town.png",
+     "sha256": "125cf6f1f45916edbc1ae267e8310e26c5bbeed95a12e2c7afca4fc59758ab15"
+    }
+   ]
+  },
+  "old-dark-castle": {
+   "name": "Old Dark Castle",
+   "file": "art/scenes/old-dark-castle.png",
+   "title": {
+    "x": 0.5,
+    "y": 0.09
+   },
+   "credit": {
+    "id": "C06",
+    "title": "Old Dark Castle Interior (Gothicvania Patreon's Collection)",
+    "artist": "Luis Zuno (Ansimuz)",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source": "https://opengameart.org/content/gothicvania-patreons-collection",
+    "changes": "Composed from the artist's background layers at their native pixel size, cropped to 16:9 and enlarged by a whole number with nearest-neighbor sampling (each original pixel kept as a sharp square). Nothing drawn, generated or retouched.",
+    "note": "Dedicated to the public domain by the artist; credited by choice."
+   },
+   "sha256": "f1f482945d6e0edcf0ae609ee7a05438f25c22c033db409ef97cce6a27b8b825",
+   "bytes": 26746,
+   "size": [
+    1920,
+    1080
+   ],
+   "native": [
+    480,
+    270
+   ],
+   "scale": 4,
+   "layers": [
+    {
+     "file": "old-dark-castle-interior-background.png",
+     "sha256": "feec0704cdcd2c8dbe7e6d39d4841a13ed49569a848ac08d413ac26d2197ab1d"
+    }
+   ]
+  },
+  "sunny-rocky-mountains": {
+   "name": "Sunny Rocky Mountains",
+   "file": "art/scenes/sunny-rocky-mountains.png",
+   "title": {
+    "x": 0.5,
+    "y": 0.09
+   },
+   "credit": {
+    "id": "C11",
+    "title": "Sunny Rocky Mountains (Sideview Fantasy Patreon Collection)",
+    "artist": "Luis Zuno (Ansimuz)",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source": "https://opengameart.org/content/sideview-fantasy-patreon-collection",
+    "changes": "Composed from the artist's background layers at their native pixel size, cropped to 16:9 and enlarged by a whole number with nearest-neighbor sampling (each original pixel kept as a sharp square). Nothing drawn, generated or retouched.",
+    "note": "Dedicated to the public domain by the artist; credited by choice. Only the environment's own layers are used."
+   },
+   "sha256": "6d88a4e3db13301a3d2c42e3e6b4c493c8a9f6c8413e27efe48c0856ede099b2",
+   "bytes": 25303,
+   "size": [
+    1920,
+    1080
+   ],
+   "native": [
+    384,
+    216
+   ],
+   "scale": 5,
+   "layers": [
+    {
+     "file": "sunny-mountains-sky.png",
+     "sha256": "5ab8a199f3bc4ef11ff54c5a7b2f0b6c8a5add901a8d9f4ecf80250d18ed4e86"
+    },
+    {
+     "file": "sunny-mountains-far-back.png",
+     "sha256": "ae4187241d0baf8ac7c65b7c98fa9c900fbd8332c453947acd4d7b4cb600b096"
+    },
+    {
+     "file": "sunny-mountains-hills.png",
+     "sha256": "257e29d3cab4a43e3526b40d28d12691fc6165272e409f22d8b37eb66da2cbdd"
+    }
+   ]
+  }
+ }
+}

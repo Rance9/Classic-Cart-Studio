@@ -56,10 +56,10 @@ def _header_for(vid: str, content_sha256: str) -> str:
             if not h: r = LL.resolve(vid) or {}; h = r.get("header_hex") or ""
     except Exception: h = ""
     return h if isinstance(h, str) and re.fullmatch(r"(?i)4e45531a[0-9a-f]{24}", h or "") else ""
-REASONS = {"missing": "The ROM file of this game is not on this computer. Add it with Add Your Own Game (Choose Files… or Choose a Folder…): a file is matched to this version by its content.",
-           "mismatched": "The ROM file on this computer is a different version of this game, so it is not used (nothing is substituted). Add the file of this exact version with Add Your Own Game.",
-           "no_identity": "This entry has no exact game identity, so no ROM file can be matched to it.",
-           "no_header": "This ROM file has no header and the Game Library has no header information for it, so it cannot be played (nothing is guessed)."}
+REASONS = {"missing": "The game file for this game is not on this computer. Add it with Add Your Own Game (Choose Files… or Choose a Folder…): a file is matched to this version by its content.",
+           "mismatched": "The game file on this computer is a different version of this game, so it is not used (nothing is substituted). Add the file of this exact version with Add Your Own Game.",
+           "no_identity": "This entry has no exact game identity, so no game file can be matched to it.",
+           "no_header": "This game file has no header and the Game Library has no header information for it, so it cannot be played (nothing is guessed)."}
 def rom_for(vid: str, title: str = "", ctx: dict | None = None) -> dict:
     import package_api as PA, ccs_package as cp
     if not cp.is_identity_id(vid): return {"playable": False, "code": "no_identity", "reason": REASONS["no_identity"]}
@@ -127,6 +127,10 @@ def start_direct(vid: str, embed: str = "") -> dict:
     if not r["playable"]: return {"ok": False, "error": r["reason"], "code": r["code"]}
     g = {"id": vid, "title": title, "version_label": label, "rom": r["rom"], "header_hex": r["header_hex"], "content_sha256": r["content_sha256"], "unavailable": ""}
     return _start("direct", title, [g], direct_id=vid, embed=embed)
+def _incomplete_text(missing: list) -> str:
+    names = ", ".join(m.get("title") or m.get("id") or "?" for m in missing[:6]) + (" and others" if len(missing) > 6 else "")
+    return (f"{len(missing)} game{'' if len(missing) == 1 else 's'} of this collection {'has' if len(missing) == 1 else 'have'} no usable game file on this computer ({names}). "
+            "Add the game file, or remove the game from this collection, then try again.")
 def start_home(manifest: dict, home: dict, embed: str = "", select: str = "") -> dict:
     with RUN.lock:
         if _running(): return {"ok": False, "busy": True, "error": f"{RUN.title or 'A game'} is already open in the player. Close it first."}
@@ -143,6 +147,8 @@ def start_home(manifest: dict, home: dict, embed: str = "", select: str = "") ->
         games.append(g); ready += 1 if r["playable"] else 0
         if not r["playable"]: missing.append({"id": vid, "title": title, "code": r["code"]})
     if not games: return {"ok": False, "error": "This HOME has no games."}
+    # the whole collection or nothing (D-146): HOME never opens with a game whose ROM file is not usable here; the games are named
+    if missing: return {"ok": False, "code": "incomplete", "error": _incomplete_text(missing), "unavailable": missing[:50], "unavailable_count": len(missing)}
     out = _start("home", (manifest.get("name") or "HOME"), games, pack=pack, embed=embed, select=select)   # HOME preferences in the session's own folder: as Preview on TV, no theme carried over
     if out.get("ok"): out.update({"games": len(games), "playable": ready, "unavailable": missing[:50], "unavailable_count": len(missing)})
     return out

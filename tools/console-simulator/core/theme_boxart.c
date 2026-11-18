@@ -35,7 +35,12 @@ static int ba_init(home *h, char *err, size_t errlen) {
     const jval *rows = json_get(p, "rows"); for (int i = 0; i < 4; i++) if (jbox_at(rows, (size_t)i, &a->prows[i])) { snprintf(err, errlen, "box-art panel rows missing"); return -1; }
     a->picon_x = gnum(p, "icon_x", 706); const jval *sr = json_get(g, "spine_ratio"); a->spine_ratio = sr && sr->t == J_NUM ? sr->num : 0.1184;
     for (size_t i = 0; i < envs->n && a->nenv < 12; i++) { const jval *e = envs->items[i]; envelope *v = &a->env[a->nenv]; v->d = gnum(e, "d", 0); if (gbox(e, "box", &v->b)) continue; a->nenv++; }
-    a->legend = (box4){ 38, 668, 659, 700 };   /* under the left column, its hints from x 54 like the title and facts, 19 px off the bottom (home-themes.js hmBoxArt: the same box) */
+    a->legend = BOXART_LEGEND;   /* under the left column, its hints from x 54 like the title and facts, 19 px off the bottom (home-themes.js hmBoxArt: the same box) */
+    /* a design's control regions: the boxes with their dots and arrows; the title; the overview, rule and facts; the collection panel; the hints */
+    for (int i = 0; i < a->nenv; i++) region_move(h, UI_GAMES, &a->env[i].b);
+    region_move(h, UI_GAMES, &a->dots); region_move(h, UI_GAMES, &a->arrow_l); region_move(h, UI_GAMES, &a->arrow_r); region_move(h, UI_TITLE, &a->title);
+    region_move(h, UI_DETAILS, &a->blurb); region_move(h, UI_DETAILS, &a->rule); region_move(h, UI_DETAILS, &a->facts);
+    region_move(h, UI_STATUS, &a->pheading); for (int i = 0; i < 4; i++) region_move(h, UI_STATUS, &a->prows[i]); a->picon_x += h->roff[UI_STATUS][0]; region_move(h, UI_HINTS, &a->legend);
     const jval *c = json_get(h->pk, "counts"); a->counts[0] = (int)h->nall; a->counts[1] = gnum(c, "folders", 0); a->counts[2] = gnum(c, "favorites", 0);
     if (fb_init(&a->frame, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
@@ -92,7 +97,7 @@ static void floor_shadow(framebuffer *fb, double cx, double cy, double rx, doubl
     }
 }
 static void draw_box(home *h, framebuffer *fb, const envelope *e, int gi, int center) {
-    boxart *a = BX(h); g3cam cam = { 1500, 640, 720 * 0.38 };
+    boxart *a = BX(h); g3cam cam = { 1500, 640 + h->roff[UI_GAMES][0], 720 * 0.38 + h->roff[UI_GAMES][1] };   /* the perspective moves with the boxes: they look the same where a design puts them */
     int w = e->b.x1 - e->b.x0, fh = e->b.y1 - e->b.y0, spine = iround(w * a->spine_ratio * 1.25); if (spine < 10) spine = 10;
     /* hmBox3: the focus box stands at 9 degrees, boxes right of it at 26 show their left spine, boxes left of it turn the other
      * way (-26) and show their right spine, so every visible spine faces the viewer */
@@ -116,7 +121,7 @@ static void draw_box(home *h, framebuffer *fb, const envelope *e, int gi, int ce
     { double X, Y, Z, x0, y0, x1, y1; g3_box_point(&bx, 0, 0, 0, &X, &Y, &Z); g3_project(&cam, X, Y, Z, &x0, &y0); g3_box_point(&bx, fw, fh, 0, &X, &Y, &Z); g3_project(&cam, X, Y, Z, &x1, &y1);
       if (center) { gfx_shadow(fb, FULL, iround(x0), iround(y0), iround(x1 - x0), iround(y1 - y0), 22, RGBA(RED, 89)); gfx_shadow(fb, FULL, iround(x0), iround(y0) + 26, iround(x1 - x0), iround(y1 - y0), 30, RGBA(0, 191)); }
       else gfx_shadow(fb, FULL, iround(x0), iround(y0) + 22, iround(x1 - x0), iround(y1 - y0), 23, RGBA(0, 166));
-      LR(h, center ? "box-focus" : "box", iround(x0), iround(y0), iround(x1), iround(y1)); LT(h, HT_GAME, gi, iround(x0), iround(y0), iround(x1), iround(y1)); }
+      LRI(h, center ? "box-focus" : "box", gi, iround(x0), iround(y0), iround(x1), iround(y1)); LT(h, HT_GAME, gi, iround(x0), iround(y0), iround(x1), iround(y1)); }
     double PS[4][3] = { { 0, 0, -spine }, { 0, 0, 0 }, { 0, fh, 0 }, { 0, fh, -spine } }, PR[4][3] = { { fw, 0, 0 }, { fw, 0, -spine }, { fw, fh, -spine }, { fw, fh, 0 } };
     face(fb, &cam, &bx, &sp, left_spine ? PS : PR, 255, NULL, 1);
     framebuffer tb; if (!fb_init(&tb, fw * ccs_scale, spine * ccs_scale)) { stop tg[2] = { { 0, 0x4A4A55, 1 }, { 1, 0x2A2A32, 1 } }; gfx_gradient(&tb, FULL, 0, 0, fw, spine, 1, tg, 2); gfx_rrect_ring(&tb, FULL, 0, 0, fw, spine, 0, 2, RGBA(0x050507, 255));

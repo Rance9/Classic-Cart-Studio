@@ -3,6 +3,7 @@ computer: no route here uses the network.
 
 Desktop application only (the window's desktop principal):
   POST /api/package/rom-check     {games: [{version_id, title}]} -> which games have their exact ROM file on this computer
+  POST /api/package/inventory     {contents: [content SHA-256]} -> where each exact build is held: both game stores, one answer per build
   POST /api/package/export        build a COMPLETE package of the page's collection in the staging folder (every game with its exact ROM)
   POST /api/package/save          {id, name} -> native Save As on this computer, the staged package copied there
                                   (export and save with {job: true}: run as a job; export {job, save: true} asks where to save first)
@@ -163,16 +164,39 @@ def _identity(p: str, cancel=lambda: False, progress=None) -> dict:
     return ident
 
 def classify(vid: str, title: str, ctx: dict | None = None) -> tuple[str, dict, str | None, dict | None]:
-    """('available' | 'missing' | 'mismatched', record, path, identity) for one game id"""
+    """('available' | 'missing' | 'mismatched', record, path, identity) for one game id. A candidate file that exists but cannot be read
+    is not taken for a missing one: with no usable file found, the record says so (reason 'unreadable'; rom-check lists it apart)."""
     if not cp.is_identity_id(vid): return "missing", {"version_id": vid, "title": title, "reason": "no_identity"}, None, None
-    cands = _rom_candidates(vid, ctx); wrong = None
+    cands = _rom_candidates(vid, ctx); wrong = None; unread = None
     for p in cands:
         try: ident = _identity(p, ctx.get("cancel") or (lambda: False), ctx.get("tick")) if ctx else _identity(p)
-        except OSError: continue
+        except OSError as e: unread = unread or str(e)[:160]; continue
         if cp.id_matches(vid, ident["content_sha256"]): return "available", {"version_id": vid, "title": title, "size": ident["size"], "content_sha256": ident["content_sha256"]}, p, ident
         wrong = wrong or ident
     if wrong: return "mismatched", {"version_id": vid, "title": title, "reason": "different_version", "found_content_sha256": wrong["content_sha256"]}, None, None
+    if unread: return "missing", {"version_id": vid, "title": title, "reason": "unreadable", "error": unread}, None, None
     return "missing", {"version_id": vid, "title": title, "reason": "not_found"}, None, None
+
+def full_inventory(contents: list) -> list:
+    """(Codex v1p4 F2) Where each exact build (its content SHA-256) is held on this computer, across BOTH of the app's game stores: the
+    Game Library's managed copies (library-store.json; the catalog id is the content SHA-256[:16], what Add ROM Files uses for a known
+    version) and the person's own games (the personal index; "p_" + that). Every file is checked by its full content before it counts.
+    [{content_sha256, state, id, recorded}]: state "available" (id: the id whose file is usable), "missing" (a record is kept but its file
+    is gone or wrong: id is that record, for Locate), "unreadable" (a file is there and could not be read) or "none" (no record in either
+    store). A store that cannot be read raises (OSError / ValueError): the caller says so, never "none"."""
+    import personal as ps
+    ctx = {"index": ps.load_index().get("entries") or {}, "store": ps.load_store()}; out = []
+    for c in contents:
+        cat, per = c[:16], "p_" + c[:16]
+        recorded = [i for i, rec in ((per, ctx["index"].get(per)), (cat, ctx["store"].get(cat))) if isinstance(rec, dict) and rec.get("content_sha256", c) == c]
+        state, held, unread = "none", None, False
+        for vid in (per, cat):
+            s, rec, _, ident = classify(vid, "", ctx)
+            if s == "available" and ident and ident.get("content_sha256") == c: state, held = "available", vid; break
+            if rec.get("reason") == "unreadable": unread = True
+        if state != "available": state = "unreadable" if unread else "missing" if recorded else "none"; held = recorded[0] if recorded else None
+        out.append({"content_sha256": c, "state": state, "id": held, "recorded": recorded})
+    return out
 
 def _games_titles(body: dict) -> dict:
     t = {}
@@ -186,13 +210,13 @@ def _safe_file_name(name: str) -> str:
     return n if n.lower().endswith(".ccs") else n + ".ccs"
 
 # ---------------- Save As and Explorer (this computer only) ----------------
-def pick_save(title: str, initial_name: str, initial_dir: str = "") -> str:
+def pick_save(title: str, initial_name: str, initial_dir: str = "", ext: str = ".ccs", kind: str = "Classic Cart Studio collection") -> str:
     """Native Windows Save As dialog on the user's desktop (the same tkinter mechanism as the backend's file pickers)."""
     import tkinter as tk
     from tkinter import filedialog
     root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-    try: return filedialog.asksaveasfilename(title=title, initialfile=initial_name, initialdir=initial_dir or None, defaultextension=".ccs",
-                                             filetypes=[("Classic Cart Studio collection", "*.ccs")], confirmoverwrite=True) or ""
+    try: return filedialog.asksaveasfilename(title=title, initialfile=initial_name, initialdir=initial_dir or None, defaultextension=ext,
+                                             filetypes=[(kind, "*" + ext)], confirmoverwrite=True) or ""
     finally: root.destroy()
 
 def open_explorer(path: str):
@@ -272,7 +296,7 @@ def _export_job(j: dict, coll: dict, ids: list, titles: dict, art: dict, summary
         else: (missing if state == "missing" else mismatched).append(rec)
         j["games_done"] += 1
     if missing or mismatched:
-        return _end(j, "error", missing=missing, mismatched=mismatched, error=f"{len(missing) + len(mismatched)} of {len(ids)} games no longer have their exact ROM file on this computer. Nothing was saved.")
+        return _end(j, "error", missing=missing, mismatched=mismatched, error=f"{len(missing) + len(mismatched)} of {len(ids)} games no longer have their exact game file on this computer. Nothing was saved.")
     total = sum(x["size"] for x in idents.values())
     _check_space(os.path.dirname(out) or ".", total + len(json.dumps(coll)) + sum(len(a) for a in art.values()), "make this package")
     j.update(phase="write", games_done=0, bytes_done=0, bytes_total=total); st = {"base": None}
@@ -320,6 +344,20 @@ def _dest(body: dict, cfg: dict, name: str) -> str:
     if not dest: return ""
     dest = os.path.abspath(dest); return dest if dest.lower().endswith(".ccs") else dest + ".ccs"
 
+def _saves_plan(i: str, p: str, data_path) -> dict:
+    import saves_transfer as st
+    def rom_state(sha: str) -> str:   # the exact ROM file on this computer (a Game Library version or a personal game of that content)
+        ctx = {}
+        for vid in (sha[:16], "p_" + sha[:16]):
+            try: state, rec, _, _ = classify(vid, "", ctx)
+            except Exception: return "unknown"
+            if state == "available": return "here"
+            if rec.get("reason") == "unreadable": return "unknown"
+        return "missing"
+    try: r = st.plan(data_path, p, rom_state)
+    except st.SavesError as e: return {"ok": False, "id": i, "error": f"{e}"}
+    r["id"] = i; return r
+
 # ---------------- routes ----------------
 def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = None) -> None:
     cfg = cfg or {}; d = stage_dir(data_path)
@@ -329,8 +367,32 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
         except NoSpace as e: return handler._json(507, {"ok": False, "error": str(e)})
         except Exception as e: return handler._json(408 if getattr(handler, "_stalled", False) else 400, {"ok": False, "error": str(e)})
         return handler._json(200, describe(i, p))
+    if path == "/api/studio/saves-stage":   # Import Game Saves: the chosen file, staged (streamed to disk), then what the import would do
+        _prune(d); i, p = _new_path(d)
+        try: _read_raw_to(handler, p)
+        except NoSpace as e: return handler._json(507, {"ok": False, "error": str(e)})
+        except Exception as e: return handler._json(408 if getattr(handler, "_stalled", False) else 400, {"ok": False, "error": str(e)})
+        return handler._json(200, _saves_plan(i, p, data_path))
     try: body = _json_body(handler)
     except Exception as e: return handler._json(408 if getattr(handler, "_stalled", False) else 400, {"ok": False, "error": f"The request could not be read ({e})."})
+    if path == "/api/studio/saves-export":   # Export Game Saves: the saved games only (no ROM file), to a ZIP file the person chooses
+        import saves_transfer as st
+        if cfg.get("rehearsal_tree") and body.get("path"): out = str(body["path"])   # rehearsal/test configurations only: no dialog
+        else: out = pick_save("Save your game saves", "Classic Cart Studio Game Saves " + time.strftime("%Y-%m-%d") + ".zip", _default_dir(), ".zip", "ZIP file")
+        if not out: return handler._json(200, {"ok": False, "canceled": True})
+        out = os.path.abspath(out); out = out if out.lower().endswith(".zip") else out + ".zip"
+        shas = body.get("shas"); shas = {str(s) for s in shas} if isinstance(shas, list) else None
+        return handler._json(200, st.export(data_path, out, shas, version))
+    if path == "/api/studio/saves-plan":
+        p = _path_for(d, str(body.get("id") or ""))
+        if not p: return handler._json(404, {"ok": False, "error": "That Game Saves file is no longer open. Choose it again."})
+        return handler._json(200, _saves_plan(str(body.get("id")), p, data_path))
+    if path == "/api/studio/saves-import":
+        import saves_transfer as st
+        p = _path_for(d, str(body.get("id") or ""))
+        if not p: return handler._json(404, {"ok": False, "error": "That Game Saves file is no longer open. Choose it again. Nothing was changed."})
+        ch = body.get("choices"); ch = ch if isinstance(ch, dict) else {}
+        return handler._json(200, st.apply(data_path, p, str(body.get("token") or ""), ch))
     if path == "/api/package/open":
         src = str(body.get("path") or "")
         if not src.lower().endswith(".ccs") or not os.path.isfile(src): return handler._json(400, {"ok": False, "error": "That file is not a .ccs file on this computer."})
@@ -350,7 +412,7 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
         except cp.PackageError as e:   # the files added before it stopped (if any) stay and are named; nothing else changed
             dt = getattr(e, "details", {}) or {}
             return handler._json(400, {"ok": False, "error": str(e), "imported": dt.get("imported") or [], "rejected": dt.get("rejected") or []})
-        except OSError as e: return handler._json(507, {"ok": False, "error": f"The ROM files could not be saved on this computer ({e.strerror or e}). Nothing was imported."})
+        except OSError as e: return handler._json(507, {"ok": False, "error": f"The game files could not be saved on this computer ({e.strerror or e}). Nothing was imported."})
         return handler._json(200, dict(r, ok=True))
     if path == "/api/package/keep-art":   # the package's artwork for its personal games, kept in personal/art (also when imported without ROM files)
         p = _path_for(d, str(body.get("id") or ""))
@@ -368,12 +430,16 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
                 if rel: out[gid] = rel
         return handler._json(200, {"ok": True, "art": out})
     if path == "/api/package/rom-check":   # which of the games have their EXACT ROM file on this computer (never a substitute)
-        out = {"available": [], "missing": [], "mismatched": []}; ctx = {}
+        out = {"available": [], "missing": [], "mismatched": [], "unreadable": []}; ctx = {}   # unreadable: a file is there but could not be read (never reported as missing)
         for g in body.get("games") or []:
             vid = str((g or {}).get("version_id") or "") if isinstance(g, dict) else ""; title = str((g or {}).get("title") or vid)[:120] if isinstance(g, dict) else ""
             if not GAME_RE.match(vid): out["missing"].append({"version_id": vid[:96], "title": title, "reason": "no_identity"}); continue
-            state, rec, _, _ = classify(vid, title, ctx); out[state].append(rec)
+            state, rec, _, _ = classify(vid, title, ctx); out["unreadable" if state == "missing" and rec.get("reason") == "unreadable" else state].append(rec)
         return handler._json(200, dict(out, ok=True))
+    if path == "/api/package/inventory":   # (Codex v1p4 F2) the demo's full-game check: both game stores, by exact content
+        cs = [c for c in (body.get("contents") or []) if isinstance(c, str) and re.fullmatch(r"[0-9a-f]{64}", c)][:64]
+        try: return handler._json(200, {"ok": True, "items": full_inventory(cs)})
+        except (OSError, ValueError) as e: return handler._json(200, {"ok": False, "error": f"its list of games on this computer could not be read ({getattr(e, 'strerror', None) or e})"})
     if path == "/api/package/job":
         st = job_status(str(body.get("job") or ""))
         return handler._json(200, {"ok": True, "job": st}) if st else handler._json(404, {"ok": False, "error": "That export is no longer running."})
@@ -441,8 +507,8 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
             else: (missing if state == "missing" else mismatched).append(rec)
         if missing or mismatched:
             parts = []
-            if missing: parts.append(f"{len(missing)} game{'s' if len(missing) != 1 else ''} without a ROM file on this computer")
-            if mismatched: parts.append(f"{len(mismatched)} game{'s' if len(mismatched) != 1 else ''} whose ROM file is a different version")
+            if missing: parts.append(f"{len(missing)} game{'s' if len(missing) != 1 else ''} without a game file on this computer")
+            if mismatched: parts.append(f"{len(mismatched)} game{'s' if len(mismatched) != 1 else ''} whose game file is a different version")
             return handler._json(409, {"ok": False, "missing": missing, "mismatched": mismatched,
                                        "error": "The package can't be made: " + " and ".join(parts) + ". Locate the exact files or remove those games, then try again. Nothing was saved."})
         _prune(d); i, p = _new_path(d)

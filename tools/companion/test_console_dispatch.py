@@ -50,7 +50,9 @@ class Base(unittest.TestCase):
             self.opened.append(tier); return CI.FakeConsole(self.root, dict(self.faults))
         def spawn():
             self.spawned += 1; return InProc(root=self.wroot, console_package=self.pkg, console_factory=factory, allowed=lambda t: True)
-        self.d = console_home.Dispatcher(allowed=lambda t: True, confirmations=CC.Confirmations(allowed=lambda t: True, clock=self.clock), clock=self.clock, spawn=spawn)
+        self.admitted = []   # the backup prerequisite answered by the test (its real validation: tools/console-backup CcsBackup.Tests, test_backup_admission.py)
+        def admit(hwid, op, subject): self.admitted.append((hwid, op, subject)); return {"ok": True, "ticket": "0" * 32}
+        self.d = console_home.Dispatcher(allowed=lambda t: True, confirmations=CC.Confirmations(allowed=lambda t: True, clock=self.clock), clock=self.clock, spawn=spawn, admit=admit)
     def tearDown(self): shutil.rmtree(self.t, ignore_errors=True)
     def wait(self, rid, timeout=120):
         end = time.time() + timeout

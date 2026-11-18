@@ -1,6 +1,9 @@
 /* Images and drawing primitives for the native HOME on the software framebuffer. Integer and plain IEEE arithmetic only
  * (no libm), so frames are bit-identical on Windows, Linux and ARM. Image decoding: the vendored stb_image (public domain /
  * MIT, v2.30, third_party/stb_image.h), built for baseline JPEG and PNG only, scalar code paths, no stdio. */
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include "home.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +17,28 @@
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
+/* decoded-picture accounting (design.h, HOME-DESIGNER.md "Budgets"): the decoder's working memory is counted through its allocator hooks
+   (a small table of its live blocks), decoded pictures and the resampler's scratch through the image functions below */
+size_t ccs_mem_img_live, ccs_mem_img_peak, ccs_mem_stb_live, ccs_mem_stb_peak, ccs_mem_total_peak;
+static void mem_peak(void) { if (ccs_mem_img_live > ccs_mem_img_peak) ccs_mem_img_peak = ccs_mem_img_live; if (ccs_mem_stb_live > ccs_mem_stb_peak) ccs_mem_stb_peak = ccs_mem_stb_live;
+    if (ccs_mem_img_live + ccs_mem_stb_live > ccs_mem_total_peak) ccs_mem_total_peak = ccs_mem_img_live + ccs_mem_stb_live; }
+void ccs_mem_reset_peaks(void) { ccs_mem_img_peak = ccs_mem_img_live; ccs_mem_stb_peak = ccs_mem_stb_live; ccs_mem_total_peak = ccs_mem_img_live + ccs_mem_stb_live; }
+void ccs_mem_img_add(size_t n) { ccs_mem_img_live += n; mem_peak(); }
+void ccs_mem_img_sub(size_t n) { ccs_mem_img_live = n > ccs_mem_img_live ? 0 : ccs_mem_img_live - n; }
+static void work_add(size_t n) { ccs_mem_stb_live += n; mem_peak(); }
+static void work_sub(size_t n) { ccs_mem_stb_live = n > ccs_mem_stb_live ? 0 : ccs_mem_stb_live - n; }
+#define TRK_N 4096
+static struct { void *p; size_t n; } trk[TRK_N];
+static void trk_put(void *p, size_t n) { if (!p) return; size_t k = (size_t)(((uintptr_t)p >> 4) % TRK_N);
+    for (int i = 0; i < TRK_N; i++, k = (k + 1) % TRK_N) if (!trk[k].p || trk[k].p == (void *)1) { trk[k].p = p; trk[k].n = n; work_add(n); return; } }
+static size_t trk_take(void *p) { if (!p) return 0; size_t k = (size_t)(((uintptr_t)p >> 4) % TRK_N);
+    for (int i = 0; i < TRK_N && trk[k].p; i++, k = (k + 1) % TRK_N) if (trk[k].p == p) { size_t n = trk[k].n; trk[k].p = (void *)1; trk[k].n = 0; work_sub(n); return n; } return 0; }
+static void *ccs_stbi_malloc(size_t n) { void *p = malloc(n); trk_put(p, n); return p; }
+static void *ccs_stbi_realloc(void *p, size_t n) { trk_take(p); void *q = realloc(p, n); if (q) trk_put(q, n); return q; }
+static void ccs_stbi_free(void *p) { trk_take(p); free(p); }
+#define STBI_MALLOC(sz) ccs_stbi_malloc(sz)
+#define STBI_REALLOC(p, newsz) ccs_stbi_realloc(p, newsz)
+#define STBI_FREE(p) ccs_stbi_free(p)
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
@@ -32,7 +57,11 @@ static int ifloor(double v) { int i = (int)v; return (v < 0 && (double)i != v) ?
 static uint8_t clamp8(int v) { return (uint8_t)(v < 0 ? 0 : v > 255 ? 255 : v); }
 
 int ccs_read_file(const char *path, uint8_t **buf, size_t *len, size_t max_len) {
+#ifdef _WIN32   /* paths are UTF-8: every file name works (the PC's render check reads folders under any user name) */
+    wchar_t wp[1100]; *buf = NULL; *len = 0; FILE *f = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wp, 1100) ? _wfopen(wp, L"rb") : NULL; if (!f) return -1;
+#else
     *buf = NULL; *len = 0; FILE *f = fopen(path, "rb"); if (!f) return -1;
+#endif
     size_t cap = 1 << 16, n = 0; uint8_t *b = malloc(cap); if (!b) { fclose(f); return -2; }
     for (;;) {
         if (n == cap) { if (cap >= max_len) { free(b); fclose(f); return -3; } cap *= 2; uint8_t *nb = realloc(b, cap); if (!nb) { free(b); fclose(f); return -2; } b = nb; }
@@ -42,13 +71,15 @@ int ccs_read_file(const char *path, uint8_t **buf, size_t *len, size_t max_len) 
     *buf = b; *len = n; return 0;
 }
 
-int img_alloc(image *im, int w, int h, int ch) { im->w = w; im->h = h; im->ch = ch; im->hpx = NULL; im->hs = 0; im->px = calloc((size_t)w * h * ch, 1); return im->px ? 0 : -1; }
-void img_free(image *im) { free(im->px); free(im->hpx); im->px = im->hpx = NULL; im->w = im->h = im->hs = 0; }
+static size_t px_bytes(const image *im) { return im->px ? (size_t)im->w * im->h * im->ch : 0; }
+static size_t hpx_bytes(const image *im) { return im->hpx ? (size_t)im->w * im->h * im->ch * (size_t)im->hs * im->hs : 0; }
+int img_alloc(image *im, int w, int h, int ch) { im->w = w; im->h = h; im->ch = ch; im->hpx = NULL; im->hs = 0; im->px = calloc((size_t)w * h * ch, 1); if (im->px) ccs_mem_img_add(px_bytes(im)); return im->px ? 0 : -1; }
+void img_free(image *im) { ccs_mem_img_sub(px_bytes(im) + hpx_bytes(im)); free(im->px); free(im->hpx); im->px = im->hpx = NULL; im->w = im->h = im->hs = 0; }
 
 int img_decode(const uint8_t *buf, size_t len, image *im, int want_alpha, char *err, size_t errlen) {
     memset(im, 0, sizeof *im); int w, h, n; uint8_t *px = stbi_load_from_memory(buf, (int)len, &w, &h, &n, want_alpha ? 4 : 3);
     if (!px) { snprintf(err, errlen, "cannot decode image (%s)", stbi_failure_reason()); return -2; }
-    im->w = w; im->h = h; im->ch = want_alpha ? 4 : 3; im->px = px; return 0;
+    trk_take(px); im->w = w; im->h = h; im->ch = want_alpha ? 4 : 3; im->px = px; ccs_mem_img_add(px_bytes(im)); return 0;
 }
 int img_load(const char *path, image *im, int want_alpha, char *err, size_t errlen) {
     memset(im, 0, sizeof *im); uint8_t *buf; size_t len;
@@ -87,12 +118,13 @@ static int scale_rect(const image *src, int sx, int sy, int sw, int sh, image *d
     int ch = src->ch; if (img_alloc(dst, dw, dh, ch)) return -1;
     const uint8_t *sp = src->px; uint8_t *pm = NULL;
     if (ch == 4) {   /* premultiply so transparent pixels never bleed their (meaningless) color */
-        pm = malloc((size_t)src->w * src->h * 4); if (!pm) { img_free(dst); return -1; }
+        pm = malloc((size_t)src->w * src->h * 4); if (!pm) { img_free(dst); return -1; } work_add((size_t)src->w * src->h * 4);
         for (size_t i = 0, n = (size_t)src->w * src->h; i < n; i++) { const uint8_t *p = src->px + i * 4; int a = p[3]; uint8_t *q = pm + i * 4; q[0] = (uint8_t)((p[0] * a + 127) / 255); q[1] = (uint8_t)((p[1] * a + 127) / 255); q[2] = (uint8_t)((p[2] * a + 127) / 255); q[3] = (uint8_t)a; }
         sp = pm;
     }
     wspan *wx = weights(sx, sw, dw), *wy = weights(sy, sh, dh); uint16_t *tmp = malloc((size_t)dw * sh * ch * sizeof *tmp);
-    if (!wx || !wy || !tmp) { free(wx); free(wy); free(tmp); free(pm); img_free(dst); return -1; }
+    size_t scratch = (size_t)dw * sh * ch * sizeof *tmp + (size_t)(dw + dh) * sizeof(wspan); work_add(scratch);
+    if (!wx || !wy || !tmp) { work_sub(scratch + (pm ? (size_t)src->w * src->h * 4 : 0)); free(wx); free(wy); free(tmp); free(pm); img_free(dst); return -1; }
     for (int y = 0; y < sh; y++) {
         const uint8_t *row = sp + (size_t)(sy + y) * src->w * ch;
         for (int x = 0; x < dw; x++) for (int c = 0; c < ch; c++) {
@@ -105,7 +137,7 @@ static int scale_rect(const image *src, int sx, int sy, int sw, int sh, image *d
         dst->px[((size_t)y * dw + x) * ch + c] = clamp8((s + (1 << 21)) >> 22);
     }
     if (ch == 4) for (size_t i = 0, n = (size_t)dw * dh; i < n; i++) { uint8_t *q = dst->px + i * 4; int a = q[3]; if (a) { q[0] = clamp8((q[0] * 255 + a / 2) / a); q[1] = clamp8((q[1] * 255 + a / 2) / a); q[2] = clamp8((q[2] * 255 + a / 2) / a); } }
-    free(wx); free(wy); free(tmp); free(pm); return 0;
+    work_sub(scratch + (pm ? (size_t)src->w * src->h * 4 : 0)); free(wx); free(wy); free(tmp); free(pm); return 0;
 }
 static void carry_hi(const image *src, image *dst) {   /* a resized image keeps its high-resolution pixels (resized from the source's) */
     if (ccs_scale > 1 && src->hpx && src->hs == ccs_scale && dst->px) { image hs = { src->w * src->hs, src->h * src->hs, src->ch, src->hpx, NULL, 0 }; img_hi(&hs, dst, 0); } }
@@ -130,7 +162,7 @@ void img_hi(const image *src, image *dst, int cover) {
     if (ccs_scale <= 1 || !dst->px || !src || !src->px) return; image t; int S = ccs_scale;
     if (cover ? img_cover(src, &t, dst->w * S, dst->h * S) : img_scale(src, &t, dst->w * S, dst->h * S)) return;
     if (t.ch != dst->ch) { img_free(&t); return; }
-    free(dst->hpx); dst->hpx = t.px; dst->hs = S; }
+    ccs_mem_img_sub(hpx_bytes(dst)); free(dst->hpx); dst->hpx = t.px; dst->hs = S; }
 
 /* ---------- drawing ---------- */
 #define SC ccs_scale

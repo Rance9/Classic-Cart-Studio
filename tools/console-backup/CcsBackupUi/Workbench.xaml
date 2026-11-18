@@ -1,0 +1,162 @@
+<!-- CCS Console Workbench window: the Windows app's theme (Theme.xaml, shared) plus the Workbench's own parts. Copyright (C) 2026 Rance9.
+     GPL-3.0-or-later. Only the Workbench window uses this dictionary; the app's own windows keep Theme.xaml as it is. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="pack://application:,,,/CcsBackupUi;component/Theme.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <SolidColorBrush x:Key="B.Side" Color="#FF131318"/>
+  <SolidColorBrush x:Key="B.NavHover" Color="#12FFFFFF"/>
+  <SolidColorBrush x:Key="B.NavOn" Color="#FF23232B"/>
+
+  <!-- the side list of sections: plain rows (a group's sections indented under its heading), the open one marked by a red bar, a lighter
+       row and heavier text; keyboard focus draws a ring; a row that cannot be opened while a console task runs is dimmed -->
+  <Style x:Key="Wb.Nav" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink2}"/>
+    <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+    <Setter Property="FontSize" Value="13.5"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Padding" Value="12,7,10,7"/>
+    <Setter Property="Margin" Value="0,0,0,2"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid>
+            <Border x:Name="bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" RecognizesAccessKey="False"/>
+            </Border>
+            <Border x:Name="bar" Width="3" CornerRadius="1.5" Margin="0,8,0,8" HorizontalAlignment="Left" Background="Transparent"/>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.NavHover}"/><Setter Property="Foreground" Value="{StaticResource B.Ink}"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.NavHover}"/><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/></Trigger>
+            <Trigger Property="Tag" Value="on">
+              <Setter TargetName="bd" Property="Background" Value="{StaticResource B.NavOn}"/>
+              <Setter TargetName="bar" Property="Background" Value="{StaticResource B.Red}"/>
+              <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+              <Setter Property="FontWeight" Value="SemiBold"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{StaticResource B.Muted}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <!-- an entry at the level of the group headings (Dashboard): their size, weight and color, with the same open, hover and focus marks -->
+  <Style x:Key="Wb.NavTop" TargetType="Button" BasedOn="{StaticResource Wb.Nav}">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
+  <!-- a "Technical details" heading that opens and closes the details under it -->
+  <Style x:Key="Wb.Disclosure" TargetType="ToggleButton">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink2}"/>
+    <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToggleButton">
+          <Border x:Name="bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="6,5,10,5" SnapsToDevicePixels="True">
+            <ContentPresenter VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/><Setter Property="Foreground" Value="{StaticResource B.Ink}"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- every button's text: one line when there is room, wrapped (never cut off) when there is not -->
+  <DataTemplate x:Key="Wb.ButtonText">
+    <TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Center"/>
+  </DataTemplate>
+
+  <!-- a long choice is shortened with "…" in the box (the whole text shows in the open list) instead of running past the box -->
+  <DataTemplate x:Key="Wb.ChoiceText">
+    <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
+  </DataTemplate>
+  <!-- check boxes and choices: their sentence wraps -->
+  <DataTemplate x:Key="Wb.CheckText">
+    <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+  </DataTemplate>
+  <!-- a clickable row (a folder in a file list): flat, lighter under the pointer -->
+  <!-- a button that is only its content (a picture, an explained word): a focus ring with the keyboard focus, a light hover -->
+  <Style x:Key="Wb.Plain" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Foreground" Value="{StaticResource B.Red3}"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="ring" BorderBrush="Transparent" BorderThickness="2" CornerRadius="6" Padding="{TemplateBinding Padding}" Background="Transparent" SnapsToDevicePixels="True">
+            <ContentPresenter RecognizesAccessKey="False"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ring" Property="Background" Value="{StaticResource B.NavHover}"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="Wb.Row" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="6,6,6,6" SnapsToDevicePixels="True">
+            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- a row in a list of backups: the row draws its own card; the list marks the chosen one with a red outline (no system highlight) -->
+  <Style TargetType="ListBox">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style TargetType="ListBoxItem">
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Border x:Name="ring" BorderThickness="2" BorderBrush="Transparent" CornerRadius="10" Padding="0" SnapsToDevicePixels="True">
+            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource B.Line2}"/></Trigger>
+            <Trigger Property="IsSelected" Value="True"><Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource B.Red}"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- The Workbench's text boxes, choice lists, check boxes and choices build on the shared theme's own styles; they are made in code
+       (BackupWorkspace.DeriveStyles) from the theme's styles as the window finds them, so the theme's dark look is always kept. -->
+</ResourceDictionary>

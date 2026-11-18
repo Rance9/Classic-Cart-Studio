@@ -12,8 +12,21 @@
 //   sorts              display sorts per browsing location; view-only
 const HOME_SCHEMA='ccs-home-collection/1';
 const HOME_THEMES=['arcade-grid','box-art-showcase','featured-shelf','adventure-map'];
-// the console's startup screen (D-113): Random among the five approved images, or one of them; separate from the HOME theme
-const HOME_STARTUP=[{id:'forgotten-keep',name:'Forgotten Keep'},{id:'galactic-frontier',name:'Galactic Frontier'},{id:'kingdoms-beyond',name:'Kingdoms Beyond'},{id:'neon-highway',name:'Neon Highway'},{id:'pixel-worlds',name:'Pixel Worlds'}];
+// the console's startup screen (D-113): Random among the five approved images, or one of them; separate from the HOME theme. The five ids
+// are the slots every format names (native_home/console_package.py STARTUP_IDS, the Workbench's HomeDesign, the console's design.c); each
+// picture's name and preview come from its manifest (tools/publish/assets/startup/startup-images.json, put into the page by build_html.py as
+// HOME_STARTUP_IMAGES), so a picture is replaced there and in its files, not here. Without the manifest (this file run on its own) the name
+// is spelled from the id and the preview has the manifest's usual file name.
+const HOME_STARTUP=['forgotten-keep','galactic-frontier','kingdoms-beyond','neon-highway','pixel-worlds'].map(id=>{
+ const m=(typeof HOME_STARTUP_IMAGES!=='undefined'&&Array.isArray(HOME_STARTUP_IMAGES)&&HOME_STARTUP_IMAGES.find(x=>x&&x.id===id))||{};
+ return {id, name:typeof m.name==='string'&&m.name?m.name:id.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '), thumb:typeof m.thumb==='string'&&/^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpg|jpeg|png|webp)$/i.test(m.thumb)?m.thumb:`startup-${id}-thumb.jpg`}; });
+// D-174: or the collection's own picture, custom-<first 16 hex of its SHA-256>, with its reference startup_custom (the bytes are kept apart:
+// studio/startup-custom.js). A chosen own picture is kept even when its reference is unusable (with the reason), never turned into Random here
+function homeStartupCustom(prev){ const c=prev&&prev.startup_custom; if(!c||typeof c!=='object'||Array.isArray(c)) return /^custom-[0-9a-f]{16}$/.test(prev&&prev.startup_image||'')?{id:prev.startup_image, problem:'the picture is not described with this collection'}:null;
+ const sha=typeof c.sha256==='string'&&/^[0-9a-f]{64}$/.test(c.sha256)?c.sha256:null, id=sha?'custom-'+sha.slice(0,16):(typeof c.id==='string'&&/^custom-[0-9a-f]{16}$/.test(c.id)?c.id:null);
+ if(!id) return null; if(!sha||c.id!==id) return {id, problem:typeof c.problem==='string'?c.problem.slice(0,200):'the picture is not described correctly'};
+ const o={id, sha256:sha, name:String(c.name||'My picture').slice(0,80), fit:c.fit==='fill'?'fill':'fit', bytes:Number.isSafeInteger(c.bytes)&&c.bytes>0?c.bytes:0, width:1280, height:720}; if(typeof c.problem==='string') o.problem=c.problem.slice(0,200); return o; }
+function homeStartupChoice(prev){ const v=prev&&prev.startup_image; if(HOME_STARTUP.some(s=>s.id===v)) return v; const c=homeStartupCustom(prev); return c&&c.id===v?v:'random'; }
 const HOME_DEFAULT_THEME='arcade-grid';
 const HOME_SORTS=[{id:'custom',label:'Custom Order'},{id:'title-az',label:'Title A–Z'},{id:'title-za',label:'Title Z–A'},{id:'year-old',label:'Release Year: Oldest First'},{id:'year-new',label:'Release Year: Newest First'},{id:'pub-az',label:'Publisher A–Z'},{id:'pub-za',label:'Publisher Z–A'}];
 const HOME_MAX_FOLDER_DEPTH=5;
@@ -27,6 +40,11 @@ const HOME_EMPTY={
 
 function homeSortTitle(t){ t=String(t||'').toLowerCase().trim(); return t.startsWith('the ')?t.slice(4):t; }
 function homeNow(){ return new Date().toISOString(); }
+// D-131: every game's background is the shared scene of its genre (HOME_SCENES, embedded from site-data/art/scenes/index.json; the twin of
+// tools/companion/native_home/scenes.py). A game without a listed genre (none, imported, personal) gets the fallback scene. Nothing stored with a
+// collection chooses a scene, so a retired per-game background can never come back.
+function homeScene(genre){ const S=typeof HOME_SCENES!=='undefined'?HOME_SCENES:null; if(!S) return null; const id=(genre&&S.genres[genre])||S.fallback; const s=S.scenes[id];
+ return s?{id, src:s.file, title:s.title||{x:0.5,y:0.09}}:null; }
 function homeId(prefix){ return prefix+':'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 
 // ---- build: manifest + catalog -> installed collection ----
@@ -42,13 +60,14 @@ function homeBuild(manifest, byId, prev, opts){
    version_id:s.payload_sha256||s.builtin_factory_version||id, version_label:s.nointro_name||s.version_label||(s.builtin_code&&!s.install_required?'factory version':''),
    publisher:g.publisher||null, developer:g.developer||null, genre:g.genre||null, players:g.players||null, year:g.year||null, description:g.description||null,
    descriptions:homeDescriptions(g),
-   art:{src:prov==='generated'?opts.generated[id]:artSrc, provenance:prov}, snap:g.art_snap||null, title_screen:g.art_title||null, bands:g.art_bands||null, art_size:g.art_size||null, tone:g.art_tone||null, hero:g.art_hero||null, hero_title:g.art_hero_title||null, kind:s.builtin_code&&!s.install_required?'factory':(s.source==='personal'?'personal':'added'),
+   art:{src:prov==='generated'?opts.generated[id]:artSrc, provenance:prov}, snap:g.art_snap||null, title_screen:g.art_title||null, bands:g.art_bands||null, art_size:g.art_size||null, tone:g.art_tone||null, scene:(homeScene(g.genre)||{}).id||null, kind:s.builtin_code&&!s.install_required?'factory':(s.source==='personal'?'personal':'added'),
    playable:installed, launch:{adapter:'mock', core:g.recommended_emulator||null, ref:id}}); }
  const order=games.map(g=>g.id);
  const m={schema:HOME_SCHEMA, generated:homeNow(), source:{schema:manifest&&manifest.schema||null, name:manifest&&manifest.name||null}, games, order,
   folders:homeKeepFolders(prev.folders||[], new Set(order)), favorites:homeKeepFavorites(prev.favorites, new Set(order)), history:prev.history||{events:[],cleared_gen:0,cleared_at:null},
   map_shortcuts:(prev.map_shortcuts||[null,null]).slice(0,2), sorts:Object.assign({},prev.sorts||{}), theme:HOME_THEMES.includes(prev.theme)?prev.theme:HOME_DEFAULT_THEME, settings:Object.assign({reduced_motion:false,hints:true},prev.settings||{}),
-  startup_image:HOME_STARTUP.some(s=>s.id===prev.startup_image)?prev.startup_image:'random'};
+  startup_image:homeStartupChoice(prev), startup_custom:homeStartupCustom(prev)};
+ if(prev.design&&typeof prev.design==='object'&&!Array.isArray(prev.design)) m.design=prev.design;   // a HOME Designer design, kept exactly as it came (studio/startup-custom.js)
  if(m.map_shortcuts.length<2) m.map_shortcuts.push(null);
  homeDefaultShortcuts(m); return m;
 }

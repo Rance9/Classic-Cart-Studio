@@ -19,7 +19,7 @@ from __future__ import annotations
 import json, os, re, shutil, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.dirname(HERE); sys.path[:0] = [HERE, os.path.join(TOOLS, "companion")]
 from test_collections_web import EdgeSession, serve, free_port
-from test_loadouts_web import CCS_EXPORT_UI, page_file, page_bytes, net_take, net_report
+from studio_harness import CCS_EXPORT_UI, page_file, page_bytes, net_take, net_report
 from test_ccs_v2_web import NET, ROMS
 import ccs_package as cp
 
@@ -80,10 +80,10 @@ def main():
             ok("mixed_collection_organizes_without_roms", st["lo"] == N and st["dup"] == N and st["L"] == [N], st)
             # Share or Export: blocked, with the list of games that need their ROM file
             st = J(ed, f"(async()=>JSON.stringify(await ccsExportUi('{b['cid']}', null)))()")
-            ok("mixed_backup_blocked_with_the_missing_list", st["exp"] and st["send"] and len(st["missing"]) == N and sorted(st["missing"]) == sorted(ids) and f"{N} of {N} games need their ROM file" in st["text"]
+            ok("mixed_backup_blocked_with_the_missing_list", st["exp"] and st["send"] and len(st["missing"]) == N and sorted(st["missing"]) == sorted(ids) and f"{N} of {N} games need their game file" in st["text"]
                and "My Homebrew Quest" in st["text"] and "and 1 more" in st["text"] and st["pick"] and not st.get("name"), st["text"])
             st = J(ed, "(async()=>{ let e=''; try{ await ccsBuild(CCS.parts); }catch(x){ e=x.message; } return JSON.stringify({e, saved:!!window.__saved}); })()")
-            ok("mixed_package_cannot_be_built_incomplete", "missing ROM" in st["e"] and not st["saved"], st)
+            ok("mixed_package_cannot_be_built_incomplete", "missing game file" in st["e"] and not st["saved"], st)
             ed.js("closeColl(); 1")
             ok("mixed_collection_unchanged_after_blocked_export", J(ed, "JSON.stringify(csActive().sel)") == ids)
             # the sentinel collection: every game with its ROM

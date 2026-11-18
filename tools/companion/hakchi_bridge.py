@@ -315,7 +315,7 @@ def plan(man: dict, approve_alternates: bool = False) -> dict:
         inp = {k[6:]: c.get(k) for k in c if k.startswith("input_")}
         row = {"game_id": c["game_id"], "title": c["display_title"], "nointro_name": c["nointro_name"], "emulator": c.get("recommended_emulator"), "core": c.get("core"), "statuses": [], "detail": "", "kind": "", "code": c.get("builtin_code") or "", "source": c.get("source", "catalog")}
         if c.get("source") == "personal" and c.get("file_missing"): problems.append(f"{c['display_title']}: game file missing — use Locate File in the Studio"); row["statuses"].append("missing ROM payload"); row["detail"] = "the game file for this personal entry is no longer where the Studio stored it"
-        if c.get("recommended_emulator") == "unknown" and not c.get("header_hex"): problems.append(f"{c['display_title']}: no header information for this ROM, so it cannot be prepared (identity unknown)"); row["statuses"].append("missing ROM payload"); row["detail"] = "no evidence-based iNES header; the Studio never guesses one" 
+        if c.get("recommended_emulator") == "unknown" and not c.get("header_hex"): problems.append(f"{c['display_title']}: no header information for this game file, so it cannot be prepared (identity unknown)"); row["statuses"].append("missing ROM payload"); row["detail"] = "no evidence-based iNES header; the Studio never guesses one" 
         hw = inp.get("standard_controller_playable") != "true" and inp.get("nes_classic_support") in ("unverified", "unsupported", "unknown")
         if hw: row["statuses"].append("controller warning"); row["detail"] = f"{inp.get('special_accessory') or 'input'} — NES Classic support {inp.get('nes_classic_support')}"
         if cls.startswith("exact"):
@@ -345,7 +345,7 @@ def plan(man: dict, approve_alternates: bool = False) -> dict:
     for c, row in custom:
         sha = c["payload_sha256"]; path = c.get("stored") or stored.get(sha); hdr = c.get("header_hex") or ident.get(sha) or ""
         if c.get("file_missing") or "missing ROM payload" in row["statuses"]: continue   # already reported above
-        if not path or not os.path.exists(path): row["statuses"].append("missing ROM payload"); row["detail"] = (row["detail"] + "; " if row["detail"] else "") + ("the game file is missing" if c.get("source") == "personal" else "payload not in the work store (C:/NES/work) — re-run inventory.py"); problems.append(f"{c['display_title']}: ROM payload missing"); continue
+        if not path or not os.path.exists(path): row["statuses"].append("missing ROM payload"); row["detail"] = (row["detail"] + "; " if row["detail"] else "") + ("the game file is missing" if c.get("source") == "personal" else "payload not in the work store (C:/NES/work) — re-run inventory.py"); problems.append(f"{c['display_title']}: game file missing"); continue
         if not hdr: row["statuses"].append("missing ROM payload"); problems.append(f"{c['display_title']}: no evidence-based header"); continue
         if "ready to prepare" not in row["statuses"]: row["statuses"].insert(0, "ready to prepare")
         plan_custom.append({"game": c, "row": row, "payload_path": path, "header_hex": hdr, "converted_sha256": c.get("converted_sha256"), "headered_file": bool(c.get("headered_file"))})
@@ -460,7 +460,7 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
             if existing and existing["rom_sha256"] == csha and existing["desktop"]:
                 res["reused"] += 1; item["row"]["statuses"] = [s for s in item["row"]["statuses"] if s != "ready to prepare"] + ["reused existing ROM"]
             elif existing and existing["rom_sha256"] and existing["rom_sha256"] != csha:
-                raise RuntimeError(f"{g['display_title']}: Hakchi already has a different ROM under code {code} (not managed by this integration); refusing to overwrite")
+                raise RuntimeError(f"{g['display_title']}: Hakchi already has a different game file under code {code} (not managed by this integration); refusing to overwrite")
             else:
                 d = os.path.join(stage_dir, code); os.makedirs(d, exist_ok=True); rom_name = code + ".nes"
                 with open(os.path.join(d, rom_name), "wb") as f: f.write(out)
@@ -505,7 +505,7 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
         for code in desired_selected:
             e = after_entries.get(code)
             if not e or not e["desktop"]: mism.append(f"{code}: folder/desktop missing")
-            elif e["rom_sha256"] != ledger["managed"][code]["converted_sha256"]: mism.append(f"{code}: ROM hash differs")
+            elif e["rom_sha256"] != ledger["managed"][code]["converted_sha256"]: mism.append(f"{code}: game file hash differs")
         res["verification"] = {"match": not mism, "mismatches": mism, "factory_enabled_count": len(after_cfg.get("OriginalGames", [])), "factory_expected_count": len(desired_originals), "custom_checked_count": len(after_cfg.get("SelectedGames", [])), "custom_expected_count": len(desired_selected), "factory_enabled": sorted(after_cfg.get("OriginalGames", [])), "custom_checked": sorted(after_cfg.get("SelectedGames", [])), "unrelated_unchecked": unrelated_checked}
         if mism: raise RuntimeError("post-apply verification failed: " + "; ".join(mism))
         journal["config_after"] = sha256_file(tree.cfg_path); json.dump(journal, open(os.path.join(staging, "journal.json"), "w", encoding="utf-8"), indent=1)

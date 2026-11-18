@@ -94,8 +94,8 @@ class Engine:
     def preflight(self, p: dict) -> dict:
         self._checkpoint("preflight"); blocks, warns = [], []
         for e in p["entries"]:
-            if e["kind"] == "unresolved": blocks.append({"code": "unresolved-entry", "text": f"{e['title']}: {e.get('detail') or 'could not be matched to a ROM file'}"})
-            if e["action"] == "add" and not e.get("size"): blocks.append({"code": "missing-file", "text": f"{e['title']}: the ROM file is not on this computer. Locate the file, or remove the game."})
+            if e["kind"] == "unresolved": blocks.append({"code": "unresolved-entry", "text": f"{e['title']}: {e.get('detail') or 'could not be matched to a game file'}"})
+            if e["action"] == "add" and not e.get("size"): blocks.append({"code": "missing-file", "text": f"{e['title']}: the game file is not on this computer. Locate the file, or remove the game."})
             if e["action"] == "add" and "?" in e.get("requires", []): blocks.append({"code": "unsupported-core", "text": f"{e['title']}: needs an emulator that Classic Cart Studio cannot set up in this version."})
         for m in p["modules"]:
             if m["action"] == "install" and not m["cleared"]: blocks.append({"code": "module-not-cleared", "text": f"Emulator module {m['name']} is needed by {m['needed_by']} game{'' if m['needed_by'] == 1 else 's'} but is not included with Classic Cart Studio. You need to provide it yourself."})

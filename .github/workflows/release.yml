@@ -31,6 +31,27 @@ jobs:
           echo shutdown | "$HOME/.cache/ccs-sim/toolchain/deb/usr/bin/qemu-arm" build/native/arm-musl-device/ccs-home-armv7 | tee arm.log; grep -q '"ev":"ready"' arm.log
           echo shutdown | build/native/linux-x86_64/ccs-sim-core | grep -q '"ev":"ready"'
           file build/native/arm-musl-device/ccs-player-armv7 | tee player.txt; grep -q "ELF 32-bit LSB executable, ARM" player.txt; grep -q "statically linked" player.txt
+      - name: Build ccsboot (the console programs' boot-stage reader and writer; the same pinned zig, reproducible flags)
+        run: bash tools/console-backup/ram/ccsboot/build.sh build/ccsboot
+      - name: Test ccsboot (its test build on a file-backed device under qemu-arm; the console build refuses without the console's driver)
+        run: python3 tools/console-backup/ram/ccsboot/test_ccsboot.py build/ccsboot
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ccsboot
+          path: build/ccsboot/ccsboot
+          if-no-files-found: error
+      - name: Build the parity library for Classic Cart Studio for Windows (ccs-par2.dll; par2cmdline 1.4.0 from its release, SHA-256 pinned)
+        run: bash tools/console-backup/native-host/build_host.sh --dll-only --out build/par2dll --arch all --cache build/par2-cache
+      - uses: actions/upload-artifact@v4
+        with:
+          name: par2-source
+          path: build/par2-cache/par2cmdline-1.4.0.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: par2dll
+          path: build/par2dll
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: native-home
@@ -43,21 +64,89 @@ jobs:
             build/native/windows-x86_64/build-info.json
           if-no-files-found: error
 
-  build-windows:
+  build-recovery-images:
+    # Console Backup & Restore's console programs: Hakchi2 CE 3.9.3's recovery boot image with a Classic Cart Studio start-up
+    # (tools/console-backup/ram/build_images.py; every input checked by SHA-256, every change recorded in each MANIFEST.json), built on the
+    # one build Python so the bytes depend on the source and the pinned package only
+    name: Build CCS Console Workbench's console programs (recovery images)
     needs: build-native
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: native-home
-          path: build/native
+          name: ccsboot
+          path: build/ccsboot
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13.17"
+      - name: Build tools
+        run: |
+          python -m pip install --quiet -r tools/publish/requirements-build.txt
+          python tools/publish/check_build_env.py
+      - name: The official Hakchi2 CE 3.9.3 package (downloaded, size and SHA-256 verified)
+        run: python tools/publish/fetch_hakchi_package.py build/packages
+      - name: Build the backup, restore, preparation, rescue and files programs (ccsboot checked against its pinned build)
+        shell: pwsh
+        run: |
+          python tools/console-backup/ram/build_images.py --hakchi-release $env:CCS_HAKCHI_PACKAGE --ccsboot build/ccsboot/ccsboot --out build/ram-images
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recovery-images
+          path: build/ram-images
+          if-no-files-found: error
+
+  test-recovery-images:
+    # the built images on Linux: a static audit of every file they run and runs on the image's own BusyBox under qemu-arm with the
+    # console's storage tools replaced by write tripwires (no console, no USB); a failure stops the release
+    name: Test the console programs (static audit, qemu-arm runs with write tripwires)
+    needs: build-recovery-images
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain (qemu-user)
+        run: bash tools/console-simulator/scripts/wsl_setup.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: recovery-images
+          path: build/ram-images
+      - name: The official Hakchi2 CE 3.9.3 package (the preparation program's hakchi files are compared with it)
+        run: python3 tools/publish/fetch_hakchi_package.py build/packages
+      - name: Test
+        run: python3 tools/console-backup/ram/test_recovery_images.py --images build/ram-images --hakchi-release "$CCS_HAKCHI_PACKAGE"
+
+  build-windows:
+    needs: [build-native, test-recovery-images]
+    runs-on: windows-latest
+    env:   # code signing (tools/publish/signing.py): repository variables, nothing secret; unset = an unsigned build, labeled unsigned
+      CCS_SIGNING: ${{ vars.CCS_SIGNING }}
+      CCS_SIGN_PUBLISHERS: ${{ vars.CCS_SIGN_PUBLISHERS }}
+      CCS_REQUIRE_SIGNED: ${{ vars.CCS_REQUIRE_SIGNED }}
+      CCS_SIGN_ENDPOINT: ${{ vars.CCS_SIGN_ENDPOINT }}
+      CCS_SIGN_ACCOUNT: ${{ vars.CCS_SIGN_ACCOUNT }}
+      CCS_SIGN_PROFILE: ${{ vars.CCS_SIGN_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-home
+          path: build/native
+      - uses: actions/download-artifact@v4
+        with:
+          name: recovery-images
+          path: build/ram-images
+      - uses: actions/download-artifact@v4
+        with:
+          name: par2dll
+          path: build/par2dll
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.17"   # the one build Python (tools/publish/requirements-build.txt), also the website's and the local builds'
       - name: Install build tools
         run: |
-          python -m pip install --quiet pillow pyinstaller==6.22.3
+          python -m pip install --quiet -r tools/publish/requirements-build.txt
+          python tools/publish/check_build_env.py
           choco install innosetup --no-progress -y
       - name: Version must match the tag
         shell: pwsh
@@ -82,12 +171,28 @@ jobs:
         run: |
           tools/console-worker/get-hakchi-source.ps1 -Dest build/hakchi-src
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Sign in to Azure for code signing (only when the repository variable CCS_SIGNING is artifact-signing; short-lived OIDC, no stored secret)
+        if: vars.CCS_SIGNING == 'artifact-signing'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906   # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Signing tools (pinned Windows SDK build tools and Artifact Signing client; their recorded SHA-512 is checked)
+        if: vars.CCS_SIGNING == 'artifact-signing'
+        shell: pwsh
+        run: python tools/publish/signing_setup.py "$env:RUNNER_TEMP\ccs-signing"
       - name: Build the console transport worker (offline tests, two build folders byte-identical, BUILD-INFO.json, corresponding source archive)
         shell: pwsh
         run: |
           tools/console-worker/build-worker.ps1 -HakchiSource build/hakchi-src -Out build/console-worker -SourceRevision "${{ github.sha }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "CCS_CONSOLE_WORKER_DIR=$PWD\build\console-worker" >> $env:GITHUB_ENV
+      - name: Sign Classic Cart Studio's own native programs before they are bundled (an unsigned build leaves them as built)
+        shell: pwsh
+        run: |
+          python tools/publish/signing.py sign build/native/windows-x86_64/ccs-sim-core.exe build/native/windows-x86_64/ccs-player.exe
+          if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { exit $LASTEXITCODE }
       - name: Freeze the companion (PyInstaller, one-folder; bundles every required component and fails without one)
         env:
           NES_SITE_DIR: ${{ github.workspace }}\build\site
@@ -103,13 +208,38 @@ jobs:
           NES_STUDIO_SITE: ${{ github.workspace }}\build\site
           CCS_NATIVE_PREVIEW_CORE: ${{ github.workspace }}\build\native\windows-x86_64\ccs-sim-core.exe
         run: python tools/companion/test_artwork_consistency.py
+      - name: The release-built CCS HOME package the Workbench places with CCS Mod or CCS Nucleus (the Included Games, both layouts; embedded beside the console programs)
+        shell: pwsh
+        run: |
+          python tools/console-nucleus/build_home_package.py --site build/site --player build/native/arm-musl-device/ccs-player-armv7 --runtime build/native/arm-musl-device/ccs-home-armv7 --out build/ram-images/ccs-home
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/companion/test_package_notices.py --site build/site
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Classic Cart Studio for Windows (WPF + WebView2 host, .NET Framework 4.8)
         shell: pwsh
         run: |
-          dotnet build tools/desktop/ClassicCartStudio/ClassicCartStudio.csproj -c Release -nologo "-p:Version=$env:APP_VERSION"
+          dotnet build tools/desktop/ClassicCartStudio/ClassicCartStudio.csproj -c Release -nologo "-p:Version=$env:APP_VERSION" "-p:CcsRamImages=$PWD\build\ram-images"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $out = "tools/desktop/ClassicCartStudio/bin/Release/net48"
-          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.Wpf.dll", "$out/WebView2Loader.dll" build/dist/ClassicCartStudioBackend/ -ErrorAction Stop
+          # Console Backup & Restore: its window (CcsBackupUi), engine with the console programs (CcsBackup), FEL loader (CcsConsole), USB library
+          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.Wpf.dll", "$out/WebView2Loader.dll", "$out/CcsBackupUi.dll", "$out/CcsBackup.dll", "$out/CcsConsole.dll", "$out/LibUsbDotNet.LibUsbDotNet.dll" build/dist/ClassicCartStudioBackend/ -ErrorAction Stop
+          # the Workbench's parity (PAR2) for this app: the same parity code as the standalone Workbench, installed beside the app (never extracted)
+          Copy-Item build/par2dll/x64/ccs-par2.dll build/dist/ClassicCartStudioBackend/ -ErrorAction Stop
           Get-ChildItem build/dist/ClassicCartStudioBackend/*.exe | ForEach-Object { "$($_.Name) $($_.Length)" }
+      - name: The shared engine (CCS Console Workbench's managed program is built only to prove both hosts carry the same engine bytes; it is released separately, on its own tag)
+        shell: pwsh
+        run: |
+          dotnet build tools/console-backup/ccs-backup-utility/ccs-backup-utility.csproj -c Release -nologo "-p:Version=$env:APP_VERSION" "-p:CcsRamImages=$PWD\build\ram-images"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force build/workbench | Out-Null
+          python tools/console-backup/check_shared_engine.py --app build/dist/ClassicCartStudioBackend --utility build/console-backup/bin/ccs-backup-utility/Release/net48/CCS-Console-Workbench.exe --out build/workbench/shared-engine.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Sign the Windows host, its Workbench libraries and the backend's launcher (an unsigned build leaves them as built)
+        shell: pwsh
+        run: |
+          $d = "build/dist/ClassicCartStudioBackend"
+          python tools/publish/signing.py sign $d/ClassicCartStudio.exe $d/ClassicCartStudioBackend.exe $d/CcsBackupUi.dll $d/CcsBackup.dll $d/CcsConsole.dll $d/ccs-par2.dll
+          if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { exit $LASTEXITCODE }
       - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
         shell: pwsh
         run: |
@@ -122,30 +252,53 @@ jobs:
           Copy-Item tools/publish/assets/app.ico build/dist/ClassicCartStudioBackend/ClassicCartStudio.ico -ErrorAction Stop
       - name: The Installation Terms (the copy the installer shows and installs is the one maintained source's)
         run: python tools/publish/legal_terms.py --check
+      - name: The Microsoft Edge WebView2 Runtime's offline installers (Microsoft's official links; kept only with a valid, timestamped Microsoft signature)
+        run: python tools/publish/webview2_prereq.py build/webview2
       - name: Build the installer (Inno Setup, per-user)
         shell: pwsh
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\ClassicCartStudioBackend" "/DOutDir=$PWD\build\release" tools\companion\installer.iss
+          $sign = @(python tools/publish/signing.py iscc-args | ConvertFrom-Json)   # empty for an unsigned build
+          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\ClassicCartStudioBackend" "/DOutDir=$PWD\build\release" "/DWebView2Dir=$PWD\build\webview2" @sign tools\companion\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:CCS_SIGNING) { python tools/publish/signing.py verify (Get-ChildItem build/release/*.exe).FullName; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
       - name: Scan the release folder and the frozen tree (no game files, images or secrets may ship)
         run: |
           python tools/publish/scan_prohibited.py build/dist --allow "**/*.pyd" --allow "**/*.dll" --allow "**/*.exe" --allow "**/base_library.zip" --allow "**/*.exe.config" --allow "**/native/ccs-home-armv7" --allow "**/native/ccs-player-armv7" --allow "**/packages/hakchi2-ce-3.9.3-portable.zip"
           python tools/publish/scan_prohibited.py build/release --allow "*.exe"
+      - name: The source of the LibUsbDotNet library the app carries (the commit its NuGet package names; any other tree is refused)
+        shell: pwsh
+        run: |
+          git init -q build/libusbdotnet-src
+          git -C build/libusbdotnet-src fetch -q --depth 1 https://github.com/LibUsbDotNet/LibUsbDotNet 5dd91a2fda393cf11db2072f2b45c3aee2750388
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ((git -C build/libusbdotnet-src rev-parse 'FETCH_HEAD^{tree}').Trim() -ne 'f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a') { throw 'the LibUsbDotNet source commit does not have its recorded tree' }
+          git -C build/libusbdotnet-src archive --format=tar --prefix=LibUsbDotNet-5dd91a2/ -o "$PWD/build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar" FETCH_HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/download-artifact@v4
+        with:
+          name: par2-source
+          path: build/release
       - name: Checksums and build information
         shell: pwsh
         run: |
           Set-Location build/release
-          $f = Get-ChildItem *.exe | Select-Object -First 1
+          $f = Get-Item "ClassicCartStudio-Setup-$env:APP_VERSION.exe" -ErrorAction Stop   # the installer, by name (CCS Console Workbench has its own release)
           $h = (Get-FileHash -Algorithm SHA256 $f.Name).Hash.ToLower()
           # the console transport worker's corresponding source (GPL-3.0-or-later; it bundles the Hakchi2 CE files it is derived from) is published beside the installer
           Copy-Item ../console-worker/console-worker-source.zip . -ErrorAction Stop
           $zh = (Get-FileHash -Algorithm SHA256 console-worker-source.zip).Hash.ToLower()
           # the Installation Terms this release's setup shows, kept with the release (the version presented stays available with it)
-          Copy-Item ../../tools/publish/assets/legal/INSTALLATION-TERMS.txt ClassicCartStudio-Installation-Terms-1.0.txt -ErrorAction Stop
-          $th = (Get-FileHash -Algorithm SHA256 ClassicCartStudio-Installation-Terms-1.0.txt).Hash.ToLower()
-          "$h  $($f.Name)", "$zh  console-worker-source.zip", "$th  ClassicCartStudio-Installation-Terms-1.0.txt" | Out-File -Encoding ascii SHA256SUMS.txt
+          # the file is named by the version it holds (the header line names it; a different version stops the release until this name follows)
+          if (-not (Select-String -Path ../../tools/publish/assets/legal/INSTALLATION-TERMS.txt -SimpleMatch 'CCS-INSTALLATION-TERMS, version 1.3 ' -Quiet)) { throw 'the Installation Terms are not version 1.3: rename their release file' }
+          Copy-Item ../../tools/publish/assets/legal/INSTALLATION-TERMS.txt ClassicCartStudio-Installation-Terms-1.3.txt -ErrorAction Stop
+          $th = (Get-FileHash -Algorithm SHA256 ClassicCartStudio-Installation-Terms-1.3.txt).Hash.ToLower()
+          $lh = (Get-FileHash -Algorithm SHA256 LibUsbDotNet-2.2.29-source-5dd91a2.tar -ErrorAction Stop).Hash.ToLower()
+          "$h  $($f.Name)", "$zh  console-worker-source.zip", "$th  ClassicCartStudio-Installation-Terms-1.3.txt", "$lh  LibUsbDotNet-2.2.29-source-5dd91a2.tar" | Out-File -Encoding ascii SHA256SUMS.txt
           $wi = Get-Content -Raw ../console-worker/BUILD-INFO.json | ConvertFrom-Json
-          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ github.sha }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = $false; console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh } } | ConvertTo-Json -Depth 4 | Out-File -Encoding utf8 build-info.json
+          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ github.sha }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = [bool]$env:CCS_SIGNING; publisher = $(if ($env:CCS_SIGNING) { $env:CCS_SIGN_PUBLISHERS } else { $null }); console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh }; recovery_images = (Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json).app.recovery_images; libusbdotnet_source = @{ name = "LibUsbDotNet-2.2.29-source-5dd91a2.tar"; repository = "https://github.com/LibUsbDotNet/LibUsbDotNet"; commit = "5dd91a2fda393cf11db2072f2b45c3aee2750388"; tree = "f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a"; sha256 = $lh } } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 build-info.json
+          $ph = (Get-FileHash -Algorithm SHA256 par2cmdline-1.4.0.tar.gz).Hash.ToLower()
+          "$ph  par2cmdline-1.4.0.tar.gz" | Add-Content -Encoding ascii SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
       - name: Smoke-test the frozen companion (starts, answers /api/version, stops)
         shell: pwsh
@@ -154,11 +307,14 @@ jobs:
         with:
           name: installer
           path: |
+            build/release/par2cmdline-1.4.0.tar.gz
             build/release/*.exe
+            build/workbench/shared-engine.json
             build/release/SHA256SUMS.txt
             build/release/build-info.json
             build/release/console-worker-source.zip
-            build/release/ClassicCartStudio-Installation-Terms-1.0.txt
+            build/release/ClassicCartStudio-Installation-Terms-1.3.txt
+            build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar
       - name: Attest build provenance (GitHub artifact attestations)
         uses: actions/attest-build-provenance@v2
         with:
@@ -169,10 +325,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          # the Hakchi2 CE 3.9.3 source archive (tag v3.9.3 with its submodules) accompanies every release as a separate file; the same
-          # archive is carried over from the release that first attached it and verified by its SHA-256 (it is not part of the installer)
+          # the source of Hakchi2 CE 3.9.3's own program (tag v3.9.3 with its submodules) accompanies every release as a separate file; it is
+          # not the source of the prebuilt files the package also ships (THIRD_PARTY_NOTICES.md). The same archive is carried over from the
+          # release that first attached it and verified by its SHA-256 (it is not part of the installer)
           gh release download v0.6.0 --pattern hakchi2-ce-3.9.3-source.tar.gz --dir build/hakchi-source
           $src = "build/hakchi-source/hakchi2-ce-3.9.3-source.tar.gz"
           if ((Get-FileHash -Algorithm SHA256 $src).Hash.ToLower() -ne "dc6e6a4704a9bdb1ca8a0deb746dd41f660b4076ba99b84160af5164f36e5038") { throw "the Hakchi2 CE source archive does not match its recorded SHA-256" }
-          python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --out build/release/NOTES.md
-          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.0.txt $src --title "Classic Cart Studio $env:APP_VERSION" --notes-file build/release/NOTES.md
+          python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --preview --out build/release/NOTES.md
+          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --draft --prerelease --latest=false --title "Classic Cart Studio $env:APP_VERSION — Preview" --notes-file build/release/NOTES.md

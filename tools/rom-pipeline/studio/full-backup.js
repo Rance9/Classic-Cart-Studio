@@ -59,7 +59,7 @@ async function fbWebSavesPlan(info){ const core=await fbCore(), d=info.data||{},
 function fbApp(){ return ccsAppPackages()&&((COMPANION.info&&COMPANION.info.capabilities)||COMPANION.capabilities||[]).includes('studio-backup'); }
 function fbGames(){ csSaveActiveNow(); const ids=[], titles={}, seen=new Set();
  const add=(id,t)=>{ if(!id||seen.has(id)) return; seen.add(id); ids.push(id); titles[id]=t||((typeof byId!=='undefined'&&byId[id])?byId[id].display_title:'')||id; };
- csList().forEach(r=>{ const o=csRecordOut(r); const kt={}; Object.values((o.coll&&o.coll.kept)||{}).forEach(k=>{ if(k&&k.id) kt[k.id]=k.title; }); (o.sel||[]).forEach(id=>add(id, kt[id])); (o.loadouts||[]).forEach(l=>(l.sel||[]).forEach(id=>add(id, kt[id]))); });
+ csList().forEach(r=>{ const o=csRecordOut(r); const kt={}; Object.entries((o.coll&&o.coll.missing)||{}).forEach(([id,k])=>{ if(k&&typeof k.title==='string') kt[id]=k.title; }); (o.sel||[]).forEach(id=>add(id, kt[id])); });
  return {ids, titles}; }
 // The Windows app: the ROM step only adds ROM files (nothing already on this computer changes); the backup's details and artwork for
 // this computer's own games are written inside the restore's own transaction with the saved games and settings (studio_backup.py).
@@ -96,26 +96,28 @@ async function fbOpen(){ document.querySelectorAll('.menu').forEach(x=>x.hidden=
 function fbRender(){ const app=fbApp(), n=FB.ids.length, need=FB.missing.length+FB.mismatched.length, ok=!need; const t=id=>esc(FB.titles[id]||id); const c=FB.contents&&FB.contents.summary;
  const gsl=(!app&&FB.gs)||{games:{}}; const nGs=app?(c?c.game_settings:0):Object.keys(gsl.games||{}).length; const np=FB.ids.filter(id=>/^p_/.test(id)).length;
  const list=arr=>`<ul class="small ccsmiss">${arr.slice(0,12).map(id=>`<li>${t(id)}</li>`).join('')}${arr.length>12?`<li>and ${arr.length-12} more</li>`:''}</ul>`;
- const items=[`<b>${csList().length} collection${csList().length===1?'':'s'}</b>, with ${csList().length===1?'its lineups and game menu':'their lineups and game menus'}`, `<b>${n} game${n===1?'':'s'}</b>: every game in your collections${ok&&n?`, with ${n===1?'its game file':'their game files'} (${fmt(FB.bytes)})`:''}`];
+ const items=[`<b>${csList().length} collection${csList().length===1?'':'s'}</b>, with ${csList().length===1?'its HOME settings':'their HOME settings'}`, `<b>${n} game${n===1?'':'s'}</b>: every game in your collections${ok&&n?`, with ${n===1?'its game file':'their game files'} (${fmt(FB.bytes)})`:''}`];
  if(np) items.push(`The details and artwork of ${np} game${np===1?'':'s'} you added yourself`);
  items.push('Your favorites, and whether you use Grid or List', `Game Settings: the Gameplay Defaults and ${nGs} game${nGs===1?'':'s'} with their own choices`);
  if(app&&c){ items.push(`Saved games of <b>${c.progress_games} game${c.progress_games===1?'':'s'}</b>${c.orphaned_progress?` (${c.orphaned_progress} not in any collection: their saves are included, their game files are not)`:''}${FB.contents.progress_bytes?` · ${fmt(FB.contents.progress_bytes)}`:''}`);
   if(c.legacy_saves) items.push(`${c.legacy_saves} earlier automatic save${c.legacy_saves===1?'':'s'} (kept for recovery only)`);
   if(c.player_settings) items.push('Play on PC Settings (keys and picture)'); if(c.controller_setups) items.push('Controller setups (they work only with the same controllers)'); if(c.custom_games) items.push(`Custom artwork and text of ${c.custom_games} game${c.custom_games===1?'':'s'}`); }
  else if(!app){ const sv=FB.saves||[]; items.push(sv.length?`Saved games of <b>${fbN(sv.length,'game')}</b> played in this browser (save slots, cartridge saves and slot names)`:'Saved games: none in this browser yet'); }
- $('collBody').innerHTML=`<p>This saves one backup file of all your collections, so you can get them back later or on another device.</p><div class="fbhd">In the backup file</div><ul class="fbitems">${items.map(x=>`<li>${x}</li>`).join('')}</ul><div class="fbhd">Not in the backup file</div><ul class="fbitems fbnot"><li>Game files on this ${app?'computer':'device'} that are not in any of your collections. Only the games in your collections are backed up, not every ROM file you have.</li></ul>`
+ $('collBody').innerHTML=`<p>This saves one backup file of all your collections, so you can get them back later or on another device.</p><div class="fbhd">In the backup file</div><ul class="fbitems">${items.map(x=>`<li>${x}</li>`).join('')}</ul><div class="fbhd">Not in the backup file</div><ul class="fbitems fbnot"><li>Game files on this ${app?'computer':'device'} that are not in any of your collections. Only the games in your collections are backed up, not every game file you have.</li></ul>`
   +(ok?(n?`<div class="msgbox ok"><b>Ready.</b> Every game file is here. The backup file is made on this ${app?'computer':'device'}, and nothing is uploaded.</div>`:'')
      :`<div class="msgbox warn"><b>Before you can back up, ${need} of ${n} game${n===1?'':'s'} ${need===1?'needs its':'need their'} game file.</b> A backup always includes the game file of every game in your collections, so it can bring them all back. Add the missing files below, or take those games out of your collections.${FB.missing.length?list(FB.missing):''}${FB.mismatched.length?`<div class="small">This computer has a different version of:</div>${list(FB.mismatched)}`:''}</div>
-      <div class="ccsfix">${app?'<button class="btn" id="fbAdd">Add ROM Files…</button>':'<button class="btn" id="fbPick">Choose Game Files…</button>'}</div>${app?'':'<p class="small">Pick the game files (ROMs), a ZIP of them, or a backup file that has them. You can pick many at once. They stay on this device.</p>'}`)
+      <div class="ccsfix">${app?'<button class="btn" id="fbAdd">Add Game Files…</button>':'<button class="btn" id="fbPick">Choose Game Files…</button>'}</div>${app?'':'<p class="small">Pick the game files, a ZIP of them, or a backup file that has them. You can pick many at once. They stay on this device.</p>'}`)
   +`<div class="acts"><span class="sp"></span><button class="btn" id="fbNo">Cancel</button><button class="btn hk" id="fbGo" ${ok?'':'disabled'}>Save Backup File…</button></div>`;
  $('fbNo').onclick=closeColl; $('fbGo').onclick=()=>fbMake();
- if($('fbPick')) $('fbPick').onclick=async()=>{ const fs=await ccsPickRoms(); if(!fs.length) return; $('fbPick').disabled=true; $('fbPick').textContent='Reading files…'; const res=await ccsAddRomSources(fs); await fbOpen(); if(!res.found) toast('No ROM files were found in those files'); };
+ if($('fbPick')) $('fbPick').onclick=async()=>{ const fs=await ccsPickRoms(); if(!fs.length) return; $('fbPick').disabled=true; $('fbPick').textContent='Reading files…'; const res=await ccsAddRomSources(fs); await fbOpen(); if(!res.found) toast(res.consoleBackups?'That file is not used: '+CCS_CONSOLE_BACKUP_WHY+'.':'No game files were found in those files'); };
  if($('fbAdd')) $('fbAdd').onclick=()=>{ closeColl(); if(typeof importGames==='function') importGames('files'); }; }
-const FB_ACK=Object.assign({}, CCS_EXPORT_ACK, {title:'Back Up All Collections', body:['The backup file will contain your collections, the game files (ROMs) of every game in them, artwork and settings.', 'Classic Cart Studio creates and saves the backup on your device. No ROM files are uploaded to Classic Cart Studio.', CCS_EXPORT_ACK.body[2]]});
+const FB_ACK=Object.assign({}, CCS_EXPORT_ACK, {title:'Back Up All Collections', body:['The backup file will contain your collections, the game files of every game in them, artwork and settings.', 'Classic Cart Studio creates and saves the backup on your device. No game files are uploaded to Classic Cart Studio.', CCS_EXPORT_ACK.body[2]]});
 function fbName(){ return csSafeName(`Classic Cart Studio All Collections ${csStamp()}`, '.ccs'); }
 async function fbMake(){ const a=await ccsAck(FB_ACK); if(a!=='export') return; const name=fbName(), app=fbApp();
+ try{ if(typeof suEnsure==='function'){ csSaveActiveNow(); await suEnsure(csList()); } }   /* every collection's startup picture read again and checked now: one that cannot be read stops the backup */
+ catch(e){ openColl('Back Up All Collections', '', `<div class="msgbox bad"><b>The backup was not created, and no file was saved.</b> ${esc(String(e&&e.message||e))}.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button><button class="btn hk" id="fbAgain">Try Again</button></div>`); $('ccsOk').onclick=closeColl; $('fbAgain').onclick=()=>fbMake(); return; }
  if(app){ $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native');
-  const st=await hkPost('/api/studio/backup', {studio:csBackupObject(), games:FB.ids.map(id=>({version_id:id, title:FB.titles[id]||id})), name});
+  const st=await hkPost('/api/studio/backup', {studio:csBackupObject({export:true}), games:FB.ids.map(id=>({version_id:id, title:FB.titles[id]||id})), name});
   if(st.canceled){ procSet('collm',null); closeColl(); toast('Canceled; nothing was saved'); return; } if(!st.ok){ procSet('collm',null); return ccsJobFail(st.error); }
   const j=await ccsWatch(st.job, 'Creating '+st.name);
   if(j.phase==='canceled'){ closeColl(); toast('Backup canceled; nothing was saved'); return; } if(j.phase!=='done'){ return ccsJobFail(j.error); }
@@ -124,7 +126,7 @@ async function fbMake(){ const a=await ccsAck(FB_ACK); if(a!=='export') return; 
  let saves, gs=null; try{ gs=typeof gsCurrent==='function'?await gsCurrent():null; saves=fbWebPlay()?await fbWebSaves():[]; }   /* read again now: a read that fails stops it, no incomplete or older backup is made */
  catch(e){ openColl('Back Up All Collections', '', `<div class="msgbox bad"><b>The backup was not created, and no file was saved.</b> ${esc(e.message)}</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button><button class="btn hk" id="fbAgain">Try Again</button></div>`); $('ccsOk').onclick=closeColl; $('fbAgain').onclick=()=>fbOpen(); return; }
  const extra=[]; saves.forEach(g=>g.files.forEach(f=>extra.push({path:`progress/${g.sha}/${f.name}`, u8:f.u8})));
- const sd={schema:CCS_STUDIO_SCHEMA, games:FB.ids, titles:FB.titles, studio_data:csBackupObject(), personal:fp.personal, web:{game_settings:gs, progress:saves.map(g=>({sha:g.sha, title:g.title, files:g.files.map(f=>f.name)}))}, platform:'web', created:new Date().toISOString().replace(/\.\d+Z$/,'Z')};
+ const sd={schema:CCS_STUDIO_SCHEMA, games:FB.ids, titles:FB.titles, studio_data:csBackupObject({export:true}), personal:fp.personal, web:{game_settings:gs, progress:saves.map(g=>({sha:g.sha, title:g.title, files:g.files.map(f=>f.name)}))}, platform:'web', created:new Date().toISOString().replace(/\.\d+Z$/,'Z')};
  const parts={kind:'studio', file:JSON.stringify(sd), ids:FB.ids, titles:FB.titles, art:fbArtBytes(fp.art), extra, summary:{name:'Full Studio Backup', collections:csList().length, personal_games:Object.keys(fp.personal).length, progress_games:saves.length}};
  CCS.cancel=false; $('collBody').innerHTML=`<div class="msgbox" id="ccsProg">Creating the backup…</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsStop">Cancel</button></div>`; $('ccsStop').onclick=()=>{ CCS.cancel=true; closeColl(); toast('Canceled; nothing was saved'); }; procSet('collm','running');
  let blob; try{ blob=await ccsBuild(parts, (d,t)=>{ const p=$('ccsProg'); if(p) p.textContent=`Creating the backup file… ${d.toLocaleString('en-US')} of ${t.toLocaleString('en-US')} game files`; }, ()=>CCS.cancel); }
@@ -199,7 +201,7 @@ function fbBusy(t){ const b=$('collBody'); if(b) b.innerHTML=`<div class="msgbox
 // the website: no game is open in any tab or window of this browser while its game storage is restored, and none opens until the restore has
 // finished. The restore takes the game player's lock (ccs-play.js CP_LOCK) at once or is refused, before anything changes, and holds it to the end.
 async function fbWebLock(){ if(!fbWebPlay()) return {ok:true, release:null};   /* this browser keeps no games or saved games here: nothing is shared */
- if(typeof CCSPLAY!=='undefined'&&CCSPLAY.running()) return {ok:false, why:'A game is open in Preview Your Lineup. Close it from its own menu first, then restore'};
+ if(typeof CCSPLAY!=='undefined'&&CCSPLAY.running()) return {ok:false, why:'A game is open. Close it from its own menu first, then restore'};
  if(!(navigator.locks&&navigator.locks.request)) return {ok:false, why:'This browser cannot make sure that no game is open in another of its tabs or windows. Use a current version of Edge, Chrome, Safari or Firefox to restore this backup'};
  const r=await cpLock(CP_LOCK); if(!r) return {ok:false, why:(await cpLockHolder())==='restore'?'Another tab or window of this browser is restoring a backup. Wait until it has finished, then restore':'A game is open in another tab or window of this browser. Close it from its own menu there first, then restore'};
  const r2=await cpLock(CP_RESTORE_LOCK); return {ok:true, release:()=>{ if(r2) r2(); r(); }}; }   /* the second lock only names what holds the first */
@@ -209,7 +211,7 @@ async function fbRestoreRun(info, fname, replace, controllers){ const d=info.dat
   if(app){ fbBusy('Comparing the backup file with what you have…');
    const chk=await hkPost('/api/studio/restore', {id:info.id, replace, controllers, check:true}); if(!chk.ok) return fbResult(R, {stopped:chk.error||'The backup could not be checked.', pending:chk.pending&&chk.txid||null, notStarted:true});
    fbBusy('Adding the game files…'); const ir=await hkPost('/api/package/import-roms', {id:info.id}); R.roms=ir;   /* a Full Studio Backup's ROM step only adds: nothing already here changes */
-   if(!ir.ok) return fbResult(R, {stopped:'The ROM files could not all be added ('+(ir.error||'unknown error').replace(/\.$/,'')+')'});
+   if(!ir.ok) return fbResult(R, {stopped:'The game files could not all be added ('+(ir.error||'unknown error').replace(/\.$/,'')+')'});
    await refreshPersonal(); }
   else { if(info.zip){ const lk=await fbWebLock(); if(!lk.ok) return fbResult(R, {stopped:lk.why, notStarted:true, retry:()=>fbRestorePreview(info, fname)}); unlock=lk.release; }
    try{ if(info.zip&&fbWebPlay()){ fbBusy('Checking the saved games…'); R.saves=await fbWebSavesPlan(info); }   /* what is here, read before anything changes (a failed read stops it) */
@@ -245,8 +247,8 @@ function fbCountLine(k, v){ return `${esc(FB_LABELS[k]||k)}: ${v.added} added, $
 // files already here (never changed by a Full Studio Backup's ROM step)
 function fbRomLine(R, done){ const ir=R.roms; if(!ir) return ''; const im=ir.imported||[]; const here=im.filter(x=>x.state==='present'||x.state==='different').length, add=im.length-here;
  const fresh=im.filter(x=>x.state==='added'&&/^p_/.test(x.stored_as||'')).length; const out=[];
- if(add) out.push(`${fbN(add,'ROM file')} ${add===1?'was':'were'} added to this computer and ${add===1?'stays':'stay'} (each is a complete, checked copy)${!done&&fresh?`; ${fresh===1?'the new game shows':'the new games show'} only automatic details because the restore did not finish`:''}.`);
- if(here) out.push(`${fbN(here,'ROM file')} ${here===1?'was':'were'} already on this computer and ${here===1?'was':'were'} not changed.`);
+ if(add) out.push(`${fbN(add,'game file')} ${add===1?'was':'were'} added to this computer and ${add===1?'stays':'stay'} (each is a complete, checked copy)${!done&&fresh?`; ${fresh===1?'the new game shows':'the new games show'} only automatic details because the restore did not finish`:''}.`);
+ if(here) out.push(`${fbN(here,'game file')} ${here===1?'was':'were'} already on this computer and ${here===1?'was':'were'} not changed.`);
  return out.join(' '); }
 function fbResult(R, o){ const lines=[]; let head, cls='ok', extra='';
  if(typeof CCSM!=='undefined'&&!o.unknown){ if(o.stopped) CCSM.fail('restore', o.notStarted?'invalid_data':'write_failed'); else CCSM.track('restore_completed'); }   // a restore whose outcome is known (not one the app did not answer in time)
@@ -258,7 +260,7 @@ function fbResult(R, o){ const lines=[]; let head, cls='ok', extra='';
   else if(R.app) lines.push('Saved games, settings and the details and artwork of your own games on this computer: nothing was changed.');
   if(o.pageLeft) lines.push(left.length?`These could not be put back as they were: ${esc(left.join(', '))}. Nothing of yours was removed (a restore only adds, so what it added may still be there), and a copy of your collections from before the restore is kept in this ${R.app?'app':'browser'}.`:'Collections, favorites and settings here: put back and checked; they are as they were.');   /* the page's own write ran: its rollback says what is so */
   else lines.push('Collections, favorites and settings here: nothing was changed.');
-  const rl=fbRomLine(R, false); if(rl) lines.push(rl); else if(R.app) lines.push('No ROM files were added.');
+  const rl=fbRomLine(R, false); if(rl) lines.push(rl); else if(R.app) lines.push('No game files were added.');
   if(o.pending&&!nat.partial) extra+=`<div class="acts"><button class="btn" id="fbRec" data-tx="${esc(o.pending)}">Try Again</button></div>`; }
  else { const p=R.page.plan, n=R.native||{}; head=`${fbN(p.add.length,'collection')} added${p.skip.length?`, ${p.skip.length} already here`:''}.`;
   if(p.add.length) lines.push('Added as new collections: '+p.add.slice(0,8).map(a=>`"${esc(a.name)}"`).join(', ')+(p.add.length>8?` and ${p.add.length-8} more`:'')+'. Every collection that was here is unchanged.');
@@ -272,7 +274,7 @@ function fbResult(R, o){ const lines=[]; let head, cls='ok', extra='';
   lines.push(R.opened?`Opened "${esc(R.opened)}", the collection open in the backup.`:'The collection open before the restore is still open.');
   lines.push(`Favorites: ${p.fav.add.length} added${p.fav.out?`, ${p.fav.out} not in this Game Library (not added)`:''}.`); if(p.snaps.add.length||p.snaps.out) lines.push(`Earlier versions: ${p.snaps.add.length} added${p.snaps.out?`, ${p.snaps.out} not added (this Studio keeps up to 30)`:''}.`);
   const rl=fbRomLine(R, true); if(rl) lines.push(rl);
-  if(!R.app){ if(R.kept) lines.push(R.kept.text?esc(R.kept.text.trim()):'Games kept for playing in this browser: none.'); else lines.push('ROM files: held for this visit only (this browser cannot keep games for playing here).');
+  if(!R.app){ if(R.kept) lines.push(R.kept.text?esc(R.kept.text.trim()):'Games kept for playing in this browser: none.'); else lines.push('Game files: held for this visit only (this browser cannot keep games for playing here).');
    if(R.saves){ const c=R.saves.counts; if(c.added||c.same||c.kept) lines.push(`Saved-game files in this browser: ${c.added} added, ${c.same} already here${c.kept?`, ${c.kept} kept as they were (different here)`:''}.`);
     if(R.saves.rejected.length) extra+=`<div class="msgbox warn"><b>${fbN(R.saves.rejected.length,'saved-game file')} ${R.saves.rejected.length===1?'was':'were'} not restored.</b> They stay in the backup file.${fbRejected(R.saves.rejected)}</div>`; }
    if(R.gsPush) extra+=`<div class="msgbox warn"><b>The backup's Game Settings were not restored:</b> this browser could not store them. ${esc(R.gsPush)} The Game Settings here are as they were; restore the backup again to add them.</div>`; }

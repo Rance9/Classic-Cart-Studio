@@ -16,7 +16,7 @@ SRC = os.path.join(REPO, "tools", "publish", "assets", "legal", "INSTALLATION-TE
 TXT = os.path.join(REPO, "tools", "publish", "assets", "legal", "INSTALLATION-TERMS.txt")
 MAN = os.path.join(REPO, "tools", "publish", "assets", "legal", "terms-manifest.json")
 GUIDE = os.path.join(REPO, "tools", "rom-pipeline", "studio", "guide.html")
-DOC_ID, VERSION = "CCS-INSTALLATION-TERMS", "1.0"
+DOC_ID, VERSION = "CCS-INSTALLATION-TERMS", "1.3"
 BEGIN, END = "<!-- installation-terms:begin -->", "<!-- installation-terms:end -->"
 
 def sha(b: bytes) -> str: return hashlib.sha256(b).hexdigest()

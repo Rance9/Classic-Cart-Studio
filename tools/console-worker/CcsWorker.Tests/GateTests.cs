@@ -79,7 +79,7 @@ namespace CcsWorker.Tests
                 var ws = Regex.Replace(src["src/Protocol/WorkerServer.cs"], @"//[^\n]*", "");
                 T.True(ws.Contains("if (WriteCommands.Contains(cmd) && !writesOpen()) throw new GateClosedException(") && ws.IndexOf("WriteCommands.Contains(cmd)", StringComparison.Ordinal) < ws.IndexOf("if (shell == null)", StringComparison.Ordinal),
                        "each write command asks the write tier before the session is used");
-                T.True(ws.Contains("RealTransports.Open, null, () => Gate.PhysicalWriteEnabled)"), "the production server's write tier is the gate constant");
+                T.True(ws.Contains("RealTransports.Open, null, () => Gate.PhysicalWriteEnabled,"), "the production server's write tier is the gate constant");
             });
 
             T.Add("gate", "a test's worker server never reaches a console: its connect goes to TestOpeners.Never, whatever the gate", () =>
@@ -107,8 +107,9 @@ namespace CcsWorker.Tests
                         ["rename"] = new Dictionary<string, object> { ["from"] = "/var/lib/ccs/a", ["to"] = "/var/lib/ccs/b" },
                         ["remove"] = new Dictionary<string, object> { ["path"] = "/var/lib/ccs/x", ["sha256"] = hash },
                         ["pointer"] = new Dictionary<string, object> { ["path"] = "/var/lib/ccs/pkg/current", ["value"] = "v1" },
-                        ["module-install"] = new Dictionary<string, object> { ["name"] = "ccs-home", ["files"] = new Dictionary<string, object>() },
-                        ["module-uninstall"] = new Dictionary<string, object> { ["name"] = "ccs-home" },
+                        ["module-install"] = new Dictionary<string, object> { ["name"] = "ccs-mod", ["hmod"] = new Dictionary<string, object>() },
+                        ["module-uninstall"] = new Dictionary<string, object> { ["name"] = "ccs-mod" },
+                        ["mod-start"] = new Dictionary<string, object> { ["state"] = "on" },
                     };
                     T.True(writes.Keys.OrderBy(k => k).SequenceEqual(Protocol.WorkerServer.WriteCommands.OrderBy(k => k)), "every write command is tried");
                     foreach (var kv in writes) T.Eq("physical-disabled", Harness.Err(h.Call(kv.Key, kv.Value)), kv.Key + " with writes closed");

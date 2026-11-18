@@ -76,6 +76,11 @@ def main(dist: str) -> int:
                     if AMAZON_HOST.search(f.read()): amz.append(os.path.relpath(os.path.join(d, n), site))
     ok("no_amazon_links_bundled", os.path.isdir(site) and not amz, amz[:5])
     ok("fonts_and_scripts_bundled", os.path.isdir(os.path.join(internal, "native_home", "fonts")) and all(os.path.isfile(os.path.join(internal, n)) for n in ("Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1", "Close-Hakchi.ps1", "THIRD_PARTY_NOTICES.md")))
+    from native_home import notices as NT   # the records every console package's notices are made from, byte for byte as in the source
+    nmiss = [r for r in NT.RECORDS.values() if not os.path.isfile(os.path.join(internal, "notices", *r.split("/"))) or
+             open(os.path.join(internal, "notices", *r.split("/")), "rb").read() != open(os.path.join(NT.PROJECT, *r.split("/")), "rb").read()]
+    ok("console_package_notice_records_bundled", not nmiss, nmiss[:5])
+    ok("method_package_sources_bundled", os.path.isfile(os.path.join(internal, "console-nucleus", "build_packages.py")) and os.path.isfile(os.path.join(internal, "console-nucleus", "console", "lib.sh")))   # ccs_install builds CCS Mod / CCS Nucleus from them
     if all(c[1] for c in checks):
         tmp = tempfile.mkdtemp(prefix="ccs-release-layout-")
         env = dict(os.environ, NES_STUDIO_SITE=site, CCS_NATIVE_HOME_RUNTIME=rt, CCS_SIM_BUILD_WIN=os.path.join(tmp, "no-dev-build"), NES_STUDIO_DATA=os.path.join(tmp, "data"),

@@ -10,7 +10,14 @@ package format with two kinds, used on the website and in Classic Cart Studio fo
 Both are opened with **Import Collection** (or by dropping or opening the file). A package is always complete: it contains a verified
 ROM file for every game it lists.
 
-Collections themselves may exist without ROM files (organizing, favorites, loadouts). The ROM requirement applies only to packages.
+A game joins a collection with its verified ROM file (Add ROM Files, a restored package, the Included Games). A game whose file is later lost
+stays in its collection, marked ROM missing, until its file is added again or it is removed; HOME and console preparation refuse such a
+collection as a whole. Every valid package carries the ROM file of every game it lists.
+
+**Collections only (D-146).** Earlier versions kept NES Classic Loadouts (lineups) inside a collection (`loadouts`, `openLoadout`). Files
+written now carry no lineups. Readers still accept them: each distinct lineup of a collection becomes a collection of its own named
+"<collection>: <lineup>" with its games, versions and HOME settings (`fromLineup` records where it came from, so it is never added twice);
+a lineup equal to its collection adds nothing. No game file is copied.
 The lists-and-settings file (**Save Lists and Settings**) is not a package: it is a separate JSON file without game files.
 
 Readers and writers: `tools/companion/ccs_package.py` (Windows app) and `tools/rom-pipeline/studio/ccs.js` (website and app page).
@@ -36,7 +43,7 @@ copyrighted game files." Creating a backup does not grant permission to distribu
 | Path | Required | Content |
 |---|---|---|
 | `ccs-manifest.json` | yes | Identifies the package and lists every other file |
-| `collection.json` | yes | The collection: the schema-4 collection file with the Studio record in `ccs_collection` (every game id in order, exact versions, decisions, personal entries, favorites and folders, NES Classic Loadouts and their HOME settings) |
+| `collection.json` | yes | The collection: the schema-4 collection file with the Studio record in `ccs_collection` (every game id in order, exact versions, decisions, personal entries, favorites, folders and HOME settings; files from earlier versions may also carry `loadouts`, read as described above). A collection's own console startup picture travels inside its HOME settings: `home.startup_image` is `custom-<first 16 hex digits of its SHA-256>` and `home.startup_custom` holds `id`, `sha256`, `name`, `fit` (`fit` or `fill`), `bytes`, `width` 1280, `height` 720, `mime` `image/jpeg` and `data` (the JPEG, Base64, at most 450,000 bytes). A reader checks the bytes (their SHA-256, a 1280 × 720 JPEG) before keeping them; a picture that fails is kept as a reference with its reason, never silently replaced by Random. A HOME design made in CCS Console Workbench's HOME Designer travels the same way as `home.design`: `format` `ccs-home-design-embed/1`, `sha256` (of the `.ccshome` file), what the Workbench wrote about it (`id`, `revision`, `name`, `theme`, `content_sha256`, `bytes`) and `data` (the `.ccshome` file, Base64, at most 64,000,000 bytes before encoding). Readers and writers keep every member of it, and every HOME member they do not know, exactly; they never change the design (`tools/console-backup/HOME-DESIGNER.md`) |
 | `roms/<game id>.nes` or `.unh` | one per game | The game's ROM file, exact bytes (`.nes` with an iNES header, `.unh` without) |
 | `art/<id>.jpg` or `.png` | no | Thumbnails of the collection's own artwork (personal games, replaced covers) |
 | `README.txt` | yes | What the file is and how to open it |
@@ -52,7 +59,7 @@ Nothing else may be in the archive: no folders, links or executables.
   "kind": "collection",
   "created": "2026-10-21T18:00:00Z",
   "app": {"name": "Classic Cart Studio", "version": "0.7.0"},
-  "summary": {"name": "…", "games": 120, "loadouts": 2, "personal": 3, "roms": 120, "rom_bytes": 31457280},
+  "summary": {"name": "…", "games": 120, "personal": 3, "roms": 120, "rom_bytes": 31457280},
   "files": [{"path": "collection.json", "sha256": "…", "size": 1234, "kind": "collection"},
             {"path": "roms/0123456789abcdef.unh", "sha256": "…", "size": 40960, "kind": "rom",
              "version_id": "0123456789abcdef", "title": "…", "content_sha256": "…"}],
@@ -67,6 +74,9 @@ Nothing else may be in the archive: no folders, links or executables.
 - `files` lists every entry except the manifest, with its SHA-256 and size. An unlisted entry, a listed entry that is missing, or
   one whose size or checksum differs makes the package invalid: nothing from it is imported.
 - `roms.included` has exactly one entry per game in `ccs_collection.sel`, and every game has one. There is no "missing" list.
+- `ccs_target` (optional, in the manifest and in the collection; a selection may carry `game_system`): the game system and core the
+  package is for (`ccs-target/1`, tools/console-backup/SNES-GROUNDWORK.md). Packages are written without it, which means NES; a package
+  that names anything this version does not support is refused by both readers, never read as NES.
 
 ## Game identity (exact versions)
 
@@ -157,10 +167,10 @@ Everything needed to rebuild a Studio, in the same container with the same readi
 | Path | Required | Content |
 |---|---|---|
 | `ccs-manifest.json` | yes | As above, with `kind: "studio"` and a summary of collections, games, ROM files, saved games and settings |
-| `studio.json` | yes | `{"schema": "ccs-studio-archive/1", "games": [every listed game id], "titles": {id: title}, "studio_data": {the Studio's lists: "collections" (ccs-collection/1 records with their loadouts and HOME settings), "active", "favorites", "view", "extended", "welcomed", "snapshots"}, "personal": {<p_ id>: personal-game record}, "app": {"game_settings": {"defaults", "games": {<content sha256>: record}}, "player_settings", "controllers", "progress": [{"sha", "title", "files", "orphaned"}], "custom"} (Windows app), "web": {"game_settings": {"defaults", "games"}} (website), "platform": "windows" or "web", "created"}` |
+| `studio.json` | yes | `{"schema": "ccs-studio-archive/1", "games": [every listed game id], "titles": {id: title}, "studio_data": {the Studio's lists: "collections" (ccs-collection/1 records with their HOME settings; earlier versions' records may carry `loadouts`), "active", "favorites", "view", "extended", "welcomed", "snapshots"}, "personal": {<p_ id>: personal-game record}, "app": {"game_settings": {"defaults", "games": {<content sha256>: record}}, "player_settings", "controllers", "progress": [{"sha", "title", "files", "orphaned"}], "custom"} (Windows app), "web": {"game_settings": {"defaults", "games"}} (website), "platform": "windows" or "web", "created"}` |
 | `roms/<game id>.nes` or `.unh` | one per distinct game listed by any collection | As in a collection package (verified by content identity on write and on read) |
 | `art/<id>.jpg` or `.png` | no | The artwork of listed personal games (in the Windows app from its own games; on the website a collection's kept cover) |
-| `progress/<content sha256>/<file>` | no | Saved games (Windows app): `cart.sav`, `slot1`–`slot4.ccsstate`, `last-used.json`, `game.json`, set-aside cartridge saves `cart-set-aside-*.sav`, and an earlier test version's automatic save `continue.ccsstate` (kept for recovery only; the player never loads it by itself) |
+| `progress/<content sha256>/<file>` | no | Saved games (Windows app): `cart.sav`, `slot1`–`slot4.ccsstate`, `last-used.json`, `game.json`, set-aside cartridge saves `cart-set-aside-*.sav`, the person's slot names `slot-names.json`, and an earlier test version's automatic save `continue.ccsstate` (kept for recovery only; the player never loads it by itself) |
 | `custom/...` | no | Custom artwork and text (Windows app) |
 | `README.txt` | yes | What the file is and how to restore it |
 
@@ -183,7 +193,7 @@ Everything needed to rebuild a Studio, in the same container with the same readi
   with the collections, and once its ROM file is added the collection's kept edits are merged the same way (never over an edit or a real
   value here).
 - Restoring is validated first and previewed before anything changes. Collections are compared by their content (games, decisions, HOME
-  settings, loadouts, their own details and the kept details of games the reader cannot resolve; ids, times, saved marks, a generated
+  settings, their own details (a backup's lineups first become collections of their own) and the kept details of games the reader cannot resolve; ids, times, saved marks, a generated
   "(Copy n)" ending and the HOME's cursor position do not count): an equivalent one is skipped, a changed one is added as a copy, and
   nothing present is replaced. A Studio with nothing of the person's in it yet takes the backup's library view and opens its open
   collection; an existing one keeps its own unless the person chooses to replace them. Favorites of games the reader does not know are

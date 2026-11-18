@@ -263,6 +263,63 @@
     <Setter Property="CaretBrush" Value="White"/>
     <Setter Property="SelectionBrush" Value="{StaticResource B.Red2}"/>
   </Style>
+  <!-- the Workbench's choice lists, check boxes and expanding folders (dark, like the text boxes) -->
+  <Style TargetType="CheckBox">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+  </Style>
+  <Style TargetType="Expander">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+  </Style>
+  <Style TargetType="ComboBoxItem">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="Padding" Value="10,6"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBoxItem">
+          <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsSelected" Value="True"><Setter TargetName="Bd" Property="Background" Value="{StaticResource B.Pressed}"/></Trigger>
+            <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Bd" Property="Background" Value="{StaticResource B.Hover}"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="ComboBox">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="MinHeight" Value="30"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBox">
+          <Grid>
+            <ToggleButton Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+              <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                  <Border x:Name="Box" Background="#FF0B0B0E" BorderBrush="{StaticResource B.Line2}" BorderThickness="1" CornerRadius="6">
+                    <TextBlock Text="&#xE70D;" FontFamily="{StaticResource F.Icons}" FontSize="10" Foreground="{StaticResource B.Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource B.Muted}"/></Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </ToggleButton.Template>
+            </ToggleButton>
+            <ContentPresenter IsHitTestVisible="False" Margin="10,5,30,5" VerticalAlignment="Center" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+            <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False">
+              <Border Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.Line2}" BorderThickness="1" CornerRadius="6" Margin="0,2,0,0"
+                      MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                <ScrollViewer><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger>
+      <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#FFE4000F" BlurRadius="6" ShadowDepth="0" Opacity="0.8"/></Setter.Value></Setter></Trigger>
+    </Style.Triggers>
+  </Style>
   <Style TargetType="ToolTip">
     <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
     <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>

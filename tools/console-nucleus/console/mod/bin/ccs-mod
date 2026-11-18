@@ -1,0 +1,149 @@
+#!/bin/sh
+# ccs-mod: CCS Mod for Hakchi on the console. CCS HOME BESIDE the console's existing setup: an entry in the console's own menu opens it,
+# leaving it goes back to that menu, and the console starts exactly as before unless the owner turns on the optional start.
+# Copyright (C) 2026 Rance9. GPL-3.0-or-later. BusyBox ash (hakchi 3.9.3's BusyBox 1.29).
+#
+#   launch               the menu entry: CCS HOME once the console's menu has handed over the screen; always back to that menu
+#   autostart-run        the optional start script (S81ccs-mod): CCS HOME first, then the console's own start continues unchanged
+#   autostart on|off     the optional start: on writes the start script S81ccs-mod (only where nothing else is), off removes it
+#   start-setting on|off the optional start's setting only, which this package's next installation applies (postinstall runs autostart on
+#                        or off as it says): the CCS Console Workbench records the owner's choice this way before hakchi installs CCS Mod
+#   entry add|remove     the menu entry "CCS HOME" (CLV-H-CCSMD in the menu folder hakchi's findGameStorage names)
+#   preinstall FILES     (the package's install script, before hakchi copies anything) every file the package would copy may be
+#                        written: nothing there, or this method's own unchanged file, or already the same bytes
+#   postinstall FILES    (the package's install script, after hakchi's transfer_default) the copies checked, the journal written, the
+#                        menu entry added, CCS Mod put in charge when no method is, and (in charge) the optional start made as its setting
+#                        says, by autostart on or off (no setting: off)
+#   activate             CCS Mod in charge (refused while CCS Nucleus is: that is "take-over")
+#   take-over            from CCS Nucleus: CCS Mod in charge (one rename), then CCS Nucleus's own files removed by its own remove
+#   remove [keep|remove-data]   this method's unchanged files removed (changed ones kept and reported); not CCS HOME's package or saves
+#   status               what is there, one line each
+# Every command ends with one line "result <command> ok ..." or "result <command> failed|refused <why>".
+# Nothing here writes a kernel, a bootloader, the storage table or the console's own system image: only files on its data storage
+# (hakchi's overlay, hakchi's game storage, /var/lib/ccs).
+ME="$0"
+L="${ME%/bin/ccs-mod}/etc/ccs/mod/lib.sh"
+. "$L" || { echo "result $1 failed library"; exit 90; }
+ccs_paths
+M=mod; CODE=CLV-H-CCSMD; NAME="CCS HOME"; EXE=/var/lib/hakchi/rootfs/bin/ccs-mod
+CONF="$CCSD/mod/config"; INITD="/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod"; TEMPLATE="/var/lib/hakchi/rootfs/etc/ccs/mod/S81ccs-mod"
+
+r(){ echo "result $1 $2"; case "$2" in ok*) exit 0 ;; esac; exit 17; }
+conf_autostart(){ ccs_sealed "$CONF" ccs-mod-config/1 && [ "$(ccs_get "$CONF" autostart)" = on ]; }
+conf_set(){ printf 'schema=ccs-mod-config/1\nautostart=%s\n' "$1" | ccs_put_sealed "$CONF"; }
+
+case "$1" in
+  launch)
+    # chosen in the console's menu: that menu hands over the screen when it starts an entry; nothing is stopped by force
+    ccs_screen_free 50 || { ccs_log "mod: the screen is still in use; CCS HOME was not opened"; r launch "ok screen-busy (back to the console's menu)"; }
+    ccs_run_home menu; rc=$?
+    [ $rc -eq 0 ] || ccs_log "mod: CCS HOME ended with $rc"
+    r launch "ok home-ended $rc (back to the console's menu)" ;;
+
+  autostart-run)
+    [ "$(ccs_policy)" = mod ] || r autostart-run "ok not-in-charge"
+    conf_autostart || r autostart-run "ok off"
+    ccs_run_home startup; rc=$?
+    [ $rc -eq 0 ] || ccs_log "mod: CCS HOME at start ended with $rc"
+    r autostart-run "ok home-ended $rc (the console's own start continues)" ;;
+
+  autostart)
+    case "$2" in
+      on)
+        [ "$(ccs_policy)" = mod ] || r autostart "refused CCS Mod is not in charge"
+        [ -f "$R0$TEMPLATE" ] || r autostart "failed the start script's template is missing"
+        ccs_own_free "$M" "$INITD" "$(ccs_sha "$R0$TEMPLATE")" || r autostart "refused belongs-to-someone-else $INITD"
+        conf_set on || r autostart "failed config"
+        { cp "$R0$TEMPLATE" "$R0$INITD.new.$$" && chmod 755 "$R0$INITD.new.$$" && sync && mv -f "$R0$INITD.new.$$" "$R0$INITD" && sync; } || { rm -f "$R0$INITD.new.$$"; conf_set off; r autostart "failed write"; }
+        ccs_own_add "$M" file "$INITD" 0755 || r autostart "failed journal"
+        r autostart "ok on" ;;
+      off)
+        conf_set off || r autostart "failed config"
+        if [ -e "$R0$INITD" ]; then
+          if ccs_own_mine "$M" "$INITD"; then rm -f "$R0$INITD"; sync; ccs_own_forget "$M" "$INITD"
+          else r autostart "ok off kept-changed $INITD (it is no longer the file CCS Mod wrote, so it was left as it is)"; fi
+        else ccs_own_forget "$M" "$INITD"; fi
+        r autostart "ok off" ;;
+      *) r autostart "refused on-or-off" ;;
+    esac ;;
+
+  start-setting)
+    case "$2" in on|off) ;; *) r start-setting "refused on-or-off" ;; esac
+    conf_set "$2" || r start-setting "failed config"
+    r start-setting "ok $2" ;;
+
+  entry)
+    case "$2" in
+      add) out="$(ccs_entry_add "$M" "$CODE" "$NAME" "$EXE launch" "$HKR/etc/ccs/mod/entry.png")" || r entry "refused ${out##*refused }"
+           r entry "ok ${out##*entry }" ;;
+      remove) ccs_entry_remove "$M" "$CODE"; r entry "ok removed" ;;
+      *) r entry "refused add-or-remove" ;;
+    esac ;;
+
+  preinstall)
+    [ -f "$2" ] || r preinstall "failed no file list"
+    out="$(ccs_pkg_preflight "$M" "$2")" || { echo "$out"; r preinstall "refused nothing was copied"; }
+    ccs_own_free "$M" /var/lib/hakchi/rootfs/etc/ccs/mod/FILES "$(ccs_sha "$2")" || r preinstall "refused belongs-to-someone-else /var/lib/hakchi/rootfs/etc/ccs/mod/FILES"
+    r preinstall ok ;;
+
+  postinstall)
+    [ -f "$2" ] || r postinstall "failed no file list"
+    pkg="$(ccs_get "$HKR/etc/ccs/mod/VERSION" package)"
+    ccs_pkg_record "$M" "$2" "${pkg:-unknown}" || r postinstall "failed the copied files are not the package's"
+    ccs_own_add "$M" file /var/lib/hakchi/rootfs/etc/ccs/mod/FILES || r postinstall "failed journal"
+    ccs_own_add "$M" dir /var/lib/ccs/mod 2>/dev/null; mkdir -p "$CCSD/mod"
+    ccs_sealed "$CONF" ccs-mod-config/1 || conf_set off
+    out="$(sh "$HKR/bin/ccs-mod" entry add 2>&1 | tail -n 1)"
+    case "$(ccs_policy)" in "") ccs_policy_set mod; now="in-charge" ;; mod) now="in-charge" ;; *) now="installed-not-in-charge (CCS Nucleus is; use take-over)" ;; esac
+    # the optional start as its setting says (kept from an earlier installation, or the owner's choice the Workbench recorded with
+    # start-setting): its own command, which writes only where nothing else is; a start it cannot turn on leaves the setting off
+    st=""
+    if [ "$now" = in-charge ]; then
+      if conf_autostart; then st="$(sh "$HKR/bin/ccs-mod" autostart on 2>&1 | tail -n 1)"; [ "$st" = "result autostart ok on" ] || conf_set off
+      elif [ -e "$R0$INITD" ]; then st="$(sh "$HKR/bin/ccs-mod" autostart off 2>&1 | tail -n 1)"; fi
+    fi
+    r postinstall "ok $now; ${out#result }${st:+; ${st#result }}" ;;
+
+  activate)
+    case "$(ccs_policy)" in
+      mod) r activate "ok already" ;;
+      "") ccs_policy_set mod || r activate "failed write"; r activate ok ;;
+      *) r activate "refused CCS Nucleus is in charge (use take-over)" ;;
+    esac ;;
+
+  take-over)
+    # from CCS Nucleus: nothing of the console's games, saves, settings, other mods or system images is touched. CCS Mod's files are
+    # already installed (its package); one rename puts it in charge (CCS Nucleus's start stage and start script then do nothing);
+    # then CCS Nucleus's own files go by its own remove (its registry, imported system images and saves are kept as data).
+    ccs_own_valid "$M" || r take-over "refused CCS Mod is not installed"
+    [ "$(ccs_policy)" = nucleus ] || r take-over "refused CCS Nucleus is not in charge"
+    ccs_policy_set mod || r take-over "failed write"
+    sh "$HKR/bin/ccs-mod" entry add >/dev/null 2>&1
+    if [ -f "$HKR/bin/ccs-nucleus" ]; then out="$(sh "$HKR/bin/ccs-nucleus" remove keep 2>&1 | tail -n 1)"; else out="nucleus-files-already-gone"; fi
+    r take-over "ok in-charge; ${out#result }" ;;
+
+  remove)
+    how="${2:-keep}"; case "$how" in keep|remove-data) ;; *) r remove "refused keep-or-remove-data" ;; esac
+    [ "$(ccs_policy)" = mod ] && ccs_policy_set none
+    [ "$how" = remove-data ] && { rm -f "$CONF"; rmdir "$CCSD/mod" 2>/dev/null; }
+    ccs_own_remove "$M" "$how"
+    r remove "ok $how (CCS HOME's package and saves are kept: they are shared, and removed only by removing CCS HOME itself)" ;;
+
+  status)
+    echo "policy=$(ccs_policy)"
+    if ccs_own_valid "$M"; then
+      echo "package=$(ccs_get "$(ccs_own_file "$M")" package)"
+      ccs_own_entries "$M" | while read -r line; do
+        p="$(ccs_own_path "$line")"
+        case "$line" in
+          dir=*) [ -d "$R0$p" ] && echo "folder $p" || echo "folder-gone $p" ;;
+          *) if ccs_own_mine "$M" "$p"; then echo "ok $p"; elif [ -e "$R0$p" ]; then echo "changed $p"; else echo "missing $p"; fi ;;
+        esac
+      done
+    else echo "not-installed"; fi
+    conf_autostart && echo "autostart=on" || echo "autostart=off"
+    ccs_home_dir && echo "home=${HOME_DIR#$R0}" || echo "home=none"
+    r status ok ;;
+
+  *) r "${1:-none}" "refused unknown command" ;;
+esac

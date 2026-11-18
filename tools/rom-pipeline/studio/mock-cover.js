@@ -1,4 +1,4 @@
-// ---- Mock box cover on the page: a canvas port of tools/rom-pipeline/mock_cover.py cover() (the approved generated-placeholder design).
+// ---- Mock box cover on the page: a canvas port of tools/rom-pipeline/mock_cover.py cover() (the approved generated-cover design).
 //      Same SHA-256 seed, same Mulberry32 stream, same integer pixel math and drawing order, so the landscape is pixel-identical to the
 //      Python drawing; the title uses the page's Press Start 2P webfont, the publisher / year line the page's sans (text may differ a
 //      little from the Python fonts). Used for every row / version without authentic art and without a user replacement: list

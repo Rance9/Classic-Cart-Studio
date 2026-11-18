@@ -1,6 +1,8 @@
 """Classic Cart Studio's HOME on a console, the backend side (K3; docs/console-install-architecture.md sections 13 to 15). The one dispatcher behind
 /api/console/home/*: the page names an operation and, where it applies, a plan by its hash, a reviewed removal by its hash, an attempt by its
-id, a simulated profile and a rehearsal; nothing else reaches a worker. Rehearsals run against disposable stand-ins (the simulation tier). The
+id, a simulated profile, a rehearsal and CCS Mod's start at power-on (on or off) for a new plan; nothing else reaches a worker. A check (the
+preflight against a simulated console, or check against the checked console) answers with the plan for the method that console uses, which
+is then the plan reviewed and confirmed. Rehearsals run against disposable stand-ins (the simulation tier). The
 physical operations run the same engine code (console_engine.ccs_install through console_engine.worker), each asking Gate G1 here first
 (closed in code: refused before any worker starts), then again inside the worker, then in the transport worker:
   inspect   reads the console and makes it the checked console (its identity, for SESSION_TTL; a new check replaces it and voids every
@@ -8,9 +10,12 @@ physical operations run the same engine code (console_engine.ccs_install through
   check     the reviewed plan against the checked console (reads only)
   confirm   the backend makes a single-use confirmation (console_confirm.py) for exactly one operation, one subject (a plan, a reviewed
             removal or an attempt) and the checked console; it lasts 5 minutes and only its hash is kept. The answer says what it covers
-  install / update / uninstall / recover   use up that confirmation, then run on the checked console (bound by its identity, which the
-            engine reads again inside the operation); a failure stops all writes and is never undone by itself (recovery is its own
-            confirmed operation, G3); afterwards the console must be checked again before the next confirmation
+  install / update / uninstall / recover   need a verified backup of the checked console first (backup_admission: the same validation as
+            Console Backup & Restore, run by the shipped console worker; a single-use admission for exactly this console, operation and
+            subject, checked again by the run's own worker before its first write), then use up that confirmation, then run on the checked
+            console (bound by its identity, which the engine reads again inside the operation); a failure stops all writes and is never
+            undone by itself (recovery is its own confirmed operation, G3); afterwards the console must be checked again before the next
+            confirmation
   verify, uninstall-review, recover-review, export   reads only (export copies the console's saves into a new folder of the app's data)
 One physical operation at a time, decided under one lock from the state as it is then: an operation is admitted (its confirmation used up),
 and at that moment a change counts as made (the checked console is marked changed and every confirmation is void) and a new check replaces
@@ -22,7 +27,7 @@ in-process worker over pipes, with an already simulated console) and its own gat
 and nothing a request carries can change them. Copyright (C) 2026 Rance9, GPL-3.0-or-later."""
 from __future__ import annotations
 import hashlib, os, re, secrets, threading, time
-import console_runs
+import console_runs, backup_admission
 import console_confirm as cc
 from console_engine import gate as cg
 
@@ -38,8 +43,9 @@ SCENARIOS = ("first-install", "update", "repeat", "repair", "interrupted")
 def _hex(v, n: int) -> str: s = re.sub(r"[^0-9a-f]", "", str(v or ""))[:n]; return s if len(s) == n else ""
 
 class Dispatcher:
-    def __init__(self, runs=None, allowed=None, confirmations=None, clock=None, spawn=None):
+    def __init__(self, runs=None, allowed=None, confirmations=None, clock=None, spawn=None, admit=None):
         self.runs = runs or console_runs; self.allowed = allowed or cg.allowed; self.conf = confirmations or cc.BACKEND
+        self.admit = admit or backup_admission.admit   # (hwid, operation, subject) -> {"ok", "ticket", ...}: the backup prerequisite
         self.clock = clock or time.time; self.spawn = spawn; self.lock = threading.Lock(); self.console: dict | None = None
         self.active: dict | None = None; self.last: str | None = None; self.epoch = 0   # the running operation; the last run; admissions so far
 
@@ -61,7 +67,7 @@ class Dispatcher:
         self.console = {"id": secrets.token_hex(6), "epoch": epoch, "device": dev["hwid"], "at": self.clock(), "written": False, "simulated": bool(r.get("simulated")),
                         "label": f"NES Classic ({dev.get('system')}, hakchi {dev.get('hakchi')}), console {hashlib.sha256(dev['hwid'].encode()).hexdigest()[:8]}",
                         "identity": {k: dev.get(k) for k in ("system", "kernel", "hakchi")},
-                        "state": {k: r.get(k) for k in ("pointer", "module", "attempts", "copies", "in_use", "free_bytes")}}
+                        "state": {k: r.get(k) for k in ("pointer", "module", "method", "method_problem", "mod_start", "attempts", "copies", "in_use", "free_bytes")}}
     def _finished(self, epoch: int, op: str, ev: dict | None, stopped: bool = True):
         """a run's completion (console_runs calls it after the worker has stopped, without its own lock held). A change was already counted
         when it was admitted, so a write's completion has nothing to add; only an inspection's answer is used, and only if nothing was
@@ -75,7 +81,7 @@ class Dispatcher:
     # ---- requests
     def post(self, op: str, body: dict) -> tuple[int, dict]:
         hsh = _hex(body.get("plan_hash"), 64); prof = re.sub(r"[^a-z0-9-]", "", str(body.get("profile") or ""))[:40]
-        if op == "plan": return self._res(self.runs.call("home-plan", {}, timeout=300, spawn=self.spawn))
+        if op == "plan": return self._res(self.runs.call("home-plan", {"mod_start": "on"} if body.get("mod_start") == "on" else {}, timeout=300, spawn=self.spawn))   # CCS Mod's start at power-on: on only when asked
         if op == "preflight":
             if not hsh or not prof: return 400, {"ok": False, "error": "Prepare and review the plan again, then choose a simulated console."}
             return self._res(self.runs.call("home-preflight", {"plan_hash": hsh, "profile": prof}, timeout=120, spawn=self.spawn))
@@ -119,7 +125,19 @@ class Dispatcher:
     def _physical(self, op: str, body: dict) -> tuple[int, dict]:
         tier = TIER[op]
         if not self.allowed(tier): return 403, {"ok": False, "code": "physical-disabled", "physical": False, "error": CLOSED[tier]}
+        ticket = None
+        if op in WRITE:   # the backup prerequisite, outside the lock (it verifies whole backup files); the session is re-checked below
+            with self.lock:
+                if self.active: return 409, STUCK if self.active.get("stuck") else BUSY
+                s0 = self._session()
+                if not s0: return 409, {"ok": False, "code": "check-console", "error": "Check the console first (again after 10 minutes)."}
+                sid, dev0, subject0 = s0["id"], s0["device"], self._subject(op, body)
+            if not subject0: return 400, {"ok": False, "code": "bad-subject", "error": "Review the plan, the removal or the recovery again, then confirm."}
+            adm = self.admit(dev0, backup_admission.operation_for(op, body), subject0)
+            if not adm.get("ok"): return 409, {"ok": False, "code": adm.get("code") or "backup-required", "error": adm.get("text") or "Back up this console first."}
+            ticket = adm["ticket"]
         with self.lock:   # admission: every check below reads the state as it is now
+            if op in WRITE and (not self.console or self.console.get("id") != sid): return 409, {"ok": False, "code": "check-console", "error": "The console was checked again while its backup was being verified. Confirm again."}
             if self.active: return 409, STUCK if self.active.get("stuck") else BUSY
             s = self._session() if op != "inspect" else None
             if op != "inspect" and not s: return 409, {"ok": False, "code": "check-console", "error": "Check the console first (again after 10 minutes)."}
@@ -137,6 +155,7 @@ class Dispatcher:
                 if op in ("install", "update"): args["operation"] = op
                 if op == "uninstall": args["review"] = subject
                 if op == "recover": args["attempt"] = subject
+                args["admission"] = {"ticket": ticket, "operation": backup_admission.operation_for(op, body), "subject": subject}
             self.epoch += 1; epoch = self.epoch
             if op == "inspect": self.console = None; self.conf.invalidate()   # the new check replaces the old one now
             elif op in WRITE: s["written"] = True; self.conf.invalidate()      # the change counts from now, whatever happens next

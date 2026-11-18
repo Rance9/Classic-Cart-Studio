@@ -6,13 +6,13 @@ The rule (one contract for the Game Library, the Preview on TV sample, the TV Pr
   stands for it (its exact factory version, else the catalog's revision of the same game, else an identity-only match).
 
   data       every curated row and every library version: art paths are well-formed, exist, belong to the same title; hidden scans
-             are not shown; no row carries both authentic art and a generated placeholder; a curated row never ignores the
+             are not shown; no row carries both authentic art and a generated cover; a curated row never ignores the
              authentic art its library version has; the packager's rule (native_home.config.cover_source) selects the same
              cover as the Studio page's rule for every record
   factory    all 30 factory games: one catalog row per code, authentic art, the Preview on TV sample (the page's own code, run in
              node) shows that art; Excitebike (CLV-P-NAAHE) is checked by name
   package    a real TV Preview package of the 30 factory games plus representative records (family boxes, hidden scans, generated
-             placeholders, Extended own art / family / none): each cover's kind and source, and the packaged image is derived from
+             covers, Extended own art / family / none): each cover's kind and source, and the packaged image is derived from
              that source
   override   a user's own cover wins over authentic art; after a reset the authentic cover returns
   alias      a cover stored once under another name (the installed site's art/aliases.json) still resolves as authentic

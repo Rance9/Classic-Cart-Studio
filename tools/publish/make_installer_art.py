@@ -1,10 +1,15 @@
 r"""The Windows setup's artwork: drawn here, in code, from Classic Cart Studio's own graphics (the cast in site-data/brand/ccs, the app icon,
-the OFL pixel font in tools/publish/assets/home/fonts) in the colors of the startup images (a synthwave sunset, a neon horizon). Written at every
+the approved Classic Cart Studio wordmark) in the colors of the startup images (a synthwave sunset, a neon horizon). Written at every
 display scale the setup chooses from, so it is sharp at 100 % to 250 %:
   wizard-panel-<pct>.png    the Welcome and Finish pages' tall picture (164 x 314 at 100 %): sky, striped sun, mountains, a grid floor,
-                            the wordmark and logo, and the cast on the ground
-  wizard-wordmark-<pct>.png the top right of every other page (92 x 28 at 100 %): the Classic Cart Studio wordmark (CLASSIC CART over
-                            STUDIO, as on the Welcome picture), transparent around it; the setup loads the one for the display's scale
+                            the app icon, the wordmark, and the cast on the ground
+  wizard-wordmark-<pct>.png the top right of every other page (100 x 26 at 100 %): the wordmark, transparent around it; the setup loads
+                            the one for the display's scale
+The wordmark is ALWAYS the approved one (the launch brand pack's logo, as the website's header draws it): Press Start 2P (site-data/brand/
+fonts, OFL), CLASSIC CART #f5f6fc over STUDIO #ff344b at 1 : 1.25, centered, the lines 9/16 of the first line's size apart. Never another
+font, color or proportion (owner, 2026-11-12: the earlier Pixelify Sans lettering here was the wrong wordmark).
+  ../brand-wordmark.png     the wordmark at four times the website's size (768 x 184, transparent): the Windows app's loading screens
+                            and the Help picture of the app show it (one source, never redrawn by hand)
   wizard-back-<pct>.png     every page's background (the setup window at 100 %): dark, with a faint grid floor and a neon horizon glow
                             behind the buttons, never behind text
   python tools/publish/make_installer_art.py       (needs Pillow; writes tools/publish/assets/installer/)
@@ -13,11 +18,12 @@ from __future__ import annotations
 import functools, json, math, os
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__)); REPO = os.path.dirname(os.path.dirname(HERE))
-CAST = os.path.join(REPO, "site-data", "brand", "ccs"); FONT = os.path.join(HERE, "assets", "home", "fonts", "PixelifySans.ttf")
+CAST = os.path.join(REPO, "site-data", "brand", "ccs"); WM_FONT = os.path.join(REPO, "site-data", "brand", "fonts", "PressStart2P-Regular.ttf")
 ICON = os.path.join(HERE, "assets", "app-256.png"); OUT = os.path.join(HERE, "assets", "installer")
 SCALES = (100, 125, 150, 175, 200, 250)
-PANEL, WORDMARK, BACK = (164, 314), (92, 28), (690, 500)
-INK, RED = (20, 16, 30), (228, 32, 43)
+PANEL, WORDMARK, BACK = (164, 314), (100, 26), (690, 500)
+INK = (20, 16, 30)
+WM_TOP, WM_BOTTOM, WM_RATIO, WM_GAP = ((245, 246, 252), "CLASSIC CART"), ((255, 52, 75), "STUDIO"), 1.25, 9 / 16   # the approved wordmark
 
 def lerp(a, b, t): return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(len(a)))
 def grad(img, box, stops):   # a vertical gradient through (position, color) stops
@@ -26,16 +32,16 @@ def grad(img, box, stops):   # a vertical gradient through (position, color) sto
         t = (y - y0) / max(1, y1 - y0 - 1)
         for (p0, c0), (p1, c1) in zip(stops, stops[1:]):
             if p0 <= t <= p1: d.line([(x0, y), (x1 - 1, y)], fill=lerp(c0, c1, (t - p0) / max(1e-9, p1 - p0)) + (255,)); break
-def sprite(name, k): im = Image.open(os.path.join(CAST, name + ".png")).convert("RGBA"); return im.resize((im.width * k, im.height * k), Image.NEAREST)
-def font(px): f = ImageFont.truetype(FONT, px); f.set_variation_by_axes([400]) if hasattr(f, "set_variation_by_axes") else None; return f   # 400: above it the C closes into an O at these sizes
-@functools.lru_cache(maxsize=None)
-def c_open(px):   # at some sizes the pixel font's C closes into an O (19 and 20 px do): at least 12 % of its height must stay open
-    im = Image.new("L", (px * 2, px * 2), 0); ImageDraw.Draw(im).text((2, 2), "C", font=font(px), fill=255); x0, y0, x1, y1 = im.getbbox(); h, w = y1 - y0, x1 - x0
-    rows = [max(im.getpixel((x, y)) for x in range(x1 - max(1, w // 3), x1)) for y in range(y0 + h // 3, y1 - h // 3)]
-    return sum(1 for r in rows if r < 40) / h >= 0.12
-def grid_px(ideal, text, maxw):   # the size nearest to ideal at which the text fits maxw and its C stays a C
-    d = ImageDraw.Draw(Image.new("RGBA", (1, 1))); fits = [k for k in range(10, 120) if c_open(k) and d.textlength(text, font=font(k)) <= maxw] or [10]
-    return min(fits, key=lambda k: (abs(k - ideal), -k))
+def sprite(name, k):   # k display units per cast unit (the cast is drawn at two pixels per unit: ccs_cast_hd.py)
+    im = Image.open(os.path.join(CAST, name + ".png")).convert("RGBA"); return im.resize((im.width * k // 2, im.height * k // 2), Image.NEAREST)
+def draw_wordmark(img, cx, top, p1):   # the approved wordmark, CLASSIC CART at p1 px, centered on cx from top; drawn 8 times larger and
+    SS = 8; lines = ((WM_TOP, p1), (WM_BOTTOM, p1 * WM_RATIO))   # reduced, so its proportions are exact at every size
+    hi = Image.new("RGBA", (img.width * SS, round((p1 * (1 + WM_GAP + WM_RATIO) + 2) * SS)), (0, 0, 0, 0)); d = ImageDraw.Draw(hi); y = 0
+    for (col, text), px in lines:
+        f = ImageFont.truetype(WM_FONT, max(8, round(px * SS))); w = d.textlength(text, font=f)
+        d.text((cx * SS - w / 2, y), text, font=f, fill=col + (255,)); y += px * SS + (p1 * WM_GAP * SS if px == p1 else 0)
+    lo = hi.resize((img.width, hi.height // SS), Image.BOX); img.alpha_composite(lo, (0, round(top)))
+    return p1 * (1 + WM_GAP + WM_RATIO)   # its height
 
 def floor(img, box, horizon_col, line_col, s, alpha=255):   # a perspective grid floor (the startup images' road, in lines)
     x0, y0, x1, y1 = box; d = ImageDraw.Draw(img, "RGBA"); cx = (x0 + x1) / 2; h = y1 - y0
@@ -70,26 +76,12 @@ def panel(pct):
     for name, fx in (("coin", 0.18), ("gem", 0.5), ("heart", 0.82)):   # items floating above them
         it = sprite(name, k); img.alpha_composite(it, (round(W * fx - it.width / 2), base - round(H * 0.17)))
     ic = Image.open(ICON).convert("RGBA"); isz = round(W * 0.42); ic = ic.resize((isz, isz), Image.LANCZOS); img.alpha_composite(ic, ((W - isz) // 2, round(H * 0.05)))
-    d = ImageDraw.Draw(img, "RGBA"); y = round(H * 0.05) + isz + round(H * 0.012); sw = max(1, round(s / 100))
-    for text, col, ideal in (("CLASSIC CART", (255, 255, 255), W * 0.115), ("STUDIO", RED, W * 0.165)):   # within 10 % margins
-        px = grid_px(ideal, text, W * 0.9); f = font(px); w = d.textlength(text, font=f); tx = (W - w) / 2   # a drop shadow, not an outline: an outline fills the C's opening and it reads as an O
-        d.text((tx + sw, y + sw), text, font=f, fill=(16, 10, 28, 255)); d.text((tx, y), text, font=f, fill=col + (255,)); y += round(px * 1.12)
+    draw_wordmark(img, W / 2, round(H * 0.05) + isz + round(H * 0.035), W * 0.84 / 12)   # CLASSIC CART across 84 % of the width
     return img.convert("RGB")
 
-def wordmark(pct):   # the Classic Cart Studio wordmark as on the Welcome picture: CLASSIC CART over STUDIO, outlined, transparent around it
-    W, H = round(WORDMARK[0] * pct / 100), round(WORDMARK[1] * pct / 100); img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img, "RGBA"); sw = 0; lines = (("CLASSIC CART", (255, 255, 255)), ("STUDIO", RED))   # no outline on the dark header (it would close the C)
-    p1 = grid_px(W, lines[0][0], W); p2 = grid_px(p1 * 1.5, lines[1][0], W)   # the widest grid size for CLASSIC CART, STUDIO half again as big
-    f1, f2 = font(p1), font(p2); b1, b2 = d.textbbox((0, 0), lines[0][0], font=f1), d.textbbox((0, 0), lines[1][0], font=f2)
-    gap = round(H * 0.08); hh = (b1[3] - b1[1]) + gap + (b2[3] - b2[1])
-    while hh > H and p2 > 10:   # STUDIO a size smaller (one whose C stays open) until the pair fits the box's height
-        p2 -= 1
-        while p2 > 10 and not c_open(p2): p2 -= 1
-        f2 = font(p2); b2 = d.textbbox((0, 0), lines[1][0], font=f2); hh = (b1[3] - b1[1]) + gap + (b2[3] - b2[1])
-    y = (H - hh) // 2
-    for (text, col), f, b in ((lines[0], f1, b1), (lines[1], f2, b2)):   # each line centered on the other, the pair on the box's right edge
-        x = W - (max(b1[2] - b1[0], b2[2] - b2[0]) + (b[2] - b[0])) / 2 - b[0]
-        d.text((x, y - b[1]), text, font=f, fill=col + (255,)); y += (b[3] - b[1]) + gap
+def wordmark(pct):   # the approved wordmark, centered in its box, transparent around it
+    W, H = round(WORDMARK[0] * pct / 100), round(WORDMARK[1] * pct / 100); img = Image.new("RGBA", (W, H), (0, 0, 0, 0)); p1 = 8 * pct / 100
+    draw_wordmark(img, W / 2, (H - p1 * (1 + WM_GAP + WM_RATIO)) / 2, p1)
     return img
 
 def back(pct):
@@ -100,11 +92,15 @@ def back(pct):
     ImageDraw.Draw(img).line([(0, hz), (W, hz)], fill=(255, 110, 190, 255), width=max(1, pct // 100))
     return img.convert("RGB")
 
+def brand_wordmark():   # the website's 16 / 20 px wordmark, four times larger (its pixels land on whole pixels)
+    img = Image.new("RGBA", (768, 184), (0, 0, 0, 0)); draw_wordmark(img, 384, 2, 64); return img
+
 if __name__ == "__main__":
+    brand_wordmark().save(os.path.join(HERE, "assets", "brand-wordmark.png"), optimize=True)
     os.makedirs(OUT, exist_ok=True); made = {}
     for pct in SCALES:
         for name, fn in (("wizard-panel", panel), ("wizard-wordmark", wordmark), ("wizard-back", back)):
             p = os.path.join(OUT, f"{name}-{pct}.png"); fn(pct).save(p, optimize=True); made[os.path.basename(p)] = os.path.getsize(p)
-    json.dump({"schema": "ccs-installer-art/1", "source": "drawn in code by tools/publish/make_installer_art.py from the CCS cast, app icon and PixelifySans (OFL)",
+    json.dump({"schema": "ccs-installer-art/1", "source": "drawn in code by tools/publish/make_installer_art.py from the CCS cast, the app icon and the approved wordmark (Press Start 2P, OFL)",
                "files": made}, open(os.path.join(OUT, "index.json"), "w"), indent=1)
     print(f"{len(made)} files in {OUT}")

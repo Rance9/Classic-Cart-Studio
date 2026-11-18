@@ -32,9 +32,13 @@ static int arcade_init(home *h, char *err, size_t errlen) {
     const jval *g = h->geo, *card = json_get(g, "card"), *stats = json_get(g, "stats"), *cells = json_get(g, "cells");
     if (!card || !stats || !cells || cells->t != J_ARR || gbox(g, "tabbar", &a->tabbar) || gbox(g, "legend", &a->legend) || gbox(card, "frame", &a->card_frame) || gbox(card, "cover", &a->card_cover) || gbox(card, "caption", &a->card_caption)) { snprintf(err, errlen, "arcade-grid geometry incomplete"); return -1; }
     a->ncells = (int)(cells->n > MAX_CELLS ? MAX_CELLS : cells->n); for (int i = 0; i < a->ncells; i++) if (jbox_at(cells, (size_t)i, &a->cells[i])) { snprintf(err, errlen, "arcade cell %d malformed", i); return -1; }
-    build_rows(a);
     const jval *rows = json_get(stats, "rows"); for (int i = 0; i < 3; i++) if (jbox_at(rows, (size_t)i, &a->stat_rows[i])) { snprintf(err, errlen, "arcade stats rows missing"); return -1; }
     a->stat_icon_x = gnum(stats, "icon_x", 35); a->tab_active_w = gnum(g, "tab_active_w", 158);
+    /* a design's control regions: the card with the cover grid (the game list), the stats (the collection status), the hints */
+    region_move(h, UI_GAMES, &a->card_frame); region_move(h, UI_GAMES, &a->card_cover); region_move(h, UI_GAMES, &a->card_caption);
+    for (int i = 0; i < a->ncells; i++) region_move(h, UI_GAMES, &a->cells[i]);
+    for (int i = 0; i < 3; i++) region_move(h, UI_STATUS, &a->stat_rows[i]); a->stat_icon_x += h->roff[UI_STATUS][0]; region_move(h, UI_HINTS, &a->legend);
+    build_rows(a);
     if (!tsp(h, "card-frame") || !tsp(h, "tab-bar") || !tsp(h, "tab-active") || scaled(h, "badge-a", &a->badge_a, 30, 30, 0)) { snprintf(err, errlen, "arcade-grid sprites missing"); return -1; }
     for (int i = 0; i < 6; i++) if (NAV_ICON[i] && scaled(h, NAV_ICON[i], &a->tab_icons[i], 22, 22, 1)) { snprintf(err, errlen, "arcade sprite %s missing", NAV_ICON[i]); return -1; }
     static const char *SI[3] = { "stat-icon-games", "icon-folder", "icon-star" };
@@ -92,7 +96,7 @@ void arcade_state_json(home *h, char *out, size_t n) {   /* the paging fields th
 
 static void build_chrome(home *h, int filled) {
     arcade *a = A(h); framebuffer *fb = &a->chrome; memcpy(fb->rgb, h->scene.px, (size_t)fb->w * fb->h * 3);
-    const jval *cn = json_get(h->pk, "counts"); char v[3][16]; snprintf(v[0], 16, "%zu", h->nall); snprintf(v[1], 16, "%d", gnum(cn, "folders", 0)); snprintf(v[2], 16, "%d", gnum(cn, "favorites", 0));   /* the collection's own counts */ static const char *L[3] = { "GAMES", "FOLDERS", "FAVORITES" };
+    const jval *cn = json_get(h->pk, "counts"); char v[3][16]; snprintf(v[0], 16, "%zu", h->nall); snprintf(v[1], 16, "%d", h->design && h->design->has_folders ? h->nfold : gnum(cn, "folders", 0)); snprintf(v[2], 16, "%d", gnum(cn, "favorites", 0));   /* the collection's own counts */ static const char *L[3] = { "GAMES", "FOLDERS", "FAVORITES" };
     for (int i = 0; i < 3; i++) {
         box4 r = a->stat_rows[i]; gfx_image(fb, FULL, &a->stat_icons[i], a->stat_icon_x + 2, r.y0 + 2, 255);
         const font *x = &h->f[F_SILK9], *y = &h->f[F_SILK17]; T(fb, FULL, x, r.x0, baseline_normal(x, r.y0), L[i], 0xDFE3EA, 255, .3); T(fb, FULL, y, r.x0, baseline_normal(y, r.y0 + lh_normal(x) + 5), v[i], 0xFFFFFF, 255, 0);
@@ -149,6 +153,7 @@ static void render_caption(home *h, framebuffer *fb, uint64_t now) {
     int base = baseline_normal(ft, top); rect clip = { x, top, x + w, top + iround(lh_normal(ft)) };
     int tw = text_w(ft, g->title, strlen(g->title), 0); a->cap_ok = 0;
     if (tw <= w) { T(fb, clip, ft, x, base, g->title, 0xFFFFFF, 255, 0); LR(h, "caption-title", x, base - ft->ascent, x + tw, base + ft->descent); }
+    else if (home_reduced_motion(h)) { char fit[600]; text_fit(ft, g->title, w, 0, fit, sizeof fit); T(fb, clip, ft, x, base, fit, 0xFFFFFF, 255, 0); LR(h, "caption-title", x, base - ft->ascent, x + text_w(ft, fit, strlen(fit), 0), base + ft->descent); }   /* a design asks for no motion */
     else {   /* it scrolls: the next picture differs; what is under it is kept, so the next pictures can redraw the title alone (arcade_caption) */
         int cw = clip.x1 - clip.x0, ch = clip.y1 - clip.y0; uint8_t *bg = cw > 0 && ch > 0 && ccs_scale == 1 ? realloc(a->cap_bg, (size_t)cw * ch * 3) : NULL;
         if (bg) { a->cap_bg = bg; for (int yy = 0; yy < ch; yy++) memcpy(bg + (size_t)yy * cw * 3, fb->rgb + ((size_t)(clip.y0 + yy) * fb->w + (size_t)clip.x0) * 3, (size_t)cw * 3);

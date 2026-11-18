@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.dirname(HERE)
 for p in (HERE, os.path.join(TOOLS, "rom-pipeline"), os.path.join(TOOLS, "console-simulator", "host")):
     if p not in sys.path: sys.path.insert(0, p)
 import library_lookup as LL   # noqa: E402
-from native_home import package as P, config as CF, derive as DV   # noqa: E402
+from native_home import package as P, config as CF, derive as DV, scenes as SC, own_sprites as OS   # noqa: E402
 
 EVIDENCE = os.environ.get("CCS_N2_EVIDENCE")
 CAT = LL._catalog(); LIB = LL._library()
@@ -47,8 +47,8 @@ def factory_ids() -> list[str]:   # all 30 factory games, each by the catalog ro
     with open(LL.site_path("builtin.json"), encoding="utf-8") as f: codes = [b["code"] for b in json.load(f)["games"]]
     return sorted(LL.factory_row(c)["game_id"] for c in codes)
 def added_ids(n: int) -> list[str]:
-    return [k for k, g in sorted(CAT.items(), key=lambda kv: kv[1]["display_title"]) if not g.get("builtin_code") and g.get("art_hero")][:n // 2] + \
-           [k for k, g in sorted(CAT.items(), key=lambda kv: kv[1]["display_title"]) if not g.get("builtin_code") and not g.get("art_hero")][:n - n // 2]
+    return [k for k, g in sorted(CAT.items(), key=lambda kv: kv[1]["display_title"]) if not g.get("builtin_code") and g.get("genre")][:n // 2] + \
+           [k for k, g in sorted(CAT.items(), key=lambda kv: kv[1]["display_title"]) if not g.get("builtin_code") and not g.get("genre")][:n - n // 2]   # D-131: games with and without a genre
 
 def pick_extended() -> dict:
     """versions outside the curated catalog: own art, title art only, no art at all (unlicensed), a regional and a revision"""
@@ -90,9 +90,11 @@ class Base(unittest.TestCase):
         self.assertEqual(sum(f["size"] for f in m["files"]), m["sizes"]["total"]); self.assertEqual(sum(m["sizes"]["by_category"].values()), m["sizes"]["total"])
         self.assertEqual(list(m["sizes"]["by_category"]), list(P.CATEGORIES))
         self.assertFalse([x for x in os.listdir(self.root) if x.startswith("staging-") or ".old-" in x], "no staging or previous package left behind")
-        for tid, th in P.THEMES.items():   # N3: all four themes, each with exactly the sprites its renderer draws
+        for tid, th in P.THEMES.items():   # N3: all four themes, each with exactly the sprites its renderer draws (and the own pixels of
+            # each one it draws over the background, for a HOME design's background: own_sprites.py)
+            names = th["sprites"] + (["card-trim"] if th.get("card_trim") else [])
             got = sorted(p for p in t if p.replace(os.sep, "/").startswith(f"theme/{tid}/sprite-"))
-            want = sorted([f"theme/{tid}/sprite-{s}.png" for s in th["sprites"]] + ([f"theme/{tid}/sprite-card-trim.png"] if th.get("card_trim") else []))
+            want = sorted([f"theme/{tid}/sprite-{s}.png" for s in names] + [f"theme/{tid}/sprite-{s}-own.png" for s in names if OS.has(tid, s)])
             self.assertEqual([x.replace(os.sep, "/") for x in got], want, f"{tid}: only the sprites its native renderer draws")
             self.assertIn(f"theme/{tid}/scene.png", [x.replace(os.sep, "/") for x in t])
         self.assertEqual(m["configuration"]["themes_installed"], list(P.HOME_THEMES))
@@ -105,7 +107,7 @@ class A_Small(Base):
         m = self.assertPackageIntegrity(); g = self.games()
         self.assertEqual([x["id"] for x in g], ids); self.assertEqual(m["games"], ids); self.assertTrue(m["installable"])
         self.assertEqual(len([f for f in m["files"] if f["type"] == "cover-jpeg"]), 3, "one cover per game serves all four themes")
-        for x in g: self.assertTrue(x["cover"] and x["text"]); self.assertIn(x["hero_kind"], ("hero", "fallback"))
+        for x in g: self.assertTrue(x["cover"] and x["text"]); self.assertEqual(x["hero_kind"], "hero"); self.assertEqual(x["scene"], SC.scene_for(x["genre"])["id"])
         for f in m["files"]:
             if f["type"] == "cover-jpeg":
                 from PIL import Image
@@ -139,9 +141,10 @@ class B_Typical(Base):
         # reported and the folder shows the collage of its covers (test_browse.py covers real folder artwork)
         self.assertEqual(m["sizes"]["by_category"]["folder-artwork"], 0); self.assertTrue(any("folder Adventures: custom artwork is listed" in w for w in m["warnings"]), m["warnings"])
         self.assertTrue(m["runtime"]["features"]["browse-folders"]); self.assertFalse([e for e in m["excluded"] if "folder artwork" in e["asset"]])
-        heroes = {g["hero"] for g in self.games() if g["hero_kind"] == "fallback"}; self.assertLessEqual(len(heroes), 1, "one shared fallback backdrop")
+        by_scene = {}   # D-131: every game shows the shared scene of its genre, one Details backdrop and one key-art file per scene
         for g in self.games():
-            src = CAT[g["id"]]; self.assertEqual(g["hero_kind"], "hero" if src.get("art_hero") else "fallback")
+            self.assertEqual(g["scene"], SC.scene_for(CAT[g["id"]].get("genre"))["id"]); by_scene.setdefault(g["scene"], set()).add((g["hero"], g["hero_wide"]))
+        self.assertTrue(all(len(v) == 1 for v in by_scene.values()), by_scene)
         if EVIDENCE:
             os.makedirs(EVIDENCE, exist_ok=True); shutil.copyfile(os.path.join(self.root, "current", "manifest.json"), os.path.join(EVIDENCE, "sample-manifest-typical.json"))
             _jsave({"configuration": "B: 20 factory games + 10 added, 2 folders, 3 favorites", "files": len(m["files"]), "sizes": m["sizes"], "excluded": m["excluded"]}, os.path.join(EVIDENCE, "sizes-typical.json"))
@@ -184,7 +187,7 @@ class C_NonDefault(Base):
         for k, vid in ext.items():
             v = LIB["versions"][vid]; t = LIB["titles"][v["title_id"]]; x = g[vid]
             self.assertEqual(x["version_label"], v["name"], "the exact selected version, never another revision"); self.assertEqual(x["source"], "extended")
-            self.assertEqual(x["hero_kind"], "fallback")
+            self.assertEqual(x["hero_kind"], "hero"); self.assertEqual(x["scene"], SC.scene_for(x["genre"])["id"])
             if x["text"]:   # only the same game's approved overview (another version of a curated title) or its own library overview; never an Official text
                 body = _jload(os.path.join(self.root, "current", x["text"])); self.assertNotIn("official", body)
                 cur = [c for c in (LIB["titles"][v["title_id"]].get("versions") or []) if c in CAT]

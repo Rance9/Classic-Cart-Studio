@@ -1,4 +1,4 @@
-"""The NES-style mock box cover (the approved generated-placeholder design), as one reusable template + the game's title.
+"""The NES-style mock box cover (the approved generated-cover design), as one reusable template + the game's title.
 
 Used wherever a game has no authentic box art and no user artwork: the Studio page draws the same design on a canvas
 (studio/mock-cover.js, a line-for-line port), the console package derives it only for the selected games, and the native

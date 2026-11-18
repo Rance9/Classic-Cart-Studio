@@ -14,7 +14,7 @@ from . import gate
 
 PROTOCOL = 1
 MAX_B64 = 600_000   # a file sent inline (the worker's line limit is 1,000,000 bytes); larger files go by their place in the package
-HOOK_OVERLAY = "/var/lib/hakchi/rootfs"
+HOOK_OVERLAY = "/var/lib/hakchi/rootfs"   # hakchi's overlay: the install method's files are read there (the worker's read places)
 
 class WorkerError(OSError):
     def __init__(self, code: str, text: str): self.code = code; super().__init__(f"{code}: {text}")
@@ -121,13 +121,24 @@ class WorkerConsole:
         return ok
     def set_pointer(self, path: str, value: str, expect: str | None = None):
         self._write("pointer"); self.call("pointer", {"path": path, "value": value, **({"expect": expect} if expect else {})}); self.writes.append(path)
-    # hakchi's own module commands (pack_install / pack_uninstall through the worker; it confirms with the uninstall list)
-    def pack_install(self, name: str, files: dict):
-        self._write("module-install"); fs = {p: {"b64": base64.b64encode(b).decode(), "mode": {"0o644": "0644", "0o755": "0755"}[m], "sha256": hashlib.sha256(b).hexdigest()} for p, (b, m) in files.items()}
-        self.call("module-install", {"name": name, "files": fs}); self.writes.append(f"hakchi:pack_install {name}")
+    # hakchi's own package commands (pack_install / pack_uninstall through the worker). Only the CCS Mod / CCS Nucleus packages are installed,
+    # and only the exact builds the worker pins (the same bytes the CCS Console Workbench's preparation image carries); the earlier start-up
+    # module "ccs-home" is only read and removed
+    def pack_install(self, name: str, hmod: bytes):
+        self._write("module-install")
+        self.call("module-install", {"name": name, "hmod": {"b64": base64.b64encode(hmod).decode(), "sha256": hashlib.sha256(hmod).hexdigest()}}); self.writes.append(f"hakchi:pack_install {name}")
     def pack_files(self, name: str) -> dict:
+        """the earlier start-up module's files as hakchi's uninstall list names them, with their SHA-256 now ({} when not listed)"""
         r = self.call("module-files", {"name": name}); return dict(r.get("files") or {}) if r.get("present") else {}
+    def method_files(self, name: str) -> dict | None:
+        """a CCS method package as the console holds it: None when hakchi does not list it; else its VERSION's package id and the SHA-256 now of
+        every file its own FILES list names"""
+        r = self.call("module-files", {"name": name})
+        return {"package": r.get("package"), "files": dict(r.get("files") or {})} if r.get("present") else None
     def pack_uninstall(self, name: str): self._write("module-uninstall"); self.call("module-uninstall", {"name": name}); self.writes.append(f"hakchi:pack_uninstall {name}")
+    def mod_start(self, state: str) -> str:
+        """CCS Mod's start at power-on by its own command on the console (the worker's mod-start: "ccs-mod autostart on|off"); its result line"""
+        self._write("mod-start"); r = self.call("mod-start", {"state": state}); self.writes.append(f"ccs-mod:autostart {state}"); return str(r.get("result") or "")
     def overlay_sha256(self, path: str) -> str | None: return self.sha256(HOOK_OVERLAY + path)
     def overlay_read(self, path: str) -> bytes | None: return self.read(HOOK_OVERLAY + path, 65536)
 

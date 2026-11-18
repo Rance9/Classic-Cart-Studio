@@ -22,34 +22,46 @@ namespace CcsWorker.Protocol
     {
         public const int ProtocolVersion = 1;
         public const int MaxLine = 1000000;
-        public static readonly string[] Commands = { "capabilities", "connect", "identify", "df", "stat", "list", "sha256", "read", "put", "mkdir", "rmdir", "rename", "remove", "pointer",
-            "module-install", "module-uninstall", "module-files", "sync", "cancel", "disconnect", "shutdown" };
+        public static readonly string[] Commands = { "capabilities", "connect", "admit", "identify", "df", "stat", "list", "sha256", "read", "put", "mkdir", "rmdir", "rename", "remove", "pointer",
+            "module-install", "module-uninstall", "module-files", "mod-start", "sync", "cancel", "disconnect", "shutdown" };
         // additions inside protocol 1 (a client checks for them in capabilities): read with offset/length in pieces, sync (with the page
-        // cache dropped for a readback from storage), pointer with the state it expects to replace
-        public static readonly string[] Features = { "read-chunks", "sync", "pointer-expect", "write-tier" };
+        // cache dropped for a readback from storage), pointer with the state it expects to replace, mod-start (CCS Mod's own autostart command)
+        public static readonly string[] Features = { "read-chunks", "sync", "pointer-expect", "write-tier", "backup-admission", "mod-start" };
         // the commands that change the console: each asks the write tier, whatever the session was opened for ("write-tier" above), so an
         // inspect session never writes. sync is not one: it writes no file (it makes earlier writes persistent and, for a read-back, may
         // drop the clean page cache), and the verification after an installation, a read, asks for it
-        public static readonly string[] WriteCommands = { "put", "mkdir", "rmdir", "rename", "remove", "pointer", "module-install", "module-uninstall" };
+        public static readonly string[] WriteCommands = { "put", "mkdir", "rmdir", "rename", "remove", "pointer", "module-install", "module-uninstall", "mod-start" };
         public static readonly string[] Upstream = { "hakchi:25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc", "sshnet:32181aeb4ce69e8f07e5e1d585fd592a44017bc1", "libusbdotnet:2.2.29" };
 
         sealed class Line { public Dictionary<string, object> Req; public object Id; public string Error, Text; public bool Eof; }
 
         readonly Stream input; readonly Stream output; readonly string packageRoot;
         readonly Func<string, IConsoleShell> opener; readonly Func<bool> writesOpen;
+        // the backup prerequisite (CcsBackup.Engine.Admission, shared with Console Backup & Restore): "admit" checks the single-use admission
+        // the backend obtained for one operation against the console identity read now, and every write command needs it; a new connect,
+        // a disconnect or the end of the worker voids it. There is no other way to write: no option, flag, setting or request field.
+        // a removal with data or a recovery (Admission.NeedsLiveTree) is admitted only with what this connection reads on the console now:
+        // Classic Cart Studio's data area compared with the newest backup (ConsoleOps.Tree), so a save made since the backup refuses it
+        readonly Func<string, string, string, string, CcsBackup.Engine.LiveTree, CcsBackup.Engine.AdmissionResult> admitter;
+        CcsBackup.Engine.AdmissionResult admitted; CcsBackup.Engine.ConsoleLock consoleLock;
         readonly object outLock = new object();
         readonly BlockingCollection<Line> queue = new BlockingCollection<Line>();
         readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 64 };
         IConsoleShell shell; string brokenWhy;
         volatile bool busy, cancelRequested;
 
-        public WorkerServer(Stream input, Stream output, string packageRoot) : this(input, output, packageRoot, RealTransports.Open, null, () => Gate.PhysicalWriteEnabled) { }
+        public WorkerServer(Stream input, Stream output, string packageRoot, string settingsPath = null)
+            : this(input, output, packageRoot, RealTransports.Open, null, () => Gate.PhysicalWriteEnabled,
+                   (ticket, op, subject, hwid, live) => CcsBackup.Engine.Admission.Use(CcsBackup.Library.Settings.Load(settingsPath), ticket, op, subject, hwid, null, false, live, null)) { }
 
         /// <summary>For the test project: its own opener (one that never reaches a console) and a shell already attached (a scripted,
         /// simulated or BusyBox shell in a disposable folder), whose writes the test allows or refuses (writesOpen).</summary>
-        internal WorkerServer(Stream input, Stream output, string packageRoot, Func<string, IConsoleShell> opener, IConsoleShell attached, Func<bool> writesOpen)
+        internal WorkerServer(Stream input, Stream output, string packageRoot, Func<string, IConsoleShell> opener, IConsoleShell attached, Func<bool> writesOpen,
+                              Func<string, string, string, string, CcsBackup.Engine.LiveTree, CcsBackup.Engine.AdmissionResult> admitter = null, bool startAdmitted = false)
         {
             this.input = input; this.output = output; this.packageRoot = packageRoot; this.opener = opener; shell = attached; this.writesOpen = writesOpen ?? (() => Gate.PhysicalWriteEnabled);
+            this.admitter = admitter ?? ((t, o, s, h, l) => new CcsBackup.Engine.AdmissionResult { Ok = false, Code = "backup-required", Text = "No backup admission is possible here." });
+            if (startAdmitted) admitted = new CcsBackup.Engine.AdmissionResult { Ok = true, Code = "test-attached-shell", Text = "a test's own attached shell" };   // tests only (this internal constructor)
         }
 
         public int Run()
@@ -62,7 +74,7 @@ namespace CcsWorker.Protocol
                 if (Handle(line)) break;
             }
             try { shell?.Disconnect(); } catch { }
-            shell = null;
+            shell = null; admitted = null; consoleLock?.Dispose(); consoleLock = null;
             return 0;
         }
 
@@ -139,6 +151,10 @@ namespace CcsWorker.Protocol
             req.TryGetValue("args", out var ao);
             var a = ao == null ? new Dictionary<string, object>() : ao as Dictionary<string, object>;
             if (cmd == null || !Commands.Contains(cmd) || a == null) { Error(id, "bad-command", "unknown command or arguments"); return false; }
+            // a request that names a game system, console model, provider or capability this version does not support stops here, before
+            // any connection or console command (tools/console-backup/SNES-GROUNDWORK.md); one that names none is the NES Classic, as always
+            var target = CcsBackup.Compose.Capabilities.CheckRequest(a);
+            if (!target.Ok) { Error(id, "unsupported-target", target.Text); return false; }
             cancelRequested = false; busy = true;
             try
             {
@@ -148,12 +164,15 @@ namespace CcsWorker.Protocol
                     case "connect":
                         var kind = a.TryGetValue("transport", out var t) ? t as string : null;
                         var s = opener(kind);   // Gate G1: RealTransports refuses before any device, socket or discovery
+                        admitted = null;
+                        if (consoleLock == null) { consoleLock = CcsBackup.Engine.ConsoleLock.TryAcquire("Classic Cart Studio (console worker)", "HOME maintenance", out var busyWith); if (consoleLock == null) { try { s.Disconnect(); } catch { } throw new OpException("busy", "Another console operation is running in " + busyWith + "."); } }
                         shell = s; brokenWhy = null; Result(id, new Dictionary<string, object> { ["transport"] = s.Kind }); return false;
                     case "cancel": Result(id, new Dictionary<string, object> { ["accepted"] = false, ["text"] = "no operation is running" }); return false;
-                    case "disconnect": try { shell?.Disconnect(); } catch { } shell = null; brokenWhy = null; Result(id, new Dictionary<string, object>()); return false;
+                    case "disconnect": try { shell?.Disconnect(); } catch { } shell = null; brokenWhy = null; admitted = null; consoleLock?.Dispose(); consoleLock = null; Result(id, new Dictionary<string, object>()); return false;
                     case "shutdown": Result(id, new Dictionary<string, object>()); return true;
                 }
                 if (WriteCommands.Contains(cmd) && !writesOpen()) throw new GateClosedException("write " + cmd);   // the write tier, for this command, before anything else
+                if (WriteCommands.Contains(cmd) && admitted == null) throw new OpException("backup-required", "No verified backup admission for this change: back up the console first (Console Backup & Restore), then check it again.");
                 if (shell == null) throw new OpException("not-connected", "no console is connected (" + Gate.Text + ")");
                 if (brokenWhy != null || !shell.IsOnline) throw new OpException("connection-lost", brokenWhy ?? "the console connection ended");
                 var ops = new ConsoleOps(shell, packageRoot, () => cancelRequested, (done, total) => Send(new Dictionary<string, object> { ["id"] = id, ["event"] = "progress", ["bytes"] = done, ["total"] = total }));
@@ -161,6 +180,17 @@ namespace CcsWorker.Protocol
                 switch (cmd)
                 {
                     case "identify": r = ops.Identify(); break;
+                    case "admit":
+                    {
+                        var hw = ops.Identify().TryGetValue("hwid", out var hv) ? hv as string : null;   // the identity read now, never one from the request
+                        var opName = Str(a, "operation");
+                        CcsBackup.Engine.LiveTree live = null;
+                        if (CcsBackup.Engine.Admission.NeedsLiveTree(opName)) { try { live = ops.Tree(); } catch (Exception ex) when (!(ex is OperationCanceledException)) { live = CcsBackup.Engine.LiveTree.Unreadable(ex.Message); } }
+                        var ar = admitter(Str(a, "ticket"), opName, Str(a, "subject"), hw, live);
+                        if (ar == null || !ar.Ok) { admitted = null; throw new OpException(ar?.Code ?? "backup-required", ar?.Text ?? "The backup admission was refused."); }
+                        admitted = ar; r = new Dictionary<string, object> { ["admitted"] = true, ["baseline"] = ar.BaselinePath, ["current"] = ar.CurrentPath };
+                        break;
+                    }
                     case "df": r = ops.Df(Str(a, "path")); break;
                     case "stat": r = ops.Stat(Str(a, "path")); break;
                     case "list": r = ops.List(Str(a, "path")); break;
@@ -181,6 +211,7 @@ namespace CcsWorker.Protocol
                     case "module-install": r = ops.ModuleInstall(a); break;
                     case "module-uninstall": r = ops.ModuleUninstall(Str(a, "name")); break;
                     case "module-files": r = ops.ModuleFiles(Str(a, "name")); break;
+                    case "mod-start": r = ops.ModStart(Str(a, "state")); break;
                     default: throw new OpException("bad-command", "unknown command");
                 }
                 Result(id, r);

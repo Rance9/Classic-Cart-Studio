@@ -3,24 +3,31 @@ apply(out, mode) for `--public prelaunch` or `--public launch`, after the page a
 worker's file list is made, so the entry pages and the worker's inventory always belong together.
 
   prelaunch  /            a coming-soon page: the wordmark, YOUR CLASSICS. YOUR WAY. and COMING FEBRUARY 2027 (it may wrap on a narrow screen), drawn with the site's own pixel font
-                          and CSS only (no picture, no link, no button); the only page offered to search engines. A tiny script sends an
-                          installed web app (launched at its start address, /) and the app's own working links (?companion=, ?play=) on
+                          and CSS only (no picture, no link; its one button is the sound control, below); the only page offered to
+                          search engines. A tiny script sends an installed web app (launched at its start address, /) and the app's own working links (?companion=, ?play=) on
                           to the app at /preview/, with their query and fragment; an ordinary browser stays on the page. It never registers
                           a service worker; it only asks an existing registration to look for an update.
              /preview/    the whole site exactly as before (its files stay at the root: <base href="../">), not indexed, its own canonical
   launch     /            the whole site, indexed, canonical /
              /preview/    the same site (a transition copy, not indexed, canonical /) until the host's permanent redirect to / is on
+The splash's sound control (sound_parts): a speaker at the top right, off on every visit. Only a visitor's own click, tap or key press turns
+on the CCS HOME theme (assets/home-music/music.json): the whole song, looped without a gap by Web Audio at a moderate level, from the HOME's
+own browser AAC (brand/home/music/, unchanged) or, where AAC cannot be decoded, its MP3 (brand/splash/, make_splash_music.py). Nothing is
+fetched, decoded or remembered before that, nothing is stored, and the page in the background (another tab or window, leaving the page, an
+audio interruption) turns it off for good: only another press turns it on. The MP3 is published only with the splash and is never in the
+service worker's files.
 Both: /nes-catalog.html is not published (the generated page is the Windows app's local document; the public copy was only a duplicate),
 the link-preview card (the wordmark alone, 1200 x 630) and each page's title, description and Open Graph / Twitter data.
 Part of Classic Cart Studio: GNU GPL v3 or later, like the rest of this repository."""
 from __future__ import annotations
-import os, random, re
+import hashlib, json, os, random, re, shutil
 HERE = os.path.dirname(os.path.abspath(__file__)); REPO = os.path.dirname(os.path.dirname(HERE))
 SITE = "https://classiccartstudio.com"
 CARD = "brand/social/classic-cart-studio-1200x630.png"; CARD_W, CARD_H = 1200, 630
 NAME = "Classic Cart Studio"
 DESC_SPLASH = "Your classics. Your way. Coming soon."
 DESC_APP = "A free, open-source app for organizing and playing your NES collection in a browser, on a phone or on Windows."
+BACK_ROOT, BACK_PREVIEW = '<a href="https://ClassicCartStudio.com/">Back to the website</a>', '<a href="/preview/">Back to the website</a>'   # /app/, /source/
 FOOTER = "An independent, open-source project. Not affiliated with or endorsed by any console maker or game publisher."
 FONT = os.path.join(REPO, "site-data", "brand", "fonts", "PressStart2P-Regular.ttf")
 WHITE, RED, CYAN = "#f5f6fc", "#ff344b", "#7ff8ff"   # the site's wordmark colors (studio.css .wm1/.wm2) and the neon
@@ -47,8 +54,93 @@ def _stars(seed=1984, n=46) -> str:
     rnd = random.Random(seed); cols = ("rgba(190,210,255,.55)", "rgba(255,255,255,.45)", "rgba(150,190,255,.4)", "rgba(255,220,240,.35)")
     return ",".join(f"{rnd.uniform(1, 99):.1f}vw {rnd.uniform(1, 97):.1f}vh 0 {rnd.choice((0, 0, 0, 1))}px {rnd.choice(cols)}" for _ in range(n))
 
-def splash_html() -> str:
+# ---- the splash's sound control ----
+HOME_MUSIC = os.path.join(HERE, "assets", "home-music", "music.json")
+SPLASH_MUSIC_DIR = os.path.join(HERE, "assets", "splash-music"); SPLASH_MUSIC = os.path.join(SPLASH_MUSIC_DIR, "splash-music.json")
+SOUND_DIR = "brand/splash"   # the MP3 fallback's published folder: never one of the service worker's (build_site_ci.py pwa refuses it)
+SOUND_GAIN = 0.3
+SOUND_ICON = ('<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 9.5h3.8L12 5.8v12.4l-4.7-3.7H3.5z" fill="currentColor"/>'
+              '<path class="x" d="M15.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+              '<path class="w" d="M15.2 9a4.2 4.2 0 0 1 0 6M17.8 6.4a7.9 7.9 0 0 1 0 11.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>')
+# top right: 22 px from the corner on a large screen; 16 px plus the screen's safe area on a phone (either way up); above the page's scanlines.
+# Muted speaker (gray) when off, sounding speaker (the neon's cyan) when on; a cyan focus ring for the keyboard; nothing moves
+SOUND_CSS = ("#snd{position:fixed;z-index:2;top:22px;right:22px;top:max(22px,calc(16px + env(safe-area-inset-top,0px)));right:max(22px,calc(16px + env(safe-area-inset-right,0px)));"
+             "box-sizing:border-box;width:44px;height:44px;margin:0;padding:0;display:flex;align-items:center;justify-content:center;-webkit-appearance:none;appearance:none;"
+             "border:1px solid rgba(184,189,204,.3);border-radius:50%;background:rgba(5,7,15,.55);color:#b8bdcc;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}\n"
+             "#snd[hidden]{display:none}#snd svg{display:block;width:24px;height:24px;pointer-events:none}#snd .w,#snd.on .x{display:none}#snd.on .w{display:inline}\n"
+             f"#snd.on{{color:{CYAN};border-color:rgba(127,248,255,.5)}}@media (hover:hover){{#snd:hover{{color:#e6e9f2;border-color:rgba(127,248,255,.45)}}#snd.on:hover{{color:{CYAN}}}}}\n"
+             f"#snd:focus{{outline:2px solid {CYAN};outline-offset:3px}}#snd:focus:not(:focus-visible){{outline:none}}\n"
+             "@media (max-width:600px),(max-height:500px){#snd{top:16px;right:16px;top:calc(16px + env(safe-area-inset-top,0px));right:calc(16px + env(safe-area-inset-right,0px))}}\n")
+# The control. Off on every load and every return (pagehide, pageshow from the back/forward cache); nothing is stored anywhere. A deliberate
+# activation of the button (click, tap, Enter or Space: the native button's one click; a held key's repeats are ignored) creates or resumes the
+# AudioContext inside that gesture (iPhone), then fetches and decodes the song: AAC, or the MP3 when the browser says it cannot play AAC; an
+# AAC that does not decode gets the MP3 once, while still turned on. The decoded song is cut to exactly its frames when a decoder kept the
+# file's priming or padding (the record's trims: [start, extra] frames at 48 kHz, matched by length), then loops natively (loop over the
+# whole buffer: sample-timed, no gap). It starts only if that same activation is still the current one and the page is in front. Hidden, left,
+# in the background or interrupted (the context leaves "running"): it stops and shows off; nothing ever turns it on again by itself. A failed
+# fetch, decode or start leaves it off without a word; another press tries again. Only a decoded buffer is kept, in memory, for this visit.
+SOUND_JS = r"""(function(){var b=document.getElementById("snd"),W=window,D=document,AC=W.AudioContext||W.webkitAudioContext;
+if(!b||!AC||!W.fetch||!W.Promise)return;
+var F=__F__,A=__A__,M=__M__,S={on:0,g:0,c:null,v:null,s:null,b:null,p:null};
+function nop(){}
+function show(x){S.on=x;b.className=x?"on":"";b.setAttribute("aria-label",x?"Turn sound off":"Turn sound on");}
+function off(){S.g++;show(0);var s=S.s,c=S.c;S.s=null;
+ if(s){s.onended=null;try{s.stop();}catch(e){}try{s.disconnect();}catch(e){}}
+ if(c&&c.state!=="closed")try{var p=c.suspend();if(p&&p.catch)p.catch(nop);}catch(e){}}
+function dec(c,a){return new Promise(function(y,n){var p;try{p=c.decodeAudioData(a,y,n);}catch(e){n(e);return;}if(p&&p.then)p.then(y,n);});}
+function fit(c,x,t){var k=x.sampleRate/48e3,N=Math.round(F*k),i,j,q,o,s;
+ for(i=0;i<t.length;i++){q=t[i];if(Math.abs(x.length-N-Math.round(q[1]*k))<=4){if(!q[1])return x;s=Math.round(q[0]*k);o=c.createBuffer(x.numberOfChannels,N,x.sampleRate);
+  for(j=0;j<x.numberOfChannels;j++)o.getChannelData(j).set(x.getChannelData(j).subarray(s,s+N));return o;}}
+ return x;}
+function one(c,f){return fetch(f[0]).then(function(r){if(!r.ok)throw 1;return r.arrayBuffer();}).then(function(a){return dec(c,a).then(function(x){return fit(c,x,f[1]);},function(){throw 2;});});}
+function load(c){if(S.b)return Promise.resolve(S.b);
+ if(!S.p){var m="";try{m=D.createElement("audio").canPlayType('audio/mp4; codecs="mp4a.40.2"');}catch(e){}
+  S.p=(m?one(c,A).catch(function(e){if(e!==2||!S.on)throw e;return one(c,M);}):one(c,M)).then(function(x){S.p=null;return S.b=x;},function(e){S.p=null;throw e;});}
+ return S.p;}
+function on(){var g=++S.g,c=S.c,r;show(1);
+ try{if(!c||c.state==="closed"){try{c=new AC({latencyHint:"playback",sampleRate:48e3});}catch(e){c=new AC();}
+   S.c=c;S.v=c.createGain();S.v.gain.value=__G__;S.v.connect(c.destination);c.onstatechange=function(){if(S.s&&S.c===c&&c.state!=="running")off();};}
+  r=c.resume();}catch(e){off();return;}
+ Promise.all([Promise.race([r,new Promise(function(y,n){setTimeout(n,5e3);})]),load(c)]).then(function(v){
+  if(g!==S.g)return;if(D.hidden||c.state!=="running")throw 0;
+  var s=c.createBufferSource();s.buffer=v[1];s.loop=true;s.connect(S.v);s.onended=function(){if(S.s===s)off();};s.start(0);S.s=s;
+ }).catch(function(){if(g===S.g)off();});}
+b.addEventListener("click",function(e){if(e.isTrusted===false)return;if(S.on)off();else on();});
+b.addEventListener("keydown",function(e){if(e.repeat&&(e.key==="Enter"||e.key===" "||e.key==="Spacebar"))e.preventDefault();});
+D.addEventListener("visibilitychange",function(){if(D.hidden)off();});
+W.addEventListener("pagehide",off);W.addEventListener("blur",off);W.addEventListener("pageshow",function(e){if(e.persisted)off();});
+b.hidden=false;})();"""
+
+def _sha(path: str) -> str: return hashlib.sha256(open(path, "rb").read()).hexdigest()
+
+def sound_config(out: str) -> dict:
+    """the control's two files, each checked against its record: the HOME theme's own browser AAC as the site build published it (music.json,
+    brand/home/music/, copied unchanged from assets/home) and the MP3 fallback (make_splash_music.py); their trims and the song's frames"""
+    hm = json.load(open(HOME_MUSIC, encoding="utf-8")); sm = json.load(open(SPLASH_MUSIC, encoding="utf-8")); br, mp3 = hm["browser"], sm["mp3"]
+    aac = os.path.join(out, *br["file"].split("/"))
+    if not os.path.isfile(aac) or _sha(aac) != br["sha256"]: raise SystemExit(f"the HOME theme's browser file is not the recorded one: {br['file']}")
+    if (sm["aac"]["published"] != br["file"] or sm["aac"]["sha256"] != br["sha256"] or sm["aac"]["bytes"] != os.path.getsize(aac)
+            or sm["song"]["pcm_sha256"] != hm["native"]["sha256"] or sm["song"]["frames"] != hm["native"]["frames"]):
+        raise SystemExit("assets/splash-music/splash-music.json is not about this HOME theme (run tools/publish/make_splash_music.py)")
+    src = os.path.join(SPLASH_MUSIC_DIR, mp3["file"])
+    if not os.path.isfile(src) or _sha(src) != mp3["sha256"] or os.path.getsize(src) != mp3["bytes"] or mp3["published"] != f"{SOUND_DIR}/{mp3['file']}":
+        raise SystemExit("the splash's MP3 is not the recorded one (run tools/publish/make_splash_music.py)")
+    return {"frames": hm["native"]["frames"], "aac": br["file"], "aac_trims": sm["aac"]["trims"], "mp3": mp3["published"], "mp3_trims": mp3["trims"], "mp3_src": src,
+            "aac_bytes": os.path.getsize(aac), "aac_sha256": br["sha256"], "mp3_bytes": mp3["bytes"], "mp3_sha256": mp3["sha256"]}
+
+def sound_parts(cfg: dict) -> tuple[str, str]:
+    """(the control's CSS, appended to the splash's style; its button and script, the body's first content)"""
+    js = (SOUND_JS.replace("__F__", str(int(cfg["frames"]))).replace("__G__", repr(SOUND_GAIN))
+          .replace("__A__", json.dumps([cfg["aac"], cfg["aac_trims"]], separators=(",", ":")))
+          .replace("__M__", json.dumps([cfg["mp3"], cfg["mp3_trims"]], separators=(",", ":"))))
+    assert "__" not in js and "</" not in js and "<!--" not in js
+    return SOUND_CSS, f'<button type="button" id="snd" aria-label="Turn sound on" hidden>{SOUND_ICON}</button><script>{js}</script>'
+
+def splash_html(sound: dict | None = None) -> str:
+    """the coming-soon page; with `sound` (sound_config) its sound control, which adds only its CSS and its button and script: without it,
+    the page is the one published before the control existed, byte for byte"""
     assert flashes_ok(), "COMING SOON may flash more than three times in a second"
+    css, ctl = sound_parts(sound) if sound else ("", "")
     meta = _meta(NAME, DESC_SPLASH, SITE + "/", "index,follow")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -85,8 +177,8 @@ h1{{margin:0;font-weight:400;display:flex;flex-direction:column;align-items:cent
 footer{{position:relative;z-index:1;flex:none;padding:10px max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));text-align:center;
  font:400 13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#b8bdcc}}
 @media (max-height:420px){{footer{{font-size:12px;padding-top:6px}}main{{padding-top:max(10px,env(safe-area-inset-top))}}}}
-</style></head>
-<body><main><div class="c"><h1><span class="w1">Classic Cart</span><span class="w2">Studio</span></h1><p class="tag">Your Classics. Your Way.</p><p class="soon">Coming February 2027</p></div></main>
+{css}</style></head>
+<body>{ctl}<main><div class="c"><h1><span class="w1">Classic Cart</span><span class="w2">Studio</span></h1><p class="tag">Your Classics. Your Way.</p><p class="soon">Coming February 2027</p></div></main>
 <footer>{FOOTER}</footer></body></html>
 """
 
@@ -142,12 +234,20 @@ def apply(out: str, mode: str) -> dict:
     gen = os.path.join(out, "nes-catalog.html"); page = open(gen, encoding="utf-8").read(); os.remove(gen)   # the Windows app's local document, not a public address
     os.makedirs(os.path.join(out, "preview"), exist_ok=True)
     if mode == "prelaunch":
-        open(os.path.join(out, "index.html"), "w", encoding="utf-8", newline="\n").write(splash_html())
+        snd = sound_config(out); os.makedirs(os.path.join(out, *SOUND_DIR.split("/")), exist_ok=True)
+        shutil.copyfile(snd["mp3_src"], os.path.join(out, *snd["mp3"].split("/")))
+        open(os.path.join(out, "index.html"), "w", encoding="utf-8", newline="\n").write(splash_html(snd))
+        print(f"splash sound: {snd['aac']} ({snd['aac_bytes']:,} bytes), fallback {snd['mp3']} ({snd['mp3_bytes']:,} bytes)")
         open(os.path.join(out, "preview", "index.html"), "w", encoding="utf-8", newline="\n").write(app_html(page, url=SITE + "/preview/", robots="noindex,follow", preview=True, home="preview/"))
         st = os.path.join(out, "store", "index.html")   # the store's Back links go to the app (during the preview, at /preview/)
         if os.path.isfile(st):
             s = open(st, encoding="utf-8").read(); n = s.count('href="/"'); open(st, "w", encoding="utf-8", newline="\n").write(s.replace('href="/"', 'href="/preview/"'))
             print("store page:", n, "Back links to /preview/")
+        for n in ("app", "source"):   # the helper pages' "Back to the website" goes to the app too; their release and source links stay
+            p = os.path.join(out, n, "index.html")
+            if os.path.isfile(p):
+                s = open(p, encoding="utf-8").read(); k = s.count(BACK_ROOT); open(p, "w", encoding="utf-8", newline="\n").write(s.replace(BACK_ROOT, BACK_PREVIEW))
+                print(f"{n} page:", k, "Back link to /preview/")
     else:
         open(os.path.join(out, "index.html"), "w", encoding="utf-8", newline="\n").write(app_html(page, url=SITE + "/", robots="index,follow", preview=False, home=None))
         open(os.path.join(out, "preview", "index.html"), "w", encoding="utf-8", newline="\n").write(app_html(page, url=SITE + "/", robots="noindex,follow", preview=True, home=None))

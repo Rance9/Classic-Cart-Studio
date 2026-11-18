@@ -534,6 +534,13 @@ def _restore(data_path, path, info, replace, controllers, player, check_only) ->
     except OSError as e: return {"ok": False, "nothing_changed": True, "error": f"A current file could not be read ({e.strerror or e}), so nothing was restored. Nothing was changed."}
     base = {"counts": counts, "rejected": rejected, "not_applicable": bad, "personal_not_used": pbad, "personal_kept": pkept}
     if check_only: return {"ok": True, "check": True, **base}
+    return apply_items(data_path, todo, base, "restore")
+
+def apply_items(data_path, todo: list, base: dict, what: str = "restore") -> dict:
+    """The one verified write of a restore or a Game Saves import: each Item (target, data, action "add"|"replace", cur) is staged beside
+    its target and read back; a journal is written; every file being replaced is kept first in replaced-<tx> beside it (write-once, read
+    back); then each staged file is moved into place and checked. Any failure puts back everything applied (each checked) and says so;
+    a rollback that cannot finish leaves its journal for Try Again (recover)."""
     if not todo: return {"ok": True, "txid": None, "replaced_folder": None, **base}
     tx = _txid(data_path); folder = f"replaced-{tx}"
     # 1. stage: every new content written beside its target under this restore's own name, and read back (no current file is touched)
@@ -542,7 +549,7 @@ def _restore(data_path, path, info, replace, controllers, player, check_only) ->
             it.staged = it.target + f".restoring-{tx}"; _write_new(it.staged, it.data); _verify(it.staged, it.data, "a staged file")
     except Exception as e:
         _cleanup_staged(todo)
-        return {"ok": False, "nothing_changed": True, "error": f"The restore could not prepare its files ({getattr(e, 'strerror', None) or e}). Nothing was changed.", **base}
+        return {"ok": False, "nothing_changed": True, "error": f"The {what} could not prepare its files ({getattr(e, 'strerror', None) or e}). Nothing was changed.", **base}
     # 2. the journal, then each current file being replaced kept first (write-once, read back)
     entries = [{"tx": tx, "target": it.target, "action": it.action, "label": it.label, "before": _sha(it.cur) if it.cur is not None else None, "after": _sha(it.data),
                 "keep": os.path.join(os.path.dirname(it.target), folder, os.path.basename(it.target)) if it.action == "replace" else None, "applied": False} for it in todo]
@@ -551,14 +558,14 @@ def _restore(data_path, path, info, replace, controllers, player, check_only) ->
         for it, e in zip(todo, entries):
             if it.action != "replace": continue
             now = _read(it.target)
-            if now != it.cur: raise RestoreFailed(f"{os.path.basename(it.target)} changed while the restore was being prepared")
+            if now != it.cur: raise RestoreFailed(f"{os.path.basename(it.target)} changed while the {what} was being prepared")
             _write_new(e["keep"], now); _verify(e["keep"], now, "a kept original")
         _journal_write(data_path, tx, entries, "applying")
     except Exception as e:
         _cleanup_staged(todo)
         try: os.remove(_journal_path(data_path, tx))
         except OSError: pass
-        return {"ok": False, "nothing_changed": True, "error": f"The restore could not keep the current files first ({getattr(e, 'strerror', None) or e}). Nothing was changed.", **base}
+        return {"ok": False, "nothing_changed": True, "error": f"The {what} could not keep the current files first ({getattr(e, 'strerror', None) or e}). Nothing was changed.", **base}
     # 3. apply: each staged file moved into place and checked
     try:
         for it, e in zip(todo, entries):
@@ -570,13 +577,13 @@ def _restore(data_path, path, info, replace, controllers, player, check_only) ->
             try: os.remove(_journal_path(data_path, tx))
             except OSError: pass
             return {"ok": False, "rolled_back": True, "nothing_changed": True, "txid": tx, "reason": reason, "replaced_folder": folder if any(e["keep"] for e in entries) else None,
-                    "error": f"The restore stopped before it finished ({reason}). Everything it changed was put back and checked; nothing else was changed.", **base}
+                    "error": f"The {what} stopped before it finished ({reason}). Everything it changed was put back and checked; nothing else was changed.", **base}
         try: _journal_write(data_path, tx, entries, "rollback incomplete")
         except Exception: pass
-        changed = [{"path": _rel(data_path, e["target"]), "what": "added by the restore" if e["action"] == "add" else "replaced by the restore",
+        changed = [{"path": _rel(data_path, e["target"]), "what": f"added by the {what}" if e["action"] == "add" else f"replaced by the {what}",
                     "original": _rel(data_path, e["keep"]) if e["keep"] else None, "error": e.get("error", "")} for e in left]
         return {"ok": False, "rolled_back": False, "partial": True, "txid": tx, "reason": reason, "replaced_folder": folder, "changed": changed, "journal": _rel(data_path, _journal_path(data_path, tx)),
-                "error": f"The restore stopped before it finished ({reason}), and " + ("1 file" if len(changed) == 1 else f"{len(changed)} files") + " could not be put back. "
+                "error": f"The {what} stopped before it finished ({reason}), and " + ("1 file" if len(changed) == 1 else f"{len(changed)} files") + " could not be put back. "
                          + (("Its original is kept in the folder named \"" + folder + "\" beside it. " if len(changed) == 1 else "Their originals are kept in the folders named \"" + folder + "\" beside them. ") if any(c["original"] for c in changed) else "")
                          + "Choose Try Again to finish putting " + ("it" if len(changed) == 1 else "them") + " back.", **base}
     try: os.remove(_journal_path(data_path, tx))

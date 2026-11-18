@@ -1,0 +1,27 @@
+{
+  "schema": "ccs-workbench-theme-examples/1",
+  "note": "HOME Designer's starting-theme examples. To replace a picture, put a new file here and change its entry (file, sha256, size, description): nothing else needs to change. Each picture is an example of a theme as the console HOME draws it; it is never a person's design or a check of one.",
+  "made": "Drawn by Classic Cart Studio's native HOME renderer (ccs-sim-core.exe of candidate cand11b, SHA-256 4b361e2f77ac23008d5bed8817e5dd95abc955d25667223f066254aa584153ed) at the computer's full resolution (--scale=2, 2560 x 1440), from a HOME package built by the app's own package builder with the NES Classic's 30 built-in games in order of popularity (Super Mario Bros. 3 first), two folders (Mario, Adventures) and four favorites, so every place for a game, a folder or a count is filled; then scaled to 1920 x 1080 and saved as JPEG (quality 90). build_pack.py and render.py beside this file are the two steps. Theme pictures and scenes are the approved HOME artwork; the game boxes are the games' own box art.",
+  "examples": [
+    {
+      "theme": "arcade-grid", "name": "Arcade Grid", "file": "arcade-grid.jpg", "width": 1920, "height": 1080, "bytes": 822220,
+      "sha256": "a2d190e24414222dc8b464ea313ca3e517cbc87fe79fbf40d1ce4aadd8437b9e",
+      "description": "Arcade Grid: tabs across the top for All Games, Browse, Search, Favorites, Recent and Settings; a grid of game boxes with Super Mario Bros. 3 selected and shown larger on the left; the numbers of games, folders and favorites; and a pixel-art scene of floating islands and a castle around it."
+    },
+    {
+      "theme": "box-art-showcase", "name": "Box Art Showcase", "file": "box-art-showcase.jpg", "width": 1920, "height": 1080, "bytes": 496768,
+      "sha256": "bb403aa4ae33692dcd874a9f9d5e6888fe1e672a99d0d8ee22b0792ef321f84f",
+      "description": "Box Art Showcase: game boxes standing in a row on a shelf, Super Mario Bros. in the middle and largest, with its name, a short description, its year, players, genre and publisher below, the collection's numbers beside them, and a castle at night behind."
+    },
+    {
+      "theme": "featured-shelf", "name": "Featured Shelf", "file": "featured-shelf.jpg", "width": 1920, "height": 1080, "bytes": 575899,
+      "sha256": "676697538d05640c975aceb19fe620fc0941acb5c1625324294e123aebd90bef",
+      "description": "Featured Shelf: a menu down the left side (All Games, Browse, Search, Favorites, Recent, Settings), a large picture for the selected game, Super Mario Bros. 3, with its year, players and genre beside it, and a shelf of game boxes along the bottom."
+    },
+    {
+      "theme": "adventure-map", "name": "Adventure Map", "file": "adventure-map.jpg", "width": 1920, "height": 1080, "bytes": 785515,
+      "sha256": "d1e1c733e3c83d32436eecb8d0d028d4c2be5ac94d31de01757f023ef5966fe4",
+      "description": "Adventure Map: a pixel-art map with signposts for All Games, Browse, Favorites, the folders Mario and Adventures, and Settings; Super Mario Bros. 3 raised above the path with its details in a panel below; and a row of game boxes along the bottom."
+    }
+  ]
+}

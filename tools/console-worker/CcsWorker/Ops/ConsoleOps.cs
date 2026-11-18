@@ -35,6 +35,9 @@ namespace CcsWorker.Ops
             sh = shell; this.packageRoot = packageRoot; this.cancelled = cancelled ?? (() => false); this.progress = progress ?? ((a, b) => { });
         }
 
+        /// <summary>tests only: the method packages' pins (the shipped worker always uses ConsolePath.MethodPackages)</summary>
+        internal IDictionary<string, string> MethodPins = ConsolePath.MethodPackages;
+
         static string Q(string p) => ConsolePath.Q(p);
 
         sealed class Run
@@ -144,6 +147,39 @@ namespace CcsWorker.Ops
             if (names.Count > 4096) throw new OpException("too-many", "more than 4,096 entries in " + path);
             return new Dictionary<string, object> { ["names"] = names.Cast<object>().ToList(), ["exists"] = true };
         }
+
+        /// <summary>Classic Cart Studio's whole data area as it is now, read only, for the backup prerequisite (Admission.SameCcsData): every
+        /// folder, every file's SHA-256 and every link's target under /var/lib/ccs, in the backup inventory's terms ("/ccs/..."). The
+        /// stock BusyBox has no find: a shell function walks the folders (links are never followed). Anything that cannot be read or told
+        /// apart exactly (a name with a tab or a line break, an unfinished listing) is a Problem, which refuses the change.</summary>
+        public CcsBackup.Engine.LiveTree Tree()
+        {
+            const string root = "/var/lib/ccs", data = "/var/lib";
+            var r = Exec("w(){ local d=\"$1\" n; for n in \"$d\"/* \"$d\"/.[!.]* \"$d\"/..?*; do [ -e \"$n\" ] || [ -L \"$n\" ] || continue; " +
+                         "if [ -L \"$n\" ]; then printf 'l\\t%s\\t%s\\n' \"$n\" \"$(readlink \"$n\")\"; elif [ -d \"$n\" ]; then printf 'd\\t%s\\n' \"$n\"; w \"$n\" || return 1; " +
+                         "elif [ -f \"$n\" ]; then set -- $(sha256sum \"$n\") || return 1; printf 'f\\t%s\\t%s\\n' \"$n\" \"$1\"; else printf 'o\\t%s\\n' \"$n\"; fi; done; }; " +
+                         "R=" + Q(root) + "; if [ -L \"$R\" ]; then echo link; elif [ -d \"$R\" ]; then echo tree; printf 'd\\t%s\\n' \"$R\"; w \"$R\" && echo end; else echo none; fi", null, 32 << 20, 600000);
+            if (r.Overflow) return CcsBackup.Engine.LiveTree.Unreadable("more than 32 MB of listing");
+            if (r.Code != 0) return CcsBackup.Engine.LiveTree.Unreadable("the listing ended with status " + r.Code);
+            var lines = r.Text.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
+            var t = new CcsBackup.Engine.LiveTree();
+            if (lines.Count == 0) return CcsBackup.Engine.LiveTree.Unreadable("no answer");
+            if (lines[0] == "none" && lines.Count == 1) return t;   // no Classic Cart Studio data on the console (nothing to lose)
+            if (lines[0] == "link") return CcsBackup.Engine.LiveTree.Unreadable(root + " is a link");
+            if (lines[0] != "tree" || lines[lines.Count - 1] != "end") return CcsBackup.Engine.LiveTree.Unreadable("the listing did not finish");
+            foreach (var l in lines.Skip(1).Take(lines.Count - 2))
+            {
+                var f = l.Split('\t');
+                var p = f.Length > 1 ? f[1] : null;
+                if (p == null || !(p == root || p.StartsWith(root + "/", StringComparison.Ordinal))) return CcsBackup.Engine.LiveTree.Unreadable("an entry could not be told apart: " + Show(l));
+                var key = p.Substring(data.Length);
+                string v = f[0] == "d" && f.Length == 2 ? "d" : f[0] == "o" && f.Length == 2 ? "o" : f[0] == "l" && f.Length == 3 ? "l:" + f[2] : f[0] == "f" && f.Length == 3 && Hex64(f[2]) ? "f:" + f[2] : null;
+                if (v == null || t.Entries.ContainsKey(key)) return CcsBackup.Engine.LiveTree.Unreadable("an entry could not be told apart: " + Show(l));
+                t.Entries[key] = v;
+            }
+            return t;
+        }
+        static string Show(string l) => l.Length > 80 ? l.Substring(0, 80) + "..." : l;
 
         public Dictionary<string, object> Sha256(IList<object> paths)
         {
@@ -331,49 +367,72 @@ namespace CcsWorker.Ops
             return new Dictionary<string, object> { ["value"] = r.Text.Trim() };
         }
 
-        // ---------------------------------------------------------------- hakchi's own module handling (b0030_package)
+        // ---------------------------------------------------------------- hakchi's own package handling (b0030_package)
+        // The install method of the CCS Console Workbench's shared policy (tools/console-nucleus): CCS Mod ("ccs-mod") or CCS Nucleus
+        // ("ccs-nucleus"), only the exact builds pinned in ConsolePath.MethodPackages, installed with hakchi's own pack_install (the package's
+        // install script checks that every file it would copy is free or its own, hakchi copies them, the script records them and adds the
+        // menu entry) and removed with hakchi's pack_uninstall (the package's own removal: only its unchanged files). The earlier start-up
+        // module "ccs-home" (one overlay S81clover-mcp, which hakchi's script/removed deletes at every start) is only read and removed.
+        bool Method(string name) => name != null && MethodPins.ContainsKey(name);
+
         public Dictionary<string, object> ModuleInstall(Dictionary<string, object> a)
         {
-            if (!(a.TryGetValue("name", out var n) && n as string == ConsolePath.ModuleName)) throw new OpException("bad-args", "name: ccs-home");
-            if (!(a.TryGetValue("files", out var f) && f is Dictionary<string, object> files) || files.Count == 0) throw new OpException("bad-args", "files: an object");
-            var entries = new SortedDictionary<string, KeyValuePair<byte[], int>>(StringComparer.Ordinal);
-            foreach (var kv in files)
-            {
-                if (kv.Key != ConsolePath.ModuleFile) throw new OpException("path-refused", "the module may carry only " + ConsolePath.ModuleFile);
-                if (!(kv.Value is Dictionary<string, object> fa)) throw new OpException("bad-args", "each file: an object");
-                var mode = Mode(fa.TryGetValue("mode", out var m) ? m : null);
-                var want = fa.TryGetValue("sha256", out var h) ? h as string : null;
-                if (!Hex64(want)) throw new OpException("bad-args", "sha256: 64 lowercase hex digits");
-                var data = Source(fa, out var what);
-                if (Sha(data) != want) throw new OpException("source-mismatch", what + " is not the expected bytes");
-                entries[kv.Key] = new KeyValuePair<byte[], int>(data, Convert.ToInt32(mode, 8));
-            }
-            var hmod = Hmod.Build(entries); var dir = "/tmp/ccs/hmod-" + Rand8(); var file = dir + "/ccs-home.hmod";
+            var name = a.TryGetValue("name", out var n) ? n as string : null;
+            if (!Method(name)) throw new OpException("bad-args", "name: ccs-mod or ccs-nucleus (the earlier ccs-home module is never installed)");
+            if (!(a.TryGetValue("hmod", out var hv) && hv is Dictionary<string, object> h)) throw new OpException("bad-args", "hmod: an object");
+            var want = h.TryGetValue("sha256", out var hs) ? hs as string : null;
+            if (want != MethodPins[name]) throw new OpException("not-pinned", name + ": only the pinned build of the package is installed");
+            var hmod = Source(h, out var what);
+            if (Sha(hmod) != want) throw new OpException("source-mismatch", what + " is not the pinned package");
+            var dir = "/tmp/ccs/hmod-" + Rand8(); var file = dir + "/" + name + ".hmod";
             CheckCancel();
-            var t = Exec("set -C; r='/tmp/ccs'; d=" + Q(dir) + "; if [ -L \"$r\" ]; then exit 4; fi; if [ ! -d \"$r\" ]; then mkdir \"$r\" || exit 4; fi; if [ -e \"$d\" ] || [ -L \"$d\" ]; then exit 3; fi; mkdir \"$d\" && cat > \"$d/ccs-home.hmod\" && sha256sum \"$d/ccs-home.hmod\"", new MemoryStream(hmod), 65536);
-            if (t.Code != 0) throw Fail(t, "write-failed", "the module could not be sent to the console");
-            if (t.Text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() != Sha(hmod)) throw new OpException("readback-mismatch", "the module arrived damaged; it was not installed");
+            var t = Exec("set -C; r='/tmp/ccs'; d=" + Q(dir) + "; if [ -L \"$r\" ]; then exit 4; fi; if [ ! -d \"$r\" ]; then mkdir \"$r\" || exit 4; fi; if [ -e \"$d\" ] || [ -L \"$d\" ]; then exit 3; fi; mkdir \"$d\" && cat > \"$d/" + name + ".hmod\" && sha256sum \"$d/" + name + ".hmod\"", new MemoryStream(hmod), 65536);
+            if (t.Code != 0) throw Fail(t, "write-failed", "the package could not be sent to the console");
+            if (t.Text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() != want) throw new OpException("readback-mismatch", "the package arrived damaged; it was not installed");
             CheckCancel();
             var r = Exec("hakchi pack_install " + Q(file) + "; r=$?; rm -rf " + Q(dir) + "; exit $r", null, 1 << 20, ModuleTimeoutMs);
             var output = Bound(r.Text + (r.Err.Length > 0 ? "\n" + r.Err : ""), 4096);
             if (r.Code != 0) throw new OpException("module-failed", "hakchi pack_install answered " + r.Code + ": " + output);
-            var list = UninstallList();
-            return new Dictionary<string, object> { ["output"] = output, ["uninstall_list"] = list.Item2, ["hmod_sha256"] = Sha(hmod) };
+            // the package's own install script ends with one line "result postinstall ok ..." (or refuses: then hakchi keeps no uninstall list)
+            var post = r.Text.Replace("\r", "").Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("result postinstall ", StringComparison.Ordinal) || l.StartsWith("result preinstall ", StringComparison.Ordinal));
+            var list = UninstallList(name);
+            if (post == null || !post.StartsWith("result postinstall ok", StringComparison.Ordinal) || !list.Item1) throw new OpException("module-failed", name + " was not installed: " + (post ?? output));
+            return new Dictionary<string, object> { ["output"] = output, ["postinstall"] = post, ["uninstall_list"] = list.Item2, ["hmod_sha256"] = want };
         }
 
         public Dictionary<string, object> ModuleUninstall(string name)
         {
-            if (name != ConsolePath.ModuleName) throw new OpException("bad-args", "name: ccs-home");
+            if (name != ConsolePath.ModuleName && !Method(name)) throw new OpException("bad-args", "name: ccs-mod, ccs-nucleus or the earlier ccs-home");
             var r = Exec("hakchi pack_uninstall " + Q(name), null, 1 << 20, ModuleTimeoutMs);
             var output = Bound(r.Text + (r.Err.Length > 0 ? "\n" + r.Err : ""), 4096);
             if (r.Code != 0) throw new OpException("module-failed", "hakchi pack_uninstall answered " + r.Code + ": " + output);
+            if (UninstallList(name).Item1) throw new OpException("module-failed", "hakchi still lists " + name + " after its pack_uninstall: " + output);
             return new Dictionary<string, object> { ["output"] = output };
         }
 
-        Tuple<bool, string> UninstallList()
+        /// <summary>CCS Mod's optional start at power-on, by CCS Mod's own command on the console ("ccs-mod autostart on|off", tools/console-nucleus
+        /// DESIGN.md section 3): on writes its start script from the package's template only where nothing else is and delegates to the
+        /// console's own start; off removes it while it is still the one CCS Mod wrote. Only while hakchi lists CCS Mod; the program run is the
+        /// one hakchi's overlay holds (the installer checks it is the pinned package's, unchanged, before it asks). Its one result line; anything
+        /// but its plain success is an error</summary>
+        public Dictionary<string, object> ModStart(string state)
         {
-            var r = Exec("u=" + Q(ConsolePath.UninstallDir + "/uninstall-" + ConsolePath.ModuleName) + "; if [ -L \"$u\" ]; then echo link; exit 3; elif [ -f \"$u\" ]; then echo present; cat \"$u\"; else echo absent; fi", null, 65536);
-            if (r.Code == 3) throw new OpException("not-a-file", "hakchi's uninstall list for the module is a link");
+            if (state != "on" && state != "off") throw new OpException("bad-args", "state: on or off");
+            if (!UninstallList("ccs-mod").Item1) throw new OpException("not-installed", "CCS Mod is not installed (hakchi does not list it)");
+            CheckCancel();
+            // CCS_ROOT is empty on a console (the program's own place, less its path): the same text runs in the tests' stand-in folder
+            var r = Exec("p='/var/lib/hakchi/rootfs/bin/ccs-mod'; if [ -L \"$p\" ] || [ ! -f \"$p\" ]; then exit 4; fi; CCS_ROOT=\"${p%/var/lib/hakchi/rootfs/bin/ccs-mod}\" sh \"$p\" autostart " + state, null, 65536, ModuleTimeoutMs);
+            if (r.Code == 4) throw new OpException("not-a-file", "CCS Mod's program is not a plain file");
+            var output = Bound(r.Text + (r.Err.Length > 0 ? "\n" + r.Err : ""), 4096);
+            var line = r.Text.Replace("\r", "").Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("result autostart ", StringComparison.Ordinal));
+            if (line != "result autostart ok " + state) throw new OpException("module-failed", "CCS Mod's own command answered: " + (line ?? output));
+            return new Dictionary<string, object> { ["result"] = line, ["output"] = output };
+        }
+
+        Tuple<bool, string> UninstallList(string name)
+        {
+            var r = Exec("u=" + Q(ConsolePath.UninstallDir + "/uninstall-" + name) + "; if [ -L \"$u\" ]; then echo link; exit 3; elif [ -f \"$u\" ]; then echo present; cat \"$u\"; else echo absent; fi", null, 65536);
+            if (r.Code == 3) throw new OpException("not-a-file", "hakchi's uninstall list for " + name + " is a link");
             if (r.Code != 0 || r.Overflow) throw Fail(r, "shell-error", "the uninstall list could not be read");
             var text = r.Text; var nl = text.IndexOf('\n');
             var head = (nl < 0 ? text : text.Substring(0, nl)).Trim();
@@ -381,28 +440,54 @@ namespace CcsWorker.Ops
         }
 
         static readonly Regex RmLine = new Regex("\"\\$rootfs/(?:\\./)?([^\"]+)\"");
+        static readonly Regex FilesLine = new Regex("^([0-9a-f]{64}) (0[0-7]{3}) ([A-Za-z0-9._/-]{1,200})$");
+        /// <summary>the earlier module: the files its uninstall list names, with their SHA-256 now. A method package: hakchi lists it or not, its
+        /// VERSION's package id, and every file its own FILES list names (and the list itself), with the SHA-256 each has now (null: missing)</summary>
         public Dictionary<string, object> ModuleFiles(string name)
         {
-            if (name != ConsolePath.ModuleName) throw new OpException("bad-args", "name: ccs-home");
-            var list = UninstallList();
+            if (name != ConsolePath.ModuleName && !Method(name)) throw new OpException("bad-args", "name: ccs-mod, ccs-nucleus or the earlier ccs-home");
+            var list = UninstallList(name);
             var files = new Dictionary<string, object>(); var unreadable = new List<object>(); var ignored = new List<object>();
             if (!list.Item1) return new Dictionary<string, object> { ["files"] = files, ["present"] = false };
-            var paths = new List<string>();
+            if (Method(name))
+            {
+                var m = name.Substring(4); var etc = ConsolePath.HakchiRootfs + "/etc/ccs/" + m;
+                Dictionary<string, object> ReadOr(string q) { try { return Read(q, 65536); } catch (OpException ex) when (ex.Code == "not-a-file") { return new Dictionary<string, object>(); } }
+                var ver = ReadOr(etc + "/VERSION"); var fl = ReadOr(etc + "/FILES");
+                string package = null;
+                if (ver.TryGetValue("b64", out var vb) && vb is string vs)
+                    foreach (var l in Encoding.UTF8.GetString(Convert.FromBase64String(vs)).Split('\n')) if (l.StartsWith("package=", StringComparison.Ordinal) && Hex64(l.Substring(8).Trim())) package = l.Substring(8).Trim();
+                var paths = new List<string>();
+                if (fl.TryGetValue("b64", out var fb) && fb is string fs)
+                    foreach (var l in Encoding.UTF8.GetString(Convert.FromBase64String(fs)).Split('\n'))
+                    {
+                        var fm = FilesLine.Match(l.Trim()); if (!fm.Success) continue;
+                        var p = "/" + fm.Groups[3].Value;
+                        if (ConsolePath.Plain(p) && (ConsolePath.ReadExact.Contains(ConsolePath.HakchiRootfs + p) || p.StartsWith("/etc/ccs/" + m + "/", StringComparison.Ordinal))) paths.Add(p); else unreadable.Add(p);
+                    }
+                if (fl.ContainsKey("b64")) paths.Add("/etc/ccs/" + m + "/FILES");
+                CheckCancel();
+                var hashes = paths.Count > 0 ? (Dictionary<string, object>)Sha256(paths.Select(p => (object)(ConsolePath.HakchiRootfs + p)).ToList())["hashes"] : new Dictionary<string, object>();
+                foreach (var p in paths) files[p] = hashes[ConsolePath.HakchiRootfs + p];
+                foreach (string p in unreadable) files[p] = null;
+                return new Dictionary<string, object> { ["files"] = files, ["present"] = true, ["package"] = package, ["unreadable"] = unreadable };
+            }
+            var lpaths = new List<string>();
             foreach (var line in list.Item2.Split('\n'))
                 if (line.TrimStart().StartsWith("rm -f ", StringComparison.Ordinal))
-                    foreach (Match m in RmLine.Matches(line))
+                    foreach (Match mm in RmLine.Matches(line))
                     {
-                        var p = "/" + m.Groups[1].Value;
+                        var p = "/" + mm.Groups[1].Value;
                         // pack_install lists its own "uninstall" file (find runs after it is created), which transfer_default never copies
                         if (p == "/uninstall") { if (!ignored.Contains(p)) ignored.Add(p); continue; }
-                        if (!paths.Contains(p)) paths.Add(p);
+                        if (!lpaths.Contains(p)) lpaths.Add(p);
                     }
-            var readable = paths.Where(p => ConsolePath.Plain(p) && ConsolePath.ReadExact.Contains(ConsolePath.HakchiRootfs + p)).ToList();
+            var readable = lpaths.Where(p => ConsolePath.Plain(p) && ConsolePath.ReadExact.Contains(ConsolePath.HakchiRootfs + p)).ToList();
             CheckCancel();
-            var hashes = readable.Count > 0 ? (Dictionary<string, object>)Sha256(readable.Select(p => (object)(ConsolePath.HakchiRootfs + p)).ToList())["hashes"] : new Dictionary<string, object>();
-            foreach (var p in paths)
+            var lh = readable.Count > 0 ? (Dictionary<string, object>)Sha256(readable.Select(p => (object)(ConsolePath.HakchiRootfs + p)).ToList())["hashes"] : new Dictionary<string, object>();
+            foreach (var p in lpaths)
             {
-                if (readable.Contains(p)) files[p] = hashes[ConsolePath.HakchiRootfs + p];
+                if (readable.Contains(p)) files[p] = lh[ConsolePath.HakchiRootfs + p];
                 else { files[p] = null; unreadable.Add(p); }
             }
             return new Dictionary<string, object> { ["files"] = files, ["present"] = true, ["unreadable"] = unreadable, ["ignored"] = ignored };

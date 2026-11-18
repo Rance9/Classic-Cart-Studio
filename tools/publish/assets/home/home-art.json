@@ -13,13 +13,13 @@
   0.7651434643995749
  ],
  "method": "lossless scaled scene with only the dynamic regions inpainted; authored frames, plates, icons and markers cut as sprites; geometry measured on the masters",
+ "hero_sky": "hero-sky.png",
  "themes": {
   "featured-shelf": {
    "master_file": "ChatGPT Image Oct 11, 2026, 08_49_16 PM-1.png",
    "master_sha256": "7681fc9b8b7fe890bd80ddd80eb3396b982946ff61a4683e2510afcda0767ae2",
    "scene": "scene-featured-shelf.png",
    "scene_bytes": 474616,
-   "reference": "ref-featured-shelf.png",
    "regions": [
     {
      "name": "clock, date, status icons",
@@ -632,7 +632,6 @@
    "master_sha256": "a94a6866a6167f35e1255d4ba7987b8b864faf94c9844cb7386418453c6c1be9",
    "scene": "scene-arcade-grid.png",
    "scene_bytes": 544222,
-   "reference": "ref-arcade-grid.png",
    "regions": [
     {
      "name": "clock",
@@ -1462,7 +1461,6 @@
    "master_sha256": "b65f59ae16f0a7ace5e39bdfbfe1ddf09699036a8152d1abb814fa739cace61e",
    "scene": "scene-box-art-showcase.png",
    "scene_bytes": 506736,
-   "reference": "ref-box-art-showcase.png",
    "regions": [
     {
      "name": "top navigation labels",
@@ -2105,7 +2103,6 @@
    "master_sha256": "9122821529ddbb274e95e9bafdf5a0c28c6265d9aed550d9897f0dc44f15cc3c",
    "scene": "scene-adventure-map.png",
    "scene_bytes": 1114784,
-   "reference": "ref-adventure-map.png",
    "regions": [
     {
      "name": "clock",
@@ -3012,8 +3009,5 @@
    }
   }
  },
- "hero_fallback": "hero-fallback.png",
- "unresolved_assets": {
-  "featured-shelf hero": "no illustrated wide scene exists for NES games; the hero shows the game's own gameplay screen (libretro Named_Snaps) inside the master's hero frame with softened (blurred) edge extension of the same screen; an owner-supplied hero image per game (reports/art/hero/<game_id>.png) takes precedence"
- }
+ "unresolved_assets": []
 }

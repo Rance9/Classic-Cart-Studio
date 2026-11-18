@@ -1,5 +1,5 @@
 // ---- HOME Music (owner decision D-81): the owner-selected song in every HOME, the whole song and then again, On by default ----
-// One choice for this device, never part of a collection, a loadout or a backup: the website keeps it in this browser (localStorage),
+// One choice for this device, never part of a collection or a backup: the website keeps it in this browser (localStorage),
 // Classic Cart Studio for Windows on this computer (its data folder; the game window's HOME uses the same choice). Absent: On; a saved
 // value that cannot be read, or a store that cannot be read at all: Off (nothing plays unexpectedly) until the person chooses again.
 // The page plays it only while Preview on TV is open, in front and showing the HOME. It pauses while a game window runs (that window

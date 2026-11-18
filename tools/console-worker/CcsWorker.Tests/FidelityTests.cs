@@ -111,23 +111,54 @@ namespace CcsWorker.Tests
                 T.Eq(false, (bool)o.List("/var/lib/ccs/nothing-here")["exists"], "absent");
             });
 
-            T.Add("fidelity", "hakchi's own pack_install and pack_uninstall: the module in hakchi's overlay, then the stock start script again", () =>
+            T.Add("fidelity", "hakchi's own pack_install and pack_uninstall of CCS Mod's pinned package: its own checks and records, its files in hakchi's overlay, then its own removal; the stock start script never written", () =>
             {
-                var o = Ops(); var stock = Raw("cat $SIM/etc/init.d/S81clover-mcp");
-                var s81 = Encoding.UTF8.GetBytes("#!/bin/sh -e\n# ccs-home (test)\nstart() { /var/lib/ccs/bin/ccs-start.sh; }\ncase \"$1\" in start) start ;; esac\n"); var sha = ConsoleOps.Sha(s81);
-                T.Eq(false, (bool)o.ModuleFiles("ccs-home")["present"], "not installed at first");
-                var r = o.ModuleInstall(A("name", "ccs-home", "files", A("/etc/init.d/S81clover-mcp", A("b64", Convert.ToBase64String(s81), "mode", "0755", "sha256", sha))));
-                T.True(((string)r["output"]).Contains("package ccs-home installed"), "hakchi said installed: " + r["output"]);
-                var mf = o.ModuleFiles("ccs-home"); var files = (Dictionary<string, object>)mf["files"];
-                T.Eq(true, (bool)mf["present"], "present"); T.Eq(1, files.Count, "one file: " + string.Join(",", files.Keys)); T.Eq(sha, files["/etc/init.d/S81clover-mcp"] as string, "the overlay file is ours, byte for byte");
-                T.True(((List<object>)mf["ignored"]).Contains("/uninstall"), "pack_install's own uninstall entry");
-                T.Eq("755", Raw("stat -c %a $SIM/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp 2>/dev/null || echo 755"), "executable");
+                // the real package (tools/console-nucleus/build_packages.py --out DIR; CCS_METHOD_PACKAGES=DIR): the shipped pin must match it
+                var dir = Environment.GetEnvironmentVariable("CCS_METHOD_PACKAGES");
+                if (string.IsNullOrEmpty(dir) || !File.Exists(Path.Combine(dir, "ccs-mod.hmod"))) throw new SkipException("CCS_METHOD_PACKAGES (build_packages.py's output) is not set");
+                var o = Ops(); var stock = Raw("cat $SIM/etc/init.d/S81clover-mcp"); var hm = File.ReadAllBytes(Path.Combine(dir, "ccs-mod.hmod"));
+                T.Eq(ConsolePath.MethodPackages["ccs-mod"], ConsoleOps.Sha(hm), "the package built from the sources is the build the worker pins");
+                T.Eq(false, (bool)o.ModuleFiles("ccs-mod")["present"], "not installed at first");
+                var r = o.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", ConsoleOps.Sha(hm))));
+                T.True(((string)r["postinstall"]).StartsWith("result postinstall ok in-charge"), "the package's own install answered: " + r["output"]);
+                var mf = o.ModuleFiles("ccs-mod"); var files = (Dictionary<string, object>)mf["files"];
+                var listed = Raw("cat $SIM/var/lib/hakchi/rootfs/etc/ccs/mod/FILES").Split('\n').Where(l => l.Trim().Length > 0).Select(l => l.Trim().Split(' ')).ToDictionary(x => "/" + x[2], x => x[0]);
+                T.Eq(true, (bool)mf["present"], "present"); T.True(System.Text.RegularExpressions.Regex.IsMatch(mf["package"] as string ?? "", "^[0-9a-f]{64}$"), "its package id");
+                T.True(listed.Count >= 6 && listed.All(kv => files.ContainsKey(kv.Key) && files[kv.Key] as string == kv.Value), "every file its list names is in hakchi's overlay with that hash (" + listed.Count + ")");
+                T.True(Raw("cat $SIM/var/lib/ccs/owned/mod.own").StartsWith("schema=ccs-ownership/1"), "its own ownership journal");
                 T.True(!Raw("ls -A $SIM/tmp/ccs").Contains("hmod-"), "the transfer folder was removed");
-                T.Eq(stock, Raw("cat $SIM/etc/init.d/S81clover-mcp"), "the stock script itself is never written (the overlay carries the change)");
-                var u = o.ModuleUninstall("ccs-home"); T.True(((string)u["output"]).Contains("uninstalled"), "hakchi said uninstalled");
-                T.Eq(false, (bool)o.ModuleFiles("ccs-home")["present"], "the uninstall list is gone");
-                T.Eq("absent", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp ] && echo present || echo absent"), "the overlay file is gone: the stock start script applies again");
+                T.Eq(stock, Raw("cat $SIM/etc/init.d/S81clover-mcp"), "the stock start script is never written");
+                T.Eq("absent", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp ] && echo present || echo absent"), "no start file of the kind hakchi deletes at every start");
+                var u = o.ModuleUninstall("ccs-mod"); T.True(((string)u["output"]).Contains("result remove ok keep"), "its own removal ran: " + u["output"]);
+                T.Eq(false, (bool)o.ModuleFiles("ccs-mod")["present"], "hakchi's list is gone");
+                T.Eq("absent", Raw("[ -e $SIM/var/lib/hakchi/rootfs/bin/ccs-mod ] && echo present || echo absent"), "its program is gone");
                 T.Eq(stock, Raw("cat $SIM/etc/init.d/S81clover-mcp"), "stock script unchanged");
+            });
+
+            T.Add("fidelity", "CCS Mod's start at power-on by its own command (mod-start): on writes its start script from the package's template and its setting, off removes it; a start script someone changed is kept and reported", () =>
+            {
+                var dir = Environment.GetEnvironmentVariable("CCS_METHOD_PACKAGES");
+                if (string.IsNullOrEmpty(dir) || !File.Exists(Path.Combine(dir, "ccs-mod.hmod"))) throw new SkipException("CCS_METHOD_PACKAGES (build_packages.py's output) is not set");
+                var o = Ops(); var hm = File.ReadAllBytes(Path.Combine(dir, "ccs-mod.hmod"));
+                T.Eq("not-installed", T.Code(() => o.ModStart("on"), "before"), "refused while hakchi does not list CCS Mod");
+                Raw("mkdir -p $SIM/var/lib/hakchi/rootfs/etc/init.d");   // hakchi's own overlay carries this folder (its start scripts)
+                // a running hakchi console mounts hakchi's rootfs over the system (p7072_overlayfs), and hakchi's install put its BusyBox 1.29 and
+                // applets in that rootfs's bin (script/install): every shell there finds them, sed among them, which the stock 1.24.1 lacks and
+                // CCS Mod's scripts (like hakchi's own) use. Here they are added to the stock shell's place for this test, then taken away again
+                Raw("for a in $(ls $SIM/.hkbin); do [ -e $SIM/.bin/$a ] || { ln -s $SIM/.hkbin/$a $SIM/.bin/$a && echo $a >> $SIM/.overlay-added; }; done");
+                o.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", ConsoleOps.Sha(hm))));
+                T.Eq("absent", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod ] && echo present || echo absent"), "installed without a setting: the start is unchanged");
+                var r = o.ModStart("on"); T.Eq("result autostart ok on", r["result"] as string, "on: " + r["output"]);
+                T.Eq(Raw("sha256sum $SIM/var/lib/hakchi/rootfs/etc/ccs/mod/S81ccs-mod | cut -d' ' -f1"), Raw("sha256sum $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod | cut -d' ' -f1"), "its start script is the package's own template");
+                T.True(Raw("cat $SIM/var/lib/ccs/mod/config").Contains("autostart=on"), "its setting says on");
+                r = o.ModStart("off"); T.Eq("result autostart ok off", r["result"] as string, "off: " + r["output"]);
+                T.Eq("absent", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod ] && echo present || echo absent"), "off removes it");
+                o.ModStart("on"); Raw("echo '# changed by someone' >> $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod");
+                T.Eq("module-failed", T.Code(() => o.ModStart("off"), "changed"), "a start script someone changed: reported, not removed");
+                T.Eq("present", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod ] && echo present || echo absent"), "and kept");
+                T.Eq("bad-args", T.Code(() => o.ModStart("always"), "bad"), "only on or off");
+                o.ModuleUninstall("ccs-mod");
+                Raw("for a in $(cat $SIM/.overlay-added); do rm -f $SIM/.bin/$a; done; rm -f $SIM/.overlay-added");
             });
 
             T.Add("fidelity", "the protocol end to end over BusyBox: a package source streamed, a pointer, readback (worker server in process)", () =>
@@ -177,6 +208,24 @@ namespace CcsWorker.Tests
                 T.Eq("OWNER", Raw("cat $SIM/owner/state"), "the link's target unchanged"); T.True(!Raw("ls -A $SIM/var/lib/ccs/pkg3").Contains(".new"), "no temporary file left");
             });
 
+            T.Add("fidelity", "the data area's list for the backup prerequisite (ConsoleOps.Tree) on BusyBox 1.24.1, which has no find: every folder, file hash and link, links never followed", () =>
+            {
+                var o = Ops(); Raw("mkdir -p $SIM/var/lib/ccs"); o.Mkdir("/var/lib/ccs/tt"); o.Mkdir("/var/lib/ccs/tt/sub");   // (earlier tests made /var/lib/ccs)
+                var a = Encoding.UTF8.GetBytes("save A\n"); var b = Encoding.UTF8.GetBytes("deep\n");
+                PutB(o, "/var/lib/ccs/tt/save.bin", a); PutB(o, "/var/lib/ccs/tt/sub/deep.txt", b);
+                Raw("printf 'hidden' > $SIM/var/lib/ccs/tt/.hidden; printf 'spaced' > \"$SIM/var/lib/ccs/tt/a b.txt\"; ln -s ../tt/sub $SIM/var/lib/ccs/tt/linked; ln -s /nowhere $SIM/var/lib/ccs/tt/dangling");
+                var t = o.Tree();
+                T.True(t.Problem == null, "read completely (" + t.Problem + ")");
+                T.Eq("f:" + ConsoleOps.Sha(a), t.Entries["/ccs/tt/save.bin"], "a file and its SHA-256");
+                T.Eq("f:" + ConsoleOps.Sha(b), t.Entries["/ccs/tt/sub/deep.txt"], "a file two folders down");
+                T.Eq("f:" + ConsoleOps.Sha(Encoding.UTF8.GetBytes("hidden")), t.Entries["/ccs/tt/.hidden"], "a hidden file");
+                T.Eq("f:" + ConsoleOps.Sha(Encoding.UTF8.GetBytes("spaced")), t.Entries["/ccs/tt/a b.txt"], "a name with a space");
+                T.True(t.Entries["/ccs/tt/linked"] == "l:../tt/sub" && t.Entries["/ccs/tt/dangling"] == "l:/nowhere" && !t.Entries.Keys.Any(k => k.StartsWith("/ccs/tt/linked/")), "links are entries with their targets, never followed");
+                T.True(t.Entries["/ccs"] == "d" && t.Entries["/ccs/tt/sub"] == "d" && t.Entries.Keys.All(k => k == "/ccs" || k.StartsWith("/ccs/")), "folders, and nothing outside the data area");
+                Raw("printf 'later save' > $SIM/var/lib/ccs/tt/save.bin");
+                T.Eq("f:" + ConsoleOps.Sha(Encoding.UTF8.GetBytes("later save")), o.Tree().Entries["/ccs/tt/save.bin"], "a save changed since is seen");
+                Raw("rm -rf $SIM/var/lib/ccs/tt");
+            });
             T.Add("fidelity", "the disposable folder is removed at the end", () =>
             {
                 var sh = Sh(); var sim = sh.Sim; sh.Dispose(); shell = null; skip = "the fidelity folder was removed";

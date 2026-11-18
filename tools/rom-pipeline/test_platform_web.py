@@ -13,7 +13,7 @@ touch points, the way a real device reports itself; the window width alone never
 from __future__ import annotations
 import argparse, json, os, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-from test_loadouts_web import EdgeSession, serve, READY, CALM
+from studio_harness import EdgeSession, serve, READY, CALM
 from test_ccs_v2_web import ROMS
 DEVICES = {
     "windows-wide": dict(w=1440, h=900, ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0", platform="Windows", mobile=False, touch=0),

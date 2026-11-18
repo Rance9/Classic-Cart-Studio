@@ -1,14 +1,14 @@
-// ---- Game Menu Setup (folders, map shortcuts and theme for the console HOME; the console only browses them) ------------------------
+// ---- HOME Settings (folders, map shortcuts and theme for the open collection's HOME; the console only browses them) ----------------
 // Custom folders (up to five levels), per-folder game order, Adventure Map shortcuts, the default theme, and the mock console
-// sync. Edits live in the same HOME extras Preview Your Lineup uses (localStorage studio-home-v1); in Classic Cart Studio for Windows
+// sync. Edits live in the same HOME extras HOME uses (localStorage studio-home-v1); in Classic Cart Studio for Windows
 // they can also be saved to the backend and synchronized with the MOCK console store (no device; Gate G1 not approved).
 const HF={fid:null};
 function hfModel(){ if(TV.open&&TV.model) return TV.model; TV.proj=null; TV.model=homeModelFromStudio(); if(!TV.S) TV.S=homeInitialState(TV.model.theme); return TV.model; }
 function hfSave(){ homeExtrasSave(); if(TV.open) tvDraw(); try{ dispatchEvent(new CustomEvent('ccs-content-changed',{detail:{what:'folders'}})); }catch(e){} hfRender(); }
 function hfSelectedIds(){ return selectedGames().map(g=>g.game_id); }
-function openFolders(fid){ hfModel(); HF.fid=fid||HF.fid||((homeTopFolders(TV.model)[0]||{}).id||null); openColl('Game Menu Setup',`"${typeof tvPlanName==='function'?tvPlanName():COLL.name}" · folders, Adventure Map shortcuts and theme for the console HOME`,`<div id="hfBody"></div>`); hfRender(); }
-// the startup screen's preview: the chosen image, or the five Random picks from
-function hfStartupPreview(id){ const one=s=>`<img src="brand/startup/startup-${s.id}-thumb.jpg" alt="${esc(s.name)}" title="${esc(s.name)}" loading="lazy" width="480" height="270">`;
+function openFolders(fid){ hfModel(); HF.fid=fid||HF.fid||((homeTopFolders(TV.model)[0]||{}).id||null); openColl('HOME Settings',`"${typeof tvPlanName==='function'?tvPlanName():COLL.name}" · folders, Adventure Map shortcuts and theme for the console HOME`,`<div id="hfBody"></div>`); hfRender(); }
+// the startup screen's preview: the chosen image, or the five Random picks from (each preview file named by its manifest: HOME_STARTUP)
+function hfStartupPreview(id){ const one=s=>`<img src="brand/startup/${esc(s.thumb)}" alt="${esc(s.name)}" title="${esc(s.name)}" loading="lazy" width="480" height="270">`;
  return id==='random'?`<div class="hf-st-five">${HOME_STARTUP.map(one).join('')}</div>`:`<div class="hf-st-one">${one(HOME_STARTUP.find(s=>s.id===id)||HOME_STARTUP[0])}</div>`; }
 function hfRender(){
  const m=TV.model; const box=$('hfBody'); if(!box) return; const f=HF.fid?homeFolder(m,HF.fid):null; const by=id=>m.games.find(g=>g.id===id);
@@ -26,11 +26,9 @@ function hfRender(){
   <div class="hf-col"><div class="lbl">Adventure Map shortcuts</div><div class="small">The two folder landmarks on the Adventure Map. By default, your first two folders.</div>
    ${[0,1].map(k=>`<label class="hf-row">Folder ${k+1} <select data-ms="${k}"><option value="">(none)</option>${m.folders.map(x=>`<option value="${esc(x.id)}" ${m.map_shortcuts[k]===x.id?'selected':''}>${esc(homeFolderPath(m,x.id).map(y=>y.name).join(' › '))}</option>`).join('')}</select></label>`).join('')}
    <div class="lbl" style="margin-top:14px">Console HOME</div><label class="hf-row">Theme <select id="hfTheme">${HOME_THEME_META.map(t=>`<option value="${t.id}" ${m.theme===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
-   <label class="hf-row">Startup screen <select id="hfStartup"><option value="random" ${(m.startup_image||'random')==='random'?'selected':''}>Random</option>${HOME_STARTUP.map(s=>`<option value="${s.id}" ${m.startup_image===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
-   <div class="hf-startup" id="hfStartupPrev">${hfStartupPreview(m.startup_image||'random')}</div>
-   <div class="small">Shown when the console starts, for at least five seconds while its HOME loads. ${(m.startup_image||'random')==='random'?'Random picks one of these five each time.':'This image every time.'} The theme is a separate choice.</div>
+   ${suHtml(m)}
    <div class="small">${homeFavorites(m).length} favorite${homeFavorites(m).length===1?'':'s'} · ${homeHistoryEvents(m).length} launch${homeHistoryEvents(m).length===1?'':'es'} in the play history · ${Object.keys(m.sorts||{}).length||'no'} saved view sort${Object.keys(m.sorts||{}).length===1?'':'s'}</div>
-   <div class="hf-acts" style="margin-top:10px"><button class="btn sm" id="hfPreview">Preview Your Lineup</button>${(typeof COMPANION!=='undefined'&&COMPANION.ok&&COMPANION.desktop)?`<button class="btn sm secondary" id="hfSync" title="Exchange folders, favorites and play history with a simulated console. No device is contacted.">Simulated Console Sync</button>`:'<span class="small">A simulated console sync is available in Classic Cart Studio for Windows.</span>'}</div>
+   <div class="hf-acts" style="margin-top:10px"><button class="btn sm" id="hfPreview">Open HOME</button>${(typeof COMPANION!=='undefined'&&COMPANION.ok&&COMPANION.desktop)?`<button class="btn sm secondary" id="hfSync" title="Exchange folders, favorites and play history with a simulated console. No device is contacted.">Simulated Console Sync</button>`:'<span class="small">A simulated console sync is available in Classic Cart Studio for Windows.</span>'}</div>
    <div class="small" id="hfSyncOut"></div></div></div>`;
  box.querySelectorAll('.hf-f').forEach(el=>el.onclick=()=>{ HF.fid=el.dataset.f; hfRender(); });
  $('hfNew').onclick=()=>{ const n=prompt('Folder name'); if(n){ const nf=homeFolderCreate(m,n,null); HF.fid=nf.id; hfSave(); } };
@@ -44,7 +42,7 @@ function hfRender(){
   box.querySelectorAll('[data-gup]').forEach(b=>b.onclick=()=>{ homeFolderMoveGame(m,f.id,b.dataset.gup,-1); hfSave(); }); box.querySelectorAll('[data-gdown]').forEach(b=>b.onclick=()=>{ homeFolderMoveGame(m,f.id,b.dataset.gdown,1); hfSave(); }); box.querySelectorAll('[data-grm]').forEach(b=>b.onclick=()=>{ homeFolderRemoveGame(m,f.id,b.dataset.grm); hfSave(); }); }
  box.querySelectorAll('[data-ms]').forEach(s=>s.onchange=()=>{ m.map_shortcuts[+s.dataset.ms]=s.value||null; if(m.map_shortcuts[0]&&m.map_shortcuts[0]===m.map_shortcuts[1]) m.map_shortcuts[+s.dataset.ms?0:1]=null; hfSave(); });
  $('hfTheme').onchange=()=>{ m.theme=$('hfTheme').value; if(TV.S) TV.S.theme=m.theme; hfSave(); };
- $('hfStartup').onchange=()=>{ const v=$('hfStartup').value; m.startup_image=v==='random'||HOME_STARTUP.some(s=>s.id===v)?v:'random'; hfSave(); try{ dispatchEvent(new CustomEvent('ccs-content-changed',{detail:{what:'startup'}})); }catch(e){} };
+ suWire(m);   // the startup screen: Random, a supplied picture or the collection's own (startup-custom.js)
  $('hfPreview').onclick=()=>{ closeColl(); openTv(); };
  const sy=$('hfSync'); if(sy) sy.onclick=hfSync;
 }

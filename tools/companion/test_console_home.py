@@ -29,7 +29,10 @@ class WorkerHome(unittest.TestCase):
         self.assertEqual(self.plan["schema"], CI.PLAN_SCHEMA); self.assertNotIn("files", self.plan); self.assertGreater(self.plan["file_count"], 3)
         rec, _ = ask(self.w, "home-records"); self.assertTrue(rec["result"]["last_plan_current"]); self.assertEqual(rec["result"]["last_plan"]["plan"]["hash"], self.plan["hash"])
     def test_02_preflight_on_each_simulated_console(self):
-        exp = {"hakchi-ready": (True, ""), "stock": (False, "hakchi must be installed first"), "nearly-full": (False, "not enough room"), "other-module": (False, "another hakchi module")}
+        # a console with CCS Nucleus is checked against the plan for CCS Nucleus (test_install_methods.py stages both layouts); with only the
+        # CCS Mod layout staged here, the check says so and nothing is planned for it
+        exp = {"hakchi-ready": (True, ""), "stock": (False, "hakchi must be installed first"), "nearly-full": (False, "not enough room"), "other-module": (False, "the HOME menu was not prepared for it"),
+               "mod-module": (True, ""), "both-methods": (False, "both CCS Mod and CCS Nucleus")}
         for prof, (ok, words) in exp.items():
             r, _ = ask(self.w, "home-preflight", {"plan_hash": self.plan["hash"], "profile": prof}); res = r["result"]
             self.assertEqual(res["ok"], ok, (prof, res)); self.assertTrue(res["simulated"])
@@ -45,7 +48,7 @@ class WorkerHome(unittest.TestCase):
         r, _ = self.sim(scenario="interrupted"); x = r["result"]; self.assertFalse(x["install"]["ok"]); self.assertTrue(x["install"]["rolled_back"]["ok"]); self.assertEqual(x["after_recovery"], "installed")
         r, _ = self.sim(scenario="first-install", then=["uninstall", "export"]); x = r["result"]
         self.assertTrue(x["uninstall"]["ok"]); self.assertTrue(x["stock_unchanged_after_uninstall"]); self.assertTrue(x["export"]["verified"]); self.assertEqual(x["export"]["files"], 2)
-        self.assertTrue(any("start-up module" in s for s in x["uninstall_plan"]["remove"]))
+        self.assertTrue(any(s.startswith("CCS Mod (ccs-mod, through hakchi's pack_uninstall") for s in x["uninstall_plan"]["remove"]), x["uninstall_plan"]["remove"])
         self.assertEqual(os.listdir(os.path.join(self.t, "root", "stand-ins")), [], "every stand-in is removed afterwards")
     def test_04_bad_scenarios_and_faults_are_refused(self):
         for a in ({"scenario": "real-console"}, {"then": ["format"]}, {"fault": {"disconnect_at": 3}}, {"fault": {"before": True}}, {"fault": "x"}):
@@ -151,7 +154,7 @@ class Routes(unittest.TestCase):
             self.assertIn(req("GET", "/api/console/home/status", headers=hdr)[0], (401, 403), hdr)
             for op in ("plan", "rehearse", "confirm", "install"): self.assertIn(req("POST", f"/api/console/home/{op}", {}, headers=hdr)[0], (401, 403), (op, hdr))
     def test_21_status_plan_preflight_rehearsal_and_records(self):
-        s, j = req("GET", "/api/console/home/status", headers=self.desk); self.assertEqual(s, 200, j); self.assertEqual(j["staged"]["layout"], "install")
+        s, j = req("GET", "/api/console/home/status", headers=self.desk); self.assertEqual(s, 200, j); self.assertEqual(j["staged"]["layout"], "mod")
         ops = {o["id"]: o for o in j["operations"]}; self.assertTrue(ops["rehearse"]["available"]); self.assertTrue(all(not ops[k]["available"] for k in ("inspect", "install", "recover", "export", "ram-test", "first-setup")))
         self.assertFalse(j["gate"]["install"]); self.assertEqual({p["name"] for p in j["profiles"]}, set(CI.HOME_PROFILES))
         s, j = req("POST", "/api/console/home/plan", {"folder": "C:/elsewhere"}, headers=self.desk); self.assertEqual(s, 200, j); h = j["result"]["hash"]

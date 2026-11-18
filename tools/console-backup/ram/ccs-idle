@@ -1,0 +1,7 @@
+#!/bin/sh
+# Classic Cart Studio recovery environment: waits in RAM, forever. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# The end of every path through the recovery image: after ccs-init, after an error, and in place of the normal system start in the
+# image's /init. Nothing here touches storage. The console leaves this state only by "ccsbr finish" (a restart into its normal start)
+# or by the USB cable being unplugged.
+trap '' HUP INT TERM
+while :; do sleep 3600; done

@@ -3,7 +3,7 @@
 //      hosted  - the public website (https://rance9.github.io/...) or a local preview; talks to http://127.0.0.1:8765 with CORS + a paired bearer token
 //      file    - opened as a file; the browser cannot reach the companion (guide only)
 const CO=COMPANION; CO.REQ_PROTOCOL=1; CO.PORT=(()=>{ const q=new URLSearchParams(location.search).get('companion'); return /^\d{4,5}$/.test(q||'')?Number(q):8765; })(); /* ?companion=<port>: a local preview or test may talk to a companion on another loopback port (not a secret) */ CO.desktop=!!(window.__CCS_DESKTOP&&window.__CCS_DESKTOP.token&&window.__CCS_DESKTOP.port); if(CO.desktop){ CO.PORT=window.__CCS_DESKTOP.port; CO.app=window.__CCS_DESKTOP.version||''; CO.served=false; /* the desktop session wins over the companion-served page token (the workspace build has the backend serve the site) */ } CO.base=CO.served?'':'http://127.0.0.1:'+CO.PORT; CO.file=location.protocol==='file:'; CO.hosted=!CO.served&&!CO.file; CO.state='unknown'; CO.bearer=null; CO.expires=0; CO.version=null; CO.protocol=null; CO.store={}; CO.error='';
-const PKEY='studio-companion-v1', REPO='Rance9/Classic-Cart-Studio', RELEASES_API='https://api.github.com/repos/'+REPO+'/releases/latest', RELEASE_PAGE='https://github.com/'+REPO+'/releases/latest', SITE_URL='https://classiccartstudio.com/';
+const PKEY='studio-companion-v1', REPO='Rance9/Classic-Cart-Studio', RELEASES_API='https://api.github.com/repos/'+REPO+'/releases?per_page=30', RELEASE_PAGE='https://github.com/'+REPO+'/releases', SITE_URL='https://classiccartstudio.com/';
 function loadPair(){ if(CO.desktop){ CO.bearer=window.__CCS_DESKTOP.token; CO.expires=2147483647; return; } CO.bearer=null; CO.expires=0; try{ localStorage.removeItem(PKEY); }catch(e){} }   /* the website never holds a backend token: it hands collections to the desktop app instead */
 function savePair(t,exp){ if(CO.desktop) return; CO.bearer=null; CO.expires=0; }
 function hdrs(extra){ const h=Object.assign({'X-NES-Protocol':String(CO.REQ_PROTOCOL)},extra||{}); if(CO.served) h['X-NES-Token']=CO.token; else if(CO.bearer) h['Authorization']='Bearer '+CO.bearer; return h; }
@@ -19,7 +19,7 @@ async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.
  if(!r.ok&&!j.error) j.error='HTTP '+r.status; j.status=r.status; return j; }
 // these wait for a person in a Windows Open or Save dialog, or do work that grows with the collection (checking, staging or importing a
 // package, preparing an installation), so the usual 12 s answer time is far too short for them
-const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink|art)|library\/locate|package\/(save|export|open|import-roms|rom-check)|studio\/(backup|contents|restore|restore-recover)|overrides\/art|home\/(folder-art|native-package)|apply|console\/plan|console\/home\/(plan|preflight))$/;
+const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink|art)|library\/locate|package\/(save|export|open|import-roms|rom-check)|studio\/(backup|contents|restore|restore-recover|saves-export|saves-import)|overrides\/art|home\/(folder-art|native-package)|apply|console\/plan|console\/home\/(plan|preflight)|update\/install)$/;   // update/install reads the whole downloaded installer again before running it
 async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}, timeout:HK_WAITS.test(path)?30*60000:undefined}); }
 async function lnaDenied(){ try{ if(navigator.permissions&&navigator.permissions.query){ const p=await navigator.permissions.query({name:'local-network-access'}); return p.state==='denied'; } }catch(e){} return false; }
 let STATUS_P=null;
@@ -60,7 +60,7 @@ function connSummary(){ switch(CO.state){
  case 'ok': return (CO.desktop?`Classic Cart Studio for Windows ${esc(CO.version||'')} is running. `:CO.served?'Connected to Classic Cart Studio on this computer. ':`Connected to Classic Cart Studio on this computer (version ${esc(CO.version||'?')}). `)+esc(diagText())+'.';
  case 'booting': return 'Classic Cart Studio is starting…';
  case 'checking': return 'Checking the connection…';
- case 'pairing': return 'Choose Allow in the approval window Classic Cart Studio opened. Your ROM files stay on this computer.';
+ case 'pairing': return 'Choose Allow in the approval window Classic Cart Studio opened. Your game files stay on this computer.';
  case 'web': return 'Anything that needs your computer happens in Classic Cart Studio for Windows.';
  case 'off': return 'Classic Cart Studio is not running. Start it from the Start menu, then check again.';
  case 'unpaired': return 'Classic Cart Studio is running on this computer. Use its window.';
@@ -82,54 +82,65 @@ function renderConnect(reason){ const st=CO.state;
  $('collTitle').textContent='Connection Status'; $('collSub').textContent=CO.version&&st==='ok'?'Version '+CO.version:''; $('collBody').innerHTML=h; $('connClose').onclick=closeColl; $('connAgain').onclick=()=>openConnect(); }
 // ---- download / release information: release.json published with the website (written from the GitHub release), then the GitHub API as a live fallback ----
 let RELEASE=null;
-// the newest published release, asked of GitHub (never from inside the Windows app); null when GitHub does not answer within ms
+const CCS_APP_DOWNLOAD='https://classiccartstudio.com/app/';
+// GitHub's releases are shared by Classic Cart Studio (tags v1.2.3, ClassicCartStudio-Setup-1.2.3.exe) and CCS Console Workbench (tags
+// workbench-v1.2.3, CCS-Console-Workbench-1.2.3.exe): the newest published app release whose tag AND installer both belong to the app,
+// never GitHub's repository-wide "latest" (which could be a Workbench release)
+function ccsAppRelease(list){ let best=null;
+ for(const r of (Array.isArray(list)?list:[])){ if(!r||r.draft||r.prerelease) continue; const m=/^v(\d+\.\d+\.\d+)$/.exec(r.tag_name||''); if(!m) continue;
+  const as=r.assets||[]; const a=as.find(x=>{ const k=/^ClassicCartStudio-Setup-(\d+\.\d+\.\d+)\.exe$/i.exec(x.name||''); return k&&k[1]===m[1]; });
+  if(!a||as.some(x=>/^CCS-Console-Workbench-/i.test(x.name||''))) continue;
+  if(!best||String(r.published_at||'')>String(best.published_at||'')) best=r; }
+ return best; }
+// the newest published app release, asked of GitHub (never from inside the Windows app); null when GitHub does not answer within ms
 async function latestRelease(ms){ if(!CO.desktop){ const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),ms||10000);
- try{ const r=await (await fetch(RELEASES_API,{headers:{'Accept':'application/vnd.github+json'},cache:'no-store',signal:ctl.signal})).json(); if(r&&r.tag_name) return r; }catch(e){} finally{ clearTimeout(t); } } return null; }
+ try{ const r=ccsAppRelease(await (await fetch(RELEASES_API,{headers:{'Accept':'application/vnd.github+json'},cache:'no-store',signal:ctl.signal})).json()); if(r&&r.tag_name) return r; }catch(e){} finally{ clearTimeout(t); } } return null; }
 async function releaseInfo(){ if(RELEASE) return RELEASE;
- try{ const r=await (await fetch('release.json',{cache:'no-store'})).json(); if(r&&r.version&&r.asset) RELEASE=r; }catch(e){}
- if(!RELEASE&&!CO.desktop){ try{ const r=await latestRelease(); if(r){ const a=(r.assets||[]).find(x=>/\.exe$/i.test(x.name)), s=(r.assets||[]).find(x=>/^SHA256SUMS/i.test(x.name));
+ try{ const r=await (await fetch('release.json',{cache:'no-store'})).json(); if(r&&r.version&&r.asset&&(!r.product||r.product==='app')&&/^ClassicCartStudio-Setup-/i.test(r.asset.name||'')) RELEASE=r; }catch(e){}
+ if(!RELEASE&&!CO.desktop){ try{ const r=await latestRelease(); if(r){ const a=(r.assets||[]).find(x=>/^ClassicCartStudio-Setup-.*\.exe$/i.test(x.name)), s=(r.assets||[]).find(x=>/^SHA256SUMS/i.test(x.name));
   RELEASE={version:r.tag_name.replace(/^v/,''),tag:r.tag_name,published:r.published_at,url:r.html_url,asset:a?{name:a.name,size:a.size,url:a.browser_download_url}:null,sums_url:s?s.browser_download_url:null,sha256:null,source:'github-api'};
   if(s&&a){ try{ const t=await (await fetch(s.browser_download_url)).text(); const m=t.split(/\r?\n/).find(l=>l.includes(a.name)); if(m) RELEASE.sha256=m.trim().split(/\s+/)[0]; }catch(e){} } } }catch(e){} }
  return RELEASE; }
 function renderDownload(el){ if(!el) return; releaseInfo().then(R=>{ if(!el.isConnected) return;
- if(!R||!R.asset){ el.innerHTML=`<b>Download Classic Cart Studio</b><div class="small">${R?'This release has no Windows installer yet.':'Release details could not be loaded.'} See the <a href="${RELEASE_PAGE}" target="_blank" rel="noopener">releases page</a>.</div>`; return; }
+ if(!R||!R.asset){ el.innerHTML=`<b>Download Classic Cart Studio</b><div class="small">${R?'This release has no Windows installer yet.':'Release details could not be loaded.'} See the <a href="${CCS_APP_DOWNLOAD}" target="_blank" rel="noopener">download page</a>.</div>`; return; }
  const cmd=`Get-FileHash -Algorithm SHA256 "$env:USERPROFILE\\Downloads\\${R.asset.name}"`;
- el.innerHTML=`<b>Download Classic Cart Studio</b> <span class="small">version ${esc(R.version)}${R.published?' · '+esc(String(R.published).slice(0,10)):''}</span>
+ el.innerHTML=`<b>Download Classic Cart Studio</b> <span class="small">version ${esc(R.version)}${R.prerelease?' · preview':''}${R.published?' · '+esc(String(R.published).slice(0,10)):''}</span>
   <div class="acts" style="margin:8px 0 6px"><a class="btn hk" href="${esc(R.asset.url)}" rel="noopener">Download Classic Cart Studio</a><span class="small">${esc(R.asset.name)} · ${fmt(R.asset.size||0)} · Windows 10/11 · no administrator rights needed</span></div>
-  ${R.sha256?`<div class="acts" style="margin-top:6px"><button class="btn sm ghost" id="dlHow">Check the Download</button></div><div class="small" id="dlHowBox" hidden style="margin-top:8px">SHA-256 of the installer:<div class="hash" id="dlHash">${esc(R.sha256)}</div><div class="acts" style="margin:6px 0"><button class="btn sm" id="dlCopy">Copy SHA-256</button></div>In <b>Windows PowerShell</b>, run:<pre class="hash" style="margin:6px 0">${esc(cmd)}</pre>The <code>Hash</code> it prints must match the value above (letter case does not matter). If it differs, delete the download and get it again.${R.sums_url?` The value is also in <a href="${esc(R.sums_url)}" rel="noopener">SHA256SUMS.txt</a>.`:''}</div>`:`<div class="small">To check the download, see SHA256SUMS.txt on the <a href="${esc(R.url||RELEASE_PAGE)}" target="_blank" rel="noopener">release page</a>.</div>`}
-  <div class="small" style="margin-top:8px">The installer is not code-signed, so Windows SmartScreen may ask you to confirm. After installing, start <b>Classic Cart Studio</b> from the Start menu.${R.source==='github-api'?'':` <a href="${esc(R.url||RELEASE_PAGE)}" target="_blank" rel="noopener">Release page</a>.`}</div>`;
+  ${R.sha256?`<div class="acts" style="margin-top:6px"><button class="btn sm ghost" id="dlHow">Check the Download</button></div><div class="small" id="dlHowBox" hidden style="margin-top:8px">SHA-256 of the installer:<div class="hash" id="dlHash">${esc(R.sha256)}</div><div class="acts" style="margin:6px 0"><button class="btn sm" id="dlCopy">Copy SHA-256</button></div>In <b>Windows PowerShell</b>, run:<pre class="hash" style="margin:6px 0">${esc(cmd)}</pre>The <code>Hash</code> it prints must match the value above (letter case does not matter). If it differs, delete the download and get it again.${R.sums_url?` The value is also in <a href="${esc(R.sums_url)}" rel="noopener">SHA256SUMS.txt</a>.`:''}</div>`:`<div class="small">To check the download, see SHA256SUMS.txt on the <a href="${CCS_APP_DOWNLOAD}" target="_blank" rel="noopener">download page</a>.</div>`}
+  <div class="small" style="margin-top:8px">The installer is not code-signed, so Windows SmartScreen may ask you to confirm. After installing, start <b>Classic Cart Studio</b> from the Start menu.${R.source==='github-api'?'':` <a href="${CCS_APP_DOWNLOAD}" target="_blank" rel="noopener">Download page</a>.`}</div>`;
  if($('dlCopy')) $('dlCopy').onclick=()=>{ navigator.clipboard&&navigator.clipboard.writeText(R.sha256).then(()=>toast('SHA-256 copied'),()=>toast('Could not copy; select the text instead')); };
  if($('dlHow')) $('dlHow').onclick=()=>{ $('dlHowBox').hidden=!$('dlHowBox').hidden; }; }); }
 // the header's Download CCS button: always the newest release, never a fixed one. GitHub is asked for its latest release when the button is
 // clicked (the download comes from GitHub anyway; nothing is asked before) and the browser goes straight to that release's installer; if
-// GitHub cannot answer in 5 s, or a new tab or window is asked for, it opens GitHub's latest-release page. Never shown inside the app.
-async function ccsDownloadLatest(){ if(typeof ccsmTrack==='function') ccsmTrack('download_clicked'); let url=null;   /* counted only when usage reports are on (as the release links are) */
-  try{ const r=await latestRelease(5000);
-   const a=(r&&r.assets||[]).find(x=>/^ClassicCartStudio-Setup-.*\.exe$/i.test(x.name))||(r&&r.assets||[]).find(x=>/\.exe$/i.test(x.name)); if(a&&/^https:\/\/github\.com\//.test(a.browser_download_url)) url=a.browser_download_url; }catch(err){}
-  location.href=url||RELEASE_PAGE; }
+// Downloads use the first-party page, which identifies the available preview and its files.
+async function ccsDownloadLatest(){ if(typeof ccsmTrack==='function') ccsmTrack('download_clicked'); location.href=CCS_APP_DOWNLOAD; }
 (function(){ const b=$('dlApp'); if(!b) return; if(window.__CCS_DESKTOP){ b.parentNode.hidden=true; return; }
- b.href=RELEASE_PAGE;
+ b.href=CCS_APP_DOWNLOAD;
  b.addEventListener('click',e=>{ if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey){ if(typeof ccsmTrack==='function') ccsmTrack('download_clicked'); return; } e.preventDefault(); ccsDownloadLatest(); }); })();
 // ---- Add Games from Files: bulk import through the companion (native picker on this computer, background job, progress, cancel) ----
-async function importGames(mode){ if(!CO.ok){ await companionStatus(); if(!CO.ok){ if(typeof desktopInvite==='function'&&desktopInvite('Adding ROM files needs the Windows app, which can read files on this computer.')) return; openConnect('Classic Cart Studio is not responding on this computer.'); return; } }
- openColl('Add Games from Files', mode==='folder'?'Choose a folder in the window that opened':'Choose files in the window that opened', `<div class="msgbox">${mode==='folder'?'Every ROM file and ZIP in the folder and its subfolders is checked.':'Choose ROM files (.nes, .unh, .bin, .fds) or ZIP archives; you can select several.'} Known versions are matched exactly; others become personal games. Your files are copied, never changed.</div>`);
+// Add ROM Files (addAll): every game the import verified joins the open collection, Game Catalog versions and personal games alike
+async function importGames(mode, addAll){ if(!CO.ok){ await companionStatus(); if(!CO.ok){ if(typeof desktopInvite==='function'&&desktopInvite('Adding game files needs the Windows app, which can read files on this computer.')) return; openConnect('Classic Cart Studio is not responding on this computer.'); return; } }
+ openColl('Add Games from Files', mode==='folder'?'Choose a folder in the window that opened':'Choose files in the window that opened', `<div class="msgbox">${mode==='folder'?'Every game file and ZIP in the folder and its subfolders is checked.':'Choose game files (.nes, .unh, .bin, .fds) or ZIP archives; you can select several.'} Known versions are matched exactly; others become personal games. Your files are copied, never changed.</div>`);
  procSet('collm','native'); const r=await hkPost('/api/import/pick',{mode}); procSet('collm',null); if((r.canceled||r.cancelled)){ closeColl(); return; } if(!r.ok){ $('collBody').innerHTML=`<div class="msgbox bad">${esc(r.error||'The import could not start. Try again.')}</div>`; return; }
- await watchImport(r.job); }
+ await watchImport(r.job, addAll); }
 function importRows(j){ return (j.items||[]).slice(-120).reverse().map(it=>`<div>${esc(it.file)}${it.member&&it.member!==it.file?' › '+esc(it.member):''} — <span class="${/^error/.test(it.result)?'bad':/^known/.test(it.result)?'okc':'mut'}">${esc(it.result)}</span></div>`).join(''); }
-async function watchImport(job){ let j=null; const body=$('collBody');
+function importIds(j){ const ids=Array.isArray(j.ids)&&j.ids.length?j.ids:(j.items||[]).map(it=>it.version_id||it.personal_id).filter(Boolean); return [...new Set(ids)]; }
+async function watchImport(job, addAll){ let j=null, added=null; const body=$('collBody');
  const draw=()=>{ const pct=j.total?Math.round(100*j.done/j.total):0; body.innerHTML=`<div class="msgbox"><b>${j.finished?(j.canceled?'Stopped.':'Done.'):'Importing…'}</b> ${j.done} of ${j.total} file${j.total===1?'':'s'}${j.current?' · '+esc(j.current):''}<div class="prog"><i style="width:${pct}%"></i></div>
   <div class="isum"><div class="isb ok"><b>${j.known}</b><span>matched in the Game Library</span></div><div class="isb"><b>${j.personal}</b><span>personal games</span></div><div class="isb"><b>${j.duplicates}</b><span>duplicates skipped</span></div><div class="isb ${j.errors.length?"bad":""}"><b>${j.errors.length}</b><span>could not be read</span></div></div></div>
   ${j.errors.length?`<div class="msgbox bad"><b>Could not be read:</b>${j.errors.slice(0,20).map(e=>`<div>${esc(e.file)}: ${esc(e.error)}</div>`).join('')}${j.errors.length>20?'<div>…</div>':''}</div>`:''}
-  <div class="implist">${importRows(j)||'<div class="mut">Nothing checked yet.</div>'}</div>
-  <div class="acts">${j.finished?'':'<button class="btn sm ghost" id="impCancel">Stop</button>'}<span class="sp"></span>${j.finished&&j.known?`<button class="btn hk" id="impSelect">Add ${j.known} Matched Game${j.known===1?'':'s'}</button>`:''}<button class="btn sm" id="impClose">${j.finished?'Close':'Run in Background'}</button></div>`;
+  ${added?`<div class="msgbox ok">${added.n?`Added ${added.n} game${added.n===1?'':'s'} to <b>${esc(COLL.name)}</b>.`:'No new game for this collection.'}${added.had?` ${added.had} ${added.had===1?'was':'were'} already in it.`:''}</div>`:''}<div class="implist">${importRows(j)||'<div class="mut">Nothing checked yet.</div>'}</div>
+  <div class="acts">${j.finished?'':'<button class="btn sm ghost" id="impCancel">Stop</button>'}<span class="sp"></span>${j.finished&&j.known&&!addAll?`<button class="btn hk" id="impSelect">Add ${j.known} Matched Game${j.known===1?'':'s'}</button>`:''}<button class="btn sm" id="impClose">${j.finished?'Close':'Run in Background'}</button></div>`;
   procSet('collm', j.finished?null:(j.canceled?'canceling':'running'));
   if($('impCancel')) $('impCancel').onclick=()=>{ $('impCancel').disabled=true; $('impCancel').textContent='Stopping…'; procSet('collm','canceling'); hkPost('/api/import/cancel',{job}); }; $('impClose').onclick=closeColl;
   if($('impSelect')) $('impSelect').onclick=()=>{ let n=0; (j.items||[]).forEach(it=>{ if(it.version_id&&byId[it.version_id]&&!sel.has(it.version_id)){ sel.add(it.version_id); n++; } }); persist(); render(); toast(n?`Added ${n} game${n===1?'':'s'} to "${COLL.name}"`:'Those games were already in the collection'); closeColl(); }; };
  for(;;){ const s=await capi('/api/import/status?job='+encodeURIComponent(job)); if(!s.ok){ body.innerHTML=`<div class="msgbox bad">${esc(s.error||'Lost contact with the import. Check your collection, then try again.')}</div>`; return; } j=s.job; if(!$('collm').classList.contains('open')){ if(j.finished) break; await new Promise(r=>setTimeout(r,1500)); continue; } draw(); if(j.finished) break; await new Promise(r=>setTimeout(r,650)); }
- await refreshPersonal(); await companionStatus(); render(); if($('collm').classList.contains('open')) draw(); toast(`Import finished: ${j.known} matched, ${j.personal} personal, ${j.errors.length} error${j.errors.length===1?'':'s'}`); }
-async function locateFile(versionId){ const g=byId[versionId]; toast('Choose the ROM file in the window that opened'); const r=await hkPost('/api/library/locate',{version_id:versionId}); if((r.canceled||r.cancelled)) return;
+ await refreshPersonal(); await companionStatus();
+ if(addAll){ const ids=importIds(j).filter(id=>byId[id]); let n=0, had=0; ids.forEach(id=>{ if(sel.has(id)) had++; else { sel.add(id); n++; } }); added={n, had}; persist(); if(typeof csSaveActiveNow==='function') csSaveActiveNow(); if(typeof rdyChanged==='function') rdyChanged(true); }
+ render(); if($('collm').classList.contains('open')) draw(); toast(`Import finished: ${j.known} matched, ${j.personal} personal, ${j.errors.length} error${j.errors.length===1?'':'s'}`); }
+async function locateFile(versionId){ const g=byId[versionId]; toast('Choose the game file in the window that opened'); const r=await hkPost('/api/library/locate',{version_id:versionId}); if((r.canceled||r.cancelled)) return;
  if(!r.ok){ alert('That file was not used: '+(r.error||'it could not be checked')+(g?'\n\nOnly a file that exactly matches '+(g.nointro_name||g.display_title)+' is accepted.':'')); return; }
- toast('ROM file found for '+(r.name||versionId)); await companionStatus(); if($('hkpanel').classList.contains('open')&&INST.step==='check') renderInstall(); else render(); }
+ toast('Game file found for '+(r.name||versionId)); await companionStatus(); if($('hkpanel').classList.contains('open')&&INST.step==='check') renderInstall(); else render(); }
 document.body.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('[data-locate]'); if(t){ locateFile(t.dataset.locate); } });
 $('connPill').onclick=()=>openConnect();
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&CO.hosted&&CO.state!=='ok') companionStatus(); });

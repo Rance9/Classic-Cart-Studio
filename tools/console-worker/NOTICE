@@ -12,10 +12,18 @@ Clovershell/ExecConnection.cs), the SSH shell (SshClient/SshClientWrapper.cs), t
 identification (hakchi.cs, Shell_OnConnected). Hakchi2 CE is the work of clusterrr (Alexey Avdyukhin), madmonkey, DanTheMan827,
 Team Shinkansen and its other contributors. Each derived file names its source and the changes made.
 
+Links Classic Cart Studio's console backup engine (CcsBackup.dll, tools/console-backup) and console loader library (CcsConsole.dll,
+tools/console-loader), Copyright (C) 2026 Rance9, GPL-3.0-or-later, for the backup every change to a console needs first. CcsConsole
+includes FelLib (https://github.com/TeamShinkansen/FelLib, commit e28ddfe; GPL-3.0), modified. Their source is in
+console-worker-source.zip (console-backup/, console-loader/; their NOTICE files list what they derive from).
+
 Uses, unchanged:
   SSH.NET, TeamShinkansen fork, commit 32181aeb4ce69e8f07e5e1d585fd592a44017bc1 (a submodule of Hakchi2 CE 3.9.3), compiled from source.
     MIT License; licenses/SSH.NET.txt.
-  LibUsbDotNet 2.2.29 (NuGet; byte-identical to the copy Hakchi2 CE 3.9.3 embeds). GNU LGPL v3; licenses/LibUsbDotNet.txt.
+  LibUsbDotNet 2.2.29 (the NuGet package's DLL, the same package Hakchi2 CE 3.9.3 uses; Copyright (C) 2006-2010 Travis Robinson). Its
+    repository's LICENSE is the GNU LGPL v3; its source files state the GNU GPL v2 or (at your option) any later version
+    (licenses/LibUsbDotNet.txt). Source: https://github.com/LibUsbDotNet/LibUsbDotNet at commit
+    5dd91a2fda393cf11db2072f2b45c3aee2750388, the commit the package names, attached to each release.
 
 The tests run, without changing them, hakchi's on-console module functions (etc/preinit, preinit.d/b0000_defines, b0010_functions,
 b0030_package) and hakchi's BusyBox and rsync from the pinned hakchi.hmod, and the NES Classic's stock BusyBox, all under qemu-arm. None

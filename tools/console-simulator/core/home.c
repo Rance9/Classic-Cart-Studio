@@ -36,6 +36,15 @@ int ccs_write_atomic(const char *path, const void *data, size_t len);
 #define FONT_NAME(id, name) name,
 static const char *FONT_NAMES[F_COUNT] = { FONT_LIST(FONT_NAME) };
 #undef FONT_NAME
+uint32_t ccs_accent = RED_DEF;
+static void accent_use(const home *h) { ccs_accent = h ? h->accent : RED_DEF; }   /* before anything is drawn: the HOME's own focus color */
+int design_menu_font(const home *h, int title, int def) { const hdesign *d = h->design; int f = d ? (title ? d->title_font : d->text_font) : -1; return f >= 0 ? f : def; }
+uint32_t design_panel(const home *h, uint32_t def, int *alpha) { if (h->design && h->design->has_panel) { *alpha = h->design->panel_a; return h->design->panel; } return def; }
+uint32_t design_text(const home *h, uint32_t def) { return h->design && h->design->has_text ? h->design->text : def; }
+void design_upper_if_needed(const font *f, const char *s, char *out, size_t n) { if (font_has(f, 'a')) snprintf(out, n, "%s", s); else upper(s, out, n); }
+int home_reduced_motion(const home *h) { return h->design && h->design->reduced_motion == 1; }
+const char *home_design_id(const home *h) { return h && h->design ? h->design->id : ""; }
+const char *home_design_source(const home *h, const char **why) { if (why) *why = h->design_why; return h->design_src[0] ? h->design_src : "none"; }
 #define CACHE_N 64
 #define CACHE_BYTES (16u << 20)
 #define BYTES_N 96
@@ -74,7 +83,8 @@ int T(framebuffer *fb, rect clip, const font *f, double x, int base, const char 
 int Tb(framebuffer *fb, rect clip, const font *f, double x, int base, const char *s, uint32_t rgb, int a, double sp) { text_draw(fb, NULL, clip, f, x + 1, base, s, strlen(s), RGBA(rgb, a), sp, 0); return text_draw(fb, NULL, clip, f, x, base, s, strlen(s), RGBA(rgb, a), sp, 0) + 1; }
 void emit_json(home *h, const char *fmt, ...) { char buf[4096]; va_list ap; va_start(ap, fmt); vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap); if (h->emit) h->emit(buf); }
 static void jesc(const char *s, char *out, size_t n) { json_escape(s ? s : "", out, n); }
-void LR(home *h, const char *name, int x0, int y0, int x1, int y1) { if (!h->rec || h->nrec >= MAX_REC) return; layrec *r = &h->recs[h->nrec++]; snprintf(r->name, sizeof r->name, "%s", name); r->b.x0 = x0; r->b.y0 = y0; r->b.x1 = x1; r->b.y1 = y1; }
+void LR(home *h, const char *name, int x0, int y0, int x1, int y1) { if (!h->rec || h->nrec >= MAX_REC) return; layrec *r = &h->recs[h->nrec++]; snprintf(r->name, sizeof r->name, "%s", name); r->b.x0 = x0; r->b.y0 = y0; r->b.x1 = x1; r->b.y1 = y1; r->idx = -1; }
+void LRI(home *h, const char *name, int idx, int x0, int y0, int x1, int y1) { int n = h->nrec; LR(h, name, x0, y0, x1, y1); if (h->nrec > n) h->recs[n].idx = idx; }
 void LT(home *h, int kind, int idx, int x0, int y0, int x1, int y1) { if (!h->hitrec || h->ntg >= MAX_TG) return; hittgt *t = &h->tg[h->ntg++]; t->b = (box4){ x0, y0, x1, y1 }; t->kind = kind; t->idx = idx; }
 void LRtext(home *h, const char *name, const font *f, double x, int base, const char *s, size_t len, double sp) { LR(h, name, iround(x), base - f->ascent, iround(x) + text_w(f, s, len, sp), base + f->descent); }
 int dir_of(button b) { return b == B_UP ? D_UP : b == B_DOWN ? D_DOWN : b == B_LEFT ? D_LEFT : b == B_RIGHT ? D_RIGHT : -1; }
@@ -113,31 +123,184 @@ static void theme_unload(home *h) {
     img_free(&h->scene); for (int i = 0; i < h->nsp; i++) img_free(&h->sp[i].im); h->nsp = 0; h->ops = NULL; h->tj = h->geo = NULL;
 }
 static int theme_index(const char *id) { for (int i = 0; i < N_THEMES; i++) if (id && !strcmp(id, THEME_IDS[i])) return i; return -1; }
+/* a design's background for its base theme, at the stage size (1x): its own picture or the theme's, then its frame (centered), then its
+   decorations in their order (pictures fitted whole into their regions, panels, labels in the HOME's own fonts). A picture that cannot
+   be decoded is left out (reported); the theme's own controls are always drawn above all of it. 1: the frame or a decoration was drawn */
+static int design_compose(home *h, image *scene) {
+    hdesign *d = h->design; framebuffer fb = { CCS_FB_W, CCS_FB_H, scene->px }; int sv = ccs_scale, off = ccs_text_off, drawn = 0; ccs_scale = 1; ccs_text_off = 0; char why[200];   /* labels are part of the picture */
+    if (d->slot[DS_PLATE] >= 0) { image im; if (!design_decode(d, d->slot[DS_PLATE], &im, 1, why, sizeof why)) { gfx_image(&fb, FULL, &im, (CCS_FB_W - im.w) / 2, (CCS_FB_H - im.h) / 2, 255); img_free(&im); drawn = 1; }
+        else emit_json(h, "{\"ev\":\"design_picture_skipped\",\"what\":\"plate\"}"); }
+    for (int i = 0; i < d->nlayer; i++) {
+        const dlayer *L = &d->layer[i]; int a = (L->opacity * 255 + 50) / 100; rect clip = rect_make(L->x, L->y, L->w, L->h);
+        if (L->kind == DL_PANEL) { gfx_fill(&fb, clip, L->x, L->y, L->w, L->h, RGBA(L->color, a)); drawn = 1; }
+        else if (L->kind == DL_IMAGE) {
+            image im, fit; int ox = 0, oy = 0;
+            if (design_decode(d, L->file, &im, 1, why, sizeof why)) { emit_json(h, "{\"ev\":\"design_picture_skipped\",\"what\":\"decoration\",\"index\":%d}", i); continue; }
+            drawn = 1;
+            if (im.w == L->w && im.h == L->h) { gfx_image(&fb, clip, &im, L->x, L->y, a); }
+            else if (!img_contain(&im, &fit, L->w, L->h, &ox, &oy)) { gfx_image(&fb, clip, &fit, L->x + ox, L->y + oy, a); img_free(&fit); }
+            img_free(&im);
+        } else {
+            const font *f = &h->f[L->font]; char t[300]; design_upper_if_needed(f, L->text, t, sizeof t); int tw = text_w(f, t, strlen(t), 0);
+            double x = L->align == 1 ? L->x + (L->w - tw) / 2.0 : L->align == 2 ? L->x + L->w - tw : L->x; if (x < L->x) x = L->x;
+            const uint8_t *bg0 = ccs_text_bg; if (ccs_text_rec) ccs_text_bg = scene->px; ccs_text_label = 1;   /* the render check measures a label against what is under it */
+            text_draw(&fb, NULL, clip, f, x, baseline_center(f, L->y, L->h), t, strlen(t), RGBA(L->has_color ? L->color : design_text(h, 0xFFFFFF), a), 0, 0);
+            ccs_text_label = 0; ccs_text_bg = bg0; drawn = 1;
+        }
+    }
+    ccs_scale = sv; ccs_text_off = off; return drawn;
+}
+/* a design's icons for its base theme: each fitted whole (centered, see-through around it) into the size the theme draws that icon at */
+static void design_icons(home *h) {
+    static const char *NAMES[5][3] = { { "icon-games", "icon-home", "stat-icon-games" }, { "icon-folder", NULL, NULL }, { "icon-star", NULL, NULL }, { "icon-clock", NULL, NULL }, { "icon-gear", NULL, NULL } };
+    hdesign *d = h->design; char why[200];
+    for (int k = 0; k < 5; k++) {
+        int fi = d->slot[DS_ICON_GAMES + k]; if (fi < 0) continue;
+        for (int n = 0; n < 3 && NAMES[k][n]; n++) {
+            tsprite *s = NULL; for (int i = 0; i < h->nsp; i++) if (!strcmp(h->sp[i].name, NAMES[k][n])) s = &h->sp[i]; if (!s) continue;
+            image src, fit, out; int ox, oy;
+            if (design_decode(d, fi, &src, 1, why, sizeof why)) { emit_json(h, "{\"ev\":\"design_picture_skipped\",\"what\":\"%s\"}", NAMES[k][0]); break; }
+            if (!img_contain(&src, &fit, s->im.w, s->im.h, &ox, &oy)) {
+                if (!img_alloc(&out, s->im.w, s->im.h, 4)) { for (int y = 0; y < fit.h; y++) memcpy(out.px + ((size_t)(y + oy) * out.w + ox) * 4, fit.px + (size_t)y * fit.w * 4, (size_t)fit.w * 4); img_free(&s->im); s->im = out; }
+                img_free(&fit); }
+            img_free(&src);
+        }
+    }
+}
+/* ---------- a HOME design's control regions (HOME-DESIGNER.md "Control regions") ----------
+ * Each theme's controls fall into groups a design may move in its base theme: the game list, the selected game's details, its title, the
+ * collection status and the controller hints. A group keeps its size and moves whole: every box its renderer reads from the geometry, the
+ * sprites listed here, the focus rings, the mouse targets and the layout records follow from them, so the controller's focus and the
+ * pointer move with what is drawn. What a theme cannot move apart (Arcade Grid's card inside its cover grid, Adventure Map's title inside
+ * its panel's frame) has no group of its own; the navigation and the map never move. design_layout holds the rules (the PC's validator,
+ * CcsBackup.Compose.DesignProfile, the same). */
+static const struct { int theme; const char *sprite; int ui; } MOVED_SPRITES[] = {
+    { TH_ARCADE, "card-frame", UI_GAMES }, { TH_ARCADE, "card-trim", UI_GAMES },
+    { TH_BOXART, "arrow-l", UI_GAMES }, { TH_BOXART, "arrow-r", UI_GAMES },
+    { TH_SHELF, "arrow-l", UI_GAMES }, { TH_SHELF, "arrow-r", UI_GAMES },
+    { TH_MAP, "arrow-l", UI_GAMES }, { TH_MAP, "arrow-r", UI_GAMES }, { TH_MAP, "panel-frame", UI_DETAILS } };
+static box4 bunion(box4 a, box4 b) { return (box4){ a.x0 < b.x0 ? a.x0 : b.x0, a.y0 < b.y0 ? a.y0 : b.y0, a.x1 > b.x1 ? a.x1 : b.x1, a.y1 > b.y1 ? a.y1 : b.y1 }; }
+static box4 bpad(box4 a, int l, int t, int r, int b) { return (box4){ a.x0 - l, a.y0 - t, a.x1 + r, a.y1 + b }; }
+static int bhit(box4 a, box4 b) { return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1; }
+static int boxes_union(const jval *arr, int max, int l, int t, int r, int b, box4 *o) {   /* every box of a list (each padded): its union */
+    int n = 0; box4 c; for (size_t i = 0; arr && arr->t == J_ARR && i < arr->n && (int)i < max; i++) if (!jbox_at(arr, i, &c)) { c = bpad(c, l, t, r, b); *o = n++ ? bunion(*o, c) : c; }
+    return n ? 0 : -1; }
+int region_default(const jval *g, int theme, int ui, box4 *o) {
+    box4 a, b, c, d; if (!g) return -1;
+    if (theme == TH_ARCADE) {   /* the card and the 16 cover cells (rows A and B beside the card, row C under it) with the focus ring's 4 px */
+        const jval *card = json_get(g, "card"), *st = json_get(g, "stats");
+        if (ui == UI_GAMES) { if (!card || gbox(card, "frame", &a) || boxes_union(json_get(g, "cells"), MAX_CELLS, 0, 0, 0, 0, &b)) return -1; *o = bpad(bunion(a, b), 4, 4, 4, 4); return 0; }
+        if (ui == UI_STATUS) return st && !gbox(st, "panel", o) ? 0 : -1;
+        if (ui == UI_HINTS) return gbox(g, "legend", o) ? -1 : 0;
+    } else if (theme == TH_BOXART) {   /* the boxes with their arrows and the dots under them; the title; the overview and facts; the collection panel */
+        if (ui == UI_GAMES) { const jval *e = json_get(g, "envelopes"); int n = 0;
+            for (size_t i = 0; e && e->t == J_ARR && i < e->n && i < 12; i++) if (!gbox(e->items[i], "box", &c)) a = n++ ? bunion(a, c) : c;
+            if (!n || gbox(g, "arrow_l", &c) || gbox(g, "arrow_r", &d) || gbox(g, "dots", &b)) return -1;
+            int cy = (b.y0 + b.y1) / 2; *o = bunion(bunion(a, c), bunion(d, (box4){ b.x0, cy - 3, b.x1, cy + 4 })); return 0; }
+        if (ui == UI_TITLE) return gbox(g, "title", o) ? -1 : 0;
+        if (ui == UI_DETAILS) { if (gbox(g, "blurb", &a) || gbox(g, "rule", &b) || gbox(g, "facts", &c)) return -1; *o = bunion(bunion(a, b), c); return 0; }
+        if (ui == UI_STATUS) { const jval *p = json_get(g, "panel"); return p && !gbox(p, "frame", o) ? 0 : -1; }
+        if (ui == UI_HINTS) { *o = BOXART_LEGEND; return 0; }
+    } else if (theme == TH_SHELF) {   /* the shelf with its focus frame and arrows; the section label and title; the facts and text */
+        const jval *sf = json_get(g, "shelf"), *info = json_get(g, "info");
+        if (ui == UI_GAMES) { if (!sf || boxes_union(json_get(sf, "cells"), 12, 10, 13, 10, 11, &a) || gbox(g, "arrow_l", &b) || gbox(g, "arrow_r", &c)) return -1; *o = bunion(bunion(a, b), c); return 0; }
+        if (ui == UI_TITLE) { if (!info || gbox(info, "label", &a) || gbox(info, "title", &b)) return -1; *o = bunion(a, b); return 0; }
+        if (ui == UI_DETAILS) { if (!info || boxes_union(json_get(info, "rows"), 3, 0, 0, 0, 0, &a) || gbox(info, "text", &b)) return -1; *o = bunion(a, b); return 0; }
+        if (ui == UI_HINTS) return gbox(g, "legend", o) ? -1 : 0;
+    } else if (theme == TH_MAP) {   /* the cover shelf with its frames and arrows; the information panel (its title inside its frame) */
+        const jval *sf = json_get(g, "shelf"), *p = json_get(g, "panel");
+        if (ui == UI_GAMES) { if (!sf || boxes_union(json_get(sf, "cells"), 12, 10, 16, 10, 16, &a) || gbox(g, "arrow_l", &b) || gbox(g, "arrow_r", &c)) return -1; *o = bunion(bunion(a, b), c); return 0; }
+        if (ui == UI_DETAILS) return p && !gbox(p, "frame", o) ? 0 : -1;
+        if (ui == UI_HINTS) return gbox(g, "legend", o) ? -1 : 0;
+    }
+    return -1;
+}
+int region_fixed(const jval *g, int theme, box4 *o, const char **names, int max) {
+    box4 a, b; int n = 0; if (!g || max < 2) return 0;
+    #define FIX(bx, nm) do { o[n] = (bx); if (names) names[n] = (nm); n++; } while (0)
+    if (theme == TH_ARCADE) { if (!gbox(g, "tabbar", &a)) FIX(a, "tab bar"); }
+    else if (theme == TH_BOXART) { if (!gbox(g, "nav", &a)) FIX(bpad(a, 8, 6, 8, 4), "top navigation"); }   /* with its mouse targets */
+    else if (theme == TH_SHELF) { const jval *sd = json_get(g, "side"), *hero = json_get(g, "hero");
+        if (sd && !gbox(sd, "plate", &a)) { int fy = gnum(sd, "first_y", 112); FIX(((box4){ a.x0, fy, a.x1, fy + 6 * gnum(sd, "pitch", 52) }), "sidebar"); }
+        if (hero && !gbox(hero, "frame", &b)) FIX(b, "featured picture"); }
+    else if (theme == TH_MAP) { const jval *card = json_get(g, "card"), *lms = json_get(g, "landmarks"); int k = 0;   /* the signs (widened for long labels, their focus ring), the markers, the card */
+        if (card && !gbox(card, "frame", &a)) { k = 1; if (!gbox(card, "pointer", &b)) a = bunion(a, b); }
+        for (size_t i = 0; lms && lms->t == J_ARR && i < lms->n; i++) { box4 s; if (gbox(lms->items[i], "sign", &s)) continue; const jval *ce = json_get(lms->items[i], "center");
+            int cx = ce && ce->t == J_ARR && ce->n == 2 ? (int)ce->items[0]->num : (s.x0 + s.x1) / 2, cy = ce && ce->t == J_ARR && ce->n == 2 ? (int)ce->items[1]->num : s.y1 + 8;
+            box4 m = bunion(bpad(s, 34, 3, 34, 3), (box4){ cx - 21, cy - 12, cx + 21, cy + 12 }); a = k++ ? bunion(a, m) : m; }
+        if (k) FIX(a, "map"); }
+    #undef FIX
+    return n;
+}
+void region_move(const home *h, int ui, box4 *b) { int dx = h->roff[ui][0], dy = h->roff[ui][1]; b->x0 += dx; b->x1 += dx; b->y0 += dy; b->y1 += dy; }
+static const char *UI_NAME[UI_COUNT] = { "game list", "game details", "title", "collection status", "button hints" };
+int design_layout(const jval *pk, const hdesign *d, int off[UI_COUNT][2], char *why, size_t n) {
+    memset(off, 0, sizeof(int) * 2 * UI_COUNT); if (!d || !d->nreg) return 0;
+    const jval *themes = json_get(pk, "themes"), *tj = themes ? json_get(themes, THEME_IDS[d->theme]) : NULL, *g = tj ? json_get(tj, "geometry") : NULL; const char *tn = THEME_NAMES[d->theme];
+    box4 eff[UI_COUNT], fx[8]; int have[UI_COUNT]; const char *fn[8]; int nf = region_fixed(g, d->theme, fx, fn, 8);
+    for (int u = 0; u < UI_COUNT; u++) {
+        have[u] = !region_default(g, d->theme, u, &eff[u]); const dregion *r = &d->reg[u]; if (!r->set) continue;
+        if (!have[u]) { snprintf(why, n, "%s has no %s that can move", tn, UI_NAME[u]); return -1; }
+        int w = eff[u].x1 - eff[u].x0, hh = eff[u].y1 - eff[u].y0;
+        if (r->w != w || r->h != hh) { snprintf(why, n, "the %s keeps %s's size (%d x %d), not %d x %d", UI_NAME[u], tn, w, hh, r->w, r->h); return -1; }
+        if (r->x < 12 || r->y < 12 || r->x + w > CCS_FB_W - 12 || r->y + hh > CCS_FB_H - 12) { snprintf(why, n, "the %s reaches the screen's edge", UI_NAME[u]); return -1; }
+        off[u][0] = r->x - eff[u].x0; off[u][1] = r->y - eff[u].y0; eff[u] = (box4){ r->x, r->y, r->x + w, r->y + hh };
+        if ((off[u][0] || off[u][1]) && d->slot[DS_SCENE] < 0) { snprintf(why, n, "moving the %s needs the design's own background picture (%s's own has the panels of its controls painted in their places)", UI_NAME[u], tn); return -1; }
+    }
+    for (int u = 0; u < UI_COUNT; u++) { if (!have[u]) continue;
+        for (int v = u + 1; v < UI_COUNT; v++) if (have[v] && bhit(eff[u], eff[v])) { snprintf(why, n, "the %s would cover the %s", UI_NAME[u], UI_NAME[v]); return -1; }
+        for (int k = 0; k < nf; k++) if (bhit(eff[u], fx[k])) { snprintf(why, n, "the %s would cover %s's %s, which does not move", UI_NAME[u], tn, fn[k]); return -1; } }
+    if (have[UI_GAMES] && nf && eff[UI_GAMES].y0 < fx[0].y1) { snprintf(why, n, "the game list must stay below the %s (the controller's Up goes there)", fn[0]); return -1; }
+    if (have[UI_HINTS] && have[UI_GAMES] && eff[UI_HINTS].y0 < eff[UI_GAMES].y1) { snprintf(why, n, "the button hints must stay below the game list (the controller's Down goes there)"); return -1; }
+    if (have[UI_HINTS] && eff[UI_HINTS].y0 < region_browse(d->theme).y1) { snprintf(why, n, "the button hints must stay below the Browse panel, which is drawn over the game list"); return -1; }
+    return 0;
+}
+static int layout_check(void *ctx, const hdesign *d, char *why, size_t n) { int off[UI_COUNT][2]; return design_layout(((home *)ctx)->pk, d, off, why, n); }
+
 /* load one theme's scene and sprites from the package and let its renderer prepare; the previous theme is freed first */
 static int theme_activate(home *h, int t, char *err, size_t errlen) {
     const jval *themes = json_get(h->pk, "themes"), *tj = themes ? json_get(themes, THEME_IDS[t]) : NULL; char p[1200];
     if (!tj) { snprintf(err, errlen, "the package has no %s theme", THEME_IDS[t]); return -1; }
     theme_unload(h); h->theme = t; h->tj = tj; h->geo = json_get(tj, "geometry"); h->hd_sprites = h->hd_scene = 0;
     const jval *sc = json_get(tj, "scene"); if (!sc || sc->t != J_STR || !safe_rel(sc->s)) { snprintf(err, errlen, "%s scene missing", THEME_IDS[t]); return -1; }
-    pjoin(h, sc->s, p, sizeof p); if (img_load(p, &h->scene, 0, err, errlen)) return -1;
+    int skin = h->design && h->design->theme == t, own = 0; h->composed = h->own_sprites = 0;
+    if (skin && h->design->slot[DS_SCENE] >= 0) { char e2[200]; own = !design_decode(h->design, h->design->slot[DS_SCENE], &h->scene, 0, e2, sizeof e2);
+        if (!own) emit_json(h, "{\"ev\":\"design_picture_skipped\",\"what\":\"scene\"}"); }
+    if (!own) { pjoin(h, sc->s, p, sizeof p); if (img_load(p, &h->scene, 0, err, errlen)) return -1; }
     if (h->scene.w != CCS_FB_W || h->scene.h != CCS_FB_H) { snprintf(err, errlen, "scene is %dx%d", h->scene.w, h->scene.h); return -1; }
+    if (skin) { int drawn = design_compose(h, &h->scene); h->composed = 1; h->own_sprites = own || drawn; }
     if (ccs_scale > 1) {   /* the computer: the package's picture at this scale (its panels redrawn), else this one's pixels doubled */
-        const jval *s2 = ccs_scale == 2 ? json_get(tj, "scene_2x") : NULL; image up; char e2[200]; int have = 0;
+        const jval *s2 = ccs_scale == 2 && !h->composed ? json_get(tj, "scene_2x") : NULL; image up; char e2[200]; int have = 0;   /* a design's background: its own pixels doubled */
         if (s2 && s2->t == J_STR && safe_rel(s2->s)) { pjoin(h, s2->s, p, sizeof p); if (!img_load(p, &up, 0, e2, sizeof e2)) { if (up.w == CCS_FB_W * 2 && up.h == CCS_FB_H * 2) have = 1; else img_free(&up); } }
         h->hd_scene = have;
         if (!have && img_scale_nearest(&h->scene, &up, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory (scene)"); return -1; }
         img_free(&h->scene); h->scene = up; }
-    const jval *sps = json_get(tj, "sprites");
+    /* the sprites. Over a design's own background each is drawn from its own pixels (file_own: the same sprite with the pixels it was cut
+       with from the theme's picture see-through; native_home/own_sprites.py), so no patch of the theme's old picture shows over the
+       design's; a package without them (or a damaged one) gives the approved sprite. The theme's own screens are unchanged. */
+    const jval *sps = json_get(tj, "sprites"); int nown = 0;
     if (sps && sps->t == J_OBJ) for (size_t i = 0; i < sps->n && h->nsp < MAX_SPRITES; i++) {
-        const jval *sp = sps->items[i], *f = json_get(sp, "file"); tsprite *s = &h->sp[h->nsp];
+        const jval *sp = sps->items[i], *f = json_get(sp, "file"), *fo = h->own_sprites ? json_get(sp, "file_own") : NULL; tsprite *s = &h->sp[h->nsp]; int got = 0;
         if (!f || f->t != J_STR || !safe_rel(f->s) || gbox(sp, "box", &s->box)) { snprintf(err, errlen, "sprite %s malformed", sps->keys[i]); return -1; }
-        snprintf(s->name, sizeof s->name, "%s", sps->keys[i]); pjoin(h, f->s, p, sizeof p); if (img_load(p, &s->im, 1, err, errlen)) return -1; h->nsp++;
+        snprintf(s->name, sizeof s->name, "%s", sps->keys[i]);
+        if (fo && fo->t == J_STR && safe_rel(fo->s)) { char e2[200]; pjoin(h, fo->s, p, sizeof p); got = !img_load(p, &s->im, 1, e2, sizeof e2);
+            if (got) nown++; else emit_json(h, "{\"ev\":\"design_picture_skipped\",\"what\":\"own sprite\",\"sprite\":\"%s\"}", s->name); }
+        if (!got) { pjoin(h, f->s, p, sizeof p); if (img_load(p, &s->im, 1, err, errlen)) return -1; }
+        h->nsp++;
         const jval *f2 = ccs_scale == 2 ? json_get(sp, "file_2x") : NULL;   /* the computer: the overlay redrawn at twice its size */
         if (f2 && f2->t == J_STR && safe_rel(f2->s)) { image hi; char e2[200]; pjoin(h, f2->s, p, sizeof p);
             if (!img_load(p, &hi, 1, e2, sizeof e2)) { image fit; h->hd_sprites++; if (hi.w == s->im.w * 2 && hi.h == s->im.h * 2) { s->im.hpx = hi.px; s->im.hs = 2; }
                 else { if (!img_scale(&hi, &fit, s->im.w * 2, s->im.h * 2)) { s->im.hpx = fit.px; s->im.hs = 2; } img_free(&hi); } } }
     }
+    if (h->own_sprites) emit_json(h, "{\"ev\":\"design_sprites\",\"theme\":\"%s\",\"own\":%d}", THEME_IDS[t], nown);
+    if (skin) design_icons(h);
     h->ops = THEME_OPS[t]; if (!h->geo) { snprintf(err, errlen, "%s geometry missing", THEME_IDS[t]); return -1; }
+    memset(h->roff, 0, sizeof h->roff);
+    if (skin && h->design->nreg) {   /* the design's control groups in its base theme (checked when the design was loaded): their sprites move with them */
+        char why[300]; if (design_layout(h->pk, h->design, h->roff, why, sizeof why)) { snprintf(err, errlen, "the design's layout no longer fits this package: %s", why); return -1; }
+        for (size_t k = 0; k < sizeof MOVED_SPRITES / sizeof *MOVED_SPRITES; k++) if (MOVED_SPRITES[k].theme == t)
+            for (int i = 0; i < h->nsp; i++) if (!strcmp(h->sp[i].name, MOVED_SPRITES[k].sprite)) region_move(h, MOVED_SPRITES[k].ui, &h->sp[i].box);
+    }
     if (ccs_scale > 1) emit_json(h, "{\"ev\":\"hd_assets\",\"theme\":\"%s\",\"scale\":%d,\"fonts\":%d,\"sprites\":%d,\"scene\":%d,\"thumbs\":%d,\"icons\":%d}", THEME_IDS[t], ccs_scale, h->hd_fonts, h->hd_sprites, h->hd_scene, h->hd_thumbs, h->hd_icons);   /* the computer only */
     return h->ops->init ? h->ops->init(h, err, errlen) : 0;
 }
@@ -145,8 +308,9 @@ static int theme_activate(home *h, int t, char *err, size_t errlen) {
 /* ---------- theme preference (persisted outside the package) ---------- */
 static void prefs_path(const home *h, char *out, size_t n) { snprintf(out, n, "%s/home-prefs.json", h->state_dir); }
 static int prefs_save(home *h, const char *theme_id, int epoch) {
-    if (!h->state_dir[0]) return 0; char p[1100], body[200]; prefs_path(h, p, sizeof p); ccs_mkdirs(h->state_dir);
-    int n = snprintf(body, sizeof body, "{\"schema\":\"ccs-home-prefs/1\",\"theme\":\"%s\",\"applied_epoch\":%d}\n", theme_id, epoch);
+    if (!h->state_dir[0]) return 0; char p[1100], body[300]; prefs_path(h, p, sizeof p); ccs_mkdirs(h->state_dir);
+    char dsn[80] = ""; if (h->design_seen[0]) snprintf(dsn, sizeof dsn, ",\"design\":\"%s\"", h->design_seen);
+    int n = snprintf(body, sizeof body, "{\"schema\":\"ccs-home-prefs/1\",\"theme\":\"%s\",\"applied_epoch\":%d%s}\n", theme_id, epoch, dsn);
     int rc = ccs_write_atomic(p, body, (size_t)n); h->saved_epoch = epoch;
     emit_json(h, "{\"ev\":\"prefs_saved\",\"theme\":\"%s\",\"applied_epoch\":%d,\"ok\":%s}", theme_id, epoch, rc ? "false" : "true"); return rc;
 }
@@ -157,10 +321,14 @@ static int prefs_resolve(home *h) {
     if (h->state_dir[0]) { prefs_path(h, p, sizeof p);
         if (!ccs_read_file(p, &buf, &len, 1u << 16)) { char jerr[120]; jval *o = json_parse((const char *)buf, len, jerr, sizeof jerr); free(buf);
             const jval *t = o ? json_get(o, "theme") : NULL, *s = o ? json_get(o, "schema") : NULL;
-            if (o && o->t == J_OBJ && s && s->t == J_STR && !strcmp(s->s, "ccs-home-prefs/1") && t && t->t == J_STR && theme_index(t->s) >= 0) { saved = theme_index(t->s); saved_epoch = gnum(o, "applied_epoch", 0); }
+            if (o && o->t == J_OBJ && s && s->t == J_STR && !strcmp(s->s, "ccs-home-prefs/1") && t && t->t == J_STR && theme_index(t->s) >= 0) { saved = theme_index(t->s); saved_epoch = gnum(o, "applied_epoch", 0);
+                const jval *ds = json_get(o, "design"); if (ds && ds->t == J_STR && strlen(ds->s) == 64) snprintf(h->design_seen, sizeof h->design_seen, "%s", ds->s); }
             else invalid = 1; json_free(o); } }
     h->saved_epoch = saved_epoch;
     if (h->apply_epoch > 0 && h->apply_epoch != saved_epoch) { snprintf(h->theme_source, sizeof h->theme_source, "applied"); prefs_save(h, THEME_IDS[def], h->apply_epoch); return def; }
+    if (h->design && strcmp(h->design_seen, h->design->id)) {   /* a newly applied design shows in its own theme, once */
+        snprintf(h->design_seen, sizeof h->design_seen, "%s", h->design->id); snprintf(h->theme_source, sizeof h->theme_source, "design");
+        prefs_save(h, THEME_IDS[h->design->theme], saved_epoch); return h->design->theme; }
     if (saved >= 0) { snprintf(h->theme_source, sizeof h->theme_source, "saved"); return saved; }
     snprintf(h->theme_source, sizeof h->theme_source, invalid ? "fallback" : "default"); return def;
 }
@@ -175,6 +343,7 @@ static void music_load(home *h) {
     const jval *f = json_get(m, "file"), *d = json_get(m, "default"); h->music_avail = 1;
     if (f && f->t == J_STR && safe_rel(f->s)) pjoin(h, f->s, h->music_file, sizeof h->music_file);
     h->music_on = !(d && d->t == J_STR && !strcmp(d->s, "off")); snprintf(h->music_source, sizeof h->music_source, "default");
+    if (h->design && h->design->music >= 0) { h->music_on = h->design->music; snprintf(h->music_source, sizeof h->music_source, "design"); }
     if (h->state_dir[0]) { char p[1100]; uint8_t *buf; size_t len; music_path(h, p, sizeof p); errno = 0;
         int rc = ccs_read_file(p, &buf, &len, 1u << 12);
         if (!rc) { char jerr[120]; jval *o = json_parse((const char *)buf, len, jerr, sizeof jerr); free(buf);
@@ -229,9 +398,56 @@ static int load_browse(home *h, char *err, size_t errlen) {
     if (!h->memo_folder || !h->memo_cat || !h->memo_browse) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
 }
-home *home_load(const char *dir, home_emit_fn emit, char *err, size_t errlen) { return home_load2(dir, NULL, emit, err, errlen); }
-home *home_load2(const char *dir, const char *state_dir, home_emit_fn emit, char *err, size_t errlen) {
-    home *h = calloc(1, sizeof *h); if (!h) { snprintf(err, errlen, "out of memory"); return NULL; }
+static int game_index(const home *h, const char *id) { for (size_t i = 0; i < h->nall; i++) if (!strcmp(h->all[i].id, id)) return (int)i; return -1; }
+static int cmp_int(const void *a, const void *b) { int x = *(const int *)a, y = *(const int *)b; return x < y ? -1 : x > y; }
+/* the design's All Games order: the games it names first, in its order, then every other game in the package's order */
+static int design_order(home *h, char *err, size_t errlen) {
+    hdesign *d = h->design; if (!d || !d->norder || !h->nall) return 0;
+    int n = (int)h->nall, k = 0, *map = malloc((size_t)n * sizeof *map), *newof = malloc((size_t)n * sizeof *newof); hgame *g = calloc((size_t)n, sizeof *g);
+    if (!map || !newof || !g) { free(map); free(newof); free(g); snprintf(err, errlen, "out of memory"); return -1; }
+    for (int i = 0; i < n; i++) newof[i] = -1;
+    for (int i = 0; i < d->norder; i++) { int gi = game_index(h, d->order[i]); if (gi >= 0 && newof[gi] < 0) { newof[gi] = k; map[k++] = gi; } }
+    for (int i = 0; i < n; i++) if (newof[i] < 0) { newof[i] = k; map[k++] = i; }
+    for (int i = 0; i < n; i++) g[i] = h->all[map[i]];
+    for (int i = 0; i < h->nfold; i++) for (int j = 0; j < h->fold[i].ng; j++) h->fold[i].games[j] = newof[h->fold[i].games[j]];
+    for (int i = 0; i < h->ncat; i++) { for (int j = 0; j < h->cats[i].ng; j++) h->cats[i].games[j] = newof[h->cats[i].games[j]]; qsort(h->cats[i].games, (size_t)h->cats[i].ng, sizeof(int), cmp_int); }
+    free(h->all); h->all = h->g = g; free(map); free(newof); return 0;
+}
+/* the design's folders (with their nesting, games and pictures) in place of the collection's own */
+static int design_folders(home *h, char *err, size_t errlen) {
+    hdesign *d = h->design; if (!d || !d->has_folders || !d->nfold) return 0;
+    for (int i = 0; i < h->nfold; i++) { free(h->fold[i].id); free(h->fold[i].name); free(h->fold[i].art); free(h->fold[i].games); img_free(&h->fold[i].tile); }
+    free(h->fold); h->fold = calloc((size_t)d->nfold, sizeof *h->fold); h->nfold = 0; if (!h->fold) { snprintf(err, errlen, "out of memory"); return -1; }
+    for (int i = 0; i < d->nfold; i++) {
+        const dfolder *df = &d->fold[i]; hfolder *f = &h->fold[h->nfold++];
+        f->id = sdup(df->id); f->name = sdup(df->name); f->parent = df->parent; f->art_abs = df->art >= 0 ? df->art + 1 : 0; f->art = df->art >= 0 ? sdup(d->f[df->art].name) : NULL;
+        f->games = calloc(df->ng ? (size_t)df->ng : 1, sizeof(int)); if (!f->id || !f->name || !f->games) { snprintf(err, errlen, "out of memory"); return -1; }
+        for (int k = 0; k < df->ng; k++) { int gi = game_index(h, df->games[k]); if (gi >= 0) f->games[f->ng++] = gi; }
+    }
+    for (int i = 0; i < h->nfold; i++) { hfolder *f = &h->fold[i]; if (f->parent < 0 || f->parent >= i) f->parent = -1; else h->fold[f->parent].nchild++; }
+    h->map_folder[0] = d->map_folder[0]; h->map_folder[1] = d->map_folder[1];
+    free(h->memo_folder); free(h->memo_browse); h->memo_folder = calloc((size_t)h->nfold + 1, sizeof(int)); h->memo_browse = calloc((size_t)h->nfold + 1, sizeof(int));
+    if (!h->memo_folder || !h->memo_browse) { snprintf(err, errlen, "out of memory"); return -1; }
+    return 0;
+}
+static void design_open(home *h, const char *root, const char *dir) {
+    char why[600] = "", src[16] = "none";
+    if (dir && *dir) { if (design_load(dir, NULL, &h->design, why, sizeof why) || layout_check(h, h->design, why, sizeof why)) { design_free(h->design); h->design = NULL; snprintf(src, sizeof src, "rejected"); } else snprintf(src, sizeof src, "explicit"); }
+    else if (root && *root) { snprintf(h->design_root, sizeof h->design_root, "%s", root); design_resolve2(root, layout_check, h, &h->design, src, sizeof src, why, sizeof why); }
+    if (!h->design && (!strcmp(src, "none") || !strcmp(src, "defaults"))) {   /* the package's own design (pack.json "design"), when the console has none of its own */
+        const jval *pd = json_get(h->pk, "design"), *pid = pd ? json_get(pd, "id") : NULL, *pdir = pd ? json_get(pd, "dir") : NULL; char e2[400];
+        if (pid && pid->t == J_STR && pdir && pdir->t == J_STR && safe_rel(pdir->s)) { char p[1200]; pjoin(h, pdir->s, p, sizeof p);
+            if (!design_load(p, pid->s, &h->design, e2, sizeof e2) && !layout_check(h, h->design, e2, sizeof e2)) snprintf(src, sizeof src, "package");
+            else { design_free(h->design); h->design = NULL; size_t k = strlen(why); snprintf(why + k, sizeof why - k, "%spackage design set aside: %s", k ? "; " : "", e2); } } }
+    snprintf(h->design_src, sizeof h->design_src, "%s", src); snprintf(h->design_why, sizeof h->design_why, "%s", why);
+    h->accent = h->design && h->design->has_accent ? h->design->accent : RED_DEF;
+    char w[700], nm[260]; jesc(why, w, sizeof w); jesc(h->design ? h->design->name : "", nm, sizeof nm);
+    emit_json(h, "{\"ev\":\"design_resolved\",\"source\":\"%s\",\"design\":\"%s\",\"name\":%s,\"theme\":\"%s\",\"why\":%s}", src, h->design ? h->design->id : "", nm, h->design ? THEME_IDS[h->design->theme] : "", w);
+}
+home *home_load(const char *dir, home_emit_fn emit, char *err, size_t errlen) { return home_load3(dir, NULL, NULL, NULL, emit, err, errlen); }
+home *home_load2(const char *dir, const char *state_dir, home_emit_fn emit, char *err, size_t errlen) { return home_load3(dir, state_dir, NULL, NULL, emit, err, errlen); }
+home *home_load3(const char *dir, const char *state_dir, const char *design_root, const char *design_dir, home_emit_fn emit, char *err, size_t errlen) {
+    home *h = calloc(1, sizeof *h); if (!h) { snprintf(err, errlen, "out of memory"); return NULL; } h->accent = RED_DEF;
     snprintf(h->dir, sizeof h->dir, "%s", dir); snprintf(h->state_dir, sizeof h->state_dir, "%s", state_dir ? state_dir : ""); h->emit = emit; h->nav.swallow = -1; h->nav.repeat_button = -1;
     char p[1200]; uint8_t *buf = NULL; size_t len; jval *gm = NULL; char jerr[200];
     pjoin(h, "pack.json", p, sizeof p);
@@ -278,6 +494,8 @@ home *home_load2(const char *dir, const char *state_dir, home_emit_fn emit, char
     json_free(gm); gm = NULL;
     h->all = h->g; h->nall = h->n;
     if (load_browse(h, err, errlen)) goto fail;
+    design_open(h, design_root, design_dir);
+    if (design_order(h, err, errlen) || design_folders(h, err, errlen)) goto fail;
     int t = prefs_resolve(h); music_load(h);
     if (theme_activate(h, t, err, errlen)) goto fail;
     h->static_bytes = 0; for (int i = 0; i < F_COUNT; i++) h->static_bytes += h->f[i].nbits + h->f[i].n * sizeof(glyph);
@@ -290,7 +508,7 @@ fail:
 static void details_close(home *h);
 static void home_go_cat(home *h, int c);
 void home_free(home *h) {
-    if (!h) return; details_close(h); theme_unload(h);
+    if (!h) return; details_close(h); theme_unload(h); design_free(h->design); h->design = NULL;
     hgame *AG = h->all ? h->all : h->g; size_t NA = h->all ? h->nall : h->n;
     for (size_t i = 0; i < NA; i++) { hgame *g = &AG[i]; char *f[] = { g->id, g->title, g->version_label, g->year, g->players, g->genre, g->publisher, g->developer, g->cover, g->cover_kind, g->hero, g->hero_kind, g->hero_wide, g->text, g->blurb, g->mblurb, g->ftext }; for (size_t k = 0; k < sizeof f / sizeof *f; k++) free(f[k]); }
     free(AG); free(h->view); free(h->vmap);
@@ -306,7 +524,7 @@ size_t home_games(const home *h) { return h->nall; }
 const char *home_focus_id(const home *h) { if (h->nav.sec == SEC_BROWSE) return h->nav.browse < h->nbi && h->bi[h->nav.browse].kind == BI_GAME ? h->all[h->bi[h->nav.browse].idx].id : ""; return h->n ? h->g[h->nav.sel].id : ""; }
 /* tooling: go to a section the way the controller would (tests); kind: all | browse [parent] | folder <i> | category <i> | back */
 void home_go(home *h, const char *kind, int arg) {
-    if (!strcmp(kind, "all")) home_go_all(h); else if (!strcmp(kind, "browse")) home_go_browse(h, arg); else if (!strcmp(kind, "folder")) home_go_folder(h, arg);
+    accent_use(h); if (!strcmp(kind, "all")) home_go_all(h); else if (!strcmp(kind, "browse")) home_go_browse(h, arg); else if (!strcmp(kind, "folder")) home_go_folder(h, arg);
     else if (!strcmp(kind, "category")) home_go_cat(h, arg); else if (!strcmp(kind, "back")) home_back(h);
     home_emit_state(h);
 }
@@ -363,7 +581,7 @@ int home_covers_pending(const home *h) { return h->pending; }
 unsigned home_frame_gen(const home *h) { return h->gen; }
 int home_frame_live(const home *h) { return h->pending > 0 || h->npq > 0 || h->live; }
 int home_render_caption(home *h, framebuffer *fb, uint64_t now, int box[4]) {   /* K3D1-F3: nothing but the scrolling title moves, so only it is drawn */
-    if (!h->ops->caption || !h->live || h->pending || h->npq || h->rec || h->hitrec || !h->n || h->nav.screen != SCR_GRID || h->nav.overlay != OV_NONE || h->nav.notice || h->nav.sec == SEC_BROWSE || h->d.open) return 0;
+    accent_use(h); if (!h->ops->caption || !h->live || h->pending || h->npq || h->rec || h->hitrec || !h->n || h->nav.screen != SCR_GRID || h->nav.overlay != OV_NONE || h->nav.notice || h->nav.sec == SEC_BROWSE || h->d.open) return 0;
     return h->ops->caption(h, fb, now, box);
 }
 
@@ -453,7 +671,11 @@ int open_details(home *h, int gi) {
         if (o && o->t == J_OBJ) { d->official = read_text_field(o, "official"); d->overview = read_text_field(o, "overview"); d->official_label = read_text_field(o, "official_label"); d->single = read_text_field(o, "description");
             d->kind = d->official || d->overview ? DK_TWO : d->single ? DK_ONE : DK_NONE; } json_free(o); } }
     framebuffer *fb = &d->base; fb_clear(fb, 0x07, 0x07, 0x0A);
-    image bg; if (g->hero) { pjoin(h, g->hero, p, sizeof p); if (!img_load(p, &bg, 0, err, sizeof err)) {   /* the backdrop was composed for a 4 px frame */
+    image bg; int have = 0;
+    if (h->design && h->design->theme == h->theme && h->design->slot[DS_BACKDROP] >= 0) { have = !design_decode(h->design, h->design->slot[DS_BACKDROP], &bg, 0, err, sizeof err);
+        if (!have) emit_json(h, "{\"ev\":\"design_picture_skipped\",\"what\":\"details-backdrop\"}"); }
+    if (!have && g->hero) { pjoin(h, g->hero, p, sizeof p); have = !img_load(p, &bg, 0, err, sizeof err); }
+    if (have) {   /* the backdrop was composed for a 4 px frame */ {
         int aw = CCS_FB_W - 2 * B, ah = CCS_FB_H - 2 * B; if (bg.w == aw && bg.h == ah) { if (!S->pixelated) img_hi(&bg, &bg, 0); gfx_image(fb, FULL, &bg, B, B, 255); }
         else { image sc; if (!(S->pixelated ? img_scale_nearest(&bg, &sc, aw, ah) : img_scale(&bg, &sc, aw, ah))) { if (!S->pixelated) img_hi(&bg, &sc, 0); gfx_image(fb, FULL, &sc, B, B, 255); img_free(&sc); } }
         img_free(&bg); } }
@@ -683,6 +905,7 @@ static void theme_reset(home *h) {   /* a listing change: the theme's own caches
     char err[200]; if (!h->ops) return; if (h->ops->fini) h->ops->fini(h);
     if (h->ops->init && h->ops->init(h, err, sizeof err)) emit_json(h, "{\"ev\":\"theme_reset_failed\",\"error\":\"%s\"}", err);
 }
+void home_invalidate(home *h) { accent_use(h); theme_reset(h); h->gen++; }
 static void section_set(home *h, int sec, int id) {
     navstate *N = &h->nav; remember(h); details_close(h);
     N->sec = sec; N->sec_id = id;
@@ -707,16 +930,20 @@ int home_back(home *h) {
     if (N->sec == SEC_BROWSE) { if (id >= 0) { section_set(h, SEC_BROWSE, h->fold[id].parent); focus_tile(h, BI_FOLDER, id); } else section_set(h, SEC_ALL, -1); return 1; }
     return 0;
 }
-static int grid4(int i, int n, int dir) {   /* home-state.js homeGridMove, four columns, no wrap; a short last row clamps */
-    if (!n) return 0; int r = i / 4, c = i % 4, rows = (n + 3) / 4;
-    if (dir == D_LEFT) return c > 0 ? i - 1 : i; if (dir == D_RIGHT) return c < 3 && i + 1 < n ? i + 1 : i;
-    if (dir == D_UP) return r > 0 ? i - 4 : i; if (dir == D_DOWN) { if (r >= rows - 1) return i; return i + 4 < n ? i + 4 : n - 1; }
-    return i;
+static int browse_move(int i, int nfg, int n, int dir) {   /* home-state.js homeBrowseMove: four columns, no wrap, the rows as drawn (TILE_Y):
+                                                               folders and games first, the categories from a new row; a short row clamps */
+    if (!n) return 0; int b = i < nfg ? 0 : 1, st = b ? nfg : 0, len = b ? n - nfg : nfg, off = i - st, r = off / 4, c = off % 4;
+    if (dir == D_LEFT) return c > 0 ? i - 1 : i; if (dir == D_RIGHT) return c < 3 && off + 1 < len ? i + 1 : i;
+    int tb = b, tr = r + (dir == D_DOWN ? 1 : -1), rows0 = (nfg + 3) / 4, rows1 = (n - nfg + 3) / 4;
+    if (tr < 0) { if (b == 1 && nfg > 0) { tb = 0; tr = rows0 - 1; } else return i; }
+    else if (tr >= (b ? rows1 : rows0)) { if (b == 0 && n > nfg) { tb = 1; tr = 0; } else return i; }
+    int tst = tb ? nfg : 0, tlen = tb ? n - nfg : nfg, rowlen = tlen - tr * 4; if (rowlen > 4) rowlen = 4;
+    return tst + tr * 4 + (c < rowlen - 1 ? c : rowlen - 1);
 }
 static void browse_input(home *h, button b) {
     navstate *N = &h->nav; int n = h->nbi, dir = dir_of(b);
     if (N->browse >= n) N->browse = n ? n - 1 : 0;
-    if (dir >= 0) { int before = N->browse; N->browse = grid4(N->browse, n, dir); if (dir == D_UP && N->browse == before && before / 4 == 0) { N->zone = h->theme == TH_MAP ? Z_MAP : Z_NAV; N->nav = home_active_nav(h); } return; }
+    if (dir >= 0) { int before = N->browse; N->browse = browse_move(N->browse, h->bi_folders + h->bi_games, n, dir); if (dir == D_UP && N->browse == before && h->theme != TH_MAP) { N->zone = Z_NAV; N->nav = home_active_nav(h); } return; }   /* the map's signs are under the panel: an edge there */
     if (b == B_B) { home_back(h); return; }
     if (!n) return;
     const bitem it = h->bi[N->browse];
@@ -728,13 +955,16 @@ static void browse_input(home *h, button b) {
 typedef struct { box4 box; int bw; uint32_t border; int border_a, radius; uint32_t bg; int bg_a, inset; uint32_t inset_rgb; int h3_font; uint32_t h3_rgb; double h3_sp;
                  uint32_t tile_bg; int tile_bg_a; uint32_t tile_border; int tile_border_a, tile_radius; uint32_t tcap; int tcap_a, nm_font, sm_font; uint32_t sm_rgb, focus; } bstyle;
 static const bstyle BSTYLE[N_THEMES] = {
-    { { 246, 101, 1232, 622 }, 3, 0x2F3F8C, 255, 8, 0x090D26, 240, 2, 0x070A22, F_PX11, 0xFFB3B7, 1, 0x0F1538, 255, 0x273576, 255, 8, 0x0B1030, 255, F_S600_15, F_S400_12, 0xC9C7C1, RED },
-    { { 60, 90, 1220, 660 }, 1, 0xFFFFFF, 66, 14, 0x07070A, 230, 0, 0, F_CIN16, 0xF3EFE6, 2, 0x16161C, 235, 0xFFFFFF, 46, 10, 0x0C0C10, 242, F_S600_15, F_S400_12, 0xC9C7C1, RED },
-    { { 250, 96, 1254, 656 }, 3, 0x5B1A21, 255, 10, 0x11080A, 242, 0, 0, F_SILK13, 0xFF9AA0, 1, 0x1B0F12, 255, 0x4A1C22, 255, 8, 0x140A0C, 255, F_S600_15, F_S400_12, 0xC9C7C1, RED },
+    { { 246, 101, 1232, 622 }, 3, 0x2F3F8C, 255, 8, 0x090D26, 240, 2, 0x070A22, F_PX11, 0xFFB3B7, 1, 0x0F1538, 255, 0x273576, 255, 8, 0x0B1030, 255, F_S600_15, F_S400_12, 0xC9C7C1, RED_DEF },
+    { { 60, 90, 1220, 660 }, 1, 0xFFFFFF, 66, 14, 0x07070A, 230, 0, 0, F_CIN16, 0xF3EFE6, 2, 0x16161C, 235, 0xFFFFFF, 46, 10, 0x0C0C10, 242, F_S600_15, F_S400_12, 0xC9C7C1, RED_DEF },
+    { { 250, 96, 1254, 656 }, 3, 0x5B1A21, 255, 10, 0x11080A, 242, 0, 0, F_SILK13, 0xFF9AA0, 1, 0x1B0F12, 255, 0x4A1C22, 255, 8, 0x140A0C, 255, F_S600_15, F_S400_12, 0xC9C7C1, RED_DEF },
     { { 120, 110, 1160, 530 }, 4, 0x6B4A2B, 255, 4, 0x100A08, 245, 2, RED2, F_PX11, 0xFFD27A, 1, 0x20140F, 255, 0x6B4A2B, 255, 4, 0x160D0A, 255, F_PX11, F_PX8, 0xD8C9A8, RED2 } };
+box4 region_browse(int theme) { return theme >= 0 && theme < N_THEMES ? BSTYLE[theme].box : (box4){ 0, 0, 0, 0 }; }
 static const image *folder_tile_art(home *h, int f, int w, int hh) {   /* the folder's custom artwork at the tile size (object-fit: cover), kept until the size changes */
     hfolder *fo = &h->fold[f]; if (!fo->art) return NULL; if (fo->tile.px && fo->tile.w == w && fo->tile.h == hh) return &fo->tile;
-    img_free(&fo->tile); char p[1200], err[200]; image src; pjoin(h, fo->art, p, sizeof p); if (img_load(p, &src, 0, err, sizeof err)) return NULL;
+    img_free(&fo->tile); char p[1200], err[200]; image src;
+    if (fo->art_abs) { if (!h->design || design_decode(h->design, fo->art_abs - 1, &src, 0, err, sizeof err)) return NULL; }   /* a design's folder picture: the collage when it cannot be read */
+    else { pjoin(h, fo->art, p, sizeof p); if (img_load(p, &src, 0, err, sizeof err)) return NULL; }
     int bad = img_cover(&src, &fo->tile, w, hh); img_free(&src); return bad ? NULL : &fo->tile;
 }
 static void tile_caption(home *h, framebuffer *fb, rect clip, const bstyle *S, int x, int y, int w, int hh, int pad_top, const char *name, const char *sub) {
@@ -745,7 +975,8 @@ static void tile_caption(home *h, framebuffer *fb, rect clip, const bstyle *S, i
 }
 static void render_browse(home *h, framebuffer *fb) {
     const bstyle *S = &BSTYLE[h->theme]; box4 B = S->box; int W = B.x1 - B.x0, H = B.y1 - B.y0, parent = h->nav.sec_id;
-    if (S->bg_a) gfx_rrect(fb, FULL, B.x0, B.y0, W, H, S->radius, RGBA(S->bg, S->bg_a));
+    { int ba = S->bg_a; uint32_t bg = design_panel(h, S->bg, &ba); if (ba) gfx_rrect(fb, FULL, B.x0, B.y0, W, H, S->radius, RGBA(bg, ba)); }
+    uint8_t *drawn = h->nfold ? calloc((size_t)h->nfold, 1) : NULL;
     gfx_rrect_ring(fb, FULL, B.x0, B.y0, W, H, S->radius, S->bw, RGBA(S->border, S->border_a));
     if (S->inset) gfx_rrect_ring(fb, FULL, B.x0 + S->bw, B.y0 + S->bw, W - 2 * S->bw, H - 2 * S->bw, S->radius > S->bw ? S->radius - S->bw : 0, S->inset, RGBA(S->inset_rgb, 255));
     LR(h, "browse-panel", B.x0, B.y0, B.x1, B.y1);
@@ -769,7 +1000,7 @@ static void render_browse(home *h, framebuffer *fb) {
         gfx_rrect(fb, clip, cx, top, cw, TH, S->tile_radius, RGBA(S->tile_bg, S->tile_bg_a)); gfx_rrect_ring(fb, clip, cx, top, cw, TH, S->tile_radius, 2, RGBA(S->tile_border, S->tile_border_a));
         const font *fn = &h->f[S->nm_font == F_PX11 ? F_PX11 : F_S400_15]; span ln[6]; size_t k = text_wrap(fn, msg, cw - 24, 0, ln, 6); double lh = lh_normal(fn), t0 = top + (TH - k * lh) / 2;
         for (size_t i = 0; i < k; i++) { int lw = text_w(fn, msg + ln[i].start, ln[i].len, 0); text_draw(fb, NULL, clip, fn, cx + (cw - lw) / 2.0, baseline_normal(fn, t0 + i * lh), msg + ln[i].start, ln[i].len, RGBA(0xFFFFFF, 255), 0, 0); }
-        LR(h, "browse-empty", cx, top, cx + cw, top + TH); return;
+        LR(h, "browse-empty", cx, top, cx + cw, top + TH); free(drawn); return;
     }
     if (h->bi_folders + h->bi_games < n) {   /* .tiles-h */
         int hy = top + (rows_fg ? rows_fg * PITCH : 0) + 12 - shift; const font *fp = &h->f[F_PX9];
@@ -786,7 +1017,7 @@ static void render_browse(home *h, framebuffer *fb) {
             int ax = x + 2, aw = w - 4;
             if (it->kind == BI_GAME) { gfx_fill(fb, inner_clip, ax, ty + 2, aw, 72, RGBA(0x0C0C10, 255)); int ox, oy; const image *im = cover_b(h, it->idx, aw, 72, 1, &ox, &oy, 1); if (im) gfx_image(fb, inner_clip, im, ax + ox, ty + 2 + oy, 255); }
             else {
-                const hfolder *fo = &h->fold[it->idx]; const image *art = folder_tile_art(h, it->idx, aw, 72);
+                const hfolder *fo = &h->fold[it->idx]; const image *art = folder_tile_art(h, it->idx, aw, 72); if (drawn) drawn[it->idx] = 1;
                 if (art) gfx_image(fb, inner_clip, art, ax, ty + 2, 255);
                 else if (fo->ng) { gfx_fill(fb, inner_clip, ax, ty + 2, aw, 72, RGBA(0x0C0C10, 255)); int cw2 = (aw - 1) / 2, ch2 = (72 - 1) / 2;
                     for (int k = 0; k < 4 && k < fo->ng; k++) { int ox, oy, gx = ax + (k % 2) * (cw2 + 1), gy = ty + 2 + (k / 2) * (ch2 + 1), gw = k % 2 ? aw - cw2 - 1 : cw2, gh = k / 2 ? 72 - ch2 - 1 : ch2;
@@ -799,18 +1030,20 @@ static void render_browse(home *h, framebuffer *fb) {
         else if (it->kind == BI_GAME) { const hgame *g = &h->all[it->idx]; name = g->title; snprintf(sub, sizeof sub, "%s%s%s", g->year ? g->year : "", g->year && g->genre ? " \xC2\xB7 " : "", g->genre ? g->genre : ""); if (!sub[0]) snprintf(sub, sizeof sub, " "); }
         else { const hcat *c = &h->cats[it->idx]; name = c->label; snprintf(sub, sizeof sub, "%s \xC2\xB7 %d game%s", c->kind ? c->kind : "", c->ng, c->ng == 1 ? "" : "s"); }
         if (cat) tile_caption(h, fb, inner_clip, S, x, ty + 2, w, TH - 4, 12, name, sub); else tile_caption(h, fb, inner_clip, S, x, capy, w, TH - 2 - 72 - 2, 6, name, sub);
-        gfx_rrect_ring(fb, clip, x, ty, w, TH, S->tile_radius, 2, foc ? RGBA(S->focus, 255) : RGBA(S->tile_border, S->tile_border_a));
-        LR(h, foc ? "browse-tile-focus" : "browse-tile", x, ty < top ? top : ty, x + w, ty + TH > top + inner ? top + inner : ty + TH); LT(h, HT_TILE, i, x, ty < top ? top : ty, x + w, ty + TH > top + inner ? top + inner : ty + TH);
+        gfx_rrect_ring(fb, clip, x, ty, w, TH, S->tile_radius, 2, foc ? RGBA(S->focus == RED_DEF ? RED : S->focus, 255) : RGBA(S->tile_border, S->tile_border_a));
+        LRI(h, foc ? "browse-tile-focus" : "browse-tile", i, x, ty < top ? top : ty, x + w, ty + TH > top + inner ? top + inner : ty + TH); LT(h, HT_TILE, i, x, ty < top ? top : ty, x + w, ty + TH > top + inner ? top + inner : ty + TH);
     }
     #undef TILE_Y
     #undef TILE_X
+    if (drawn) { for (int i = 0; i < h->nfold; i++) if (!drawn[i] && h->fold[i].tile.px) img_free(&h->fold[i].tile); free(drawn); }   /* decoded tiles: only those on screen */
 }
 /* hmEmpty: an empty folder or category, in the theme's games area */
 static void render_empty(home *h, framebuffer *fb) {
     box4 b = { 140, 180, 1140, 400 }; const jval *g = h->geo;
-    if (h->theme == TH_ARCADE) { const jval *card = json_get(g, "card"), *cells = json_get(g, "cells"); box4 fr, c4; if (card && !gbox(card, "frame", &fr) && !jbox_at(cells, 4, &c4)) b = (box4){ fr.x0, fr.y0 + 80, c4.x1, fr.y0 + 280 }; }
+    if (h->theme == TH_ARCADE) { const jval *card = json_get(g, "card"), *cells = json_get(g, "cells"); box4 fr, c4; if (card && !gbox(card, "frame", &fr) && !jbox_at(cells, 4, &c4)) b = (box4){ fr.x0, fr.y0 + 80, c4.x1, fr.y0 + 280 }; region_move(h, UI_GAMES, &b); }
+    else if (h->theme == TH_BOXART) region_move(h, UI_GAMES, &b);   /* in the games area, wherever a design put it */
     else if (h->theme == TH_SHELF) { const jval *hero = json_get(g, "hero"); box4 x; if (hero && !gbox(hero, "inner", &x)) b = x; }
-    else if (h->theme == TH_MAP) { const jval *p = json_get(g, "panel"); box4 x; if (p && !gbox(p, "frame", &x)) b = x; }
+    else if (h->theme == TH_MAP) { const jval *p = json_get(g, "panel"); box4 x; if (p && !gbox(p, "frame", &x)) b = x; region_move(h, UI_DETAILS, &b); }
     const char *msg = h->nav.sec == SEC_CAT ? "No installed games match this category." : "This folder is empty. Add games using Classic Cart Studio for Windows.";
     int W = b.x1 - b.x0, H = b.y1 - b.y0; gfx_rrect(fb, FULL, b.x0, b.y0, W, H, 8, RGBA(0x08080C, 219)); gfx_rrect_ring(fb, FULL, b.x0, b.y0, W, H, 8, 2, RGBA(RED, 255));
     const font *f = &h->f[F_S400_20]; span ln[8]; size_t n = text_wrap(f, msg, W - 48, 0, ln, 8); double lh = 30, t0 = b.y0 + (H - n * lh) / 2;
@@ -822,36 +1055,39 @@ static void render_empty(home *h, framebuffer *fb) {
 /* ---------- overlays: notice, START menu, theme picker, Adventure Map destinations ---------- */
 static void render_notice(home *h, framebuffer *fb) {
     gfx_fill(fb, FULL, 0, 0, CCS_FB_W, CCS_FB_H, RGBA(0, 140));
-    const font *ft = &h->f[F_SILK11], *fx = &h->f[F_S400_17], *fh = &h->f[F_S400_15]; int W = 560, inner = W - 44; span ln[12];
-    size_t n = text_wrap(fx, h->notice_text, inner, 0, ln, 12); double lh = 17 * 1.5;
+    const font *ft = &h->f[design_menu_font(h, 1, F_SILK11)], *fx = &h->f[design_menu_font(h, 0, F_S400_17)], *fh = &h->f[F_S400_15]; int W = 560, inner = W - 44; span ln[12];
+    char nt[700], nti[200]; design_upper_if_needed(fx, h->notice_text, nt, sizeof nt); design_upper_if_needed(ft, h->notice_title, nti, sizeof nti); int pa = 255; uint32_t pc = design_panel(h, 0x111115, &pa);
+    size_t n = text_wrap(fx, nt, inner, 0, ln, 12); double lh = fx->px * 1.5;
     int H = iround(2 + 14 + lh_normal(ft) + 10 + 1 + 8 + 6 + n * lh + 14 + lh_normal(fh) + 14 + 2), x = (CCS_FB_W - W) / 2, y = (CCS_FB_H - H) / 2;
-    gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204)); gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(0x111115, 255)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255));
-    double yy = y + 2 + 14; T(fb, FULL, ft, x + 22, baseline_normal(ft, yy), h->notice_title, 0xFFB3B7, 255, 1); yy += lh_normal(ft) + 10;
+    gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204)); gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(pc, pa)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255));
+    double yy = y + 2 + 14; T(fb, FULL, ft, x + 22, baseline_normal(ft, yy), nti, design_text(h, 0xFFB3B7), 255, 1); yy += lh_normal(ft) + 10;
     gfx_fill(fb, FULL, x + 2, iround(yy), W - 4, 1, RGBA(0xFFFFFF, 36)); yy += 1 + 8 + 6;
-    for (size_t i = 0; i < n; i++) text_draw(fb, NULL, FULL, fx, x + 22, baseline_in(fx, yy + i * lh, lh), h->notice_text + ln[i].start, ln[i].len, RGBA(0xE2E0DA, 255), 0, 0);
-    yy += n * lh + 14; T(fb, FULL, fh, x + 22, baseline_normal(fh, yy), "Press any button to return.", 0xCFCDC7, 255, 0);
+    for (size_t i = 0; i < n; i++) text_draw(fb, NULL, FULL, fx, x + 22, baseline_in(fx, yy + i * lh, lh), nt + ln[i].start, ln[i].len, RGBA(design_text(h, 0xE2E0DA), 255), 0, 0);
+    yy += n * lh + 14; T(fb, FULL, fh, x + 22, baseline_normal(fh, yy), "Press any button to return.", design_text(h, 0xCFCDC7), 255, 0);
     LR(h, "notice", x, y, x + W, y + H);
 }
 /* .menu (home.css): min-width 360, padding 14 0, h3 Press Start 11 px #ffb3b7 with a rule, items 20 px with 11/22 px padding;
  * Adventure Map: .menu.rpg (double border, Press Start 13 px items, a red triangle before the focused one) */
 static void render_menu(home *h, framebuffer *fb, const char *title, const char **items, int n, int focus) {
     int rpg = h->ops->menu_rpg; gfx_fill(fb, FULL, 0, 0, CCS_FB_W, CCS_FB_H, RGBA(0, 140));
-    const font *fh = rpg ? &h->f[F_PX10] : &h->f[F_PX11], *fi = rpg ? &h->f[F_PX13] : &h->f[F_S400_20], *fb2 = rpg ? &h->f[F_PX13] : &h->f[F_S700_20];
+    const font *fh = &h->f[design_menu_font(h, 1, rpg ? F_PX10 : F_PX11)], *fi = &h->f[design_menu_font(h, 0, rpg ? F_PX13 : F_S400_20)], *fb2 = &h->f[design_menu_font(h, 0, rpg ? F_PX13 : F_S700_20)];
+    int pa = 255; uint32_t pc = design_panel(h, rpg ? 0x0E0B0A : 0x111115, &pa); char tb[300], ib[300];
     int ih = rpg ? iround(10 + lh_normal(fi) + 10) : iround(11 + lh_normal(fi) + 11), W = 360;
-    for (int i = 0; i < n; i++) { int w = text_w(fb2, items[i], strlen(items[i]), 0) + 44 + (rpg ? 30 : 0); if (w > W) W = w; } if (W > 560) W = 560;
+    for (int i = 0; i < n; i++) { design_upper_if_needed(fb2, items[i], ib, sizeof ib); int w = text_w(fb2, ib, strlen(ib), 0) + 44 + (rpg ? 30 : 0); if (w > W) W = w; } if (W > 560) W = 560;
     int fix = 14 + iround(lh_normal(fh)) + 10 + 8 + 14 + (rpg ? 8 : 4), top = 12, bot = h->leg_y0 > 0 && h->leg_y0 - 8 < CCS_FB_H - 12 ? h->leg_y0 - 8 : CCS_FB_H - 12;
     if (fix + n * ih > bot - top) { int m = (bot - top - fix) / (n > 0 ? n : 1); if (m < ih) ih = m < iround(lh_normal(fi)) + 8 ? iround(lh_normal(fi)) + 8 : m; }
     int H = fix + n * ih, x = (CCS_FB_W - W) / 2, y = (CCS_FB_H - H) / 2; if (y + H > bot) y = bot - H; if (y < top) y = top; LT(h, HT_PANEL, 0, x, y, x + W, y + H);
     gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204));
-    if (rpg) { gfx_rrect(fb, FULL, x - 2, y - 2, W + 4, H + 4, 4, RGBA(0, 255)); gfx_rrect(fb, FULL, x, y, W, H, 4, RGBA(0x0E0B0A, 255)); gfx_shadow(fb, FULL, x, y, W, H, 15, RGBA(RED, 90));
-        gfx_rrect(fb, FULL, x, y, W, H, 4, RGBA(0x0E0B0A, 255)); gfx_rrect_ring(fb, FULL, x, y, W, H, 4, 1, RGBA(0xFFB3B7, 255)); gfx_rrect_ring(fb, FULL, x + 3, y + 3, W - 6, H - 6, 2, 1, RGBA(0xFFB3B7, 255)); }
-    else { gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(0x111115, 255)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255)); }
-    int yy = y + 14 + (rpg ? 4 : 2); T(fb, FULL, fh, x + 22, baseline_normal(fh, yy), title, rpg ? 0xFFD166 : 0xFFB3B7, 255, 1); yy += iround(lh_normal(fh)) + 10;
+    if (rpg) { gfx_rrect(fb, FULL, x - 2, y - 2, W + 4, H + 4, 4, RGBA(0, 255)); gfx_rrect(fb, FULL, x, y, W, H, 4, RGBA(pc, pa)); gfx_shadow(fb, FULL, x, y, W, H, 15, RGBA(RED, 90));
+        gfx_rrect(fb, FULL, x, y, W, H, 4, RGBA(pc, pa)); gfx_rrect_ring(fb, FULL, x, y, W, H, 4, 1, RGBA(0xFFB3B7, 255)); gfx_rrect_ring(fb, FULL, x + 3, y + 3, W - 6, H - 6, 2, 1, RGBA(0xFFB3B7, 255)); }
+    else { gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(pc, pa)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255)); }
+    design_upper_if_needed(fh, title, tb, sizeof tb);
+    int yy = y + 14 + (rpg ? 4 : 2); T(fb, FULL, fh, x + 22, baseline_normal(fh, yy), tb, design_text(h, rpg ? 0xFFD166 : 0xFFB3B7), 255, 1); yy += iround(lh_normal(fh)) + 10;
     gfx_fill(fb, FULL, x + (rpg ? 4 : 2), yy, W - (rpg ? 8 : 4), 1, RGBA(0xFFFFFF, 36)); yy += 8;
     for (int i = 0; i < n; i++) {
-        int foc = i == focus; const font *f = foc ? fb2 : fi;
-        if (rpg) { if (foc) { const font *s = &h->f[F_SYM13]; T(fb, FULL, s, x + 22, baseline_center(s, yy, ih), "\xE2\x96\xB6", RED2, 255, 0); } T(fb, FULL, f, x + 22 + (foc ? 22 : 0), baseline_center(f, yy, ih), items[i], foc ? 0xFFD166 : 0xE9E7E1, 255, 0); }
-        else { if (foc) gfx_fill(fb, FULL, x + 2, yy, W - 4, ih, RGBA(RED, 255)); if (foc) Tb(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), items[i], 0xFFFFFF, 255, 0); else T(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), items[i], 0xE9E7E1, 255, 0); }
+        int foc = i == focus; const font *f = foc ? fb2 : fi; design_upper_if_needed(f, items[i], ib, sizeof ib);
+        if (rpg) { if (foc) { const font *s = &h->f[F_SYM13]; T(fb, FULL, s, x + 22, baseline_center(s, yy, ih), "\xE2\x96\xB6", RED2, 255, 0); } T(fb, FULL, f, x + 22 + (foc ? 22 : 0), baseline_center(f, yy, ih), ib, foc ? 0xFFD166 : design_text(h, 0xE9E7E1), 255, 0); }
+        else { if (foc) gfx_fill(fb, FULL, x + 2, yy, W - 4, ih, RGBA(RED, 255)); if (foc) Tb(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), ib, 0xFFFFFF, 255, 0); else T(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), ib, design_text(h, 0xE9E7E1), 255, 0); }
         LR(h, foc ? "menu-focus" : "menu-item", x, yy, x + W, yy + ih); LT(h, HT_MENU, i, x, yy, x + W, yy + ih); yy += ih;
     }
     LR(h, "menu", x, y, x + W, y + H);
@@ -862,8 +1098,8 @@ static void render_theme_picker(home *h, framebuffer *fb) {
     const font *fh = &h->f[F_PX11], *fn = &h->f[F_S400_14], *fc = &h->f[F_S400_11]; const char *title = "CHANGE THEME \xC2\xB7 A applies at once";
     int cw = 200, gap = 18, th = 113, ch = 6 + th + 6 + iround(lh_normal(fn)) + iround(lh_normal(fc)) + 4 + 6, W = 22 + 4 * cw + 3 * gap + 22, H = 14 + iround(lh_normal(fh)) + 10 + 1 + 10 + ch + 14 + 14;
     int x = (CCS_FB_W - W) / 2, y = (CCS_FB_H - H) / 2; LT(h, HT_PANEL, 0, x, y, x + W, y + H);
-    gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204)); gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(0x111115, 255)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255));
-    int yy = y + 16; T(fb, FULL, fh, x + 22, baseline_normal(fh, yy), title, 0xFFB3B7, 255, 1); yy += iround(lh_normal(fh)) + 10; gfx_fill(fb, FULL, x + 2, yy, W - 4, 1, RGBA(0xFFFFFF, 36)); yy += 11;
+    { int pa = 255; uint32_t pc = design_panel(h, 0x111115, &pa); gfx_shadow(fb, FULL, x, y + 20, W, H, 30, RGBA(0, 204)); gfx_rrect(fb, FULL, x, y, W, H, 10, RGBA(pc, pa)); gfx_rrect_ring(fb, FULL, x, y, W, H, 10, 2, RGBA(RED, 255)); }
+    int yy = y + 16; T(fb, FULL, fh, x + 22, baseline_normal(fh, yy), title, design_text(h, 0xFFB3B7), 255, 1); yy += iround(lh_normal(fh)) + 10; gfx_fill(fb, FULL, x + 2, yy, W - 4, 1, RGBA(0xFFFFFF, 36)); yy += 11;
     for (int t = 0; t < N_THEMES; t++) {
         int cx = x + 22 + t * (cw + gap), foc = t == h->nav.oindex, cur = t == h->theme;
         if (foc) gfx_shadow(fb, FULL, cx, yy, cw, ch, 11, RGBA(RED, 153));
@@ -897,7 +1133,7 @@ static void open_start_menu(home *h) {   /* START: the menu, and which game its 
 
 /* ---------- theme switching (on the console, offline: everything is in the package) ---------- */
 int home_set_theme(home *h, const char *id, int save) {
-    int t = theme_index(id); if (t < 0) return -1; if (t == h->theme && h->ops) { if (save) prefs_save(h, THEME_IDS[t], h->saved_epoch); return 0; }
+    accent_use(h); int t = theme_index(id); if (t < 0) return -1; if (t == h->theme && h->ops) { if (save) prefs_save(h, THEME_IDS[t], h->saved_epoch); return 0; }
     int prev = h->theme; char err[256]; details_close(h);
     if (theme_activate(h, t, err, sizeof err)) { emit_json(h, "{\"ev\":\"theme_failed\",\"theme\":\"%s\",\"error\":\"%s\"}", id, err); char e2[256]; theme_activate(h, prev, e2, sizeof e2); return -1; }
     /* the section and the selected game stay; focus returns to the section (a theme's navigation has a different layout) */
@@ -911,7 +1147,7 @@ int home_set_theme(home *h, const char *id, int save) {
 
 /* ---------- input ---------- */
 void home_input(home *h, button b, in_kind k, uint64_t clock_ms) {
-    if (!h->nall) return;
+    if (!h->nall) return; accent_use(h);
     int dir = dir_of(b);
     if (k == IN_RELEASE || k == IN_FORCED_RELEASE) { if ((int)b == h->nav.swallow) h->nav.swallow = -1; if (dir >= 0 && (int)b == h->nav.repeat_button) h->nav.repeat_button = -1; return; }
     if (k == IN_REPEAT) { if (dir < 0 || (int)b != h->nav.repeat_button || h->nav.notice) return; }
@@ -947,7 +1183,7 @@ void home_input(home *h, button b, in_kind k, uint64_t clock_ms) {
     }
     if (N->overlay == OV_THEME) {
         if (b == B_B || b == B_START) N->overlay = OV_NONE;
-        else if (b == B_LEFT || b == B_UP) { if (N->oindex > 0) N->oindex--; } else if (b == B_RIGHT || b == B_DOWN) { if (N->oindex < N_THEMES - 1) N->oindex++; }
+        else if (b == B_LEFT) { if (N->oindex > 0) N->oindex--; } else if (b == B_RIGHT) { if (N->oindex < N_THEMES - 1) N->oindex++; }   /* one row of themes */
         else if (b == B_A) { N->overlay = OV_NONE; home_set_theme(h, THEME_IDS[N->oindex], 1); }
         home_emit_state(h); return;
     }
@@ -962,7 +1198,7 @@ void home_input(home *h, button b, in_kind k, uint64_t clock_ms) {
         int bt[8], k = foot_items(h, bt); if (N->foot >= k) N->foot = k ? k - 1 : 0;
         if (b == B_LEFT) { if (N->foot > 0) N->foot--; home_emit_state(h); return; }
         if (b == B_RIGHT) { if (N->foot < k - 1) N->foot++; home_emit_state(h); return; }
-        if (b == B_UP || b == B_B || b == B_DOWN) { N->foot_on = 0; home_emit_state(h); return; }
+        if (b == B_UP || b == B_B) { N->foot_on = 0; home_emit_state(h); return; } if (b == B_DOWN) { home_emit_state(h); return; }   /* the lowest row: Down is an edge */
         if (b == B_A && k) { int a = bt[N->foot]; emit_json(h, "{\"ev\":\"footer_activate\",\"item\":%d,\"button\":%d}", N->foot, a);
             if (a == -2) { music_toggle(h); home_emit_state(h); return; }
             N->foot_on = 0; home_input(h, (button)a, IN_PRESS, clock_ms); home_input(h, (button)a, IN_RELEASE, clock_ms); return; }   /* exactly that hint's action, then the focus is back where it was */
@@ -1005,6 +1241,7 @@ void home_open_mapdest(home *h) { h->nav.overlay = OV_MAPDEST; h->nav.oindex = 0
 
 /* ---------- render ---------- */
 static void render_overlays(home *h, framebuffer *fb) {
+    if (ccs_overlay_begin && (h->nav.overlay != OV_NONE || h->nav.notice)) ccs_overlay_begin();
     if (h->nav.overlay == OV_START) { const char *lab[N_START]; char b[2][200]; start_labels(h, lab, b); render_menu(h, fb, "MENU", lab, start_count(), h->nav.oindex); }
     else if (h->nav.overlay == OV_THEME) render_theme_picker(h, fb);
     else if (h->nav.overlay == OV_MAPDEST) render_menu(h, fb, "WHERE TO?", DEST_LABEL, 6, h->nav.oindex);
@@ -1077,17 +1314,18 @@ void home_pointer(home *h, int kind, int x, int y, int delta, uint64_t clock_ms)
     if (h->npq >= 8) return;
     h->pq[h->npq++] = (ptev){ kind, x, y, delta, clock_ms }; }
 void home_render(home *h, framebuffer *fb, uint64_t now) {
-    int n = h->npq; if (n) { h->hitrec = 1; for (int i = 0; i < n; i++) if (h->pq[i].kind != HP_MOVE) h->hitrec = 2; h->ntg = 0; }   /* 2: the themes draw in full (their cached frames hold targets too) */
+    accent_use(h); int n = h->npq; if (n) { h->hitrec = 1; for (int i = 0; i < n; i++) if (h->pq[i].kind != HP_MOVE) h->hitrec = 2; h->ntg = 0; }   /* 2: the themes draw in full (their cached frames hold targets too) */
     render_frame(h, fb, now);
     if (n) { h->hitrec = 0; pointer_resolve(h); }
 }
 void home_select(home *h, int index) {
-    if (!h->n) return; if (index < 0) index = 0; if (index >= (int)h->n) index = (int)h->n - 1;
+    accent_use(h); if (!h->n) return; if (index < 0) index = 0; if (index >= (int)h->n) index = (int)h->n - 1;
     if (h->nav.sec == SEC_BROWSE) home_go_all(h);
     details_close(h); h->nav.screen = SCR_GRID; h->nav.zone = Z_GAMES; h->gen++; h->nav.notice = 0; h->nav.overlay = OV_NONE; h->nav.sel = index; home_emit_state(h);
 }
 void home_layout(home *h, framebuffer *fb, uint64_t now) {
     h->rec = 1; home_render(h, fb, now); h->rec = 0; char buf[200];
-    for (int i = 0; i < h->nrec; i++) { layrec *r = &h->recs[i]; snprintf(buf, sizeof buf, "{\"ev\":\"layout_rect\",\"name\":\"%s\",\"box\":[%d,%d,%d,%d]}", r->name, r->b.x0, r->b.y0, r->b.x1, r->b.y1); if (h->emit) h->emit(buf); }
+    for (int i = 0; i < h->nrec; i++) { layrec *r = &h->recs[i]; if (r->idx >= 0) snprintf(buf, sizeof buf, "{\"ev\":\"layout_rect\",\"name\":\"%s\",\"box\":[%d,%d,%d,%d],\"idx\":%d}", r->name, r->b.x0, r->b.y0, r->b.x1, r->b.y1, r->idx);
+        else snprintf(buf, sizeof buf, "{\"ev\":\"layout_rect\",\"name\":\"%s\",\"box\":[%d,%d,%d,%d]}", r->name, r->b.x0, r->b.y0, r->b.x1, r->b.y1); if (h->emit) h->emit(buf); }
     emit_json(h, "{\"ev\":\"layout_end\",\"rects\":%d,\"screen\":\"%s\",\"theme\":\"%s\"}", h->nrec, h->nav.screen == SCR_DETAILS ? "details" : "grid", THEME_IDS[h->theme]);
 }

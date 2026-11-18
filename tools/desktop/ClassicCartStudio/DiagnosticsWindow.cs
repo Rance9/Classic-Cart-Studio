@@ -43,7 +43,8 @@ namespace ClassicCartStudio
             var proto = Regex.Match(ver, "\"protocol\"\\s*:\\s*(\\d+)"); var caps = Regex.Match(ver, "\"capabilities\"\\s*:\\s*\\[([^\\]]*)\\]");
             var runtime = main.WebViewRuntime();
             Add("Application", "Classic Cart Studio " + App.Version, Good);
-            Add("WebView2 runtime", runtime == "not found" ? "not found (install or repair Microsoft Edge)" : "version " + runtime, runtime == "not found" ? Bad : Good);
+            var rtBad = runtime == "not found" || runtime.StartsWith("too old");
+            Add("WebView2 Runtime", rtBad ? runtime + " (run the Classic Cart Studio installer again: it adds the Runtime)" : "version " + runtime, rtBad ? Bad : Good);
             Add("Interface", "installed copy, " + App.StartUrl + " — " + (main.WebsiteShown ? "loaded" : "not loaded") + " (" + main.LastNavigation + ")", main.WebsiteShown ? Good : Warn);
             // the Background Helper is the app's own helper process (not a Windows service); version, port and process id stay in the report below
             Add("Background Helper", ok ? "Running" : !string.IsNullOrEmpty(b.LastError) ? "Unavailable: " + b.LastError : b.Process == null ? "Stopped" : "Stopped. Choose Restart Background Helper.", ok ? Good : Bad);

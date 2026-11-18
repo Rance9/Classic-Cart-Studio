@@ -31,8 +31,10 @@ self.addEventListener('install', e => { e.waitUntil((async () => {
 // activates, so the clean-up holds the switch for at most 2 s and goes on after it (it runs again at the next status question).
 // Never while another version is installing or waits: its files are in a cache of its own (versions before this one removed it then,
 // so the new version took over with no files kept: online it worked, offline it did not)
+const RETIRED = /\/art\/hero\//;   // D-131: the retired per-game backgrounds, removed from the kept pictures too (covers stay)
 const tidy = async () => { const r = self.registration; if(r.installing || (r.waiting && r.waiting !== self.serviceWorker)) return;
-  for(const k of await caches.keys()) if(k.startsWith('ccs-') && k !== V && k !== MEDIA && k !== META) await caches.delete(k); };
+  for(const k of await caches.keys()) if(k.startsWith('ccs-') && k !== V && k !== MEDIA && k !== META) await caches.delete(k);
+  const m = await caches.open(MEDIA); for(const q of await m.keys()) if(RETIRED.test(new URL(q.url).pathname)) await m.delete(q); };
 // this version's files, complete again when some went missing (an earlier version's clean-up removed them while this one waited): fetched
 // only while the site still serves this same version (its sw.js names it), so a version never holds another version's files
 async function complete(){ const c = await caches.open(V), want = M.shell.concat(await prepared() ? M.home : []), miss = [];
@@ -51,7 +53,7 @@ self.addEventListener('fetch', e => { const q = e.request; if(q.method !== 'GET'
     if(navTo(p)) p = navTo(p); else if(p && navTo(p + '/')){ e.respondWith(Response.redirect(at(p + '/') + u.search, 301)); return; } else return; }
   if(M.shell.includes(p) || M.home.includes(p)){ e.respondWith((async () => { const c = await caches.open(V), hit = await c.match(at(p)); if(hit) return hit;
     const r = await fetch(q); if(r.ok && M.home.includes(p)) c.put(at(p), r.clone()); return r; })()); return; }
-  if(/^(art|brand\/help)\//.test(p)) e.respondWith(media(q)); });
+  if(/^(art|brand\/help|included)\//.test(p)) e.respondWith(media(q)); });   // included/: the Included Games and their source
 self.addEventListener('message', e => { const d = e.data || {}, port = e.ports && e.ports[0], reply = o => { if(port) port.postMessage(o); };
   if(d.type === 'status') e.waitUntil((async () => { if(self.registration.active === self.serviceWorker){ await tidy(); reply({version: M.version, prepared: await prepared()}); await complete(); return; } reply({version: M.version, prepared: await prepared()}); })());
   // ready for offline use: the HOME's art in this version's cache, and the covers of the page's own games (named by the page, this site only)

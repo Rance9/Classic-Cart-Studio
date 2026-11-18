@@ -77,6 +77,20 @@ namespace CcsWorker.Tests
                 }
             });
 
+            T.Add("protocol", "a request naming the reserved SNES system, model, provider or capability is unsupported-target, before any shell command (SNES-GROUNDWORK.md)", () =>
+            {
+                var sh = new ScriptedShell(); int calls = 0; sh.Answer = (c, i) => { calls++; return Tuple.Create(0, "dir\n", ""); }; var h = new Harness(sh);
+                foreach (var extra in new[] { "\"capability\":\"snes-gameplay\"", "\"game_system\":\"snes\"", "\"physical_model\":\"snes-classic-edition\"", "\"provider\":{\"kind\":\"core\",\"id\":\"snes-unselected\"}",
+                                              "\"ccs_target\":{\"schema\":\"ccs-target/1\",\"game_system\":\"snes\"}", "\"boot_option\":\"ccs-snes\"" })
+                {
+                    h.SendRaw("{\"v\":1,\"id\":\"s\",\"cmd\":\"stat\",\"args\":{\"path\":\"/var/lib/ccs\"," + extra + "}}");
+                    var e = h.Next(); T.Eq("unsupported-target", e["code"] as string, extra); T.Eq("s", e["id"] as string, "id echoed");
+                }
+                T.Eq(0, calls, "no shell command ran for any of them");
+                h.SendRaw("{\"v\":1,\"id\":\"n\",\"cmd\":\"stat\",\"args\":{\"path\":\"/var/lib/ccs\",\"game_system\":\"nes\"}}");
+                T.Eq("result", h.Next()["event"] as string, "the same request for NES runs as before");
+            });
+
             T.Add("protocol", "cancel while idle is not accepted; disconnect then an operation is not-connected; shutdown answers then exits", () =>
             {
                 var sh = new ScriptedShell(); sh.Answer = (c, i) => Tuple.Create(0, "dir\n", ""); var h = new Harness(sh);
@@ -147,7 +161,7 @@ namespace CcsWorker.Tests
                 using (var h = new Harness(sh))
                 {
                     var caps = Harness.Res(h.Call("capabilities"));
-                    T.True(((object[])caps["features"]).SequenceEqual(new object[] { "read-chunks", "sync", "pointer-expect", "write-tier" }), "features");
+                    T.True(((object[])caps["features"]).SequenceEqual(new object[] { "read-chunks", "sync", "pointer-expect", "write-tier", "backup-admission", "mod-start" }), "features");
                     var lim = (Dictionary<string, object>)caps["limits"]; T.Eq(262144, (int)lim["chunk_max"], "chunk max"); T.Eq(1000000, (int)lim["read_max_bytes"], "whole-file read limit unchanged");
                     var r = Harness.Res(h.Call("read", A("path", "/var/lib/ccs/data/f", "offset", 0, "length", 4096)));
                     T.Eq(4096, (int)r["size"], "piece size"); T.Eq(5000, (int)r["file_size"], "file size"); T.Eq(false, (bool)r["eof"], "not the end");

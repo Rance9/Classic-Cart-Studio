@@ -6,6 +6,11 @@ git history). Fails closed: exit 1 when anything prohibited is found. Detection 
   console images     ext4 superblock, squashfs "hsqs", Android boot/kernel magic "ANDROID!", "nandb"/"kernel.img"/"nand-full.bin" names, .hsqs .hmod .img
   secrets            GitHub/OAuth/AWS-style tokens, literal pass-word assignments, private keys
   private paths      C:\\Users\\<name>, OneDrive paths, user-specific hostnames in text files
+  local paths        in shipped data and presentation files (HTML, JSON, JS, CSS, Markdown, text, SVG, XML, web manifests): file: URIs
+                     to a local file (file:///C:/..., file://localhost/..., any case, JSON-escaped \\/ and percent-encoded forms) and
+                     drive paths into private workspace roots (with any slash style). Build scripts
+                     and git history are not held to this rule (their own provenance may name a local cache); a check such as
+                     protocol === 'file:' or an <input type="file"> is not a local path
   user data          personal stores, exports, staging, rollback snapshots, logs with local paths
 
 Usage: python scan_prohibited.py <path> [--git-history] [--allow <relpath-glob> ...] [--json out.json]"""
@@ -24,10 +29,31 @@ TEXT_EXT = {".py", ".js", ".css", ".html", ".md", ".json", ".txt", ".yml", ".yam
 #   NES_PRIVATE_MARKERS=name1,name2
 _EXTRA = [re.escape(m.strip()) for m in os.environ.get("NES_PRIVATE_MARKERS", "").split(",") if m.strip()]
 PRIVATE_PATH = re.compile("|".join([r"[A-Za-z]:\\\\?Users\\\\?[A-Za-z0-9._-]+", r"/Users/[A-Za-z0-9._-]+", "One" + "Drive" + r"\\\\", r"[A-Za-z]:\\\\" + "NES" + r"\\\\"] + _EXTRA), re.I)
+_SL = r"(?:\\\\|\\/|\\|/|%2f|%5c)"   # a path separator as it appears in text, JSON (\\ and \/) or a percent-encoded URL
+LOCAL_PATH = re.compile("|".join([
+    r"\bfile:" + _SL + "{2,3}" + r"(?:localhost|[a-z](?::|%3a|\||\$)|[a-z0-9_.~-]+" + _SL + ")",   # file:///C:/..., file://localhost/..., file:///home/x/...
+    r"\b[a-z](?::|%3a)" + _SL + r"(?:" + "N" + "ES" + r"|users|documents and settings)" + _SL,
+    "one" + "drive" + _SL + r"[a-z0-9]"]), re.I)
+LOCAL_PATH_EXT = {".html", ".htm", ".json", ".js", ".mjs", ".css", ".md", ".txt", ".svg", ".xml", ".webmanifest", ".csv"}   # shipped data and presentation
 SECRET = re.compile(r"(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA|EC|OPENSSH|DSA) PRIVATE KEY-----|xox[baprs]-[A-Za-z0-9-]{10,}|sk_live_[A-Za-z0-9]{16,}|(?i:pass" + r"word\s*=\s*['\"][^'\"]{4,}))")
 MAGIC = [(b"NES\x1a", "iNES/NES 2.0 ROM"), (b"UNIF", "UNIF ROM"), (b"FDS\x1a", "FDS image"), (b"hsqs", "squashfs image"), (b"ANDROID!", "Android boot image / kernel"), (b"\x7fELF", "ELF binary"), (b"PK\x03\x04", "ZIP archive"), (b"7z\xbc\xaf\x27\x1c", "7z archive"), (b"Rar!\x1a\x07", "RAR archive"), (b"\x1f\x8b", "gzip"), (b"\xfd7zXZ\x00", "xz")]
 NAME_HINTS = ("nand", "kernel.img", "nandb", "clover", "dump.bin", "uboot", "hakchi.hmod", "config.json")
 MAX_NESTED = 2000
+# The Included Games (site-data/included/index.json): the only game files accepted, each by its published path AND its whole-file SHA-256,
+# from included-games.sha256 beside this program (never from the scanned tree, which cannot add to it). Any other ROM still fails.
+INCLUDED: dict[str, str] = {}
+_pin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "included-games.sha256")
+if os.path.isfile(_pin):
+    for _l in open(_pin, encoding="utf-8"):
+        _l = _l.strip()
+        if _l and not _l.startswith("#"): _h, _p = _l.split(None, 1); INCLUDED[_p.strip()] = _h.lower()
+ROM_HITS = {"iNES/NES 2.0 ROM", "ROM-like extension .nes"}
+
+def included_game(rel: str, data: bytes) -> bool:
+    """an Included Game: its path ends with a pinned published path and its bytes have that path's SHA-256"""
+    import hashlib
+    want = [h for p, h in INCLUDED.items() if rel == p or rel.endswith("/" + p)]
+    return bool(want) and hashlib.sha256(data).hexdigest() in want
 
 def classify_bytes(b: bytes, name: str) -> list[str]:
     hits = []
@@ -47,6 +73,9 @@ def scan_file(path: str, rel: str, allow: list[str], findings: list, nested_budg
     except OSError: return
     with open(path, "rb") as f: head = f.read(4096)
     hits = classify_bytes(head, rel)
+    if hits and set(hits) <= ROM_HITS and size <= 4_194_304:
+        with open(path, "rb") as f:
+            if included_game(rel, f.read()): hits = []
     ext = os.path.splitext(rel)[1].lower()
     if ext in TEXT_EXT or (not hits and size < 2_000_000):
         try: txt = open(path, "r", encoding="utf-8", errors="replace").read(2_000_000)
@@ -54,6 +83,8 @@ def scan_file(path: str, rel: str, allow: list[str], findings: list, nested_budg
         for m in SECRET.finditer(txt): findings.append({"file": rel, "kind": "secret", "detail": m.group(0)[:12] + "…"}); break
         pm = PRIVATE_PATH.search(txt)
         if pm and ext in TEXT_EXT: findings.append({"file": rel, "kind": "private-path", "detail": pm.group(0)[:60]})
+        lm = LOCAL_PATH.search(txt) if ext in LOCAL_PATH_EXT else None
+        if lm and not pm: findings.append({"file": rel, "kind": "private-path", "detail": "local path " + lm.group(0)[:60]})
     for h in hits:
         if "archive" in h or "gzip" in h or "xz" in h:
             if ext in (".zip",) or head.startswith(b"PK\x03\x04"):
@@ -94,7 +125,9 @@ def scan_git_history(repo: str, allow: list[str]) -> list:
         t = subprocess.run(["git", "-C", repo, "cat-file", "-t", sha], capture_output=True, text=True).stdout.strip()
         if t != "blob": continue
         b = subprocess.run(["git", "-C", repo, "cat-file", "-p", sha], capture_output=True).stdout
-        for h in classify_bytes(b[:4096], name):
+        hb = classify_bytes(b[:4096], name)
+        if hb and set(hb) <= ROM_HITS and included_game(name, b): hb = []
+        for h in hb:
             if "archive" in h and name.lower().endswith(".zip"):
                 try:
                     with zipfile.ZipFile(io.BytesIO(b)) as z:

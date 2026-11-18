@@ -19,7 +19,7 @@ namespace CcsWorker.Tests
             if (args.Length > 0 && args[0] == "--serve-busybox") return Serve(args);
             string[] only = null;
             for (int i = 0; i < args.Length; i++) if (args[i] == "--only" && i + 1 < args.Length) only = args[++i].Split(',');
-            GateTests.Register(); ProtocolTests.Register(); ClovershellTests.Register(); SshTests.Register(); OpsTests.Register(); FidelityTests.Register();
+            GateTests.Register(); AdmissionTests.Register(); ProtocolTests.Register(); ClovershellTests.Register(); SshTests.Register(); OpsTests.Register(); FidelityTests.Register();
             int pass = 0, fail = 0, skip = 0;
             var per = T.All.Select(t => t.Item1).Distinct().ToDictionary(c => c, c => new int[3]);
             foreach (var t in T.All)
@@ -46,7 +46,9 @@ namespace CcsWorker.Tests
             }
             BusyboxShell sh;
             try { sh = BusyboxShell.Create(); } catch (SkipException e) { Console.Error.WriteLine("fidelity shell unavailable: " + e.Message); return 3; }
-            try { return new WorkerServer(Console.OpenStandardInput(), Console.OpenStandardOutput(), package, TestOpeners.Never, sh, () => true).Run(); }
+            // the backend's integration tests drive the install engine through this disposable shell: it starts admitted (the admission itself is
+            // tested in AdmissionTests and in the backend's dispatcher tests); the product worker never starts admitted
+            try { return new WorkerServer(Console.OpenStandardInput(), Console.OpenStandardOutput(), package, TestOpeners.Never, sh, () => true, null, true).Run(); }
             finally { sh.Dispose(); }
         }
     }

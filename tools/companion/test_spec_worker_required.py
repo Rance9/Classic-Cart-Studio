@@ -41,7 +41,7 @@ def main() -> int:
         rec, _ = exec_spec(tmp, site, good)
         datas = rec.get("datas") or []
         w = sorted((os.path.relpath(s, good).replace("\\", "/"), d.replace("\\", "/")) for s, d in datas if os.path.normcase(os.path.abspath(s)).startswith(os.path.normcase(os.path.abspath(good))))
-        ok("complete_folder_bundled", w == sorted([("BUILD-INFO.json", "console-worker"), ("CcsWorker.dll", "console-worker"), ("LibUsbDotNet.LibUsbDotNet.dll", "console-worker"), ("NOTICE", "console-worker"),
+        ok("complete_folder_bundled", w == sorted([("BUILD-INFO.json", "console-worker"), ("CcsBackup.dll", "console-worker"), ("CcsConsole.dll", "console-worker"), ("CcsWorker.dll", "console-worker"), ("LibUsbDotNet.LibUsbDotNet.dll", "console-worker"), ("NOTICE", "console-worker"),
                                                   ("Renci.SshNet.dll", "console-worker"), ("SOURCE.md", "console-worker"), ("ccs-console-worker.exe", "console-worker"),
                                                   ("ccs-console-worker.exe.config", "console-worker"), ("licenses/GPL-3.0.txt", "console-worker/licenses")]), w)
         man_src = next((s for s, d in datas if os.path.basename(s) == "bundle-manifest.json"), None)

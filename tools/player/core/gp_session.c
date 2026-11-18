@@ -37,7 +37,7 @@
 #define COMBO_GRACE_MS 100   /* SELECT or START alone reaches the game this late: time for the other to join (see gate_input) */
 typedef struct { int down, sent; uint64_t at, until; } ss_gate;   /* one player's SELECT or START on its way to the game */
 typedef struct { char id[200], title[200], version[200], rom[1024], header[40], sha[65], why[400]; int available; } gp_game;
-typedef struct { char mode[8], saves[1024], fonts[1024], scratch[1024], result[1024], settings[1024], display[1024], pack[1024], state[1024], direct[200], gset[1024], music[1100], music_pref[1100], embed[300], select[200];
+typedef struct { char mode[8], saves[1024], fonts[1024], scratch[1024], result[1024], settings[1024], display[1024], pack[1024], state[1024], design_root[1024], direct[200], gset[1024], music[1100], music_pref[1100], embed[300], select[200];
                  char leave_label[96], leave_sub[200], leave_title[96], leave_text[400]; int studio_pid; gp_game *g; int ng; } gp_cfg;   /* leave_*: home.leave (a console session) */
 enum { ST_HOME, ST_START, ST_PLAY, ST_MENU, ST_SLOTS, ST_CONFIRM, ST_MESSAGE, ST_PADS, ST_LEARN, ST_HOMEMENU, ST_QUIT, ST_PICK, ST_GSET, ST_HSET, ST_GDEF, ST_WAIT, ST_NAME };
 enum { A_NONE, A_LAST, A_TITLE, A_LOADSLOTS, A_BACK, A_KEEP, A_EXIT_SAVED, A_EXIT_NOSAVE, A_SAVESLOTS, A_PADS, A_FULLSCREEN, A_SLOT1, A_SLOT4 = A_SLOT1 + 3,
@@ -128,6 +128,7 @@ static int load_cfg(const char *path, char *why, size_t n) {
     snprintf(P.c.gset, sizeof P.c.gset, "%s", js(j, "game_settings_dir"));
     { const jval *em = json_get(j, "embed"); if (em && em->t == J_OBJ) snprintf(P.c.embed, sizeof P.c.embed, "%s", js(em, "pipe")); }   /* the Studio's Preview (D-104) */
     const jval *h = json_get(j, "home"); if (h && h->t == J_OBJ) { snprintf(P.c.pack, sizeof P.c.pack, "%s", js(h, "pack")); snprintf(P.c.state, sizeof P.c.state, "%s", js(h, "state_dir"));
+        snprintf(P.c.design_root, sizeof P.c.design_root, "%s", js(h, "design_root"));   /* the console's HOME designs (HOME-DESIGNER.md); "" none */
         snprintf(P.c.select, sizeof P.c.select, "%s", js(h, "select"));   /* the game highlighted in the Studio's Preview, kept when the HOME opens */
         const jval *mu = json_get(h, "music"); if (mu && mu->t == J_OBJ) { snprintf(P.c.music, sizeof P.c.music, "%s", js(mu, "asset")); snprintf(P.c.music_pref, sizeof P.c.music_pref, "%s", js(mu, "pref")); }
         const jval *lv = json_get(h, "leave"); if (lv && lv->t == J_OBJ) { snprintf(P.c.leave_label, sizeof P.c.leave_label, "%s", js(lv, "label")); snprintf(P.c.leave_sub, sizeof P.c.leave_sub, "%s", js(lv, "sub"));
@@ -515,7 +516,7 @@ static void on_settings(void *ctx); static void on_game_settings(void *ctx, cons
 static int on_launch(void *ctx, const char *id, const char *title, char *why, size_t whylen);
 static void reload_home(void) { g_back_st = -1;   /* the HOME behind a popup changed */
     XA.reload = 0; if (!P.hm) return; char err[300]; const char *keep = home_focus_id(P.hm); char kid[200]; snprintf(kid, sizeof kid, "%s", keep ? keep : "");
-    home *n = home_load2(P.c.pack, P.c.state[0] ? P.c.state : NULL, home_trace, err, sizeof err);
+    home *n = home_load3(P.c.pack, P.c.state[0] ? P.c.state : NULL, P.c.design_root[0] ? P.c.design_root : NULL, NULL, home_trace, err, sizeof err);
     if (!n) { char l[400], e2[340]; json_escape(err, e2, sizeof e2); snprintf(l, sizeof l, "reload-failed %s", e2); host_send(P.H, l); return; }
     home_free(P.hm); P.hm = n; home_set_launch(P.hm, on_launch, NULL); home_set_settings(P.hm, on_settings, NULL); home_set_game_settings(P.hm, on_game_settings, NULL); home_set_cover_budget(P.hm, home_covers()); mu_offer();
     for (int i = 0; i < P.c.ng && kid[0]; i++) if (!strcmp(P.c.g[i].id, kid)) { home_select(P.hm, i); break; }
@@ -566,7 +567,7 @@ static void leave_game(void) {
     if (home_mode()) { input_focus(&P.hin, 0, home_cb, NULL); input_focus(&P.hin, 1, home_cb, NULL); go(ST_HOME); if (XA.popin) { XA.popin = 0; host_popout(P.H, 0); } if (XA.reload) reload_home(); } else go(ST_QUIT); }
 /* 1: started (START or PLAY); 0: refused (why) */
 static int start_game(gp_game *g, char *why, size_t n) {
-    if (!g->available) { snprintf(why, n, "%s", g->why[0] ? g->why : "The ROM file of this game is not on " TX_HERE "."); return 0; }
+    if (!g->available) { snprintf(why, n, "%s", g->why[0] ? g->why : "The game file for this game is not on " TX_HERE "."); return 0; }
     if (gp_rom_load(g->rom, g->header, g->sha, &P.rom, why, n)) return 0;
     if (gp_lib_open(&P.L, P.c.saves, g->sha, g->title, why, n)) { gp_rom_free(&P.rom); return 0; }
     P.lib_open = 1;
@@ -975,7 +976,7 @@ int gp_open(const char *session_path, const host_config *hc_in) {
     gp_mkdirs(P.c.saves); emu_init(P.c.scratch[0] ? P.c.scratch : NULL); input_init(&P.hin); P.hin.repeat_delay_ms = 400; P.hin.repeat_rate_ms = 110; P.hin.repeat_fast_after = 6; P.hin.repeat_fast_rate = 55;
     host_poll(P.H, &P.pad, &(host_events){ 0 }); settle();   /* whatever is held when the player opens counts only after release */
     if (home_mode()) {
-        char err[300]; P.hm = home_load2(P.c.pack, P.c.state[0] ? P.c.state : NULL, home_trace, err, sizeof err);
+        char err[300]; P.hm = home_load3(P.c.pack, P.c.state[0] ? P.c.state : NULL, P.c.design_root[0] ? P.c.design_root : NULL, NULL, home_trace, err, sizeof err);
         if (!P.hm) { snprintf(P.err, sizeof P.err, "The HOME could not be loaded: %s", err); write_result("error"); host_close(P.H); return 4; }
         home_set_launch(P.hm, on_launch, NULL); home_set_settings(P.hm, on_settings, NULL); home_set_game_settings(P.hm, on_game_settings, NULL); home_set_cover_budget(P.hm, home_covers()); P.st = ST_HOME; mu_open(); mu_offer();
         if (P.c.select[0]) for (int i = 0; i < P.c.ng; i++) if (!strcmp(P.c.g[i].id, P.c.select)) { home_select(P.hm, i); break; }

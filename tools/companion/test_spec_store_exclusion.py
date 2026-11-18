@@ -31,7 +31,7 @@ def tree(d: str) -> list[str]:
 def fixture_worker(root: str, **change) -> str:
     """a stand-in for build-worker.ps1's release folder (the spec requires one): placeholder bytes, a BUILD-INFO.json that lists them"""
     import hashlib
-    d = os.path.join(root, "worker"); files = {"ccs-console-worker.exe": b"MZ fixture", "ccs-console-worker.exe.config": b"<configuration/>", "CcsWorker.dll": b"MZ fixture dll",
+    d = os.path.join(root, "worker"); files = {"ccs-console-worker.exe": b"MZ fixture", "ccs-console-worker.exe.config": b"<configuration/>", "CcsWorker.dll": b"MZ fixture dll", "CcsBackup.dll": b"MZ fixture engine", "CcsConsole.dll": b"MZ fixture loader",
                                                "Renci.SshNet.dll": b"MZ fixture ssh", "LibUsbDotNet.LibUsbDotNet.dll": b"MZ fixture usb", "NOTICE": b"notice", "SOURCE.md": b"# source",
                                                "licenses/GPL-3.0.txt": b"GPL"}
     for rel, b in files.items():

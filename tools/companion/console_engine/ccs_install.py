@@ -8,15 +8,20 @@ Where (all under /var/lib/ccs; nothing else on the console is written except thr
   pkg/current                a small file naming the copy in use ("<version>.<attempt>"), replaced in one rename. A file, not a link: the
                              console's BusyBox 1.24.1 has no "mv -T", and "mv" onto a link to a folder moves into that folder
   install/                   this program's records on the console, each written before what it records: v-<copy>.json (the files of a
-                             copy and their SHA-256), module-<sha16>.json (the start-up module's file), attempt-<attempt>.json (an attempt
-                             in progress, with what it found before changing anything)
+                             copy and their SHA-256), module-<sha16>.json (a method package this program installed, by its SHA-256; or an
+                             earlier version's start-up module), attempt-<attempt>.json (an attempt in progress, with what it found first)
+  owned/, policy, mod/, nucleus/   the method package's own records and settings (its scripts keep them; this program only reads them)
   data/                      the console's own saves, Game Settings and HOME choices (kept across updates; kept by uninstall unless removal
                              is asked for), with IDENTITY.json naming the player build that made them
-Start-up: the hakchi module "ccs-home" carries one file, /etc/init.d/S81clover-mcp (hakchi's uistart runs it in the foreground, as the stock
-script runs clover-mcp). It reads pkg/current, links /tmp/ccs/pkg (RAM) to that copy, runs the HOME, and always ends by exec'ing Nintendo's
-clover-mcp: after "Switch to Nintendo HOME", any failure or a missing package, Nintendo's menu runs for the rest of that power-on. hakchi's
-pack_install writes the file into its overlay (/var/lib/hakchi/rootfs) and its uninstall list (/var/lib/hakchi/hmod/uninstall-ccs-home);
-pack_uninstall removes both, and the stock script is in effect again from the next start.
+Start-up: the shared install policy of the CCS Console Workbench (tools/console-nucleus/DESIGN.md): CCS Mod for Hakchi ("ccs-mod": CCS HOME
+as an entry in the console's own menu) or CCS Nucleus ("ccs-nucleus": a start chooser), the package's layout names which. Its hakchi package
+is the same bytes the Workbench's preparation image carries (tools/console-nucleus/build_packages.py; pinned there and by the transport
+worker), installed by hakchi's own pack_install: its install script checks that every file it would copy is free or its own, hakchi copies
+them into its overlay (/var/lib/hakchi/rootfs) and keeps its uninstall list (/var/lib/hakchi/hmod/uninstall-<name>), and the script records
+its files in its own journal (/var/lib/ccs/owned) and adds the menu entry. hakchi's pack_uninstall runs the package's own removal (only its
+unchanged files). Both methods start the copy pkg/current names. Earlier versions of this program installed a module "ccs-home" whose one
+file, an overlay /etc/init.d/S81clover-mcp, hakchi's own script/removed deletes at every start (p7070_firmware -> mod_repair_etc): that
+module is retired (hakchi's pack_uninstall of its list) once the new method is verified, and only when it is this program's by its records.
 
 Ownership (P3-F2): something is this program's only when a record in install/ names it AND its bytes still match that record. A link, a
 familiar name or a pointer is never proof. Unknown, changed or ambiguous things are kept and reported, or the operation is refused before
@@ -31,10 +36,22 @@ from __future__ import annotations
 import base64, hashlib, json, os, re, secrets, shutil, time
 from . import gate
 
-PLAN_SCHEMA = "ccs-home-install-plan/2"
+PLAN_SCHEMA = "ccs-home-install-plan/4"
 ROOT_DIR = "/var/lib/ccs"; PKG_DIR = ROOT_DIR + "/pkg"; DATA_DIR = ROOT_DIR + "/data"; INST_DIR = ROOT_DIR + "/install"; POINTER = PKG_DIR + "/current"
 BIN_DIR = ROOT_DIR + "/bin"   # p3a1's launcher place: never written now (a file there is someone else's and is kept)
-HOOK_NAME = "ccs-home"; HOOK_FILE = "/etc/init.d/S81clover-mcp"
+METHODS = {"mod": "ccs-mod", "nucleus": "ccs-nucleus"}   # the package layout names the method (native_home/console_package.py LAYOUTS)
+METHOD_LABELS = {"mod": "CCS Mod", "nucleus": "CCS Nucleus"}
+# the app's install policy: the method it adds to a console that has neither. It installs a collection into the method a console already
+# uses (CCS Mod or CCS Nucleus, read at the check) and never adds CCS Nucleus or changes a console from one method to the other (that is the
+# CCS Console Workbench's Prepare Console and Console Restore)
+DEFAULT_METHOD = "mod"
+# CCS Mod's optional start at power-on (tools/console-nucleus/DESIGN.md section 3): its own command "ccs-mod autostart on|off" writes or
+# removes its start script (from the package's template, only where nothing else is) and its setting; this program reads both and asks
+# for that command (the worker's mod-start), never writes them itself
+MOD_START = "/etc/init.d/S81ccs-mod"; MOD_START_TEMPLATE = "/etc/ccs/mod/S81ccs-mod"; MOD_CONFIG = ROOT_DIR + "/mod/config"   # (overlay, overlay, console)
+METHOD_RECORDS = ("owned", "policy", "mod", "nucleus")    # what the method package's own scripts keep in /var/lib/ccs (read, never written here)
+# the start-up module of earlier versions: one overlay file that hakchi itself deletes at every start (script/removed); retired, never installed
+LEGACY_NAME = "ccs-home"; LEGACY_FILE = "/etc/init.d/S81clover-mcp"
 OVERLAY = "/var/lib/hakchi/rootfs"; HMOD_DIR = "/var/lib/hakchi/hmod"
 HAKCHI_KERNEL = "3.4.113.29-madmonkey"
 # the one console this program installs on (approved scope): a North American NES Classic running the pinned hakchi (Hakchi2 CE 3.9.3's
@@ -50,6 +67,8 @@ COPY_RE = re.compile(r"^[0-9a-f]{16}\.[0-9a-f]{8}$")
 MODES = {"0o644": "0644", "0o755": "0755"}
 STATE_IDENTITY = {"platform": "linux-armv7", "core": "fceumm", "core_version": "ac0d00a7"}   # gp.h for the console build: what its saves name
 
+# the earlier start-up module's text (versions before the CCS Mod / CCS Nucleus policy): kept only so that this program recognizes it as its own
+# when it retires it; it is never installed again
 S81_OVERRIDE = """#!/bin/sh
 # hakchi module ccs-home (Classic Cart Studio): the console starts Classic Cart Studio's HOME, then Nintendo's menu when it ends.
 # hakchi's uistart runs "sh /etc/init.d/S81clover-mcp start" in the foreground; this start always ends by exec'ing clover-mcp, so the caller
@@ -96,7 +115,114 @@ def _read(path: str) -> bytes:
     with open(path, "rb") as f: return f.read()
 def _canon(o) -> bytes: return json.dumps(o, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 def _now() -> str: return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-def module_sha() -> str: return _sha(S81_OVERRIDE.encode())
+def module_sha() -> str: return _sha(S81_OVERRIDE.encode())   # the earlier start-up module's (recognized when retiring it)
+
+def _nucleus_dir() -> str:
+    """tools/console-nucleus (the installed app: its bundled copy beside the backend)"""
+    import sys
+    for d in (os.environ.get("CCS_CONSOLE_NUCLEUS"), os.path.join(getattr(sys, "_MEIPASS", ""), "console-nucleus") if getattr(sys, "frozen", False) else None,
+              os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "console-nucleus"))):
+        if d and os.path.isfile(os.path.join(d, "build_packages.py")): return d
+    raise FileNotFoundError("the CCS Mod / CCS Nucleus package sources (tools/console-nucleus) are not part of this installation")
+
+_METHOD_CACHE: dict = {}
+def method_package(method: str) -> dict:
+    """the method's hakchi package, byte for byte the one the CCS Console Workbench's preparation image carries (tools/console-nucleus/
+    build_packages.py builds it reproducibly; build_images.METHOD_SHAS and the transport worker pin it): {"method", "name", "hmod" (bytes),
+    "sha256", "package_id" (its VERSION's package), "files" ({overlay path: SHA-256}: what hakchi copies into its overlay)}"""
+    if method not in METHODS: raise PlanError(f"unknown install method {method!r}")
+    if method not in _METHOD_CACHE:
+        import importlib.util
+        d = _nucleus_dir(); spec = importlib.util.spec_from_file_location("ccs_method_packages", os.path.join(d, "build_packages.py")); BP = importlib.util.module_from_spec(spec); spec.loader.exec_module(BP)
+        mem = BP.members(method); hb = BP.hmod_bytes(mem)
+        files = {}
+        for line in mem[f"etc/ccs/{method}/FILES"][0].decode().splitlines():
+            s, _mode, rel = line.split(" ", 2); files["/" + rel] = s
+        files[f"/etc/ccs/{method}/FILES"] = _sha(mem[f"etc/ccs/{method}/FILES"][0])
+        pid = dict(l.split("=", 1) for l in mem[f"etc/ccs/{method}/VERSION"][0].decode().splitlines())["package"]
+        _METHOD_CACHE[method] = {"method": method, "name": METHODS[method], "hmod": hb, "sha256": _sha(hb), "package_id": pid, "files": files,
+                                 "overlay_bytes": sum(len(b) for n, (b, _m) in mem.items() if n not in BP.NOT_COPIED)}
+    return _METHOD_CACHE[method]
+
+def staged_packages(root: str | None) -> dict:
+    """the console packages the app staged, {layout: folder}: one per install method (root/mod and root/nucleus, the same package in each
+    method's layout, nes_companion.console_package_stage). A single package folder (root/MANIFEST.json: a test's, or a staging made before
+    there were two) is the one for its own layout"""
+    if not root or not os.path.isdir(root): return {}
+    def layout(d):
+        try:
+            with open(os.path.join(d, "MANIFEST.json"), "rb") as f: return json.loads(f.read()).get("layout")
+        except (OSError, ValueError): return None
+    if os.path.isfile(os.path.join(root, "MANIFEST.json")): return {layout(root): root} if layout(root) else {}
+    return {m: os.path.join(root, m) for m in METHODS if layout(os.path.join(root, m)) == m}
+
+def same_collection(a: dict, b: dict) -> bool:
+    """two plans of one staged collection in two methods' layouts: every file the same but session.json (whose leave item differs)"""
+    fa = {f["path"]: f["sha256"] for f in a["files"] if f["path"] not in ("session.json", "MANIFEST.json")}
+    fb = {f["path"]: f["sha256"] for f in b["files"] if f["path"] not in ("session.json", "MANIFEST.json")}
+    return fa == fb and a.get("games") == b.get("games") and a.get("startup") == b.get("startup")
+
+def console_method(c) -> str:
+    """the install method the console uses now, read from it: "mod", "nucleus" or "none" (hakchi lists neither package and neither program
+    is in its overlay). Both listed, a program hakchi does not list, a package this program does not recognize, a changed one, or a state that
+    cannot be read raise Refused: then nothing is installed rather than a method guessed (nothing is changed)"""
+    found = []
+    for m, n in METHODS.items():
+        try:
+            mf = c.method_files(n); prog = c.overlay_sha256(f"/bin/{n}") if mf is None else None
+        except (ConnectionError, OSError, ValueError) as e: raise Refused("preflight", f"which method this console uses could not be read ({e}); nothing was changed") from None
+        if mf is None:
+            if prog is not None: raise Refused("preflight", f"{n}'s program is on the console but hakchi does not list its package; it is not this program's to change. Nothing was changed")
+            continue
+        mp = method_package(m)
+        if mf.get("package") == mp["package_id"]:
+            bad = [p for p, s in mp["files"].items() if (mf.get("files") or {}).get(p) != s]
+            if bad: raise Refused("preflight", f"files of {n} on the console were changed ({', '.join(bad[:3])}); they are kept, and nothing was changed")
+        elif not re.match(r"^[0-9a-f]{64}$", str(mf.get("package") or "")):
+            raise Refused("preflight", f"a {n} package this program does not recognize (no package record of its own) is on the console; it is kept, and nothing was changed")
+        found.append(m)
+    if len(found) > 1: raise Refused("preflight", "both CCS Mod and CCS Nucleus are installed on this console, so which one starts CCS HOME is not clear (a change between them may not have finished). Start the console normally once, or finish the change in the CCS Console Workbench (Console Restore), then check again. Nothing was changed")
+    return found[0] if found else "none"
+
+def _sealed(b: bytes | None, schema: str) -> dict | None:
+    """a sealed record of CCS's console library (lib.sh ccs_sealed): its first line schema=..., its last end=<SHA-256 of every line before>"""
+    if b is None: return None
+    t = b.decode("utf-8", "replace"); lines = t.split("\n")
+    if not t.endswith("\n") or len(lines) < 3 or lines[0] != f"schema={schema}" or not lines[-2].startswith("end="): return None
+    body = "\n".join(lines[:-2]) + "\n"
+    if _sha(body.encode()) != lines[-2][4:]: return None
+    return dict(l.split("=", 1) for l in lines[1:-2] if "=" in l)
+
+def mod_start_state(c) -> dict:
+    """CCS Mod's optional start at power-on as the console holds it (reads only): {"state", "script", "setting"}. script: "absent", "ours"
+    (exactly the package's own template, which its command writes) or "changed" (another file under that name: never CCS's to change);
+    setting: "on", "off" or "none" (its sealed setting, /var/lib/ccs/mod/config). state: "on" when CCS HOME opens at power-on (the start script
+    and the setting both on), "changed" when the start script is not CCS Mod's own, else "off" (CCS Mod's start script runs CCS HOME only
+    while its setting says on)"""
+    tpl = method_package("mod")["files"].get(MOD_START_TEMPLATE)
+    s = c.overlay_sha256(MOD_START); script = "absent" if s is None else ("ours" if s == tpl else "changed")
+    cfg = _sealed(c.read(MOD_CONFIG, 4096) if c.stat(MOD_CONFIG)["type"] == "file" else None, "ccs-mod-config/1")
+    setting = "none" if cfg is None else ("on" if cfg.get("autostart") == "on" else "off")
+    state = "changed" if script == "changed" else ("on" if script == "ours" and setting == "on" else "off")
+    return {"state": state, "script": script, "setting": setting}
+
+def method_state(c, pkg: dict, recs: dict | None = None) -> str:
+    """what the console holds of the plan's method: "absent", "current" (this exact package, every file unchanged), "older" (another version
+    of the same method's CCS package, by its own VERSION record: its own install script updates it, and refuses any file that is not its own
+    unchanged file); anything else raises Refused (nothing is changed)"""
+    other = next((m for m, n in METHODS.items() if n != pkg["name"]), None)
+    o = c.method_files(METHODS[other]) if other else None
+    if o is not None: raise Refused("preflight", f"this console uses {METHOD_LABELS[other]}; this plan installs the HOME for {METHOD_LABELS[pkg['method']]}. Classic Cart Studio never changes a console's method to install games: check the plan again and it is made for {METHOD_LABELS[other]}. Nothing was changed")
+    m = c.method_files(pkg["name"])
+    if m is None:
+        if c.overlay_sha256(f"/bin/{pkg['name']}") is not None: raise Refused("preflight", f"{pkg['name']}'s program is on the console but hakchi does not list its package; it is not this program's to change. Nothing was changed")
+        return "absent"
+    if m.get("package") == pkg["package_id"]:
+        bad = [p for p, s in pkg["files"].items() if (m.get("files") or {}).get(p) != s]
+        if bad: raise Refused("preflight", f"files of {pkg['name']} on the console were changed ({', '.join(bad[:3])}); they are kept, and nothing was changed")
+        return "current"
+    if re.match(r"^[0-9a-f]{64}$", str(m.get("package") or "")): return "older"
+    raise Refused("preflight", f"a {pkg['name']} package this program does not recognize (no package record of its own) is on the console; it is kept, and nothing was changed")
 def pointer_bytes(copy: str) -> bytes: return (copy + "\n").encode()
 
 def check_device(ident: dict | None, step: str = "device") -> dict:
@@ -122,12 +248,18 @@ def check_rel(rel: str) -> str:
     if not isinstance(rel, str) or not REL_RE.match(rel) or any(p in (".", "..") or p.startswith("..") for p in rel.split("/")): raise PlanError(f"package path not allowed: {rel!r}")
     return rel
 
-def build_plan(package_dir: str) -> dict:
+def build_plan(package_dir: str, mod_start: str | None = None) -> dict:
     """the immutable plan for one console package (install layout): its files with their SHA-256 and modes (validated), the start-up module,
-    the room it needs, the identity its saves will carry; named by the SHA-256 of its own content"""
+    the room it needs, the identity its saves will carry; named by the SHA-256 of its own content. mod_start (CCS Mod only): "on" or "off"
+    (the default), whether CCS HOME opens when the console is turned on (CCS Mod's own optional start); CCS Nucleus's chooser decides what
+    starts there, so a CCS Nucleus plan has none"""
     man_b = _read(os.path.join(package_dir, "MANIFEST.json")); man = json.loads(man_b)
     if man.get("schema") != "ccs-console-package/1": raise PlanError("not a Classic Cart Studio console package")
-    if man.get("layout") != "install": raise PlanError(f"a {man.get('layout')!r} package is not for installing (the RAM test's package never is)")
+    import platform_ids   # SNES-GROUNDWORK.md: a package for a game system, core or method this version does not support is never planned
+    tgt = platform_ids.resolve_target(man, "console-package", man.get("games") if isinstance(man.get("games"), list) else None)
+    if not tgt["ok"]: raise PlanError(tgt["text"])
+    if man.get("layout") == "install": raise PlanError("this package was made for the earlier start-up module, which hakchi removes at every start: prepare the HOME again (CCS Mod or CCS Nucleus)")
+    if man.get("layout") not in METHODS: raise PlanError(f"a {man.get('layout')!r} package is not for installing (the RAM test's package never is)")
     if (man.get("console_paths") or {}).get("pkg") not in (None, "/tmp/ccs/pkg"): raise PlanError("the package was made for another place on the console (prepare it again)")
     entries = man.get("files")
     if not isinstance(entries, dict) or not entries or len(entries) > MAX_FILES: raise PlanError("the package's file list is missing or too long")
@@ -146,20 +278,22 @@ def build_plan(package_dir: str) -> dict:
     total = sum(f["size"] for f in files)
     if total > MAX_TOTAL: raise PlanError("the package is larger than the console can hold")
     if not any(f["path"] == "bin/ccs-player-armv7" for f in files) or not any(f["path"] == "session.json" for f in files): raise PlanError("the package has no console player or session")
-    version = _sha(man_b)[:16]
+    version = _sha(man_b)[:16]; method = man["layout"]; mp = method_package(method)
+    if method == "mod": mod_start = mod_start or "off"
+    if mod_start not in (("on", "off") if method == "mod" else (None,)): raise PlanError("CCS Mod's start at power-on is on or off; it is not offered with CCS Nucleus, whose start chooser decides what starts")
     plan = {"schema": PLAN_SCHEMA, "version": version, "label": man.get("label"), "games": man.get("games"), "playable": man.get("playable"), "startup": man.get("startup"),
-            "player": man.get("player"), "manifest_sha256": _sha(man_b), "state_identity": dict(STATE_IDENTITY),
+            "player": man.get("player"), "manifest_sha256": _sha(man_b), "state_identity": dict(STATE_IDENTITY), "method_label": METHOD_LABELS[method], "mod_start": mod_start,
             "paths": {"root": ROOT_DIR, "package": f"{PKG_DIR}/{version}.<attempt>", "pointer": POINTER, "data": DATA_DIR, "records": INST_DIR},
-            "files": files, "bytes": total, "needs_free_bytes": total + RESERVE,
-            "module": {"name": HOOK_NAME, "files": {HOOK_FILE: {"sha256": module_sha(), "mode": "0o755"}},
-                       "where": f"hakchi's pack_install writes {HOOK_FILE} into {OVERLAY} and its uninstall list {HMOD_DIR}/uninstall-{HOOK_NAME}"},
-            "requires": {"kernel": HAKCHI_KERNEL, "note": "hakchi's kernel must already be installed (its first installation is a separate step with the pinned Hakchi2 CE, under G1)"},
+            "files": files, "bytes": total, "needs_free_bytes": total + RESERVE + mp["overlay_bytes"],
+            "method": method, "module": {"name": mp["name"], "sha256": mp["sha256"], "package_id": mp["package_id"], "files": mp["files"],
+                       "where": f"hakchi's pack_install of {mp['name']}.hmod: its install script copies its files into {OVERLAY}, records them in {ROOT_DIR}/owned and adds its menu entry; hakchi keeps its uninstall list {HMOD_DIR}/uninstall-{mp['name']}"},
+            "requires": {"kernel": HAKCHI_KERNEL, "note": "hakchi's kernel must already be installed (its first installation is a separate step: the CCS Console Workbench's Prepare Console)"},
             "never_written": ["/usr (the stock games and system)", "/var/saves (the stock saves)",
-                              "/etc and /var/lib/hakchi other than through hakchi's own pack_install / pack_uninstall of the ccs-home module "
-                              f"(which write {OVERLAY}{HOOK_FILE} and {HMOD_DIR}/uninstall-{HOOK_NAME}, and nothing else there)",
+                              f"/etc and /var/lib/hakchi other than through hakchi's own pack_install / pack_uninstall of {mp['name']} (its own files, menu entry and records) "
+                              f"and the retirement of this program's earlier start-up module {LEGACY_NAME} (hakchi's pack_uninstall of its own list)",
                               "/bin, /sbin, /lib, /boot, /dev, /proc, /sys, /newroot",
                               f"anything under {ROOT_DIR} that is not this program's by its records (kept as it is and reported)"],
-            "steps": ["preflight", "record", "stage", "readback", "switch", "module", "verify", "tidy", "finish"]}
+            "steps": ["preflight", "record", "stage", "readback", "switch", "method"] + (["start"] if method == "mod" else []) + ["verify", "retire", "tidy", "finish"]}
     plan["hash"] = _sha(_canon(plan)); return plan
 
 def save_plan(plan: dict, folder: str) -> str:
@@ -356,8 +490,24 @@ class FakeConsole:
     # hakchi's own module handling (b0030_package: pack_install copies the module's files into its overlay and writes an uninstall list)
     def _ov(self, path: str) -> str: return os.path.join(self.root, "var/lib/hakchi/rootfs", path.lstrip("/"))
     def _ulist(self, name: str) -> str: return os.path.join(self.root, "var/lib/hakchi/hmod", f"uninstall-{name}")
-    def pack_install(self, name: str, files: dict):
-        def act():   # b0030_package: copy into $rootfs, then "rm -f" for every file and "rmdir --ignore-fail-on-non-empty" for every folder, deepest first
+    def pack_install(self, name: str, hmod):
+        """hakchi's pack_install of a package (b0030_package): its files (all but install, uninstall and readme files) copied into $rootfs,
+        its own uninstall script kept with hakchi's generated list after it ("rm -f" for every file, "rmdir --ignore-fail-on-non-empty" for
+        every folder, deepest first). hmod: the .hmod's bytes, or (tests of the earlier start-up module only) {path: (bytes, mode)}. The
+        package's own install script is not run here: what CCS's does on a console (its checks, journal and menu entry) is shown by
+        tools/console-nucleus/test_nucleus.py under qemu-arm with hakchi's own code"""
+        if isinstance(hmod, dict): files, script = dict(hmod), b""
+        else:
+            import gzip, io, tarfile
+            files, script = {}, b""
+            with tarfile.open(fileobj=io.BytesIO(gzip.decompress(hmod))) as t:
+                for m in t.getmembers():
+                    n = m.name[2:] if m.name.startswith("./") else m.name
+                    if not m.isfile(): continue
+                    if n == "uninstall": script = t.extractfile(m).read(); continue
+                    if n == "install" or n.lower().startswith("readme"): continue
+                    files["/" + n] = (t.extractfile(m).read(), oct(m.mode & 0o777))
+        def act():
             lst, dirs = [], set()
             for path, (b, mode) in files.items():
                 q = self._ov(path); os.makedirs(os.path.dirname(q), exist_ok=True)
@@ -366,9 +516,24 @@ class FakeConsole:
                 dirs |= {"/" + "/".join(parts[:i]) for i in range(1, len(parts) + 1)}
             lst += [f'rmdir --ignore-fail-on-non-empty "$rootfs/.{d}"' for d in sorted(dirs, key=lambda d: -d.count("/"))]
             u = self._ulist(name); os.makedirs(os.path.dirname(u), exist_ok=True)
-            with open(u, "w", newline="\n") as f: f.write("\n# auto-generated\n" + "\n".join(lst) + "\n")
+            with open(u, "w", newline="\n") as f: f.write(script.decode() + "\n# auto-generated\n" + "\n".join(lst) + "\n")
+            if name == METHODS["mod"] and not os.path.isfile(self._ulist(METHODS["nucleus"])):   # its postinstall applies the start setting it keeps (in charge)
+                cfg = _sealed(_read(self.p(MOD_CONFIG)) if os.path.isfile(self.p(MOD_CONFIG)) else None, "ccs-mod-config/1"); tpl = self.overlay_read(MOD_START_TEMPLATE); q = self._ov(MOD_START)
+                if cfg and cfg.get("autostart") == "on" and tpl is not None and not os.path.exists(q):
+                    os.makedirs(os.path.dirname(q), exist_ok=True)
+                    with open(q, "wb") as f: f.write(tpl)
+                elif not (cfg and cfg.get("autostart") == "on") and tpl is not None and os.path.isfile(q) and _read(q) == tpl: os.remove(q)
             self.writes.append(f"hakchi:pack_install {name}")
         return self._change(f"hakchi pack_install {name}", act)
+    def method_files(self, name: str) -> dict | None:
+        """a CCS method package as the console holds it (the worker's module-files): None when hakchi does not list it; else its VERSION's
+        package id and every file its own FILES list names, with the SHA-256 each has now (None: missing)"""
+        if not os.path.isfile(self._ulist(name)): return None
+        m = name[4:]; ver = self.overlay_read(f"/etc/ccs/{m}/VERSION"); fl = self.overlay_read(f"/etc/ccs/{m}/FILES")
+        pkg = dict(l.split("=", 1) for l in ver.decode().splitlines() if "=" in l).get("package") if ver else None
+        files = {"/" + l.split(" ", 2)[2]: self.overlay_sha256("/" + l.split(" ", 2)[2]) for l in (fl or b"").decode().splitlines() if l.count(" ") >= 2}
+        if fl is not None: files[f"/etc/ccs/{m}/FILES"] = _sha(fl)
+        return {"package": pkg, "files": files}
     def pack_files(self, name: str) -> dict:
         u = self._ulist(name)
         if not os.path.isfile(u): return {}
@@ -381,7 +546,46 @@ class FakeConsole:
         q = self._ov(path); return _sha(_read(q)) if os.path.isfile(q) else None
     def overlay_read(self, path: str) -> bytes | None:
         q = self._ov(path); return _read(q) if os.path.isfile(q) else None
+    def mod_start(self, state: str) -> str:
+        """CCS Mod's own command "ccs-mod autostart on|off" (the worker's mod-start runs it on a console): on writes its start script
+        S81ccs-mod from the package's template (only where nothing else is, and only while CCS Mod is the method installed) and its setting
+        on; off sets its setting off and removes the start script while it is still the one CCS Mod wrote. Its one result line"""
+        if state not in ("on", "off"): raise ValueError("state: on or off")
+        if self.method_files(METHODS["mod"]) is None or self.method_files(METHODS["nucleus"]) is not None: return "result autostart refused CCS Mod is not in charge"
+        tpl = self.overlay_read(MOD_START_TEMPLATE); q = self._ov(MOD_START)
+        if state == "on" and (tpl is None or (os.path.exists(q) and _read(q) != tpl)): return "result autostart refused belongs-to-someone-else " + OVERLAY + MOD_START
+        def act():
+            body = f"schema=ccs-mod-config/1\nautostart={state}\n"; cf = self.p(MOD_CONFIG); os.makedirs(os.path.dirname(cf), exist_ok=True)
+            with open(cf, "w", newline="\n") as f: f.write(body + f"end={_sha(body.encode())}\n")
+            if state == "on":
+                os.makedirs(os.path.dirname(q), exist_ok=True)
+                with open(q, "wb") as f: f.write(tpl)
+            elif os.path.exists(q) and _read(q) == tpl: os.remove(q)
+            elif os.path.exists(q): self.writes.append(f"ccs-mod:autostart {state}"); return f"result autostart ok off kept-changed {OVERLAY}{MOD_START}"
+            self.writes.append(f"ccs-mod:autostart {state}"); return f"result autostart ok {state}"
+        return self._change(f"ccs-mod autostart {state}", act)
     def pack_uninstall(self, name: str):
+        """hakchi's pack_uninstall: the uninstall list sourced. A CCS method package's own script returns before hakchi's generated list and
+        removes only its unchanged files (here: the files its FILES list names with those bytes, and CCS Mod's start script while it is the one
+        its command wrote: its journal names it); the earlier module's list removes its file"""
+        mf = self.method_files(name) if name in METHODS.values() else None
+        if mf is not None:
+            m = name[4:]; fl = self.overlay_read(f"/etc/ccs/{m}/FILES") or b""
+            want = {"/" + l.split(" ", 2)[2]: l.split(" ", 1)[0] for l in fl.decode().splitlines() if l.count(" ") >= 2} | {f"/etc/ccs/{m}/FILES": _sha(fl)}
+            if m == "mod" and self.overlay_sha256(MOD_START) is not None and self.overlay_sha256(MOD_START) == want.get(MOD_START_TEMPLATE): want[MOD_START] = want[MOD_START_TEMPLATE]
+            def act_ccs():
+                for path, s in want.items():
+                    q = self._ov(path)
+                    if os.path.isfile(q) and _sha(_read(q)) == s: os.remove(q)
+                # the folders left empty (here up to the overlay; on a console CCS's own removal keeps the empty folders hakchi made for it)
+                top = self._ov("/"); dirs = set()
+                for q in want:
+                    d = os.path.dirname(self._ov(q))
+                    while len(d) > len(top.rstrip(os.sep)) and d.startswith(top.rstrip(os.sep)): dirs.add(d); d = os.path.dirname(d)
+                for d in sorted(dirs, key=lambda d: -len(d)):
+                    if os.path.isdir(d) and not os.listdir(d): os.rmdir(d)
+                os.remove(self._ulist(name)); self.writes.append(f"hakchi:pack_uninstall {name}")
+            return self._change(f"hakchi pack_uninstall {name}", act_ccs)
         def act():
             for path in list(self.pack_files(name)):
                 q = self._ov(path)
@@ -420,13 +624,35 @@ def read_records(c) -> dict:
         m = re.match(r"^v-([0-9a-f]{16}\.[0-9a-f]{8})\.json$", name)
         if m and rec.get("schema") == "ccs-owned-copy/1" and rec.get("copy") == m.group(1): out["versions"][m.group(1)] = rec | {"_record": path}; continue
         m = re.match(r"^module-([0-9a-f]{16})\.json$", name)
-        if m and rec.get("schema") == "ccs-owned-module/1" and str(rec.get("sha256", "")).startswith(m.group(1)): out["modules"][m.group(1)] = rec | {"_record": path}; continue
+        if m and rec.get("schema") in ("ccs-owned-module/1", "ccs-owned-module/2") and str(rec.get("sha256", "")).startswith(m.group(1)): out["modules"][m.group(1)] = rec | {"_record": path}; continue
         m = re.match(r"^attempt-([0-9a-f]{8})\.json$", name)
         if m and rec.get("schema") == "ccs-install-attempt/1" and rec.get("attempt") == m.group(1): out["attempts"][m.group(1)] = rec | {"_record": path}; continue
         out["problems"].append(f"{path} is not one of this program's records")
     return out
 
 def owned_module_shas(recs: dict) -> set: return {r["sha256"] for r in recs["modules"].values()} | {module_sha()}
+
+def legacy_state(c, recs: dict) -> str:
+    """the earlier start-up module: "absent", "mine" (hakchi lists ccs-home with exactly its one file, which is gone (hakchi's own start removed
+    it) or still this program's recorded bytes), or "foreign" (kept, and nothing is changed)"""
+    mod = c.pack_files(LEGACY_NAME)
+    if not mod: return "absent"
+    return "mine" if set(mod) == {LEGACY_FILE} and (mod[LEGACY_FILE] is None or mod[LEGACY_FILE] in owned_module_shas(recs)) else "foreign"
+
+def installed_methods(c, recs: dict) -> list[dict]:
+    """each CCS method package hakchi lists on the console: {"name", "method", "package", "state"}: "current" (this installation's package,
+    every file unchanged), "changed" (its files were changed since), "older" (another version of the method's CCS package, by its own
+    VERSION record: its own removal takes only its own unchanged files), or "not this program's" (no package record: kept)"""
+    out = []
+    for m, n in METHODS.items():
+        mf = c.method_files(n)
+        if mf is None: continue
+        mp = method_package(m)
+        if mf.get("package") == mp["package_id"]: st = "current" if all((mf.get("files") or {}).get(p) == s for p, s in mp["files"].items()) else "changed"
+        elif re.match(r"^[0-9a-f]{64}$", str(mf.get("package") or "")): st = "older"
+        else: st = "not this program's"
+        out.append({"name": n, "method": m, "package": mf.get("package"), "state": st})
+    return out
 
 def copy_state(c, copy: str, rec: dict) -> dict:
     """a copy's files against its record: ours (recorded and unchanged), changed (recorded, bytes differ), missing, unknown (not recorded)"""
@@ -535,11 +761,19 @@ class Installer:
             if not COPY_RE.match(cur) or cur not in recs["versions"] or b != pointer_bytes(cur): raise Refused("preflight", f"{POINTER} names {cur!r}, which this program's records do not know; nothing was changed")
             if c.stat(f"{PKG_DIR}/{cur}")["type"] != "dir": raise Refused("preflight", f"the copy in use ({cur}) is not a real folder; nothing was changed")
         elif pst["type"] != "none": raise Refused("preflight", f"{POINTER} is {'a link' if pst['type'] == 'link' else 'not a plain file'}, not this program's pointer; nothing was changed")
-        mod = c.pack_files(HOOK_NAME); mine = owned_module_shas(recs); module_state = "absent"
-        if mod:
-            if set(mod) != {HOOK_FILE} or mod[HOOK_FILE] not in mine: raise Refused("preflight", "a ccs-home module is installed that this program did not make (or that was changed); nothing was changed")
-            module_state = "current" if mod[HOOK_FILE] == module_sha() else "older"
-        elif c.overlay_sha256(HOOK_FILE) is not None: raise Refused("preflight", f"another hakchi module already replaces {HOOK_FILE}; nothing was changed")
+        mp = method_package(self.plan["method"]); meth = self.plan["method"]
+        if mp["sha256"] != self.plan["module"]["sha256"]: raise Refused("preflight", "this installation's CCS Mod / CCS Nucleus package is not the one the plan names (prepare it again); nothing was changed")
+        # the method the console uses now: the plan must be for it (the check chose it); the app never changes or adds CCS Nucleus itself
+        cm = console_method(c)
+        if cm not in ("none", meth): raise Refused("preflight", f"this console uses {METHOD_LABELS[cm]}; this plan installs the HOME for {METHOD_LABELS[meth]}. Classic Cart Studio never changes a console's method to install games: check the plan again and it is made for {METHOD_LABELS[cm]}. Nothing was changed")
+        if cm == "none" and meth != DEFAULT_METHOD: raise Refused("preflight", f"{METHOD_LABELS[meth]} is not installed on this console (any more). Classic Cart Studio installs a collection into the method a console already uses and adds only CCS Mod itself: check the plan again. Nothing was changed")
+        module_state = "absent" if cm == "none" else method_state(c, mp, recs); legacy = legacy_state(c, recs)
+        start = None
+        if meth == "mod":   # CCS Mod's start at power-on: as the plan chose it (its own command changes it only when it differs)
+            ms = mod_start_state(c)
+            if ms["script"] == "changed": raise Refused("preflight", f"a start script named S81ccs-mod is on the console that CCS Mod did not write (or it was changed since); it is kept, and nothing was changed")
+            start = {"now": ms["state"], "want": self.plan["mod_start"], "change": ms["state"] != self.plan["mod_start"]}
+        if legacy == "foreign": raise Refused("preflight", f"a {LEGACY_NAME} module is installed that this program did not make (or that was changed); nothing was changed")
         ident = c.read(f"{DATA_DIR}/IDENTITY.json", 65536); data = {"state": "new"}
         if ident is not None:
             try: d = json.loads(ident)
@@ -550,15 +784,15 @@ class Installer:
             data = {"state": "kept", "identity": d.get("state_identity")}
         elif c.stat(DATA_DIR)["type"] == "dir" and c.listdir(DATA_DIR): data = {"state": "kept-unidentified"}
         same = None
-        if cur and recs["versions"][cur].get("plan") == self.plan["hash"] and module_state == "current":
+        if cur and recs["versions"][cur].get("manifest_sha256") == self.plan["manifest_sha256"] and module_state == "current":   # this exact package in use (by its record; a start change alone copies nothing again)
             st = copy_state(c, cur, recs["versions"][cur]); same = not st["changed"] and not st["missing"]
         need = 0 if same else self.plan["needs_free_bytes"]; free = c.free_bytes(ROOT_DIR)
         if not same and free < need: raise Refused("preflight", f"not enough room on the console: {free / 1e6:.1f} MB free, {need / 1e6:.1f} MB needed")
         unknown = [f"{PKG_DIR}/{x}" for x in c.listdir(PKG_DIR) if x != "current" and x not in recs["versions"]]
-        unknown += [f"{ROOT_DIR}/{x}" for x in c.listdir(ROOT_DIR) if x not in ("pkg", "data", "install")]
+        unknown += [f"{ROOT_DIR}/{x}" for x in c.listdir(ROOT_DIR) if x not in ("pkg", "data", "install") + METHOD_RECORDS]
         older = [v for v in recs["versions"] if v != cur]
-        return {"identity": i, "device": dev, "free_bytes": free, "needs_bytes": need, "in_use": cur, "pointer_sha256": psha, "already": bool(same), "module": module_state, "data": data,
-                "kept_unknown": unknown, "earlier_copies": older, "records": len(recs["files"])}
+        return {"identity": i, "device": dev, "free_bytes": free, "needs_bytes": need, "in_use": cur, "pointer_sha256": psha, "already": bool(same and legacy == "absent" and not (start and start["change"])), "same_copy": bool(same),
+                "module": module_state, "method": meth, "console_method": cm, "start": start, "legacy": legacy, "data": data, "kept_unknown": unknown, "earlier_copies": older, "records": len(recs["files"])}
 
     # ---- run
     def run(self) -> dict:
@@ -602,81 +836,104 @@ class Installer:
         r = act()   # a put answers with the SHA-256 of what the console now holds there: recorded, so an undo knows this attempt's own bytes
         self.log(op=op, state="done", **({"written_sha256": r} if op == "put" and isinstance(r, str) and len(r) == 64 else {})); return r
 
+    def _mod_start(self, want: str) -> str:
+        """CCS Mod's own command on the console (ccs-mod autostart on|off); anything but its plain success stops the attempt"""
+        r = self.c.mod_start(want)
+        if r != f"result autostart ok {want}": raise InstallStopped("start", f"CCS Mod's own command answered: {r}")
+        return r
+
     def _install(self, pf):
         c = self.c; plan = self.plan
-        cur = pf["in_use"]; mod_prev = c.overlay_read(HOOK_FILE) if pf["module"] == "older" else None
-        if pf["module"] == "older" and (mod_prev is None or _sha(mod_prev) != c.overlay_sha256(HOOK_FILE)): raise InstallStopped("preflight", "the start-up module in use could not be read in full; nothing was changed")
-        self.prior = {"pointer": cur, "pointer_sha256": pf["pointer_sha256"], "module": pf["module"], "module_sha256": c.overlay_sha256(HOOK_FILE) if pf["module"] != "absent" else None}
+        cur = pf["in_use"]; mp = method_package(plan["method"]); mf = c.method_files(mp["name"]) if pf["module"] != "absent" else None
+        same = pf.get("same_copy") is True; start = pf.get("start")   # this exact package already in use: only the method and the start change
+        self.prior = {"pointer": cur, "pointer_sha256": pf["pointer_sha256"], "module": pf["module"], "module_package": (mf or {}).get("package"), "start": (start or {}).get("now")}
         rec = {"schema": "ccs-install-attempt/1", "attempt": self.attempt, "plan": plan["hash"], "version": self.v, "copy": self.copy, "kind": "install",
                "device": {k: pf["device"].get(k) for k in ("hwid", "system", "kernel", "hakchi")}, "started": _now(),
-               "prior": {"pointer": cur, "module": pf["module"], "module_sha256": self.prior["module_sha256"], "module_b64": base64.b64encode(mod_prev).decode() if mod_prev else None}}
+               "prior": {"pointer": cur, "module": pf["module"], "method": plan["method"], "module_package": self.prior["module_package"], "start": self.prior["start"]}}
         rec_b = _record_bytes(rec); self.attempt_path = f"{INST_DIR}/attempt-{self.attempt}.json"
         # 1. this program's folders, then the attempt record (with what was there before), persistent before anything else changes
         for d in (ROOT_DIR, INST_DIR, PKG_DIR):
             if c.stat(d)["type"] == "none": self._do("mkdir", lambda d=d: c.mkdir(d), {"op": "rmdir-if-empty", "path": d}, path=d)
         self._do("record-attempt", lambda: c.put(self.attempt_path, rec_b), {"op": "remove", "path": self.attempt_path, "sha256": _sha(rec_b)}, path=self.attempt_path)
         self._sync(why="the attempt record and what it keeps of the earlier state, before anything else changes")
-        # 2. the copy's record, then the copy (a new folder of this attempt, beside the one in use)
+        # 2. the copy's record, then the copy (a new folder of this attempt, beside the one in use); not when this exact package is in use
         files = {f["path"]: f["sha256"] for f in plan["files"]}
-        vrec = {"schema": "ccs-owned-copy/1", "copy": self.copy, "plan": plan["hash"], "version": self.v, "attempt": self.attempt, "manifest_sha256": plan["manifest_sha256"], "files": files}
-        vrec_b = _record_bytes(vrec); vpath = f"{INST_DIR}/v-{self.copy}.json"
-        self._do("record-copy", lambda: c.put(vpath, vrec_b), {"op": "remove", "path": vpath, "sha256": _sha(vrec_b)}, path=vpath)
-        self._do("mkdir", lambda: c.mkdir(self.target), {"op": "remove-copy", "copy": self.copy}, path=self.target)
-        self._progress("stage", done=0, total=len(plan["files"]), bytes=0, total_bytes=plan["bytes"]); sent = 0
-        made = set()
-        for k, f in enumerate(plan["files"]):
+        if not same:
+            vrec = {"schema": "ccs-owned-copy/1", "copy": self.copy, "plan": plan["hash"], "version": self.v, "attempt": self.attempt, "manifest_sha256": plan["manifest_sha256"], "files": files}
+            vrec_b = _record_bytes(vrec); vpath = f"{INST_DIR}/v-{self.copy}.json"
+            self._do("record-copy", lambda: c.put(vpath, vrec_b), {"op": "remove", "path": vpath, "sha256": _sha(vrec_b)}, path=vpath)
+            self._do("mkdir", lambda: c.mkdir(self.target), {"op": "remove-copy", "copy": self.copy}, path=self.target)
+            self._progress("stage", done=0, total=len(plan["files"]), bytes=0, total_bytes=plan["bytes"]); sent = 0
+            made = set()
+            for k, f in enumerate(plan["files"]):
+                if self.cancel(): raise Cancelled("canceled before the switch")
+                parts = f["path"].split("/")[:-1]
+                for i in range(1, len(parts) + 1):
+                    d = "/".join(parts[:i])
+                    if d not in made: self._do("mkdir", lambda d=d: c.mkdir(f"{self.target}/{d}"), None, path=f"{self.target}/{d}"); made.add(d)
+                data = _read(os.path.join(self.pkg, *f["path"].split("/")))
+                if _sha(data) != f["sha256"]: raise InstallStopped("stage", f"{f['path']} on this computer changed after the plan was made (prepare it again)")
+                src = os.path.join(self.pkg, *f["path"].split("/"))
+                self._do("put", lambda f=f, data=data, src=src: c.put(f"{self.target}/{f['path']}", data, f["mode"], source=src), None, path=f"{self.target}/{f['path']}", sha256=f["sha256"], size=f["size"])
+                sent += f["size"]; self._progress("stage", done=k + 1, total=len(plan["files"]), bytes=sent, total_bytes=plan["bytes"])
+            # 3. the data folder and its identity (only when there is none: existing saves are kept as they are)
+            if c.stat(DATA_DIR)["type"] == "none": self._do("mkdir", lambda: c.mkdir(DATA_DIR), {"op": "rmdir-if-empty", "path": DATA_DIR}, path=DATA_DIR)
+            if c.stat(f"{DATA_DIR}/IDENTITY.json")["type"] == "none":
+                ib = _record_bytes({"schema": "ccs-console-data/1", "state_identity": plan["state_identity"], "created": _now(), "note": "saves, slots and settings made on this console by Classic Cart Studio's console player"})
+                self._do("data-identity", lambda: c.put(f"{DATA_DIR}/IDENTITY.json", ib), {"op": "remove", "path": f"{DATA_DIR}/IDENTITY.json", "sha256": _sha(ib)}, path=f"{DATA_DIR}/IDENTITY.json")
+            # 4. persistent, then read back every file from the storage (the page cache dropped), before the switch
+            self._sync(drop=True, why="the new copy, before it is read back and switched to")
+            bad = [rel for rel, h in files.items() if c.sha256(f"{self.target}/{rel}") != h]; self.log(op="readback", mismatches=bad[:20], files=len(files))
+            self._progress("readback", ok=not bad, files=len(files))
+            if bad: raise InstallStopped("readback", f"{len(bad)} file(s) on the console differ from the plan ({', '.join(bad[:3])})")
             if self.cancel(): raise Cancelled("canceled before the switch")
-            parts = f["path"].split("/")[:-1]
-            for i in range(1, len(parts) + 1):
-                d = "/".join(parts[:i])
-                if d not in made: self._do("mkdir", lambda d=d: c.mkdir(f"{self.target}/{d}"), None, path=f"{self.target}/{d}"); made.add(d)
-            data = _read(os.path.join(self.pkg, *f["path"].split("/")))
-            if _sha(data) != f["sha256"]: raise InstallStopped("stage", f"{f['path']} on this computer changed after the plan was made (prepare it again)")
-            src = os.path.join(self.pkg, *f["path"].split("/"))
-            self._do("put", lambda f=f, data=data, src=src: c.put(f"{self.target}/{f['path']}", data, f["mode"], source=src), None, path=f"{self.target}/{f['path']}", sha256=f["sha256"], size=f["size"])
-            sent += f["size"]; self._progress("stage", done=k + 1, total=len(plan["files"]), bytes=sent, total_bytes=plan["bytes"])
-        # 3. the data folder and its identity (only when there is none: existing saves are kept as they are)
-        if c.stat(DATA_DIR)["type"] == "none": self._do("mkdir", lambda: c.mkdir(DATA_DIR), {"op": "rmdir-if-empty", "path": DATA_DIR}, path=DATA_DIR)
-        if c.stat(f"{DATA_DIR}/IDENTITY.json")["type"] == "none":
-            ib = _record_bytes({"schema": "ccs-console-data/1", "state_identity": plan["state_identity"], "created": _now(), "note": "saves, slots and settings made on this console by Classic Cart Studio's console player"})
-            self._do("data-identity", lambda: c.put(f"{DATA_DIR}/IDENTITY.json", ib), {"op": "remove", "path": f"{DATA_DIR}/IDENTITY.json", "sha256": _sha(ib)}, path=f"{DATA_DIR}/IDENTITY.json")
-        # 4. persistent, then read back every file from the storage (the page cache dropped), before the switch
-        self._sync(drop=True, why="the new copy, before it is read back and switched to")
-        bad = [rel for rel, h in files.items() if c.sha256(f"{self.target}/{rel}") != h]; self.log(op="readback", mismatches=bad[:20], files=len(files))
-        self._progress("readback", ok=not bad, files=len(files))
-        if bad: raise InstallStopped("readback", f"{len(bad)} file(s) on the console differ from the plan ({', '.join(bad[:3])})")
-        if self.cancel(): raise Cancelled("canceled before the switch")
-        # 5. the switch: one rename of the pointer, only over exactly what the preflight read there; then persistent
-        same_console(c, self.device, "switch")
-        expect = pf["pointer_sha256"] if cur else "absent"
-        self._do("switch", lambda: c.set_pointer(POINTER, self.copy, expect=expect), {"op": "pointer", "value": cur}, previous=cur, value=self.copy); self._progress("switch", ok=True)
-        self._sync(why="the switch")
-        # 6. the start-up module (when absent or older): its record persistent first
+            # 5. the switch: one rename of the pointer, only over exactly what the preflight read there; then persistent
+            same_console(c, self.device, "switch")
+            expect = pf["pointer_sha256"] if cur else "absent"
+            self._do("switch", lambda: c.set_pointer(POINTER, self.copy, expect=expect), {"op": "pointer", "value": cur}, previous=cur, value=self.copy); self._progress("switch", ok=True)
+            self._sync(why="the switch")
+        # 6. the install method's package (when absent or this program's older version), through hakchi's own pack_install; its record first
         if pf["module"] != "current":
             same_console(c, self.device, "module")
-            mb = S81_OVERRIDE.encode(); mrec_b = _record_bytes({"schema": "ccs-owned-module/1", "name": HOOK_NAME, "path": HOOK_FILE, "sha256": _sha(mb)})
-            mpath = f"{INST_DIR}/module-{_sha(mb)[:16]}.json"
+            mb = mp["hmod"]
+            if _sha(mb) != plan["module"]["sha256"]: raise InstallStopped("module", "the method's package on this computer is not the one the plan names (prepare it again)")
+            mrec_b = _record_bytes({"schema": "ccs-owned-module/2", "name": mp["name"], "method": plan["method"], "sha256": mp["sha256"], "package_id": mp["package_id"]})
+            mpath = f"{INST_DIR}/module-{mp['sha256'][:16]}.json"
             if c.stat(mpath)["type"] == "none": self._do("record-module", lambda: c.put(mpath, mrec_b), {"op": "remove", "path": mpath, "sha256": _sha(mrec_b)}, path=mpath)
             self._sync(why="the module record, before the module")
-            self._do("module", lambda: c.pack_install(HOOK_NAME, {HOOK_FILE: (mb, "0o755")}),
-                     {"op": "module", "prior": pf["module"], "prior_b64": base64.b64encode(mod_prev).decode() if mod_prev else None}, module=HOOK_NAME, prior=pf["module"])
+            self._do("module", lambda: c.pack_install(mp["name"], mb), {"op": "module", "name": mp["name"], "prior": pf["module"], "prior_package": self.prior["module_package"]}, module=mp["name"], prior=pf["module"])
             self._progress("module", ok=True)
+        # 6b. CCS Mod's start at power-on as the plan chose it, by CCS Mod's own command, read again after its package step (installing CCS Mod
+        # applies the setting it keeps); only when it differs
+        if start is not None:
+            now = mod_start_state(c)
+            if now["script"] == "changed": raise InstallStopped("start", "a start script named S81ccs-mod that CCS Mod did not write is on the console now; it is kept")
+            if now["state"] != plan["mod_start"]:
+                same_console(c, self.device, "start")
+                self._do("mod-start", lambda: self._mod_start(plan["mod_start"]), {"op": "mod-start", "prior": now["state"], "want": plan["mod_start"]}, want=plan["mod_start"], prior=now["state"])
+            self._progress("start", ok=True)
         # 7. verify everything the console will start from, as the storage holds it
         self._sync(drop=True, why="before the final verification")
-        bad = [rel for rel, h in files.items() if c.sha256(f"{self.target}/{rel}") != h]; pb = c.read(POINTER, 64); mod = c.pack_files(HOOK_NAME)
-        ok = not bad and pb == pointer_bytes(self.copy) and mod == {HOOK_FILE: module_sha()} and c.overlay_sha256(HOOK_FILE) == module_sha()
-        self.log(op="verify", ok=ok, mismatches=bad[:20], pointer=(pb or b"").decode(errors="replace").strip(), module=mod); self._progress("verify", ok=ok)
-        if not ok: raise InstallStopped("verify", "after the switch, the copy, the pointer or the start-up module is not as planned")
-        # installed: from here nothing is undone. 8. tidy what this program owns of the earlier copies and module records
+        vcopy = cur if same else self.copy
+        bad = [rel for rel, h in files.items() if c.sha256(f"{PKG_DIR}/{vcopy}/{rel}") != h]; pb = c.read(POINTER, 64); mf = c.method_files(mp["name"])
+        st = mod_start_state(c)["state"] if start is not None else None
+        ok = not bad and pb == pointer_bytes(vcopy) and mf is not None and mf.get("package") == mp["package_id"] and all((mf.get("files") or {}).get(p) == s for p, s in mp["files"].items()) and st == plan.get("mod_start")
+        self.log(op="verify", ok=ok, mismatches=bad[:20], pointer=(pb or b"").decode(errors="replace").strip(), method=mp["name"], method_package=(mf or {}).get("package"), start=st); self._progress("verify", ok=ok)
+        if not ok: raise InstallStopped("verify", f"after the switch, the copy, the pointer, {mp['name']}'s package or its start at power-on is not as planned")
+        # installed: from here nothing is undone. 8. retire this program's earlier start-up module (hakchi deletes its file at every start anyway);
+        # then tidy what this program owns of the earlier copies and module records
         self.undo = []; self.log(op="installed"); tidy = []
         same_console(c, self.device, "tidy")
+        if pf.get("legacy") == "mine":
+            try: self.log(op="retire", state="intent", module=LEGACY_NAME); c.pack_uninstall(LEGACY_NAME); self.log(op="retire", state="done")
+            except (ConnectionError, OSError) as e: tidy.append({"module": LEGACY_NAME, "removed": False, "why": str(e)})
         recs = read_records(c)
         for v, r in sorted(recs["versions"].items()):
-            if v == self.copy: continue
+            if v in (self.copy, vcopy): continue
             try: tidy.append(remove_copy(c, v, r, journal=lambda **k: self.log(**k)))
             except (ConnectionError, OSError) as e: tidy.append({"copy": v, "removed": False, "why": str(e)})
         for k16, r in recs["modules"].items():
-            if r["sha256"] != module_sha():
+            if r["sha256"] != mp["sha256"] and (r.get("schema") == "ccs-owned-module/2" or not c.pack_files(LEGACY_NAME)):   # an earlier one's record, once nothing of it is installed
                 b = c.read(r["_record"], 65536)
                 try:
                     if b is not None: self.log(op="remove-record", path=r["_record"], sha256=_sha(b)); c.remove(r["_record"], _sha(b))
@@ -687,7 +944,7 @@ class Installer:
         except (ConnectionError, OSError, InstallStopped) as e: finished = False; self.log(op="finish", ok=False, why=str(e))
         self.log(op="end", result="installed" if finished else "installed-record-open"); self._progress("done", ok=True)
         kept = [k for t in tidy for k in t.get("kept", [])]
-        self.done = {"ok": True, "result": "installed", "version": self.v, "copy": self.copy, "attempt": self.attempt, "written_bytes": getattr(c, "written_bytes", None), "preflight": pf,
+        self.done = {"ok": True, "result": "installed", "version": self.v, "copy": vcopy, "attempt": self.attempt, "mod_start": st, "written_bytes": getattr(c, "written_bytes", None), "preflight": pf,
                      "tidy": tidy, "kept_changed_or_unknown": kept + pf["kept_unknown"], "record_closed": finished, "changed": True, "device": pf["device"]["hwid"]}
 
     # ---- undo (stand-ins automatically; a real console only through resume(), its own approved operation)
@@ -750,15 +1007,18 @@ class Installer:
                     elif st != "none":
                         if now != mine_ptr or not c.remove(POINTER, mine_ptr): problems.append(f"{POINTER} is not this attempt's pointer; it is kept as it is")
                 elif op == "module":
-                    now = c.pack_files(HOOK_NAME); ours = {HOOK_FILE: module_sha()}
+                    mp = method_package(self.plan["method"]); now = c.method_files(u.get("name") or mp["name"])
                     if u["prior"] == "absent":
-                        if now == ours or (not now and c.overlay_sha256(HOOK_FILE) == module_sha()): c.pack_uninstall(HOOK_NAME)
-                        elif now or c.overlay_sha256(HOOK_FILE) is not None: problems.append("the start-up module is not the one this attempt installed; it is left as it is")
-                    else:
-                        pb = base64.b64decode(u["prior_b64"]) if u.get("prior_b64") else None
-                        if pb is not None and now == {HOOK_FILE: _sha(pb)}: pass
-                        elif pb is not None and now == ours: c.pack_install(HOOK_NAME, {HOOK_FILE: (pb, "0o755")})
-                        else: problems.append("the start-up module is neither the earlier one nor this attempt's; it is left as it is")
+                        if now is not None and now.get("package") == mp["package_id"] and all((now.get("files") or {}).get(p) == s for p, s in mp["files"].items()): c.pack_uninstall(mp["name"])
+                        elif now is not None: problems.append(f"{mp['name']}'s package is not exactly the one this attempt installed (or its files were changed since); it is left as it is")
+                    elif now is None or now.get("package") != u.get("prior_package"):
+                        problems.append(f"{mp['name']}'s earlier version was updated by this attempt; it is not put back (the newer one stays)")
+                elif op == "mod-start":   # CCS Mod's start back as it was, by its own command, only while it is still this attempt's
+                    now = mod_start_state(c)["state"]
+                    if now == u["prior"]: pass
+                    elif now == u["want"] and c.method_files(METHODS["mod"]) is not None:
+                        if c.mod_start(u["prior"]) != f"result autostart ok {u['prior']}": problems.append("CCS Mod's start at power-on could not be put back; it is left as it is")
+                    else: problems.append("CCS Mod's start at power-on is neither as it was nor as this attempt set it; it is left as it is")
                 elif op == "remove":
                     st = c.stat(u["path"])["type"]
                     if st == "file" and not c.remove(u["path"], u["sha256"]): problems.append(f"{u['path']} changed after it was written; it is kept")
@@ -786,8 +1046,9 @@ class Installer:
         if prior is None: return {"ok": True, "checks": {"nothing": "changed"}}
         b = c.read(POINTER, 64); ptr = b.decode(errors="replace").strip() if b is not None else None
         checks["pointer"] = ptr == prior["pointer"]
-        mod = c.pack_files(HOOK_NAME)
-        checks["module"] = (mod == {} and c.overlay_sha256(HOOK_FILE) is None) if prior["module"] == "absent" else (mod.get(HOOK_FILE) == prior["module_sha256"])
+        mf = c.method_files(method_package(self.plan["method"])["name"])
+        checks["module"] = mf is None if prior["module"] == "absent" else (mf or {}).get("package") == prior.get("module_package")
+        if self.plan["method"] == "mod" and prior.get("start") is not None: checks["start"] = mod_start_state(c)["state"] == prior["start"]
         checks["copy_removed"] = c.stat(self.target)["type"] == "none"
         checks["attempt_record_removed"] = c.stat(f"{INST_DIR}/attempt-{self.attempt}.json")["type"] == "none"
         checks["copy_record_removed"] = c.stat(f"{INST_DIR}/v-{self.copy}.json")["type"] == "none"
@@ -840,7 +1101,7 @@ class Installer:
             try: self.log(op="finish", state="intent", path=path); self.c.remove(path, _sha(b)); self._sync(why="the closed attempt")
             except (ConnectionError, OSError, InstallStopped) as e: return {"ok": False, "result": "unknown", "why": str(e)}
             self.log(op="end", result="installed", how="finished after an interruption"); return {"ok": True, "result": "installed", "why": "the installation had been verified; its record was closed"}
-        pr = rec.get("prior") or {}; prior = {"pointer": pr.get("pointer"), "module": pr.get("module"), "module_sha256": pr.get("module_sha256")}
+        pr = rec.get("prior") or {}; prior = {"pointer": pr.get("pointer"), "module": pr.get("module"), "module_package": pr.get("module_package"), "start": pr.get("start")}
         undo = [e["undo"] for e in es if e.get("state") == "intent" and e.get("undo")]
         rb = self._rollback(undo, prior); self.log(op="end", result="rolled-back" if rb["ok"] else "rollback-incomplete", rolled_back=rb, how="after an interruption")
         return {"ok": rb["ok"], "result": "rolled-back" if rb["ok"] else "rollback-incomplete", "rolled_back": rb, "attempt": attempt}
@@ -856,32 +1117,36 @@ def inspect_console(c, device: str | None = None) -> dict:
     recs = read_records(c); pst = c.stat(POINTER); pb = c.read(POINTER, 64) if pst["type"] == "file" else None
     pv = pb.decode("ascii", "replace").strip() if pb is not None else None
     in_use = pv if pb is not None and COPY_RE.match(pv or "") and pv in recs["versions"] and pb == pointer_bytes(pv) else None
-    mod = c.pack_files(HOOK_NAME); module = "absent"
-    if mod: module = ("current" if mod == {HOOK_FILE: module_sha()} else "this program's, older") if set(mod) == {HOOK_FILE} and mod[HOOK_FILE] in owned_module_shas(recs) else "not this program's"
-    elif c.overlay_sha256(HOOK_FILE) is not None: module = "another module replaces the start script"
+    ms = installed_methods(c, recs); module = "; ".join(f"{x['name']} ({x['state']})" for x in ms) or "absent"
     copy = None
     if in_use:
         s = copy_state(c, in_use, recs["versions"][in_use]); copy = {"copy": in_use, "plan": recs["versions"][in_use].get("plan"), "files": len(s["ours"]), "changed": s["changed"][:20], "missing": s["missing"][:20]}
     data = {"present": c.stat(DATA_DIR)["type"] == "dir"}
-    return {"ok": True, "device": dev, "in_use": copy, "pointer": "this program's" if in_use else ("absent" if pst["type"] == "none" else "not this program's"), "module": module,
-            "attempts": sorted(recs["attempts"]), "copies": sorted(recs["versions"]), "record_problems": recs["problems"][:10], "data": data, "free_bytes": c.free_bytes(ROOT_DIR)}
+    try: cm, cm_why = console_method(c), None
+    except Refused as e: cm, cm_why = None, e.why
+    return {"ok": True, "device": dev, "in_use": copy, "pointer": "this program's" if in_use else ("absent" if pst["type"] == "none" else "not this program's"), "module": module, "methods": ms,
+            "method": cm, "method_problem": cm_why, "mod_start": mod_start_state(c)["state"] if cm == "mod" else None,
+            "earlier_module": legacy_state(c, recs), "attempts": sorted(recs["attempts"]), "copies": sorted(recs["versions"]), "record_problems": recs["problems"][:10], "data": data, "free_bytes": c.free_bytes(ROOT_DIR)}
 
 def verify_installed(c, plan: dict, device: str | None = None) -> dict:
     """the console starts exactly this plan's copy: pointer, every file of the copy (after a sync with the page cache dropped, as the storage
-    holds them) and the start-up module. Reads only (sync writes nothing)"""
+    holds them) and the plan's method package, current and unchanged. Reads only (sync writes nothing)"""
     if getattr(c, "simulated", False) is not True: gate.require("inspect", "read a real console")
     try: dev = check_device(c.identity(fresh=True), "verify")
     except Refused as e: return {"ok": False, "verified": False, "why": e.why}
     if device and dev["hwid"] != device: return {"ok": False, "verified": False, "why": "this is not the console that was checked before; check it again"}
     recs = read_records(c); pb = c.read(POINTER, 64); pv = (pb or b"").decode("ascii", "replace").strip()
     rec = recs["versions"].get(pv) if pb is not None and pb == pointer_bytes(pv) else None
-    if not rec or rec.get("plan") != plan["hash"]: return {"ok": True, "verified": False, "why": "the console does not start this plan's copy", "in_use": pv if rec else None}
+    if not rec or rec.get("manifest_sha256") != plan["manifest_sha256"]: return {"ok": True, "verified": False, "why": "the console does not start this plan's copy", "in_use": pv if rec else None}
     s = getattr(c, "sync", None)
     if s: s(drop_caches=True)
     files = {f["path"]: f["sha256"] for f in plan["files"]}; base = f"{PKG_DIR}/{pv}"
-    bad = [rel for rel, h in files.items() if c.sha256(f"{base}/{rel}") != h]; mod = c.pack_files(HOOK_NAME)
-    ok = not bad and mod == {HOOK_FILE: module_sha()} and c.overlay_sha256(HOOK_FILE) == module_sha()
-    return {"ok": True, "verified": ok, "copy": pv, "mismatches": bad[:20], "module": "current" if mod == {HOOK_FILE: module_sha()} else "not as planned", "attempts": sorted(recs["attempts"]), "device": dev["hwid"]}
+    bad = [rel for rel, h in files.items() if c.sha256(f"{base}/{rel}") != h]
+    try: mstate = method_state(c, method_package(plan["method"]), recs)
+    except Refused: mstate = "not as planned"
+    st = mod_start_state(c)["state"] if plan["method"] == "mod" else None
+    ok = not bad and mstate == "current" and st == plan.get("mod_start")
+    return {"ok": True, "verified": ok, "copy": pv, "mismatches": bad[:20], "module": "current" if mstate == "current" else "not as planned", "method": plan["method"], "mod_start": st, "attempts": sorted(recs["attempts"]), "device": dev["hwid"]}
 
 def uninstall_plan(c, keep_data: bool = True, device: str | None = None) -> dict:
     """exactly what an uninstall would do, read from the console (nothing is changed): its actions in order, each naming the bytes it removes
@@ -897,12 +1162,16 @@ def uninstall_plan(c, keep_data: bool = True, device: str | None = None) -> dict
     recs = read_records(c)
     if recs["problems"]: return {"ok": False, "why": "this program's records on the console cannot all be read: " + "; ".join(recs["problems"][:3])}
     if recs["attempts"]: return {"ok": False, "why": f"an attempt ({sorted(recs['attempts'])[0]}) did not finish; recover it first"}
-    mod = c.pack_files(HOOK_NAME); mine = owned_module_shas(recs)
-    if mod and (set(mod) != {HOOK_FILE} or mod[HOOK_FILE] not in mine): return {"ok": False, "why": "the ccs-home module was not made by this program or was changed; it is not removed and nothing else is"}
     actions, remove, keep = [], [], []
-    if mod:
-        actions.append({"op": "module-uninstall", "sha256": mod[HOOK_FILE]})
-        remove.append(f"the start-up module {HOOK_NAME} ({HOOK_FILE} in hakchi's overlay, through hakchi's pack_uninstall): the console starts in Nintendo's HOME again")
+    ms = installed_methods(c, recs); legacy = legacy_state(c, recs)
+    for x in ms:
+        if x["state"] == "not this program's": keep.append(f"{x['name']} (a package this installation does not recognize)"); continue
+        actions.append({"op": "method-uninstall", "name": x["name"], "package": x["package"]})
+        remove.append(f"{'CCS Nucleus' if x['method'] == 'nucleus' else 'CCS Mod'} ({x['name']}, through hakchi's pack_uninstall: its own removal takes only its unchanged files; its settings stay): the console starts with its own menu, without CCS HOME's entry"
+                      + (" and without CCS HOME at power-on" if x["method"] == "mod" and mod_start_state(c)["state"] == "on" else ""))
+    if legacy == "mine":
+        actions.append({"op": "legacy-uninstall"}); remove.append(f"this program's earlier start-up module {LEGACY_NAME} (hakchi's own list for it)")
+    elif legacy == "foreign": keep.append(f"{LEGACY_NAME} (a module this program did not make)")
     pst = c.stat(POINTER); pb = c.read(POINTER, 64) if pst["type"] == "file" else None; pv = pb.decode("ascii", "replace").strip() if pb is not None else None
     owned_ptr = pb is not None and bool(COPY_RE.match(pv or "")) and pv in recs["versions"] and pb == pointer_bytes(pv)
     if owned_ptr: actions.append({"op": "remove", "path": POINTER, "sha256": _sha(pb)}); remove.append(POINTER)
@@ -921,7 +1190,8 @@ def uninstall_plan(c, keep_data: bool = True, device: str | None = None) -> dict
         rb = c.read(r["_record"], 65536)
         if rb is not None: actions.append({"op": "remove-record", "path": r["_record"], "sha256": _sha(rb), "when_module_gone": True})
     keep += [f"{PKG_DIR}/{x} (not this program's)" for x in c.listdir(PKG_DIR) if x != "current" and x not in recs["versions"]]
-    keep += [f"{ROOT_DIR}/{x} (not this program's)" for x in c.listdir(ROOT_DIR) if x not in ("pkg", "data", "install")]
+    keep += [f"{ROOT_DIR}/{x} (not this program's)" for x in c.listdir(ROOT_DIR) if x not in ("pkg", "data", "install") + METHOD_RECORDS]
+    keep += [f"{ROOT_DIR}/{x} (the install method's own records and settings: kept)" for x in c.listdir(ROOT_DIR) if x in METHOD_RECORDS]
     if keep_data: keep.append(f"{DATA_DIR} (the console's saves, slots and settings: kept)")
     elif c.stat(DATA_DIR)["type"] == "dir":
         dfiles, ddirs = [], []
@@ -937,7 +1207,7 @@ def uninstall_plan(c, keep_data: bool = True, device: str | None = None) -> dict
         remove.append(f"{DATA_DIR}: {len(dfiles)} file(s) (the console's saves, slots and settings, as asked)")
     actions += [{"op": "rmdir-if-empty", "path": d} for d in (PKG_DIR, INST_DIR, ROOT_DIR)]
     body = {"schema": "ccs-uninstall-review/1", "device": dev["hwid"], "keep_data": keep_data, "actions": actions, "keep": keep, "pointer_sha256": _sha(pb) if pb is not None else None}
-    return {"ok": True, "remove": remove, "keep": keep, "module": bool(mod), "copies": sorted(recs["versions"]), "pointer": {"owned": owned_ptr, "value": pv if owned_ptr else None},
+    return {"ok": True, "remove": remove, "keep": keep, "module": bool([a for a in actions if a["op"] in ("method-uninstall", "legacy-uninstall")]), "copies": sorted(recs["versions"]), "pointer": {"owned": owned_ptr, "value": pv if owned_ptr else None},
             "actions": actions, "device": dev["hwid"], "keep_data": keep_data, "pointer_sha256": body["pointer_sha256"], "hash": _sha(_canon(body))}
 
 def uninstall(console, keep_data: bool = True, journal: str | None = None, expect: str | None = None, device: str | None = None) -> dict:
@@ -961,9 +1231,12 @@ def uninstall(console, keep_data: bool = True, journal: str | None = None, expec
     for a in plan["actions"]:
         op, path = a["op"], a.get("path")
         try:
-            if op == "module-uninstall":
-                if c.pack_files(HOOK_NAME) != {HOOK_FILE: a["sha256"]}: problems.append("the start-up module changed since the review; it is kept and nothing more is changed"); break
-                log(op=op, state="intent"); c.pack_uninstall(HOOK_NAME); sync(); removed.append(f"module {HOOK_NAME}")
+            if op == "method-uninstall":
+                if (c.method_files(a["name"]) or {}).get("package") != a["package"]: problems.append(f"{a['name']} changed since the review; it is kept and nothing more is changed"); break
+                log(op=op, name=a["name"], state="intent"); c.pack_uninstall(a["name"]); sync(); removed.append(f"module {a['name']}")
+            elif op == "legacy-uninstall":
+                if legacy_state(c, read_records(c)) != "mine": problems.append(f"{LEGACY_NAME} changed since the review; it is kept and nothing more is changed"); break
+                log(op=op, state="intent"); c.pack_uninstall(LEGACY_NAME); sync(); removed.append(f"module {LEGACY_NAME}")
             elif op == "remove":
                 if c.stat(path)["type"] == "none": continue
                 log(op=op, path=path, sha256=a["sha256"], state="intent")
@@ -973,7 +1246,7 @@ def uninstall(console, keep_data: bool = True, journal: str | None = None, expec
                 if c.stat(path)["type"] == "dir" and not c.listdir(path): log(op=op, path=path, state="intent"); c.rmdir(path)
             elif op == "remove-record":
                 if a.get("when_gone") and c.stat(a["when_gone"])["type"] != "none": kept.append(f"{path} (its copy keeps items, so its record stays)"); continue
-                if a.get("when_module_gone") and (c.pack_files(HOOK_NAME) or c.overlay_sha256(HOOK_FILE) is not None): kept.append(f"{path} (the module is still there)"); continue
+                if a.get("when_module_gone") and (c.pack_files(LEGACY_NAME) or any(c.method_files(n) is not None for n in METHODS.values())): kept.append(f"{path} (the module is still there)"); continue
                 if c.stat(path)["type"] == "none": continue
                 log(op=op, path=path, sha256=a["sha256"], state="intent")
                 if c.remove(path, a["sha256"]): removed.append(path)
@@ -984,18 +1257,18 @@ def uninstall(console, keep_data: bool = True, journal: str | None = None, expec
         try: sync(drop=True)
         except (ConnectionError, OSError, InstallStopped) as e: problems.append(f"the removal could not be made persistent: {e}")
     try:
-        mod_after = c.pack_files(HOOK_NAME); pa = c.stat(POINTER)["type"]
+        mod_after = [n for n in METHODS.values() if c.method_files(n) is not None and n in {a["name"] for a in plan["actions"] if a["op"] == "method-uninstall"}] + ([LEGACY_NAME] if c.pack_files(LEGACY_NAME) and any(a["op"] == "legacy-uninstall" for a in plan["actions"]) else []); pa = c.stat(POINTER)["type"]
         ptr_ok = (pa == "none") if plan["pointer"]["owned"] else ((c.sha256(POINTER) if pa == "file" else None) == plan["pointer_sha256"])
         gone = [a["path"] for a in plan["actions"] if a["op"] == "remove" and c.stat(a["path"])["type"] != "none"]
-        checks = {"module_removed": not mod_after and c.overlay_sha256(HOOK_FILE) is None, "pointer": ptr_ok, "planned_removals_left": len(gone)}
+        checks = {"module_removed": not mod_after, "pointer": ptr_ok, "planned_removals_left": len(gone)}
     except (ConnectionError, OSError) as e: checks = {"unreadable": str(e)}; problems.append(f"the result could not be read back: {e}")
     complete = not problems and not kept and checks.get("module_removed") is True and checks.get("pointer") is True and checks.get("planned_removals_left") == 0
     data = "kept" if keep_data else ("removed" if c.stat(DATA_DIR)["type"] == "none" else "partly kept")
     log(op="end", result="uninstalled" if complete else "incomplete", problems=problems[:10], kept=kept[:50])
     return {"ok": complete, "result": "uninstalled" if complete else "incomplete", "removed": removed, "kept_changed": kept, "kept_unknown": sorted(x for x in plan["keep"] if "not this program's" in x or "not followed" in x),
             "problems": problems, "data": data, "module": "removed" if plan["module"] else "absent", "verified": checks, "changed": bool(removed),
-            "after_restart": ("The console starts in Nintendo's HOME with its own games and saves; Classic Cart Studio's HOME no longer starts." if checks.get("module_removed") else
-                              "Not everything was removed: the console may still start Classic Cart Studio's HOME. Review the removal again.")}
+            "after_restart": ("The console starts with its own menu, games and saves; CCS HOME's entry is gone and Classic Cart Studio's HOME no longer starts." if checks.get("module_removed") else
+                              "Not everything was removed: the console may still offer Classic Cart Studio's HOME. Review the removal again.")}
 
 EXPORT_CHUNK = 262144   # bytes per read (64 blocks of 4,096): one bounded message each, whatever the file's size
 def export_data(c, out_dir: str, device: str | None = None, max_file: int = MAX_FILE, max_total: int = MAX_TOTAL) -> dict:
@@ -1070,7 +1343,9 @@ HOME_PROFILES = {   # what the console would be, never a real one
     "hakchi-ready": _READY | {"hwid": "sim-0001", "free_bytes": 200_000_000},
     "stock": {"kernel": "3.4.113", "hakchi": None, "system": "nes-usa", "can_interact": None, "custom_firmware": None, "hwid": "sim-0002", "free_bytes": 200_000_000},
     "nearly-full": _READY | {"hwid": "sim-0003", "free_bytes": 5_000_000},
-    "other-module": _READY | {"hwid": "sim-0004", "free_bytes": 200_000_000, "foreign_s81": True},
+    "other-module": _READY | {"hwid": "sim-0004", "free_bytes": 200_000_000, "other_method": "nucleus"},   # CCS Nucleus already there (the Workbench installed it)
+    "mod-module": _READY | {"hwid": "sim-0008", "free_bytes": 200_000_000, "other_method": "mod"},       # CCS Mod already there
+    "both-methods": _READY | {"hwid": "sim-0009", "free_bytes": 200_000_000, "other_method": "mod+nucleus"},   # both: a change between them that did not finish
 }
 IDENTITY_PROFILES = {   # refusals by identity (tests): another system, an older hakchi, a custom firmware, an identity that cannot be read
     "snes-eur": _READY | {"system": "snes-eur", "hwid": "sim-0005", "free_bytes": 200_000_000},
@@ -1093,6 +1368,9 @@ def make_stand_in(root: str, profile: str, durable: bool = False) -> FakeConsole
     for rel, b in sample.items():
         q = os.path.join(root, *rel.split("/")); os.makedirs(os.path.dirname(q), exist_ok=True)
         with open(q, "wb") as f: f.write(b)
+    os.makedirs(os.path.join(root, "var/lib/hakchi/rootfs/etc/init.d"), exist_ok=True)   # hakchi's own overlay carries its start scripts' folder
+    for m in (info.get("other_method") or "").split("+"):
+        if m: mp = method_package(m); FakeConsole(root).pack_install(mp["name"], mp["hmod"])
     return FakeConsole(root, durable=durable)
 
 def stock_digest(root: str) -> dict:   # the stand-in's stock and foreign sample as it is now (compared before and after)

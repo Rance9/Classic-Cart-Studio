@@ -1,0 +1,12 @@
+# CCS Nucleus (Classic Cart Studio): right after hakchi's p7070_firmware. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# When p7060_ccsnucleus named an owner's system image for this start, the owner's own cfg_firmware is put back now, before p7080_hmods,
+# pffff_config or anything else can save hakchi's settings, and the separate program records whether hakchi mounted that image.
+ccsn_after(){
+  [ -n "$ccsn_selected" ] || return 0
+  local fw="$ccsn_selected"
+  cfg_firmware="$ccsn_saved"
+  unset ccsn_selected ccsn_saved
+  [ -f "$rootfs/bin/ccs-nucleus" ] && CCS_ROOT="$mountpoint" sh "$rootfs/bin/ccs-nucleus" loaded "$fw" >/dev/null 2>&1
+  return 0
+}
+ccsn_after

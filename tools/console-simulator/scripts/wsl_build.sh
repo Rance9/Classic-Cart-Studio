@@ -10,7 +10,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; SRC="$HERE/../core"
 TC="${CCS_SIM_TOOLCHAIN:-$HOME/.cache/ccs-sim/toolchain}"; OUT="${CCS_SIM_BUILD:-/mnt/c/NES/work/console-simulator/build}"
 ZIG="$TC/zig/zig"; TARGETS="${1:-all}"
-SRCS="$SRC/main.c $SRC/json_min.c $SRC/model.c $SRC/input.c $SRC/fb.c $SRC/gfx.c $SRC/font.c $SRC/home.c $SRC/persist.c $SRC/theme_arcade.c $SRC/theme_boxart.c $SRC/theme_shelf.c $SRC/theme_map.c $SRC/gfx3d.c $SRC/devio.c $SRC/device.c"; CFLAGS="-std=c11 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-misleading-indentation -ffp-contract=off"
+SRCS="$SRC/main.c $SRC/json_min.c $SRC/model.c $SRC/input.c $SRC/fb.c $SRC/gfx.c $SRC/font.c $SRC/home.c $SRC/persist.c $SRC/theme_arcade.c $SRC/theme_boxart.c $SRC/theme_shelf.c $SRC/theme_map.c $SRC/gfx3d.c $SRC/devio.c $SRC/device.c $SRC/design.c $SRC/design_check.c $SRC/chooser.c"; CFLAGS="-std=c11 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-misleading-indentation -ffp-contract=off"
 mkdir -p "$OUT"; rc=0
 build() {   # name, compiler command..., output name
   local name="$1"; shift; local exe="$1"; shift; local d="$OUT/$name"; mkdir -p "$d"

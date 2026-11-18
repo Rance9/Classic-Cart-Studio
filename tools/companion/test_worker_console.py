@@ -55,7 +55,7 @@ class T(unittest.TestCase):
         self.addCleanup(c.close); return c
     def state(self, c):   # what the console would start from, read back through the worker
         b = c.read(CI.POINTER, 64); ptr = b.decode().strip() if b else None
-        return {"pointer": ptr, "module": c.pack_files(CI.HOOK_NAME), "overlay": c.overlay_sha256(CI.HOOK_FILE), "pkg": sorted(c.listdir(CI.PKG_DIR)), "install": sorted(c.listdir(CI.INST_DIR)),
+        return {"pointer": ptr, "module": c.method_files("ccs-mod"), "overlay": c.overlay_sha256("/bin/ccs-mod"), "earlier": c.pack_files(CI.LEGACY_NAME), "pkg": sorted(c.listdir(CI.PKG_DIR)), "install": sorted(c.listdir(CI.INST_DIR)),
                 "stock_s81": c.sha256("/etc/init.d/S81clover-mcp"), "unknown": c.sha256(CI.PKG_DIR + "/someone-elses/keep.txt")}
     def seed(self, c):
         for d in (CI.ROOT_DIR, CI.PKG_DIR, CI.PKG_DIR + "/someone-elses"): c.mkdir(d)
@@ -64,7 +64,8 @@ class T(unittest.TestCase):
         c = self.host(); self.seed(c); stock = c.sha256("/etc/init.d/S81clover-mcp"); self.assertIsNotNone(stock)
         self.assertEqual(c.call("connect", {"transport": "ssh"}, raw=True)["error"], "physical-disabled", "the test host never connects: its connect goes to its own refusing opener, whatever the gate")
         r = CI.Installer(c, self.plan_a, self.pa, self.j).run(); self.assertTrue(r["ok"], r); self.assertEqual(r["result"], "installed")
-        s = self.state(c); self.assertEqual(s["pointer"], r["copy"]); self.assertEqual(s["module"], {CI.HOOK_FILE: CI.module_sha()}); self.assertEqual(s["overlay"], CI.module_sha())
+        mp = CI.method_package("mod"); s = self.state(c); self.assertEqual(s["pointer"], r["copy"]); self.assertEqual(s["module"], {"package": mp["package_id"], "files": mp["files"]}, "CCS Mod installed by hakchi's own pack_install, every file as its package lists it")
+        self.assertEqual(s["overlay"], mp["files"]["/bin/ccs-mod"]); self.assertEqual(s["earlier"], {}); self.assertIsNone(c.sha256(CI.OVERLAY + CI.LEGACY_FILE), "no start file of the kind hakchi deletes at every start")
         self.assertEqual(s["unknown"], sha(b"not ours")); self.assertEqual(s["stock_s81"], stock, "the stock start script itself is never written (hakchi's overlay is)")
         for f in self.plan_a["files"]: self.assertEqual(c.sha256(f"{CI.PKG_DIR}/{r['copy']}/{f['path']}"), f["sha256"], f["path"])
         self.assertEqual(CI.Installer(c, self.plan_a, self.pa, self.j).run()["result"], "no-change")
@@ -74,7 +75,7 @@ class T(unittest.TestCase):
         ex = os.path.join(self.t, "export"); e = CI.export_data(c, ex); self.assertTrue(e["ok"], e); self.assertEqual(e["files"], 2)
         plan = CI.uninstall_plan(c); self.assertTrue(plan["ok"], plan); self.assertTrue(any("someone-elses" in k for k in plan["keep"]))
         x = CI.uninstall(c); self.assertTrue(x["ok"], x); s = self.state(c)
-        self.assertEqual(s["module"], {}); self.assertIsNone(s["overlay"], "hakchi's pack_uninstall removed the start-up file"); self.assertIsNone(s["pointer"])
+        self.assertIsNone(s["module"]); self.assertIsNone(s["overlay"], "hakchi's pack_uninstall ran CCS Mod's own removal: its program is gone"); self.assertIsNone(s["pointer"])
         self.assertEqual(s["pkg"], ["someone-elses"]); self.assertEqual(s["unknown"], sha(b"not ours")); self.assertEqual(c.sha256(CI.DATA_DIR + "/saves/cart.sav"), sha(b"\x01" * 8192), "saves kept")
     def test_02_lost_connections_at_the_switch_and_the_module_are_undone_through_the_worker(self):
         # the console-changing calls of a first install here: mkdir install (1), attempt record (2), copy record (3), copy folder (4), its folders and
