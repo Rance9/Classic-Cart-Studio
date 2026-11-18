@@ -4,20 +4,32 @@ on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact source commit to build (40 hex characters)
+        required: true
+        type: string
+      reuse_native_run:
+        description: Optional validated native artifacts run (44311030542 only)
+        required: false
+        type: string
 
 permissions:
   contents: write
   id-token: write
   attestations: write
+  actions: read
 
 jobs:
   build-native:
+    if: inputs.reuse_native_run == ''
     # the native HOME renderer, one C source tree (tools/console-simulator/core): the static 32-bit ARM runtime the console package
     # carries, and the Windows build that draws Preview on TV. Pinned, checksum-verified toolchain (toolchain.lock.json), no root.
     name: Build the native HOME renderer (ARM runtime, Windows preview core)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
       - name: Toolchain (zig pinned and SHA-256 verified, qemu-user for the ARM check)
         run: bash tools/console-simulator/scripts/wsl_setup.sh
       - name: Build
@@ -31,8 +43,14 @@ jobs:
           echo shutdown | "$HOME/.cache/ccs-sim/toolchain/deb/usr/bin/qemu-arm" build/native/arm-musl-device/ccs-home-armv7 | tee arm.log; grep -q '"ev":"ready"' arm.log
           echo shutdown | build/native/linux-x86_64/ccs-sim-core | grep -q '"ev":"ready"'
           file build/native/arm-musl-device/ccs-player-armv7 | tee player.txt; grep -q "ELF 32-bit LSB executable, ARM" player.txt; grep -q "statically linked" player.txt
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13.17" }
+      - name: Browser player from the same pinned source
+        run: python tools/publish/build_web_player.py build/web-player
+      - uses: actions/upload-artifact@v4
+        with: { name: web-player, path: build/web-player, if-no-files-found: error }
       - name: Build ccsboot (the console programs' boot-stage reader and writer; the same pinned zig, reproducible flags)
-        run: bash tools/console-backup/ram/ccsboot/build.sh build/ccsboot
+        run: bash tools/console-backup/ram/ccsboot/build.sh "$GITHUB_WORKSPACE/build/ccsboot"
       - name: Test ccsboot (its test build on a file-backed device under qemu-arm; the console build refuses without the console's driver)
         run: python3 tools/console-backup/ram/ccsboot/test_ccsboot.py build/ccsboot
       - uses: actions/upload-artifact@v4
@@ -65,6 +83,7 @@ jobs:
           if-no-files-found: error
 
   build-recovery-images:
+    if: inputs.reuse_native_run == ''
     # Console Backup & Restore's console programs: Hakchi2 CE 3.9.3's recovery boot image with a Classic Cart Studio start-up
     # (tools/console-backup/ram/build_images.py; every input checked by SHA-256, every change recorded in each MANIFEST.json), built on the
     # one build Python so the bytes depend on the source and the pinned package only
@@ -73,6 +92,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
       - uses: actions/download-artifact@v4
         with:
           name: ccsboot
@@ -98,6 +118,7 @@ jobs:
           if-no-files-found: error
 
   test-recovery-images:
+    if: inputs.reuse_native_run == ''
     # the built images on Linux: a static audit of every file they run and runs on the image's own BusyBox under qemu-arm with the
     # console's storage tools replaced by write tripwires (no console, no USB); a failure stops the release
     name: Test the console programs (static audit, qemu-arm runs with write tripwires)
@@ -105,6 +126,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
       - name: Toolchain (qemu-user)
         run: bash tools/console-simulator/scripts/wsl_setup.sh
       - uses: actions/download-artifact@v4
@@ -117,6 +139,7 @@ jobs:
         run: python3 tools/console-backup/ram/test_recovery_images.py --images build/ram-images --hakchi-release "$CCS_HAKCHI_PACKAGE"
 
   build-windows:
+    if: always() && !cancelled() && ((inputs.reuse_native_run != '' && inputs.source_ref == '32db2174a1aaa0b25910096c630afff30b6c84ad') || (needs.build-native.result == 'success' && needs.test-recovery-images.result == 'success'))
     needs: [build-native, test-recovery-images]
     runs-on: windows-latest
     env:   # code signing (tools/publish/signing.py): repository variables, nothing secret; unset = an unsigned build, labeled unsigned
@@ -128,18 +151,37 @@ jobs:
       CCS_SIGN_PROFILE: ${{ vars.CCS_SIGN_PROFILE }}
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
+      - name: Validate the completed native jobs before reusing their artifacts
+        if: inputs.reuse_native_run != ''
+        env: { GH_TOKEN: "${{ github.token }}" }
+        shell: pwsh
+        run: |
+          if ("${{ inputs.reuse_native_run }}" -ne "44311030542" -or "${{ inputs.source_ref }}" -ne "32db2174a1aaa0b25910096c630afff30b6c84ad") { throw 'this artifact reuse is not approved for that source/run' }
+          $run = gh api repos/${{ github.repository }}/actions/runs/44311030542 | ConvertFrom-Json
+          if ($run.head_sha -ne '11d26455f9f2275469a646c1913c158fc064f19f') { throw 'the native build workflow differs' }
+          $jobs = (gh api repos/${{ github.repository }}/actions/runs/44311030542/jobs | ConvertFrom-Json).jobs
+          foreach ($name in @('Build the native HOME renderer (ARM runtime, Windows preview core)', "Build CCS Console Workbench's console programs (recovery images)", 'Test the console programs (static audit, qemu-arm runs with write tripwires)')) {
+            if (-not ($jobs | Where-Object { $_.name -eq $name -and $_.conclusion -eq 'success' })) { throw "completed successful job missing: $name" }
+          }
       - uses: actions/download-artifact@v4
         with:
           name: native-home
           path: build/native
+          run-id: ${{ inputs.reuse_native_run || github.run_id }}
+          github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           name: recovery-images
           path: build/ram-images
+          run-id: ${{ inputs.reuse_native_run || github.run_id }}
+          github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           name: par2dll
           path: build/par2dll
+          run-id: ${{ inputs.reuse_native_run || github.run_id }}
+          github-token: ${{ github.token }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13.17"   # the one build Python (tools/publish/requirements-build.txt), also the website's and the local builds'
@@ -154,7 +196,23 @@ jobs:
           $v = (Get-Content VERSION).Trim()
           if ("${{ github.ref_name }}" -ne "v$v" -and "${{ github.event_name }}" -eq "push") { throw "tag ${{ github.ref_name }} does not match VERSION $v" }
           "APP_VERSION=$v" >> $env:GITHUB_ENV
+      - uses: actions/download-artifact@v4
+        with: { name: web-player, path: build/web-player, run-id: "${{ inputs.reuse_native_run || github.run_id }}", github-token: "${{ github.token }}" }
+      - name: Reused native bytes match the completed CI build
+        if: inputs.reuse_native_run != ''
+        shell: pwsh
+        run: |
+          $expected = @{
+            'build/native/arm-musl-device/ccs-home-armv7' = 'c2799e8fa318b625f54b754230edd99ebd57ad54f74682df854818baa41c36fe'
+            'build/native/arm-musl-device/ccs-player-armv7' = 'b38da6810719b73c1480d8ae54981c1de480edc6a19f0454c0dfb16de109bc61'
+            'build/native/windows-x86_64/ccs-sim-core.exe' = 'c3334eafd6ec28fe55f66aec4e1b0920aa99af934121e7841fe4da00673c98fb'
+            'build/native/windows-x86_64/ccs-player.exe' = '3fa62ec8bf12d2afbd1256700cf74ec8d8c133ccd75c346e7dc81d7f9b462cf7'
+            'build/web-player/ccs-player.wasm' = '59ad06e02eae1e3b285718e522e91ed04cd62ad52c6f7a70882849f8c849d2a5'
+            'build/par2dll/x64/ccs-par2.dll' = '12f61ff6a57d44e0accf1b750d36e61d64688d3ec86a8640b61701b22897acc9'
+          }
+          foreach ($p in $expected.Keys) { if ((Get-FileHash -Algorithm SHA256 $p).Hash.ToLower() -ne $expected[$p]) { throw "native CI artifact bytes differ: $p" } }
       - name: Build the public site (shipped inside the companion)
+        env: { CCS_REQUIRE_WEB_PLAYER: "1" }
         run: python tools/publish/build_site_ci.py build/site
       - name: Scan the site
         run: python tools/publish/scan_prohibited.py build/site
@@ -185,7 +243,7 @@ jobs:
       - name: Build the console transport worker (offline tests, two build folders byte-identical, BUILD-INFO.json, corresponding source archive)
         shell: pwsh
         run: |
-          tools/console-worker/build-worker.ps1 -HakchiSource build/hakchi-src -Out build/console-worker -SourceRevision "${{ github.sha }}"
+          tools/console-worker/build-worker.ps1 -HakchiSource build/hakchi-src -Out build/console-worker -SourceRevision "${{ inputs.source_ref || github.sha }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "CCS_CONSOLE_WORKER_DIR=$PWD\build\console-worker" >> $env:GITHUB_ENV
       - name: Sign Classic Cart Studio's own native programs before they are bundled (an unsigned build leaves them as built)
@@ -193,6 +251,7 @@ jobs:
         run: |
           python tools/publish/signing.py sign build/native/windows-x86_64/ccs-sim-core.exe build/native/windows-x86_64/ccs-player.exe
           if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { exit $LASTEXITCODE }
+          exit 0
       - name: Freeze the companion (PyInstaller, one-folder; bundles every required component and fails without one)
         env:
           NES_SITE_DIR: ${{ github.workspace }}\build\site
@@ -240,6 +299,7 @@ jobs:
           $d = "build/dist/ClassicCartStudioBackend"
           python tools/publish/signing.py sign $d/ClassicCartStudio.exe $d/ClassicCartStudioBackend.exe $d/CcsBackupUi.dll $d/CcsBackup.dll $d/CcsConsole.dll $d/ccs-par2.dll
           if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { exit $LASTEXITCODE }
+          exit 0
       - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
         shell: pwsh
         run: |
@@ -279,6 +339,8 @@ jobs:
         with:
           name: par2-source
           path: build/release
+          run-id: ${{ inputs.reuse_native_run || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Checksums and build information
         shell: pwsh
         run: |
@@ -296,13 +358,15 @@ jobs:
           $lh = (Get-FileHash -Algorithm SHA256 LibUsbDotNet-2.2.29-source-5dd91a2.tar -ErrorAction Stop).Hash.ToLower()
           "$h  $($f.Name)", "$zh  console-worker-source.zip", "$th  ClassicCartStudio-Installation-Terms-1.3.txt", "$lh  LibUsbDotNet-2.2.29-source-5dd91a2.tar" | Out-File -Encoding ascii SHA256SUMS.txt
           $wi = Get-Content -Raw ../console-worker/BUILD-INFO.json | ConvertFrom-Json
-          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ github.sha }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = [bool]$env:CCS_SIGNING; publisher = $(if ($env:CCS_SIGNING) { $env:CCS_SIGN_PUBLISHERS } else { $null }); console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh }; recovery_images = (Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json).app.recovery_images; libusbdotnet_source = @{ name = "LibUsbDotNet-2.2.29-source-5dd91a2.tar"; repository = "https://github.com/LibUsbDotNet/LibUsbDotNet"; commit = "5dd91a2fda393cf11db2072f2b45c3aee2750388"; tree = "f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a"; sha256 = $lh } } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 build-info.json
+          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ inputs.source_ref || github.sha }}"; workflow_revision = "${{ github.sha }}"; native_artifacts_run = "${{ inputs.reuse_native_run || github.run_id }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = [bool]$env:CCS_SIGNING; publisher = $(if ($env:CCS_SIGNING) { $env:CCS_SIGN_PUBLISHERS } else { $null }); console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh }; recovery_images = (Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json).app.recovery_images; libusbdotnet_source = @{ name = "LibUsbDotNet-2.2.29-source-5dd91a2.tar"; repository = "https://github.com/LibUsbDotNet/LibUsbDotNet"; commit = "5dd91a2fda393cf11db2072f2b45c3aee2750388"; tree = "f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a"; sha256 = $lh } } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 build-info.json
           $ph = (Get-FileHash -Algorithm SHA256 par2cmdline-1.4.0.tar.gz).Hash.ToLower()
           "$ph  par2cmdline-1.4.0.tar.gz" | Add-Content -Encoding ascii SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
       - name: Smoke-test the frozen companion (starts, answers /api/version, stops)
         shell: pwsh
         run: python tools/companion/test_frozen_smoke.py build/dist/ClassicCartStudioBackend/ClassicCartStudioBackend.exe
+      - uses: actions/upload-artifact@v4
+        with: { name: engine-proof, path: build/workbench/shared-engine.json, if-no-files-found: error }
       - uses: actions/upload-artifact@v4
         with:
           name: installer
@@ -320,7 +384,6 @@ jobs:
         with:
           subject-path: build/release/*.exe
       - name: Publish the GitHub release
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
@@ -332,4 +395,4 @@ jobs:
           $src = "build/hakchi-source/hakchi2-ce-3.9.3-source.tar.gz"
           if ((Get-FileHash -Algorithm SHA256 $src).Hash.ToLower() -ne "dc6e6a4704a9bdb1ca8a0deb746dd41f660b4076ba99b84160af5164f36e5038") { throw "the Hakchi2 CE source archive does not match its recorded SHA-256" }
           python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --preview --out build/release/NOTES.md
-          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --draft --prerelease --latest=false --title "Classic Cart Studio $env:APP_VERSION — Preview" --notes-file build/release/NOTES.md
+          gh release create "v$env:APP_VERSION" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --verify-tag --draft --prerelease --latest=false --title "Classic Cart Studio $env:APP_VERSION — Preview" --notes-file build/release/NOTES.md

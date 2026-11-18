@@ -256,6 +256,8 @@ namespace CcsBackup.Ui
         }
 
         /// <summary>a short status label with a colored outline (its words carry the meaning; the color only repeats it)</summary>
-        Border Pill(string text, string brush) => new Border { CornerRadius = new CornerRadius(10), BorderBrush = Res<Brush>(brush), BorderThickness = new Thickness(1), Padding = new Thickness(10, 2, 10, 3), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = text, FontSize = Ty.Fine, Foreground = Res<Brush>(brush), TextWrapping = TextWrapping.Wrap } };
+        Border Pill(string text, string brush) => NoTerms(new Border { CornerRadius = new CornerRadius(10), BorderBrush = Res<Brush>(brush), BorderThickness = new Thickness(1), Padding = new Thickness(10, 2, 10, 3), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = text, FontSize = Ty.Fine, Foreground = Res<Brush>(brush), TextWrapping = TextWrapping.Wrap } });
+        /// <summary>marks an element whose text stays exactly as it is, with no explained words (a status label, a file list, legal text)</summary>
+        static T NoTerms<T>(T e) where T : DependencyObject { SetNoTerms(e, true); return e; }
     }
 }

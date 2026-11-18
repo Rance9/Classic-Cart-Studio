@@ -50,8 +50,8 @@ function pwaDialog(){ const app=pwaStandalone(), apple=pwaApple(), st=PWA.status
   ['Install on NES Classic',no,yes('With Hakchi2 CE, included')],
   ['Your collections are kept','<span>In this browser, on this device</span>','<span>On this computer</span>'],
   ['Get it',getWeb,getWin]];
- openColl('Install the Website App', '', `<div class="pwacall" role="note"><span class="pwaci" aria-hidden="true">!</span><div><b>This is not the Windows app.</b> The website app is this website, added to this device by your browser: it opens in its own window like an app, even without the internet. Classic Cart Studio for Windows is a separate program you download and install.</div></div>
-  <div class="pwacmp" role="table" aria-label="The website app and the Windows app compared">
+ openColl('Install the Website App', '', `<div class="pwacall" role="note" data-terms><span class="pwaci" aria-hidden="true">!</span><div><b>This is not the Windows app.</b> The website app is this website, added to this device by your browser: it opens in its own window like an app, even without the internet. Classic Cart Studio for Windows is a separate program you download and install.</div></div>
+  <div class="pwacmp" role="table" aria-label="The website app and the Windows app compared" data-terms>
    <div class="pwa-h" role="row"><div class="pwa-c pwa-l" role="columnheader"><span class="sr">Feature</span></div><div class="pwa-c pwa-w" role="columnheader">${PWA_WEB_SVG}<b>Website App</b></div><div class="pwa-c pwa-x" role="columnheader">${PWA_WIN_SVG}<b>Windows App</b></div></div>
    ${rows.map(([l,w,x])=>`<div class="pwa-r" role="row"><div class="pwa-c pwa-l" role="rowheader">${l}</div><div class="pwa-c pwa-w" role="cell">${w}</div><div class="pwa-c pwa-x" role="cell">${x}</div></div>`).join('')}
   </div>

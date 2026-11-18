@@ -34,6 +34,12 @@ check(R.select_release(P, "app", True)[0]["tagName"] == "v1.2.0", "explicit prev
 check(R.select_release(P, "workbench", True)[0]["tagName"] == "workbench-v1.2.0", "explicit preview Workbench feed stays product-specific")
 check(R.select_release([rel("v1.2.0", "2027", "ClassicCartStudio-Setup-1.2.0.exe", draft=True)], "app", True) == (None, None), "preview opt-in never exposes drafts")
 
+# A version-label correction is chosen by publication time, even when its number is lower.
+C = [rel("workbench-v1.0.0", "2026-11-18T13:44:48Z", "CCS-Console-Workbench-1.0.0.exe", pre=True),
+     rel("workbench-v0.11.0", "2026-11-18T15:00:00Z", "CCS-Console-Workbench-0.11.0.exe", pre=True),
+     rel("v0.11.0", "2026-11-18T13:44:47Z", "ClassicCartStudio-Setup-0.11.0.exe", pre=True)]
+check(R.select_release(C, "workbench", True)[0]["tagName"] == "workbench-v0.11.0" and R.select_release(C, "app", True)[0]["tagName"] == "v0.11.0", "a corrected preview supersedes an earlier higher number without mixing products")
+
 # the website: connect.js's own selection, run in Node with GitHub's API field names
 node = shutil.which("node") or (r"C:\Program Files\nodejs\node.exe" if os.path.exists(r"C:\Program Files\nodejs\node.exe") else None)
 src = open(os.path.join(HERE, "..", "rom-pipeline", "studio", "connect.js"), encoding="utf-8").read()

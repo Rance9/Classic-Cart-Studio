@@ -1,5 +1,7 @@
 # CCS Console Workbench
 
+Current preview: **0.11.1**, aligned with Classic Cart Studio and the shared engine. Earlier previews (0.11.0, and 1.0.0, which was not a production release) are superseded and stay available as they were.
+
 > **Unsigned development preview:** console connections, console writes and driver actions are disabled. PC/offline features are available; real-console and Windows on Arm qualification remain incomplete.
 
 **Back up, restore, repair and compose your NES Classic.**
@@ -24,15 +26,22 @@ Console sessions use the console's own recovery mode (USB, RESET held at power-o
 `tools/console-backup/CcsBackup/Gate.cs`. Writes to a real console are turned on only after each kind has been checked on real hardware.
 `tools/console-backup/WRITE-MATRIX.md` lists what each mode may write and what software cannot undo.
 
+## Downloads and source
+
+Windows preview downloads and checksums are available at [ClassicCartStudio.com/app/](https://classiccartstudio.com/app/).
+The x64 file is the default Windows download. The Arm64 build has not been run on Arm64 hardware.
+
 ## Building
 
-1. Check out `main` at the commit in `ENGINE-PIN.txt`. Use the .NET SDK and zig versions recorded there.
-2. Build the console boot-stage tool: `tools/console-backup/ram/ccsboot/build.sh OUT` (zig, static armv7).
-3. Build the recovery images from the pinned Hakchi2 CE 3.9.3 release:
-   `python tools/console-backup/ram/build_images.py --hakchi-release <folder or portable ZIP> --ccsboot OUT/ccsboot --out <new folder>`.
-4. Build the standalone: `dotnet build tools/console-backup/ccs-backup-utility -c Release -p:CcsRamImages=<images folder>`.
+`ENGINE-PIN.txt` names the exact public source commit, tree and SHA-256 of its uncompressed git archive.
+The release workflow checks all three before building. It builds the console HOME/player, five recovery programs and HOME package,
+then the managed engine using the app's VERSION, and the single-file x64 and Arm64 hosts using Workbench's own version.
+See [.github/workflows/workbench-release.yml](.github/workflows/workbench-release.yml) for the complete pinned build steps.
+A Workbench tag names the product version; it never changes the shared engine's assembly version.
 
-Pinned upstream binary inputs are checked by SHA-256; the engine pin records the exact source commit, tree and archive hash. The release workflow builds the native single-file host and attaches available source archives.
+The release includes engine-source.zip and available third-party source archives. The app and standalone carry the same four
+managed libraries and console programs; `tools/console-backup/check_shared_engine.py` checks their hashes from both actual hosts.
+The pin proves source identity; the built-host report proves byte identity for the released pair.
 
 ## Formats
 
