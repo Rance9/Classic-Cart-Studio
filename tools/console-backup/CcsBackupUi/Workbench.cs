@@ -27,8 +27,7 @@ namespace CcsBackup.Ui
         {
             var steps = new StackPanel();
             steps.Children.Add(T("Connect the console", 15, true, false, new Thickness(0, 0, 0, 10)));
-            steps.Children.Add(Numbered("Turn the " + Con + " off and connect it to this PC with its USB cable.", "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go.", "The TV shows a Classic Cart Studio screen while a small program runs from the console's memory. " + what));
-            steps.Children.Add(Terms("recovery"));
+            steps.Children.Add(Numbered("Turn the " + Con + " off and connect it to this PC with its USB cable.", "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go: the console starts in recovery mode.", "The TV shows a Classic Cart Studio screen while a small program runs from the console's memory. " + what));
             steps.Children.Add(T("This PC needs the console's USB driver. If Windows does not have it, Workbench asks before setting it up; it never installs a driver by itself.", 12.5, false, true, new Thickness(0, 6, 0, 0)));
             return Card(steps);
         }
@@ -59,8 +58,7 @@ namespace CcsBackup.Ui
         Dictionary<string, object> rescueDiag; string rescueTag;
         void ShowRescue()
         {
-            var sp = SectionHead("Console Rescue", "For an " + Con + " that no longer starts because a startup stage is damaged: Console Rescue writes this console's own copy of that stage back from one of its backups. It changes the console only after you confirm.");
-            sp.Children.Add(Terms("bootloader", "startup"));
+            var sp = SectionHead("Console Rescue", "For an " + Con + " that no longer starts because a stage of its bootloader is damaged: Console Rescue writes this console's own copy of that stage back from one of its backups. It changes the console only after you confirm.");
             var c = new StackPanel();
             c.Children.Add(T("How it works", 15, true, false, new Thickness(0, 0, 0, 10)));
             c.Children.Add(Numbered("The console's startup stages are read and checked (nothing is written).", "You choose a backup of this same console that holds complete copies of them.", "The console as it is now is backed up first. A damaged stage is kept exactly as it reads, and you confirm, by typing a sentence, that it cannot be saved as it was.", "Only the chosen stage is written, once, and read back. Then you switch the console off and on."));
@@ -137,7 +135,6 @@ namespace CcsBackup.Ui
         void ShowComposer()
         {
             var sp = SectionHead("Console Composer", "Set up your " + Con + " from your own backups and files: fresh with Classic Cart Studio, like another console of yours, or rebuilt from your backups. Each setup changes the console; you review it first, and the console is backed up before anything is written.");
-            sp.Children.Add(Terms("plan", "package", "system-image"));
             sp.Children.Add(Group("Set up a console", 0));
             sp.Children.Add(CardGrid(270, 3,
                 ActionCard("Start Fresh with Classic Cart Studio", "Prepare this console with Classic Cart Studio's HOME (after a complete backup of it), then add your games and saves.", "Btn.Primary", () => ShowPrepare(), "Start Fresh"),
@@ -156,10 +153,9 @@ namespace CcsBackup.Ui
         void ShowConsoleBrowser()
         {
             var sp = SectionHead("Console Browser", "Check your " + Con + " and look through its files while it is connected. The check-up and browsing only read the console.");
-            sp.Children.Add(Terms("session", "startup"));
             var c = new StackPanel();
             c.Children.Add(T("The check-up shows whether the startup software is one this version recognizes, what is installed, and how much of the storage is used and free. Then browse the files by game, by type or as they are stored, and copy any of them to this PC.", 13));
-            c.Children.Add(Note("This session runs in memory, with nothing installed on your console. Workbench does not write to the console's storage in this mode.", "info"));
+            c.Children.Add(Note("This console session runs in memory, with nothing installed on your console. Workbench does not write to the console's storage in this mode.", "info"));
             sp.Children.Add(Card(c));
             if (string.IsNullOrEmpty(opt.SimulatedConsole)) sp.Children.Add(ConnectSteps("This session only reads."));
             sp.Children.Add(Buttons(B(string.IsNullOrEmpty(opt.SimulatedConsole) ? "Start the Check-Up" : "Start the Check-Up (Simulated)", "Btn.Primary", () => StartOp("browse", "Checking the Console", "This session only reads. Keep the USB cable connected.", ConsoleReq("browse"))),
@@ -222,7 +218,6 @@ namespace CcsBackup.Ui
                 : "Change your own files on your " + Con + ": add, replace or remove game files, saves, artwork and settings. This writes to the console's storage; you review each change before it is made.");
             var c = new StackPanel();
             c.Children.Add(T("Before the first change, choose a backup of this console as the session's restore point. It can be older than the console's current state: restoring returns the console to that point, and changes and saves made after it are not protected.", 13));
-            c.Children.Add(Terms("restore-point"));
             c.Children.Add(T("Each change is checked before it is written and read back afterwards. Nothing else on the console is written.", 13));
             c.Children.Add(Details("Technical details", "Before a change, the file on the console must still be exactly what you reviewed. It is written under a temporary name, renamed into place, then read back and compared."));
             if (scope == "dev") c.Children.Add(Note("Developer Mode can change the console's own software. Code you add runs with full control of the console once it starts; a restore point cannot undo what that code does to the startup stages or the console's keys.", "warn"));

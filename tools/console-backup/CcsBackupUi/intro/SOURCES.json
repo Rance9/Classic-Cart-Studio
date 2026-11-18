@@ -1,0 +1,49 @@
+{
+ "schema": "ccs-workbench-intro-shots/1",
+ "note": "Screenshots of the current Classic Cart Studio with sample games (the Game Catalog's sample collection Family Favorites; no personal data), captured in headless Edge from a site built from this source by the private help-screenshot tool, then cropped so no window's or panel's own close button is in the picture. Box art: the Game Library's covers, as the Studio shows them.",
+ "shots": [
+  {
+   "file": "collection.png",
+   "width": 1100,
+   "height": 420,
+   "bytes": 159870,
+   "sha256": "50186831ab4bd7a7ab578b9dfbf75117de946c962c618c0999a641fec718e3eb",
+   "from": "grid-cards.png",
+   "from_sha256": "6a3ace49a712b6b546d329c4b3a468be8db836b549746c3a47517ea9fff3629c",
+   "crop": null,
+   "what": "the collection view's game cards (grid), five games with Play"
+  },
+  {
+   "file": "home.png",
+   "width": 1090,
+   "height": 614,
+   "bytes": 205554,
+   "sha256": "6b763bc20263158e73cd737c8dad1ac9ced252c690ffa209be165c711d3dcf8f",
+   "from": "tv-preview.png",
+   "from_sha256": "aa7d430eb935adc0dbaeb3743768913d98c0e677b67dccbe194394cb180ba204",
+   "crop": [
+    56,
+    86,
+    1146,
+    700
+   ],
+   "what": "HOME previewed on the PC: the TV area only (the preview's top bar with its close button, the side panels and the on-screen pad left out)"
+  },
+  {
+   "file": "details.png",
+   "width": 1100,
+   "height": 733,
+   "bytes": 229012,
+   "sha256": "fbb3733016f32861f3b25ebb4216f5ac86f62ef6dae8c6e500a801196729f582",
+   "from": "details.png",
+   "from_sha256": "f530f0b3c491141b5bde363359ad2fe660ba825610987d0c177c3b1049c8f80a",
+   "crop": [
+    40,
+    40,
+    1300,
+    880
+   ],
+   "what": "Game Details for a catalog game: cover, details, overview and Play (the panel's close button left out)"
+  }
+ ]
+}

@@ -30,7 +30,6 @@ namespace CcsBackup.Ui
         {
             if (design != null) { ShowDesignEditor(); return; }
             var sp = SectionHead("HOME Designer", "Design how CCS HOME looks on your " + Con + " with your own pictures, colors, folders and game order, starting from one of its four themes. You work on a " + FileKinds.HomeDesign + " file on this PC; nothing on the console changes until you check the design and apply it.");
-            sp.Children.Add(Terms("home", "home-design"));
             var c = new StackPanel(); c.Children.Add(T("Start a new design", Ty.Heading, true, false, new Thickness(0, 0, 0, 10)));
             var theme = new ComboBox();
             foreach (var t in DesignProfile.Themes) theme.Items.Add(new ComboBoxItem { Content = ThemeName(t), Tag = t });

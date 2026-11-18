@@ -62,6 +62,7 @@ namespace CcsBackup.Ui
             src.Children.Add(problem);
             src.Children.Add(T("Version " + opt.Version + " · engine " + EngineInfo.Engine, Ty.Fine, false, true));
             sp.Children.Add(Card(src));
+            SetNoTerms(sp, true);   // approved Credits words, notices and license texts: exactly as they are
             Show(sp, "credits");
         }
 

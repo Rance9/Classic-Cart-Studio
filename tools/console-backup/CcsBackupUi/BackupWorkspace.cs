@@ -57,7 +57,7 @@ namespace CcsBackup.Ui
         public BackupWorkspace(WorkspaceOptions o, Window owner = null)
         {
             opt = o; settings = o.Portable && o.SettingsPath == null ? Settings.Portable(null, null) : Settings.Load(o.SettingsPath);
-            InitPrefs();
+            InitPrefs(); HookTerms();
             Title = ProductTitle;
             Width = 1180; Height = 780; MinWidth = 860; MinHeight = 560;
             if (owner != null) { Owner = owner; WindowStartupLocation = WindowStartupLocation.CenterOwner; } else WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -86,7 +86,7 @@ namespace CcsBackup.Ui
             Content = root;
             WindowFrame.Attach(this, root);   // maximized: the content inside the monitor's work area
             SourceInitialized += (s, e) => Dark(this);
-            PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape) OnEscape(e); else if (e.Key == Key.F1) { OpenPageHelp(); e.Handled = true; } };
+            PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape) { if (CloseTerm(true)) e.Handled = true; else OnEscape(e); } else if (e.Key == Key.F1) { OpenPageHelp(); e.Handled = true; } };
             Closing += OnClosing;
             Enter("Dashboard"); ShowDashboard();
         }
@@ -135,7 +135,7 @@ namespace CcsBackup.Ui
         /// <summary>shows a page: its tag names it for Escape and the status strip; a page with unsaved changes sets leaveCheck after this</summary>
         void Show(FrameworkElement e, string tag)
         {
-            e.Tag = tag; page.Content = e; scroller?.ScrollToTop(); leaveCheck = null; settingsPending = null; settingsRefresh = null;
+            CloseTerm(false); NewTermScope(e); e.Tag = tag; page.Content = e; scroller?.ScrollToTop(); leaveCheck = null; settingsPending = null; settingsRefresh = null;
             if (tag != null && TagSection.TryGetValue(tag, out var own) && own != section) Enter(own);   // the side column follows the page
             Dispatcher.BeginInvoke(new Action(UpdateChrome), System.Windows.Threading.DispatcherPriority.Background);   // after the caller has started its worker
         }
@@ -235,7 +235,6 @@ namespace CcsBackup.Ui
             var what = new StackPanel();
             what.Children.Add(T("What is backed up", Ty.Heading, true));
             what.Children.Add(T("Everything on the console's built-in storage, exactly as stored: its startup software, Nintendo's system and games, every save and setting, and anything other programs added (games, emulators, menus, scripts). If the console's original Nintendo startup software is still on it, a separate copy of that is saved too.", Ty.Text));
-            what.Children.Add(Terms("storage", "startup"));
             what.Children.Add(T("Games and saves on a USB drive or SD card connected to the console are not included.", Ty.Text, false, true));
             what.Children.Add(T("Where it is saved", Ty.Heading, true, false, new Thickness(0, 10, 0, 6)));
             what.Children.Add(T("One file of about 1.0 GB in your backup location:", Ty.Text)); what.Children.Add(PathText(settings.PrimaryFolder));
@@ -609,11 +608,10 @@ namespace CcsBackup.Ui
                 if (page.Content != pv.Panel) { if (t.Result.Ok) { try { NoteVerified(file, t.Result, e); } catch { } } UpdateStatus(t.Result.Ok ? "The file check finished after you left: the file passed its check." : "The file check finished after you left: the file did not pass. Check it again from Console Backup to see why."); return; }
                 var v = t.Result; var sp = new StackPanel();
                 sp.Children.Add(PageTitle(v.Ok ? "The file passed its check: every part matches" : "This backup did not pass its check"));
-                sp.Children.Add(Terms("file-check"));
                 if (v.Ok)
                 {
                     sp.Children.Add(Note("Read back in full just now: " + Size(v.Bytes) + ", made " + When(v.Manifest.S("completed_utc")) + " from console " + v.ConsoleTag + "." + (v.RecoveryBaseline ? " It holds the original Nintendo kernel and can serve as this console's recovery baseline." : " It does not hold the original Nintendo kernel."), "ok"));
-                    sp.Children.Add(T("This shows the file is intact. It does not restore anything or check the console.", Ty.Small, false, true));
+                    sp.Children.Add(T("This file check shows the file is intact. It does not restore anything or check the console.", Ty.Small, false, true));
                     sp.Children.Add(Details("Technical details", "File: " + file, "SHA-256 of the file: " + v.ArchiveSha256));
                     try { NoteVerified(file, v, e); } catch { }
                 }

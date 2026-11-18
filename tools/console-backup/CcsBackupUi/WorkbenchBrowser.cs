@@ -376,7 +376,7 @@ namespace CcsBackup.Ui
         /// <summary>one file: its check box (selection), its name with its folder under it (click to preview), its size and its date</summary>
         FrameworkElement FileRow(BrowseEntry e, StackPanel preview, double indent = 0)
         {
-            var g = FileGrid(indent);
+            var g = FileGrid(indent); SetNoTerms(g, true);   // a backup's own file names and folders
             // a file that cannot be copied (damaged, or not checkable in a damaged backup) is shown with its state and cannot be selected
             bool blocked = e.Kind == EntryKind.File && e.Unreadable != null;
             var cb = new CheckBox { IsChecked = browseSel.Contains(e) && !blocked, IsEnabled = !blocked, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
