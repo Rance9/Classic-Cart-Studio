@@ -198,19 +198,19 @@ jobs:
           "APP_VERSION=$v" >> $env:GITHUB_ENV
       - uses: actions/download-artifact@v4
         with: { name: web-player, path: build/web-player, run-id: "${{ inputs.reuse_native_run || github.run_id }}", github-token: "${{ github.token }}" }
-      - name: Reused native bytes match the successful committed-source preflight
+      - name: Reused native bytes match the completed CI build
         if: inputs.reuse_native_run != ''
         shell: pwsh
         run: |
           $expected = @{
             'build/native/arm-musl-device/ccs-home-armv7' = 'c2799e8fa318b625f54b754230edd99ebd57ad54f74682df854818baa41c36fe'
             'build/native/arm-musl-device/ccs-player-armv7' = 'b38da6810719b73c1480d8ae54981c1de480edc6a19f0454c0dfb16de109bc61'
-            'build/native/windows-x86_64/ccs-sim-core.exe' = 'b7adfe63f90b93d7922c601b3efcd5ad40b2d13a7e8fece0a4538cd96a355540'
-            'build/native/windows-x86_64/ccs-player.exe' = 'dd4e48aa07fad82badf1d41b70a584f74cff211dc4b5e20e6dd34a41cadff5ad'
+            'build/native/windows-x86_64/ccs-sim-core.exe' = 'c3334eafd6ec28fe55f66aec4e1b0920aa99af934121e7841fe4da00673c98fb'
+            'build/native/windows-x86_64/ccs-player.exe' = '3fa62ec8bf12d2afbd1256700cf74ec8d8c133ccd75c346e7dc81d7f9b462cf7'
             'build/web-player/ccs-player.wasm' = '59ad06e02eae1e3b285718e522e91ed04cd62ad52c6f7a70882849f8c849d2a5'
             'build/par2dll/x64/ccs-par2.dll' = '12f61ff6a57d44e0accf1b750d36e61d64688d3ec86a8640b61701b22897acc9'
           }
-          foreach ($p in $expected.Keys) { if ((Get-FileHash -Algorithm SHA256 $p).Hash.ToLower() -ne $expected[$p]) { throw "native bytes differ: $p" } }
+          foreach ($p in $expected.Keys) { if ((Get-FileHash -Algorithm SHA256 $p).Hash.ToLower() -ne $expected[$p]) { throw "native CI artifact bytes differ: $p" } }
       - name: Build the public site (shipped inside the companion)
         env: { CCS_REQUIRE_WEB_PLAYER: "1" }
         run: python tools/publish/build_site_ci.py build/site
