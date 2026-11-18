@@ -1,5 +1,7 @@
 # CCS Console Workbench
 
+Current preview: **0.11.0**, aligned with Classic Cart Studio and the shared engine. The earlier 1.0.0 preview is superseded; it was not a production release.
+
 > **Unsigned development preview:** console connections, console writes and driver actions are disabled. PC/offline features are available; real-console and Windows on Arm qualification remain incomplete.
 
 **Back up, restore, repair and compose your NES Classic.**
