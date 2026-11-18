@@ -197,7 +197,7 @@ jobs:
           if ("${{ github.ref_name }}" -ne "v$v" -and "${{ github.event_name }}" -eq "push") { throw "tag ${{ github.ref_name }} does not match VERSION $v" }
           "APP_VERSION=$v" >> $env:GITHUB_ENV
       - uses: actions/download-artifact@v4
-        with: { name: web-player, path: build/web-player }
+        with: { name: web-player, path: build/web-player, run-id: "${{ inputs.reuse_native_run || github.run_id }}", github-token: "${{ github.token }}" }
       - name: Reused native bytes match the successful committed-source preflight
         if: inputs.reuse_native_run != ''
         shell: pwsh
@@ -365,6 +365,8 @@ jobs:
       - name: Smoke-test the frozen companion (starts, answers /api/version, stops)
         shell: pwsh
         run: python tools/companion/test_frozen_smoke.py build/dist/ClassicCartStudioBackend/ClassicCartStudioBackend.exe
+      - uses: actions/upload-artifact@v4
+        with: { name: engine-proof, path: build/workbench/shared-engine.json, if-no-files-found: error }
       - uses: actions/upload-artifact@v4
         with:
           name: installer
