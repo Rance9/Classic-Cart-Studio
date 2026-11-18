@@ -4,6 +4,11 @@ on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact source commit to build (40 hex characters)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -18,6 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
       - name: Toolchain (zig pinned and SHA-256 verified, qemu-user for the ARM check)
         run: bash tools/console-simulator/scripts/wsl_setup.sh
       - name: Build
@@ -31,8 +37,14 @@ jobs:
           echo shutdown | "$HOME/.cache/ccs-sim/toolchain/deb/usr/bin/qemu-arm" build/native/arm-musl-device/ccs-home-armv7 | tee arm.log; grep -q '"ev":"ready"' arm.log
           echo shutdown | build/native/linux-x86_64/ccs-sim-core | grep -q '"ev":"ready"'
           file build/native/arm-musl-device/ccs-player-armv7 | tee player.txt; grep -q "ELF 32-bit LSB executable, ARM" player.txt; grep -q "statically linked" player.txt
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13.17" }
+      - name: Browser player from the same pinned source
+        run: python tools/publish/build_web_player.py build/web-player
+      - uses: actions/upload-artifact@v4
+        with: { name: web-player, path: build/web-player, if-no-files-found: error }
       - name: Build ccsboot (the console programs' boot-stage reader and writer; the same pinned zig, reproducible flags)
-        run: bash tools/console-backup/ram/ccsboot/build.sh build/ccsboot
+        run: bash tools/console-backup/ram/ccsboot/build.sh "$GITHUB_WORKSPACE/build/ccsboot"
       - name: Test ccsboot (its test build on a file-backed device under qemu-arm; the console build refuses without the console's driver)
         run: python3 tools/console-backup/ram/ccsboot/test_ccsboot.py build/ccsboot
       - uses: actions/upload-artifact@v4
@@ -73,6 +85,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
       - uses: actions/download-artifact@v4
         with:
           name: ccsboot
@@ -105,6 +118,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
       - name: Toolchain (qemu-user)
         run: bash tools/console-simulator/scripts/wsl_setup.sh
       - uses: actions/download-artifact@v4
@@ -128,6 +142,7 @@ jobs:
       CCS_SIGN_PROFILE: ${{ vars.CCS_SIGN_PROFILE }}
     steps:
       - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
       - uses: actions/download-artifact@v4
         with:
           name: native-home
@@ -154,7 +169,10 @@ jobs:
           $v = (Get-Content VERSION).Trim()
           if ("${{ github.ref_name }}" -ne "v$v" -and "${{ github.event_name }}" -eq "push") { throw "tag ${{ github.ref_name }} does not match VERSION $v" }
           "APP_VERSION=$v" >> $env:GITHUB_ENV
+      - uses: actions/download-artifact@v4
+        with: { name: web-player, path: build/web-player }
       - name: Build the public site (shipped inside the companion)
+        env: { CCS_REQUIRE_WEB_PLAYER: "1" }
         run: python tools/publish/build_site_ci.py build/site
       - name: Scan the site
         run: python tools/publish/scan_prohibited.py build/site
@@ -185,7 +203,7 @@ jobs:
       - name: Build the console transport worker (offline tests, two build folders byte-identical, BUILD-INFO.json, corresponding source archive)
         shell: pwsh
         run: |
-          tools/console-worker/build-worker.ps1 -HakchiSource build/hakchi-src -Out build/console-worker -SourceRevision "${{ github.sha }}"
+          tools/console-worker/build-worker.ps1 -HakchiSource build/hakchi-src -Out build/console-worker -SourceRevision "${{ inputs.source_ref || github.sha }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "CCS_CONSOLE_WORKER_DIR=$PWD\build\console-worker" >> $env:GITHUB_ENV
       - name: Sign Classic Cart Studio's own native programs before they are bundled (an unsigned build leaves them as built)
@@ -296,7 +314,7 @@ jobs:
           $lh = (Get-FileHash -Algorithm SHA256 LibUsbDotNet-2.2.29-source-5dd91a2.tar -ErrorAction Stop).Hash.ToLower()
           "$h  $($f.Name)", "$zh  console-worker-source.zip", "$th  ClassicCartStudio-Installation-Terms-1.3.txt", "$lh  LibUsbDotNet-2.2.29-source-5dd91a2.tar" | Out-File -Encoding ascii SHA256SUMS.txt
           $wi = Get-Content -Raw ../console-worker/BUILD-INFO.json | ConvertFrom-Json
-          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ github.sha }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = [bool]$env:CCS_SIGNING; publisher = $(if ($env:CCS_SIGNING) { $env:CCS_SIGN_PUBLISHERS } else { $null }); console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh }; recovery_images = (Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json).app.recovery_images; libusbdotnet_source = @{ name = "LibUsbDotNet-2.2.29-source-5dd91a2.tar"; repository = "https://github.com/LibUsbDotNet/LibUsbDotNet"; commit = "5dd91a2fda393cf11db2072f2b45c3aee2750388"; tree = "f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a"; sha256 = $lh } } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 build-info.json
+          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ inputs.source_ref || github.sha }}"; workflow_revision = "${{ github.sha }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = [bool]$env:CCS_SIGNING; publisher = $(if ($env:CCS_SIGNING) { $env:CCS_SIGN_PUBLISHERS } else { $null }); console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh }; recovery_images = (Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json).app.recovery_images; libusbdotnet_source = @{ name = "LibUsbDotNet-2.2.29-source-5dd91a2.tar"; repository = "https://github.com/LibUsbDotNet/LibUsbDotNet"; commit = "5dd91a2fda393cf11db2072f2b45c3aee2750388"; tree = "f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a"; sha256 = $lh } } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 build-info.json
           $ph = (Get-FileHash -Algorithm SHA256 par2cmdline-1.4.0.tar.gz).Hash.ToLower()
           "$ph  par2cmdline-1.4.0.tar.gz" | Add-Content -Encoding ascii SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
@@ -320,7 +338,6 @@ jobs:
         with:
           subject-path: build/release/*.exe
       - name: Publish the GitHub release
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
@@ -332,4 +349,4 @@ jobs:
           $src = "build/hakchi-source/hakchi2-ce-3.9.3-source.tar.gz"
           if ((Get-FileHash -Algorithm SHA256 $src).Hash.ToLower() -ne "dc6e6a4704a9bdb1ca8a0deb746dd41f660b4076ba99b84160af5164f36e5038") { throw "the Hakchi2 CE source archive does not match its recorded SHA-256" }
           python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --preview --out build/release/NOTES.md
-          gh release create "${{ github.ref_name }}" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --draft --prerelease --latest=false --title "Classic Cart Studio $env:APP_VERSION — Preview" --notes-file build/release/NOTES.md
+          gh release create "v$env:APP_VERSION" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --verify-tag --draft --prerelease --latest=false --title "Classic Cart Studio $env:APP_VERSION — Preview" --notes-file build/release/NOTES.md
