@@ -38,7 +38,10 @@ namespace CcsBackup.Ui
         Action settingsRefresh;
         bool closePrefsAnswered;
 
-        static string Sig(Settings s) => (s.PrimaryFolder ?? "") + "\n" + (s.ArchiveFolder ?? "") + "\n" + (s.ConsoleProfile ?? "");
+        static string Sig(Settings s) => (s.PrimaryFolder ?? "") + "\n" + (s.ArchiveFolder ?? "") + "\n" + FamilyKey(s.ConsoleProfile);
+        /// <summary>freeze 16: no family saved means the first one (the NES Classic Mini), and an alias means its family, so choosing the SNES
+        /// Classic Mini and then the NES Classic Mini again leaves nothing unsaved; an id this version does not know stays as written</summary>
+        static string FamilyKey(string id) => ConsoleProfile.Find(id)?.Id ?? (string.IsNullOrEmpty(id) ? ConsoleProfile.Supported[0].Id : id);
         bool PrefsUnsaved => savedPrefs == null || Sig(settings) != Sig(savedPrefs);
         bool Standalone => opt.Portable && !opt.HostedInFullApp;
 
@@ -56,7 +59,11 @@ namespace CcsBackup.Ui
         {
             if (settings == null) return Settings.Load(opt.SettingsPath);
             if (settings.InMemory || PrefsUnsaved || string.IsNullOrEmpty(settings.Path)) return settings;
-            var s = Settings.Load(settings.Path); savedPrefs = s.Copy(); return s;
+            var s = Settings.Load(settings.Path); savedPrefs = s.Copy();
+            // freeze 16: the window keeps its own console family (it changes only through ApplyProfile); when another window saved another
+            // family to the file, the difference shows as not saved. An id this version does not know stays in the file as written.
+            if (profile != null && FamilyKey(s.ConsoleProfile) != profile.Id && (string.IsNullOrEmpty(s.ConsoleProfile) || ConsoleProfile.Find(s.ConsoleProfile) != null)) s.ConsoleProfile = profile.Id;
+            return s;
         }
 
         /// <summary>a preference changed (a location, the additional copy, the console family): inside the app it is saved now</summary>
@@ -78,7 +85,7 @@ namespace CcsBackup.Ui
             var l = new System.Collections.Generic.List<string>();
             if (savedPrefs == null || (settings.PrimaryFolder ?? "") != (savedPrefs.PrimaryFolder ?? "")) l.Add("the backup location");
             if (savedPrefs == null || (settings.ArchiveFolder ?? "") != (savedPrefs.ArchiveFolder ?? "")) l.Add("the additional copy");
-            if (savedPrefs == null || (settings.ConsoleProfile ?? "") != (savedPrefs.ConsoleProfile ?? "")) l.Add("the console chosen at the top of the window");
+            if (savedPrefs == null || FamilyKey(settings.ConsoleProfile) != FamilyKey(savedPrefs.ConsoleProfile)) l.Add("the console chosen at the top of the window");
             return l.Count == 0 ? "your settings" : l.Count == 1 ? l[0] : string.Join(", ", l.Take(l.Count - 1)) + " and " + l.Last();
         }
 
@@ -99,9 +106,9 @@ namespace CcsBackup.Ui
             {
                 var p = prim.Text.Trim(); var a = two.IsChecked == true ? arch.Text.Trim() : null;
                 if (p == (settings.PrimaryFolder ?? "") && (a ?? "") == (settings.ArchiveFolder ?? "")) { problem.Content = null; return null; }
-                if (!Path.IsPathRooted(p)) return "the backup location is not a full folder path (for example D:\\NES Backups)";
+                if (!Path.IsPathRooted(p)) return "the backup location is not a full folder path (for example D:\\Console Backups)";
                 if (a != null && a.Length == 0) return "the additional copy needs a folder: choose one with Change…, or clear the box";
-                if (a != null && !Path.IsPathRooted(a)) return "the additional copy's location is not a full folder path (for example E:\\NES Backups)";
+                if (a != null && !Path.IsPathRooted(a)) return "the additional copy's location is not a full folder path (for example E:\\Console Backups)";
                 settings.PrimaryFolder = p; settings.ArchiveFolder = a; problem.Content = null;
                 PrefsChanged();
                 return null;

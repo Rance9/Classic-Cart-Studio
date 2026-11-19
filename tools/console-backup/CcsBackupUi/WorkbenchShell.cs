@@ -29,8 +29,9 @@ using Ellipse = System.Windows.Shapes.Ellipse;
 namespace CcsBackup.Ui
 {
     /// <summary>A console family the Workbench works with: its names and what the window says about it. Choosing one never connects to,
-    /// identifies or checks a console; a console is identified only by an operation's own session. More families can be added here later
-    /// (with their own console support); this version has one.</summary>
+    /// identifies or checks a console; a console is identified only by an operation's own session. This version has two: the NES Classic Mini
+    /// and the SNES Classic Mini, whose console tasks are not in this version yet (ConsoleTasks false: every console task says so and starts
+    /// nothing; it is never sent through the NES Classic Mini's engine).</summary>
     public sealed class ConsoleProfile
     {
         /// <summary>Id: what settings files keep (the first family kept the id it had before its display name changed: "nes-classic-na");
@@ -40,6 +41,11 @@ namespace CcsBackup.Ui
         public (string region, string name)[] RegionalNames;
         /// <summary>what About This Console and Help say about it, heading and text (paragraphs split by a blank line)</summary>
         public (string head, string text)[] Sections;
+        /// <summary>whether this version has console tasks for the family; false: none starts (TasksNotYet says why)</summary>
+        public bool ConsoleTasks = true;
+        public string TasksNotYet;
+        /// <summary>the family's own way into recovery mode, as the second of the connection steps (a task's and the test boot's)</summary>
+        public string RecoveryStep, TestBootRecoveryStep;
         public override string ToString() => Name;
 
         public static readonly ConsoleProfile NesClassicMini = new ConsoleProfile
@@ -55,11 +61,34 @@ namespace CcsBackup.Ui
                     + "The year a console was sold does not tell which software it runs. When you start a console task, Workbench reads that console's own startup software and says what it found."),
                 ("Startup software and system images", "A restore puts a console's own backup back on that same console; Workbench refuses a backup from another console. Some steps replace a console's startup software on purpose and say so before you confirm: preparing a console replaces its startup software and bootloader, and a change you review in Developer Mode can replace its startup software. Return to Original Software puts back Nintendo's startup software and the console's own bootloader.\n\n"
                     + "With CCS Nucleus, a Nintendo system image you supply, such as one from your own 2016 console, can be added as one of its choices. A system image is not startup software for another circuit board. Workbench checks every system image before it adds one; a system image from another version of the console has not been tested."),
-                ("Other consoles", "The Super NES Classic Edition and the Famicom Mini are different consoles: Workbench does not work with their hardware."),
+                ("Other consoles", "The SNES Classic Mini is a different console, with its own choice at the top of the window. Workbench's support for it is being built and is not in this preview version yet. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
+                    + "The Famicom Mini and the Super Famicom Mini, sold in Japan, are different consoles too: Workbench does not work with their hardware."),
             },
+            RecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go: the console starts in recovery mode.",
+            TestBootRecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go. The TV stays dark: the console waits for this PC.",
         };
-        /// <summary>the families this version supports: one. A test may add made-up ones (Probe); a release never ships one that is not supported.</summary>
-        static readonly List<ConsoleProfile> catalog = new List<ConsoleProfile> { NesClassicMini };
+
+        public static readonly ConsoleProfile SnesClassicMini = new ConsoleProfile
+        {
+            Id = "snes-classic", Name = "SNES Classic Mini — North America / Europe", Short = "SNES Classic",
+            About = "Nintendo's small Super NES console with 21 built-in games, sold in North America and in Europe since 2017. Workbench's support for it is being built: its console tasks are not in this preview version yet.",
+            RegionalNames = new[] { ("North America", "Super NES Classic Edition"), ("Europe", "Nintendo Classic Mini: Super Nintendo Entertainment System") },
+            Sections = new[]
+            {
+                ("2017", "The console came out in 2017, in North America and in Europe. It is a small modern console, not the original Super NES from the 1990s.\n\n"
+                    + "The North American and the European console share this one choice, but their software is not the same. Hakchi2 CE, which Workbench builds on, tells them apart by their startup software, and Workbench keeps them apart the same way: a console's software is always read from the console itself, never assumed from this choice or from its box."),
+                ("In this preview version", "Backing up, restoring and Workbench's other console tasks for the SNES Classic Mini are being built and are not in this preview version yet, and Workbench has not been tested on a real SNES Classic Mini. You can choose it to read about it and to see Workbench's pages in its words; a console task says it is not available yet and starts nothing.\n\n"
+                    + "Backup files already on this PC can still be browsed, checked and repaired under Backup Files, whichever console is chosen."),
+                ("What choosing it does", "Choosing this console sets the names Workbench uses. It does not connect to, identify or check a console, it does not change a console an earlier task identified, and it never makes Workbench accept a console, a backup or a system file it would otherwise refuse."),
+                ("Other consoles", "The NES Classic Mini is a different console, with its own choice at the top of the window. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
+                    + "The Super Famicom Mini, sold in Japan, is a different console too: Workbench does not work with its hardware."),
+            },
+            ConsoleTasks = false,
+            TasksNotYet = "Workbench's console tasks for the SNES Classic Mini are being built and are not in this preview version yet, so nothing was started: no console connection, no USB driver check, nothing written. Backup files on this PC can still be browsed, checked and repaired under Backup Files.",
+        };
+        /// <summary>the families this version offers: the NES Classic Mini (the first: a settings file naming none gets it) and the SNES Classic
+        /// Mini. A test may add made-up ones (Probe).</summary>
+        static readonly List<ConsoleProfile> catalog = new List<ConsoleProfile> { NesClassicMini, SnesClassicMini };
         public static IReadOnlyList<ConsoleProfile> Supported => catalog;
         /// <summary>the family a saved id names (its id or an alias), or null when this version does not know it</summary>
         public static ConsoleProfile Find(string id) => string.IsNullOrEmpty(id) ? null : catalog.FirstOrDefault(p => p.Id == id || p.Aliases.Contains(id));
@@ -84,8 +113,25 @@ namespace CcsBackup.Ui
         readonly Dictionary<string, Button> navButtons = new Dictionary<string, Button>();
         string section = "Dashboard";
         ConsoleProfile profile = ConsoleProfile.Supported[0];
-        /// <summary>the console family's short name for sentences ("your NES Classic")</summary>
+        /// <summary>the console family's short name for sentences ("your NES Classic", "your SNES Classic")</summary>
         string Con => profile.Short;
+
+        /// <summary>the title of the technical details that describe how this version works with the NES Classic Mini (its storage, startup
+        /// stages and system format), shown on pages any family can open</summary>
+        const string TechNes = "Technical details (NES Classic Mini)";
+
+        /// <summary>every console task asks this first: true when this version has console tasks for the chosen family; otherwise the task's
+        /// page says so and nothing starts (no console session, no USB driver check, no worker)</summary>
+        bool FamilyHasTasks()
+        {
+            if (profile.ConsoleTasks) return true;
+            Show(Message("Not in this preview version yet", profile.TasksNotYet, "info"), "msg");
+            return false;
+        }
+
+        /// <summary>on a console task's page, for a family without console tasks in this version: what the page cannot do yet</summary>
+        UIElement FamilyNotYetNote(bool dashboard = false) => Note("Workbench's console tasks for the " + profile.Short + " Mini are being built and are not in this preview version yet"
+            + (dashboard ? ". Backup files on this PC can still be browsed, checked and repaired under Backup Files." : ", so this page's console task starts nothing."), "info");
 
         /// <summary>opens a web page in the person's browser; only ever called from a click on a website button. A test can replace it.</summary>
         internal static Func<string, bool> Launch = url => { try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); return true; } catch (Exception) { return false; } };
@@ -325,6 +371,8 @@ namespace CcsBackup.Ui
         /// was told to quit when the person left it) never names the current session's console or changes its page or status.</summary>
         WorkerClient NewSession(string op)
         {
+            // never reached for a family without console tasks (each task asks FamilyHasTasks first); if it were, no worker starts
+            if (!profile.ConsoleTasks) throw new InvalidOperationException("No console tasks for " + profile.Name + " in this version (" + op + ").");
             if (seenNow != null) seenEarlier = seenNow;
             seenNow = null; int session = ++consoleSession;
             gotResult = false; writing = false; quitting = false; workerOp = op;
@@ -377,6 +425,7 @@ namespace CcsBackup.Ui
         {
             settings = Reload();
             var sp = PageHead("Dashboard", Tagline);
+            if (!profile.ConsoleTasks) sp.Children.Add(FamilyNotYetNote(true));
             // the first thing to do, across the page: its words on the left, its button on the right. The console line above names the
             // console and what is known about it, so the Dashboard does not repeat it.
             var first = new Grid(); first.ColumnDefinitions.Add(new ColumnDefinition()); first.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -607,7 +656,7 @@ namespace CcsBackup.Ui
             InfoCard("Organize your collection", "Bring in the NES game files you own, see them with their artwork and details, and arrange them in collections."),
             InfoCard("Play", "Play NES games in the app on Windows, or on classiccartstudio.com in a web browser or on a phone where the browser supports it."),
             InfoCard("Included Games", "Free games and demos whose developers gave permission, ready to play. No commercial Nintendo games are included."),
-            InfoCard("Your NES Classic's HOME", "Plan collections for your " + Con + " and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are still being tested on real consoles."));
+            InfoCard("Your NES Classic's HOME", "Plan collections for your NES Classic and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are still being tested on real consoles."));
 
         // ------------------------------------------------------------------ About Classic Cart Studio (the wordmark's window, both hosts)
         /// <summary>the address the window's button opens, exactly (the site's front page)</summary>

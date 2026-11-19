@@ -1,12 +1,13 @@
 # CCS Console Workbench
 
-Current preview: **0.11.1**, aligned with Classic Cart Studio and the shared engine. Earlier previews (0.11.0, and 1.0.0, which was not a production release) are superseded and stay available as they were.
+Current preview: **0.11.2**, aligned with Classic Cart Studio and the shared engine. Earlier previews (0.11.1, 0.11.0, and 1.0.0, which was not a production release) are superseded and stay available as they were.
 
 > **Unsigned development preview:** console connections, console writes and driver actions are disabled. PC/offline features are available; real-console and Windows on Arm qualification remain incomplete.
 
 **Back up, restore, repair and compose your NES Classic.**
 
-CCS Console Workbench is a Windows program for the NES Classic Edition. It runs from one file without installing the application. The
+CCS Console Workbench is a Windows program for Nintendo's Classic Mini consoles: the NES Classic Edition, and the Super NES Classic Edition, whose
+support is being built (its console tasks are not in this preview). It runs from one file without installing the application. The
 same Workbench is built into Classic Cart Studio for Windows. This branch holds its developer-facing information and release files. Its
 engine source lives in `tools/console-backup/` on `main` at the commit named in `ENGINE-PIN.txt`.
 

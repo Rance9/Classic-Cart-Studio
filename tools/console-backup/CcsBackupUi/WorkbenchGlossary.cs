@@ -11,9 +11,10 @@ using System.Text.RegularExpressions;
 
 namespace CcsBackup.Ui
 {
-    /// <summary>one word and its explanation; Tech: its technical name(s), for people who know them; Forms: the exact words that name it in a
+    /// <summary>one word and its explanation (the same for every console); Detail: what is particular to the consoles this version knows,
+    /// named as such; Tech: its technical name(s), for people who know them; Forms: the exact words that name it in a
     /// sentence (case matters; a plural s is matched too); FileKind: the FileKinds name it explains, when it is a kind of file</summary>
-    public sealed class GlossaryTerm { public string Key, Word, Text, Tech, FileKind; public string[] Forms = new string[0]; public bool OncePerPage; }
+    public sealed class GlossaryTerm { public string Key, Word, Text, Detail, Tech, FileKind; public string[] Forms = new string[0]; public bool OncePerPage; }
 
     public static class Glossary
     {
@@ -44,7 +45,7 @@ namespace CcsBackup.Ui
             foreach (var o in d.A("terms") ?? new List<object>())
             {
                 if (!(o is Dictionary<string, object> t)) continue;
-                var g = new GlossaryTerm { Key = t.S("key"), Word = t.S("word"), Text = t.S("text"), Tech = t.S("tech"), FileKind = t.S("filekind"), OncePerPage = t.S("scope") == "page" };
+                var g = new GlossaryTerm { Key = t.S("key"), Word = t.S("word"), Text = t.S("text"), Detail = t.S("detail"), Tech = t.S("tech"), FileKind = t.S("filekind"), OncePerPage = t.S("scope") == "page" };
                 g.Forms = (t.A("forms") ?? new List<object>()).OfType<string>().Where(x => x.Length > 0).ToArray();
                 if (g.Key != null && g.Word != null && g.Text != null) list.Add(g);
             }

@@ -126,9 +126,9 @@
    "file": "02-backup-start.png",
    "width": 1160,
    "height": 722,
-   "bytes": 44002,
-   "sha256": "43d1d1702ecd404126756776f8aa4adc32c61e0a14a72ddb8520ca5aa5153376",
-   "palette_error": 0.024,
+   "bytes": 46606,
+   "sha256": "b6159068d022e90a810fb45d610ec204c9ebdc9868f5b0bec4b8956a7bc02fa4",
+   "palette_error": 0.026,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
   {
@@ -216,9 +216,9 @@
    "file": "11-prepare.png",
    "width": 1160,
    "height": 722,
-   "bytes": 54993,
-   "sha256": "9a14c2472d9747332d17810cec2aafd7023b229b19627e907eb5c81cfed5e5b7",
-   "palette_error": 0.031,
+   "bytes": 55603,
+   "sha256": "b0ccfb57fa0c05303c9e01708279b369af998f8bed5f2b81db0aa3f8867c8004",
+   "palette_error": 0.033,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
   {
@@ -326,8 +326,8 @@
    "file": "17-methods.png",
    "width": 1160,
    "height": 722,
-   "bytes": 55988,
-   "sha256": "70e442e4d9d64512313fc94da66756e7f32a6d7c51fb7cd4e7ad6c9e07ae5031",
+   "bytes": 56506,
+   "sha256": "efe24bc4cbee20ddaae39b0ccd2277acaf136bca2ff04ed67588ab56a40b727a",
    "palette_error": 0.034,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
@@ -376,8 +376,8 @@
    "file": "20-rescue.png",
    "width": 1160,
    "height": 722,
-   "bytes": 47223,
-   "sha256": "a0617856f0e5029785239e3ce99020d549ff5fc35bc268974f20c3d0947c4877",
+   "bytes": 47802,
+   "sha256": "b806f47bc579d865a16637933847512df6637143c10570e1bebd9896b42cb315",
    "palette_error": 0.026,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
@@ -506,8 +506,8 @@
    "file": "29-firmware.png",
    "width": 1160,
    "height": 722,
-   "bytes": 45520,
-   "sha256": "3291da40e7507dab84385b33250f64d73850f269c0393c63925e35f206678653",
+   "bytes": 46064,
+   "sha256": "65788cfe9626aad2aca388531538bf34d77c6a9b9066aa91555a2ded1f6b3ea9",
    "palette_error": 0.039,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
@@ -666,8 +666,8 @@
    "file": "38b-test-boot-intro.png",
    "width": 1160,
    "height": 722,
-   "bytes": 46126,
-   "sha256": "60d9177fe89f59135a7c4f53dff65256e63486819ee3fb177d44b7eccfc5d4d3",
+   "bytes": 46710,
+   "sha256": "d6eb3ed2aef8965fa00320e9d73d22809c9a49900d175775f8dab41b2ea30916",
    "palette_error": 0.03,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
@@ -676,8 +676,8 @@
    "file": "38b2-test-boot-intro-empty.png",
    "width": 1160,
    "height": 722,
-   "bytes": 43051,
-   "sha256": "54ccdfdae08fd12fdfa87495af4bc473be31b5a0381b5590c5e6e2de45e37795",
+   "bytes": 43686,
+   "sha256": "d1e814eaad9bf89e405a8c7f9a5a8e38c1d307b3bb288328308f93e1fcc8acd6",
    "palette_error": 0.028,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
@@ -726,9 +726,9 @@
    "file": "38g-developer-return.png",
    "width": 1160,
    "height": 722,
-   "bytes": 42381,
-   "sha256": "09976c84c1f8e756a9d02b336a03e5e4c4a1240bbbe87c0e3b40d2bceeb00390",
-   "palette_error": 0.035,
+   "bytes": 42933,
+   "sha256": "3f099df9f52f026151b365147db94f456ef180ee7e3f1325bd5c178ff2feb1a8",
+   "palette_error": 0.037,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
   {
@@ -736,9 +736,9 @@
    "file": "38g2-developer-return-empty.png",
    "width": 1160,
    "height": 722,
-   "bytes": 46864,
-   "sha256": "bf4efb02c2eb6711e399bfe9834a9a79712dfc664e0e2a0b0d9aec15fc4ef224",
-   "palette_error": 0.036,
+   "bytes": 47407,
+   "sha256": "c74af73ef1421f999962c1f804f8e6381993b13a6247a45e0fd3902db8165bf0",
+   "palette_error": 0.038,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
   {
@@ -1086,8 +1086,8 @@
    "file": "52d-help-search.png",
    "width": 1160,
    "height": 722,
-   "bytes": 67804,
-   "sha256": "1175acfd4c57444eff640e0c1fea181df7aff8aa86fb17ec52b324bc81b02767",
+   "bytes": 68255,
+   "sha256": "3390d07dde48d442260e7dbf30d67095930f14bb6201de9d6c81ad9f0b16a439",
    "palette_error": 0.037,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
@@ -1096,8 +1096,8 @@
    "file": "52g-help-about-app.png",
    "width": 1160,
    "height": 722,
-   "bytes": 61589,
-   "sha256": "e0c0804cd2b62718d23801064a8c1bdb6d2c779bf6a701422d70eabdab6715a6",
+   "bytes": 61681,
+   "sha256": "e701f82fd6c6283f0b34eb1fa4166bca5417115695713dd5b33912e6da4b0a1d",
    "palette_error": 0.04,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },
@@ -1106,9 +1106,9 @@
    "file": "52h-help-window.png",
    "width": 1067,
    "height": 725,
-   "bytes": 61288,
-   "sha256": "d89e2f9d7a7558e9f1ac515220764d4305289fa338fa1fbbc27412da9a128cec",
-   "palette_error": 0.018
+   "bytes": 56677,
+   "sha256": "5d7757b61b5e1b8823cd2ea420676cbb13fb29f7ba58a20dd9846a0718eb6d71",
+   "palette_error": 0.017
   },
   {
    "name": "53-folders",
@@ -1295,9 +1295,9 @@
    "file": "59-about-console.png",
    "width": 707,
    "height": 604,
-   "bytes": 33380,
-   "sha256": "02b34b0efaf932b31b11d6e5704839b003aba63146469b10847b566a38eef40c",
-   "palette_error": 0.015,
+   "bytes": 35048,
+   "sha256": "0f80612d041b48989cb210d4d068e09c38994297f604c50250dd5bb90dcd20a7",
+   "palette_error": 0.013,
    "left_out": "the window's bottom row with its Close button"
   },
   {
@@ -1305,9 +1305,9 @@
    "file": "59b-about-console-other.png",
    "width": 707,
    "height": 604,
-   "bytes": 18922,
-   "sha256": "c1aaa07116fb0a86f1b2318c96d506ee2d278f609b80fab82ce9efaea5b554e3",
-   "palette_error": 0.011,
+   "bytes": 37843,
+   "sha256": "290ea19a658726f752927115d9ba29debe505e4783fed9f89e29b8727b399124",
+   "palette_error": 0.019,
    "left_out": "the window's bottom row with its Close button"
   },
   {
@@ -1315,9 +1315,9 @@
    "file": "59c-about-console-use-question.png",
    "width": 547,
    "height": 295,
-   "bytes": 13349,
-   "sha256": "9f471c4bff46f9bb8833f006c2a2ba0cb9396a0866e2426374626d974440b2e8",
-   "palette_error": 0.016
+   "bytes": 13708,
+   "sha256": "16d40775d85724b9d7ff90e6fa05a4beddc7a8cbc508c229f7853bf7ffd7c051",
+   "palette_error": 0.014
   },
   {
    "name": "60-close-settings-question",
@@ -1342,8 +1342,8 @@
    "file": "61-glossary-term.png",
    "width": 1160,
    "height": 722,
-   "bytes": 30869,
-   "sha256": "70f9cee2dfda0957f6065d8f0aa1f45fcd25ea850a4564429338ffd261d70d2d",
+   "bytes": 31617,
+   "sha256": "c70be7884170e2e771db6d19e8047a68e6a23509f50a60129322231f777539f9",
    "palette_error": 0.024,
    "left_out": "the window's title bar (Minimize, Maximize, Close)"
   },

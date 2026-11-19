@@ -385,6 +385,7 @@ namespace CcsBackup.Ui
                     {
                         sp.Children.Add(new TextBlock { Text = t.Word, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 2), TextWrapping = TextWrapping.Wrap });
                         sp.Children.Add(new TextBlock { Text = t.Text, FontSize = 13.5, LineHeight = 20, TextWrapping = TextWrapping.Wrap });
+                        if (t.Detail != null) sp.Children.Add(new TextBlock { Text = t.Detail, FontSize = 12.5, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
                         if (t.Tech != null) sp.Children.Add(new TextBlock { Text = "Technical name: " + t.Tech, FontSize = 12.5, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap });
                     }
                     return sp;
