@@ -410,8 +410,8 @@ jobs:
           $src = "build/hakchi-source/hakchi2-ce-3.9.3-source.tar.gz"
           if ((Get-FileHash -Algorithm SHA256 $src).Hash.ToLower() -ne "dc6e6a4704a9bdb1ca8a0deb746dd41f660b4076ba99b84160af5164f36e5038") { throw "the Hakchi2 CE source archive does not match its recorded SHA-256" }
           # a preview is a GitHub prerelease, never "latest"; a production release is the repository's latest (earlier production apps read it)
-          $pre = if ($env:APP_CHANNEL -eq 'preview') { @('--prerelease', '--latest=false') } else { @('--latest') }
+          $pre = @(if ($env:APP_CHANNEL -eq 'preview') { '--prerelease'; '--latest=false' } else { '--latest' })   # @(...): a one-item result stays a list (splatting a plain string passes its characters)
           $title = if ($env:APP_CHANNEL -eq 'preview') { "Classic Cart Studio $env:APP_VERSION — Preview" } else { "Classic Cart Studio $env:APP_VERSION" }
-          $notesArgs = if ($env:APP_CHANNEL -eq 'preview') { @('--preview') } else { @() }
+          $notesArgs = @(if ($env:APP_CHANNEL -eq 'preview') { '--preview' })
           python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json @notesArgs --out build/release/NOTES.md
           gh release create "v$env:APP_VERSION" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --verify-tag --draft @pre --title $title --notes-file build/release/NOTES.md
