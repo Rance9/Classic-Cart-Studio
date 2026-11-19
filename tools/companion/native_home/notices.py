@@ -159,7 +159,8 @@ def classify(files, games: list) -> dict[str, list[str]]:
         elif rel == "home/licenses/THIRD-PARTY.txt": p = "home-notice"
         elif re.fullmatch(r"home/theme/icon-[a-z]+-\d+(-2x)?\.png", rel): p = "ccs-drawn"
         elif rel.startswith("home/theme/"): p = "theme-art"
-        elif rel.startswith(("home/hero/", "home/wide/")): p = "scenes"
+        elif rel.startswith("home/hero/"): p = "scenes"
+        elif rel.startswith("home/snap/"): p = "game-screens"
         elif rel.startswith("home/cover/"): k = covers.get(rel) or set(); p = COVER_PARTS.get(next(iter(k)), "") if len(k) == 1 else ""
         elif rel.startswith(("home/folder/", "home/design/", "startup/startup-custom-")): p = "own-pictures"
         elif rel.startswith("home/music/"): p = "music"
@@ -231,13 +232,15 @@ def build(files, games: list, label: str) -> tuple[dict[str, bytes], dict]:
     if scenes:
         used = "\n".join(f"    {s}: \"{credits[s].get('title')}\" by {credits[s].get('artist')}, {credits[s].get('license')}"
                          + (f" ({credits[s]['license_url']})" if credits[s].get("license_url") else "") + f", {credits[s].get('source')}. Changes: {credits[s].get('changes')}" for s in scenes)
-        item("scenes", "Game backdrops (home/hero/, home/wide/)",
-             "Each game's backdrop is the shared HOME scene of its genre (art/scenes/index.json), cut and scaled by Classic Cart Studio for the HOME's details and wide "
-             "pictures. The scenes this package's games use:\n" + used + "\n  From THIRD_PARTY_NOTICES.md:\n" + row(ROWS[3]), "As recorded above.", "", [])
+        item("scenes", "Game backdrops (home/hero/)",
+             "Each game's backdrop in Game Details is the shared HOME scene of its genre (art/scenes/index.json), cut and scaled by Classic Cart Studio. "
+             "The scenes this package's games use:\n" + used + "\n  From THIRD_PARTY_NOTICES.md:\n" + row(ROWS[3]), "As recorded above.", "", [])
     if parts.get("covers-included"):
         cr = "; ".join(f"{g['title']}: {g['cover']['credit']}" for g in inc_games if (g.get("cover") or {}).get("credit"))
         item("covers-included", "The Included Games' covers (home/cover/)", cr, "As the game's own (see Games, below).", "As the game's own (see Games, below).", [])
     item("covers-box-art", "Game box art (home/cover/)", "From THIRD_PARTY_NOTICES.md:\n" + row(ROWS[4]), "As recorded above.", "", [])
+    item("game-screens", "Game screens (home/snap/)", "Each catalog game's own gameplay screen, shown behind it in Featured Shelf, as the website carries it. "
+         "From THIRD_PARTY_NOTICES.md:\n" + row(ROWS[4]), "As recorded above.", "", [])
     item("ccs-drawn", "Pictures Classic Cart Studio draws (home/theme/icon-*.png; an NES-style cover for a game without box art)",
          "Drawn by Classic Cart Studio's own code (tools/companion/native_home/derive.py).", "GPL-3.0-or-later, with the rest of Classic Cart Studio.", CCS_SOURCE + ".", ["GPL-3.0.txt"])
     item("own-pictures", "The collection's own pictures (a startup picture, folder pictures, covers or a HOME design chosen for this collection)",

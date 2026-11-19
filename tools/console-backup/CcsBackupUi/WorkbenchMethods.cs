@@ -138,8 +138,8 @@ namespace CcsBackup.Ui
             if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing changes until you confirm."));
             sp.Children.Add(Buttons(B("Back", "Btn.Ghost", () => { if (LeaveOk()) BackToSection(); })));
             Show(sp, "firmware");
-            leaveCheck = () => (label.Text.Trim().Length == 0 && id.Text.Trim().Length == 0)
-                || MessageBox.Show(this, "What you typed on this page is not kept if you leave it. Leave anyway?", ProductTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            LeaveGuard(() => label.Text.Trim().Length == 0 && id.Text.Trim().Length == 0 ? null : "What you typed on Your System Images",
+                       "What you typed on this page is not kept if you leave it.");
         }
 
         // the plans and results of both (worker events method-plan / firmware-plan; result operation method / firmware)

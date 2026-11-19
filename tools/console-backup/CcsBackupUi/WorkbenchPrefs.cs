@@ -3,15 +3,18 @@
 // closes. One preference model (CcsBackup.Library.Settings: the backup location, the additional copy and the console family chosen at the
 // top of the window) and one file schema (ccs-console-backup-settings/1; fields a newer version wrote are kept) in both hosts.
 //   The standalone   preferences live in memory until the person saves them to a settings file of their own (Save Settings…; no AppData
-//                    file, no registry, nothing beside the program, no automatic remembering). Closing the window with changes that are not
-//                    in that file (made on Settings, by the console choice, or still typed in Settings' boxes) asks: Save Settings…,
-//                    Don't Save, Cancel. Loading another settings file asks the same first.
-//   Inside the app   a change is used and saved at once to the app's Workbench settings file (%LOCALAPPDATA%\CCS Console Backup, where it
-//                    always was), when a box is left, Enter is pressed, a folder is chosen or the box is ticked: never on every keystroke,
-//                    and only when the value is valid. A save that fails says so, keeps the change and offers Try Again; nothing says
-//                    "saved" unless the file was written. No save-on-close question.
-// Settings, an unsaved HOME design, a console task's safe stop and the USB driver's close question stay separate questions at close; the
-// settings question comes first, so its Cancel has not stopped a task or touched a driver.
+//                    file, no registry, nothing beside the program, no automatic remembering). Changes that are not in that file (made on
+//                    Settings, by the console choice, or still typed in Settings' boxes) are listed in the window's one close review
+//                    (BackupWorkspace.CloseReview, WB-UX-20). Loading another settings file asks about them first.
+//   Installed mode   started by Classic Cart Studio from its installation (WorkspaceOptions.Studio, a validated launch context) or inside the
+//                    app (HostedInFullApp): a change is used and saved at once to the app's Workbench settings file (%LOCALAPPDATA%\CCS
+//                    Console Backup, where it always was), when a box is left, Enter is pressed, a folder is chosen or the box is ticked:
+//                    never on every keystroke, and only when the value is valid. A save that fails says so, keeps the change and offers Try
+//                    Again; nothing says "saved" unless the file was written. No Save Settings or Save Settings As buttons and no
+//                    save-on-close question; a change that could not be saved is listed in the close review, whose Save & Close tries again.
+//                    Which mode applies comes from how the program was started, never from which program file runs.
+// Unsaved settings and an unsaved HOME design are one close review; a console task's safe stop and the USB driver's close question come
+// after it as their own steps, so its Cancel has not stopped a task or touched a driver.
 using CcsBackup.Library;
 using System;
 using System.IO;
@@ -36,14 +39,18 @@ namespace CcsBackup.Ui
         /// waiting, or used)</summary>
         Func<string> settingsPending;
         Action settingsRefresh;
-        bool closePrefsAnswered;
+        /// <summary>WB-UX-11: set only while Back Up Console's Edit in Settings opens Settings: where Settings' Back returns, and that the
+        /// backup location's box is brought into view with the keyboard focus</summary>
+        Action settingsBack; bool settingsFocusLocation;
 
         static string Sig(Settings s) => (s.PrimaryFolder ?? "") + "\n" + (s.ArchiveFolder ?? "") + "\n" + FamilyKey(s.ConsoleProfile);
         /// <summary>freeze 16: no family saved means the first one (the NES Classic Mini), and an alias means its family, so choosing the SNES
         /// Classic Mini and then the NES Classic Mini again leaves nothing unsaved; an id this version does not know stays as written</summary>
         static string FamilyKey(string id) => ConsoleProfile.Find(id)?.Id ?? (string.IsNullOrEmpty(id) ? ConsoleProfile.Supported[0].Id : id);
         bool PrefsUnsaved => savedPrefs == null || Sig(settings) != Sig(savedPrefs);
-        bool Standalone => opt.Portable && !opt.HostedInFullApp;
+        /// <summary>the standalone's explicit settings files; false in installed mode (Classic Cart Studio started it: opt.Studio, or it is
+        /// inside the app), whichever program file runs</summary>
+        bool Standalone => opt.Portable && !opt.HostedInFullApp && opt.Studio == null;
 
         /// <summary>at start: what was loaded (or the standalone's defaults) is what is saved; the window's console family is the one the
         /// settings name, when this version knows it (an unknown one is kept in the file and the first family is used)</summary>
@@ -90,11 +97,23 @@ namespace CcsBackup.Ui
         }
 
         // ------------------------------------------------------------------ the Settings page
+        /// <summary>WB-UX-11: Back Up Console's Edit in Settings: this Settings page (the one place the locations are chosen, with its own
+        /// checks and saving) at Backup locations, the backup location's box in view and focused, and Back to Back Up Console at the top,
+        /// which shows the location as it is then. Changing the location affects new backups only; nothing is moved.</summary>
+        void EditBackupLocation()
+        {
+            settingsBack = () => { Enter("Console Backup"); ShowBackup(); }; settingsFocusLocation = true;
+            try { Go("Settings"); }   // with Go's own checks: not while a task runs, and the open page's unsaved work first
+            finally { settingsBack = null; settingsFocusLocation = false; }
+        }
+
         void ShowSettings()
         {
+            var back = settingsBack; bool focusLocation = settingsFocusLocation; settingsBack = null; settingsFocusLocation = false;
             settings = Reload();
             var sp = PageHead("Settings", Standalone ? "Where Workbench saves new console backups, and the settings file that keeps your choices for next time."
                                                      : "Where Workbench saves new console backups. Changes are saved automatically.");
+            if (back != null) { var bb = BackButton("Back to Back Up Console", () => { if (LeaveOk()) back(); }); bb.Margin = new Thickness(0, 0, 0, 16); sp.Children.Insert(0, bb); }
             var prim = new TextBox { Text = settings.PrimaryFolder };
             var arch = new TextBox { Text = settings.ArchiveFolder ?? "" };
             var two = new CheckBox { Content = "Also save an additional copy of each new backup", IsChecked = !string.IsNullOrEmpty(settings.ArchiveFolder), Margin = new Thickness(0, 4, 0, 10) };
@@ -183,18 +202,29 @@ namespace CcsBackup.Ui
                 var why = Pending(); if (why == null) return true;
                 return Ask("Leave Settings?", "What you typed is not used: " + why + ".\n\nLeave Settings without using it?", new[] { "Keep Editing", "Leave Without It" }, 0, 0) == 1;
             };
+            if (focusLocation)   // Edit in Settings: the backup location's box in view, with the keyboard focus and the cursor at its end
+                Dispatcher.BeginInvoke(new Action(() => { if (page.Content != sp) return; prim.BringIntoView(); prim.Focus(); Keyboard.Focus(prim); prim.CaretIndex = prim.Text.Length; }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>saves the preferences to the settings file in use, or to one the person chooses (always when there is none, or for Save
-        /// As): true only when the file was written</summary>
+        /// As): true only when the file was written. A file that cannot be written is said in a themed notice.</summary>
         bool SavePrefs(bool saveAs)
         {
+            if (TrySavePrefs(saveAs, out var problem)) return true;
+            if (problem != null) Tell("The settings were not saved", "The settings file could not be written: " + problem + "\n\nNothing was saved. Your settings are still used while Workbench is open.");
+            return false;
+        }
+
+        /// <summary>the save itself: true only when the file was written; problem says why it was not (null: no file was chosen)</summary>
+        bool TrySavePrefs(bool saveAs, out string problem)
+        {
+            problem = null;
             var file = settings.InMemory || saveAs || string.IsNullOrEmpty(settings.Path) ? ChooseFile(true, "Save Workbench settings", "ccs-workbench-settings.json") : settings.Path;
             if (file == null) return false;
             try { settings.Write(file); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException || ex is ArgumentException || ex is NotSupportedException)
             {
-                Ask("The settings were not saved", "The settings file could not be written: " + ex.Message + "\n\nNothing was saved. Your settings are still used while Workbench is open.", new[] { "OK" }, 0, 0);
+                problem = ex.Message;
                 return false;
             }
             settings.InMemory = false; settings.Path = file; savedPrefs = settings.Copy();
@@ -232,35 +262,25 @@ namespace CcsBackup.Ui
             var o = new Microsoft.Win32.OpenFileDialog { Title = title, Filter = "Workbench settings (*.json)|*.json" }; return o.ShowDialog(this) == true ? o.FileName : null;
         }
 
-        /// <summary>the preferences' part of closing the window, before anything else: false keeps the window open, with everything as it was</summary>
-        bool PrefsAtClose()
+        /// <summary>the preferences' lines in the close review (WB-UX-20): what is typed in Settings and valid is used first (as on leaving
+        /// its box); typed text that is not valid cannot be saved (lost); unsaved preferences (the standalone) or a change the automatic
+        /// save could not write (installed mode) can be (save). Installed settings are normally saved already, so nothing is listed.</summary>
+        void PrefsForReview(System.Collections.Generic.List<string> save, System.Collections.Generic.List<string> lost)
         {
-            if (closePrefsAnswered) return true;
-            if (settingsPending?.Invoke() is string why)
-            {
-                int k = Ask("Settings not used", "What you typed in Settings is not used: " + why + ".\n\nClose without it?", new[] { "Keep Editing", "Close Without It" }, 0, 0);
-                if (k != 1) return false;
-                settingsPending = null;
-            }
-            if (!PrefsUnsaved) return true;
-            if (Standalone)
-            {
-                int k = Ask("Save your settings?", "Your settings have changes that are not saved: " + WhatChanged() + ".\n\n"
-                    + (settings.InMemory ? "Workbench keeps settings only while it is open. To use them next time, save them to a settings file of your own. A settings file is separate from your console backups."
-                                         : "To use them next time, save them to your settings file (" + Path.GetFileName(settings.Path) + "). A settings file is separate from your console backups."),
-                    new[] { settings.InMemory ? "Save Settings…" : "Save Settings", "Don't Save", "Cancel" }, 0, 2);
-                if (k == 1) return true;
-                if (k != 0) return false;
-                return SavePrefs(false);
-            }
-            while (true)
-            {
-                int k = Ask("Your settings change is not saved", "Workbench could not save your settings change: " + (autoSaveProblem ?? "the settings file was not written") + ".\n\nTry saving it again before closing?", new[] { "Try Again", "Close Without Saving", "Cancel" }, 0, 2);
-                if (k == 1) return true;
-                if (k != 0) return false;
-                AutoSave(); settingsRefresh?.Invoke();
-                if (!PrefsUnsaved) return true;
-            }
+            if (settingsPending?.Invoke() is string why) lost.Add("What you typed in Settings, which is not used: " + why);
+            if (!PrefsUnsaved) return;
+            if (Standalone) save.Add("Your settings: " + WhatChanged() + (settings.InMemory ? " (Save & Close asks where to save them)" : " (Save & Close saves them in " + Path.GetFileName(settings.Path) + ")"));
+            else save.Add("Your settings change, which could not be saved: " + (autoSaveProblem ?? "the settings file was not written"));
+        }
+
+        /// <summary>the close review's Save &amp; Close for the preferences: the standalone saves to its settings file (choosing one first when
+        /// there is none); installed mode tries the automatic save again. null when saved; otherwise why not, in words.</summary>
+        string SavePrefsForClose()
+        {
+            if (!PrefsUnsaved) return null;
+            if (Standalone) return TrySavePrefs(false, out var why) ? null : why == null ? "Your settings were not saved: no settings file was chosen." : "Your settings were not saved: the settings file could not be written (" + why + ").";
+            AutoSave(); settingsRefresh?.Invoke();
+            return PrefsUnsaved ? "Your settings change still could not be saved: " + (autoSaveProblem ?? "the settings file was not written") + "." : null;
         }
     }
 }

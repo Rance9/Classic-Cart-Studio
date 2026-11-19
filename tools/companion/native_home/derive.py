@@ -22,7 +22,6 @@ DERIVE_VERSION = "n3-2"
 COVER_BOX_HI = (680, 932)       # the computer's full-resolution HOME ("play" packages): twice the box, never enlarged past the source art
 COVER_BOX = (340, 466)          # the Details cover box: the largest box a cover is drawn in by any theme (the Box Art Showcase focus box
                                 # face is 281 x 369, Arcade card 274 x 291, Featured cells 106 x 145, Map panel 185 x 142): one cover serves all
-HERO_WIDE = (620, 342)          # Featured Shelf hero box (home-art.json featured-shelf geometry hero.inner): the key art, object-fit: cover
 DETAILS_ART = (1272, 712)       # the Details art area inside the Arcade Grid 4 px frame
 FONT_MAGIC = b"CCSF2\0"
 # the smooth stand-ins for the pixel typefaces (every package since F19: the console's too): (family, weight, size factor for the same capital height,
@@ -265,12 +264,6 @@ def font_licenses(theme_root: str) -> dict[str, str]:
     return {"OFL-Barlow.txt": os.path.join(FONTS_DIR, "OFL-Barlow.txt"), "OFL-Silkscreen.txt": os.path.join(theme_root, "fonts", "OFL-Silkscreen.txt"),
             "OFL-Cinzel.txt": os.path.join(theme_root, "fonts", "OFL-Cinzel.txt"), "OFL-VT323.txt": os.path.join(theme_root, "fonts", "OFL-VT323.txt"),
             "OFL-SpaceMono.txt": os.path.join(theme_root, "fonts", "OFL-SpaceMono.txt"), "OFL-PressStart2P.txt": os.path.join(os.path.dirname(px), "OFL-PressStart2P.txt")}
-
-def hero_wide(src: str, out: str):
-    """Featured Shelf hero (home.css .hero img.wide: object-fit: cover over the 620 x 342 hero box), smooth scaling like the browser"""
-    W, H = HERO_WIDE; im = Image.open(src).convert("RGB"); sw, sh = im.size; s = max(W / sw, H / sh)
-    rw, rh = max(W, round(sw * s)), max(H, round(sh * s)); im = im.resize((rw, rh), Image.LANCZOS); x, y = (rw - W) // 2, (rh - H) // 2
-    save_jpeg(im.crop((x, y, x + W, y + H)), out, q=88)
 
 FOLDER_TILE = (272, 74)        # a Browse tile's artwork band (home.css .tile .tcol, 72 px high, up to 266 px wide in the widest theme panel), object-fit: cover
 def folder_tile(src: str, out: str):

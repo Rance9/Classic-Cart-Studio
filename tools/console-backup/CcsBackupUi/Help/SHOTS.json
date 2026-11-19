@@ -1,1401 +1,1311 @@
 {
  "schema": "ccs-workbench-help-shots/1",
- "note": "Pictures of Workbench's own pages with sample data, drawn by the private page renderer from this source; one per [shot NAME] in help.txt. No picture carries a window's own close button except 00w-window, which shows the whole window for the topic about its buttons.",
+ "note": "Pictures of Workbench's own pages with sample data, drawn by the private page renderer from this source; one per [shot NAME] in help.txt.",
  "shots": [
   {
    "name": "00-dashboard",
    "file": "00-dashboard.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46069,
-   "sha256": "4ba428be562999d6d7b53beb14586b0c2c224859763fbbec08660ce7a28ee72b",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49533,
+   "sha256": "4e1c4ff5382b001582f58c17ac9450feaaee3abc897a5cc5c10efba5aef5c25f",
+   "palette_error": 0.033
   },
   {
    "name": "00b-dashboard-empty",
    "file": "00b-dashboard-empty.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46083,
-   "sha256": "f0aa3c2427f2b98758f9472a82106403c65a90d3c8698e022f0bdeb73ce713c5",
-   "palette_error": 0.031,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49584,
+   "sha256": "6fcb1abb2d2dc1cc6d0a8a715617e4097f07adbeb7c95dd7db3cd1155a94eca3",
+   "palette_error": 0.034
   },
   {
    "name": "00c-dashboard-missing-folder",
    "file": "00c-dashboard-missing-folder.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46084,
-   "sha256": "b84386585a30bdef30171f199e3fae7e195ab718a901cc2de2a15e43d1a7b0f5",
-   "palette_error": 0.031,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49580,
+   "sha256": "b7e172192e7a0043e88feb8a5fda22de2aa6145bc6107d9a794d6a68600d9235",
+   "palette_error": 0.034
   },
   {
    "name": "00d-dashboard-unreadable",
    "file": "00d-dashboard-unreadable.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46081,
-   "sha256": "4068f7b6fc287ffc5bbe301b3c3862661298a343b82570598c1aeca983bda464",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49579,
+   "sha256": "12c4eeb706fc97f532ab2ec77bbf065016dbd4b3607c50e37c29eeb231018fbd",
+   "palette_error": 0.034
   },
   {
    "name": "00e-dashboard-console-seen",
    "file": "00e-dashboard-console-seen.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47073,
-   "sha256": "0611710da8253d4e24f7ffbe76fd4de6838927dd23354d3721dc6813ba4f1b34",
-   "palette_error": 0.033,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48246,
+   "sha256": "22ac0860c5fd826ed4377e44f6fb1b30c847574c7d176b430def78b6054b689d",
+   "palette_error": 0.033
   },
   {
    "name": "00e2-dashboard-earlier-session",
    "file": "00e2-dashboard-earlier-session.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47303,
-   "sha256": "f6f48d8bef159824e60fced49c3285de9d594196b885330d89d7619a4f304258",
-   "palette_error": 0.036,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48578,
+   "sha256": "bf2f12e7c724fc168a60012f5b03e9eddbff745df2b8c55a92ed751a3bb84122",
+   "palette_error": 0.034
   },
   {
    "name": "00f-hosted-dashboard",
    "file": "00f-hosted-dashboard.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46069,
-   "sha256": "4ba428be562999d6d7b53beb14586b0c2c224859763fbbec08660ce7a28ee72b",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49533,
+   "sha256": "4e1c4ff5382b001582f58c17ac9450feaaee3abc897a5cc5c10efba5aef5c25f",
+   "palette_error": 0.033
   },
   {
    "name": "00g-dashboard-first-launch",
    "file": "00g-dashboard-first-launch.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46083,
-   "sha256": "f0aa3c2427f2b98758f9472a82106403c65a90d3c8698e022f0bdeb73ce713c5",
-   "palette_error": 0.031,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49584,
+   "sha256": "6fcb1abb2d2dc1cc6d0a8a715617e4097f07adbeb7c95dd7db3cd1155a94eca3",
+   "palette_error": 0.034
   },
   {
    "name": "00h-about-studio",
    "file": "00h-about-studio.png",
    "width": 967,
-   "height": 646,
-   "bytes": 67305,
-   "sha256": "0809db95ad3e8e41fa93aeb4fca3e177635ac625e464400b768c40341fafd0c9",
-   "palette_error": 0.612,
-   "left_out": "the window's bottom row with its Close button"
+   "height": 705,
+   "bytes": 67868,
+   "sha256": "ef5a7d1454c139a5f6919547781c1306a668116897acf6e949bc61dfd79f4158",
+   "palette_error": 0.52
   },
   {
    "name": "00w-window",
    "file": "00w-window.png",
    "width": 1160,
    "height": 760,
-   "bytes": 47115,
-   "sha256": "3b321863ca5adcf19f9e1eaa28864aa161355228fcbaa68410734b6dc546733d",
-   "palette_error": 0.03
+   "bytes": 49533,
+   "sha256": "4e1c4ff5382b001582f58c17ac9450feaaee3abc897a5cc5c10efba5aef5c25f",
+   "palette_error": 0.033
   },
   {
    "name": "01-backup-home",
    "file": "01-backup-home.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 40325,
-   "sha256": "0102005f30260915869b86ece63f75e708f060b0d2dde2e4653a2f035778914d",
-   "palette_error": 0.043,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 41608,
+   "sha256": "75027414b892d2d160638772a6118019f5986ff5df2273f7df8f4a8fa46d14d0",
+   "palette_error": 0.041
   },
   {
    "name": "01b-backup-home-selected",
    "file": "01b-backup-home-selected.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 42233,
-   "sha256": "e3833260387ad6ba981579266f9ebd6325e1709fcbef647716ac101032fa0898",
-   "palette_error": 0.046,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 43503,
+   "sha256": "c147ce23681cf2dfbbfc08f545c3342054254f95682b082df3977cfb1a99993c",
+   "palette_error": 0.043
   },
   {
    "name": "02-backup-start",
    "file": "02-backup-start.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46606,
-   "sha256": "b6159068d022e90a810fb45d610ec204c9ebdc9868f5b0bec4b8956a7bc02fa4",
-   "palette_error": 0.026,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 52243,
+   "sha256": "d50171810020e4db582c572d63357bfcefc9b6f9d9f435a4ea4b11d1ba6984f5",
+   "palette_error": 0.028
   },
   {
    "name": "03-backup-result-ok",
    "file": "03-backup-result-ok.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 49846,
-   "sha256": "4bc1c7451e78c8c816738a90bc0d71de933d0cf839bd5254e7e1cc107733f3a4",
-   "palette_error": 0.036,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 51042,
+   "sha256": "fe0b02235f856f13d4355067e03a1ead7997b0d22b11efb43978aa5332bdbc9f",
+   "palette_error": 0.036
   },
   {
    "name": "04-backup-result-stopped",
    "file": "04-backup-result-stopped.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 25793,
-   "sha256": "4669e524be7d6440708d85f7fd3dd55b678aa2bb40baa94a9458c30794c29e3f",
-   "palette_error": 0.014,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 27057,
+   "sha256": "a599ece9d2c2d218f57723a2ace3668f9dda8b2dbcda18085451b3599e97f9ff",
+   "palette_error": 0.013
   },
   {
    "name": "05-restore-hub",
    "file": "05-restore-hub.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47514,
-   "sha256": "a2e82ba53ea34b478573786d9bed4ba54c550c2cebf8b82f18bf68ebbfcfcc75",
-   "palette_error": 0.035,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48816,
+   "sha256": "c627f73fa5574611d435fe649439cdc96af72bcb02eef0ed8f2a24112c22897e",
+   "palette_error": 0.036
   },
   {
    "name": "06-restore-pick",
    "file": "06-restore-pick.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 33448,
-   "sha256": "ac9fdb3ad8695dd20f5e76294301027cf52776c256e3b11e72749897cc6d619c",
-   "palette_error": 0.033,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 34641,
+   "sha256": "8be8d516fe1849e48077f943daf20031797db41cb11e2000d8a25daf43b16b89",
+   "palette_error": 0.031
   },
   {
    "name": "07-restore-review",
    "file": "07-restore-review.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 24588,
-   "sha256": "1ac2b0af14a574f06c02650bbe96e2b95c7ce7428610cfc8e7bae283e90e497e",
-   "palette_error": 0.011,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 26058,
+   "sha256": "9ca2eb03ba66cd5a110b82a467df27f5ac107ae557c02a67f73c1bbfaa547f5e",
+   "palette_error": 0.011
   },
   {
    "name": "08-restore-plan",
    "file": "08-restore-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 45113,
-   "sha256": "373ac6962b4eac7f46b0e82f2cff0b26f151a3ca19b6411cf9c096be7be6520e",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48366,
+   "sha256": "f121875a89b19644d9bef5d345c7794c163a655c79688138fbde0ff6947b321a",
+   "palette_error": 0.027
   },
   {
    "name": "09-restore-result-ok",
    "file": "09-restore-result-ok.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 27463,
-   "sha256": "0ee42f30075f1b797b019f44cb31df61f8385aa8f3103692c48ba11af76a366b",
-   "palette_error": 0.023,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 28647,
+   "sha256": "58ce09368b13fb6cf877b309385cb1d97ba4a0a1abbfb202c406c8162df81627",
+   "palette_error": 0.02
   },
   {
    "name": "10-restore-result-stopped",
    "file": "10-restore-result-stopped.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 32670,
-   "sha256": "04a120a2e7f24e22e561f23d71e9ce1917e5e0a63cf8146f57683bcec5910338",
-   "palette_error": 0.021,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 33981,
+   "sha256": "6b13771335f210d686ab270f8e696cc632e53b7e6accff457fda2c42c21a3a6b",
+   "palette_error": 0.018
   },
   {
    "name": "11-prepare",
    "file": "11-prepare.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 55603,
-   "sha256": "b0ccfb57fa0c05303c9e01708279b369af998f8bed5f2b81db0aa3f8867c8004",
-   "palette_error": 0.033,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 57438,
+   "sha256": "390e7b9e1e10ad109ddf8d30ff60bbd3e9f781fa0bac9bb2dacb86f673e4a447",
+   "palette_error": 0.032
   },
   {
    "name": "12-prep-plan",
    "file": "12-prep-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 37014,
-   "sha256": "392a0df76cb219d7118b8565e47ebe6e53d618f76049ae3d997d8923ccac2316",
-   "palette_error": 0.024,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 38301,
+   "sha256": "53a81b3f53a9e4618a63f12d9f61426447f05bdadff1b0e92ec4b51b13912a7a",
+   "palette_error": 0.024
   },
   {
    "name": "12b-prep-plan-home",
    "file": "12b-prep-plan-home.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 41819,
-   "sha256": "804ed5895ee74af7bfbb80de72ac609f67c1e7b28d7537e584e53ca1f1106f91",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 43129,
+   "sha256": "baa43f867f0e358430bdb38aa727acbd12e5cd228605b19e355b3cac26545d5c",
+   "palette_error": 0.025
   },
   {
    "name": "12c-prep-plan-already",
    "file": "12c-prep-plan-already.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 38364,
-   "sha256": "d1e70fb7a784df66475638b3d511b5856427099a7addd0b18863cbb4886053a9",
-   "palette_error": 0.025,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 39726,
+   "sha256": "1bb9fc953cbd515d46d64fcc3096fc3fa22e9562fe9c87b5cf5bca2ae8248a5b",
+   "palette_error": 0.025
   },
   {
    "name": "12d-prep-plan-modstart",
    "file": "12d-prep-plan-modstart.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46583,
-   "sha256": "f612207f0fac3963b342887c854084ab5f892f61fabf8dca4e778a550feb31d4",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 47727,
+   "sha256": "2cf99e3021cf7706a6bb412f58d327b1da97ad6f91d3ccaa2fb3d536dacfbbc2",
+   "palette_error": 0.028
   },
   {
    "name": "13-prep-result",
    "file": "13-prep-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 23142,
-   "sha256": "0b7babb32caf064e28965c8f651ea3008d215a37d1bef35153e9a229577d6e2d",
-   "palette_error": 0.018,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 24457,
+   "sha256": "04cf3ef5ca050bf1112aeb2bce18a4b09675c07ae98bde6d79947d98f028f04f",
+   "palette_error": 0.016
   },
   {
    "name": "13b-prep-result-scheduled",
    "file": "13b-prep-result-scheduled.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 27049,
-   "sha256": "9806f6db296ecbfaf202d22cb0a940ad9cf81ab88edb6f54142cd56f2714dfa8",
-   "palette_error": 0.022,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 28234,
+   "sha256": "58a5b61c7f8153205c9d4b92829ec9101b028978165cf3ca38693fdd681925d8",
+   "palette_error": 0.022
   },
   {
    "name": "13c-prep-result-home-placed",
    "file": "13c-prep-result-home-placed.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 25475,
-   "sha256": "f3b2b5038eb0a67d20361a56a9767858a73d12c607ad9eb7e7075b2a1c0f1d0f",
-   "palette_error": 0.021,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 26711,
+   "sha256": "32639ec8df3d4bc1a1dc69cbb81cbecb31abf8e48997f6dc2ca8e8a57c2ca799",
+   "palette_error": 0.02
   },
   {
    "name": "14-return",
    "file": "14-return.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 54100,
-   "sha256": "2d187ed562a8f75f232462d5a72d3f7f3a2056c5abaa718a192ced9d6905edf0",
-   "palette_error": 0.034,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 56211,
+   "sha256": "8390d2321ef9754a52b0f24c08d35f3806b7e0ff02844ffdcd919cfa376d6585",
+   "palette_error": 0.04
   },
   {
    "name": "15-return-plan",
    "file": "15-return-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 37446,
-   "sha256": "bc707233c5556d9381178814d517c5abffc6f9e60a4217b8b9de78f04544f9ff",
-   "palette_error": 0.022,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 38702,
+   "sha256": "9685b54b618de91d294f2eae26538371e42b770c3999a63e4eac959753514cf3",
+   "palette_error": 0.022
   },
   {
    "name": "16-return-result",
    "file": "16-return-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 32734,
-   "sha256": "20c113a5a9182cb6f4332837b8259677cb18abfe6d4099988afb5b9234cd4c5e",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 33911,
+   "sha256": "dfc1b4dbbe0ec906cfca38fe37151b742ab0ebec53cf7625e93b7eeec3a84369",
+   "palette_error": 0.027
   },
   {
    "name": "17-methods",
    "file": "17-methods.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 56506,
-   "sha256": "efe24bc4cbee20ddaae39b0ccd2277acaf136bca2ff04ed67588ab56a40b727a",
-   "palette_error": 0.034,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 58443,
+   "sha256": "228d5b2822067e50c577c3c038d9e2b8b9747b1e6c700f97533d6bc3673a44e2",
+   "palette_error": 0.035
   },
   {
    "name": "18-method-plan",
    "file": "18-method-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 56353,
-   "sha256": "92857d1ebe9ec985d32f62daebb3d5341dcdbc11e9d6b6970a14a35b2942e34f",
-   "palette_error": 0.03,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 57874,
+   "sha256": "e48acb4fd6fe5cc806dce3b3eb340accecaafba0eb38c97c7c78fdcf8f538dfe",
+   "palette_error": 0.029
   },
   {
    "name": "18b-method-plan-remove",
    "file": "18b-method-plan-remove.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46128,
-   "sha256": "006401a81314838e14a655b3a4bd035d7a20299ebe9270fc0868ce34ebfc4ef3",
-   "palette_error": 0.031,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 47302,
+   "sha256": "ec5a470fcd4013022b56d8bb24c8b31053283d5b46de1907ad55b808b0e99003",
+   "palette_error": 0.03
   },
   {
    "name": "19-method-result",
    "file": "19-method-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30364,
-   "sha256": "04e42c9c94808b5ec2543e8d4d0d5a98d42448c7921d514d5dcb054dbd8f2dcc",
-   "palette_error": 0.026,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 31641,
+   "sha256": "ae01aa844c575794d17ec80dc9507112977ef546119f82e60e294197b111fb0b",
+   "palette_error": 0.024
   },
   {
    "name": "19b-method-result-stopped",
    "file": "19b-method-result-stopped.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30700,
-   "sha256": "3ee48c621a979022b927671c5f107755397bebad82681d521a8dbbb7d4d4cc60",
-   "palette_error": 0.017,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 32008,
+   "sha256": "31de1d57e02201c7e2ea2e927e080452994a75a01d5bf585ffd3b37b80998b03",
+   "palette_error": 0.015
   },
   {
    "name": "20-rescue",
    "file": "20-rescue.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47802,
-   "sha256": "b806f47bc579d865a16637933847512df6637143c10570e1bebd9896b42cb315",
-   "palette_error": 0.026,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 52353,
+   "sha256": "ba1bf58b912ef47fe2fce0de486da8dbb3353794a1959e48f65e1002c8da899c",
+   "palette_error": 0.026
   },
   {
    "name": "21-rescue-choice",
    "file": "21-rescue-choice.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 31960,
-   "sha256": "c077f90f1da372aa23e125733c1ef40364e238adde548258ee9e8fadca940af3",
-   "palette_error": 0.028,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 33314,
+   "sha256": "8063f500b7768c689b743dc8d23a2dfccaecc220b1fc55ccc0be17113f52ad5f",
+   "palette_error": 0.028
   },
   {
    "name": "22-rescue-plan",
    "file": "22-rescue-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30285,
-   "sha256": "52af84fb28ccf50dd999fe8e22a833bfc9a3cdf1929ba021b89d6d1fbe45c0f3",
-   "palette_error": 0.025,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 31535,
+   "sha256": "0f8d28de1713f94eaef73d98d3a0b1fecc0157c7fee57c7f651a2e636b7b8322",
+   "palette_error": 0.023
   },
   {
    "name": "23-rescue-result",
    "file": "23-rescue-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 24014,
-   "sha256": "561f1e8f4dfd3aa4b9e023f5d2eae8e73a4498d7d47c183c83e17200cb2f2327",
-   "palette_error": 0.014,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 25242,
+   "sha256": "7ae725ec66965c9e3fe62d77ad71ea62f8ce9473808ae735dc3c1c936f6ec6f9",
+   "palette_error": 0.012
   },
   {
    "name": "24-composer",
    "file": "24-composer.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44063,
-   "sha256": "105ea65e95f7aa655d737ab1b4a25996d5336dee108b091dbaf06fba00c7571f",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 46589,
+   "sha256": "c823163c358aed8c4c9ec3b8ef937c6d707bad4db6c858b9a9372d50b5b05e52",
+   "palette_error": 0.033
   },
   {
    "name": "25-composer-like",
    "file": "25-composer-like.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 48435,
-   "sha256": "0bce3787b3a899e9ee5fa0ec86695fae603d2af5673e77b62856835410fcc3ef",
-   "palette_error": 0.029,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 52526,
+   "sha256": "f2491b8c7abe1c0b25258f117c0fa300a48c23f8a011494d895f5d9a05a87500",
+   "palette_error": 0.028
   },
   {
    "name": "25b-composer-like-files",
    "file": "25b-composer-like-files.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 54600,
-   "sha256": "cb947208b1d7086d6d46464c92e145259b9e32073082fb7a97c22e7ab109e341",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 56783,
+   "sha256": "f9d3d7d7cd6c0b3bc7ae36a538d9408dbe646f477c0096fd0c818e8ef1dd7c0f",
+   "palette_error": 0.034
   },
   {
    "name": "26-composer-rebuild",
    "file": "26-composer-rebuild.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44884,
-   "sha256": "4da5171289a8d5c082df88c8ad15dedb5619fae891e64bcd620410413cfb9287",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 46645,
+   "sha256": "34d09c90279b4082323dde2dc4c7840833fed8603b908668c922f43250148c20",
+   "palette_error": 0.027
   },
   {
    "name": "26b-composer-rebuild-again",
    "file": "26b-composer-rebuild-again.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 54390,
-   "sha256": "6c4471dbd1948848bbb5cb9ef346a911776ca2298aebb0cc7e5f20322d800690",
-   "palette_error": 0.033,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 57180,
+   "sha256": "58f2854bbf35be3fba83340a39941f7e5e9a970e60ba74a1b523c22c9c11a2de",
+   "palette_error": 0.033
   },
   {
    "name": "27-compose-plan",
    "file": "27-compose-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 50946,
-   "sha256": "c263c3fc818b32478232f4881d1eebe77fdf74f8606ea5386a6831b73fc1422d",
-   "palette_error": 0.048,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 52361,
+   "sha256": "acb8b90cdd98f6d591d10c6bafd01e7bf937e887f842ec793137ca2a69c4cbc4",
+   "palette_error": 0.037
   },
   {
    "name": "27b-compose-plan-package",
    "file": "27b-compose-plan-package.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44052,
-   "sha256": "1628a1eec6b5939f72d9a6adbe992d5d044e8f97e8af5008ac8d73086e94a1ac",
-   "palette_error": 0.042,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 45376,
+   "sha256": "396b547a3084c4adb979e844187b908061b5417e08b91d9fcbe15c73c48a793e",
+   "palette_error": 0.04
   },
   {
    "name": "28-compose-result",
    "file": "28-compose-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 29117,
-   "sha256": "96a3a9f36a7983f060c67933868437bc7dab10ec29bf54256bd2c36109dd8f48",
-   "palette_error": 0.022,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 30393,
+   "sha256": "f1b22e74a2ec7a8785a829a5fe14a9dca0a3c2dbe7aeb8926ba1e47bfdfa7e39",
+   "palette_error": 0.025
   },
   {
    "name": "28b-compose-result-stopped",
    "file": "28b-compose-result-stopped.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 33735,
-   "sha256": "2acba375ddd75c7e41edfac5bbedad912a82710075f5e14a91f5665bbc1a11c3",
-   "palette_error": 0.02,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 35050,
+   "sha256": "b9848f7b749d966347bf0e0344d40c6c63c851e8d7c52b9b96d5a3be09dee1ba",
+   "palette_error": 0.019
   },
   {
    "name": "29-firmware",
    "file": "29-firmware.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46064,
-   "sha256": "65788cfe9626aad2aca388531538bf34d77c6a9b9066aa91555a2ded1f6b3ea9",
-   "palette_error": 0.039,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48026,
+   "sha256": "05832c71f715a89d1547ca1690530c6a4e96ec7c583f3bb75bffa98312ebd6c5",
+   "palette_error": 0.038
   },
   {
    "name": "29b-firmware-plan-snes",
    "file": "29b-firmware-plan-snes.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 55869,
-   "sha256": "2decb651ca563d94affd2a670fb24caf2e4c62a987593a9943ddbae8af153dd6",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 57681,
+   "sha256": "6d6128f99292cad2f32c7c9eab6ff9c90a6c8ce7be800abda724387d981ac9d3",
+   "palette_error": 0.03
   },
   {
    "name": "29c-firmware-result-added",
    "file": "29c-firmware-result-added.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30210,
-   "sha256": "4744c723c91c86a3e9285df610639b4790d68c0a3fbc727aec3058b9a78107b1",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 31579,
+   "sha256": "88e20b05c6bf4a9c9d0f247cf7ed465a1717adcf11a21e64a4b27277e482805c",
+   "palette_error": 0.024
   },
   {
    "name": "30-build-package",
    "file": "30-build-package.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 35701,
-   "sha256": "efe34c110c72224b85a56489b9ee0bde783142784da64e0c8d2e2bf29cbaced1",
-   "palette_error": 0.033,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 37107,
+   "sha256": "7f27010e8a76d480d4867f5b0231e529429e638623b20617eeba4ac7a29bfd63",
+   "palette_error": 0.032
   },
   {
    "name": "30b-build-package-migrate",
    "file": "30b-build-package-migrate.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44137,
-   "sha256": "aaa29c83e4bb79f8a5b10e0478557f1c66d71bc97a8a0ca7f0fa5c5a13ed40fb",
-   "palette_error": 0.031,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 45533,
+   "sha256": "dd80650753575e786a9baf61245f3de44491e0db4d309b4054849d7fe5b334c7",
+   "palette_error": 0.03
   },
   {
    "name": "30c-package-built",
    "file": "30c-package-built.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 32424,
-   "sha256": "fc54ba87bd800a694dc8819fc909c73afc2f1481726d52d692d9cd95a1ee42d2",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 33633,
+   "sha256": "36ef3cb05eabdef47bc31808b13b971266b9b0170ed0a261baab3392147cf111",
+   "palette_error": 0.027
   },
   {
    "name": "30d-apply-package",
    "file": "30d-apply-package.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44317,
-   "sha256": "7d1adb1716e63a7ffbf48a0e547293f469736a1e92fcd47bc52fa5c08bc130c1",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 46251,
+   "sha256": "4b0c5bb4fd22b80eb74876c498121a10e1afc41f12e37858ad18945ed33cb92b",
+   "palette_error": 0.025
   },
   {
    "name": "30e-plan-share",
    "file": "30e-plan-share.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44160,
-   "sha256": "9fbae6fb473b41b2fbaf14aefe282fc5a61931d39978948bababf8d0b03d2307",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 45448,
+   "sha256": "8691983878304ed0ed1a9d44a7c32dd8273824da751e5b466a8a968d52f9670d",
+   "palette_error": 0.033
   },
   {
    "name": "30f-plan-checklist",
    "file": "30f-plan-checklist.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 42413,
-   "sha256": "901251008ab665d59137baf762d46f2219f950387c616ab3dd22616cf0113a2a",
-   "palette_error": 0.034,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 44071,
+   "sha256": "75c4972ad0be1d5a740cf1f2e585d57b4eb1399c3934e55e8622aede8139f6dd",
+   "palette_error": 0.034
   },
   {
    "name": "31-console-browser",
    "file": "31-console-browser.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 45529,
-   "sha256": "7e706e913dcffff66fdf8c38b0f2027021914adcc20d1cf59d6e8cb3600369d1",
-   "palette_error": 0.04,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 46831,
+   "sha256": "9261389f401a649a634686c157455ef84e4864d7ded0aabde12e028912da46bf",
+   "palette_error": 0.037
   },
   {
    "name": "32-checkup",
    "file": "32-checkup.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 39570,
-   "sha256": "7ca119fd4a7f75acd7ed26c84c210e5ae6f6c5d1d1d93ae78502dba0acbe3a4c",
-   "palette_error": 0.025,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 40991,
+   "sha256": "48020f056951cab8f991d7278273ec7ee0617752a1928c5454121e7342b7ce22",
+   "palette_error": 0.024
   },
   {
    "name": "33-expert-intro",
    "file": "33-expert-intro.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 45349,
-   "sha256": "63fa956bc9a998efe5b5d8ff8d1c23d3953df7ff73ef609c2d3b8e83b3239d5b",
-   "palette_error": 0.033,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 46686,
+   "sha256": "7eb1059b7ee232884a065704168cd6d8e796823d6341fb27bce1a0c71d74a5f7",
+   "palette_error": 0.031
   },
   {
    "name": "34-files-point",
    "file": "34-files-point.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 28424,
-   "sha256": "46d410c2ffc56644b66c72e48e84b4c83804a2fb38271f3b7585d3c35e8c6160",
-   "palette_error": 0.018,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 29636,
+   "sha256": "a6b65c956c97328565c9184d3fd81e3857b55c824df22d7ce6f3825078d58dfe",
+   "palette_error": 0.019
   },
   {
    "name": "35-files-session",
    "file": "35-files-session.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 37009,
-   "sha256": "0e4c2d75ca6a4cdc4ce0119bf559b3055e26fe8be9608dc14ed23dc16b4a71e0",
-   "palette_error": 0.022,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 38333,
+   "sha256": "75a923982b2750088c938e691744836baaac7baa32e9535e542c9a16f7659c92",
+   "palette_error": 0.026
   },
   {
    "name": "36-files-plan",
    "file": "36-files-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30193,
-   "sha256": "af3f355fefd6ebe2e75620fa2e84f5529899557fb32ae9299662ca96695c2c14",
-   "palette_error": 0.024,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 31564,
+   "sha256": "aa23301febc08b1f7ab1a975555a388bed568a8b62ee6c7d088a03d79ddfcda6",
+   "palette_error": 0.027
   },
   {
    "name": "38-developer",
    "file": "38-developer.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 52973,
-   "sha256": "35680a08b365f03be7299fa131decf2f3722a437bf929d88904299d86397df4e",
-   "palette_error": 0.041,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 54390,
+   "sha256": "9291f11bd2a0d49ddc68c6158c6d197b8cefdd0850f46b11d7ff346369cbdd3e",
+   "palette_error": 0.039
   },
   {
    "name": "38b-test-boot-intro",
    "file": "38b-test-boot-intro.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46710,
-   "sha256": "d6eb3ed2aef8965fa00320e9d73d22809c9a49900d175775f8dab41b2ea30916",
-   "palette_error": 0.03,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48162,
+   "sha256": "6fab3f4e71e2880c184428088444870e98b4f3c1050d8dd9987cf9b0884977c6",
+   "palette_error": 0.034
   },
   {
    "name": "38b2-test-boot-intro-empty",
    "file": "38b2-test-boot-intro-empty.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 43686,
-   "sha256": "d1e814eaad9bf89e405a8c7f9a5a8e38c1d307b3bb288328308f93e1fcc8acd6",
-   "palette_error": 0.028,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48392,
+   "sha256": "e6b46437a2411cd1aab3efecde5dfa1d7d9a6dfe5b99a588f7b8754a349a7ba4",
+   "palette_error": 0.033
   },
   {
    "name": "38c-test-boot-plan-image",
    "file": "38c-test-boot-plan-image.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 49632,
-   "sha256": "209a3ff8d6e17135186708b8dd71ece33ee1d5b4dab37946e6e71ea8087a33ed",
-   "palette_error": 0.038,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 54185,
+   "sha256": "8fac9d459975f90bb3020016c957ef3a0b90a2e51ab8ca2c1b07ab74a2dcd9d0",
+   "palette_error": 0.034
   },
   {
    "name": "38d-test-boot-plan-own",
    "file": "38d-test-boot-plan-own.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 46720,
-   "sha256": "5349d7bff52a84e39b12998337fd4ffff27ada49823551ef3549c590c9f1c06e",
-   "palette_error": 0.043,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 47909,
+   "sha256": "11bcf553e4ed17728710bc00157153ca113c8b7b9f64b3dd95b881ea95dc7948",
+   "palette_error": 0.041
   },
   {
    "name": "38e-system-plan",
    "file": "38e-system-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 50701,
-   "sha256": "55b9e7c3f1294ce7c9a5c22e6d787e273ca3d98335837cabbb802517588beb45",
-   "palette_error": 0.034,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 52210,
+   "sha256": "46133d492612887537b9cdc540faf77719d52421d75f512bccb79924667bff6d",
+   "palette_error": 0.036
   },
   {
    "name": "38f-kernel-plan-dev",
    "file": "38f-kernel-plan-dev.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47220,
-   "sha256": "2a3958e3a82690ad3c3a13525a32c4f867734007aad3770aec3503e293dec5c3",
-   "palette_error": 0.042,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 50567,
+   "sha256": "b9f817ed02402fb8370beeaf6cec406f3a619feeac3fd76bfa66303e61be3f69",
+   "palette_error": 0.044
   },
   {
    "name": "38g-developer-return",
    "file": "38g-developer-return.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 42933,
-   "sha256": "3f099df9f52f026151b365147db94f456ef180ee7e3f1325bd5c178ff2feb1a8",
-   "palette_error": 0.037,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 44403,
+   "sha256": "5cefa4d3b4ff433ce28495f5097a87afe9e5fec30c753a2278226325d72a09d9",
+   "palette_error": 0.036
   },
   {
    "name": "38g2-developer-return-empty",
    "file": "38g2-developer-return-empty.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47407,
-   "sha256": "c74af73ef1421f999962c1f804f8e6381993b13a6247a45e0fd3902db8165bf0",
-   "palette_error": 0.038,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48661,
+   "sha256": "a63c90e0b82cb4ffa3beb4a43d033e6eb444ed90fd1fd3d9004ec77e1c864910",
+   "palette_error": 0.032
   },
   {
    "name": "38h-test-boot-result-sent",
    "file": "38h-test-boot-result-sent.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30573,
-   "sha256": "436c74f28e482473aba85811ac8708f3170f6849c22f0c61996e42ce42362bce",
-   "palette_error": 0.018,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 31754,
+   "sha256": "76f3484596d8a9699157f72635922cd5e67fa29adac4f240e619bb1eb84878db",
+   "palette_error": 0.017
   },
   {
    "name": "38i-test-boot-result-refused",
    "file": "38i-test-boot-result-refused.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 26473,
-   "sha256": "b9a175dc8e8a994f16481fbcb61c10dfd5c5acfb58c63eb4b44c6a80893f8e03",
-   "palette_error": 0.017,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 27803,
+   "sha256": "971fc714995540a088a043e3e927b6d531d4be08a8a5eb1f4ac2cba8e9605bf8",
+   "palette_error": 0.016
   },
   {
    "name": "38j-test-boot-result-unavailable",
    "file": "38j-test-boot-result-unavailable.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 22473,
-   "sha256": "489bce83b4f1e69a4affc1677b4acf99bc5150e54674cc247cf4490075e6e1b5",
-   "palette_error": 0.01,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 23702,
+   "sha256": "e389bb5f3a41eb1901282704ae0b2370dcfa588a23482bba2b04d2523b575568",
+   "palette_error": 0.011
   },
   {
    "name": "39-backup-browser",
    "file": "39-backup-browser.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47077,
-   "sha256": "84dff6bb5c1b0a479c92b71e1b973df739cfdb31e1917380b386c4028e92ff77",
-   "palette_error": 0.038,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 48479,
+   "sha256": "82ff5ab5febb318d83d75e86998ad72465c7523b2634a62192b5ae65143e5bc8",
+   "palette_error": 0.039
   },
   {
    "name": "39b-backup-browser-empty",
    "file": "39b-backup-browser-empty.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 34871,
-   "sha256": "c41da5dd85af84b90e7f86378b493098506358c84b1ab0f54c787b68de67227a",
-   "palette_error": 0.029,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 36074,
+   "sha256": "b6964abdd6d384fe6a684f15eefcd93a5826c0f15742485dc1c92829095c18b3",
+   "palette_error": 0.026
   },
   {
    "name": "39c-backup-browser-unreadable",
    "file": "39c-backup-browser-unreadable.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 34511,
-   "sha256": "da749de6f06c098bd3d6aadfa09cb12828decd0d725c613e50ad86d2a4285eb6",
-   "palette_error": 0.021,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 35819,
+   "sha256": "e40dfbfff4974db42c4befa2548bfab02eb399f9ab3a85201c896a2d1155561a",
+   "palette_error": 0.021
   },
   {
    "name": "39d-backup-browser-checked",
    "file": "39d-backup-browser-checked.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 48046,
-   "sha256": "67a0003e10c5cb396849b5c08e635ca132c86eddd12f5ab38a0a0d7a839167e3",
-   "palette_error": 0.041,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49990,
+   "sha256": "113bf8adaed2ac91bb987cbd6fae15f2c1ee0afcc11b0ecb36bf44d90f97bd7f",
+   "palette_error": 0.04
   },
   {
    "name": "40-browse-game",
    "file": "40-browse-game.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 24234,
-   "sha256": "3a9ebe29555cdb0112b51aa38c1895bd58106aebbbe45b4b131efc152f145a02",
-   "palette_error": 0.011,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 25512,
+   "sha256": "dffeb1f4d45e2049aea8ca1c2c6ef7c386cc39f2ec8980494b06dd8ad8d70ecd",
+   "palette_error": 0.011
   },
   {
    "name": "40c-browse-open-failed",
    "file": "40c-browse-open-failed.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 33230,
-   "sha256": "72f32c1c97f615ea9aed84e1ba6d10da3a9bc017cbe8b43118236937620bb07c",
-   "palette_error": 0.019,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 34455,
+   "sha256": "76e14c1917121d7d61f594c8dfdf406a0856bcf1b1475c1e0961014fbfe5587d",
+   "palette_error": 0.018
   },
   {
    "name": "40d-export-result",
    "file": "40d-export-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30778,
-   "sha256": "53c1af37aaa2d3f9ca33c50ddc4a833518ac88671c195a5cb69fdcea6078fd72",
-   "palette_error": 0.018,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 32031,
+   "sha256": "865d03b47887bdcbeb8b0e585dd3322a861b491429b2699dc0e727951f96675b",
+   "palette_error": 0.017
   },
   {
    "name": "41-browse-type",
    "file": "41-browse-type.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 53334,
-   "sha256": "73328d8ef3f030dcf8f53a5fbb5a73fcada710d2304d2f8a861ada076f938f70",
-   "palette_error": 0.036,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 55244,
+   "sha256": "442321f90ec03700923423c8ae3e02c8daf1d4f335e988887494413891ca28b3",
+   "palette_error": 0.034
   },
   {
    "name": "42-browse-all",
    "file": "42-browse-all.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 40418,
-   "sha256": "421067af8e735f9fd7662188f888042c32aa15b3eff523771ab930bfd004f56c",
-   "palette_error": 0.028,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 41870,
+   "sha256": "f00aec1226142eeb9d9dc4c3b8c10719865c1da540741263dcdea088037eb7b1",
+   "palette_error": 0.026
   },
   {
    "name": "42b-browse-folder-open",
    "file": "42b-browse-folder-open.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 41914,
-   "sha256": "a1182a95d725e20b754fd725d0dbc920a2dd4a9c33af0f817055f33277f81535",
-   "palette_error": 0.029,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 43562,
+   "sha256": "a09b5fd9d1bd13c5c8e8050d9b2b8fc3f8bf9238dd04640d5deabd4f70636809",
+   "palette_error": 0.028
   },
   {
    "name": "42c-browse-salvage",
    "file": "42c-browse-salvage.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 48249,
-   "sha256": "2ac55d62216fc8c959080a16eede106bad879245ee612d1943901f2d3de015cc",
-   "palette_error": 0.037,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49971,
+   "sha256": "30ff9602dfe932e9a85f01ba6faf935c79f3f886a7185af635a6f425f8559bef",
+   "palette_error": 0.034
   },
   {
    "name": "42h-browse-save-convert",
    "file": "42h-browse-save-convert.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 47338,
-   "sha256": "4b2a6656d9976b998edcdae988b367494dc1b9ae5af93ad431e8c2dca30454e2",
-   "palette_error": 0.031,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 49103,
+   "sha256": "11fb8c947e4c56582765c0cd256508dca28b8a6929a7df31e003594218fe11f5",
+   "palette_error": 0.029
   },
   {
    "name": "43-backup-repair",
    "file": "43-backup-repair.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 48774,
-   "sha256": "adabc2bca0f2f6517de13d99b0c5a30a8b07d3cac7a6495f3793881d4b1be723",
-   "palette_error": 0.042,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 50249,
+   "sha256": "dc2048b1e7fc2aea41288fd87c3997b854f814565a17b739303965889008022c",
+   "palette_error": 0.04
   },
   {
    "name": "43b-backup-repair-empty",
    "file": "43b-backup-repair-empty.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 51502,
-   "sha256": "62a0356c2854d2675b0a803341e0eadfe109b2d159b72c06ab9ca9de122c198e",
-   "palette_error": 0.038,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 54357,
+   "sha256": "81703e1700f2ff1cb79629b2d2433b198885058d87867da61cc501f2b4a26d8e",
+   "palette_error": 0.038
   },
   {
    "name": "44-repair-routes",
    "file": "44-repair-routes.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 54794,
-   "sha256": "8bc1c0f48119f85a492704fc37a262e1989c78a83c1fc6d346a811af07a33eda",
-   "palette_error": 0.03,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 56209,
+   "sha256": "a0f1947b68353e7d565ed5ee2139a541f05ca4b05f7d336f1123033fae7f69d1",
+   "palette_error": 0.03
   },
   {
    "name": "44b-supply",
    "file": "44b-supply.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 25502,
-   "sha256": "1a9aa1b7dc4fd97e2bc84c4d6fcbab96bfe4d836e142cbddd9b6c1ddd0fb402b",
-   "palette_error": 0.012,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 42678,
+   "sha256": "cb18ae5cd2f52291b376820be3de2d4d76773c41f196d12ba10463e196a19ca2",
+   "palette_error": 0.023
   },
   {
    "name": "44d-repair-result",
    "file": "44d-repair-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 40792,
-   "sha256": "257fe61e4acd0df83fbc4f85e2c017893d3109f3ca17489bdee842b115ea134b",
-   "palette_error": 0.03,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 42192,
+   "sha256": "3663b43ec055da0f43b44a8f8476028dcebe411a7533244dac8bae46e9b93646",
+   "palette_error": 0.028
   },
   {
    "name": "44e-repair-result-failed",
    "file": "44e-repair-result-failed.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 29120,
-   "sha256": "35f63cd5d1e958c8b1b6b438519f37f59e2cca2f35ebe96fe0bef5b891074dd7",
-   "palette_error": 0.016,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 30375,
+   "sha256": "b27be580925c9699f5321f954244a3d013aaa0b79b8d2a45fcd7bfc408098f6a",
+   "palette_error": 0.017
   },
   {
    "name": "45-parity",
    "file": "45-parity.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 49762,
-   "sha256": "0b60a52e6ab0083694b37ba3fb087923541911b9fb995152445a5d9861c7ec2f",
-   "palette_error": 0.039,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 51201,
+   "sha256": "a5ff93c8b369a478a7efb4cce8ae1e76ed95ef62d830e5d0b518169c92bc895f",
+   "palette_error": 0.038
   },
   {
    "name": "45b-parity-result",
    "file": "45b-parity-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 26454,
-   "sha256": "a2063c6b2afa02fbd1675650d8d898d9ccc76a6bbc21cda476d843af78926618",
-   "palette_error": 0.016,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 27695,
+   "sha256": "a5377f4391d5bbc448835d38aba98b7725d82046500920bfc5be53c49cccb9c8",
+   "palette_error": 0.015
   },
   {
    "name": "46-designer",
    "file": "46-designer.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 71614,
-   "sha256": "710c7e3e199d2a64e2b3a763a44ef6b18ce8f60b101e18b13cf08005f5cace15",
-   "palette_error": 0.454,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 35685,
+   "sha256": "2bef4e499e7ad9c9bceaa80ebcf2a820d0c8a87df82dc6c5dd6bfe9e6ce7f5de",
+   "palette_error": 0.026
   },
   {
-   "name": "46b-theme-example-large",
-   "file": "46b-theme-example-large.jpg",
-   "width": 1107,
-   "height": 623,
-   "bytes": 370840,
-   "sha256": "cb8f6f043f8ac8986719950b2ce53e6c210bc01ae74a3771cf044929b5dcfe1c",
-   "palette_error": 4.157,
-   "left_out": "the window it opens in (its title, description and Close): the example picture itself"
-  },
-  {
-   "name": "46c-designer-theme-adventure",
-   "file": "46c-designer-theme-adventure.png",
+   "name": "47-designer-theme",
+   "file": "47-designer-theme.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 77460,
-   "sha256": "a75f1e043f70c799f05198b3a13bfee358415a649546023857f2cc3c766e3e9d",
-   "palette_error": 0.381,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 121861,
+   "sha256": "a98f5a1fb7addcbc992feea01a68d333c71ebdc0a0b1511e5d0663de6e7fcd8d",
+   "palette_error": 0.505
   },
   {
-   "name": "47-designer-editor",
-   "file": "47-designer-editor.png",
+   "name": "47b-designer-pictures",
+   "file": "47b-designer-pictures.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 70495,
-   "sha256": "f4ada07dfbcd40189850a142644b3be876dac995be3bd99ecfba8c3c404813c0",
-   "palette_error": 0.464,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 62742,
+   "sha256": "b7db1bce49e0d604f4f3ab3abceeec1c5a2763de11dce24ab93f302a2c9cdceb",
+   "palette_error": 0.277
+  },
+  {
+   "name": "47c-designer-text",
+   "file": "47c-designer-text.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 93763,
+   "sha256": "8484cdc2905844449da30fde990675a4c4a4c07c0d72b68a9a5f7c9ed1fe8928",
+   "palette_error": 0.308
+  },
+  {
+   "name": "47d-designer-layout",
+   "file": "47d-designer-layout.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 63343,
+   "sha256": "0ff364f85639d10ed119d1f5e49be479519ae9ccd6eae74afa13ec8a24fee1e9",
+   "palette_error": 0.269
+  },
+  {
+   "name": "47e-designer-review",
+   "file": "47e-designer-review.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 58675,
+   "sha256": "16d5c976b2be6a4af137605cf2bfbe1e7651cc606ccaa029814288254fb95831",
+   "palette_error": 0.28
+  },
+  {
+   "name": "47g-designer-too-large",
+   "file": "47g-designer-too-large.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 77522,
+   "sha256": "16d32973f0b20800d197b2f4fb9ac57349f9427eabede8b6d39f512fff82424c",
+   "palette_error": 0.1
+  },
+  {
+   "name": "47h-designer-inspect-only",
+   "file": "47h-designer-inspect-only.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 69301,
+   "sha256": "532fbe6dad2a06b3323e07d59d371a541c5f45b3a5c02cf062da842799629144",
+   "palette_error": 0.276
   },
   {
    "name": "48-designer-share",
    "file": "48-designer-share.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 37597,
-   "sha256": "13990bc40b7f4813dd20418a24093084569e6675dc341830d36d277833134e3a",
-   "palette_error": 0.032,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 34502,
+   "sha256": "a821156b10a43d4d4ecf61987fe0cae62d448fa83940af7a4cbb8667c5421fab",
+   "palette_error": 0.028
+  },
+  {
+   "name": "48b-designer-every-screen",
+   "file": "48b-designer-every-screen.png",
+   "width": 1160,
+   "height": 760,
+   "bytes": 102454,
+   "sha256": "185f46d24e8146f48457f160fac1e4ef9f9daee049e34f4f921df6adb59e6977",
+   "palette_error": 0.499
   },
   {
    "name": "49-designer-console",
    "file": "49-designer-console.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44458,
-   "sha256": "0e8af04247c7b3d2fa409f8e2d227471c4648240a474ca22a0b7790182018676",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 47818,
+   "sha256": "154143df33259b7cb01f5abe1dd9c21af1cf55cdd24c5c6f404fb7599c50454a",
+   "palette_error": 0.031
   },
   {
    "name": "49b-design-check",
    "file": "49b-design-check.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 27674,
-   "sha256": "259f2b91ffadf93f3b18739883480e7bd566b6462c0d0f9f09cd0f52aae877ad",
-   "palette_error": 0.024,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 28988,
+   "sha256": "da6f208530d1e8b8fa05557d6072cbfb3caf0b011b568dc1d6be728e3e500b2c",
+   "palette_error": 0.023
   },
   {
    "name": "49c-design-check-failed",
    "file": "49c-design-check-failed.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 30209,
-   "sha256": "2233b32e8cb48823bf1e4e20d86929bc8969c86ac53807e4f674252034e209f2",
-   "palette_error": 0.018,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 30665,
+   "sha256": "7024ddd42e62d9399193fa5be13f33bfbcf16f13edf46448bb564bfa7247faf4",
+   "palette_error": 0.017
   },
   {
    "name": "50-design-plan",
    "file": "50-design-plan.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 39791,
-   "sha256": "f960ed042230a81c90b8583f080ad59a031eb7a8f5601960b74d2ea0b46abb1b",
-   "palette_error": 0.03,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 41022,
+   "sha256": "43faea4f9f02fc651abdf00a09bb9ecd3b3297aa74ee2505c705a86ca662d64e",
+   "palette_error": 0.034
   },
   {
    "name": "50b-design-plan-revert",
    "file": "50b-design-plan-revert.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 38560,
-   "sha256": "05734cf20e2d40c2d67a04794ded9c4667946fb6cc3cbc7c0d28aaf30aef2d8a",
-   "palette_error": 0.028,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 39776,
+   "sha256": "e2562ac5e09b28ba92c3469d42318ae150e1a607f7429b16936a0f651d53bd8f",
+   "palette_error": 0.026
   },
   {
    "name": "51-design-result",
    "file": "51-design-result.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 29226,
-   "sha256": "689d0c8f16f94f4546677406dc19b29ab2457ec77257bbbc09ca22d04c622c35",
-   "palette_error": 0.024,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 30553,
+   "sha256": "6f14fa76e191453820a4914b4ae0746b8fd0a1caf4d2fbca81c034a8ac9f64de",
+   "palette_error": 0.024
   },
   {
    "name": "52d-help-search",
    "file": "52d-help-search.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 68255,
-   "sha256": "3390d07dde48d442260e7dbf30d67095930f14bb6201de9d6c81ad9f0b16a439",
-   "palette_error": 0.037,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 70488,
+   "sha256": "5e49dfea7d7ffa01c90d0e0868173aa0b21d626fcc5ae91359734206f053d893",
+   "palette_error": 0.036
   },
   {
    "name": "52g-help-about-app",
    "file": "52g-help-about-app.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 61681,
-   "sha256": "e701f82fd6c6283f0b34eb1fa4166bca5417115695713dd5b33912e6da4b0a1d",
-   "palette_error": 0.04,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 57746,
+   "sha256": "c4c190ba0afa7b8249b4b6cd22470d79958a4316d3fdcfc7c50ffa3d23382b75",
+   "palette_error": 0.03
   },
   {
    "name": "52h-help-window",
    "file": "52h-help-window.png",
    "width": 1067,
    "height": 725,
-   "bytes": 56677,
-   "sha256": "5d7757b61b5e1b8823cd2ea420676cbb13fb29f7ba58a20dd9846a0718eb6d71",
-   "palette_error": 0.017
+   "bytes": 56033,
+   "sha256": "9054dc94037b64b17ae3637dfa63ac4d54db7dbd0ea20dabcb77883380edbc8f",
+   "palette_error": 0.019
   },
   {
    "name": "53-folders",
    "file": "53-folders.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 45006,
-   "sha256": "29e30a765894b4ab6a730d00761a06410aad14da3c18452f312494b17ba66216",
-   "palette_error": 0.025,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 45987,
+   "sha256": "d5fdaee67fce40cae927c73cc151e990d44f5f9f42239a6525e02399dd452d2a",
+   "palette_error": 0.026
   },
   {
    "name": "53b-settings-additional-copy",
    "file": "53b-settings-additional-copy.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 42167,
-   "sha256": "e5dbcf26a0f60a8dabc17e5d16a3d6213f26fe6f8ccaf2b61c0bc8f5b106dcbd",
-   "palette_error": 0.03,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 43582,
+   "sha256": "47c78ad827d8240e0e3b9caad043ae8bb0527110cfdeda1340088e236d57c6ff",
+   "palette_error": 0.027
   },
   {
    "name": "53c-hosted-settings",
    "file": "53c-hosted-settings.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 41059,
-   "sha256": "c450dadb5c42b0050f9cab9f5c79a17be73aa2a6620bd1a4635f0fe42afbb118",
-   "palette_error": 0.024,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 42081,
+   "sha256": "e3de27318c2c3bc3733e7429005a1a29f480058e0b03804386fcbbd457507ccc",
+   "palette_error": 0.024
   },
   {
    "name": "53d-settings-unsaved",
    "file": "53d-settings-unsaved.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44497,
-   "sha256": "05537051a688d685693a7dc313988c2b3ac385b221485d47acfb9955c089b2a1",
-   "palette_error": 0.031,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 47252,
+   "sha256": "4507c213c81078956524f415021a7c1addb3cc37a383fac3674f8742c56a817e",
+   "palette_error": 0.032
   },
   {
    "name": "53e-settings-file",
    "file": "53e-settings-file.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 41942,
-   "sha256": "13b8fa3d5e904c1aff260bf42eb0248efc274fd529d898a02605046dccb5dbd4",
-   "palette_error": 0.027,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 44734,
+   "sha256": "f95d140de45b9e0ede062fd2b35e4f695e92c3a7d2a819dcb78d8165b8f63102",
+   "palette_error": 0.028
   },
   {
    "name": "53f-hosted-settings-failed",
    "file": "53f-hosted-settings-failed.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 39553,
-   "sha256": "f1e6ef4b12dd022be2d67d3bcaa14b94b6b6e7cf59890e919b6742de97c5f787",
-   "palette_error": 0.025,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 44483,
+   "sha256": "6a8f47efb21ac79ad24c608b0a51ab824d239e018b8cea5ab7bdc08ebd5f83cd",
+   "palette_error": 0.027
   },
   {
    "name": "54-progress",
    "file": "54-progress.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 26876,
-   "sha256": "0153c9f4b7abbe79d08d0331e228e2fb15107daf7be492f8b7814a223aba5dfa",
-   "palette_error": 0.013,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 28201,
+   "sha256": "e1b8be7a7290320dc58785e8b7c4b04cc02d6b86686a6d41a19dda3573d1fd92",
+   "palette_error": 0.014
   },
   {
    "name": "55-driver-setup",
    "file": "55-driver-setup.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 59171,
-   "sha256": "041d73c70b1d9ea75ddd2e3dccba4bea3b4ba7ef33e2c6f4d01e312024b311bc",
-   "palette_error": 0.028,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 60643,
+   "sha256": "bc9a2d15962212900fdd387768f44ae156e43e3313855aad4808b4ff568dcd36",
+   "palette_error": 0.028
   },
   {
    "name": "55b-driver-cannot-use",
    "file": "55b-driver-cannot-use.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 41890,
-   "sha256": "a97168654229b51c8dd03c69a7b01b3b854ce7c30588b30374912163ad60a2ee",
-   "palette_error": 0.03,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 43161,
+   "sha256": "002b582ee36e9aec5e35c2f5dfe3a738c26571c55a7bd7a7bf8838eae460bfdd",
+   "palette_error": 0.025
   },
   {
    "name": "55c-driver-read-failed",
    "file": "55c-driver-read-failed.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 25777,
-   "sha256": "43f4af7c47268b5c41ecc8c04c82dd023cc7c59fbc93a883fd028682fbcf5b7d",
-   "palette_error": 0.015,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 27058,
+   "sha256": "607a1fe6a582a0f9c379cd359a8944ec758bc6a7a10dc397048b55054ea5dd22",
+   "palette_error": 0.014
   },
   {
    "name": "55d-driver-blocked",
    "file": "55d-driver-blocked.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 35525,
-   "sha256": "7446b6ffdc5e0e5a8d2d9a916dd97b6c1fb15f221ff5e4107d90a387259b9a3c",
-   "palette_error": 0.022,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 36768,
+   "sha256": "34af374e20c77ce03fe1101897a9fa4ca5c67ca8d171074538570daa6dd267ce",
+   "palette_error": 0.022
   },
   {
    "name": "55e-driver-close-question",
    "file": "55e-driver-close-question.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 28732,
-   "sha256": "25a7351492cc3097d2e82aa14c97346650b0ad905522a74089279b6660aca929",
-   "palette_error": 0.02,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 30080,
+   "sha256": "d7383b3c580942b9b973e9a47ca4ca8295e54b20870e51438963ea43cea2bd6d",
+   "palette_error": 0.018
   },
   {
    "name": "55f-driver-removal-restart",
    "file": "55f-driver-removal-restart.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 25875,
-   "sha256": "92fdff40c6ebd42e825d29b7296555641895c2840ef295910aa5a42f0b1cb1c4",
-   "palette_error": 0.013,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 27171,
+   "sha256": "58cb7fd0ddb126eeed7e97d1eaafd798f4f32f3e598ce80a357e3900d686b56c",
+   "palette_error": 0.013
   },
   {
    "name": "55g-driver-startup-notice",
    "file": "55g-driver-startup-notice.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 27394,
-   "sha256": "ab509727a379cc917041b0c07f3b0a82ca0d4c1f692d1add148577eeb08ab05a",
-   "palette_error": 0.015,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 28733,
+   "sha256": "5b7cca443dadec71965c4d66d86345118244541624bf33597f68f8a03c5a2ad8",
+   "palette_error": 0.014
   },
   {
    "name": "55h-driver-cleanup-question",
    "file": "55h-driver-cleanup-question.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 32262,
-   "sha256": "61909346f98b259542f593fa42506064a2bd16854ca864fbdf4f205376901be2",
-   "palette_error": 0.022,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 33592,
+   "sha256": "85ca9419ae94fde7b3f4267ac3fa150cf8feb8410257c120ad89467ecb8310c9",
+   "palette_error": 0.021
   },
   {
    "name": "56-message",
    "file": "56-message.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 23982,
-   "sha256": "bd54186b9719d84319b79a4d4b0515dce3e45a0c957cba8599e1816707a84150",
-   "palette_error": 0.014,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 25247,
+   "sha256": "ea6162ac6b3e94acbd8728c8215331e807efb20f693a72ba758d0efed1013901",
+   "palette_error": 0.012
   },
   {
    "name": "58-credits",
    "file": "58-credits.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 73997,
-   "sha256": "e411713f0a4b86794af490d78d70b45f18a1738e2372aa7960bc15f2a428b319",
-   "palette_error": 0.04,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 78218,
+   "sha256": "e50f00a7ebe0b55212a5db0fc34c4825939f2846dbe7aafc4b43f7ab4501b9e5",
+   "palette_error": 0.039
   },
   {
    "name": "58b-credits-notice",
    "file": "58b-credits-notice.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 73997,
-   "sha256": "e411713f0a4b86794af490d78d70b45f18a1738e2372aa7960bc15f2a428b319",
-   "palette_error": 0.04,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 78218,
+   "sha256": "e50f00a7ebe0b55212a5db0fc34c4825939f2846dbe7aafc4b43f7ab4501b9e5",
+   "palette_error": 0.039
   },
   {
    "name": "59-about-console",
    "file": "59-about-console.png",
    "width": 707,
-   "height": 604,
-   "bytes": 35048,
-   "sha256": "0f80612d041b48989cb210d4d068e09c38994297f604c50250dd5bb90dcd20a7",
-   "palette_error": 0.013,
-   "left_out": "the window's bottom row with its Close button"
+   "height": 665,
+   "bytes": 34414,
+   "sha256": "869668ad2cb83619e6f733d1f340f957e917e566cb29ecaa7770ce29f8abef3a",
+   "palette_error": 0.018
   },
   {
    "name": "59b-about-console-other",
    "file": "59b-about-console-other.png",
    "width": 707,
-   "height": 604,
-   "bytes": 37843,
-   "sha256": "290ea19a658726f752927115d9ba29debe505e4783fed9f89e29b8727b399124",
-   "palette_error": 0.019,
-   "left_out": "the window's bottom row with its Close button"
+   "height": 665,
+   "bytes": 38246,
+   "sha256": "2d18fb85e91d8e2e034e4d9a47ba52a2f95941b625ed4134bcaa83608d626abf",
+   "palette_error": 0.024
   },
   {
    "name": "59c-about-console-use-question",
    "file": "59c-about-console-use-question.png",
    "width": 547,
-   "height": 295,
-   "bytes": 13708,
-   "sha256": "16d40775d85724b9d7ff90e6fa05a4beddc7a8cbc508c229f7853bf7ffd7c051",
-   "palette_error": 0.014
+   "height": 241,
+   "bytes": 9122,
+   "sha256": "800bc9f396295162aefe5f542409c9703b1ef76d153e4313ae8ac2b2f7f0921e",
+   "palette_error": 0.018
   },
   {
    "name": "60-close-settings-question",
    "file": "60-close-settings-question.png",
-   "width": 547,
-   "height": 189,
-   "bytes": 9146,
-   "sha256": "3c14a68b3de2ef08cff68dbb3d4f49ff13a9c7542057c5b2011d16792be252dd",
-   "palette_error": 0.013
+   "width": 567,
+   "height": 177,
+   "bytes": 6596,
+   "sha256": "00da3d28c47cf9696b660027c1bd6ffe123f0b71ef95ac037109ee4c3865f012",
+   "palette_error": 0.014
   },
   {
    "name": "60b-hosted-close-failed-question",
    "file": "60b-hosted-close-failed-question.png",
-   "width": 547,
-   "height": 189,
-   "bytes": 7716,
-   "sha256": "0d9f8354268cd90ebc8281472951dad09c79dd5aec84572fd9b33762f24fe7c8",
-   "palette_error": 0.009
+   "width": 567,
+   "height": 195,
+   "bytes": 6855,
+   "sha256": "e9065cf804ee8700290a73722d5040eae595043902f34444f83fd0448263dea6",
+   "palette_error": 0.013
   },
   {
    "name": "61-glossary-term",
    "file": "61-glossary-term.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 31617,
-   "sha256": "c70be7884170e2e771db6d19e8047a68e6a23509f50a60129322231f777539f9",
-   "palette_error": 0.024,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 32926,
+   "sha256": "997efa463c6f44bb7ad67b9d6eebf7e3a5e27551b77e82337a1e487a9ad8208b",
+   "palette_error": 0.023
   },
   {
    "name": "f8-39-backup-browser",
    "file": "f8-39-backup-browser.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 44353,
-   "sha256": "6b2d55c6a0a547a96c7b7ff4b70be5a6f0ec75095d4e6251b1365f27713b7b06",
-   "palette_error": 0.034,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 47517,
+   "sha256": "9cec0bf3c762f420b3edeb20973df2dbd78599ba8a62b5319ac5693acc601946",
+   "palette_error": 0.035
   },
   {
    "name": "f8-44c-browse-damaged",
    "file": "f8-44c-browse-damaged.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 48392,
-   "sha256": "6de29c3528451d667491ce62c867d324795a3d595ddbb04c4911f324d1fdd2f0",
-   "palette_error": 0.025,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 50010,
+   "sha256": "34438a6b3a00b75ba0f495e6adc1a33b1a061fba865ea38baea8ab772225f4a4",
+   "palette_error": 0.024
   },
   {
    "name": "f9-42e-browse-startup",
    "file": "f9-42e-browse-startup.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 40761,
-   "sha256": "55987d47ffb0d55581a08f0bfb2697023d8b0d70b58ae413d428cd835c2090ab",
-   "palette_error": 0.028,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 42968,
+   "sha256": "7a6091b3afe38c82fae9ce859b50c5ffcae8b66deddc157d12de41ff844f0ae3",
+   "palette_error": 0.026
   },
   {
    "name": "f9-42f-browse-system",
    "file": "f9-42f-browse-system.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 40770,
-   "sha256": "2903ca8072f3e0b35d46f8c7c3c47b98070683c3a61ca692d09b9e72ee5bab48",
-   "palette_error": 0.028,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 42962,
+   "sha256": "b27d8e3fd6c16abaa9eac43f8bed273f1235dafea62812142bf8781f27bab617",
+   "palette_error": 0.026
   },
   {
    "name": "f9-42g-browse-system-nokey",
    "file": "f9-42g-browse-system-nokey.png",
    "width": 1160,
-   "height": 722,
-   "bytes": 36627,
-   "sha256": "5d0fcfd25e916a5ada14a9ea284419316ca38e2e30085bc3c053f7bd60390e1e",
-   "palette_error": 0.023,
-   "left_out": "the window's title bar (Minimize, Maximize, Close)"
+   "height": 760,
+   "bytes": 38891,
+   "sha256": "d3b2b5a2fd922a5f14a39cb2d716b28bad5bbf7d4568e68cacd4756c5abcbefe",
+   "palette_error": 0.024
   }
  ]
 }

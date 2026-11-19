@@ -3,8 +3,13 @@
 # Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 #
 #   bash build_host.sh --payload <managed CCS-Console-Workbench.exe> --out <folder> [--arch x86_64|aarch64|all]
-#                      [--name CCS-Console-Workbench] [--version N.N.N; default: repository VERSION] [--cache DIR] [--work DIR] [--measure] [--dll]
-#   bash build_host.sh --dll-only --out DIR [--arch ...]      only ccs-par2.dll (Classic Cart Studio for Windows; no payload needed)
+#                      [--name CCS-Console-Workbench] [--version N.N.N; default: tools/console-backup/WORKBENCH-VERSION]
+#                      [--channel preview|production; default: tools/console-backup/WORKBENCH-CHANNEL] [--cache DIR] [--work DIR] [--measure] [--dll]
+#   bash build_host.sh --dll-only --out DIR [--arch ...]      only ccs-par2.dll (Classic Cart Studio for Windows; no payload needed; its
+#                                                              version string defaults to the repository's VERSION, Classic Cart Studio's)
+#
+# --version / --channel  CCS Console Workbench's own product version and channel (never Classic Cart Studio's): the program's version
+#             information and build-record.json ("product": "workbench", "version", "channel"); plain N.N.N, no suffix
 #
 # --payload   the managed Workbench executable (.NET Framework 4.8, AnyCPU) that the host carries and runs from memory
 # --out       where <out>/x64/<name>.exe and <out>/arm64/<name>.exe and <out>/build-record.json are written
@@ -28,7 +33,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZIG="${ZIG:-$HOME/.cache/ccs-sim/toolchain/zig/zig}"
-PAYLOAD=""; OUT=""; ARCH="all"; NAME="CCS-Console-Workbench"; VERSION="$(tr -d '\r\n' < "$HERE/../../../VERSION")"; CACHE=""; WORK=""; MEASURE=0; DLL=0; EXE_ON=1
+PAYLOAD=""; OUT=""; ARCH="all"; NAME="CCS-Console-Workbench"; VERSION=""; CHANNEL="$(tr -d '\r\n' < "$HERE/../WORKBENCH-CHANNEL")"; CACHE=""; WORK=""; MEASURE=0; DLL=0; EXE_ON=1
 
 topath() { case "$1" in [A-Za-z]:\\*|[A-Za-z]:/*) wslpath -u "$1" ;; *) echo "$1" ;; esac; }
 while [ $# -gt 0 ]; do
@@ -38,6 +43,7 @@ while [ $# -gt 0 ]; do
     --arch) ARCH="$2"; shift 2 ;;
     --name) NAME="$2"; shift 2 ;;
     --version) VERSION="$2"; shift 2 ;;
+    --channel) CHANNEL="$2"; shift 2 ;;
     --cache) CACHE="$(topath "$2")"; shift 2 ;;
     --work) WORK="$(topath "$2")"; shift 2 ;;
     --measure) MEASURE=1; shift ;;
@@ -48,7 +54,10 @@ while [ $# -gt 0 ]; do
 done
 [ "$EXE_ON" = 0 ] || { [ -n "$PAYLOAD" ] && [ -f "$PAYLOAD" ]; } || { echo "--payload: the managed Workbench executable is required" >&2; exit 2; }
 [ -n "$OUT" ] || { echo "--out is required" >&2; exit 2; }
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "--version must be N.N.N" >&2; exit 2; }
+# the Workbench's own version; only the Classic Cart Studio parity library alone (--dll-only) takes the repository's VERSION by default
+[ -n "$VERSION" ] || { if [ "$EXE_ON" = 1 ]; then VERSION="$(tr -d '\r\n' < "$HERE/../WORKBENCH-VERSION")"; else VERSION="$(tr -d '\r\n' < "$HERE/../../../VERSION")"; fi; }
+[[ "$VERSION" =~ ^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}$ ]] || { echo "--version must be N.N.N" >&2; exit 2; }
+case "$CHANNEL" in preview|production) ;; *) echo "--channel must be preview or production" >&2; exit 2 ;; esac
 [[ "$NAME" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "--name: letters, digits, dot, dash, underscore" >&2; exit 2; }
 case "$ARCH" in all) ARCHES="x86_64 aarch64" ;; x86_64|aarch64) ARCHES="$ARCH" ;; *) echo "--arch x86_64|aarch64|all" >&2; exit 2 ;; esac
 OUT="$(mkdir -p "$OUT" && cd "$OUT" && pwd)"
@@ -201,8 +210,10 @@ for A in $ARCHES; do
   RECORD_ARCH="$RECORD_ARCH{\"arch\":\"$D\",\"target\":\"$T\",\"exe\":\"$D/$NAME.exe\",\"bytes\":$SIZE,\"sha256\":\"$SHA\",\"without_par2_bytes\":$STUB_SIZE$DLL_JSON},"
 done
 
+# the Workbench's product, version and channel (the parity library alone, --dll-only, is Classic Cart Studio's: its version only)
+if [ "$EXE_ON" = 1 ]; then REC_ID="\"product\":\"workbench\",\"version\":\"$VERSION\",\"channel\":\"$CHANNEL\""; else REC_ID="\"version\":\"$VERSION\""; fi
 cat > "$OUT/build-record.json" <<EOF
-{"schema":"ccs-native-host-build/1","name":"$NAME","version":"$VERSION","zig":"$ZV",
+{"schema":"ccs-native-host-build/1","name":"$NAME",$REC_ID,"zig":"$ZV",
  "par2cmdline":{"version":"$PAR2_VERSION","url":"$PAR2_URL","sha256":"$PAR2_SHA256","commit":"$PAR2_COMMIT"},
  "payload":{"file":"$(basename "$PAYLOAD")","bytes":$PAYLOAD_BYTES,"sha256":"$PAYLOAD_SHA"},
  "outputs":[${RECORD_ARCH%,}]}

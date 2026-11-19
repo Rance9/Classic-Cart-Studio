@@ -73,7 +73,7 @@ namespace CcsBackup.Ui
 
         void RunDesignCheck(string backup, IHomeRenderer renderer)
         {
-            if (backup == null) { MessageBox.Show(this, "Choose a backup of the console.", ProductTitle); return; }
+            if (backup == null) { Tell("Choose a backup", "Choose a backup of the console first. The check reads the console's HOME and games from it."); return; }
             var h = design; var cts = new CancellationTokenSource();
             var pv = new ProgressView(this, "Checking the Design", "The console's HOME and games are read from the backup on this PC, the design is fitted to them and every screen is drawn. Nothing on the console changes.", "Cancel", () => cts.Cancel());
             Show(pv.Panel, "progress");
@@ -109,12 +109,13 @@ namespace CcsBackup.Ui
         {
             var sp = SectionHead(r.Ok ? "The design passed the check" : "The design did not pass the check", "Your design was fitted to the games in the backup and drawn on " + r.States.Count + " screens by the console's own HOME program, on this PC. Nothing on the console has changed.");
             var c = new StackPanel();
-            foreach (var p in r.Problems.Take(30)) c.Children.Add(Note(p, "warn"));
+            if (!r.Ok) c.Children.Add(Note(string.Join("\n", PlainCheck(r).Select(x => "• " + x)), "warn"));
             foreach (var x in compiled.LeftOut.Take(20)) c.Children.Add(T("Left out: " + x, 12.5, false, true));
             foreach (var x in compiled.NotShown.Take(10)) c.Children.Add(T("Not shown: " + x, 12.5, false, true));
             if (r.Ok && r.Problems.Count == 0) c.Children.Add(Note("Every screen is readable and within the console's memory limits.", "ok"));
             if (!r.Ok) c.Children.Add(T("A design that did not pass cannot be applied. Change it in the editor, then check it again.", Ty.Text));
             c.Children.Add(Details("Technical details", "Drawn by " + r.Renderer, r.DesignId != null ? "Compiled design: " + r.DesignId + " (" + r.DesignTheme + ")" : null,
+                r.Problems.Count > 0 ? "Problems: " + string.Join("; ", r.Problems.Take(30)) : null,
                 r.AddedPeakBytes > 0 ? "Memory the design adds at its worst moment, as measured: " + CcsBackup.Engine.Units.Gb(r.AddedPeakBytes) + " (at most " + CcsBackup.Engine.Units.Gb(r.Budget) + ")" : null,
                 r.ReportSha256 != null ? "Check report SHA-256: " + r.ReportSha256 : null, designCheckBackup != null ? "Backup: " + designCheckBackup : null));
             sp.Children.Add(Card(c));
@@ -125,7 +126,7 @@ namespace CcsBackup.Ui
                 try { var bi = new BitmapImage(); bi.BeginInit(); bi.StreamSource = new MemoryStream(f.Png()); bi.DecodePixelWidth = 480; bi.CacheOption = BitmapCacheOption.OnLoad; bi.EndInit(); bi.Freeze(); cell.Children.Add(new Image { Source = bi, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 0, 4) }); }
                 catch (Exception) { cell.Children.Add(T("(this frame cannot be shown)", 12, false, true)); }
                 var st = r.States.FirstOrDefault(s => s.Theme == f.Theme && s.State == f.State);
-                cell.Children.Add(T(f.Theme + " · " + f.State + (st != null && !st.Ok ? "  ·  hard to read" : ""), 11.5, false, true));
+                cell.Children.Add(PictureCaption((f.Theme == "startup" ? "" : DesignProfile.ThemeName(f.Theme) + " · ") + (StateNames.TryGetValue(f.State, out var sn) ? sn : f.State) + (st != null && !st.Ok ? "  ·  hard to read" : "")));
                 shots.Children.Add(cell);
             }
             if (shots.Children.Count > 0) sp.Children.Add(Card(shots, 12));
@@ -138,7 +139,7 @@ namespace CcsBackup.Ui
             var r = ConsoleReq("home-design"); r.Add("action", action);
             if (action == "apply")
             {
-                if (designCompiledDir == null || designCheck == null || !designCheck.Ok) { MessageBox.Show(this, "Check the design first.", ProductTitle); return; }
+                if (designCompiledDir == null || designCheck == null || !designCheck.Ok) { Tell("Check the design first", "A design is applied only after it passed the check with a backup of the console."); return; }
                 r.Add("design", designCompiledDir); var exe = AppHomeRenderer(); if (exe != null) r.Add("renderer", exe);
             }
             else r.Add("to", to);

@@ -2,7 +2,7 @@
  *
  * Package (pack.json, ccs-native-home-pack/2, built by tools/companion/native_home): all four themes (scene, sprites, measured
  * geometry, picker thumbnail), the fonts and icons they draw, and the selected games (games.json: effective cover, Details
- * backdrop, Featured Shelf key art, effective texts and previews). The shell owns everything the themes share: the game
+ * backdrop, game screen, effective texts and previews). The shell owns everything the themes share: the game
  * records, the cover cache, the fonts, the controller dispatch (notices, the START menu, the theme picker, Adventure Map
  * destinations, Game Details), the controller legend and the persisted theme preference. A theme (theme_*.c) draws its HOME
  * screen and moves focus inside it; only the active theme's scene and sprites are resident, so a switch frees the previous one.
@@ -123,6 +123,7 @@ static void theme_unload(home *h) {
     img_free(&h->scene); for (int i = 0; i < h->nsp; i++) img_free(&h->sp[i].im); h->nsp = 0; h->ops = NULL; h->tj = h->geo = NULL;
 }
 static int theme_index(const char *id) { for (int i = 0; i < N_THEMES; i++) if (id && !strcmp(id, THEME_IDS[i])) return i; return -1; }
+#define DEFAULT_THEME "featured-shelf"   /* the default theme by its id, never by its place in THEME_IDS (home-model.js HOME_DEFAULT_THEME) */
 /* a design's background for its base theme, at the stage size (1x): its own picture or the theme's, then its frame (centered), then its
    decorations in their order (pictures fitted whole into their regions, panels, labels in the HOME's own fonts). A picture that cannot
    be decoded is left out (reported); the theme's own controls are always drawn above all of it. 1: the frame or a decoration was drawn */
@@ -316,7 +317,7 @@ static int prefs_save(home *h, const char *theme_id, int epoch) {
 }
 /* the start theme: an apply number not yet applied > a valid saved choice > the package default (invalid saved data -> default) */
 static int prefs_resolve(home *h) {
-    int def = theme_index(h->theme_default); if (def < 0) def = 0;
+    int def = theme_index(h->theme_default); if (def < 0) def = theme_index(DEFAULT_THEME);
     int saved = -1, saved_epoch = 0, invalid = 0; char p[1100]; uint8_t *buf; size_t len;
     if (h->state_dir[0]) { prefs_path(h, p, sizeof p);
         if (!ccs_read_file(p, &buf, &len, 1u << 16)) { char jerr[120]; jval *o = json_parse((const char *)buf, len, jerr, sizeof jerr); free(buf);
@@ -456,7 +457,7 @@ home *home_load3(const char *dir, const char *state_dir, const char *design_root
     if (!h->pk || h->pk->t != J_OBJ) { snprintf(err, errlen, "pack.json is not valid JSON: %s", jerr); goto fail; }
     const jval *schema = json_get(h->pk, "schema"); if (!schema || schema->t != J_STR || strcmp(schema->s, "ccs-native-home-pack/2")) { snprintf(err, errlen, "pack schema is not ccs-native-home-pack/2 (rebuild the package)"); goto fail; }
     const jval *themes = json_get(h->pk, "themes"); for (int t = 0; t < N_THEMES; t++) if (!themes || !json_get(themes, THEME_IDS[t])) { snprintf(err, errlen, "the package lacks the %s theme (all four themes are required)", THEME_IDS[t]); goto fail; }
-    const jval *td = json_get(h->pk, "theme_default"); snprintf(h->theme_default, sizeof h->theme_default, "%s", td && td->t == J_STR ? td->s : "arcade-grid");
+    const jval *td = json_get(h->pk, "theme_default"); snprintf(h->theme_default, sizeof h->theme_default, "%s", td && td->t == J_STR ? td->s : DEFAULT_THEME);
     h->apply_epoch = gnum(h->pk, "theme_apply", 0);
     const jval *fonts = json_get(h->pk, "fonts");
     for (int i = 0; i < F_COUNT; i++) { const jval *fo = fonts ? json_get(fonts, FONT_NAMES[i]) : NULL; const jval *f = fo ? json_get(fo, "file") : NULL; if (!f || f->t != J_STR || !safe_rel(f->s)) { snprintf(err, errlen, "pack font %s missing", FONT_NAMES[i]); goto fail; } pjoin(h, f->s, p, sizeof p); if (font_load(&h->f[i], p, err, errlen)) goto fail;
@@ -483,11 +484,9 @@ home *home_load3(const char *dir, const char *state_dir, const char *design_root
         const jval *o = gs->items[i]; hgame *g = &h->g[h->n]; if (o->t != J_OBJ) continue;
         g->id = jdup(o, "id"); g->title = jdup(o, "title"); if (!g->id || !g->title) { free(g->id); free(g->title); memset(g, 0, sizeof *g); continue; }
         g->version_label = jdup(o, "version_label"); g->year = jdup(o, "year"); g->players = jdup(o, "players"); g->genre = jdup(o, "genre"); g->publisher = jdup(o, "publisher"); g->developer = jdup(o, "developer");
-        g->cover = jdup(o, "cover"); g->cover_kind = jdup(o, "cover_kind"); g->hero = jdup(o, "hero"); g->hero_kind = jdup(o, "hero_kind"); g->hero_wide = jdup(o, "hero_wide"); g->text = jdup(o, "text");
+        g->cover = jdup(o, "cover"); g->cover_kind = jdup(o, "cover_kind"); g->hero = jdup(o, "hero"); g->hero_kind = jdup(o, "hero_kind"); g->text = jdup(o, "text"); g->snap = jdup(o, "snap");
         g->blurb = jdup(o, "blurb"); g->mblurb = jdup(o, "mblurb"); g->ftext = jdup(o, "ftext");
-        { const jval *ht = json_get(o, "hero_title"); const jval *v; g->ht_x = 0.5; g->ht_y = 0.09; g->ht_w = 0; g->ht_right = 0;
-          if (ht && ht->t == J_OBJ) { if ((v = json_get(ht, "x")) && v->t == J_NUM) g->ht_x = v->num; if ((v = json_get(ht, "y")) && v->t == J_NUM) g->ht_y = v->num; if ((v = json_get(ht, "w")) && v->t == J_NUM) g->ht_w = v->num; if ((v = json_get(ht, "align")) && v->t == J_STR) g->ht_right = !strcmp(v->s, "right"); } }
-        char **paths[4] = { &g->cover, &g->hero, &g->hero_wide, &g->text };
+        char **paths[4] = { &g->cover, &g->hero, &g->text, &g->snap };
         for (int k = 0; k < 4; k++) if (*paths[k] && !safe_rel(*paths[k])) { free(*paths[k]); *paths[k] = NULL; }
         h->n++;
     }
@@ -510,7 +509,7 @@ static void home_go_cat(home *h, int c);
 void home_free(home *h) {
     if (!h) return; details_close(h); theme_unload(h); design_free(h->design); h->design = NULL;
     hgame *AG = h->all ? h->all : h->g; size_t NA = h->all ? h->nall : h->n;
-    for (size_t i = 0; i < NA; i++) { hgame *g = &AG[i]; char *f[] = { g->id, g->title, g->version_label, g->year, g->players, g->genre, g->publisher, g->developer, g->cover, g->cover_kind, g->hero, g->hero_kind, g->hero_wide, g->text, g->blurb, g->mblurb, g->ftext }; for (size_t k = 0; k < sizeof f / sizeof *f; k++) free(f[k]); }
+    for (size_t i = 0; i < NA; i++) { hgame *g = &AG[i]; char *f[] = { g->id, g->title, g->version_label, g->year, g->players, g->genre, g->publisher, g->developer, g->cover, g->cover_kind, g->hero, g->hero_kind, g->text, g->blurb, g->mblurb, g->ftext, g->snap }; for (size_t k = 0; k < sizeof f / sizeof *f; k++) free(f[k]); }
     free(AG); free(h->view); free(h->vmap);
     for (int i = 0; i < h->nfold; i++) { free(h->fold[i].id); free(h->fold[i].name); free(h->fold[i].art); free(h->fold[i].games); img_free(&h->fold[i].tile); }
     for (int i = 0; i < h->ncat; i++) { free(h->cats[i].label); free(h->cats[i].kind); free(h->cats[i].games); }

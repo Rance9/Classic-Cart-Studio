@@ -9,10 +9,6 @@ on:
         description: Exact source commit to build (40 hex characters)
         required: true
         type: string
-      reuse_native_run:
-        description: Optional validated native artifacts run (44311030542 only)
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -22,7 +18,6 @@ permissions:
 
 jobs:
   build-native:
-    if: inputs.reuse_native_run == ''
     # the native HOME renderer, one C source tree (tools/console-simulator/core): the static 32-bit ARM runtime the console package
     # carries, and the Windows build that draws Preview on TV. Pinned, checksum-verified toolchain (toolchain.lock.json), no root.
     name: Build the native HOME renderer (ARM runtime, Windows preview core)
@@ -58,18 +53,6 @@ jobs:
           name: ccsboot
           path: build/ccsboot/ccsboot
           if-no-files-found: error
-      - name: Build the parity library for Classic Cart Studio for Windows (ccs-par2.dll; par2cmdline 1.4.0 from its release, SHA-256 pinned)
-        run: bash tools/console-backup/native-host/build_host.sh --dll-only --out build/par2dll --arch all --cache build/par2-cache
-      - uses: actions/upload-artifact@v4
-        with:
-          name: par2-source
-          path: build/par2-cache/par2cmdline-1.4.0.tar.gz
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: par2dll
-          path: build/par2dll
-          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: native-home
@@ -83,10 +66,10 @@ jobs:
           if-no-files-found: error
 
   build-recovery-images:
-    if: inputs.reuse_native_run == ''
     # Console Backup & Restore's console programs: Hakchi2 CE 3.9.3's recovery boot image with a Classic Cart Studio start-up
     # (tools/console-backup/ram/build_images.py; every input checked by SHA-256, every change recorded in each MANIFEST.json), built on the
-    # one build Python so the bytes depend on the source and the pinned package only
+    # one build Python so the bytes depend on the source and the pinned package only; then the public site (shipped inside the companion) and
+    # the release-built CCS HOME package the Workbench embeds beside the console programs, as the Workbench's own release builds them
     name: Build CCS Console Workbench's console programs (recovery images)
     needs: build-native
     runs-on: windows-latest
@@ -111,14 +94,33 @@ jobs:
         run: |
           python tools/console-backup/ram/build_images.py --hakchi-release $env:CCS_HAKCHI_PACKAGE --ccsboot build/ccsboot/ccsboot --out build/ram-images
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/download-artifact@v4
+        with: { name: web-player, path: build/web-player }
+      - uses: actions/download-artifact@v4
+        with: { name: native-home, path: build/native }
+      - name: Build the public site (shipped inside the companion; the CCS HOME package below is built from it)
+        env: { CCS_REQUIRE_WEB_PLAYER: "1" }
+        run: python tools/publish/build_site_ci.py build/site
+      - name: The release-built CCS HOME package the Workbench places with CCS Mod or CCS Nucleus (the Included Games, both layouts; embedded beside the console programs)
+        shell: pwsh
+        run: |
+          python tools/console-nucleus/build_home_package.py --site build/site --player build/native/arm-musl-device/ccs-player-armv7 --runtime build/native/arm-musl-device/ccs-home-armv7 --out build/ram-images/ccs-home
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/companion/test_package_notices.py --site build/site
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
           name: recovery-images
           path: build/ram-images
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: build/site
+          if-no-files-found: error
+          include-hidden-files: true   # the site as built, .nojekyll included
 
   test-recovery-images:
-    if: inputs.reuse_native_run == ''
     # the built images on Linux: a static audit of every file they run and runs on the image's own BusyBox under qemu-arm with the
     # console's storage tools replaced by write tripwires (no console, no USB); a failure stops the release
     name: Test the console programs (static audit, qemu-arm runs with write tripwires)
@@ -138,9 +140,53 @@ jobs:
       - name: Test
         run: python3 tools/console-backup/ram/test_recovery_images.py --images build/ram-images --hakchi-release "$CCS_HAKCHI_PACKAGE"
 
+  build-workbench-payload:
+    # CCS Console Workbench's managed program (the payload its single-file host runs from memory), built by the one script the Workbench's own
+    # release also runs (tools/console-backup/build_workbench_payload.ps1: the same flags, the same tested console programs and CCS HOME package)
+    name: Build CCS Console Workbench's managed program (the single-file host's payload)
+    needs: test-recovery-images
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
+      - uses: actions/download-artifact@v4
+        with: { name: recovery-images, path: build/ram-images }
+      - uses: actions/setup-dotnet@v4
+        with: { global-json-file: tools/console-backup/global.json }
+      - name: The managed Workbench
+        shell: pwsh
+        run: tools/console-backup/build_workbench_payload.ps1 -RamImages build/ram-images
+      - uses: actions/upload-artifact@v4
+        with: { name: workbench-payload, path: build/console-backup/bin/ccs-backup-utility/Release/net48/CCS-Console-Workbench.exe, if-no-files-found: error }
+
+  build-workbench-host:
+    # the single-file Workbench for x64 and Arm64 Windows (libpar2 and the HOME renderer linked in), as workbench-release.yml builds it, with
+    # the Workbench's own version (tools/console-backup/WORKBENCH-VERSION) in its version resource
+    name: Build the single-file CCS Console Workbench (x64 and Arm64)
+    needs: build-workbench-payload
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.source_ref || github.sha }}" }
+      - name: Toolchain (zig pinned and SHA-256 verified)
+        run: bash tools/console-simulator/scripts/wsl_setup.sh
+      - uses: actions/download-artifact@v4
+        with: { name: workbench-payload, path: build/payload }
+      - name: The single-file Workbench for x64 and Arm64 Windows (par2cmdline 1.4.0 from its release, SHA-256 pinned)
+        run: |
+          set -euo pipefail
+          v="$(tr -d '\r\n' < tools/console-backup/WORKBENCH-VERSION)"; c="$(tr -d '\r\n' < tools/console-backup/WORKBENCH-CHANNEL)"
+          bash tools/console-backup/native-host/build_host.sh --payload build/payload/CCS-Console-Workbench.exe --out build/workbench-host --arch all --version "$v" --channel "$c" --cache build/par2-cache
+      - uses: actions/upload-artifact@v4
+        with:
+          name: par2-source
+          path: build/par2-cache/par2cmdline-1.4.0.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with: { name: workbench-host, path: build/workbench-host, if-no-files-found: error }
+
   build-windows:
-    if: always() && !cancelled() && ((inputs.reuse_native_run != '' && inputs.source_ref == '32db2174a1aaa0b25910096c630afff30b6c84ad') || (needs.build-native.result == 'success' && needs.test-recovery-images.result == 'success'))
-    needs: [build-native, test-recovery-images]
+    needs: [build-native, test-recovery-images, build-workbench-payload, build-workbench-host]
     runs-on: windows-latest
     env:   # code signing (tools/publish/signing.py): repository variables, nothing secret; unset = an unsigned build, labeled unsigned
       CCS_SIGNING: ${{ vars.CCS_SIGNING }}
@@ -152,36 +198,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ inputs.source_ref || github.sha }}" }
-      - name: Validate the completed native jobs before reusing their artifacts
-        if: inputs.reuse_native_run != ''
-        env: { GH_TOKEN: "${{ github.token }}" }
-        shell: pwsh
-        run: |
-          if ("${{ inputs.reuse_native_run }}" -ne "44311030542" -or "${{ inputs.source_ref }}" -ne "32db2174a1aaa0b25910096c630afff30b6c84ad") { throw 'this artifact reuse is not approved for that source/run' }
-          $run = gh api repos/${{ github.repository }}/actions/runs/44311030542 | ConvertFrom-Json
-          if ($run.head_sha -ne '11d26455f9f2275469a646c1913c158fc064f19f') { throw 'the native build workflow differs' }
-          $jobs = (gh api repos/${{ github.repository }}/actions/runs/44311030542/jobs | ConvertFrom-Json).jobs
-          foreach ($name in @('Build the native HOME renderer (ARM runtime, Windows preview core)', "Build CCS Console Workbench's console programs (recovery images)", 'Test the console programs (static audit, qemu-arm runs with write tripwires)')) {
-            if (-not ($jobs | Where-Object { $_.name -eq $name -and $_.conclusion -eq 'success' })) { throw "completed successful job missing: $name" }
-          }
       - uses: actions/download-artifact@v4
-        with:
-          name: native-home
-          path: build/native
-          run-id: ${{ inputs.reuse_native_run || github.run_id }}
-          github-token: ${{ github.token }}
+        with: { name: native-home, path: build/native }
       - uses: actions/download-artifact@v4
-        with:
-          name: recovery-images
-          path: build/ram-images
-          run-id: ${{ inputs.reuse_native_run || github.run_id }}
-          github-token: ${{ github.token }}
+        with: { name: site, path: build/site }
       - uses: actions/download-artifact@v4
-        with:
-          name: par2dll
-          path: build/par2dll
-          run-id: ${{ inputs.reuse_native_run || github.run_id }}
-          github-token: ${{ github.token }}
+        with: { name: workbench-payload, path: build/workbench-payload }
+      - uses: actions/download-artifact@v4
+        with: { name: workbench-host, path: build/workbench-host }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13.17"   # the one build Python (tools/publish/requirements-build.txt), also the website's and the local builds'
@@ -190,30 +214,19 @@ jobs:
           python -m pip install --quiet -r tools/publish/requirements-build.txt
           python tools/publish/check_build_env.py
           choco install innosetup --no-progress -y
-      - name: Version must match the tag
+      - name: Version must match the tag; the product channels and the bundled Workbench's version are well formed
         shell: pwsh
         run: |
           $v = (Get-Content VERSION).Trim()
           if ("${{ github.ref_name }}" -ne "v$v" -and "${{ github.event_name }}" -eq "push") { throw "tag ${{ github.ref_name }} does not match VERSION $v" }
-          "APP_VERSION=$v" >> $env:GITHUB_ENV
-      - uses: actions/download-artifact@v4
-        with: { name: web-player, path: build/web-player, run-id: "${{ inputs.reuse_native_run || github.run_id }}", github-token: "${{ github.token }}" }
-      - name: Reused native bytes match the completed CI build
-        if: inputs.reuse_native_run != ''
-        shell: pwsh
-        run: |
-          $expected = @{
-            'build/native/arm-musl-device/ccs-home-armv7' = 'c2799e8fa318b625f54b754230edd99ebd57ad54f74682df854818baa41c36fe'
-            'build/native/arm-musl-device/ccs-player-armv7' = 'b38da6810719b73c1480d8ae54981c1de480edc6a19f0454c0dfb16de109bc61'
-            'build/native/windows-x86_64/ccs-sim-core.exe' = 'c3334eafd6ec28fe55f66aec4e1b0920aa99af934121e7841fe4da00673c98fb'
-            'build/native/windows-x86_64/ccs-player.exe' = '3fa62ec8bf12d2afbd1256700cf74ec8d8c133ccd75c346e7dc81d7f9b462cf7'
-            'build/web-player/ccs-player.wasm' = '59ad06e02eae1e3b285718e522e91ed04cd62ad52c6f7a70882849f8c849d2a5'
-            'build/par2dll/x64/ccs-par2.dll' = '12f61ff6a57d44e0accf1b750d36e61d64688d3ec86a8640b61701b22897acc9'
-          }
-          foreach ($p in $expected.Keys) { if ((Get-FileHash -Algorithm SHA256 $p).Hash.ToLower() -ne $expected[$p]) { throw "native CI artifact bytes differ: $p" } }
-      - name: Build the public site (shipped inside the companion)
-        env: { CCS_REQUIRE_WEB_PLAYER: "1" }
-        run: python tools/publish/build_site_ci.py build/site
+          $c = (Get-Content CHANNEL).Trim(); $wv = (Get-Content tools/console-backup/WORKBENCH-VERSION).Trim(); $wc = (Get-Content tools/console-backup/WORKBENCH-CHANNEL).Trim()
+          if ($c -notin 'preview', 'production' -or $wc -notin 'preview', 'production') { throw "CHANNEL ($c) and WORKBENCH-CHANNEL ($wc) must be preview or production" }
+          # the app records its channel (window title, update stream) and the release says it
+          if ((Select-String -Path tools/companion/version.py -Pattern "^CHANNEL = `"$c`"" -Quiet) -ne $true) { throw "tools/companion/version.py does not name CHANNEL $c" }
+          if ($wv -notmatch '^\d+\.\d+\.\d+$') { throw "WORKBENCH-VERSION is not N.N.N: $wv" }
+          $rec = Get-Content -Raw build/workbench-host/build-record.json | ConvertFrom-Json
+          if ($rec.version -ne $wv -or $rec.channel -ne $wc) { throw "the single-file Workbench was built as $($rec.version) $($rec.channel), not WORKBENCH-VERSION $wv WORKBENCH-CHANNEL $wc" }
+          "APP_VERSION=$v" >> $env:GITHUB_ENV; "APP_CHANNEL=$c" >> $env:GITHUB_ENV; "WORKBENCH_VERSION=$wv" >> $env:GITHUB_ENV; "WORKBENCH_CHANNEL=$wc" >> $env:GITHUB_ENV
       - name: Scan the site
         run: python tools/publish/scan_prohibited.py build/site
       - name: The application never downloads software at run time (static audit of the backend, desktop host and interface)
@@ -267,37 +280,29 @@ jobs:
           NES_STUDIO_SITE: ${{ github.workspace }}\build\site
           CCS_NATIVE_PREVIEW_CORE: ${{ github.workspace }}\build\native\windows-x86_64\ccs-sim-core.exe
         run: python tools/companion/test_artwork_consistency.py
-      - name: The release-built CCS HOME package the Workbench places with CCS Mod or CCS Nucleus (the Included Games, both layouts; embedded beside the console programs)
-        shell: pwsh
-        run: |
-          python tools/console-nucleus/build_home_package.py --site build/site --player build/native/arm-musl-device/ccs-player-armv7 --runtime build/native/arm-musl-device/ccs-home-armv7 --out build/ram-images/ccs-home
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python tools/companion/test_package_notices.py --site build/site
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Classic Cart Studio for Windows (WPF + WebView2 host, .NET Framework 4.8)
         shell: pwsh
         run: |
-          dotnet build tools/desktop/ClassicCartStudio/ClassicCartStudio.csproj -c Release -nologo "-p:Version=$env:APP_VERSION" "-p:CcsRamImages=$PWD\build\ram-images"
+          dotnet build tools/desktop/ClassicCartStudio/ClassicCartStudio.csproj -c Release -nologo "-p:Version=$env:APP_VERSION"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $out = "tools/desktop/ClassicCartStudio/bin/Release/net48"
-          # Console Backup & Restore: its window (CcsBackupUi), engine with the console programs (CcsBackup), FEL loader (CcsConsole), USB library
-          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.Wpf.dll", "$out/WebView2Loader.dll", "$out/CcsBackupUi.dll", "$out/CcsBackup.dll", "$out/CcsConsole.dll", "$out/LibUsbDotNet.LibUsbDotNet.dll" build/dist/ClassicCartStudioBackend/ -ErrorAction Stop
-          # the Workbench's parity (PAR2) for this app: the same parity code as the standalone Workbench, installed beside the app (never extracted)
-          Copy-Item build/par2dll/x64/ccs-par2.dll build/dist/ClassicCartStudioBackend/ -ErrorAction Stop
-          Get-ChildItem build/dist/ClassicCartStudioBackend/*.exe | ForEach-Object { "$($_.Name) $($_.Length)" }
-      - name: The shared engine (CCS Console Workbench's managed program is built only to prove both hosts carry the same engine bytes; it is released separately, on its own tag)
+          Copy-Item "$out/ClassicCartStudio.exe", "$out/ClassicCartStudio.exe.config", "$out/Microsoft.Web.WebView2.Core.dll", "$out/Microsoft.Web.WebView2.Wpf.dll", "$out/WebView2Loader.dll" build/dist/ClassicCartStudioBackend/ -ErrorAction Stop
+          # CCS Console Workbench: its single-file program, byte for byte the one its own release publishes (this x64 copy is what the self-test
+          # starts; Setup installs the x64 or the Arm64 file from build/workbench-host as workbench\CCS-Console-Workbench.exe)
+          New-Item -ItemType Directory -Force build/dist/ClassicCartStudioBackend/workbench | Out-Null
+          Copy-Item build/workbench-host/x64/CCS-Console-Workbench.exe build/dist/ClassicCartStudioBackend/workbench/ -ErrorAction Stop
+          Get-ChildItem build/dist/ClassicCartStudioBackend/*.exe, build/dist/ClassicCartStudioBackend/workbench/*.exe | ForEach-Object { "$($_.Name) $($_.Length)" }
+      - name: The bundled Workbench (byte for byte the single-file host built from this source, its managed payload, its libraries and console programs)
         shell: pwsh
         run: |
-          dotnet build tools/console-backup/ccs-backup-utility/ccs-backup-utility.csproj -c Release -nologo "-p:Version=$env:APP_VERSION" "-p:CcsRamImages=$PWD\build\ram-images"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force build/workbench | Out-Null
-          python tools/console-backup/check_shared_engine.py --app build/dist/ClassicCartStudioBackend --utility build/console-backup/bin/ccs-backup-utility/Release/net48/CCS-Console-Workbench.exe --out build/workbench/shared-engine.json
+          python tools/console-backup/check_shared_engine.py --host build/workbench-host --bundled build/dist/ClassicCartStudioBackend --managed build/workbench-payload/CCS-Console-Workbench.exe --out build/workbench/shared-engine.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Sign the Windows host, its Workbench libraries and the backend's launcher (an unsigned build leaves them as built)
+      - name: Sign the Windows host and the backend's launcher (an unsigned build leaves them as built; the bundled Workbench keeps its released bytes)
         shell: pwsh
         run: |
           $d = "build/dist/ClassicCartStudioBackend"
-          python tools/publish/signing.py sign $d/ClassicCartStudio.exe $d/ClassicCartStudioBackend.exe $d/CcsBackupUi.dll $d/CcsBackup.dll $d/CcsConsole.dll $d/ccs-par2.dll
+          python tools/publish/signing.py sign $d/ClassicCartStudio.exe $d/ClassicCartStudioBackend.exe
           if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3) { exit $LASTEXITCODE }
           exit 0
       - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
@@ -319,7 +324,7 @@ jobs:
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           $sign = @(python tools/publish/signing.py iscc-args | ConvertFrom-Json)   # empty for an unsigned build
-          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\ClassicCartStudioBackend" "/DOutDir=$PWD\build\release" "/DWebView2Dir=$PWD\build\webview2" @sign tools\companion\installer.iss
+          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$PWD\build\dist\ClassicCartStudioBackend" "/DOutDir=$PWD\build\release" "/DWebView2Dir=$PWD\build\webview2" "/DWorkbenchDir=$PWD\build\workbench-host" @sign tools\companion\installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($env:CCS_SIGNING) { python tools/publish/signing.py verify (Get-ChildItem build/release/*.exe).FullName; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
       - name: Scan the release folder and the frozen tree (no game files, images or secrets may ship)
@@ -339,8 +344,6 @@ jobs:
         with:
           name: par2-source
           path: build/release
-          run-id: ${{ inputs.reuse_native_run || github.run_id }}
-          github-token: ${{ github.token }}
       - name: Checksums and build information
         shell: pwsh
         run: |
@@ -358,10 +361,22 @@ jobs:
           $lh = (Get-FileHash -Algorithm SHA256 LibUsbDotNet-2.2.29-source-5dd91a2.tar -ErrorAction Stop).Hash.ToLower()
           "$h  $($f.Name)", "$zh  console-worker-source.zip", "$th  ClassicCartStudio-Installation-Terms-1.3.txt", "$lh  LibUsbDotNet-2.2.29-source-5dd91a2.tar" | Out-File -Encoding ascii SHA256SUMS.txt
           $wi = Get-Content -Raw ../console-worker/BUILD-INFO.json | ConvertFrom-Json
-          @{ version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ inputs.source_ref || github.sha }}"; workflow_revision = "${{ github.sha }}"; native_artifacts_run = "${{ inputs.reuse_native_run || github.run_id }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = [bool]$env:CCS_SIGNING; publisher = $(if ($env:CCS_SIGNING) { $env:CCS_SIGN_PUBLISHERS } else { $null }); console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh }; recovery_images = (Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json).app.recovery_images; libusbdotnet_source = @{ name = "LibUsbDotNet-2.2.29-source-5dd91a2.tar"; repository = "https://github.com/LibUsbDotNet/LibUsbDotNet"; commit = "5dd91a2fda393cf11db2072f2b45c3aee2750388"; tree = "f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a"; sha256 = $lh } } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 build-info.json
+          # the bundle: the Workbench program this installer carries (byte for byte its own release's files) and the source both were built from
+          $se = Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json
+          # (tools/publish/release_streams.py reads bundle.workbench's version, channel and assets list, and bundle.engine_source)
+          $bundle = [ordered]@{ workbench = [ordered]@{ version = $env:WORKBENCH_VERSION; channel = $env:WORKBENCH_CHANNEL; assets = @(
+                         [ordered]@{ arch = "x64"; name = "CCS-Console-Workbench-$env:WORKBENCH_VERSION.exe"; sha256 = $se.bundle.x64.sha256; size = $se.bundle.x64.bytes; installed_as = "workbench/CCS-Console-Workbench.exe" },
+                         [ordered]@{ arch = "arm64"; name = "CCS-Console-Workbench-$env:WORKBENCH_VERSION-arm64.exe"; sha256 = $se.bundle.arm64.sha256; size = $se.bundle.arm64.bytes; installed_as = "workbench/CCS-Console-Workbench.exe" }) };
+                       engine_source = [ordered]@{ commit = (git rev-parse HEAD).Trim(); tree = (git rev-parse 'HEAD^{tree}').Trim() } }
+          @{ product = "app"; channel = $env:APP_CHANNEL; bundle = $bundle; version = $env:APP_VERSION; installer = $f.Name; sha256 = $h; size = $f.Length; source_revision = "${{ inputs.source_ref || github.sha }}"; workflow_revision = "${{ github.sha }}"; native_artifacts_run = "${{ github.run_id }}"; workflow_run = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; built = (Get-Date).ToUniversalTime().ToString("o"); signed = [bool]$env:CCS_SIGNING; publisher = $(if ($env:CCS_SIGNING) { $env:CCS_SIGN_PUBLISHERS } else { $null }); console_worker = @{ version = $wi.version; exe_sha256 = $wi.files.'ccs-console-worker.exe'.sha256; source = "console-worker-source.zip"; source_sha256 = $zh }; recovery_images = (Get-Content -Raw ../workbench/shared-engine.json | ConvertFrom-Json).app.recovery_images; libusbdotnet_source = @{ name = "LibUsbDotNet-2.2.29-source-5dd91a2.tar"; repository = "https://github.com/LibUsbDotNet/LibUsbDotNet"; commit = "5dd91a2fda393cf11db2072f2b45c3aee2750388"; tree = "f9ad3eddc5d6b1dc7aceb4692e0852602cf46d2a"; sha256 = $lh } } | ConvertTo-Json -Depth 8 | Out-File -Encoding utf8 build-info.json
           $ph = (Get-FileHash -Algorithm SHA256 par2cmdline-1.4.0.tar.gz).Hash.ToLower()
           "$ph  par2cmdline-1.4.0.tar.gz" | Add-Content -Encoding ascii SHA256SUMS.txt
           Get-Content SHA256SUMS.txt
+      - name: The release's product and channel in its build information (the website's release streams read them; release_streams.py)
+        shell: pwsh
+        run: |
+          python -c "import json,sys; p='build/release/build-info.json'; d=json.load(open(p,encoding='utf-8-sig')); d['product']='app'; d['channel']=sys.argv[1]; open(p,'w',encoding='utf-8',newline='\n').write(json.dumps(d,indent=2)+'\n')" "$env:APP_CHANNEL"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Smoke-test the frozen companion (starts, answers /api/version, stops)
         shell: pwsh
         run: python tools/companion/test_frozen_smoke.py build/dist/ClassicCartStudioBackend/ClassicCartStudioBackend.exe
@@ -394,5 +409,9 @@ jobs:
           gh release download v0.6.0 --pattern hakchi2-ce-3.9.3-source.tar.gz --dir build/hakchi-source
           $src = "build/hakchi-source/hakchi2-ce-3.9.3-source.tar.gz"
           if ((Get-FileHash -Algorithm SHA256 $src).Hash.ToLower() -ne "dc6e6a4704a9bdb1ca8a0deb746dd41f660b4076ba99b84160af5164f36e5038") { throw "the Hakchi2 CE source archive does not match its recorded SHA-256" }
-          python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json --preview --out build/release/NOTES.md
-          gh release create "v$env:APP_VERSION" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --verify-tag --draft --prerelease --latest=false --title "Classic Cart Studio $env:APP_VERSION — Preview" --notes-file build/release/NOTES.md
+          # a preview is a GitHub prerelease, never "latest"; a production release is the repository's latest (earlier production apps read it)
+          $pre = if ($env:APP_CHANNEL -eq 'preview') { @('--prerelease', '--latest=false') } else { @('--latest') }
+          $title = if ($env:APP_CHANNEL -eq 'preview') { "Classic Cart Studio $env:APP_VERSION — Preview" } else { "Classic Cart Studio $env:APP_VERSION" }
+          $notesArgs = if ($env:APP_CHANNEL -eq 'preview') { @('--preview') } else { @() }
+          python tools/publish/release_notes.py --version $env:APP_VERSION --build-info build/release/build-info.json @notesArgs --out build/release/NOTES.md
+          gh release create "v$env:APP_VERSION" build/release/*.exe build/release/par2cmdline-1.4.0.tar.gz build/release/SHA256SUMS.txt build/release/build-info.json build/release/console-worker-source.zip build/release/ClassicCartStudio-Installation-Terms-1.3.txt build/release/LibUsbDotNet-2.2.29-source-5dd91a2.tar $src --verify-tag --draft @pre --title $title --notes-file build/release/NOTES.md

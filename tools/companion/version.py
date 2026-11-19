@@ -1,5 +1,6 @@
 """Single source of the companion / website protocol version (shipped in both; the website refuses older companions)."""
-VERSION = "0.11.3"
+VERSION = "0.11.4"
+CHANNEL = "preview"   # this release's channel, "preview" or "production": the repository's CHANNEL file (test_release_streams.py checks both)
 PROTOCOL = 1
 APP_ID = "classic-cart-studio-backend"
 SITE_ORIGINS = ("https://classiccartstudio.com",)   # the only website origin the Background Helper trusts: www.classiccartstudio.com and the

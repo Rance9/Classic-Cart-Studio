@@ -144,9 +144,9 @@ namespace CcsBackup.Ui
             List<(string backup, string path)> Chosen()
             {
                 var ch = boxes.Where(x => x.box.IsChecked == true).Select(x => (x.backup, x.path)).ToList();
-                if (ch.Count == 0) { MessageBox.Show(this, "Choose a backup and at least one file.", ProductTitle); return null; }
+                if (ch.Count == 0) { Tell("Choose files first", "Choose a backup and at least one file."); return null; }
                 var twice = ch.GroupBy(x => x.path).FirstOrDefault(g => g.Count() > 1);
-                if (twice != null) { MessageBox.Show(this, twice.Key + " is chosen from more than one backup. Choose it from one.", ProductTitle); return null; }
+                if (twice != null) { Tell("Chosen twice", twice.Key + " is chosen from more than one backup. Choose it from one."); return null; }
                 return ch;
             }
             var share = new StackPanel(); share.Children.Add(T("Keep or share these choices (optional)", Ty.Heading, true));
@@ -175,8 +175,8 @@ namespace CcsBackup.Ui
                 StartOp("compose", "Preparing the Review", "The connected console is identified and backed up, and every chosen backup is checked again. Nothing is written until you confirm. Keep the USB cable connected.", r);
             }), B("Back", "Btn.Ghost", () => { if (LeaveOk()) BackToSection(); })));
             Show(sp, "composer-plan");
-            leaveCheck = () => (!boxes.Any(x => x.box.IsChecked == true) && planName.Text.Trim().Length == 0)
-                || MessageBox.Show(this, "The files you chose on this page are not kept if you leave it. Leave anyway?", ProductTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            LeaveGuard(() => !boxes.Any(x => x.box.IsChecked == true) && planName.Text.Trim().Length == 0 ? null : "The files and plan name you chose in Console Composer",
+                       "The files you chose on this page are not kept if you leave it.");
         }
 
         /// <summary>the review of a composition (from backups or from a private restore package): the console it changes, where the files

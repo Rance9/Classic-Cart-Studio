@@ -38,7 +38,19 @@ namespace CcsBackup.Ui
         /// <summary>Classic Cart Studio for Windows: the HOME package it prepared last (its data folder's native-home\current), for HOME
         /// Designer's preview drawn with the person's own games; null in the standalone Workbench</summary>
         public string PreparedHomePackage;
+        /// <summary>the Workbench's own release channel ("preview" or "production"; tools/console-backup/WORKBENCH-CHANNEL): with Version it
+        /// names the window and picks the update stream. Never Classic Cart Studio's channel or version.</summary>
+        public string Channel = "preview";
+        /// <summary>set only when Classic Cart Studio for Windows started this program from its installation (installed mode, from a validated
+        /// launch context): Studio's own program, version and channel, for the one Classic Cart Studio update; null in a portable launch</summary>
+        public StudioLaunch Studio;
+        /// <summary>the quiet update check once per session, when the window is first shown (the program sets it; off by default, so a
+        /// test or picture renderer never asks the network). Check for Updates in About Workbench works either way (WorkbenchUpdates.cs).</summary>
+        public bool CheckForUpdates;
     }
+
+    /// <summary>Classic Cart Studio, as the installed Workbench knows it: the program that started it, Studio's version and channel</summary>
+    public sealed class StudioLaunch { public string Exe, Version, Channel; }
 
     public sealed partial class BackupWorkspace : Window
     {
@@ -54,15 +66,26 @@ namespace CcsBackup.Ui
         public bool Busy => worker != null && worker.Running && !gotResult && !quitting;
         static readonly CultureInfo En = CultureInfo.GetCultureInfo("en-US");
 
+        /// <summary>WB-UX-07: the window's background before its theme is loaded, the theme's own C.Bg, so nothing can ever show through</summary>
+        static readonly Brush BaseBg = Frozen(Color.FromRgb(0x10, 0x10, 0x14));
+        static Brush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+        /// <summary>why the window's look (Workbench.xaml and the theme) could not be loaded, said in the status strip (null: loaded)</summary>
+        string lookProblem;
+
         public BackupWorkspace(WorkspaceOptions o, Window owner = null)
         {
+            Background = BaseBg;   // first, before anything can draw (WB-UX-07)
+            FocusCue.Install();    // focus marks only while the keyboard is in use (WB-UX-14)
             opt = o; settings = o.Portable && o.SettingsPath == null ? Settings.Portable(null, null) : Settings.Load(o.SettingsPath);
             InitPrefs(); HookTerms(); Deactivated += (s, e) => DropHover();
-            Title = ProductTitle;
+            Title = WindowTitle; HookUpdates();   // this program's own version and channel (WorkbenchUpdates.cs)
             Width = 1180; Height = 780; MinWidth = 860; MinHeight = 560;
-            if (owner != null) { Owner = owner; WindowStartupLocation = WindowStartupLocation.CenterOwner; } else WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            try { Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/CcsBackupUi;component/Workbench.xaml", UriKind.Absolute) }); DeriveStyles(); } catch { }
-            Background = Res<Brush>("B.Bg"); UseLayoutRounding = true; SnapsToDevicePixels = true; TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
+            if (owner != null) { Owner = owner; WindowStartupLocation = WindowStartupLocation.CenterOwner; } else WindowFrame.PlaceAtStart(this);   // on the display it was opened on, wholly visible
+            // the window's look: a failure is never silent (the status strip says it), and the dark background stays
+            try { Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/CcsBackupUi;component/Workbench.xaml", UriKind.Absolute) }); }
+            catch (Exception ex) { lookProblem = ex.GetBaseException().Message; }
+            if (lookProblem == null) { try { DeriveStyles(); } catch (Exception ex) { lookProblem = ex.GetBaseException().Message; } }
+            Background = Res<Brush>("B.Bg") ?? BaseBg; UseLayoutRounding = true; SnapsToDevicePixels = true; TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
             if (o.AppIcon != null) Icon = o.AppIcon;
             // the taskbar and Alt-Tab icon at its real size (WindowIcon); again once shown, and after a display change, in case WPF re-applies its own
             SourceInitialized += (s, e) => WindowIcon.Apply(this); Loaded += (s, e) => WindowIcon.Apply(this);
@@ -85,7 +108,7 @@ namespace CcsBackup.Ui
             var foot = StatusStrip(); Grid.SetRow(foot, 2); root.Children.Add(foot);
             Content = root;
             WindowFrame.Attach(this, root);   // maximized: the content inside the monitor's work area
-            SourceInitialized += (s, e) => Dark(this);
+            SourceInitialized += (s, e) => WindowFrame.Prepare(this);   // the dark frame, checked, and an opaque surface (WB-UX-07)
             PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape) { if (CloseTerm(true)) e.Handled = true; else OnEscape(e); } else if (e.Key == Key.F1) { OpenPageHelp(); e.Handled = true; } };
             Closing += OnClosing;
             Enter("Dashboard"); ShowDashboard();
@@ -93,14 +116,14 @@ namespace CcsBackup.Ui
 
         // ------------------------------------------------------------------ chrome and building blocks
         T Res<T>(string k) where T : class => (TryFindResource(k) as T);
-        [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int a, ref int v, int s);
-        static void Dark(Window w) { try { var h = new WindowInteropHelper(w).Handle; int on = 1; DwmSetWindowAttribute(h, 20, ref on, 4); int c = 0x00202024; DwmSetWindowAttribute(h, 35, ref c, 4); } catch { } }
 
         UIElement TitleBar()
         {
             var bar = new Grid { Background = Res<Brush>("B.Bar") };
             bar.ColumnDefinitions.Add(new ColumnDefinition()); for (int i = 0; i < 3; i++) bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            bar.Children.Add(new TextBlock { Text = Title, FontSize = 12.5, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 1) });
+            var caption = new TextBlock { FontSize = 12.5, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 1) };
+            caption.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(Title)) { Source = this });   // always the window's own title
+            bar.Children.Add(caption);
             var min = new Button { Content = "", Style = Res<Style>("Caption"), Height = 38, ToolTip = "Minimize" }; System.Windows.Automation.AutomationProperties.SetName(min, "Minimize"); min.Click += (s, e) => WindowState = WindowState.Minimized; WindowChrome.SetIsHitTestVisibleInChrome(min, true); Grid.SetColumn(min, 1);
             var close = new Button { Content = "", Style = Res<Style>("Caption.Close"), Height = 38, ToolTip = "Close" }; System.Windows.Automation.AutomationProperties.SetName(close, "Close"); close.Click += (s, e) => Close(); WindowChrome.SetIsHitTestVisibleInChrome(close, true); Grid.SetColumn(close, 3);
             // maximize / restore between them: its symbol, name and tooltip follow the window's state however it changed (this button, a
@@ -135,7 +158,7 @@ namespace CcsBackup.Ui
         /// <summary>shows a page: its tag names it for Escape and the status strip; a page with unsaved changes sets leaveCheck after this</summary>
         void Show(FrameworkElement e, string tag)
         {
-            CloseTerm(false); NewTermScope(e); e.Tag = tag; page.Content = e; scroller?.ScrollToTop(); leaveCheck = null; settingsPending = null; settingsRefresh = null;
+            CloseTerm(false); NewTermScope(e); e.Tag = tag; page.Content = e; scroller?.ScrollToTop(); leaveCheck = null; pageUnsaved = null; settingsPending = null; settingsRefresh = null;
             if (tag != null && TagSection.TryGetValue(tag, out var own) && own != section) Enter(own);   // the side column follows the page
             Dispatcher.BeginInvoke(new Action(UpdateChrome), System.Windows.Threading.DispatcherPriority.Background);   // after the caller has started its worker
         }
@@ -239,12 +262,17 @@ namespace CcsBackup.Ui
             what.Children.Add(T("Where it is saved", Ty.Heading, true, false, new Thickness(0, 10, 0, 6)));
             // 1.0 GB: the NES Classic Mini's backup
             what.Children.Add(T(profile.ConsoleTasks ? "One file of about 1.0 GB in your backup location:" : "One file in your backup location:", Ty.Text));
-            what.Children.Add(PathText(settings.PrimaryFolder));
+            // WB-UX-11: the location, with Edit in Settings beside it (Settings at Backup locations; its Back returns here with the location as it is then)
+            var where = new Grid(); where.ColumnDefinitions.Add(new ColumnDefinition()); where.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var path = PathText(settings.PrimaryFolder); path.Margin = new Thickness(0, 0, 18, 4); path.VerticalAlignment = VerticalAlignment.Center; where.Children.Add(path);
+            var edit = new Button { Content = "Edit in Settings", Style = Res<Style>("Btn.Link"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 4), ToolTip = "Choose where new backups are saved" };
+            System.Windows.Automation.AutomationProperties.SetName(edit, "Edit in Settings"); System.Windows.Automation.AutomationProperties.SetHelpText(edit, "Opens Settings at Backup locations");
+            edit.Click += (s, e) => EditBackupLocation(); Grid.SetColumn(edit, 1); where.Children.Add(edit);
+            what.Children.Add(where);
             if (string.IsNullOrEmpty(settings.ArchiveFolder)) what.Children.Add(T("Additional copy not configured.", Ty.Text, false, true));
             else { what.Children.Add(T("An additional copy goes to:", Ty.Text)); what.Children.Add(PathText(settings.ArchiveFolder)); }
             if (!string.IsNullOrEmpty(settings.ArchiveFolder) && Durable.VolumeId(settings.ArchiveFolder) == Durable.VolumeId(settings.PrimaryFolder))
                 what.Children.Add(Note("The additional copy is on the same drive. That protects against a damaged file, but not against losing the drive or the PC. You can choose another drive in Settings.", "warn"));
-            what.Children.Add(Buttons(B("Backup Locations…", "Btn.Ghost", () => Go("Settings"))));
             what.Children.Add(Details(TechNes, "The file is a ZIP: the startup software and each part of the built-in storage as images (restore/), the original Nintendo kernel when it is found (recovery/), the raw NAND image, bootloaders and storage table kept as evidence and never written to a console (reference/), the list of files on the data storage (inventory/), and a manifest with every part's size and checksums.",
                 "While it is made, the file is written under a temporary name; it is read back in full and checked against what the console sent before it gets its final name. An unfinished file is kept as Incomplete and is never used as a backup."));
             sp.Children.Add(Card(what));
@@ -300,7 +328,7 @@ namespace CcsBackup.Ui
         {
             var w = worker; worker = null; var wasWriting = writing; var left = quitting; writing = false; quitting = false; w?.Dispose();
             UpdateChrome();
-            if (closeWhenDone) { closeWhenDone = false; Close(); return; }
+            if (closeWhenDone) { closeWhenDone = false; if (!inClosing) Close(); return; }   // inside a close's own question: that close goes on
             if (left) return;
             if (!gotResult && (page.Content as FrameworkElement)?.Tag as string == "progress")
                 Show(Message(workerOp == "backup" ? "The backup ended unexpectedly" : "The console operation ended unexpectedly",
@@ -654,32 +682,159 @@ namespace CcsBackup.Ui
             sp.Children.Add(Buttons(B("Back", "Btn", () => { if (worker != null && worker.Running) Leave(); else BackToSection(); }))); return sp;
         }
 
-        // ------------------------------------------------------------------ closing while an operation runs
-        void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
+        // ------------------------------------------------------------------ closing: one review of unsaved work, then a task's safe stop, then the USB driver
+        // WB-UX-20. Closing the window (its Close button, the title bar's X, Alt+F4, Windows) goes through three separate steps, in this order:
+        //   1. the close review: ONE themed question listing the work this close would lose (the standalone's unsaved settings, a settings
+        //      change installed mode could not save, the HOME design with changes, what a page holds that is not kept, typed Settings text
+        //      that is not valid), with Save & Close, Close Without Saving and Cancel. Nothing is asked when there is nothing to lose. Close
+        //      Without Saving lets go of the listed items only, and only once the window really closes; Cancel keeps everything, the session
+        //      and the task. A file choice canceled or a save that fails keeps the window open with the work as it was and says why, in
+        //      the Workbench's own look; nothing is called saved unless it was written.
+        //   2. a console task's safe stop (a backup stops, a restore finishes the part it is writing), as before
+        //   3. the USB driver question, only for a driver this Workbench set up and only when the rules allow (WorkbenchDriver.cs), as before
+        // A later step's Cancel keeps the window open with the review's work untouched (the review asks again at the next close).
+        bool closeReviewed, discardDesignAtClose, inClosing;
+        /// <summary>a page's work that is not kept if the window leaves it, in words for the close review (null: none); set with LeaveGuard</summary>
+        Func<string> pageUnsaved;
+
+        /// <summary>a page whose work is lost if the window leaves it: leaving the page asks first (Stay on This Page / Leave Without It), and
+        /// the close review lists what as not kept</summary>
+        void LeaveGuard(Func<string> what, string question)
         {
-            // the preferences first (WorkbenchPrefs.cs): a Cancel there has stopped no task and touched no driver
-            if (!PrefsAtClose()) { e.Cancel = true; return; }
-            closePrefsAnswered = true; settingsPending = null; if ((page.Content as FrameworkElement)?.Tag as string == "settings") leaveCheck = null;
-            ClosingAfterPrefs(e);
-            if (e.Cancel && !closeWhenDone) closePrefsAnswered = false;   // the window stays open: the next close asks again
+            pageUnsaved = what;
+            leaveCheck = () => what() == null || Ask("Leave this page?", question, new[] { "Stay on This Page", "Leave Without It" }, 0, 0) == 1;
         }
 
-        void ClosingAfterPrefs(System.ComponentModel.CancelEventArgs e)
+        void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (!Busy && (!LeaveOk() || !DesignLeaveOk())) { e.Cancel = true; return; }
+            if (inClosing) { e.Cancel = true; return; }   // never a second close inside the first one's questions
+            inClosing = true;
+            try
+            {
+                if (!closeReviewed) { if (!CloseReview()) { e.Cancel = true; return; } closeReviewed = true; }
+                ClosingAfterReview(e);
+                if (e.Cancel) { if (!closeWhenDone) { closeReviewed = false; discardDesignAtClose = false; } return; }
+                if (discardDesignAtClose) { discardDesignAtClose = false; DiscardDesignForClose(); }   // the window closes now: let go of the listed design
+            }
+            finally { inClosing = false; }
+        }
+
+        /// <summary>a test can answer the close review (title, words, buttons) → the chosen button's index (-1: closed without one); null: the
+        /// review is shown as a dialog of the window</summary>
+#pragma warning disable CS0649   // set only by tests
+        internal static Func<string, string, string[], int> ReviewHook;
+#pragma warning restore CS0649
+        internal const int ReviewSave = 0, ReviewDiscard = 1, ReviewCancel = 2;
+
+        /// <summary>step 1 of closing: false keeps the window open with everything as it was</summary>
+        bool CloseReview()
+        {
+            // a page that has not named its work for this review keeps its own question (never while a task runs: its page is the task's)
+            if (!Busy && pageUnsaved == null && leaveCheck != null && PageTag != "settings" && !LeaveOk()) return false;
+            var save = new List<string>(); var lost = new List<string>();
+            PrefsForReview(save, lost);
+            var design = DesignUnsavedName();
+            if (design != null) save.Add("Your HOME design “" + design + "”");
+            if (pageUnsaved?.Invoke() is string page) lost.Add(page);
+            if (save.Count == 0 && lost.Count == 0) return true;
+            int k = Review(save, lost);
+            if (k == ReviewDiscard) { discardDesignAtClose = design != null; return true; }
+            if (k != ReviewSave || save.Count == 0) return false;
+            // Save & Close: the settings, then the design; the first that is not saved stops the close, with the work as it was
+            string done = null;
+            if (SavePrefsForClose() is string prefsProblem) { NotSaved(prefsProblem, null); return false; }
+            if (save.Any(x => x.StartsWith("Your settings"))) done = "Your settings were saved.";
+            if (design != null && !SaveDesignAtClose(design, done)) return false;
+            return true;
+        }
+
+        /// <summary>the review itself: a themed dialog of the window with the two lists and the three buttons (two when nothing can be saved)</summary>
+        int Review(List<string> save, List<string> lost)
+        {
+            var title = save.Count > 0 ? "Save before closing?" : "Close Workbench?";
+            var buttons = save.Count > 0 ? new[] { "Save & Close", "Close Without Saving", "Cancel" } : new[] { "Close Without Saving", "Cancel" };
+            int Map(int k) => save.Count > 0 ? k : k == 0 ? ReviewDiscard : ReviewCancel;
+            if (ReviewHook != null)
+            {
+                var words = (save.Count > 0 ? "Not saved yet:\n" + string.Join("\n", save.Select(x => "• " + x)) : "")
+                          + (lost.Count > 0 ? (save.Count > 0 ? "\n\n" : "") + "Not kept when Workbench closes:\n" + string.Join("\n", lost.Select(x => "• " + x)) : "");
+                int a = ReviewHook(title, words, buttons); return a < 0 ? ReviewCancel : Map(a);
+            }
+            int chosen = -1;
+            var dlg = ReviewWindow(title, save, lost, buttons, k => chosen = k);
+            Modal(dlg);
+            return chosen < 0 ? ReviewCancel : Map(chosen);
+        }
+
+        /// <summary>the close review's dialog, not shown yet (the page renderer draws it): done(k) runs when button k closes it; Escape and its X are Cancel</summary>
+        internal Window ReviewWindow(string title, List<string> save, List<string> lost, string[] buttons, Action<int> done)
+        {
+            var dlg = Owned(title, 580, false);
+            var sp = new StackPanel { Margin = new Thickness(24, 20, 24, 16) };
+            sp.Children.Add(T(title, 17, true, false, new Thickness(0, 0, 0, 10)));
+            void List(string head, List<string> items)
+            {
+                if (items.Count == 0) return;
+                sp.Children.Add(T(head, 13.5, true, false, new Thickness(0, 2, 0, 6)));
+                var g = new Grid { Margin = new Thickness(0, 0, 0, 10) }; g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) }); g.ColumnDefinitions.Add(new ColumnDefinition());
+                for (int i = 0; i < items.Count; i++)
+                {
+                    g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var dot = new TextBlock { Text = "•", FontSize = 13.5, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(2, 0, 0, 4) }; Grid.SetRow(dot, i); g.Children.Add(dot);
+                    var t = T(items[i], 13.5, false, false, new Thickness(0, 0, 0, 4)); SetNoTerms(t, true); Grid.SetRow(t, i); Grid.SetColumn(t, 1); g.Children.Add(t);
+                }
+                sp.Children.Add(g);
+            }
+            List("Not saved yet:", save);
+            List("Not kept when Workbench closes:", lost);
+            var row = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                // Enter is Save & Close when there is something to save; letting work go is never the default
+                int k = i; var b = B(buttons[i], i == 0 && save.Count > 0 ? "Btn.Primary" : "Btn", () => { done(k); dlg.Close(); });
+                b.IsDefault = i == 0 && save.Count > 0; row.Children.Add(b);
+            }
+            sp.Children.Add(row);
+            dlg.Content = sp;
+            dlg.Loaded += (s, e) => (row.Children[save.Count > 0 ? 0 : row.Children.Count - 1] as Button)?.Focus();
+            return dlg;
+        }
+
+        /// <summary>Save &amp; Close for the design: its own Save (Save As when it has no file yet). The page a running task shows is kept (the
+        /// design's save draws its own page). false when the file choice was canceled or the save failed, said in a themed notice.</summary>
+        bool SaveDesignAtClose(string name, string done)
+        {
+            var keepPage = page.Content; var keepSection = section; bool session = worker != null && worker.Running;
+            designProblem = null;
+            bool ok = SaveDesignForClose();
+            if (session && page.Content != keepPage) { page.Content = keepPage; Enter(keepSection); UpdateChrome(); }
+            if (ok) return true;
+            NotSaved("Your HOME design “" + name + "” was not saved: " + (designProblem != null ? designProblem.TrimEnd('.') : "no file was chosen") + ".", done);
+            return false;
+        }
+
+        /// <summary>a save at close did not happen: Workbench stays open with the work as it was, and says so</summary>
+        void NotSaved(string what, string done) =>
+            Tell("Workbench is still open", what + (done != null ? " " + done : "") + "\n\nNothing was closed and nothing was let go: your work is still here.");
+
+        void ClosingAfterReview(System.ComponentModel.CancelEventArgs e)
+        {
             if (worker == null || !worker.Running || gotResult) { if (!DriverAtClose()) { e.Cancel = true; return; } }
-            if (worker == null || !worker.Running) return;
-            if (gotResult) { worker.Detach(); return; }   // the operation has ended: nothing to stop; its worker sees its input end and exits
+            var w = worker;
+            if (w == null || !w.Running) return;
+            if (gotResult) { w.Detach(); return; }   // the operation has ended: nothing to stop; its worker sees its input end and exits
             if (writing)
             {
                 if (Ask("Keep the window open?", "A restore is writing to the console now. If you close, it stops after the part being written is finished and checked, and the console may be left partly restored.",
                         new[] { "Keep the Window Open", "Close After This Part" }, 0, 0) != 1) { e.Cancel = true; return; }
+                if (worker == null || !worker.Running) return;   // it ended while the question was open: nothing left to stop
                 worker.Cancel(); closeWhenDone = true; e.Cancel = true; progress?.Say("Stopping after this part, then closing..."); return;
             }
             bool backup = workerOp == "backup";
             if (Ask(backup ? "Stop the backup?" : "Stop the console task?", backup ? "Nothing on the console changes; the unfinished file is kept and marked Incomplete." : "Nothing has been written to the console.",
                     new[] { backup ? "Stop the Backup and Close" : "Stop and Close", "Keep Working" }, 1, 1) != 0) { e.Cancel = true; return; }
-            worker.Cancel(); worker.Detach();
+            w = worker; if (w == null || !w.Running) return;
+            w.Cancel(); w.Detach();
         }
 
         // ------------------------------------------------------------------ the progress panel
