@@ -50,8 +50,8 @@ namespace CcsBackup.Ui
 
         public static readonly ConsoleProfile NesClassicMini = new ConsoleProfile
         {
-            Id = "nes-classic-na", Name = "NES Classic Mini (2018 Release) — North America / Europe", Short = "NES Classic",
-            About = "Nintendo's small NES console with 30 built-in games, sold in North America and in Europe. This choice is named for its 2018 release: Workbench's tests on a real console will use a North American console from that release.",
+            Id = "nes-classic-na", Name = "NES Classic Mini — North America / Europe", Short = "NES Classic",
+            About = "Nintendo's small NES console with 30 built-in games, first sold in 2016 and again in 2018, in North America and in Europe. Workbench's tests on a real console will use a North American console from the 2018 release.",
             RegionalNames = new[] { ("North America", "NES Classic Edition"), ("Europe", "Nintendo Classic Mini: Nintendo Entertainment System") },
             Sections = new[]
             {
@@ -182,10 +182,13 @@ namespace CcsBackup.Ui
             var mark = opt.Wordmark is BitmapSource bs ? Trimmed(bs) : opt.Wordmark;
             if (mark != null)
             {
-                // the wordmark is a button: About Classic Cart Studio (a click, or Tab then Enter or Space)
+                // the wordmark is a button: About Classic Cart Studio (a click, or Tab then Enter or Space). WB-UX-14: its hover area keeps
+                // LogoPad of room around the letters on every side; the negative margin (that room and the 2 px ring) keeps the letters
+                // exactly where and as large as before, lined up with the navigation rows. Its ring shows only with the keyboard (FocusCue).
                 var img = new Image { Source = mark, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Stretch, SnapsToDevicePixels = true };
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
-                var logo = new Button { Content = img, Style = Res<Style>("Wb.Plain"), Padding = new Thickness(2), Margin = new Thickness(-4, -4, -4, 4), HorizontalAlignment = HorizontalAlignment.Stretch, ToolTip = "About Classic Cart Studio" };
+                const double LogoPad = 8, Ring = 2;
+                var logo = new Button { Content = img, Style = Res<Style>("Wb.Plain"), Padding = new Thickness(LogoPad), Margin = new Thickness(-(LogoPad + Ring), -(LogoPad + Ring), -(LogoPad + Ring), 4 - (LogoPad - 2)), HorizontalAlignment = HorizontalAlignment.Stretch, ToolTip = "About Classic Cart Studio" };
                 AutomationProperties.SetName(logo, "About Classic Cart Studio"); AutomationProperties.SetHelpText(logo, "Opens a window about Classic Cart Studio");
                 logo.Click += (s, e) => OpenAboutStudio();
                 sp.Children.Add(logo);
@@ -291,17 +294,40 @@ namespace CcsBackup.Ui
         /// as the current session's.</summary>
         int consoleSession; ConsoleSeen seenNow, seenEarlier;
 
+        /// <summary>WB-UX-10: a console choice list as wide as its longest console name needs (so the chosen name is never shortened with "…"
+        /// where the list has that room), every family in the one shared order</summary>
+        ComboBox ConsoleChoiceList(ConsoleProfile selected = null)
+        {
+            var c = new ComboBox { MinWidth = ConsoleNameWidth() };
+            foreach (var p in ConsoleProfile.Supported) c.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
+            if (selected != null) c.SelectedIndex = ConsoleProfile.Supported.ToList().IndexOf(selected);
+            return c;
+        }
+        /// <summary>the width a choice list needs to show the longest console name whole: the name at the lists' text size, plus the list's
+        /// own padding and arrow</summary>
+        double ConsoleNameWidth()
+        {
+            double w = 0;
+            foreach (var p in ConsoleProfile.Supported)
+            {
+                var t = new TextBlock { Text = p.Name, FontSize = 13, FontFamily = Res<FontFamily>("F.Ui") ?? new FontFamily("Segoe UI") };
+                t.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity)); w = Math.Max(w, t.DesiredSize.Width);
+            }
+            return Math.Ceiling(w) + 48;
+        }
+
         UIElement ConsoleStrip()
         {
-            // the choice and the status side by side; the status moves to a second line when the window is narrow
+            // the choice and the status side by side; the status moves to a second line when the window is narrow, and the two links move
+            // under them when the choice (with its whole console name) and the links do not fit on one line
             var g = new Grid { Background = Res<Brush>("B.Bar") };
             g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var wrap = new WrapPanel { Margin = new Thickness(32, 4, 12, 4), VerticalAlignment = VerticalAlignment.Center };
             var pick = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 20, 4) };
             var label = new TextBlock { Text = "Console", Style = Res<Style>("T.Muted"), FontSize = Ty.Small, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
             pick.Children.Add(label);
-            consoleChoice = new ComboBox { MinWidth = 270, VerticalAlignment = VerticalAlignment.Center };
-            foreach (var p in ConsoleProfile.Supported) consoleChoice.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
+            consoleChoice = ConsoleChoiceList(); consoleChoice.VerticalAlignment = VerticalAlignment.Center;
             ShowProfileInStrip(); if (consoleChoice.SelectedIndex < 0) consoleChoice.SelectedIndex = 0;
             AutomationProperties.SetName(consoleChoice, "Console"); AutomationProperties.SetLabeledBy(consoleChoice, label);
             consoleChoice.SelectionChanged += (s, e) => OnStripProfileChanged();   // ApplyProfile: the one guarded change
@@ -323,6 +349,16 @@ namespace CcsBackup.Ui
             about.Click += (s, e) => OpenAboutConsole(); AutomationProperties.SetName(about, "About This Console");
             links.Children.Add(help); links.Children.Add(about);
             Grid.SetColumn(links, 1); g.Children.Add(links);
+            void Fit()
+            {
+                pick.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity)); links.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                bool under = g.ActualWidth > 0 && g.ActualWidth < wrap.Margin.Left + pick.DesiredSize.Width + wrap.Margin.Right + links.DesiredSize.Width + 24;
+                if (under == (Grid.GetRow(links) == 1)) return;
+                Grid.SetRow(links, under ? 1 : 0); Grid.SetColumn(links, under ? 0 : 1);
+                links.HorizontalAlignment = HorizontalAlignment.Left;
+                links.Margin = under ? new Thickness(32, 0, 12, 10) : new Thickness(0, 0, 24, 0);
+            }
+            g.SizeChanged += (s, e) => Fit();
             var border = new Border { BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 0, 0, 1), Child = g };
             UpdateConsoleStrip();
             return border;
@@ -395,7 +431,9 @@ namespace CcsBackup.Ui
             SetNoTerms(statusText, true); statusText.Margin = new Thickness(22, 8, 16, 8); statusText.FontSize = Ty.Fine; statusText.Style = Res<Style>("T.Muted"); statusText.TextWrapping = TextWrapping.Wrap; statusText.VerticalAlignment = VerticalAlignment.Center;
             AutomationProperties.SetLiveSetting(statusText, AutomationLiveSetting.Polite);   // its own words are its name for screen readers
             g.Children.Add(statusText);
-            if (!string.IsNullOrEmpty(opt.SimulatedConsole)) { var sim = Pill("Simulated console", "B.Warn"); sim.Margin = new Thickness(0, 6, 22, 6); Grid.SetColumn(sim, 1); g.Children.Add(sim); }
+            var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 22, 6) }; Grid.SetColumn(right, 1); g.Children.Add(right);
+            right.Children.Add(UpdateIndicator());   // "Update available", only when a newer version is published (WorkbenchUpdates.cs)
+            if (!string.IsNullOrEmpty(opt.SimulatedConsole)) right.Children.Add(Pill("Simulated console", "B.Warn"));
             return g;
         }
 
@@ -416,6 +454,7 @@ namespace CcsBackup.Ui
             else if (worker != null && worker.Running && !gotResult) text = "Working: " + (tag == "progress" && progressTitle != null ? progressTitle : "a console task") + ". Other pages open again when it finishes or is canceled.";
             else if (worker != null && worker.Running) text = "The console session is still open: the console waits in its memory program. Restart the Console or Done ends it.";
             else if (tag == "progress") text = "Working: " + (progressTitle ?? "a task on this PC") + ".";
+            else if (lookProblem != null) text = "Workbench could not load its colors and styles (" + lookProblem + "). Close Workbench and open it again.";   // WB-UX-07: never silent
             else text = "No task running.";
             statusText.Text = text;
         }
@@ -641,7 +680,7 @@ namespace CcsBackup.Ui
             sp.Children.Add(StudioCards());
             var dl = new StackPanel();
             dl.Children.Add(T("Get Classic Cart Studio for Windows", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
-            dl.Children.Add(T("The button opens classiccartstudio.com/app/, the official download page, in your web browser. Nothing is downloaded or installed until you choose to there. For Windows 10 and 11.", Ty.Text, false, true));
+            dl.Children.Add(T("The button opens ClassicCartStudio.com/app, the official download page, in your web browser. For Windows 10 and 11.", Ty.Text, false, true));
             var problem = new ContentControl();
             var go = B("Download Classic Cart Studio", "Btn.Primary", () => { if (!Launch(opt.FullAppUrl)) problem.Content = Note("The web browser could not be opened. The address is " + opt.FullAppUrl, "warn"); });
             AutomationProperties.SetHelpText(go, opt.FullAppUrl);
@@ -654,24 +693,28 @@ namespace CcsBackup.Ui
         /// <summary>what the full Classic Cart Studio app gives you, the same in Get Full Classic Cart Studio and About Classic Cart Studio</summary>
         CardPanel StudioCards() => CardGrid(260, 2,
             InfoCard("Organize your collection", "Bring in the NES game files you own, see them with their artwork and details, and arrange them in collections."),
-            InfoCard("Play", "Play NES games in the app on Windows, or on classiccartstudio.com in a web browser or on a phone where the browser supports it."),
+            InfoCard("Play", "Play NES games in the app on Windows, or on " + HomepageName + " in a web browser or on a phone where the browser supports it."),
             InfoCard("Included Games", "Free games and demos whose developers gave permission, ready to play. No commercial Nintendo games are included."),
             InfoCard("Your NES Classic's HOME", "Plan collections for your NES Classic and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are still being tested on real consoles."));
 
         // ------------------------------------------------------------------ About Classic Cart Studio (the wordmark's window, both hosts)
         /// <summary>the address the window's button opens, exactly (the owner's choice: the site's front page)</summary>
         internal const string HomepageUrl = "https://classiccartstudio.com/";
+        /// <summary>WB-UX-15: how the window writes the site's name (the button and the line beside it): this capitalization, no "https://",
+        /// no trailing slash. The button still opens HomepageUrl exactly.</summary>
+        internal const string HomepageName = "ClassicCartStudio.com";
         /// <summary>the window's pictures: screenshots of the current Classic Cart Studio with sample games (intro/*.png; where each came from:
-        /// intro/SOURCES.json), cropped to the page itself, without a window's or a panel's own buttons</summary>
+        /// intro/SOURCES.json), cropped to the page itself, without a window's or a panel's own buttons. WB-UX-15: the HOME picture shows the
+        /// Featured Shelf theme (its file and source record are refreshed with the theme's final look).</summary>
         static readonly (string file, string title, string caption)[] IntroShots =
         {
             ("collection", "Your collections", "A collection's games with their box art, each ready to play. Sample games."),
-            ("home", "HOME, previewed on a PC", "A collection's HOME in the Arcade Grid theme, as Classic Cart Studio previews it. Sample games."),
-            ("details", "Game Details", "Each game's box art, details and overview, with Play. Sample game."),
+            ("home", "HOME, previewed on a PC", "A collection's HOME in the Featured Shelf theme, as Classic Cart Studio previews it. Sample games."),
+            ("details", "Game Details", "Each game's box art, game screens, details and overview, with Play. Sample game."),
         };
 
         /// <summary>About Classic Cart Studio: what the name means, what the full app gives you, how Workbench relates to it, a few screenshots
-        /// that open larger, and a button that opens classiccartstudio.com in the browser (nothing opens, downloads or installs by itself)</summary>
+        /// that open larger, and a button that opens ClassicCartStudio.com in the browser (nothing opens by itself)</summary>
         internal Window AboutStudioWindow()
         {
             var w = Owned("About Classic Cart Studio", Math.Max(720, Math.Min(980, ActualWidth - 60)), true); w.Height = Math.Max(560, Math.Min(940, ActualHeight - 20)); w.MinWidth = 640; w.MinHeight = 480;
@@ -680,10 +723,10 @@ namespace CcsBackup.Ui
             var fg = new Grid(); fg.ColumnDefinitions.Add(new ColumnDefinition()); fg.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var problem = new ContentControl { Focusable = false };
             var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var visit = B("Visit classiccartstudio.com", "Btn.Primary", () => { problem.Content = Launch(HomepageUrl) ? null : Note("The web browser could not be opened. The address is " + HomepageUrl, "warn"); });
+            var visit = B("Visit " + HomepageName, "Btn.Primary", () => { problem.Content = Launch(HomepageUrl) ? null : Note("The web browser could not be opened. Go to " + HomepageName + " in your web browser.", "warn"); });
             visit.Margin = new Thickness(0, 0, 14, 0); AutomationProperties.SetHelpText(visit, HomepageUrl);
             var row = new WrapPanel(); row.Children.Add(visit);
-            row.Children.Add(T("Opens " + HomepageUrl + " in your web browser. Nothing is downloaded or installed.", Ty.Small, false, true, new Thickness(0, 9, 0, 0)));
+            row.Children.Add(T("Opens " + HomepageName + " in your web browser.", Ty.Small, false, true, new Thickness(0, 9, 0, 0)));
             left.Children.Add(row); left.Children.Add(problem); fg.Children.Add(left);
             var close = B("Close", "Btn", () => w.Close()); close.Margin = new Thickness(16, 0, 0, 0); close.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(close, 1); fg.Children.Add(close);
             foot.Child = fg; DockPanel.SetDock(foot, Dock.Bottom); root.Children.Add(foot);
@@ -708,10 +751,11 @@ namespace CcsBackup.Ui
             sp.Children.Add(StudioCards());
 
             var alone = new StackPanel();
-            alone.Children.Add(T(opt.HostedInFullApp ? "Workbench, here and on its own" : "Workbench works on its own", Ty.Heading, true, false, new Thickness(0, 0, 0, 6)));
-            alone.Children.Add(T(opt.HostedInFullApp
-                ? "You are using CCS Console Workbench inside Classic Cart Studio for Windows. It also comes as a standalone program with the same pages, for people who only want to look after their console's backups."
-                : "You don't need the full app to use this window: CCS Console Workbench is a standalone program, and everything in it works on its own. The same Workbench also opens inside Classic Cart Studio for Windows.", Ty.Text, false, true, new Thickness(0)));
+            bool fromStudio = opt.HostedInFullApp || opt.Studio != null;   // opened from Classic Cart Studio for Windows (in its window, or started by it)
+            alone.Children.Add(T(fromStudio ? "Workbench, here and on its own" : "Workbench works on its own", Ty.Heading, true, false, new Thickness(0, 0, 0, 6)));
+            alone.Children.Add(T(fromStudio
+                ? "You opened CCS Console Workbench from Classic Cart Studio for Windows. It also comes as a standalone program with the same pages, for people who only want to look after their console's backups."
+                : "You don't need the full app to use this window: CCS Console Workbench is a standalone program, and everything in it works on its own. Classic Cart Studio for Windows installs this same program and opens it in its own window.", Ty.Text, false, true, new Thickness(0)));
             sp.Children.Add(Card(alone, 18));
 
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = sp, Focusable = false };
@@ -721,20 +765,20 @@ namespace CcsBackup.Ui
         }
         void OpenAboutStudio() => Modal(AboutStudioWindow());
 
-        /// <summary>a screenshot in a framed card: clearly a picture (its frame, the word Screenshot and its caption), opening larger with a
-        /// click, Enter or Space</summary>
+        /// <summary>a screenshot in a framed card: its title above, the picture in its own frame and its caption (WB-UX-13: italic,
+        /// "Screenshot:" first) directly under it, so it is clearly a picture; it opens larger with a click, Enter or Space, and closing that
+        /// puts the focus back here (its ring shows only when the keyboard was used: FocusCue)</summary>
         UIElement ShotCard(BitmapSource src, string title, string caption)
         {
             var s = new StackPanel();
+            s.Children.Add(T(title, Ty.Body, true, false, new Thickness(0, 0, 0, 8)));
             var img = new Image { Source = src, Stretch = Stretch.Uniform, SnapsToDevicePixels = true }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
             var frame = new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), Background = Res<Brush>("B.Bg"), Padding = new Thickness(6), CornerRadius = new CornerRadius(6), Child = img };
             var b = new Button { Content = frame, Style = Res<Style>("Wb.Plain"), HorizontalAlignment = HorizontalAlignment.Stretch, ToolTip = "Select to see it larger" };
             AutomationProperties.SetName(b, "Screenshot: " + title + ". Select to see it larger.");
             b.Click += (o, e) => { ShowPicture(src, title, caption, "A screenshot of Classic Cart Studio with sample games: a picture, not the app itself.", Window.GetWindow(b)); b.Focus(); };
             s.Children.Add(b);
-            s.Children.Add(new TextBlock { Text = "SCREENSHOT", FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(0, 8, 0, 2) });
-            s.Children.Add(T(title, Ty.Body, true, false, new Thickness(0, 0, 0, 2)));
-            s.Children.Add(T(caption, Ty.Small, false, true, new Thickness(0)));
+            s.Children.Add(PictureCaption("Screenshot: " + caption));
             var c = Card(s, 14); c.Margin = new Thickness(0); return c;
         }
 

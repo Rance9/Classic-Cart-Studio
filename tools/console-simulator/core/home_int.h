@@ -52,8 +52,7 @@ enum { D_UP, D_DOWN, D_LEFT, D_RIGHT };
 enum { HT_NONE, HT_GAME, HT_NAV, HT_LANDMARK, HT_TILE, HT_MENU, HT_THEME, HT_PANEL, HT_DBUTTON, HT_DESC, HT_PREV, HT_NEXT, HT_LEGEND, HT_MUSIC };
 
 typedef struct { int x0, y0, x1, y1; } box4;
-typedef struct { char *id, *title, *version_label, *year, *players, *genre, *publisher, *developer, *cover, *cover_kind, *hero, *hero_kind, *hero_wide, *text, *blurb, *mblurb, *ftext;
-                 double ht_x, ht_y, ht_w; int ht_right; } hgame;   /* ht_*: the measured title slot of the game's key art (Featured Shelf) */
+typedef struct { char *id, *title, *version_label, *year, *players, *genre, *publisher, *developer, *cover, *cover_kind, *hero, *hero_kind, *text, *blurb, *mblurb, *ftext, *snap; } hgame;   /* snap: the game's screen (Featured Shelf) */
 typedef struct { char *id, *name, *art; int parent, *games, ng, nchild, art_abs; image tile; } hfolder;   /* a Windows folder: games are indices into the package order; tile = its artwork at the current tile size; art_abs: art is a full path (a HOME design's picture) */
 typedef struct { char *label, *kind; int *games, ng; } hcat;                         /* an automatic category (genre, year, publisher, players) */
 typedef struct { int kind, idx; } bitem;                                             /* a Browse tile: BI_FOLDER / BI_GAME (package index) / BI_CAT */

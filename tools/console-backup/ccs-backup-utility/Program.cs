@@ -1,5 +1,8 @@
 // CCS Console Workbench (standalone). Copyright (C) 2026 Rance9. GPL-3.0-or-later. (Earlier versions: CCS Console Backup & Restore Utility.)
 //   CCS-Console-Workbench.exe [--settings FILE]                the window
+//   ... --studio-launch --studio-exe F --studio-version N.N.N --studio-channel C [--prepared-home DIR] [--settings FILE] [--simulated-console DIR]
+//                                                              the window in installed mode, started by Classic Cart Studio for Windows from
+//                                                              its installation (InstalledLaunch.cs: the context is checked; one such window)
 //   ... --backup-worker [--settings FILE]                      the controlled worker the window starts for one console operation
 //   ... --driver-action REQUEST                                the USB driver step, started by the window through Windows with administrator
 //                                                              permission (closed in this version: it exits at once and changes nothing)
@@ -12,9 +15,12 @@
 //                                                              screen with its frame hash); no design, nothing written outside FOLDER
 //   ... --parity-selftest FOLDER [--parity-selftest-bytes N]  a PAR2 round trip through the native host's parity functions on a synthetic
 //                                                              file (8 MB unless N), written only inside FOLDER (new or empty); JSON lines
+// Its one network request: the release information on classiccartstudio.com, once shortly after the window opens and when the person
+// chooses Check for Updates (WorkbenchUpdates.cs); it names this program and its version only, and nothing is downloaded or installed.
 // No installer, service, startup entry, file association, shortcut or updater, and no AppData: ordinary preferences stay in memory unless
 // the person saves them to a settings file of their own (then --settings FILE); backups, their records and every operation journal live
-// in the backup folders the person chooses. Windows may keep its own records of programs it runs.
+// in the backup folders the person chooses. Windows may keep its own records of programs it runs. (Installed mode, started by Classic Cart
+// Studio for Windows, keeps the preferences in the Workbench settings file in AppData, as the window inside Studio always did.)
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -55,14 +61,24 @@ namespace CcsBackup.Utility
         }
 
         static string Arg(string[] a, string k) { int i = Array.IndexOf(a, k); return i >= 0 && i + 1 < a.Length ? a[i + 1] : null; }
-        static string Version => typeof(Program).Assembly.GetName().Version.ToString(3);
+        /// <summary>CCS Console Workbench's own product version (WORKBENCH-VERSION, recorded at build time), never the shared engine's assembly
+        /// version and never Classic Cart Studio's; "0.0.0" in a build without it</summary>
+        static string Version => Metadata("WorkbenchVersion", v => System.Text.RegularExpressions.Regex.IsMatch(v, @"^\d{1,4}\.\d{1,4}\.\d{1,4}$")) ?? "0.0.0";
+        /// <summary>its release channel (WORKBENCH-CHANNEL): "preview" or "production"; a build without it is a preview</summary>
+        static string Channel => Metadata("WorkbenchChannel", v => v == "preview" || v == "production") ?? "preview";
+        static string Metadata(string key, Func<string, bool> valid)
+        {
+            foreach (var m in typeof(Program).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()) if (m.Key == key && m.Value != null && valid(m.Value)) return m.Value;
+            return null;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         static int Run(string[] args)
         {
-            // the standalone writes nothing to AppData in any mode: its console lock is the named mutex alone (no note of who holds it),
-            // also when its worker is started directly without --portable
-            CcsBackup.Engine.ConsoleLock.WriteInfo = false;
+            // a portable start writes nothing to AppData: its console lock is the named mutex alone (no note of who holds it), also when its
+            // worker is started directly without --portable. Only the installed window's workers (--installed, InstalledLaunch.cs) write the
+            // lock's note beside the Workbench settings file, as the window inside Classic Cart Studio always did.
+            CcsBackup.Engine.ConsoleLock.WriteInfo = args.Contains(CcsBackup.Engine.WorkerHost.Flag) && args.Contains(InstalledLaunch.WorkerFlag);
             // the elevated USB driver step (this same file started again by Windows with administrator permission): before anything else, no
             // window; closed in this version by the DriverChanges boundary (CcsBackup/Driver/DriverActionHost.cs)
             if (args.Contains(CcsBackup.Driver.DriverActionHost.Flag)) return CcsBackup.Driver.DriverActionHost.Run(args);
@@ -90,16 +106,36 @@ namespace CcsBackup.Utility
                 return problems.Count > 0 ? 1 : 0;
             }
             var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+            // installed mode (Classic Cart Studio's launch context, InstalledLaunch.cs): checked first; a context it cannot use is refused with a
+            // notice (never a portable window instead), and a second installed start hands its context to the open window and ends
+            var self = Process.GetCurrentProcess().MainModule.FileName;
+            InstalledLaunch launch;
+            try { launch = InstalledLaunch.FromArgs(args, self); }
+            catch (InstalledLaunch.Refused r) { CcsBackup.Ui.LaunchNotice.Show(InstalledLaunch.RefusedTitle, InstalledLaunch.RefusedText(r.Message), Png("pack://application:,,,/CcsBackupUi;component/app.ico")); return 2; }
+            if (launch != null && !launch.TakeWindowOrHandOver(self, (t, b) => CcsBackup.Ui.LaunchNotice.Show(t, b, Png("pack://application:,,,/CcsBackupUi;component/app.ico")))) return 0;
+            var inUse = InstalledLaunch.MarkInUse(self);   // the file installed with Studio, in use while this window runs (Setup waits)
             string notice = null;
             using (var s = typeof(CcsBackup.Ui.BackupWorkspace).Assembly.GetManifestResourceStream("NOTICE")) if (s != null) using (var r = new StreamReader(s)) notice = r.ReadToEnd();
             var opt = new CcsBackup.Ui.WorkspaceOptions
             {
-                HostedInFullApp = false, Portable = true, ProductName = Name, Version = Version, WorkerExe = Process.GetCurrentProcess().MainModule.FileName,
+                HostedInFullApp = false, Portable = true, ProductName = Name, Version = Version, Channel = Channel, WorkerExe = Process.GetCurrentProcess().MainModule.FileName,
+                CheckForUpdates = string.IsNullOrEmpty(Arg(args, "--simulated-console")),
                 SettingsPath = Arg(args, "--settings"), SimulatedConsole = Arg(args, "--simulated-console"), NoticeText = notice,
                 Wordmark = Png("pack://application:,,,/CcsBackupUi;component/brand-wordmark.png"), AppIcon = Png("pack://application:,,,/CcsBackupUi;component/app.ico"),
             };
+            launch?.Apply(opt);
             var w = new CcsBackup.Ui.BackupWorkspace(opt);
-            return app.Run(w);
+            // a later installed start: this window comes forward, with the HOME package Studio prepared last for HOME Designer's preview
+            launch?.Serve(self, ctx => w.Dispatcher.BeginInvoke(new Action(() => { if (ctx.PreparedHome != null) opt.PreparedHomePackage = ctx.PreparedHome; BringForward(w); })));
+            var rc = app.Run(w);
+            launch?.Keep(); GC.KeepAlive(inUse);
+            return rc;
+        }
+
+        static void BringForward(Window w)
+        {
+            try { if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Normal; if (!w.IsVisible) w.Show(); w.Activate(); w.Topmost = true; w.Topmost = false; w.Focus(); }
+            catch (Exception) { }
         }
 
         static System.Windows.Media.ImageSource Png(string uri) { try { var b = new BitmapImage(); b.BeginInit(); b.UriSource = new Uri(uri); b.CacheOption = BitmapCacheOption.OnLoad; b.EndInit(); b.Freeze(); return b; } catch { return null; } }

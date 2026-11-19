@@ -11,6 +11,33 @@ def _writable_retry(func, path, exc):
     """rmtree helper: a read-only entry (Windows keeps the read-only flag on copied folders) is made writable and removed"""
     os.chmod(path, stat.S_IWRITE); func(path)
 
+ART_ALIASES_SCHEMA = "ccs-art-aliases/1"
+def fold_covers(out: str, sd: str) -> dict:
+    """owner, November 19: the built site keeps one file of each group of byte-identical covers (art/<id>.jpg). The catalog and the library
+    keep every version's own cover name (its identity: the one-cover rule, factory precedence, art/index.json's source record);
+    art/aliases.json maps each folded name to the kept file, and everything that opens a cover resolves through it: the page
+    (build_html.py writes the kept names into the page and carries the map for covers a collection kept), the Windows app's own server
+    (nes_companion.py) and the package builder (common.art_alias). No picture changes. The kept file of a group, the same every build: a
+    built-in game's own cover, else a catalog game's own cover, else the first name."""
+    import hashlib
+    art = os.path.join(out, "art"); groups: dict = {}
+    for n in sorted(os.listdir(art)):
+        p = os.path.join(art, n)
+        if len(n) == 20 and n.endswith(".jpg") and all(c in "0123456789abcdef" for c in n[:16]) and os.path.isfile(p):
+            groups.setdefault(hashlib.sha256(open(p, "rb").read()).hexdigest(), []).append(n)
+    cat = json.load(open(os.path.join(sd, "catalog.json"), encoding="utf-8"))["games"]
+    own = {g["art"][4:]: (0 if g.get("builtin_code") else 1) for g in cat if g.get("art") == f"art/{g.get('game_id')}.jpg"}
+    aliases = {}
+    for names in groups.values():
+        if len(names) < 2: continue
+        keep = min(names, key=lambda n: (own.get(n, 2), n))
+        for n in names:
+            if n != keep: aliases[f"art/{n}"] = f"art/{keep}"; os.remove(os.path.join(art, n))
+    json.dump({"schema": ART_ALIASES_SCHEMA, "note": "byte-identical covers are kept once: each name here is the same picture as the file it names",
+               "aliases": dict(sorted(aliases.items()))}, open(os.path.join(art, "aliases.json"), "w", encoding="utf-8", newline="\n"), indent=0, separators=(",", ":"))
+    print(f"covers: {len(aliases)} byte-identical copies folded into {len({v for v in aliases.values()})} kept files (art/aliases.json)")
+    return aliases
+
 def main(out: str, public: str | None = None):
     out = os.path.abspath(out)
     # the previous output may hold read-only folders copied from site-data; without the helper the second local build fails
@@ -19,6 +46,7 @@ def main(out: str, public: str | None = None):
     sd = os.path.join(REPO, "site-data")
     shutil.copytree(os.path.join(sd, "brand", "ccs"), os.path.join(out, "brand", "ccs"), dirs_exist_ok=True)   # the CCS cast (tools/publish/make_ccs_cast.py)
     shutil.copytree(os.path.join(sd, "art"), os.path.join(out, "art"), dirs_exist_ok=True)
+    fold_covers(out, sd)   # one file per group of byte-identical covers; art/aliases.json names the kept file for every folded name
     # D-131/D-163: five shared scenes (site-data/art/scenes, tools/publish/make_scenes.py) replace every per-game background. The retired backgrounds
     # are never published, and a missing scene image stops the build rather than leaving a HOME without its picture.
     if os.path.exists(os.path.join(out, "art", "hero")): raise SystemExit("retired per-game backgrounds (art/hero) must not be published")
@@ -45,7 +73,7 @@ def main(out: str, public: str | None = None):
     for n in ("catalog.json", "builtin.json", "library.json", "rankings.json", "descriptions.json", "descriptions-library.json"):   # descriptions-library.json: the extended games' overview and official texts (customize.js, native HOME)
         if os.path.exists(os.path.join(sd, n)): shutil.copy2(os.path.join(sd, n), out)
     shutil.copytree(os.path.join(sd, "brand", "fonts"), os.path.join(out, "brand", "fonts"), dirs_exist_ok=True)
-    # the console HOME (Preview on TV) runtime: theme scenes, thumbnails, sprites, HOME fonts and the hero sky (the shared scenes come with
+    # the console HOME (Preview on TV) runtime: theme scenes, thumbnails, sprites and HOME fonts (the shared scenes come with
     # site-data/art/scenes). D-131: a theme's reference picture or the old universal fallback is never published, even if one reappears.
     shutil.copytree(os.path.join(REPO, "tools", "publish", "assets", "home"), os.path.join(out, "brand", "home"), ignore=shutil.ignore_patterns("ref-*.png", "hero-fallback.png"), dirs_exist_ok=True)
     # the console startup screen's preview (D-113): the five thumbnails and their manifest only (the console images ship in the app)

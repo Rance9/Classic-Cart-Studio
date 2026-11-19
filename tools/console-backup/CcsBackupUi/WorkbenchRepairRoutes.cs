@@ -199,12 +199,13 @@ namespace CcsBackup.Ui
             sp.Children.Add(Buttons(B("Make the Repaired Backup", "Btn.Primary", () =>
             {
                 var list = chosen.Where(kv => kv.Value.Text.Length > 0).Select(kv => (kv.Key, kv.Value.Text)).ToList();
-                if (list.Count == 0) { MessageBox.Show(this, "Choose a file for a damaged or missing part first.", ProductTitle); return; }
+                if (list.Count == 0) { Tell("Choose a file first", "Choose a file for a damaged or missing part first."); return; }
                 RunRepair("Supplying a Startup Software File", "Each file you chose is checked against this backup's own record of its part. The new backup file is checked in full before it gets its name.", o => KernelSupply.Run(e.Path, list, folder, o, copies), e.BackupId);
             }), back));
             Show(sp, "supply");
             // files chosen here are not lost silently when the person opens another page
-            leaveCheck = () => !chosen.Values.Any(b => b.Text.Length > 0) || MessageBox.Show(this, "The files you chose have not been used yet. Leave without making the repaired backup?", ProductTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            LeaveGuard(() => !chosen.Values.Any(b => b.Text.Length > 0) ? null : "The files you chose for a repaired backup, which is not made yet",
+                       "The files you chose have not been used yet. If you leave, the repaired backup is not made.");
         }
 
         /// <summary>why recovery data cannot be made, checked or used in this copy, in plain words (the exact reason under Technical details)</summary>

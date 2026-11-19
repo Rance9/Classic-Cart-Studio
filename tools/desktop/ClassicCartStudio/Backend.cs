@@ -71,7 +71,8 @@ namespace ClassicCartStudio
             else { LastError = "A program file of Classic Cart Studio is missing. Reinstall Classic Cart Studio; your collections are kept."; App.Log(LastError); return false; }
             psi.Environment["CCS_HOST_TOKEN"] = Token;
             psi.Environment["CCS_HOST_PID"] = Process.GetCurrentProcess().Id.ToString();
-            psi.Environment["CCS_DESIGN_COMPILER"] = Process.GetCurrentProcess().MainModule.FileName;   // this program's --design-compile: HOME Designer's one compiler for the package builder
+            // HOME Designer's one compiler for the package builder: the installed CCS Console Workbench's --design-compile (design_compile.py)
+            if (File.Exists(WorkbenchLauncher.ExePath)) psi.Environment["CCS_DESIGN_COMPILER"] = WorkbenchLauncher.ExePath;
             psi.Environment["PYTHONIOENCODING"] = "utf-8";
             try { Process = Process.Start(psi); }
             catch (Exception e) { LastError = "Classic Cart Studio could not start (" + e.Message + "). Choose Try Again, or reinstall Classic Cart Studio; your collections are kept."; App.Log(LastError); return false; }
@@ -163,14 +164,30 @@ namespace ClassicCartStudio
             var bundle = b.Call("GET", "/api/bundle?full=1", null, 120000) ?? ""; var bundleOk = bundle.Contains("\"bundle\": {\"ok\": true");
             Console.WriteLine("desktop_principal=" + desk + " capabilities=" + caps + " status_ok=" + st.Contains("\"ok\": true") + " anonymous_status_refused=" + anon + " installation_complete=" + bundleOk);
             if (!bundleOk) Console.WriteLine("installation check: " + (bundle.Length > 600 ? bundle.Substring(0, 600) : bundle));
-            // Console Backup & Restore: its shared libraries are beside this program and its three console programs are in it
-            var engine = CcsBackup.Engine.ComponentReport.Describe(Program.ProductName, App.Version, CcsBackup.Engine.ComponentReport.Beside(AppDomain.CurrentDomain.BaseDirectory));
-            var engineOk = !engine.Contains("\": null") && engine.Contains("\"ccs-backup\"") && engine.Contains("\"ccs-restore\"") && engine.Contains("\"ccs-prepare\"");
-            Console.WriteLine("console_backup_engine=" + engineOk);
-            if (!engineOk) Console.Write(engine);
+            // CCS Console Workbench, installed beside this program (WorkbenchLauncher.cs): it answers --engine-info with its shared libraries and
+            // its console programs (read only; no window)
+            var engine = WorkbenchEngineInfo();
+            var engineOk = engine != null && !engine.Contains("\": null") && engine.Contains("\"ccs-backup\"") && engine.Contains("\"ccs-restore\"") && engine.Contains("\"ccs-prepare\"");
+            Console.WriteLine("console_workbench=" + engineOk);
+            if (!engineOk) Console.Write(engine ?? ("no answer from " + WorkbenchLauncher.ExePath + "\n"));
             b.Stop();
             var okAll = desk && caps && st.Contains("\"ok\": true") && anon && bundleOk && engineOk;
             Console.WriteLine(okAll ? "RESULT: PASS" : "RESULT: FAIL"); return okAll ? 0 : 1;
+        }
+        static string WorkbenchEngineInfo()
+        {
+            try
+            {
+                if (!File.Exists(WorkbenchLauncher.ExePath)) return null;
+                var psi = new ProcessStartInfo(WorkbenchLauncher.ExePath, "--engine-info") { UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true };
+                using (var p = Process.Start(psi))
+                {
+                    var t = p.StandardOutput.ReadToEndAsync();
+                    if (!p.WaitForExit(120000)) { try { p.Kill(); } catch { } return null; }
+                    return p.ExitCode == 0 ? t.Result : null;
+                }
+            }
+            catch (Exception e) { Console.WriteLine("console workbench: " + e.Message); return null; }
         }
         static bool AnonStatus(string baseUrl)
         {

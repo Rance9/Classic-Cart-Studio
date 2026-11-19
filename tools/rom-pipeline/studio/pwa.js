@@ -14,9 +14,10 @@ function pwaSend(w, msg){ return new Promise(res=>{ if(!w){ res(null); return; }
 async function pwaRegister(){ if(!pwaAllowed()) return null; if(PWA.reg) return PWA.reg;
  try{ PWA.reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}); }catch(e){ PWA.err=String(e&&e.message||e); return null; }
  const r=PWA.reg; r.addEventListener('updatefound',()=>{ const w=r.installing; if(w) w.addEventListener('statechange',()=>pwaUi()); }); pwaUi(); return r; }
-// the covers of this Studio's own games (the HOME shows them); everything else for the HOME is in the version itself
+// the covers and game screens of this Studio's own games (the HOME and Game Details show them); everything else for the HOME is in the
+// version itself
 function pwaArt(){ const ids=new Set(); try{ for(const c of csList()) for(const id of (c.sel||[])) ids.add(id); }catch(e){}
- return [...ids].map(id=>{ const g=typeof byId!=='undefined'&&byId[id]; return g&&g.art?String(g.art).replace(/^\.?\//,''):null; }).filter(a=>a&&/^art\//.test(a)); }
+ return [...ids].flatMap(id=>{ const g=typeof byId!=='undefined'&&byId[id]; return g?[g.art,g.art_snap,g.art_title].map(a=>a?String(a).replace(/^\.?\//,''):null):[]; }).filter(a=>a&&/^art\//.test(a)); }
 async function pwaPrepare(){ const r=await pwaRegister(); if(!r) return {ok:false, error:PWA.err||'This browser does not offer offline use for websites.'};
  const w=await navigator.serviceWorker.ready; const res=await pwaSend(w.active, {type:'prepare', art:pwaArt()}); PWA.status=await pwaSend(w.active, {type:'status'}); pwaUi(); return res||{ok:false, error:'The browser stopped before the Studio was ready for offline use.'}; }
 async function pwaUpdate(){ const r=PWA.reg; if(!r||!r.waiting) return {ok:false, why:'none'}; if(typeof CCSPLAY!=='undefined'&&CCSPLAY.running()){ toast('Close the game from its own menu first, then restart to update.'); return {ok:false, why:'game'}; }

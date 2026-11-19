@@ -24,13 +24,12 @@ namespace ClassicCartStudio
         readonly Settings settings = Settings.Load();
         readonly string[] startupArgs;
         bool coreReady, backendStarting, closing, recoveryShown, firstPageShown;
-        string pendingLink;
+        string pendingLink; bool pendingUpdateCheck;
         readonly System.Collections.Generic.List<string[]> pendingActions = new System.Collections.Generic.List<string[]>();   // [kind, value] for the page: share, package, file
         int devtoolsPort;
         internal string LastNavigation = "not yet";
         DispatcherTimer blockTimer; int blockStep; bool hitLogged;
         CoreWebView2Environment wvEnv; PlayerBridge bridge; bool exitConfirmed;   // the Preview's game player (D-104) and the close that asked first (F6)
-        bool driverDecided;   // the USB driver question at close was answered (BackupWorkspace.DriverAtAppClose)
         int openGen;   // the Preview's latest "embed-open"; an earlier one still waiting for the previous player is dropped
 
         public MainWindow(string[] args)
@@ -39,11 +38,12 @@ namespace ClassicCartStudio
             App.LocalOrigin = backend.Base;   // the bundled interface, served by this window's backend
             foreach (var a in startupArgs) { var m = Regex.Match(a, @"^--devtools-port=(\d{4,5})$"); if (m.Success) devtoolsPort = int.Parse(m.Groups[1].Value); }
             InitializeComponent();
+            Title = titleText.Text = App.WindowTitle;   // the running version and channel, in the title bar and the taskbar alike
             ApplyIcons();
             ApplyPlacement();
-            // our hook must see WM_NCHITTEST / WM_GETMINMAXINFO before WindowChrome's own hook: subscribe first, attach the chrome after
+            // the title bar is drawn by the window itself and WndProc removes the system caption (no WindowChrome: see WndProc)
             SourceInitialized += (s, e) => { Native.ApplyDarkChrome(this, 0x00202024); HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc); };
-            DpiChanged += (s, e) => { ApplyIcons(); Dispatcher.BeginInvoke(new Action(() => Native.ApplyTaskbarIcon(this)), DispatcherPriority.Background); };   // in case WPF re-applies its own icon after a monitor change            System.Windows.Shell.WindowChrome.SetWindowChrome(this, new System.Windows.Shell.WindowChrome { CaptionHeight = 36, GlassFrameThickness = new Thickness(0, 0, 0, 1), ResizeBorderThickness = new Thickness(6), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
+            DpiChanged += (s, e) => { ApplyIcons(); Dispatcher.BeginInvoke(new Action(() => Native.ApplyTaskbarIcon(this)), DispatcherPriority.Background); };   // in case WPF re-applies its own icon after a monitor change
             Loaded += (s, e) => { try { HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc); } catch { } Native.ApplyTaskbarIcon(this); };   // second registration: last-added hooks run first; the icon again once the button exists
             // right-aligned under the menu button, in the window's own coordinates (independent of DPI, monitor position or maximize state)
             menuPopup.CustomPopupPlacementCallback = (size, target, offset) => new[] { new System.Windows.Controls.Primitives.CustomPopupPlacement(new Point(target.Width - size.Width, target.Height + 4), System.Windows.Controls.Primitives.PopupPrimaryAxis.Horizontal) };
@@ -399,6 +399,8 @@ namespace ClassicCartStudio
         //   classiccartstudio://handoff?offer=<id>        a collection the website offered (the existing inbox)
         //   classiccartstudio://package?offer=<id>        a .ccs package the website handed to this computer's backend (staged there)
         //   <path>.ccs                                    a collection package opened from File Explorer (double-click, Open With)
+        //   --check-updates                               the update check, as Check for Updates (CCS Console Workbench started from this
+        //                                                 installation asks for it: Update Classic Cart Studio…)
         // nesstudio:// (earlier releases) is accepted the same way. Every value is validated; nothing in a link is ever run as a command.
         public void OnActivatedFromAnotherInstance(string payload)
         {
@@ -409,6 +411,7 @@ namespace ClassicCartStudio
         void HandleLink(string arg)
         {
             if (string.IsNullOrEmpty(arg)) return;
+            if (arg == "--check-updates") { pendingUpdateCheck = true; App.Log("update check asked for"); DeliverPendingLink(); return; }
             if (arg.EndsWith(".ccs", StringComparison.OrdinalIgnoreCase) && arg.IndexOf("://", StringComparison.Ordinal) < 0)
             {
                 string full = null;
@@ -433,6 +436,7 @@ namespace ClassicCartStudio
         {
             // only once the website page itself has loaded: a link handed to the loading screen would be lost when the page replaces it
             if (!coreReady || !backend.Ready || recoveryShown || !firstPageShown) return;
+            if (pendingUpdateCheck) { pendingUpdateCheck = false; _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsCheckUpdates&&window.__ccsCheckUpdates()"); }
             if (!string.IsNullOrEmpty(pendingLink))
             {
                 var id = pendingLink; pendingLink = null;
@@ -482,41 +486,22 @@ namespace ClassicCartStudio
             settings.X = (int)b.X; settings.Y = (int)b.Y; settings.W = (int)b.Width; settings.H = (int)b.Height; settings.Save();
         }
 
-        // ---- Console Backup & Restore: the native window shared with the CCS Console Backup & Restore Utility (tools/console-backup/CcsBackupUi),
-        // without the Utility's "Get Full Classic Cart Studio" link. One window at a time; it needs no collection, game or console setup.
-        CcsBackup.Ui.BackupWorkspace backupWindow;
+        // ---- CCS Console Workbench: the program installed with Studio (workbench\CCS-Console-Workbench.exe, the same file as the standalone
+        // release), started as its own program in installed mode (WorkbenchLauncher.cs); an open one comes forward instead. It needs no
+        // collection, game or console setup, keeps running when Studio closes, and owns its own close, console tasks and USB driver question.
         internal void OpenConsoleBackup()
         {
             try
             {
-                if (backupWindow != null && backupWindow.IsLoaded) { if (backupWindow.WindowState == WindowState.Minimized) backupWindow.WindowState = WindowState.Normal; backupWindow.Activate(); return; }
-                string notice = null;
-                using (var s = typeof(CcsBackup.Ui.BackupWorkspace).Assembly.GetManifestResourceStream("NOTICE")) if (s != null) using (var r = new StreamReader(s)) notice = r.ReadToEnd();
-                var opt = new CcsBackup.Ui.WorkspaceOptions
-                {
-                    HostedInFullApp = true, ProductName = "Classic Cart Studio", Version = App.Version, NoticeText = notice,
-                    WorkerExe = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName,
-                    SimulatedConsole = App.SimulatedConsoleArg(startupArgs), SettingsPath = App.BackupSettingsArg(startupArgs),
-                    PreparedHomePackage = System.IO.Path.Combine(App.DataRoot, "native-home", "current"),   // HOME Designer's preview with the person's own games
-                };
-                try { var b = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/CcsBackupUi;component/brand-wordmark.png")); b.Freeze(); opt.Wordmark = b; } catch { }
-                opt.AppIcon = Icon;
-                backupWindow = new CcsBackup.Ui.BackupWorkspace(opt, this);
-                backupWindow.Closed += (s, e) => backupWindow = null;
-                backupWindow.Show(); App.Log("console backup: window opened");
+                var problem = WorkbenchLauncher.Open(startupArgs);
+                if (problem != null) { App.Log("console workbench: " + problem); MessageDialog.Show(this, "CCS Console Workbench", problem, WorkbenchLauncher.ExePath); }
             }
-            catch (Exception ex) { App.Log("console backup failed: " + ex); MessageDialog.Show(this, "CCS Console Workbench", "CCS Console Workbench could not open. Try again.", ex.Message); }
+            catch (Exception ex) { App.Log("console workbench failed: " + ex); MessageDialog.Show(this, "CCS Console Workbench", "CCS Console Workbench could not open. Try again. If it happens again, run the Classic Cart Studio installer again to repair it; your collections, backups and settings are kept.", ex.Message); }
         }
 
         void OnClosingWindow(object sender, System.ComponentModel.CancelEventArgs e)
         {
             if (closing) return;
-            if (!exitConfirmed && backupWindow != null && backupWindow.Busy)
-            {
-                e.Cancel = true; App.Log("close asked while CCS Console Workbench is working");
-                Dispatcher.BeginInvoke(new Action(() => { if (PlayerBridge.Ask(this, "Close Classic Cart Studio?", "CCS Console Workbench is working with your console. If you close Classic Cart Studio, a backup stops (nothing on the console changes) and a restore stops after the part being written is finished and checked.", "Keep Studio Open", "Close Studio")) { exitConfirmed = true; Close(); } }));
-                return;
-            }
             // F6 (D-91): the games and HOME this window owns close with it, after asking (Cancel is the default)
             if (!exitConfirmed && bridge != null && bridge.Active)
             {
@@ -528,13 +513,6 @@ namespace ClassicCartStudio
             {
                 e.Cancel = true;
                 Dispatcher.BeginInvoke(new Action(() => { if (PlayerBridge.Ask(this, "Close Classic Cart Studio?", "A game window from Classic Cart Studio is open. Closing Classic Cart Studio closes it too: it writes the game's own cartridge save and ends. Anything you have not saved to a save slot is lost.", "Keep Studio Open", "Close Studio")) { exitConfirmed = true; Close(); } }));
-                return;
-            }
-            // a USB driver a Workbench window here set up in this run: the same removal question as the standalone Workbench's close
-            if (!driverDecided && CcsBackup.Ui.BackupWorkspace.AppRunDriverPending)
-            {
-                e.Cancel = true;
-                Dispatcher.BeginInvoke(new Action(() => { if (CcsBackup.Ui.BackupWorkspace.DriverAtAppClose(this, App.Version)) { driverDecided = true; Close(); } }));
                 return;
             }
             closing = true; SavePlacement();

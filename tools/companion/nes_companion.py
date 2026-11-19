@@ -42,7 +42,7 @@ import bundle_integrity   # noqa: E402  the installation's integrity (nothing is
 import hakchi_inspect as hi
 import personal as ps
 import console_runs as cr   # console engine runs (simulation tier; Gate G1 closed in code inside the worker)
-from version import VERSION, PROTOCOL, APP_ID, SITE_ORIGINS, SITE_URL
+from version import VERSION, CHANNEL, PROTOCOL, APP_ID, SITE_ORIGINS, SITE_URL
 from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path, art_alias
 
 CFG = hb.load_cfg(); TOKEN = secrets.token_urlsafe(24); ROOT = SITE_ROOT
@@ -356,7 +356,7 @@ class H(http.server.BaseHTTPRequestHandler):
         if not self._host_ok(): return self._json(403, {"ok": False, "error": "forbidden host"})
         if path == "/api/ping": return self._json(200, {"ok": True})
         if path == "/api/version":   # public discovery endpoint: no local paths, no secrets
-            b = self._bearer(); return self._json(200, {"ok": True, "app": APP_ID, "version": VERSION, "protocol": PROTOCOL, "paired": b is not None, "desktop": bool(b and b.get("desktop")), "expires": int(b["expires"]) if b else None, "pair_required": self._cross_site(), "frozen": FROZEN, "capabilities": CAPABILITIES, "handoff_pending": len(HANDOFF) if (b and b.get("desktop")) else None})
+            b = self._bearer(); return self._json(200, {"ok": True, "app": APP_ID, "version": VERSION, "channel": CHANNEL, "protocol": PROTOCOL, "paired": b is not None, "desktop": bool(b and b.get("desktop")), "expires": int(b["expires"]) if b else None, "pair_required": self._cross_site(), "frozen": FROZEN, "capabilities": CAPABILITIES, "handoff_pending": len(HANDOFF) if (b and b.get("desktop")) else None})
         if path.startswith("/api/"):
             if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "Classic Cart Studio for Windows on this computer is older than this website expects. Install the latest version from ClassicCartStudio.com/app.", "protocol": PROTOCOL, "version": VERSION})
             if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "Only Classic Cart Studio for Windows can use this. Open the Windows app on this computer.", "pair_required": True})

@@ -478,7 +478,7 @@ namespace CcsBackup.Compose
             "This file holds a design for CCS HOME: its pictures, layout and appearance settings, and a folder and game-order template.\r\n" +
             "It holds no games, no saves, no console system files and nothing that identifies a console. Games are named by their public\r\n" +
             "catalog entries only; when you apply the design, games you do not have are shown so you can choose a replacement or skip them.\r\n\r\n" +
-            "Open it with HOME Designer in CCS Console Workbench (on its own, or inside Classic Cart Studio for Windows).\r\n" +
+            "Open it with HOME Designer in CCS Console Workbench (on its own, or opened from Classic Cart Studio for Windows).\r\n" +
             "Sharing pictures requires the right to share them; the credits inside name who made them.\r\n";
 
         /// <summary>writes the design as a .ccshome (pictures stored, sorted by fingerprint; the manifest last), checks the written file by

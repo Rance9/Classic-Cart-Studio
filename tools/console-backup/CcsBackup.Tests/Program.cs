@@ -46,6 +46,7 @@ namespace CcsBackup.Tests
                 ("repair", Tests.Repair), ("browser-salvage", Tests.BrowserSalvage), ("browser-nested", Tests.BrowserNested), ("browser-system", Tests.BrowserSystem), ("browser-owner-system", Tests.BrowserOwnerSystem), ("supply", Tests.Supply),
                 ("parity", Tests.ParityRuns),
                 ("designer", Tests.Designer),
+                ("updates", Tests.Updates),
             };
             foreach (var g in groups)
             {

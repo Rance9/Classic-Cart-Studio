@@ -24,16 +24,8 @@ namespace ClassicCartStudio
                 if (a == "--version") { Console.WriteLine(App.Version); return 0; }
             }
             if (Array.IndexOf(args, "--selftest") >= 0) return SelfTest.Run();
-            // the shared engine this program loads (the files beside it) and its recovery images; the release build compares it with the Utility's
-            if (Array.IndexOf(args, "--engine-info") >= 0) { Console.Write(CcsBackup.Engine.ComponentReport.Describe(ProductName, App.Version, CcsBackup.Engine.ComponentReport.Beside(AppDomain.CurrentDomain.BaseDirectory))); return 0; }
-            // Console Backup & Restore's controlled worker: this same program, one console operation, before any window or the single-instance
-            // lock (the window that started it is already running); it exits when its operation ends (CcsBackup.Engine.WorkerHost)
-            if (Array.IndexOf(args, CcsBackup.Engine.WorkerHost.Flag) >= 0) return CcsBackup.Engine.WorkerHost.Run(args, "classic-cart-studio", "Classic Cart Studio", App.Version);
-            // the Workbench's elevated USB driver step (this program started again by Windows with administrator permission), likewise before
-            // any window or lock; closed in this version by the DriverChanges boundary (CcsBackup/Driver/DriverActionHost.cs)
-            if (Array.IndexOf(args, CcsBackup.Driver.DriverActionHost.Flag) >= 0) return CcsBackup.Driver.DriverActionHost.Run(args);
-            // HOME Designer's one compiler for the package builder (a collection's carried design, compiled exactly as the Workbench does)
-            if (Array.IndexOf(args, CcsBackup.Compose.DesignCompileCli.Flag) >= 0) return CcsBackup.Compose.DesignCompileCli.Run(args);
+            // CCS Console Workbench is its own program installed beside this one (WorkbenchLauncher.cs): its window, its console workers, its USB
+            // driver step and HOME Designer's compiler (the backend runs its --design-compile, Backend.cs) all run there, never in this process
             var rc = Array.IndexOf(args, "--runtime-check");   // before anything else: no window, no data folder, no single-instance lock
             if (rc >= 0) return Runtime.CheckMain(rc + 1 < args.Length ? args[rc + 1] : null);
 

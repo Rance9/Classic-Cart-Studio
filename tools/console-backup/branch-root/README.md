@@ -1,6 +1,6 @@
 # CCS Console Workbench
 
-Current preview: **0.11.3**, aligned with Classic Cart Studio and the shared engine. Earlier previews (0.11.2, 0.11.1, 0.11.0, and 1.0.0, which was not a production release) are superseded and stay available as they were.
+Current preview: **0.11.4**, aligned with Classic Cart Studio and the shared engine; Classic Cart Studio 0.11.4 installs this same program. Earlier previews (0.11.3, 0.11.2, 0.11.1, 0.11.0, and 1.0.0, which was not a production release) are superseded and stay available as they were.
 
 > **Unsigned development preview:** console connections, console writes and driver actions are disabled. PC/offline features are available; real-console and Windows on Arm qualification remain incomplete.
 
@@ -40,9 +40,10 @@ then the managed engine using the app's VERSION, and the single-file x64 and Arm
 See [.github/workflows/workbench-release.yml](.github/workflows/workbench-release.yml) for the complete pinned build steps.
 A Workbench tag names the product version; it never changes the shared engine's assembly version.
 
-The release includes engine-source.zip and available third-party source archives. The app and standalone carry the same four
-managed libraries and console programs; `tools/console-backup/check_shared_engine.py` checks their hashes from both actual hosts.
-The pin proves source identity; the built-host report proves byte identity for the released pair.
+The release includes engine-source.zip and available third-party source archives. Classic Cart Studio for Windows installs this
+same single-file program (byte for byte) and starts it as its own program; `tools/console-backup/check_shared_engine.py` checks the
+bundled copy against the hosts its build made, and the app's `build-info.json` records the bundled files' hashes.
+The pin proves source identity; the hashes prove byte identity for the released pair.
 
 ## Formats
 

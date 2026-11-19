@@ -17,33 +17,33 @@
    "file": "home.png",
    "width": 1090,
    "height": 614,
-   "bytes": 205554,
-   "sha256": "6b763bc20263158e73cd737c8dad1ac9ced252c690ffa209be165c711d3dcf8f",
+   "bytes": 209870,
+   "sha256": "d79051997573378e98f80e3460c8b63259820114960d19b12ad4ee9ce034e6bf",
    "from": "tv-preview.png",
-   "from_sha256": "aa7d430eb935adc0dbaeb3743768913d98c0e677b67dccbe194394cb180ba204",
+   "from_sha256": "f261153cd6f8fbe26f1c4b15aea0d7aa430037b87188910f8c894e30449b1615",
    "crop": [
     56,
     86,
     1146,
     700
    ],
-   "what": "HOME previewed on the PC: the TV area only (the preview's top bar with its close button, the side panels and the on-screen pad left out)"
+   "what": "HOME previewed on the PC in the Featured Shelf theme (the default since November 19, 2026), the selected game over its own game screen: the TV area only (the preview's top bar with its close button, the side panels and the on-screen pad left out)"
   },
   {
    "file": "details.png",
    "width": 1100,
    "height": 733,
-   "bytes": 229012,
-   "sha256": "fbb3733016f32861f3b25ebb4216f5ac86f62ef6dae8c6e500a801196729f582",
+   "bytes": 181798,
+   "sha256": "28609a4a5bfd1c8b332df1c64a9a811c93b10c0521fad1c040c6c9d71e5bd5f9",
    "from": "details.png",
-   "from_sha256": "f530f0b3c491141b5bde363359ad2fe660ba825610987d0c177c3b1049c8f80a",
+   "from_sha256": "8847149ff1dc1fe2b5d566d524b6c9c9e2d453a129f189844777067ba2996804",
    "crop": [
     40,
     40,
     1300,
     880
    ],
-   "what": "Game Details for a catalog game: cover, details, overview and Play (the panel's close button left out)"
+   "what": "Game Details for a catalog game: cover, details, its title screen and gameplay screen, overview and Play (the panel's close button left out)"
   }
  ]
 }

@@ -15,15 +15,30 @@
     <AssemblyTitle>CCS Console Workbench</AssemblyTitle>
     <Company>Rance9 LLC</Company>
     <Copyright>Copyright (C) 2026 Rance9. GPL-3.0-or-later. Independent; not affiliated with Nintendo.</Copyright>
+    <!-- Version: the shared engine's (the release passes Classic Cart Studio's VERSION to every project, so the libraries' bytes never
+         depend on the Workbench's own version). The Workbench product's own version and channel are WORKBENCH-VERSION and
+         WORKBENCH-CHANNEL beside this folder (a release may pass -p:CcsWorkbenchVersion / -p:CcsWorkbenchChannel), recorded in this program
+         only (AssemblyMetadata WorkbenchVersion / WorkbenchChannel, and its file version): the window title, About, Credits, the version option
+         and the update check use them (Program.Version / Program.Channel) -->
     <Version>1.0.0</Version>
-    <FileVersion>$(Version)</FileVersion>
-    <InformationalVersion>$(Version)</InformationalVersion>
+    <CcsWorkbenchVersion Condition="'$(CcsWorkbenchVersion)' == ''">$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\WORKBENCH-VERSION').Trim())</CcsWorkbenchVersion>
+    <CcsWorkbenchChannel Condition="'$(CcsWorkbenchChannel)' == ''">$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\WORKBENCH-CHANNEL').Trim())</CcsWorkbenchChannel>
+    <FileVersion>$(CcsWorkbenchVersion)</FileVersion>
+    <InformationalVersion>$(CcsWorkbenchVersion)</InformationalVersion>
     <ApplicationIcon>..\..\publish\assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <StartupObject>CcsBackup.Utility.Program</StartupObject>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
+  <Target Name="CcsCheckWorkbenchIdentity" BeforeTargets="CoreCompile">
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(CcsWorkbenchVersion)', '^\d{1,4}\.\d{1,4}\.\d{1,4}$'))" Text="WORKBENCH-VERSION must be a plain version N.N.N (it is '$(CcsWorkbenchVersion)')" />
+    <Error Condition="'$(CcsWorkbenchChannel)' != 'preview' And '$(CcsWorkbenchChannel)' != 'production'" Text="WORKBENCH-CHANNEL must be preview or production (it is '$(CcsWorkbenchChannel)')" />
+  </Target>
+  <ItemGroup>
+    <AssemblyMetadata Include="WorkbenchVersion" Value="$(CcsWorkbenchVersion)" />
+    <AssemblyMetadata Include="WorkbenchChannel" Value="$(CcsWorkbenchChannel)" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CcsBackupUi\CcsBackupUi.csproj" />
     <ProjectReference Include="..\CcsBackup\CcsBackup.csproj" />

@@ -83,9 +83,9 @@
   "name": "details",
   "size": [
    1400,
-   912
+   1066
   ],
-  "bytes": 232275
+  "bytes": 215455
  },
  {
   "name": "game-settings",
@@ -125,7 +125,7 @@
    1600,
    900
   ],
-  "bytes": 284501
+  "bytes": 336179
  },
  {
   "name": "tv-pad",
@@ -141,7 +141,7 @@
    680,
    1408
   ],
-  "bytes": 95970
+  "bytes": 96153
  },
  {
   "name": "tv-themes",
@@ -149,7 +149,7 @@
    1400,
    788
   ],
-  "bytes": 162869
+  "bytes": 292087
  },
  {
   "name": "tv-search",
@@ -157,7 +157,7 @@
    1400,
    788
   ],
-  "bytes": 141107
+  "bytes": 255469
  },
  {
   "name": "desktop-invitation",
@@ -221,7 +221,7 @@
    1400,
    788
   ],
-  "bytes": 368932
+  "bytes": 329237
  },
  {
   "name": "phone-toolbar",

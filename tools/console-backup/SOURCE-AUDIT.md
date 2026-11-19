@@ -46,9 +46,10 @@ Release gates are in section 11.
 ## 1. Scope: what carries these binaries
 
 Both products embed the same five console programs: `CcsBackup.dll` carries them as resources (`CcsBackup.csproj`, `EmbeddedResource
-Include="$(CcsRamImages)\ccs-*\*"`), the standalone `CCS-Console-Workbench.exe` embeds `CcsBackup.dll`, and Classic Cart Studio for
-Windows installs it beside its host (`release.yml`, "Build Classic Cart Studio for Windows"). **Whatever any one console program carries,
-both products carry.** **verified** (project files and workflow).
+Include="$(CcsRamImages)\ccs-*\*"`), the standalone `CCS-Console-Workbench.exe` embeds `CcsBackup.dll`, and since 0.11.4 Classic Cart
+Studio for Windows installs that same single-file program (byte for byte, x64 or Arm64) as `workbench\CCS-Console-Workbench.exe`
+(`release.yml`, "The bundled Workbench"). **Whatever any one console program carries, both products carry.** **verified** (project files
+and workflow).
 
 | Carrier | Contents | In the standalone | In the app | Evidence |
 |---|---|---|---|---|
@@ -56,8 +57,8 @@ both products carry.** **verified** (project files and workflow).
 | `ccs-prepare` only | every file of the pinned `hakchi.hmod` except `install`/`uninstall` under `/ccs/prep/hmod/` (118 kernel modules, the Realtek firmware, `boot/boot.img`, `boot/uboot.bin`, `bin/*`, `lib/*`), CCS's `ccsprep`, `ccsboot` and the CCS Mod/Nucleus packages | yes | yes | **verified**: MANIFEST; section 7 shows what preparation **installs on the console** |
 | `ccs-rescue` | adds `ccsrescue` and `ccsboot` | yes | yes | **verified** |
 | CCS Mod / CCS Nucleus packages | CCS's own scripts and pictures only (section 3.20) | yes (inside `ccs-prepare`) | yes | **verified** |
-| Windows engine | FelLib-derived C# (`CcsConsole.dll`), `LibUsbDotNet.LibUsbDotNet.dll` | embedded | installed beside the host | **verified** |
-| Standalone native host | par2cmdline 1.4.0 (libpar2), the HOME renderer with stb_image, the mingw-w64 runtime, compiler-rt, libc++ | yes | `ccs-par2.dll` only | `NOTICE` |
+| Windows engine | FelLib-derived C# (`CcsConsole.dll`), `LibUsbDotNet.LibUsbDotNet.dll` | embedded | embedded (the same program, installed in `workbench\`) | **verified** |
+| Standalone native host | par2cmdline 1.4.0 (libpar2), the HOME renderer with stb_image, the mingw-w64 runtime, compiler-rt, libc++ | yes | yes (the same program) | `NOTICE` |
 | **Z**: `hakchi2-ce-3.9.3-portable.zip`, unmodified, in `_internal\packages` | Hakchi2 CE's program and every prebuilt file it ships, including `basehmods.tar` (with the same `hakchi.hmod`), `hakchi.exe` (with fes1 as a resource), `tools/arm/*.static`, `tools/mksquashfs`, `user_mods/*.hmod`, `driver/classic_driver.exe`, `data/*.tar` | **no** | yes | **verified**: `release.yml` fetch step; zip listing (section 3.21) |
 | **A**: `hakchi2-ce-3.9.3-source.tar.gz` (`dc6e6a47…5038`), attached to each app release | Hakchi2 CE tag v3.9.3 with its submodules (its own `SOURCE-MANIFEST.txt`) | no | attached to the release | **verified**: hashed the local copy; listing (section 2) |
 | Console transport worker (app only) | its own build of `CcsBackup.dll` **without** the console programs | no | yes | `tools/console-worker/SOURCE.md` |

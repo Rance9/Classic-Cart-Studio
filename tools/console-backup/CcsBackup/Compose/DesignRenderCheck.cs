@@ -47,6 +47,9 @@ namespace CcsBackup.Compose
         public string WorkDir;                 // an empty folder the check may write into (created; removed afterwards unless KeepWork)
         public bool Frames = true, DefaultFrames, KeepWork;
         public CancellationToken Cancel;
+        /// <summary>which drawn screens to keep in the result (theme, state, drawn with the design); null keeps every one. The check itself,
+        /// its report and its verdict are the same either way: only the pictures handed back are fewer.</summary>
+        public Func<string, string, bool, bool> KeepFrame;
     }
 
     public sealed class RenderCheckResult
@@ -100,6 +103,51 @@ namespace CcsBackup.Compose
         RenderCheckResult Check(string packDir, string designDir, RenderCheckOptions options);
     }
 
+    /// <summary>The HOME as the console starts it (ccs_home_design_boot, the same native code as the render check): its design store is
+    /// read the way the console reads ccs/data/home-design (current, then known-good) and its first screen is drawn. HOME Designer's
+    /// preview: one screen, quickly, on this PC. Ok with Source "current": the HOME used the design it was given; any other source means it
+    /// set the design aside (Why says why) and the frame shows something else, so it is never the design's picture.</summary>
+    public sealed class HomeBootResult
+    {
+        public bool Ok; public string Source, DesignId, Theme, FrameSha256, Why, Report; public RenderFrame Frame;
+        public bool UsedDesign => Ok && Source == "current" && Frame != null;
+        internal static HomeBootResult FromReport(string json)
+        {
+            var d = Json.Parse(json);
+            if (d.S("schema") != "ccs-home-design-boot/1") throw new ComposeException("render.report", "The HOME renderer did not answer with a start report.");
+            return new HomeBootResult { Report = json, Ok = d.B("ok"), Source = d.S("source"), DesignId = d.S("design"), Theme = d.S("theme"), FrameSha256 = d.S("frame_sha256"), Why = d.S("why") ?? d.S("error") };
+        }
+    }
+
+    public static class HomeBoot
+    {
+        /// <summary>puts a compiled design into designRoot the way the console keeps it (d/&lt;id&gt;/ and the "current" pointer) and removes
+        /// any other design kept there; designRoot is a folder of this program's own (never a console's)</summary>
+        public static void Place(CompiledDesign c, string designRoot)
+        {
+            var d = Path.Combine(designRoot, "d"); Directory.CreateDirectory(d);
+            foreach (var old in Directory.GetDirectories(d)) if (!string.Equals(Path.GetFileName(old), c.Id, StringComparison.Ordinal)) Directory.Delete(old, true);
+            var mine = Path.Combine(d, c.Id); if (!Directory.Exists(mine)) c.WriteTo(mine);
+            File.WriteAllText(Path.Combine(designRoot, "current"), c.Id + "\n", new UTF8Encoding(false));
+        }
+
+        /// <summary>the HOME's first screen as it starts with designRoot's design (Place). workDir: an empty folder for the HOME's own state
+        /// and the frame (created; removed afterwards). The renderer is the same one the render check uses.</summary>
+        public static HomeBootResult Draw(IHomeRenderer renderer, string packDir, string designRoot, string workDir)
+        {
+            if (renderer is HomeRenderNative n) return n.Boot(packDir, designRoot, workDir);
+            if (renderer is ProcessHomeRenderer p) return p.Boot(packDir, designRoot, workDir);
+            throw new ComposeException("render.boot", "This HOME renderer cannot draw the HOME as it starts.");
+        }
+
+        internal static HomeBootResult Finish(string report, string frame)
+        {
+            var r = HomeBootResult.FromReport(report);
+            if (r.Ok && File.Exists(frame)) { var (w, h, rgb) = ProcessHomeRenderer.ReadRgb(frame); r.Frame = new RenderFrame { Theme = r.Theme, State = "start", WithDesign = r.Source == "current", Width = w, Height = h, Rgb = rgb }; }
+            return r;
+        }
+    }
+
     /// <summary>the native HOME as a process: ccs-sim-core.exe --render-check (Classic Cart Studio for Windows' native/ccs-sim-core.exe)</summary>
     public sealed class ProcessHomeRenderer : IHomeRenderer
     {
@@ -129,22 +177,59 @@ namespace CcsBackup.Compose
                 var line = output.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("{"));
                 if (line == null) throw new ComposeException("render.failed", "The console HOME renderer stopped without a report (status " + code + ")" + (err.Length > 0 ? ": " + Display.Line(err, 200) : "."));
                 var r = RenderCheckResult.FromReport(line, Name);
-                foreach (var f in Directory.EnumerateFiles(frames, "*.ppm").OrderBy(x => x, StringComparer.Ordinal)) r.Frames.Add(ReadPpm(f));
+                foreach (var f in Directory.EnumerateFiles(frames, "*.ppm").OrderBy(x => x, StringComparer.Ordinal))
+                {
+                    var (ft, fs, fw) = FrameName(f);
+                    if (o.KeepFrame == null || o.KeepFrame(ft, fs, fw)) r.Frames.Add(ReadPpm(f));
+                }
                 return r;
             }
             finally { if (!o.KeepWork && o.WorkDir == null) try { Directory.Delete(work, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
         }
         static string Q(string s) => "\"" + s.TrimEnd('\\') + "\"";
-        internal static RenderFrame ReadPpm(string path)
+
+        /// <summary>ccs-sim-core.exe --design-boot (HomeBoot.Draw)</summary>
+        public HomeBootResult Boot(string packDir, string designRoot, string workDir)
+        {
+            if (!File.Exists(Exe)) throw new ComposeException("render.missing", "The console HOME renderer is not installed (" + Path.GetFileName(Exe) + ").");
+            Directory.CreateDirectory(workDir); var frame = Path.Combine(workDir, "start.ppm"); var state = Path.Combine(workDir, "state"); Directory.CreateDirectory(state);
+            var args = "--design-boot --pack " + Q(packDir) + " --work " + Q(state) + (designRoot != null ? " --design-root " + Q(designRoot) : "") + " --frame " + Q(frame);
+            var psi = new ProcessStartInfo(Exe, args) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, StandardOutputEncoding = new UTF8Encoding(false) };
+            string output, err; int code;
+            using (var p = Process.Start(psi))
+            {
+                var ot = p.StandardOutput.ReadToEndAsync(); var et = p.StandardError.ReadToEndAsync();
+                if (!p.WaitForExit(120000)) { try { p.Kill(); } catch (InvalidOperationException) { } throw new ComposeException("render.failed", "The console HOME renderer did not finish drawing."); }
+                output = ot.Result; err = et.Result; code = p.ExitCode;
+            }
+            var line = output.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("{"));
+            if (line == null) throw new ComposeException("render.failed", "The console HOME renderer stopped without a report (status " + code + ")" + (err.Length > 0 ? ": " + Display.Line(err, 200) : "."));
+            return HomeBoot.Finish(line, frame);
+        }
+
+        internal static (int w, int h, byte[] rgb) ReadRgb(string path)
         {
             var b = File.ReadAllBytes(path); int p = 0;
             string Tok() { while (p < b.Length && char.IsWhiteSpace((char)b[p])) p++; int s = p; while (p < b.Length && !char.IsWhiteSpace((char)b[p])) p++; return Encoding.ASCII.GetString(b, s, p - s); }
             if (Tok() != "P6") throw new IOException("not a PPM frame: " + path);
             int w = int.Parse(Tok(), CultureInfo.InvariantCulture), h = int.Parse(Tok(), CultureInfo.InvariantCulture); Tok(); p++;
+            if (w <= 0 || h <= 0 || (long)w * h * 3 > b.Length - p) throw new IOException("a damaged PPM frame: " + path);
             var rgb = new byte[w * h * 3]; Buffer.BlockCopy(b, p, rgb, 0, rgb.Length);
+            return (w, h, rgb);
+        }
+
+        /// <summary>a frame file's theme, state and whether it was drawn with the design, from its name (with-|without-THEME-STATE.ppm)</summary>
+        static (string theme, string state, bool with) FrameName(string path)
+        {
             var name = Path.GetFileNameWithoutExtension(path); bool with = name.StartsWith("with-"); var rest = name.Substring(with ? 5 : 8);
             string theme = new[] { "arcade-grid", "box-art-showcase", "featured-shelf", "adventure-map" }.FirstOrDefault(t => rest.StartsWith(t + "-")) ?? "startup";
-            return new RenderFrame { Theme = theme, State = theme == "startup" ? "startup" : rest.Substring(theme.Length + 1), WithDesign = with, Width = w, Height = h, Rgb = rgb };
+            return (theme, theme == "startup" ? "startup" : rest.Substring(theme.Length + 1), with);
+        }
+
+        internal static RenderFrame ReadPpm(string path)
+        {
+            var (w, h, rgb) = ReadRgb(path); var (theme, state, with) = FrameName(path);
+            return new RenderFrame { Theme = theme, State = state, WithDesign = with, Width = w, Height = h, Rgb = rgb };
         }
     }
 
@@ -157,38 +242,74 @@ namespace CcsBackup.Compose
         public const uint MinAbiVersion = 2;
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int FrameFn(IntPtr ctx, IntPtr theme, IntPtr state, int withDesign, IntPtr rgb, int w, int h);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int CheckFn(IntPtr request, IntPtr report, uint cap, out uint len);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int BootFn(IntPtr pack, IntPtr designRoot, IntPtr stateDir, IntPtr framePpm, IntPtr report, uint cap, out uint len);
         [StructLayout(LayoutKind.Sequential)]
         struct Request { public uint size, flags; public IntPtr pack, design, work, frames, onFrame, ctx, cancel; }
-        static readonly Lazy<(CheckFn fn, string why)> abi = new Lazy<(CheckFn, string)>(Find, LazyThreadSafetyMode.ExecutionAndPublication);
+        static readonly Lazy<(CheckFn fn, BootFn boot, string why)> abi = new Lazy<(CheckFn, BootFn, string)>(Find, LazyThreadSafetyMode.ExecutionAndPublication);
+        /// <summary>the native HOME code keeps process-wide drawing state (its scale, clock and text probes): one call at a time</summary>
+        static readonly object Gate = new object();
         public static bool Available => abi.Value.fn != null;
         public static string UnavailableReason => abi.Value.why;
         public string Name => "native host";
 
-        static (CheckFn, string) Find()
+        static (CheckFn, BootFn, string) Find()
         {
             const string not = "The HOME render check runs inside the standalone CCS Console Workbench, or through Classic Cart Studio's own HOME renderer.";
             object d = null; try { d = AppDomain.CurrentDomain.GetData(AbiDataName); } catch { }
-            if (!(d is long address) || address == 0) return (null, not);
+            if (!(d is long address) || address == 0) return (null, null, not);
             var t = new IntPtr(address); int p = IntPtr.Size;
             try
             {
-                if ((ulong)Marshal.ReadInt64(t, 0) != Magic || (uint)Marshal.ReadInt32(t, 8) < MinAbiVersion) return (null, not + " (this host has no HOME renderer)");
+                if ((ulong)Marshal.ReadInt64(t, 0) != Magic || (uint)Marshal.ReadInt32(t, 8) < MinAbiVersion) return (null, null, not + " (this host has no HOME renderer)");
                 int v1 = 24 + 6 * p, slot = v1 + 8;   // version 2: home_check_abi u32, reserved u32, then home_render_check, home_design_boot
-                if ((uint)Marshal.ReadInt32(t, 12) < slot + 2 * p || (uint)Marshal.ReadInt32(t, v1) != 1) return (null, not + " (this host's HOME renderer interface differs)");
-                var f = Marshal.ReadIntPtr(t, slot); if (f == IntPtr.Zero) return (null, not + " (this host was built without the HOME renderer)");
-                return ((CheckFn)Marshal.GetDelegateForFunctionPointer(f, typeof(CheckFn)), null);
+                if ((uint)Marshal.ReadInt32(t, 12) < slot + 2 * p || (uint)Marshal.ReadInt32(t, v1) != 1) return (null, null, not + " (this host's HOME renderer interface differs)");
+                var f = Marshal.ReadIntPtr(t, slot); if (f == IntPtr.Zero) return (null, null, not + " (this host was built without the HOME renderer)");
+                var b = Marshal.ReadIntPtr(t, slot + p);
+                return ((CheckFn)Marshal.GetDelegateForFunctionPointer(f, typeof(CheckFn)), b == IntPtr.Zero ? null : (BootFn)Marshal.GetDelegateForFunctionPointer(b, typeof(BootFn)), null);
             }
-            catch (Exception ex) { return (null, not + " (" + ex.GetType().Name + ")"); }
+            catch (Exception ex) { return (null, null, not + " (" + ex.GetType().Name + ")"); }
+        }
+
+        /// <summary>home_design_boot in the host's ABI table (HomeBoot.Draw)</summary>
+        public HomeBootResult Boot(string packDir, string designRoot, string workDir)
+        {
+            var a = abi.Value; if (a.boot == null) throw new ComposeException("render.not-hosted", a.why ?? "This host's HOME renderer cannot draw the HOME as it starts.");
+            Directory.CreateDirectory(workDir); var frame = Path.Combine(workDir, "start.ppm"); var state = Path.Combine(workDir, "state"); Directory.CreateDirectory(state);
+            var handles = new List<IntPtr>(); IntPtr Utf8(string s) { if (s == null) return IntPtr.Zero; var b = Encoding.UTF8.GetBytes(s + "\0"); var h = Marshal.AllocHGlobal(b.Length); Marshal.Copy(b, 0, h, b.Length); handles.Add(h); return h; }
+            try
+            {
+                lock (Gate)
+                {
+                    uint cap = 64u << 10; var rep = Marshal.AllocHGlobal((int)cap); handles.Add(rep);
+                    IntPtr pk = Utf8(packDir), root = Utf8(designRoot), st = Utf8(state), fr = Utf8(frame);
+                    int rc = a.boot(pk, root, st, fr, rep, cap, out var len);
+                    if (rc == 3) { cap = len + 1; rep = Marshal.AllocHGlobal((int)cap); handles.Add(rep); rc = a.boot(pk, root, st, fr, rep, cap, out len); }
+                    if (len == 0 || len >= cap) throw new ComposeException("render.failed", "The console HOME renderer stopped without a report (status " + rc + ").");
+                    var bytes = new byte[len]; Marshal.Copy(rep, bytes, 0, (int)len);
+                    return HomeBoot.Finish(Encoding.UTF8.GetString(bytes), frame);
+                }
+            }
+            finally { foreach (var h in handles) Marshal.FreeHGlobal(h); }
         }
 
         public RenderCheckResult Check(string packDir, string designDir, RenderCheckOptions o)
+        {
+            lock (Gate) return CheckOnce(packDir, designDir, o);
+        }
+
+        RenderCheckResult CheckOnce(string packDir, string designDir, RenderCheckOptions o)
         {
             o = o ?? new RenderCheckOptions(); var a = abi.Value; if (a.fn == null) throw new ComposeException("render.not-hosted", a.why);
             var work = o.WorkDir ?? Path.Combine(Path.GetTempPath(), "ccs-render-check-" + Guid.NewGuid().ToString("N").Substring(0, 8)); Directory.CreateDirectory(work);
             var frames = new List<RenderFrame>(); var handles = new List<IntPtr>(); IntPtr Utf8(string s) { if (s == null) return IntPtr.Zero; var b = Encoding.UTF8.GetBytes(s + "\0"); var h = Marshal.AllocHGlobal(b.Length); Marshal.Copy(b, 0, h, b.Length); handles.Add(h); return h; }
             FrameFn cb = (ctx, th, st, with, rgb, w, h) =>
             {
-                try { var px = new byte[w * h * 3]; Marshal.Copy(rgb, px, 0, px.Length); frames.Add(new RenderFrame { Theme = Marshal.PtrToStringAnsi(th), State = Marshal.PtrToStringAnsi(st), WithDesign = with != 0, Width = w, Height = h, Rgb = px }); return o.Cancel.IsCancellationRequested ? 1 : 0; }
+                try
+                {
+                    string theme = Marshal.PtrToStringAnsi(th), state = Marshal.PtrToStringAnsi(st);
+                    if (o.KeepFrame == null || o.KeepFrame(theme, state, with != 0)) { var px = new byte[w * h * 3]; Marshal.Copy(rgb, px, 0, px.Length); frames.Add(new RenderFrame { Theme = theme, State = state, WithDesign = with != 0, Width = w, Height = h, Rgb = px }); }
+                    return o.Cancel.IsCancellationRequested ? 1 : 0;
+                }
                 catch { return 1; }
             };
             var cancel = Marshal.AllocHGlobal(4); Marshal.WriteInt32(cancel, 0); handles.Add(cancel);

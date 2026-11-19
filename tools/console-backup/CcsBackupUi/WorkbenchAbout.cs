@@ -2,11 +2,13 @@
 // CCS Console Workbench: About This Console (one modal window, opened from the console strip, the Dashboard and Help), the console family
 // catalog's information (ConsoleInfo: shared with Help), the one guarded way the window's console family changes (ApplyProfile), and the
 // window's own small dialogs (Ask) and owned windows (Owned).
-//   About This Console   its own console choice starts on the window's family. Choosing another one only changes what the modal shows: the
-//                        window's family, its settings, a console session and every operation stay as they are. On every way of closing
-//                        it (Close, the title bar's X, Escape) a different final choice asks "Use [new] in Workbench, or keep [original]?"
-//                        (Use, Keep, Continue Browsing); the same choice as at the start (also after browsing away and back) just closes.
-//                        Nothing chosen inside it is saved unless Use applies it.
+//   About This Console   console Help, whatever opened it. Its labeled console choice starts on the window's family; choosing another one
+//                        only changes what it shows (a reading draft): the window's family, its settings, a console session and every
+//                        operation stay as they are. On every way of closing it (Close, the title bar's X, Escape) a different final
+//                        choice asks one compact question, Change console? (WB-UX-10): the current console once, a Use console choice
+//                        list starting on Help's choice, and Use Selection, Keep Current, Back to Help (Escape and its X are Back to
+//                        Help). The same choice as at the start (also after browsing away and back) just closes. Nothing chosen inside
+//                        it is saved unless Use Selection applies it, through ApplyProfile.
 // A console family is never a console: choosing one never connects to, identifies or checks a console, never relabels a console a session
 // identified, and never makes the engine accept a console, a backup or a firmware it would otherwise refuse.
 using System;
@@ -42,6 +44,9 @@ namespace CcsBackup.Ui
             return chosen;
         }
 
+        /// <summary>a notice in the Workbench's own look (one OK button), in place of a Windows message box</summary>
+        internal void Tell(string title, string body, Window owner = null) => Ask(title, body, new[] { "OK" }, 0, 0, owner);
+
         /// <summary>a window owned by this one (or by owner), in the Workbench's look: its resources, its dark title bar, Escape closes it</summary>
         internal Window Owned(string title, double width, bool resizable, Window owner = null)
         {
@@ -55,8 +60,9 @@ namespace CcsBackup.Ui
             foreach (var md in Resources.MergedDictionaries) w.Resources.MergedDictionaries.Add(md);
             foreach (var k in Resources.Keys) w.Resources[k] = Resources[k];   // the Workbench's own derived styles (DeriveStyles)
             TextOptions.SetTextFormattingMode(w, TextFormattingMode.Ideal);
-            w.SourceInitialized += (s, e) => Dark(w); NewTermScope(w); w.Deactivated += (s, e) => DropHover();
-            w.PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape && !e.Handled) { e.Handled = true; if (!CloseTerm(true)) w.Close(); } };
+            w.SourceInitialized += (s, e) => WindowFrame.Prepare(w); NewTermScope(w); w.Deactivated += (s, e) => DropHover();
+            // Escape closes the window, except while a choice list is open (Escape closes the list first, as everywhere in Windows)
+            w.PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape && !e.Handled && !(Keyboard.FocusedElement is ComboBoxItem)) { e.Handled = true; if (!CloseTerm(true)) w.Close(); } };
             return w;
         }
 
@@ -119,9 +125,8 @@ namespace CcsBackup.Ui
             var root = new DockPanel { Margin = new Thickness(24, 18, 24, 16) };
             var head = new StackPanel(); DockPanel.SetDock(head, Dock.Top);
             head.Children.Add(T("About This Console", 20, true, false, new Thickness(0, 0, 0, 10)));
-            var pick = new ComboBox { MinWidth = 300 };
-            foreach (var p in ConsoleProfile.Supported) pick.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
-            pick.SelectedIndex = Math.Max(0, ConsoleProfile.Supported.ToList().IndexOf(entry));
+            var pick = ConsoleChoiceList(entry);
+            if (pick.SelectedIndex < 0) pick.SelectedIndex = 0;
             AutomationProperties.SetName(pick, "Console to read about");
             head.Children.Add(Field("Console to read about", pick, null, 640));
             var problem = new ContentControl(); head.Children.Add(problem);
@@ -146,16 +151,67 @@ namespace CcsBackup.Ui
             w.Closing += (s, e) =>
             {
                 if (draft == entry || draft == profile) return;   // the same as at the start (or already the window's): just close
-                int k = Ask("Use " + draft.Name + "?", "Use " + draft.Name + " in Workbench, or keep " + entry.Name + "?\n\nChoosing a console only sets the names and steps Workbench uses. It does not connect to or check a console.",
-                            new[] { "Use " + draft.Name, "Keep " + entry.Name, "Continue Browsing" }, 0, 2, w);
-                if (k == 1) return;                                      // Keep: close; nothing changes
-                if (k != 0) { e.Cancel = true; return; }                  // Continue Browsing, or the question closed: stay, with the draft
+                var (k, use) = ChangeConsole(draft, w);
+                if (k == ChangeKeep) return;                              // Keep Current: close; nothing changes
+                if (k != ChangeUse) { e.Cancel = true; return; }          // Back to Help (also Escape and the question's X): stay, with the draft
+                if (use == null || use == profile) return;                // Use Selection on the console Workbench already uses: nothing to change
                 var why = ProfileBlocked();
                 if (why != null) { e.Cancel = true; problem.Content = Note(why, "warn"); return; }
-                onUse(draft);                                             // Use: applied once the window has closed (ApplyProfile)
+                onUse(use);                                               // Use Selection: applied once the window has closed (ApplyProfile)
             };
             w.Loaded += (s, e) => pick.Focus();
             return w;
+        }
+
+        // ------------------------------------------------------------------ Change console? (WB-UX-10)
+        internal const int ChangeUse = 0, ChangeKeep = 1, ChangeBack = 2;
+        /// <summary>a test can answer Change console? (the console Workbench uses, Help's choice) → (the button: ChangeUse, ChangeKeep or
+        /// ChangeBack, and the console chosen in its Use console list)</summary>
+#pragma warning disable CS0649   // set only by tests
+        internal static Func<ConsoleProfile, ConsoleProfile, (int, ConsoleProfile)> ChangeConsoleHook;
+#pragma warning restore CS0649
+
+        /// <summary>the question when console Help closes on a different console than the window's: (the button, the console its Use console
+        /// list holds). Escape and its X are Back to Help.</summary>
+        internal (int button, ConsoleProfile use) ChangeConsole(ConsoleProfile draft, Window owner)
+        {
+            if (ChangeConsoleHook != null) return ChangeConsoleHook(profile, draft);
+            int chosen = ChangeBack; ConsoleProfile use = draft;
+            var dlg = ChangeConsoleWindow(draft, owner, (k, p) => { chosen = k; use = p; });
+            Modal(dlg);
+            return (chosen, use);
+        }
+
+        /// <summary>Change console?, not shown yet: why it asks (first), the current console once, a Use console choice list that starts on
+        /// Help's choice and can still be changed, and three short buttons. done(button, console) runs when a button closes it.</summary>
+        internal Window ChangeConsoleWindow(ConsoleProfile draft, Window owner, Action<int, ConsoleProfile> done)
+        {
+            var dlg = Owned("Change console?", 560, false, owner);
+            var sp = new StackPanel { Margin = new Thickness(24, 20, 24, 16) };
+            sp.Children.Add(T("Change console?", 17, true, false, new Thickness(0, 0, 0, 8)));
+            sp.Children.Add(T("You selected a different console in Help. Do you want to use that selection in Workbench?", 13.5, false, false, new Thickness(0, 0, 0, 14)));
+            var g = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var curLabel = new TextBlock { Text = "Current console:", Style = Res<Style>("T.Muted"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 12) };
+            var cur = new TextBlock { Text = profile.Name, FontSize = 13.5, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+            SetNoTerms(cur, true); AutomationProperties.SetName(cur, profile.Name); AutomationProperties.SetLabeledBy(cur, curLabel);
+            Grid.SetColumn(cur, 1); g.Children.Add(curLabel); g.Children.Add(cur);
+            var useLabel = new TextBlock { Text = "Use console:", Style = Res<Style>("T.Muted"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
+            var list = ConsoleChoiceList(draft); list.MinWidth = 0; list.HorizontalAlignment = HorizontalAlignment.Stretch;
+            AutomationProperties.SetName(list, "Use console"); AutomationProperties.SetLabeledBy(list, useLabel);
+            Grid.SetRow(useLabel, 1); Grid.SetRow(list, 1); Grid.SetColumn(list, 1); g.Children.Add(useLabel); g.Children.Add(list);
+            sp.Children.Add(g);
+            ConsoleProfile Chosen() => (list.SelectedItem as ComboBoxItem)?.Tag as ConsoleProfile ?? draft;
+            var row = new WrapPanel();
+            var use = B("Use Selection", "Btn.Primary", () => { done(ChangeUse, Chosen()); dlg.Close(); }); use.IsDefault = true;
+            var keep = B("Keep Current", "Btn", () => { done(ChangeKeep, Chosen()); dlg.Close(); });
+            var back = B("Back to Help", "Btn.Ghost", () => { done(ChangeBack, Chosen()); dlg.Close(); });
+            row.Children.Add(use); row.Children.Add(keep); row.Children.Add(back);
+            sp.Children.Add(row);
+            dlg.Content = sp;
+            dlg.Loaded += (s, e) => list.Focus();
+            return dlg;
         }
 
         // ------------------------------------------------------------------ the one way the window's console family changes

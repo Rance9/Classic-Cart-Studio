@@ -455,7 +455,7 @@ function csCleanDetected(d){ if(!d||typeof d!=='object'||Array.isArray(d)) retur
 // a kept entry read from a package or collection file: known fields only, bounded and checked
 function csCleanMissing(m, id){ m=(m&&typeof m==='object')?m:{}; const hx=v=>/^[0-9a-f]{64}$/.test(v||'')?v:'';
  const o={title:csCleanText(m.title, csLim().title)||String(id).slice(0,120), version:csCleanText(m.version, csLim().version), description:csCleanText(m.description, csLim().description, true), year:csCleanText(m.year, csLim().year), publisher:csCleanText(m.publisher, csLim().publisher),
-  source:['catalog','extended','personal','unknown'].includes(m.source)?m.source:(/^p_/.test(id)?'personal':'unknown'), content_sha256:hx(m.content_sha256), file_sha256:hx(m.file_sha256), payload_sha256:hx(m.payload_sha256), size:csInt(m.size, 4e9)||0, art:/^art\/[0-9a-f]{16}\.jpg$/.test(m.art||'')?m.art:'', thumb_url:csThumbOk(m.thumb_url)};
+  source:['catalog','extended','personal','unknown'].includes(m.source)?m.source:(/^p_/.test(id)?'personal':'unknown'), content_sha256:hx(m.content_sha256), file_sha256:hx(m.file_sha256), payload_sha256:hx(m.payload_sha256), size:csInt(m.size, 4e9)||0, art:/^art\/[0-9a-f]{16}\.jpg$/.test(m.art||'')?csArtAlias(m.art):'', thumb_url:csThumbOk(m.thumb_url)};
  if(m.personal&&typeof m.personal==='object') o.personal=csCleanPersonal(m.personal, id);
  return o; }
 // a package's (or collection's) entry and the selection describing the same game: field by field, the first real description wins
@@ -500,7 +500,9 @@ function csShowPending(){ csPendingList().forEach(([id, x])=>{ const g=byId[id],
   try{ const m=await csReconcilePersonal(); if(m.changed) await _rp.apply(this, arguments); csShowPending(); if(typeof render==='function') render(); }catch(e){} finally{ busy=false; } return r; }; })();
 // a cover's address: catalog box art is part of the site (relative, the same on the website and in the app); other images (personal
 // artwork) are served by the app's backend (artUrl); full URLs and data/blob images as they are
-function ccsArtSrc(p){ p=String(p||''); if(!p) return ''; if(/^(https?:|data:|blob:)/.test(p)||/^art\/[0-9a-f]{16}\.jpg$/.test(p)) return p; return artUrl(p); }
+// a cover kept under another name of the same picture (the built site keeps one file of byte-identical covers: art/aliases.json, in the page)
+function csArtAlias(p){ const A=(typeof DATA!=='undefined'&&DATA&&DATA.art_aliases)||null; return A&&typeof p==='string'&&Object.prototype.hasOwnProperty.call(A,p)?A[p]:p; }
+function ccsArtSrc(p){ p=csArtAlias(String(p||'')); if(!p) return ''; if(/^(https?:|data:|blob:)/.test(p)||/^art\/[0-9a-f]{16}\.jpg$/.test(p)) return p; return artUrl(p); }
 // a kept entry's details as the page uses them: always through csCleanMissing, whatever stored them (an import, a backup, an older
 // version); cached per stored object (entries are replaced, never changed in place)
 function csKept(m, id){ const w=csKept.w=csKept.w||new WeakMap(); let c=w.get(m); if(!c||c.id!==id){ c={id, v:csCleanMissing(m, id)}; w.set(m, c); } return c.v; }

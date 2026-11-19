@@ -22,7 +22,7 @@ namespace ClassicCartStudio
             t.Inlines.Add(new System.Windows.Documents.Run("Classic Cart "));
             t.Inlines.Add(new System.Windows.Documents.Run("Studio") { Foreground = (Brush)Application.Current.FindResource("B.Red3") });
             titles.Children.Add(t);
-            titles.Children.Add(Text("for Windows · version " + App.Version, "T.Muted", 13, new Thickness(0, 2, 0, 0)));
+            titles.Children.Add(Text("for Windows · version " + App.VersionLabel, "T.Muted", 13, new Thickness(0, 2, 0, 0)));
             titles.Children.Add(Text("By Rance9 · Published by Rance9 LLC", "T.Muted", 12, new Thickness(0, 2, 0, 0)));
             head.Children.Add(titles);
             stack.Children.Add(head);
