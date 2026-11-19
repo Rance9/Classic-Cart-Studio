@@ -1,12 +1,14 @@
-/* Featured Shelf (N3): the master's left sidebar, the wide hero (the game's key art with the two-tone Silkscreen lettering), the
- * right information column and the cover shelf. home-themes.js hmShelf / hmHero / hmHeroFit / hmHeroTag + home.css
+/* Featured Shelf (N3): the master's left sidebar, the featured game (the selected game's whole cover with the two-tone Silkscreen
+ * lettering), the right information column and the cover shelf. home-themes.js hmShelf / hmHero / hmHeroFit / hmHeroTag + home.css
  * .hm-featured-shelf, geometry measured on the master (home-art.json featured-shelf).
  *
- * The hero shows the game's own approved key art (Featured Shelf derivative of its hero illustration) or the universal fallback
- * scene; the lettering sits in the art's measured title slot, fitted from 46 px down in 2 px steps (two lines without a widow,
- * else up to three at 30 px or less), the last line red, with the red rule and the year / genre / publisher line under it.
- * Shelf covers are shown whole (N1.1: no cropped box art). Navigation: Left / Right along the shelf; Up, or Left from the
- * first game, into the sidebar (Up / Down there, Right or B back). */
+ * The featured game (owner, November 19: no genre scene on the main HOME of any theme): behind it, the game's own gameplay screen (the
+ * package's snap/, the catalog's game screen) fills the panel, scaled nearest-neighbor so the pixel art stays crisp, and shaded so the
+ * lettering reads; a game without one keeps the theme's own panel (or a HOME design's own background, under a darker glass) under a light
+ * veil. In front, the selected game's whole cover stands at the left with a soft shadow; the lettering beside
+ * it, fitted from 46 px down in 2 px steps (two lines without a widow, else up to three at 30 px or less), the last line red, with the red
+ * rule and the year / genre / publisher line under it. Game Details keeps its own backdrop. Shelf covers are shown whole (N1.1: no cropped
+ * box art). Navigation: Left / Right along the shelf; Up, or Left from the first game, into the sidebar (Up / Down there, Right or B back). */
 #include "home_int.h"
 
 static const char *SIDE_LABEL[6] = { "All Games", "Browse", "Search", "Favorites", "Recent", "Settings" };
@@ -14,13 +16,13 @@ static const char *SIDE_NAME[6] = { "All Games", "Browse", "Search", "Favorites"
 static const char *SIDE_ICON[6] = { "icon-home", "icon-folder", NULL, "icon-star", NULL, "icon-gear" };
 typedef struct {
     box4 plate, hero, label, title, rows[3], text, cells[12], legend; int ncells, pitch, icon_x, text_x, first_y;
-    framebuffer frame; long key; image wide; int wide_game;
+    framebuffer frame; long key; image snap; int snap_game;   /* the selected game's screen at the panel's size (snap_game: whose; -1 none) */
 } shelf;
 #define SH(h) ((shelf *)(h)->tstate)
 static const int HERO_FONTS[14] = { F_SILKH46, F_SILKH44, F_SILKH42, F_SILKH40, F_SILKH38, F_SILKH36, F_SILKH34, F_SILKH32, F_SILKH30, F_SILKH28, F_SILKH26, F_SILKH24, F_SILKH22, F_SILKH20 };
 
 static int sh_init(home *h, char *err, size_t errlen) {
-    shelf *a = calloc(1, sizeof *a); if (!a) { snprintf(err, errlen, "out of memory"); return -1; } h->tstate = a; a->key = -1; a->wide_game = -1;
+    shelf *a = calloc(1, sizeof *a); if (!a) { snprintf(err, errlen, "out of memory"); return -1; } h->tstate = a; a->key = -1; a->snap_game = -1;
     const jval *g = h->geo, *sd = json_get(g, "side"), *hero = json_get(g, "hero"), *info = json_get(g, "info"), *sf = json_get(g, "shelf");
     if (!sd || !hero || !info || !sf || gbox(sd, "plate", &a->plate) || gbox(hero, "inner", &a->hero) || gbox(info, "label", &a->label) || gbox(info, "title", &a->title) || gbox(info, "text", &a->text) || gbox(g, "legend", &a->legend)) { snprintf(err, errlen, "featured-shelf geometry incomplete"); return -1; }
     a->pitch = gnum(sd, "pitch", 52); a->icon_x = gnum(sd, "icon_x", 44); a->text_x = gnum(sd, "text_x", 100); a->first_y = gnum(sd, "first_y", 112);
@@ -33,7 +35,7 @@ static int sh_init(home *h, char *err, size_t errlen) {
     if (fb_init(&a->frame, CCS_FB_W * ccs_scale, CCS_FB_H * ccs_scale)) { snprintf(err, errlen, "out of memory"); return -1; }
     return 0;
 }
-static void sh_fini(home *h) { shelf *a = SH(h); if (!a) return; if (a->frame.rgb) fb_free(&a->frame); img_free(&a->wide); free(a); h->tstate = NULL; }
+static void sh_fini(home *h) { shelf *a = SH(h); if (!a) return; if (a->frame.rgb) fb_free(&a->frame); img_free(&a->snap); free(a); h->tstate = NULL; }
 
 /* ---------- the hero lettering (hmHeroLines / hmHeroFit / hmHeroText / hmHeroTag) ---------- */
 typedef struct { span ln[8]; size_t n; int over; } lines;
@@ -78,33 +80,60 @@ static void hero_letter(framebuffer *fb, home *h, rect clip, int fid, double x, 
     for (int i = 0; i < 4; i++) text_draw(fb, NULL, clip, f, x + OFF[i][0], base + OFF[i][1], s, len, RGBA(0, 255), 1, 0);
     text_draw(fb, NULL, clip, f, x, base, s, len, RGBA(rgb, 255), 1, 0);
 }
+#define HERO_COVER_H .85   /* the cover's box: 85% of the panel's height, NES box proportions (home-themes.js HM_HERO) */
+#define HERO_COVER_AR .72
+#define HERO_LEFT .045
+#define HERO_GAP 30
+/* the game screen over the whole panel, CSS object-fit: cover with image-rendering: pixelated (each panel pixel takes the screen pixel under
+ * its center; the crop is centered) */
+static int snap_cover(const image *src, image *dst, int W, int H) {
+    if (img_alloc(dst, W, H, 3)) return -1;
+    double s = (double)W / src->w > (double)H / src->h ? (double)W / src->w : (double)H / src->h, ox = (src->w * s - W) / 2, oy = (src->h * s - H) / 2;
+    for (int y = 0; y < H; y++) { int sy = (int)((y + .5 + oy) / s); if (sy >= src->h) sy = src->h - 1;
+        for (int x = 0; x < W; x++) { int sx = (int)((x + .5 + ox) / s); if (sx >= src->w) sx = src->w - 1; const uint8_t *q = src->px + ((size_t)sy * src->w + sx) * src->ch; uint8_t *d = dst->px + ((size_t)y * W + x) * 3; d[0] = q[0]; d[1] = q[1]; d[2] = q[2]; } }
+    return 0;
+}
 static void draw_hero(home *h, framebuffer *fb, int gi) {
     shelf *a = SH(h); hgame *g = &h->g[gi]; box4 B = a->hero; int W = B.x1 - B.x0, H = B.y1 - B.y0; rect clip = { B.x0, B.y0, B.x1, B.y1 };
-    gfx_fill(fb, clip, B.x0, B.y0, W, H, RGBA(0x07070A, 255));
-    if (a->wide_game != gi) { img_free(&a->wide); a->wide_game = gi; char p[1200], err[200]; if (g->hero_wide) { snprintf(p, sizeof p, "%s/%s", h->dir, g->hero_wide); if (img_load(p, &a->wide, 0, err, sizeof err)) a->wide.px = NULL; } }
-    if (a->wide.px) { image sc; if (a->wide.w == W && a->wide.h == H) gfx_image(fb, clip, &a->wide, B.x0, B.y0, 255); else if (!img_cover(&a->wide, &sc, W, H)) { img_hi(&a->wide, &sc, 1); gfx_image(fb, clip, &sc, B.x0, B.y0, 255); img_free(&sc); } }
-    stop hz[3] = { { .46, 0x04050C, 0 }, { .66, 0x04050C, .42 }, { 1, 0x04050C, .62 } }, vt[4] = { { 0, 0, .22 }, { .34, 0, 0 }, { .78, 0, 0 }, { 1, 0, .45 } };   /* .shade.art */
-    gfx_gradient(fb, clip, B.x0, B.y0, W, H, 1, vt, 4); gfx_gradient(fb, clip, B.x0, B.y0, W, H, 0, hz, 3);
-    /* the title slot measured on the art (or the master's top right) and the fitted lettering */
-    double tx = g->hero_kind && !strcmp(g->hero_kind, "hero") ? g->ht_x : 0.5, ty = g->hero_kind && !strcmp(g->hero_kind, "hero") ? g->ht_y : 0.09, tw = g->hero_kind && !strcmp(g->hero_kind, "hero") ? g->ht_w : 0; int right = g->hero_kind && !strcmp(g->hero_kind, "hero") && g->ht_right;
-    int lx = iround(W * tx), margin = iround(W * 0.035), lw = (tw > 0 && tw <= 1) ? (iround(W * tw) < W - lx - margin ? iround(W * tw) : W - lx - margin) : W - lx - margin;
-    char title[400]; upper(g->title, title, sizeof title); lines L; int fid = hero_fit(h, title, lw, &L); const font *f = &h->f[fid]; int fs = f->px, lh = iround(fs * 1.18), y0 = iround(H * ty);
+    if (a->snap_game != gi) {   /* the selected game's screen, made once per selection */
+        img_free(&a->snap); a->snap_game = gi; char p[1200], err[200]; image raw;
+        if (g->snap) { snprintf(p, sizeof p, "%s/%s", h->dir, g->snap); if (!img_load(p, &raw, 0, err, sizeof err)) { if (snap_cover(&raw, &a->snap, W, H)) a->snap.px = NULL; img_free(&raw); } }   /* an unreadable screen: the panel, as for a game without one */
+    }
+    if (a->snap.px) {   /* .snapshade: the lettering's side darker, the top and bottom edges darker */
+        static const stop SNAP_VT[4] = { { 0, 0, .25 }, { .25, 0, 0 }, { .70, 0, 0 }, { 1, 0, .45 } }, SNAP_HZ[4] = { { 0, 0x04050C, .40 }, { .34, 0x04050C, .40 }, { .56, 0x04050C, .72 }, { 1, 0x04050C, .80 } };
+        gfx_image(fb, clip, &a->snap, B.x0, B.y0, 255); gfx_gradient(fb, clip, B.x0, B.y0, W, H, 1, SNAP_VT, 4); gfx_gradient(fb, clip, B.x0, B.y0, W, H, 0, SNAP_HZ, 4);
+        LR(h, "hero-screen", B.x0, B.y0, B.x1, B.y1);
+    } else {
+        /* .veil: the theme's own panel shows through; over a HOME design's own background a darker glass, so the lettering stays as readable
+         * as on the theme's panel over any picture (the design check holds a design's text to the theme's own contrast) */
+        int over = h->own_sprites; stop veil[2] = { { 0, 0x04050C, over ? .85 : .18 }, { 1, 0x04050C, over ? .92 : .42 } };
+        gfx_gradient(fb, clip, B.x0, B.y0, W, H, 1, veil, 2);
+    }
+    int ch = iround(H * HERO_COVER_H), cw = iround(ch * HERO_COVER_AR), cx = B.x0 + iround(W * HERO_LEFT), cy = B.y0 + iround((H - ch) / 2.0);
+    {   /* the whole cover, centered in its box, with a soft shadow under it (.hcov img drop-shadow) */
+        int ox, oy; const image *im = cover(h, gi, cw, ch, 1, &ox, &oy); int ax = cx + ox, ay = cy + oy;
+        gfx_shadow(fb, clip, ax, ay + 16, im->w, im->h, 14, RGBA(0, 204)); gfx_image(fb, clip, im, ax, ay, 255);
+        LR(h, "hero-cover", ax, ay, ax + im->w, ay + im->h);
+    }
+    /* the lettering beside the cover, centered in the panel's height (hmHeroText) */
+    int lx = cx + cw + HERO_GAP - B.x0, lw = W - lx - iround(W * 0.035);
+    char title[400]; upper(g->title, title, sizeof title); lines L; int fid = hero_fit(h, title, lw, &L); const font *f = &h->f[fid]; int fs = f->px, lh = iround(fs * 1.18), y0 = iround((H - lh * (double)L.n) / 2 - H * 0.06);
     int X0 = B.x0 + lx, Y0 = B.y0;
-    radial_box(fb, clip, X0 + (right ? -10 : -34), Y0 + y0 - 26, lw + (right ? 10 + 34 : 34 + 30), (int)L.n * lh + 78, 18);
+    radial_box(fb, clip, X0 - 34, Y0 + y0 - 26, lw + 34 + 30, (int)L.n * lh + 78, 18);
     for (size_t i = 0; i < L.n; i++) {
-        int w = text_w(f, title + L.ln[i].start, L.ln[i].len, 1); double x = right ? X0 + lw - w : X0; int base = baseline_normal(f, Y0 + y0 + (int)i * lh);
+        int w = text_w(f, title + L.ln[i].start, L.ln[i].len, 1); double x = X0; int base = baseline_normal(f, Y0 + y0 + (int)i * lh);
         hero_letter(fb, h, clip, fid, x, base, title + L.ln[i].start, L.ln[i].len, i == L.n - 1 && L.n > 1 ? RED2 : 0xF5F3EE);
         LR(h, "hero-title", iround(x), base - f->ascent, iround(x) + w, base + f->descent);
     }
     int rule_y = Y0 + y0 + (int)L.n * lh + 4, tag_y = Y0 + y0 + (int)L.n * lh + 14;
-    gfx_fill(fb, clip, right ? X0 + lw - 64 : X0, rule_y, 64, 3, RGBA(RED, 255));
+    gfx_fill(fb, clip, X0, rule_y, 64, 3, RGBA(RED, 255));
     /* hmHeroTag: as many of year / genre / publisher as fit, 13 down to 10 px */
     const char *parts[3]; int np = 0; if (g->year) parts[np++] = g->year; if (g->genre) parts[np++] = g->genre; if (g->publisher) parts[np++] = g->publisher;
     static const int TAGF[4] = { F_SILK13, F_SILK12, F_SILK11, F_SILK10 }; char tag[300] = ""; int tf = F_SILK10;
     for (int k = 0; k < 4 && !tag[0]; k++) for (int n = np; n >= 1; n--) { char t[300]; size_t o = 0; t[0] = 0; for (int i = 0; i < n; i++) o += (size_t)snprintf(t + o, sizeof t - o, "%s%s", i ? " \xC2\xB7 " : "", parts[i]);
         if (text_w(&h->f[TAGF[k]], t, strlen(t), 0) <= lw) { snprintf(tag, sizeof tag, "%s", t); tf = TAGF[k]; break; } }
     if (!tag[0] && np) snprintf(tag, sizeof tag, "%s", parts[0]);
-    if (tag[0]) { const font *ft = &h->f[tf]; int w = text_w(ft, tag, strlen(tag), 1); double x = right ? X0 + lw - w : X0; int base = baseline_normal(ft, tag_y);
+    if (tag[0]) { const font *ft = &h->f[tf]; int w = text_w(ft, tag, strlen(tag), 1); double x = X0; int base = baseline_normal(ft, tag_y);
         gfx_fill(fb, clip, iround(x) - 4, base - ft->ascent - 2, w + 8, ft->ascent + ft->descent + 4, RGBA(0, 140));   /* a small dark plate: legible over a bright sky (home.css .tag) */
         text_draw(fb, NULL, clip, ft, x + 1, base + 1, tag, strlen(tag), RGBA(0, 255), 1, 0); text_draw(fb, NULL, clip, ft, x, base, tag, strlen(tag), RGBA(0xC8C4BC, 255), 1, 0); }
     LR(h, "hero", B.x0, B.y0, B.x1, B.y1); LT(h, HT_GAME, gi, B.x0, B.y0, B.x1, B.y1);

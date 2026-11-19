@@ -349,7 +349,7 @@ namespace CcsBackup.Ui
             var listHost = new ScrollViewer { Content = listPanel, MaxHeight = 520, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Padding = new Thickness(0, 0, 6, 0) };
             var previewCard = Card(preview, 16); previewCard.Margin = new Thickness(0, 0, 0, 10); previewCard.VerticalAlignment = VerticalAlignment.Top;
             sp.Children.Add(SideBySide(listHost, previewCard, 320, 860));
-            sp.Children.Add(Buttons(B("Export Selected…", "Btn.Primary", () => { if (browseSel.Count == 0) { MessageBox.Show(this, "Select the files to export first: check the box beside each one.", ProductTitle); return; } DoExport(ExportRequest.Selected(c, browseSel, PickFolder())); }),
+            sp.Children.Add(Buttons(B("Export Selected…", "Btn.Primary", () => { if (browseSel.Count == 0) { Tell("Select files first", "Select the files to export first: check the box beside each one."); return; } DoExport(ExportRequest.Selected(c, browseSel, PickFolder())); }),
                                     B("Clear Selection", "Btn.Ghost", () => { browseSel.Clear(); ShowBrowse(); }), c.Live ? B("Back to the Check-Up", "Btn.Ghost", () => ShowCheckup(lastCheckup)) : B("Back to the Backup List", "Btn.Ghost", BackToList)));
             sp.Children.Add(T("Exports copy files to a new folder on this PC that you choose; each one is read back and compared with its checksum. Nothing in the " + (c.Live ? "console" : "backup") + " changes.", Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
             Show(sp, "browse");
@@ -516,7 +516,7 @@ namespace CcsBackup.Ui
         void DoExport(ExportRequest r)
         {
             if (r == null || string.IsNullOrEmpty(r.Destination)) return;
-            var why = Exporter.CheckDestination(r.Destination); if (why != null) { MessageBox.Show(this, why, ProductTitle); return; }
+            var why = Exporter.CheckDestination(r.Destination); if (why != null) { Tell("Choose another folder", why); return; }
             var cts = new CancellationTokenSource();
             var pv = new ProgressView(this, "Copying Files", "The files are copied to a new folder on this PC. Each one is read back and compared with its checksum before it gets its name. Nothing in the " + (browsing?.Live == true ? "console" : "backup") + " changes.", "Cancel", () => cts.Cancel());
             Show(pv.Panel, "progress"); var c = browsing;

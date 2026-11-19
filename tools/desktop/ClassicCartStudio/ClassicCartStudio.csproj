@@ -15,7 +15,7 @@
     <Platforms>x64</Platforms>
     <ApplicationIcon>..\..\publish\assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.11.3</Version>
+    <Version>0.11.4</Version>
     <FileVersion>$(Version)</FileVersion>
     <InformationalVersion>$(Version)</InformationalVersion>
     <Product>Classic Cart Studio</Product>
@@ -28,12 +28,20 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <DebugType>none</DebugType>
     <StartupObject>ClassicCartStudio.Program</StartupObject>
+    <!-- this release's channel ("preview" or "production"): the repository's CHANNEL file, recorded in the program (App.Channel) for its
+         window title, About and update checks; the version is VERSION, passed by the release build as -p:Version -->
+    <CcsChannel Condition="'$(CcsChannel)' == ''">$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\..\CHANNEL').Trim())</CcsChannel>
   </PropertyGroup>
+  <Target Name="CcsCheckChannel" BeforeTargets="CoreCompile">
+    <Error Condition="'$(CcsChannel)' != 'preview' And '$(CcsChannel)' != 'production'" Text="CHANNEL must be preview or production (it is '$(CcsChannel)')" />
+  </Target>
+  <ItemGroup>
+    <AssemblyMetadata Include="ReleaseChannel" Value="$(CcsChannel)" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3296.44" />
-    <!-- Console Backup & Restore: the same window and engine as the CCS Console Backup & Restore Utility (tools/console-backup) -->
-    <ProjectReference Include="..\..\console-backup\CcsBackupUi\CcsBackupUi.csproj" />
-    <ProjectReference Include="..\..\console-backup\CcsBackup\CcsBackup.csproj" />
+    <!-- CCS Console Workbench is not built into this program: Setup installs its single-file program beside it (workbench\, the same file
+         the standalone release publishes) and this program starts it (WorkbenchLauncher.cs) -->
     <Reference Include="System.Web" />
     <Reference Include="System.Web.Extensions" />
     <EmbeddedResource Include="Recovery.html" LogicalName="Recovery.html" />

@@ -22,7 +22,7 @@
       </Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
         <Image x:Name="titleIcon" Width="16" Height="16" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
-        <TextBlock Text="Classic Cart Studio" Margin="9,0,0,1" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{StaticResource B.Ink}"/>
+        <TextBlock x:Name="titleText" Text="Classic Cart Studio" Margin="9,0,0,1" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{StaticResource B.Ink}"/>
         <Border Width="6" Height="6" CornerRadius="3" Background="{StaticResource B.Red}" Margin="8,1,0,0" VerticalAlignment="Center" ToolTip="Classic Cart Studio for Windows" x:Name="accentDot"/>
         <TextBlock x:Name="stateText" Margin="10,0,0,1" FontSize="12" VerticalAlignment="Center" Foreground="{StaticResource B.Muted}" Text=""/>
       </StackPanel>

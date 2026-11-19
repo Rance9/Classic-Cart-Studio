@@ -40,7 +40,7 @@ namespace CcsBackup.Ui
 
             var own = new StackPanel();
             own.Children.Add(T("In this program", Ty.Heading, true, false, new Thickness(0, 0, 0, 4)));
-            own.Children.Add(T(ProductTitle + ", version " + opt.Version + ". By Rance9 (Rance9 LLC). Independent; not affiliated with Nintendo.", Ty.Text));
+            own.Children.Add(T(ProductTitle + ", version " + VersionLabel + ". By Rance9 (Rance9 LLC). Independent; not affiliated with Nintendo.", Ty.Text));
             own.Children.Add(T("Its code from Hakchi2 CE comes from Hakchi2 CE 3.9.3 as released (tag v3.9.3, commit 25bfcfd). Later Hakchi2 CE changes are not part of this version.", Ty.Text));
             foreach (var b in NoticeOverview()) own.Children.Add(b);
             sp.Children.Add(Card(own));
@@ -60,7 +60,7 @@ namespace CcsBackup.Ui
             var problem = new ContentControl();
             src.Children.Add(Buttons(B("Source Code", "Btn", () => { if (!Launch(SourceUrl)) problem.Content = Note("The web browser could not be opened. The address is " + SourceUrl, "warn"); })));
             src.Children.Add(problem);
-            src.Children.Add(T("Version " + opt.Version + " · engine " + EngineInfo.Engine, Ty.Fine, false, true));
+            src.Children.Add(T("Version " + VersionLabel + " · engine " + EngineInfo.Engine, Ty.Fine, false, true));
             sp.Children.Add(Card(src));
             SetNoTerms(sp, true);   // approved Credits words, notices and license texts: exactly as they are
             Show(sp, "credits");

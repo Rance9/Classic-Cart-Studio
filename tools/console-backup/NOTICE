@@ -105,21 +105,21 @@ THIS PROGRAM'S OWN PICTURES
   controller's shape; no Nintendo wordmark or logo).
 - The Help pictures (Help/shots): this program's own pages, drawn with sample data. Those of HOME Designer show its starting-theme examples.
 - HOME Designer's starting-theme examples (theme-examples/): drawn by Classic Cart Studio's native HOME renderer from a HOME of the NES
-  Classic's 30 built-in games. They show the HOME theme art above; the games' box art, the publishers' works (community scans from
-  libretro-thumbnails, https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_Entertainment_System; no license is claimed for them);
-  the games' details as Classic Cart Studio's catalog records them; Classic Cart Studio's own characters; and, in the Featured Shelf
-  example, Luis Zuno's Sunnyland Forest of Illusion scene (CC0, https://opengameart.org/content/sunnyland-forest-of-illusion). The box art
-  is shown to identify the games. Nintendo and NES are trademarks of Nintendo.
+  Classic's 30 built-in games. They show the HOME theme art above; the games' box art and, in the Featured Shelf example, the selected
+  game's own screen, the publishers' works (community scans and screenshots from libretro-thumbnails,
+  https://github.com/libretro-thumbnails/Nintendo_-_Nintendo_Entertainment_System; no license is claimed for them); the games' details as
+  Classic Cart Studio's catalog records them; and Classic Cart Studio's own characters. The box art and the game screen are shown to
+  identify the games. Nintendo and NES are trademarks of Nintendo.
 
 THE STANDALONE PROGRAM'S NATIVE HOST
 
-The standalone CCS Console Workbench executable (its native host, tools/console-backup/native-host) also includes, and Classic Cart Studio
-for Windows carries as ccs-par2.dll:
+The CCS Console Workbench executable (its native host, tools/console-backup/native-host; the same file on its own and as installed with
+Classic Cart Studio for Windows) also includes:
 - par2cmdline 1.4.0 (github.com/Parchive/par2cmdline, release tarball par2cmdline-1.4.0.tar.gz, SHA-256 f738242adf3bbfe0b041b3263e5be4d76e4b
   16a4e938952a38265efd94c7869d, tag v1.4.0 = commit 3a27718; GPL-2.0-or-later; Copyright (C) 2003 Peter Brian Clements and the
   par2cmdline authors: Marcel Partap, Ike Devolder, Jussi Kansanen, Michael Nahas and contributors): its library (libpar2) for PAR2
   parity, unmodified. Its source is attached to each release.
-- in the standalone executable only: Classic Cart Studio's native HOME renderer (tools/console-simulator/core, GPL-3.0-or-later, with
+- Classic Cart Studio's native HOME renderer (tools/console-simulator/core, GPL-3.0-or-later, with
   stb_image v2.30, public domain or MIT, used under the public domain dedication) for the HOME Designer's render check.
 - as linked by the zig 0.17.0 toolchain: the mingw-w64 runtime (Zope Public License 2.1, except parts marked public domain, BSD or LGPL;
   Copyright (c) 2009 - 2013 by the mingw-w64 project; notice below), compiler-rt and the LLVM C++ runtime (libc++, libc++abi, libunwind),

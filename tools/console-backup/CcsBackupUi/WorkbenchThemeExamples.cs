@@ -63,7 +63,7 @@ namespace CcsBackup.Ui
             var img = new Image { Width = 320, Height = 180, Stretch = Stretch.Uniform }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
             var frame = new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Child = img, Background = Res<Brush>("B.Surface2") };
             var b = new Button { Content = frame, Style = Res<Style>("Wb.Plain"), HorizontalAlignment = HorizontalAlignment.Left };
-            var caption = new TextBlock { FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
+            var caption = PictureCaption(null, frame);   // WB-UX-13: italic, directly under the picture, as wide as it
             sp.Children.Add(b); sp.Children.Add(caption);
             ThemeExample cur = null;
             void Refresh()
@@ -82,7 +82,7 @@ namespace CcsBackup.Ui
                 var big = ThemePicture(cur, false); if (big == null) return;
                 ShowPicture(big, cur.Name + ": an example", cur.Description,
                     "An example of the " + cur.Name + " theme with the NES Classic's 30 built-in games. It is not your design, and it is not a check of your design: the editor's own preview and the design check are separate.");
-                b.Focus();   // back to the picture that opened it
+                b.Focus();   // back to the picture that opened it (its ring shows only when the keyboard was used: FocusCue)
             };
             choice.SelectionChanged += (s, e) => Refresh();
             Refresh();

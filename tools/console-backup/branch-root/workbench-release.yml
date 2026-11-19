@@ -22,6 +22,7 @@ jobs:
       commit: ${{ steps.p.outputs.commit }}
       version: ${{ steps.p.outputs.version }}
       engine_version: ${{ steps.p.outputs.engine_version }}
+      channel: ${{ steps.p.outputs.channel }}
     steps:
       - uses: actions/checkout@v4
       - id: p
@@ -38,7 +39,13 @@ jobs:
           echo "engine_version=$(git show "$commit:VERSION" | tr -d '\r\n')" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = workflow_dispatch ]; then v="${{ inputs.version }}"; else v="${GITHUB_REF_NAME#workbench-v}"; fi
           [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid Workbench version"; exit 1; }
+          # the Workbench's own version and channel are the pinned source's WORKBENCH-VERSION and WORKBENCH-CHANNEL: the tag must name that version
+          wv="$(git show "$commit:tools/console-backup/WORKBENCH-VERSION" | tr -d '\r\n')"
+          [ "$wv" = "$v" ] || { echo "the Workbench version $v differs from the pinned source's WORKBENCH-VERSION $wv"; exit 1; }
+          ch="$(git show "$commit:tools/console-backup/WORKBENCH-CHANNEL" | tr -d '\r\n')"
+          case "$ch" in preview|production) ;; *) echo "the pinned source's WORKBENCH-CHANNEL is not preview or production"; exit 1 ;; esac
           echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "channel=$ch" >> "$GITHUB_OUTPUT"
 
   native:
     needs: pin
@@ -115,11 +122,9 @@ jobs:
         with: { name: recovery-images, path: build/ram-images }
       - uses: actions/setup-dotnet@v4
         with: { global-json-file: tools/console-backup/global.json }
-      - name: The managed Workbench (the payload the native host carries)
+      - name: The managed Workbench (the payload the native host carries), by the one script Classic Cart Studio's release also runs, so the program its installer carries is these bytes
         shell: pwsh
-        run: |
-          dotnet build tools/console-backup/ccs-backup-utility/ccs-backup-utility.csproj -c Release -nologo "-p:Version=${{ needs.pin.outputs.engine_version }}" "-p:CcsRamImages=$PWD\build\ram-images"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: tools/console-backup/build_workbench_payload.ps1 -RamImages build/ram-images
       - uses: actions/upload-artifact@v4
         with: { name: payload, path: build/console-backup/bin/ccs-backup-utility/Release/net48/CCS-Console-Workbench.exe, if-no-files-found: error }
 
@@ -133,7 +138,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: payload, path: build/payload }
       - name: The single-file Workbench for x64 and Arm64 Windows (the managed payload run from memory; libpar2 and the HOME renderer linked in)
-        run: bash tools/console-backup/native-host/build_host.sh --payload build/payload/CCS-Console-Workbench.exe --out build/host --arch all --version "${{ needs.pin.outputs.version }}" --cache build/par2-cache
+        run: bash tools/console-backup/native-host/build_host.sh --payload build/payload/CCS-Console-Workbench.exe --out build/host --arch all --version "${{ needs.pin.outputs.version }}" --channel "${{ needs.pin.outputs.channel }}" --cache build/par2-cache
       - uses: actions/upload-artifact@v4
         with: { name: par2-source, path: build/par2-cache/par2cmdline-1.4.0.tar.gz, if-no-files-found: error }
       - uses: actions/upload-artifact@v4
@@ -166,9 +171,10 @@ jobs:
           (cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
       - uses: actions/attest-build-provenance@v1
         with: { subject-path: "out/*.exe" }
-      - name: Draft release on its own tag, with "latest" turned off (never an app update)
+      - name: Draft release on its own tag, with "latest" turned off (never an app update); a preview is a GitHub prerelease, a production release is not
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
+          pre=""; [ "${{ needs.pin.outputs.channel }}" = preview ] && pre="--prerelease"
           {
             echo "# CCS Console Workbench ${{ needs.pin.outputs.version }}"; echo
             echo "Back up, restore, repair and compose your NES Classic. One program for Windows (x64 or Arm64) that runs without installation."; echo
@@ -179,4 +185,4 @@ jobs:
             echo "## Source code and licenses"; echo
             echo "Classic Cart Studio's code in it is GPL-3.0-or-later; engine-source.zip is its source with the build files. par2cmdline-1.4.0.tar.gz (GPL-2.0-or-later) and LibUsbDotNet-2.2.29-source-5dd91a2.tar are the sources of the two libraries it contains. The console programs it sends to the console are built from Hakchi2 CE 3.9.3's prebuilt hakchi package and carry that package's programs unmodified, under their own licenses: tools/console-backup/NOTICE (also shown in the program) lists them with their notices and license texts. Credits: hakchi by madmonkey; hakchi2 by ClusterM; Hakchi2 CE by Team Shinkansen and contributors. Independent; not affiliated with Nintendo."
           } > notes.md
-          gh release create "workbench-v${{ needs.pin.outputs.version }}" out/* --verify-tag --draft --prerelease --latest=false --title "CCS Console Workbench ${{ needs.pin.outputs.version }}" --notes-file notes.md
+          gh release create "workbench-v${{ needs.pin.outputs.version }}" out/* --verify-tag --draft $pre --latest=false --title "CCS Console Workbench ${{ needs.pin.outputs.version }}$([ -n "$pre" ] && echo ' (Preview)')" --notes-file notes.md

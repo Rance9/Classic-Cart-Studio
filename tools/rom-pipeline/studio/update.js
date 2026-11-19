@@ -1,8 +1,14 @@
-// ---- Classic Cart Studio for Windows: updates (owner, 2026-11-11). The app's backend asks GitHub for the latest release shortly after
-//      the app starts and once a day while it is open, unless Check for Updates Automatically is off (Studio menu). A newer version is
-//      offered in a dialog; Update Now downloads its installer, which the backend checks against the release's own checksums, then the
-//      app closes, the installer updates it quietly and starts it again. Nothing is installed without Update Now (app_update.py). ----
+// ---- Classic Cart Studio for Windows: updates (owner, 2026-11-11; product and channel streams, 0.11.4). The app's backend reads the
+//      website's release streams shortly after the app starts and once a day while it is open, unless Check for Updates Automatically is
+//      off (Studio menu), and offers only a newer Classic Cart Studio of the app's own channel (a preview only newer previews), compared
+//      with both parts it installed (the app and its bundled Workbench): one Classic Cart Studio update. A production release is offered in
+//      a dialog; Update Now downloads its installer, which the backend checks against the release's own checksums, then the app closes,
+//      the installer updates it quietly and starts it again. An unsigned preview is offered with Open Download Page instead (the website's
+//      download page, in the browser); the app downloads nothing for it. Nothing is installed without Update Now (app_update.py). An answer
+//      that cannot be read is "could not check", never "up to date". ----
 const UPD={auto:true, shown:'', busy:false, started:false};
+// a version as people see it: "0.11.4 (Preview)" for the preview channel
+function updLabel(v, ch){ return v+(ch==='preview'?' (Preview)':''); }
 function updApp(){ return typeof CO!=='undefined'&&!!CO.desktop; }
 function updMenu(){ const on=updApp(), c=$('mUpdChk'), a=$('mUpdAuto'), l=$('mUpdL'); if(c) c.hidden=!on; if(a){ a.hidden=!on; a.setAttribute('aria-checked', String(!!UPD.auto)); } if(l) l.hidden=!on; }
 async function updSettings(auto){ const r=await hkPost('/api/update/settings', typeof auto==='boolean'?{auto}:{}); if(r&&r.ok) UPD.auto=r.auto!==false; updMenu(); return r; }
@@ -10,14 +16,19 @@ async function updCheck(manual){ if(!updApp()||UPD.busy) return;
  if(manual) toast('Checking for updates…');
  const r=await hkPost('/api/update/check', {force:!!manual});
  if(!r||!r.ok){ if(manual) toast((r&&r.error)||'Classic Cart Studio could not check for updates. Check the internet connection and try again.'); return; }
- if(!r.available){ if(manual) toast(`You have the newest version of Classic Cart Studio (${r.current}).`); return; }
+ if(!r.available){ if(manual) toast(r.ahead?`Classic Cart Studio is up to date: you have ${updLabel(r.current, r.channel)}, newer than the newest published version.`:`Classic Cart Studio is up to date (${updLabel(r.current, r.channel)}).`); return; }
  if(!manual){ if(UPD.shown===r.version) return; UPD.shown=r.version; updNotice(r); return; } updOffer(r); }
 // an automatic check never puts a dialog over what the person is doing (D-146): the Studio menu offers the update and a short note says so;
 // the menu item (or Check for Updates…) opens the same Update Available dialog, and nothing is downloaded or installed without Update Now
-function updNotice(r){ UPD.avail=r; const b=$('appBtn'); if(b){ b.classList.add('hasupd'); b.title=`Classic Cart Studio ${r.version} is available`; } const c=$('mUpdChk'); if(c&&typeof miLabel==='function') miLabel(c, `Update to ${r.version}…`);
- toast(`Classic Cart Studio ${r.version} is available. When you are ready, choose Studio › Update to ${r.version}….`); }
-function updOffer(r){ if($('collm')&&$('collm').classList.contains('open')&&!/^Update/.test(($('collTitle')||{}).textContent||'')) return;   /* never over another dialog: offered again at the next check */
- openColl('Update Available', '', `<p>Classic Cart Studio <b>${esc(r.version)}</b> is available. You have ${esc(r.current)}.</p>
+function updNotice(r){ UPD.avail=r; const b=$('appBtn'); if(b){ b.classList.add('hasupd'); b.title=`Classic Cart Studio update available: ${updLabel(r.version, r.channel)}`; } const c=$('mUpdChk'); if(c&&typeof miLabel==='function') miLabel(c, `Update to ${r.version}…`);
+ toast(`Classic Cart Studio update available: ${updLabel(r.version, r.channel)}. When you are ready, choose Studio › Update to ${r.version}….`); }
+function updOffer(r){ if($('collm')&&$('collm').classList.contains('open')&&!/Update Available$/.test(($('collTitle')||{}).textContent||'')) return;   /* never over another dialog: offered again at the next check */
+ // an unsigned preview: the website's download page, opened in the browser (the app downloads and installs nothing for it)
+ if(r.manual){ openColl('Classic Cart Studio Update Available', '', `<p><b>Classic Cart Studio update available:</b> version ${esc(updLabel(r.version, r.channel))}. You have ${esc(updLabel(r.current, r.channel))}.</p>
+  <ul class="fbitems"><li><b>Open Download Page</b> opens the Classic Cart Studio download page in your web browser. Download the new installer there and run it.</li><li>Your collections, games, saved games and settings stay as they are.</li></ul>
+  <div class="acts"><span class="sp"></span><button class="btn" id="updNo">Not Now</button><a class="btn hk" id="updGo" href="${CCS_APP_DOWNLOAD}" target="_blank" rel="noopener">Open Download Page</a></div>`);
+  $('updNo').onclick=closeColl; $('updGo').addEventListener('click', ()=>setTimeout(closeColl, 0)); return; }
+ openColl('Classic Cart Studio Update Available', '', `<p><b>Classic Cart Studio update available:</b> version ${esc(updLabel(r.version, r.channel))}. You have ${esc(updLabel(r.current, r.channel))}.</p>
   <ul class="fbitems"><li><b>Update Now</b> downloads it (${fmt(r.size)}), checks it, then closes Classic Cart Studio, updates it and opens it again.</li><li>Your collections, games, saved games and settings stay as they are.</li>${r.terms_changed?'<li>This version comes with new Installation Terms. The setup shows them, and updates once you agree.</li>':''}</ul>
   <div class="acts"><span class="sp"></span><button class="btn" id="updNo">Not Now</button><button class="btn hk" id="updGo">Update Now</button></div>`);
  $('updNo').onclick=closeColl; $('updGo').onclick=()=>updRun(r); }
@@ -40,7 +51,9 @@ async function updRun(r){ if(UPD.busy) return;
  $('collBody').innerHTML=`<div class="msgbox ok" role="status"><b>Classic Cart Studio closes now${st.terms_changed?'. The setup opens with the new Installation Terms.':', updates and opens again in a moment.'}</b></div>`;
  const i=await hkPost('/api/update/install', {}); if(!i||!i.ok) return updFail((i&&i.error)||'The installer could not be started.', r);
  setTimeout(()=>{ try{ window.chrome.webview.postMessage('app-update-exit'); }catch(e){ updFail('Classic Cart Studio could not close by itself. Close it to finish the update.'); } }, 900); }
-window.__ccsCheckUpdates=()=>updCheck(true);   // App Tools › Check for Updates (the host calls it)
+// App Tools › Check for Updates, and CCS Console Workbench's Update Classic Cart Studio… (the host calls it, also right after it starts):
+// the same check as Check for Updates…, once the app's backend answers
+window.__ccsCheckUpdates=()=>{ let n=0; (function go(){ if(updApp()&&CO.ok) return updCheck(true); if(++n>=120){ toast('Classic Cart Studio could not check for updates. Try again in a moment.'); return; } setTimeout(go, 500); })(); };
 document.addEventListener('click', e=>{ const b=e.target.closest&&e.target.closest('#mUpdChk,#mUpdAuto'); if(!b) return; e.preventDefault(); document.querySelectorAll('.menu').forEach(x=>x.hidden=true);
  if(b.id==='mUpdChk'){ if(UPD.avail) updOffer(UPD.avail); else updCheck(true); } else updSettings(!UPD.auto).then(r=>{ if(r&&r.ok) toast(UPD.auto?'Classic Cart Studio checks for updates automatically.':'Automatic update checks are off. Check for Updates… still checks when you choose it.'); }); });
 // start once the app's backend answers; then once a day while the app is open (the backend answers from its last hour's check)

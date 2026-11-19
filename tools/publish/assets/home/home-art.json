@@ -13,7 +13,6 @@
   0.7651434643995749
  ],
  "method": "lossless scaled scene with only the dynamic regions inpainted; authored frames, plates, icons and markers cut as sprites; geometry measured on the masters",
- "hero_sky": "hero-sky.png",
  "themes": {
   "featured-shelf": {
    "master_file": "ChatGPT Image Oct 11, 2026, 08_49_16 PM-1.png",
@@ -1460,7 +1459,7 @@
    "master_file": "ChatGPT Image Oct 11, 2026, 08_49_19 PM-3.png",
    "master_sha256": "b65f59ae16f0a7ace5e39bdfbfe1ddf09699036a8152d1abb814fa739cace61e",
    "scene": "scene-box-art-showcase.png",
-   "scene_bytes": 506736,
+   "scene_bytes": 492807,
    "regions": [
     {
      "name": "top navigation labels",
@@ -1808,6 +1807,20 @@
       720
      ],
      "method": null
+    },
+    {
+     "name": "decorative characters (lower right)",
+     "sample_master": null,
+     "kind": "REMOVED",
+     "box_master": null,
+     "box_stage": [
+      1065,
+      549,
+      1258,
+      646
+     ],
+     "method": "telea",
+     "note": "owner, November 19, 2026: Box Art Showcase shows no decorative characters; the painted figures and their glow inpainted (Telea), every other pixel unchanged"
     }
    ],
    "sprites": {

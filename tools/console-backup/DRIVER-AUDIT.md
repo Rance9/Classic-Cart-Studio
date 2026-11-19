@@ -251,8 +251,8 @@ catalog is accepted: Authenticode on the executable and the PnP catalog check ar
   is one more `--driver-action` request (`"cleanup"`), through the same adapter and the same closed boundary, and the elevated step checks
   everything again on its own reading (another operation's id, an unrelated or Hakchi certificate, a restart not seen, the package back:
   refused, nothing touched). A window or step that ends part way leaves the record open; the plan written before the step bounds what a
-  later cleanup may ever remove. Inside Classic Cart Studio the cleanup is offered only at the app's own close (`DriverAtAppClose`), with
-  the other console users still counted. These cleanup texts are engineering wording in the style of the owner's close dialog, not
+  later cleanup may ever remove. Since 0.11.4 Classic Cart Studio starts the installed Workbench as its own program, which offers the cleanup at its own close like
+  the standalone, with the other console users still counted (the older in-app close, `DriverAtAppClose`, is no longer called). These cleanup texts are engineering wording in the style of the owner's close dialog, not
   owner-approved copy.
 - Exit codes (`DriverExit`): 0, 3010 (restart needed), `0x4343xxxx` for the step's own refusals, otherwise Windows' error, reported in
   Windows' words (setup errors from `setupapi.h` in plain words). The window still reads the PC back and decides from that.
@@ -341,11 +341,11 @@ of every package catalog, so hosts read off the UI thread.
    driver and runs its own forced setup, which rebinds the console to its package (Workbench's then sits unused and can still be removed;
    Hakchi's certificate deletion is by its own subject and does not touch Workbench's). Choosing a subject Hakchi would match is possible
    but imitates another tool's detection; left as an owner choice.
-6. **Owning-host close in Classic Cart Studio.** An embedded Workbench never removes the driver (the app may use the console
-   connection). Classic Cart Studio's own close asks instead (`MainWindow.OnClosingWindow` -> `BackupWorkspace.DriverAtAppClose`,
-   **verified** in source): the removal question for a driver a Workbench window inside the app set up in that run, then the cleanup
-   question for any certificate an earlier removal kept that the window found at its start, by the same rules with the app no longer
-   counted as a console user.
+6. **Owning-host close in Classic Cart Studio.** Up to 0.11.3 the Workbench window ran inside Classic Cart Studio's own process, never
+   removed the driver itself, and the app's own close asked instead (`DriverAtAppClose`). From 0.11.4 Classic Cart Studio starts the
+   installed Workbench as its own program (installed mode, `opt.Studio`): it owns its console connection, asks the removal question at its
+   own close and offers a kept certificate's cleanup at its own start, exactly as the standalone (`InStudioProcess` is false; the usage
+   record still says `embedded`, with `ParentAppNeedsDevice` false). Classic Cart Studio no longer asks anything about the driver.
 7. **Certificates left behind.** A certificate a removal kept is a deferred cleanup (section 9). A certificate left by a *setup* step that
    ended part way (no package) is still only reported at every start and kept: Workbench offers no cleanup for it (a possible later
    extension, with the same reading rule; not built). Windows has no reliable read-only signal for a pending driver-store deletion

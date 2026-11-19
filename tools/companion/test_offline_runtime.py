@@ -5,8 +5,10 @@ JavaScript) is scanned. Network calls may only go to this computer (127.0.0.1 / 
 download box, which asks GitHub for the latest release and never runs inside the desktop application (guarded by !CO.desktop), and the
 optional usage reports (D-123/D-124): one fixed collector address, contacted only while the person's choice is On, never needed for any
 feature and never a download (the app's backend relay, the website's own fetch; checked exactly in optional_usage_reports_only), and the
-app's update check (owner, 2026-11-11): this project's latest-release information on GitHub and, only after Update Now, that release's own
-files, from one function of companion/app_update.py (checked exactly in app_update_only). Ordinary links the user clicks (help, source code, licenses) are not downloads and are not counted. Exit code 0 = PASS.
+app's update check (owner, 2026-11-11): the website's release streams (release information, never software) and, only after Update Now,
+that release's own files, from one function of companion/app_update.py (checked exactly in app_update_only). CCS Console Workbench's libraries, installed with
+the app, make one request of their own: the same release information, from WorkbenchUpdates.cs only (checked exactly in
+workbench_update_check_only); it downloads nothing. Ordinary links the user clicks (help, source code, licenses) are not downloads and are not counted. Exit code 0 = PASS.
 
   python test_offline_runtime.py"""
 from __future__ import annotations
@@ -61,11 +63,11 @@ def usage_reports():
     relay_lines = {f"companion{os.sep}metrics_relay.py:{k}: {rl[k - 1].strip()[:140]}" for k in lines} if good else set()
     return {"ok": good, "page_ok": good, "relay_lines": relay_lines, "detail": d}
 
-RELEASES_API = "https://api.github.com/repos/Rance9/Classic-Cart-Studio/releases/latest"
+STREAMS = "https://classiccartstudio.com/release-streams.json"   # release information only (tools/publish/release_streams.py)
 DOWNLOADS = "https://github.com/Rance9/Classic-Cart-Studio/releases/download/"
 FEED_RE = r"http://127\.0\.0\.1:\d{2,5}/"
 def app_updates():
-    """the app's update check and in-place update, exactly: companion/app_update.py names only RELEASES_API and DOWNLOADS (and a loopback
+    """the app's update check and in-place update, exactly: companion/app_update.py names only STREAMS and DOWNLOADS (and a loopback
     test feed pattern), its one network function _get refuses any other address before it opens one, the test feed is honored only when it
     is a loopback address, nothing else calls the network, and install() reads the installer again and compares it with its checked SHA-256
     before it starts it"""
@@ -74,8 +76,8 @@ def app_updates():
     with open(os.path.join(HERE, "app_update.py"), encoding="utf-8") as f: us = f.read()
     t = ast.parse(us); fn = {n.name: n for n in t.body if isinstance(n, ast.FunctionDef)}
     consts = {getattr(x, "id", ""): n.value.value for n in t.body if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant) for x in n.targets}
-    d["update_two_fixed_addresses"] = consts.get("RELEASES_API") == RELEASES_API and consts.get("DOWNLOADS") == DOWNLOADS and sorted(set(URL.findall(us))) == sorted({RELEASES_API, DOWNLOADS, FEED_RE})
-    d["update_feed_loopback_only"] = f'if not re.fullmatch(r"{FEED_RE}", _FEED): _FEED = ""' in us and "API, DL = (_FEED + \"latest.json\", _FEED) if _FEED else (RELEASES_API, DOWNLOADS)" in us
+    d["update_two_fixed_addresses"] = consts.get("STREAMS") == STREAMS and consts.get("DOWNLOADS") == DOWNLOADS and sorted(set(URL.findall(us))) == sorted({STREAMS, DOWNLOADS, FEED_RE})
+    d["update_feed_loopback_only"] = f'if not re.fullmatch(r"{FEED_RE}", _FEED): _FEED = ""' in us and "API, DL = (_FEED + \"release-streams.json\", _FEED) if _FEED else (STREAMS, DOWNLOADS)" in us
     get, ul = fn.get("_get"), us.splitlines(); lines = [i for i, line in enumerate(ul, 1) if PY_NET.search(line)]
     gs = ast.get_source_segment(us, get) if get else ""
     d["update_net_only_in_get"] = bool(get) and bool(lines) and all(get.lineno <= i <= get.end_lineno for i in lines)
@@ -85,6 +87,20 @@ def app_updates():
     good = all(d.values())
     upd_lines = {f"companion{os.sep}app_update.py:{k}: {ul[k - 1].strip()[:140]}" for k in lines} if good else set()
     return {"ok": good, "lines": upd_lines, "detail": d}
+
+WORKBENCH_FEED, WORKBENCH_PAGE, WORKBENCH_TEST_FEED = "https://classiccartstudio.com/release-streams.json", "https://classiccartstudio.com/app/", r"http://127\.0\.0\.1:\d{2,5}/$"
+def workbench_updates():
+    """CCS Console Workbench's version check, exactly: in its libraries (tools/console-backup: the window and the engine) the only network
+    code is in CcsBackupUi/WorkbenchUpdates.cs, which names only the release information (UpdateFeed), the download page it opens in the
+    browser (DownloadPage) and the loopback test pattern, reads the answer as text into memory (no file is written) and starts no
+    download"""
+    d = {}; root = os.path.join(TOOLS, "console-backup")
+    hits = [os.path.relpath(p, root) for p in files(root, (".cs",)) if "CcsBackup.Tests" not in p for l in open(p, encoding="utf-8", errors="replace") if CS_NET.search(l)]
+    d["network_code_only_in_workbench_updates"] = bool(hits) and set(hits) == {os.path.join("CcsBackupUi", "WorkbenchUpdates.cs")}
+    src = open(os.path.join(root, "CcsBackupUi", "WorkbenchUpdates.cs"), encoding="utf-8").read()
+    d["workbench_fixed_addresses"] = sorted(set(URL.findall(src))) == sorted({WORKBENCH_FEED, WORKBENCH_PAGE, WORKBENCH_TEST_FEED}) and f'UpdateFeed = "{WORKBENCH_FEED}"' in src and f'DownloadPage = "{WORKBENCH_PAGE}"' in src
+    d["workbench_request_into_memory_only"] = src.count("WebRequest.Create(") == 1 and "new MemoryStream()" in src and not re.search(r"File\.(Write|Create|Open(?!Read))|FileStream|DownloadFile", src)
+    return {"ok": all(d.values()), "detail": d}
 
 def main():
     checks = []; ok = lambda k, v, n="": checks.append((k, bool(v), n))
@@ -132,6 +148,7 @@ def main():
     shared += [e for e in ext if usage["page_ok"] and e[0] == "metrics.js" and e[1] == "CCSM.url"]   # the website's optional usage count (below)
     ok("optional_usage_reports_only", usage["ok"], usage["detail"])
     ok("app_update_only", upd["ok"], upd["detail"])
+    wu = workbench_updates(); ok("workbench_update_check_only", wu["ok"], wu["detail"])
     ok("interface_external_fetch_only_website_download_box", len(allowed) + len(shared) == len(ext) and len(allowed) <= 2 and len([e for e in shared if e[0] == "tv-native.js"]) <= 1, [(e[0], e[1]) for e in ext if e not in allowed and e not in shared][:5])
     src = open(os.path.join(TOOLS, "rom-pipeline", "studio", "share.js"), encoding="utf-8").read() if os.path.exists(os.path.join(TOOLS, "rom-pipeline", "studio", "share.js")) else ""
     ok("no_sharing_service_calls", not re.search(r"\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|share\.classiccartstudio\.com/api", src) and not os.path.exists(os.path.join(TOOLS, "publish", "site-static", "share-config.json")))   # .ccs files are made locally; nothing is uploaded

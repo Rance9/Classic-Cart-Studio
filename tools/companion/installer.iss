@@ -1,5 +1,5 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.11.3 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release installer.iss
+; Build: ISCC.exe /DAppVersion=0.11.4 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release /DWorkbenchDir=..\..\build\workbench-host installer.iss
 ; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe and the WebView2 assemblies, copied there by the release workflow. The wizard's
 ; pictures (tools/publish/make_installer_art.py) and the setup's icon come from the repository, relative to this script, like the legal files.
 ; Needs Inno Setup 6.7.0 or later (the dark style's hidebevels, WizardBackColor and WizardBackImageFile).
@@ -18,6 +18,18 @@
 #ifndef WebView2Dir
   #define WebView2Dir "..\..\build\webview2"
 #endif
+; CCS Console Workbench's single-file program for x64 and Arm64 Windows (x64\ and arm64\, tools/console-backup/native-host/build_host.sh), byte
+; for byte the files its own release publishes: Setup installs the one for this computer as {app}\workbench\CCS-Console-Workbench.exe, and
+; Classic Cart Studio starts it there as its own program (tools/desktop/ClassicCartStudio/WorkbenchLauncher.cs)
+#ifndef WorkbenchDir
+  #define WorkbenchDir "..\..\build\workbench-host"
+#endif
+#define WorkbenchExe "CCS-Console-Workbench.exe"
+; while any of these exists, Setup and the uninstaller change nothing (InitializeSetup, PrepareToInstall, InitializeUninstall): the installed
+; Workbench window, any window of the Workbench file installed here (tools/console-backup/ccs-backup-utility/InstalledLaunch.cs) and the
+; console lock every console task holds, whichever program runs it
+; (tools/console-backup/CcsBackup/Engine/ConsoleLock.cs). Nothing is ever closed or ended to replace a file while a console task runs.
+#define WorkbenchMutexes "Local\CCS.ConsoleWorkbench.Installed,Local\CCS.ConsoleWorkbench.InstalledFile,Local\CCS.ConsoleOperation"
 #define AppName "Classic Cart Studio"
 #define AppExe "ClassicCartStudio.exe"
 #define BackendExe "ClassicCartStudioBackend.exe"
@@ -152,8 +164,11 @@ Source: "{#SourceDir}\WebView2Loader.dll"; Flags: dontcopy
 Source: "{#WebView2Dir}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; Flags: dontcopy nocompression solidbreak
 Source: "{#WebView2Dir}\MicrosoftEdgeWebView2RuntimeInstallerARM64.exe"; Flags: dontcopy nocompression
 Source: "{#WebView2Dir}\webview2-prereq.json"; DestDir: "{app}\legal"; Flags: ignoreversion solidbreak
-; the program
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; the program (SourceDir's workbench\ folder holds the x64 Workbench only for the release build's self-test: the one for this computer comes next)
+Source: "{#SourceDir}\*"; Excludes: "\workbench\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; CCS Console Workbench, as its own release publishes it: the Arm64 program on Arm64 Windows, the x64 program everywhere else
+Source: "{#WorkbenchDir}\x64\{#WorkbenchExe}"; DestDir: "{app}\workbench"; Check: not IsArm64; Flags: ignoreversion
+Source: "{#WorkbenchDir}\arm64\{#WorkbenchExe}"; DestDir: "{app}\workbench"; Check: IsArm64; Flags: ignoreversion
 
 [Icons]
 ; one Start menu entry, no folder and no website shortcut (owner, 2026-10-18)
@@ -201,6 +216,13 @@ Type: dirifempty; Name: "{userprograms}\Classic Cart Studio"
 ; the bundled program files are replaced as a whole (0.5.0: the interface, library and artwork live here; files an earlier version
 ; carried must not linger). User data is not in {app}: it stays in %LOCALAPPDATA%\ClassicCartStudio.
 Type: filesandordirs; Name: "{app}\_internal"
+; the Workbench window and its libraries ran inside Classic Cart Studio until 0.11.3: those files beside the program are gone (the Workbench is
+; its own program in workbench\ now)
+Type: files; Name: "{app}\CcsBackupUi.dll"
+Type: files; Name: "{app}\CcsBackup.dll"
+Type: files; Name: "{app}\CcsConsole.dll"
+Type: files; Name: "{app}\LibUsbDotNet.LibUsbDotNet.dll"
+Type: files; Name: "{app}\ccs-par2.dll"
 ; shortcuts of the earlier "NES Classic Collection Studio Companion" releases (0.1.x): same AppId, new names and group
 Type: files; Name: "{userprograms}\NES Classic Collection Studio\NES Classic Collection Studio Companion.lnk"
 Type: files; Name: "{userprograms}\NES Classic Collection Studio\NES Classic Collection Studio (website).url"
@@ -463,10 +485,41 @@ begin
   Result := (Code = 0) or (Code = 1);   // 0: Microsoft's discovery; 1: a verified Microsoft Runtime folder (Runtime.cs)
 end;
 
+// ---- CCS Console Workbench (installed with Classic Cart Studio, its own program): while its installed window is open or any console task
+// runs (WorkbenchMutexes), Setup and the uninstaller change nothing and end nothing. They ask the person to close Workbench once its task has
+// finished (OK checks again, Cancel stops without changes); a silent setup stops without changes. An update the app started (Studio has
+// already closed itself) starts Studio again when it stops, so the person is not left without it.
+const
+  WORKBENCH_OPEN = 'CCS Console Workbench is open, or a console task is running. Wait for the task to finish and close CCS Console Workbench, then click OK. Nothing has been changed yet.';
+
+function WorkbenchOpen: Boolean;
+begin
+  Result := CheckForMutexes('{#WorkbenchMutexes}');
+end;
+
+function WorkbenchClosed(Silent: Boolean): Boolean;   // True once nothing of the Workbench runs; False: the person (or a silent run) stopped
+begin
+  Result := True;
+  while WorkbenchOpen do begin
+    if Silent or (MsgBox(WORKBENCH_OPEN, mbInformation, MB_OKCANCEL) <> IDOK) then begin Result := False; Exit; end;
+  end;
+end;
+
+procedure StartStudioAgain;   // an update the app started could not go ahead: the app the person was using comes back, as it was
+var Code: Integer;
+begin
+  Exec(ExpandConstant('{localappdata}\Programs\ClassicCartStudio\{#AppExe}'), '', '', SW_SHOWNORMAL, ewNoWait, Code);
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var Before, After, Code: Integer; J1, J2, F: String; Shown: Boolean;
 begin
   Result := ''; Shown := False;
+  if WorkbenchOpen then begin   // started since Setup began: still nothing is changed or ended
+    if ExpandConstant('{param:CCSUPDATE|0}') = '1' then StartStudioAgain;
+    Result := 'Classic Cart Studio was not changed. CCS Console Workbench is open, or a console task is running. Wait for the task to finish and close CCS Console Workbench, then run this installer again.';
+    Exit;
+  end;
   ExtractTemporaryFile('{#AppExe}'); ExtractTemporaryFile('{#AppExe}.config'); ExtractTemporaryFile('Microsoft.Web.WebView2.Core.dll');
   ExtractTemporaryFile('Microsoft.Web.WebView2.Wpf.dll'); ExtractTemporaryFile('WebView2Loader.dll');
   if not WizardSilent then begin
@@ -530,13 +583,24 @@ var
   I: Integer;
 begin
   Result := True;
-  if not UpdateRun then Exit;
-  I := 0;
-  while CheckForMutexes('Local\ClassicCartStudio.Main') and (I < 120) do begin Sleep(500); I := I + 1; end;
-  if CheckForMutexes('Local\ClassicCartStudio.Main') then begin
-    if not WizardSilent then MsgBox('Close Classic Cart Studio, then run this installer again to update it.', mbInformation, MB_OK);
+  if UpdateRun then begin
+    I := 0;
+    while CheckForMutexes('Local\ClassicCartStudio.Main') and (I < 120) do begin Sleep(500); I := I + 1; end;
+    if CheckForMutexes('Local\ClassicCartStudio.Main') then begin
+      if not WizardSilent then MsgBox('Close Classic Cart Studio, then run this installer again to update it.', mbInformation, MB_OK);
+      Result := False;
+      Exit;
+    end;
+  end;
+  if not WorkbenchClosed(WizardSilent) then begin
+    if UpdateRun then StartStudioAgain;
     Result := False;
   end;
+end;
+
+function InitializeUninstall: Boolean;
+begin
+  Result := WorkbenchClosed(UninstallSilent);
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;

@@ -1,9 +1,10 @@
 r"""A collection's carried HOME design, compiled for a HOME package by the ONE compiler (tools/console-backup/HOME-DESIGNER.md).
 
 A collection carries its design as the .ccshome file the Workbench's HOME Designer wrote (design_embed.py). Before the package builder
-puts it into a package, it is compiled by CcsBackup.Compose.DesignCompiler, the C# compiler both Windows hosts use: this module runs
-that program's --design-compile (ClassicCartStudio.exe, the program that started this backend and hosts the Workbench window; its path
-comes in CCS_DESIGN_COMPILER, or it is the program installed beside this one). Python never compiles, edits or re-writes a design: the
+puts it into a package, it is compiled by CcsBackup.Compose.DesignCompiler, the C# compiler of CCS Console Workbench: this module runs
+the --design-compile of the Workbench program Classic Cart Studio for Windows installs (workbench\CCS-Console-Workbench.exe beside
+ClassicCartStudio.exe, the same file as the standalone release; its path comes in CCS_DESIGN_COMPILER, set by ClassicCartStudio.exe for
+the backend it starts, or it is found in that place beside this frozen backend). Python never compiles, edits or re-writes a design: the
 compiled folder is used exactly as the compiler wrote it (design_ingest.py checks it). A design that cannot be compiled is never left
 out silently: the build stops with the reason in words for the person.
 Copyright (C) 2026 Rance9, GPL-3.0-or-later."""
@@ -18,11 +19,12 @@ class CompileRefused(ValueError):
 
 def compiler() -> str | None:
     """the program that answers --design-compile: CCS_DESIGN_COMPILER (set by Classic Cart Studio for Windows for the backend it starts,
-    and by the tests), else the one installed beside this frozen backend; None when there is none"""
+    and by the tests), else the CCS Console Workbench installed with this frozen backend (workbench\CCS-Console-Workbench.exe); None when
+    there is none"""
     p = os.environ.get("CCS_DESIGN_COMPILER")
     if p and os.path.isfile(p): return p
     if getattr(sys, "frozen", False):
-        p = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "ClassicCartStudio.exe")
+        p = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "workbench", "CCS-Console-Workbench.exe")
         if os.path.isfile(p): return p
     return None
 

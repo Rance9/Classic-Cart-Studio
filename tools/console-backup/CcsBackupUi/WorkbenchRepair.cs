@@ -45,7 +45,8 @@ namespace CcsBackup.Ui
             sp.Children.Add(ScheduleCard(f => scheduleChanged = f));
             Show(sp, "backup-repair");
             // the schedule's typed choices are not lost silently when the person opens another page
-            leaveCheck = () => scheduleChanged == null || !scheduleChanged() || MessageBox.Show(this, "The scheduled check's choices are not turned on yet. Leave without turning it on?", ProductTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            LeaveGuard(() => scheduleChanged == null || !scheduleChanged() ? null : "The scheduled check's choices, which are not turned on",
+                       "The scheduled check's choices are not turned on yet. If you leave, they are not kept.");
         }
 
         /// <summary>the repair routes offered for one backup (joined from the repair engine); null when there is none to offer</summary>
@@ -69,7 +70,7 @@ namespace CcsBackup.Ui
                 c.Children.Add(Details("Technical details", "Windows task: \"" + ScheduledCheck.TaskName + "\" (for this user only).", "Program it starts: " + (st.Exe ?? "not known"), st.LastResult != null ? "Last result code: " + st.LastResult : null));
                 c.Children.Add(Buttons(B("Remove Schedule", "Btn", () =>
                 {
-                    var why = ScheduledCheck.Remove(new SchtasksScheduler()); if (why != null) MessageBox.Show(this, why, ProductTitle); ShowBackupRepair();
+                    var why = ScheduledCheck.Remove(new SchtasksScheduler()); if (why != null) Tell("The schedule was not removed", why); ShowBackupRepair();
                 })));
                 return Card(c);
             }
@@ -99,9 +100,10 @@ namespace CcsBackup.Ui
                 var spec = new ScheduleSpec { Exe = exe.Text.Trim(), SettingsFile = settings.Path, ReportFolder = report.Text.Trim(), Frequency = (string)((ComboBoxItem)freq.SelectedItem).Tag, Day = (DayOfWeek)((ComboBoxItem)day.SelectedItem).Tag, Hour = (int)((ComboBoxItem)hour.SelectedItem).Tag };
                 var why = spec.Problem();
                 if (why == null && !File.Exists(spec.Exe)) why = "The Workbench program was not found at that path.";
-                if (why == null && MessageBox.Show(this, "Windows will run " + Path.GetFileName(spec.Exe) + " " + (spec.Frequency == "daily" ? "every day" : "every " + spec.Day) + " at " + new DateTime(2000, 1, 1, spec.Hour, spec.Minute, 0).ToString("h:mm tt", En) + " for this user, to check your backups offline. You can remove it here at any time.\n\nTurn it on?", ProductTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                if (why == null && Ask("Turn on the scheduled check?", "Windows will run " + Path.GetFileName(spec.Exe) + " " + (spec.Frequency == "daily" ? "every day" : "every " + spec.Day) + " at " + new DateTime(2000, 1, 1, spec.Hour, spec.Minute, 0).ToString("h:mm tt", En) + " for this user, to check your backups offline. You can remove it here at any time.",
+                                       new[] { "Turn It On", "Cancel" }, 0, 1) != 0) return;
                 if (why == null) why = ScheduledCheck.Register(new SchtasksScheduler(), spec, Environment.UserDomainName + "\\" + Environment.UserName, Path.GetDirectoryName(settings.Path));
-                if (why != null) MessageBox.Show(this, why, ProductTitle);
+                if (why != null) Tell("The schedule was not turned on", why);
                 ShowBackupRepair();
             })));
             return Card(c);

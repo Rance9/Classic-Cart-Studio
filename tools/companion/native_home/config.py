@@ -155,7 +155,8 @@ def resolve_game(gid: str, descriptions: dict, library_overviews: dict | None = 
         return {"source": "catalog", "title": g.get("display_title"), "version_label": g.get("nointro_name"), "year": s("year"), "players": s("players"), "genre": s("genre"),
                 "publisher": s("publisher"), "developer": s("developer"), "art": g.get("art") or g.get("art_generated") or None, "cover_generated": not g.get("art") and bool(g.get("art_generated")),
                 "hero": None, "texts": {"official": texts.get("official") or None, "overview": texts.get("overview") or None} if texts is not None and (texts.get("official") or texts.get("overview")) else None,
-                "builtin_code": g.get("builtin_code") or None, "title_id": LL.title_id_for(gid)}
+                "builtin_code": g.get("builtin_code") or None, "title_id": LL.title_id_for(gid),
+                "snap": g.get("art_snap") if re.fullmatch(r"art/snaps/[0-9a-f]{16}\.png", str(g.get("art_snap") or "")) else None}   # the game's own screen (Featured Shelf)
     if gid.startswith("p_"):
         e = LL.personal_index()["entries"].get(gid)
         if not e: return None
@@ -261,7 +262,7 @@ def resolve(manifest: dict, home: dict) -> dict:
     cfg["content_fingerprint"] = fingerprint({k: cfg[k] for k in ("theme", "games", "folders", "favorites", "hidden_factory_codes", "map_shortcuts", "settings")})   # what the HOME shows (the one-time apply request excluded)
     return cfg
 
-def development_full_catalog(theme: str = "arcade-grid") -> dict:
+def development_full_catalog(theme: str = "featured-shelf") -> dict:
     """development only (explicit): every curated catalog game, for exercising the renderer at scale; never an installation"""
     D = _descriptions(); cat = LL._catalog(); games = []
     for gid in cat:

@@ -5,15 +5,15 @@ covers what happens after a design is made: the **one compiler** that turns it i
 check** that draws every screen with the native HOME before anything is written, the **control regions** (the HOME's own controls a
 design moves), the **on-console layout** with its journal, fallback and Revert Design, the **budgets** (measured), what the console
 renderer draws and **what it does not**, **Classic Cart Studio for Windows' path** (a collection's carried design compiled by the same
-compiler), the **preview drawn by the console HOME** in the editor, and the **host ABI proposal** for the standalone Workbench.
+compiler), the **preview drawn by the console HOME** in the wizard, and the **host ABI proposal** for the standalone Workbench.
 
 Code: `CcsBackup/Compose/DesignCompiler.cs`, `CcsBackup/Compose/DesignRenderCheck.cs`, `CcsBackup/Engine/DesignApplyEngine.cs`
 (engine, both Windows hosts); `tools/console-simulator/core/design.h`, `design.c`, `design_check.h`, `design_check.c` and the design
 parts of `home.c` (the native HOME on the console, the simulator and the render check); `tools/companion/native_home/design_ingest.py`
 (the Python package builder takes the compiled bytes as they are); `tools/companion/native_home/design_compile.py` (the app's package
 builder runs the one compiler, `CcsBackup/Compose/DesignCompileCli.cs`, through the host program); `tools/companion/design_embed.py` and
-`studio/startup-custom.js` (a collection carries a design losslessly); `CcsBackupUi/WorkbenchDesigner*.cs` (the editor, its layout
-section and its preview). Tests: engine group `designer` and `compose`; `tools/companion/test_home_design_carry.py`.
+`studio/startup-custom.js` (a collection carries a design losslessly); `CcsBackupUi/WorkbenchDesigner*.cs` (the wizard, its layout
+step and its preview). Tests: engine group `designer` and `compose`; `tools/companion/test_home_design_carry.py`.
 
 ## The renderer profile `nes-classic-home-1280x720/1`
 
@@ -90,10 +90,10 @@ uses a design: `design_layout`):
 - **moving** a group needs the design's **own background** (`scene`): each theme's background has the panels of its controls painted
   where the theme puts them.
 
-The editor's Layout section edits each group's place (x, y) within these bounds and refuses a place that breaks a rule, with the reason;
-nothing changes then. A region's own `focus` and `hit` members are kept and not used (the HOME's own controller order and pointer areas
-apply, and move with their group). Not every renderer constant is exposed: sizes stay each theme's, and the Game Details screen, the
-shared menus and Browse keep their own layout.
+The wizard's Layout & Folders step moves each group (Left, Right, Up, Down, or an exact x, y) within these bounds and refuses a place that
+breaks a rule, with the reason; nothing changes then. A region's own `focus` and `hit` members are kept and not used (the HOME's own
+controller order and pointer areas apply, and move with their group). Not every renderer constant is exposed: sizes stay each theme's, and
+the Game Details screen, the shared menus and Browse keep their own layout.
 
 ### Honest limits (what is not editable in this profile)
 
@@ -141,7 +141,7 @@ console draws). `design.json` holds everything the renderer needs, already resol
 - **Identity and hashes**: `CompiledDesign.Id` is the SHA-256 of `design.json`; `Manifest` lists every file with its SHA-256 and size
   (`design.json` first, then the pictures by name). `ManifestJson()` is what an apply plan records ("compiled package hashes").
 - **Refusals**: anything `HomeDesign.RequireApplicable()` refuses (`design.not-applicable`), and a `design.json` over 2,000,000 bytes.
-- **From the command line**: both Windows hosts answer `--design-compile --design F.ccshome --games GAMES.json --out DIR --result
+- **From the command line**: the Workbench program answers `--design-compile --design F.ccshome --games GAMES.json --out DIR --result
   RESULT.json [--placeholders MAP.json]` with this same code (`DesignCompileCli`; result `ccs-home-design-compile-result/1`: `ok`, `code`,
   `error` in words, `id`, `schema_name`, `theme`, `name`, `manifest`, `left_out`, `not_shown`, `unsupported`; exit 0 compiled, 1 refused,
   2 the request is wrong). Nothing else in the host starts: no window, no settings, no console.
@@ -188,8 +188,7 @@ The native HOME draws them only in the design's base theme and only while the de
 theme's own screens, the approved sprites are drawn exactly as before (every default screen is bit-identical to a package without them).
 A package without them, or one whose own-pixel file cannot be read, gives the approved sprite (`design_picture_skipped` with `"what":
 "own sprite"`). Same size as the approved sprite: no added memory. On the computer at twice the size the redrawn overlays
-(`file_2x`, already clean) are drawn as before. Both editor views agree with this: the layout sketch draws no theme sprites, and the
-preview is drawn by this renderer. Checks: `test_own_sprites.py` (every sprite drawn over the background has a rule; never more coverage
+(`file_2x`, already clean) are drawn as before. The wizard's preview is drawn by this renderer, so it shows exactly this. Checks: `test_own_sprites.py` (every sprite drawn over the background has a rule; never more coverage
 than the approved sprite, a pixel kept whole keeps its color, the ground along the edge see-through, deterministic), the engine group
 `designer` (on the native HOME, in each theme, no pixel a sprite carries from the old picture reaches the screen over a design's own
 background, the sprite's own pixels are drawn as approved, the default screens are the same with or without them).
@@ -330,9 +329,9 @@ needs the design compiled by `DesignCompiler` first: see the next section.
 
 The page sends the collection's design with its bytes (`install.js` `nhHome`: `home.design`, through `suInlineHome`; the prepared
 package's fingerprint names the design's SHA-256, so a changed design means Prepare Again). The package builder (`native_home/package.py`)
-compiles it **for the package's own games** before anything is placed: `design_compile.py` runs the host program's `--design-compile`
-(`ClassicCartStudio.exe`, which started the backend and hosts the Workbench window: its path comes in `CCS_DESIGN_COMPILER`, set by
-`Backend.cs`; otherwise the program installed beside the frozen backend), then `design_ingest.py` places the compiler's folder byte for
+compiles it **for the package's own games** before anything is placed: `design_compile.py` runs the `--design-compile` of the Workbench
+program installed with Classic Cart Studio (`workbench\CCS-Console-Workbench.exe`: its path comes in `CCS_DESIGN_COMPILER`, set by
+`Backend.cs`; otherwise that place beside the frozen backend), then `design_ingest.py` places the compiler's folder byte for
 byte. No Python code compiles or changes a design. The build's result names the design (`design`: `id`, `schema_name`, `theme`, `name`,
 `left_out`, `not_shown`). **Never left out silently**: a carried design without its bytes, a damaged one, one the console cannot show
 (`design.not-applicable`, `design.inspect-only`) or a missing compiler stops the build with the reason in words and what to do
@@ -340,16 +339,22 @@ byte. No Python code compiles or changes a design. The build's result names the 
 `design/` and both methods' console packages against the Workbench's compile). Placeholders ("Your game N") the person has not mapped are
 left out and named; the app has no remapping screen (the Workbench's apply does).
 
-## The preview drawn by the console HOME (in the editor)
+## The preview drawn by the console HOME (the wizard)
 
-The editor's Preview shows two things, each labeled for what it is: the **layout sketch** (the design's pictures, panels and labels, the
-outlines of the HOME's control groups where they will be and the controls that stay; not the console's drawing), and the **preview drawn
-by the console HOME** (`WorkbenchDesignerPreview.cs`): the design compiled by `DesignCompiler` for a real CCS HOME package's games, then
-every screen drawn by the native renderer through the render check (`HomeRenderers.Find`: the standalone Workbench's linked renderer,
-Classic Cart Studio's `ccs-sim-core.exe`); the base theme's screens and the startup picture are shown with the check's result. HOME
-packages it draws with: in Classic Cart Studio for Windows, the HOME menu it prepared on this computer (the person's collection,
-`WorkspaceOptions.PreparedHomePackage`); in both hosts, a console's own installed CCS HOME read from one of its backups. A preview drawn
-before the design changed says so. Nothing on a console changes.
+HOME Designer is a wizard (`WorkbenchDesigner.cs`: Theme, Pictures & Startup, Text & Colors, Layout & Folders, Review & Save) with the
+actual HOME beside every step (`WorkbenchDesignerPreview.cs`); there is no layout sketch. Each accepted change compiles the design with
+`DesignCompiler` for a real CCS HOME package's games and draws the HOME as the console starts it: `HomeBoot.Place` writes the compiled design
+into a design store of the preview's own (`d/<id>/` and `current`, as on the console) and `HomeBoot.Draw` calls `ccs_home_design_boot`
+(the standalone Workbench's linked renderer, ABI slot `home_design_boot`; Classic Cart Studio's `ccs-sim-core.exe --design-boot`), whose
+first screen is the preview. Only a frame from the design the HOME actually used (`source` "current") is shown; a design the HOME set aside
+is said so, never shown as the theme's look. A moment later the full render check (`Check`, with `RenderCheckOptions.KeepFrame` keeping
+the design theme's screens and the startup picture) draws the other screens in the background and its findings are shown in short
+sentences; a newer change stops it (cancel) and it starts again. The native HOME keeps process-wide drawing state, so `HomeRenderNative`
+runs one call at a time. HOME packages it draws with: by default the CCS HOME the program carries (`HomePackage.Embedded("mod")`, its
+Included Games: no console or backup needed); under "Preview with", Classic Cart Studio's prepared HOME menu (the person's collection,
+`WorkspaceOptions.PreparedHomePackage`) and a console's own installed CCS HOME read from one of its backups. Work files go to a folder of
+the window's own under the PC's temporary folder (data only, never a program), removed when the window closes. A picture from before the
+latest change is dimmed and says so; a drawing that fails says so with Retry. Nothing on a console changes.
 
 ## Host ABI proposal (standalone Workbench, branch `wb-host`)
 
@@ -422,6 +427,4 @@ typedef struct ccs_host_abi {
 - Control groups keep each theme's size; resizing would need each theme's layout to reflow (the number of cover cells, text fitting,
   hint fitting). Arcade Grid's details and title, Adventure Map's title and the status in Featured Shelf and Adventure Map are not
   separate groups (their dependencies are named in "Control regions").
-- The standalone Workbench draws the preview only with a CCS HOME read from a console backup; a HOME package carried inside the
-  Workbench (for preparation) would also serve as a preview source when one is there.
 - The `plate` slot has no position of its own (always centered); a positioned frame is a decoration.

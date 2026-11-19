@@ -54,6 +54,23 @@ namespace ClassicCartStudio
             }
         }
 
+        /// <summary>this release's channel, "preview" or "production" (the repository's CHANNEL file, recorded at build time); a build
+        /// without it is treated as a preview</summary>
+        public static string Channel
+        {
+            get
+            {
+                foreach (var m in Assembly.GetExecutingAssembly().GetCustomAttributes<AssemblyMetadataAttribute>())
+                    if (m.Key == "ReleaseChannel" && (m.Value == "preview" || m.Value == "production")) return m.Value;
+                return "preview";
+            }
+        }
+        public static bool IsPreview => Channel != "production";
+        /// <summary>the version as people see it: "0.11.4 (Preview)", or "1.0.0" for a production release</summary>
+        public static string VersionLabel => Version + (IsPreview ? " (Preview)" : "");
+        /// <summary>the main window's title (its own title bar and the taskbar): the running version, never another product's</summary>
+        public static string WindowTitle => "Classic Cart Studio — v" + VersionLabel;
+
         // The production website. The github.io project URL is a legacy redirect, not a production dependency.
         public const string CanonicalOrigin = "https://classiccartstudio.com";
         public const string SiteUrl = CanonicalOrigin + "/";

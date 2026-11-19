@@ -67,7 +67,7 @@ namespace CcsBackup.Ui
                                                                 Filter = FileKinds.GameSaves + " (*" + Path.GetExtension(conv.OutputName) + ")|*" + Path.GetExtension(conv.OutputName) + "|All files (*.*)|*.*" };
                     if (string.IsNullOrEmpty(Path.GetExtension(conv.OutputName))) d.Filter = "All files (*.*)|*.*";
                     if (d.ShowDialog(this) != true) return;
-                    if (File.Exists(d.FileName) || File.Exists(d.FileName + ".conversion.json")) { MessageBox.Show(this, "A file with that name already exists; choose another name. Nothing is overwritten.", ProductTitle); return; }
+                    if (File.Exists(d.FileName) || File.Exists(d.FileName + ".conversion.json")) { Tell("Choose another name", "A file with that name already exists; choose another name. Nothing is overwritten."); return; }
                     try
                     {
                         using (var f = new FileStream(d.FileName, FileMode.CreateNew)) f.Write(conv.Output, 0, conv.Output.Length);
@@ -76,7 +76,7 @@ namespace CcsBackup.Ui
                         saved.Children.Add(Note((conv.Trial ? "The comparison copy is saved" : "The " + FileKinds.GameSaves.ToLowerInvariant() + " is saved") + ", with its conversion report beside it. The save in the " + (c.Live ? "console" : "backup") + " is unchanged.", "ok"));
                         saved.Children.Add(PathText(d.FileName)); saved.Children.Add(PathText(d.FileName + ".conversion.json", 12));
                     }
-                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { MessageBox.Show(this, "It could not be saved: " + ex.Message, ProductTitle); }
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { Tell("Not saved", "It could not be saved: " + ex.Message); }
                 })));
                 into.Children.Add(saved);
                 into.Children.Add(Details("Technical details", "Direction: the console's battery save to the player's plain battery file (" + conv.OutputName + ").",
