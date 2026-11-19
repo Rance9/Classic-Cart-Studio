@@ -120,6 +120,7 @@ def main() -> int:
             key(ed, "Escape", "Escape", 27)
             ok("Escape closes the chosen explanation and puts the focus back on its word", ed.js(POP) is None and ed.js("document.activeElement.dataset.g") == "storage")
             ed.js("document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"mod\"]').focus()"); time.sleep(0.1)
+            hb = at(ed, "document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"storage\"]')")   # focusing can scroll Help: measure again
             mv(hb["x"], hb["y"]); wait_pop(2.0); key(ed, "Escape", "Escape", 27)
             ok("Escape closes a hover-opened explanation and leaves the focus where it was", ed.js(POP) is None and ed.js("document.activeElement.dataset.g") == "mod")
             mv(*away); time.sleep(0.3)
