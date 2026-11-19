@@ -1209,4 +1209,4 @@ p.mempty{margin:6px 12px;color:var(--muted)}
 .gterm:focus-visible{outline:2px solid var(--red3);outline-offset:2px;background:rgba(255,59,69,.16);text-decoration-style:solid}
 .gterm[aria-expanded=true]{background:rgba(255,59,69,.16)}
 #gpop{position:fixed;z-index:10050;box-sizing:border-box;background:#1f1f26;border:1px solid var(--red3);border-radius:10px;padding:12px 16px;box-shadow:0 12px 30px rgba(0,0,0,.6);color:var(--ink);font:13.5px/1.45 var(--font);text-align:left;text-transform:none;letter-spacing:normal}
-#gpop b{display:block;font-size:14px;margin-bottom:4px;color:#fff}#gpop p{margin:0 0 8px}#gpop .gtech{color:var(--muted);font-size:12.5px}#gpop .btn{margin-top:2px}
+#gpop b{display:block;font-size:14px;margin-bottom:4px;color:#fff}#gpop p{margin:0 0 8px}#gpop .gtech,#gpop .gdetail{color:var(--muted);font-size:12.5px}#gpop .btn{margin-top:2px}

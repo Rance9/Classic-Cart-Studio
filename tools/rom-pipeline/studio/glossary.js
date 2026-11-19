@@ -1,6 +1,7 @@
 // ---- explained words: the console words this Studio's own pages use (CCS HOME, CCS Mod, CCS Nucleus, Hakchi2 CE, startup software…), with a dotted
 // underline where they appear; a click, a tap, or Tab then Enter or Space opens a short explanation just under the word; Escape, Close or a click
-// elsewhere shuts it (Escape and Close put the focus back on the word). One open at a time; nothing on hover. The words and explanations are the
+// elsewhere shuts it (Escape and Close put the focus back on the word). Resting a mouse pointer on a word opens it too, after GL_HOVER_OPEN_MS,
+// without moving the focus. One open at a time. The words and explanations are the
 // shared glossary (tools/rom-pipeline/studio/glossary.json), the same as in CCS Console Workbench. Explained only inside [data-terms] areas (Help,
 // Install on NES Classic, and the authored text of the dialogs that use these words); never inside links, buttons, labels, form fields, code,
 // headings, game lists or [data-no-terms] (legal text, Credits, the Installation Terms, a collection's own name). Classic Cart Studio itself is
@@ -53,22 +54,66 @@ function glApply(root){
   t.replaceWith(f);
  }
 }
-let glOpenBtn=null;
-function glClose(refocus){ const p=document.getElementById('gpop'); const b=glOpenBtn; glOpenBtn=null; if(p){ p.hidden=true; p.remove(); } if(b){ b.setAttribute('aria-expanded','false'); if(refocus&&b.isConnected) b.focus(); } }
-function glOpen(b){
- if(glOpenBtn===b){ glClose(true); return; } glClose(false);
+// resting a mouse (or pen) pointer on a word opens its explanation too: GL_HOVER_OPEN_MS after the pointer arrives on the word (passing over a
+// word opens nothing, and another word starts its own full wait), without moving the keyboard focus. An explanation opened that way closes
+// GL_HOVER_LEAVE_MS after the pointer has left both the word and the explanation, unless the focus is inside it; a click, Enter or Space on
+// its word keeps it open as if chosen. Touch keeps its tap. The same two values as CCS Console Workbench (WorkbenchTerms.cs).
+const GL_HOVER_OPEN_MS=600, GL_HOVER_LEAVE_MS=200;
+let glOpenBtn=null, glByHover=false, glHoverBtn=null, glHoverT=0, glLeaveT=0;
+function glCancelHover(){ clearTimeout(glHoverT); glHoverT=0; glHoverBtn=null; }
+function glStopLeave(){ clearTimeout(glLeaveT); glLeaveT=0; }
+// closes the open explanation; refocus: back to its word, only for one opened on purpose (one opened by hovering never had the focus)
+function glClose(refocus){ glCancelHover(); glStopLeave(); const p=document.getElementById('gpop'); const b=glOpenBtn, hov=glByHover; glOpenBtn=null; glByHover=false; if(p){ p.hidden=true; p.remove(); } if(b){ b.setAttribute('aria-expanded','false'); if(refocus&&!hov&&b.isConnected) b.focus(); } }
+// opens a word's explanation (byHover: by resting the pointer on it); on its own word, a click, Enter or Space keeps a hover-opened one open as
+// if chosen and closes one opened on purpose
+function glOpen(b, byHover){
+ glCancelHover();
+ if(glOpenBtn===b){
+  if(byHover) return;
+  if(glByHover){ glByHover=false; glStopLeave(); const c=document.getElementById('gpopClose'); if(c) c.focus({preventScroll:true}); return; }
+  glClose(true); return;
+ }
+ glClose(false);
  const t=GL_WEB.find(x=>x.key===b.dataset.g); if(!t) return;
  const p=document.createElement('div'); p.id='gpop'; p.setAttribute('role','dialog'); p.setAttribute('aria-labelledby','gpopT');
- p.innerHTML=`<b id="gpopT">${esc(t.word)}</b><p>${esc(t.text)}</p>${t.tech?`<p class="gtech">Technical name: ${esc(t.tech)}</p>`:''}<button type="button" class="btn sm" id="gpopClose">Close</button>`;
+ p.innerHTML=`<b id="gpopT">${esc(t.word)}</b><p>${esc(t.text)}</p>${t.detail?`<p class="gdetail">${esc(t.detail)}</p>`:''}${t.tech?`<p class="gtech">Technical name: ${esc(t.tech)}</p>`:''}<button type="button" class="btn sm" id="gpopClose">Close</button>`;
  // inside the same dialog as the word (so a dialog's own keyboard handling keeps it), placed just under the word, inside the window
  (b.closest('.mbox,[role=dialog]')||document.body).append(p);
- b.setAttribute('aria-expanded','true'); glOpenBtn=b;
- try{ b.scrollIntoView({block:'nearest', inline:'nearest', behavior:'instant'}); }catch(e){}   // the word in sight (a keyboard user's focus may still be scrolling)
+ b.setAttribute('aria-expanded','true'); glOpenBtn=b; glByHover=!!byHover;
+ if(!byHover){ try{ b.scrollIntoView({block:'nearest', inline:'nearest', behavior:'instant'}); }catch(e){} }   // the word in sight (a keyboard user's focus may still be scrolling)
  glPlace(true);
  document.getElementById('gpopClose').onclick=()=>glClose(true);
  p.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); glClose(true); } });
- document.getElementById('gpopClose').focus({preventScroll:true});
+ // the pointer may cross the small gap into the explanation and use Close; leaving both (with the focus outside) closes a hover-opened one
+ p.addEventListener('pointerenter',()=>glStopLeave());
+ p.addEventListener('pointerleave',e=>{ if(glByHover&&e.pointerType!=='touch') glStartLeave(); });
+ p.addEventListener('focusout',e=>{ if(glByHover&&!p.contains(e.relatedTarget)) glStartLeave(); });
+ if(!byHover) document.getElementById('gpopClose').focus({preventScroll:true});
 }
+function glStartLeave(){
+ glStopLeave();
+ glLeaveT=setTimeout(()=>{ glLeaveT=0; const p=document.getElementById('gpop'); if(!glByHover||!glOpenBtn) return;
+  if(glOpenBtn.matches(':hover')||(p&&(p.matches(':hover')||p.contains(document.activeElement)))) return; glClose(false); }, GL_HOVER_LEAVE_MS);
+}
+const glHoverable=e=>e.pointerType==='mouse'||e.pointerType==='pen';
+document.addEventListener('pointerover',e=>{
+ if(!glHoverable(e)) return; const b=e.target.closest&&e.target.closest('.gterm'); if(!b) return;
+ if(b===glOpenBtn){ glStopLeave(); return; }            // back on the word of the open explanation
+ if(glOpenBtn&&!glByHover) return;                       // an explanation opened on purpose stays until it is closed
+ if(glHoverBtn===b) return;                              // already waiting on this word
+ glCancelHover(); glHoverBtn=b;
+ glHoverT=setTimeout(()=>{ const x=glHoverBtn; glHoverT=0; glHoverBtn=null;
+  if(!x||!x.isConnected||!x.getClientRects().length||document.hidden||!document.hasFocus()||(glOpenBtn&&!glByHover)) return;
+  glOpen(x,true); }, GL_HOVER_OPEN_MS);
+}, true);
+document.addEventListener('pointerout',e=>{
+ if(!glHoverable(e)) return; const b=e.target.closest&&e.target.closest('.gterm'); if(!b||(e.relatedTarget&&b.contains(e.relatedTarget))) return;
+ if(glHoverBtn===b) glCancelHover();                     // left before the wait was over: nothing opens
+ if(b===glOpenBtn&&glByHover) glStartLeave();
+}, true);
+// the window or tab stops being the active one: a waiting hover is dropped and an explanation opened by hovering closes
+addEventListener('blur',()=>{ glCancelHover(); if(glByHover) glClose(false); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden){ glCancelHover(); if(glByHover) glClose(false); } });
 // just under the word (above it when there is no room below), inside the window; it follows the word when the page scrolls, and closes when
 // the word scrolls out of sight
 function glPlace(first){
@@ -78,9 +123,9 @@ function glPlace(first){
  p.style.width=pw+'px'; p.style.left=Math.max(16, Math.min(r.left, vw-pw-16))+'px';
  const ph=p.offsetHeight; p.style.top=Math.max(8, r.bottom+6+ph<=vh-8||r.top-6-ph<8?r.bottom+6:r.top-6-ph)+'px';
 }
-document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('.gterm'); if(b){ e.preventDefault(); e.stopPropagation(); glOpen(b); return; } if(glOpenBtn&&!(e.target.closest&&e.target.closest('#gpop'))) glClose(false); }, true);
+document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('.gterm'); if(b){ e.preventDefault(); e.stopPropagation(); glOpen(b,false); return; } if(glOpenBtn&&!(e.target.closest&&e.target.closest('#gpop'))) glClose(false); }, true);
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&glOpenBtn){ e.preventDefault(); e.stopImmediatePropagation(); glClose(true); return; }
- const b=(e.key==='Enter'||e.key===' ')&&!e.repeat&&e.target.closest&&e.target.closest('.gterm'); if(b){ e.preventDefault(); e.stopImmediatePropagation(); glOpen(b); } }, true);   // Enter or Space on a word opens it
+ const b=(e.key==='Enter'||e.key===' ')&&!e.repeat&&e.target.closest&&e.target.closest('.gterm'); if(b){ e.preventDefault(); e.stopImmediatePropagation(); glOpen(b,false); } }, true);   // Enter or Space on a word opens it
 addEventListener('scroll',e=>{ if(glOpenBtn&&!(e.target.closest&&e.target.closest('#gpop'))) glPlace(); }, true);
 addEventListener('resize',()=>{ if(glOpenBtn) glPlace(); });
 // the areas: explained when they appear and whenever their content changes
@@ -91,7 +136,8 @@ addEventListener('resize',()=>{ if(glOpenBtn) glPlace(); });
  const add=r=>{ pending.add(r); if(!raf) raf=requestAnimationFrame(run); };
  const mark=el=>{ const r=el&&el.closest&&el.closest('[data-terms]'); if(r) add(r); };
  // an area that changed inside a marked one, or marked parts that just arrived (a dialog's body)
- new MutationObserver(ms=>{ for(const m of ms){ if(m.target.closest&&m.target.closest('#gpop')) continue; mark(m.target.nodeType===1?m.target:m.target.parentElement);
+ new MutationObserver(ms=>{ if(glHoverBtn&&!glHoverBtn.isConnected) glCancelHover(); if(glOpenBtn&&!glOpenBtn.isConnected) glClose(false);
+  for(const m of ms){ if(m.target.closest&&m.target.closest('#gpop')) continue; mark(m.target.nodeType===1?m.target:m.target.parentElement);
   for(const n of m.addedNodes||[]){ if(n.nodeType!==1) continue; if(n.matches('[data-terms]')) add(n); n.querySelectorAll('[data-terms]').forEach(add); } } }).observe(document.body,{childList:true,subtree:true,characterData:true});
  document.querySelectorAll('[data-terms]').forEach(r=>glApply(r));
 })();

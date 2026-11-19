@@ -2,8 +2,10 @@
 // CCS Console Workbench: explained words in their own sentences. Every block of text in a Workbench window (its pages, Help, About This
 // Console and the other windows it opens), in both hosts, shows the glossary's words (WorkbenchGlossary.cs) where they are, with a dotted
 // underline that is always visible. A click, a tap, or the keyboard (Tab to the word, then Enter or Space) opens the word's short explanation
-// in a small panel just under it; Escape, Close or a click elsewhere shuts it, and Escape or Close puts the focus back on the word. One
-// explanation is open at a time, nothing opens on hover, and the sentence keeps its font, size, color and wrapping. The panel starts at the
+// in a small panel just under it; Escape, Close or a click elsewhere shuts it, and Escape or Close puts the focus back on the word. Resting
+// the mouse pointer on a word for HoverOpenDelay (600 ms) opens it too, without moving the keyboard focus; such a panel closes HoverLeaveGrace
+// (200 ms) after the pointer has left both the word and the panel, and a click, Enter or Space on its word keeps it open as if chosen. One
+// explanation is open at a time, and the sentence keeps its font, size, color and wrapping. The panel starts at the
 // word's left edge on every PC, and assistive technology reads each word as a link that expands and collapses (open or closed).
 // Left plain: words inside a button, a check box, a choice or any other control (no control inside a control), headings, typed or chosen
 // text, names of games and files, paths and web addresses (the glossary never matches inside them), status lines, and anything marked
@@ -35,7 +37,7 @@ namespace CcsBackup.Ui
         /// <summary>on a page, a Help topic or a window's content: the product names already explained there (explained once per page)</summary>
         static readonly DependencyProperty TermScopeProperty = DependencyProperty.RegisterAttached("TermScope", typeof(HashSet<string>), typeof(BackupWorkspace), new PropertyMetadata(null));
         static readonly DependencyProperty ScopePendingProperty = DependencyProperty.RegisterAttached("ScopePending", typeof(bool), typeof(BackupWorkspace), new PropertyMetadata(false));
-        internal static void NewTermScope(DependencyObject d) => d?.SetValue(TermScopeProperty, new HashSet<string>());
+        internal static void NewTermScope(DependencyObject d) { DropHover(); d?.SetValue(TermScopeProperty, new HashSet<string>()); }
         static DependencyObject ScopeRootOf(DependencyObject d)
         {
             for (var p = d; p != null; p = (p is Visual ? VisualTreeHelper.GetParent(p) : null) ?? LogicalTreeHelper.GetParent(p)) { if (p.GetValue(TermScopeProperty) is HashSet<string>) return p; }
@@ -53,6 +55,7 @@ namespace CcsBackup.Ui
         {
             if (termsHooked) return; termsHooked = true;
             EventManager.RegisterClassHandler(typeof(TextBlock), SizeChangedEvent, new SizeChangedEventHandler((s, e) => { if (s is TextBlock tb) OnTextLoaded(tb); }));
+            EventManager.RegisterClassHandler(typeof(Window), PreviewMouseDownEvent, new MouseButtonEventHandler(OnWindowMouseDown), true);
         }
 
         /// <summary>the Workbench window a text block is in: the main window, or a window it opened (Help, About This Console, a picture)</summary>
@@ -179,11 +182,17 @@ namespace CcsBackup.Ui
             var focusBg = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0x3B, 0x45)); focusBg.Freeze();
             h.GotKeyboardFocus += (s, e) => { h.Background = focusBg; h.TextDecorations = TermUnderline(true); };
             h.LostKeyboardFocus += (s, e) => { h.Background = null; h.TextDecorations = TermUnderline(false); };
-            h.Toggle = () => ToggleTerm(h, host, t);
-            h.Click += (s, e) => ToggleTerm(h, host, t);
-            h.PreviewKeyDown += (s, e) => { if (e.Key == Key.Space) { ToggleTerm(h, host, t); e.Handled = true; } };
+            h.Toggle = () => ActivateTerm(h, host, t);
+            h.Click += (s, e) => ActivateTerm(h, host, t);
+            h.PreviewKeyDown += (s, e) => { if (e.Key == Key.Space) { ActivateTerm(h, host, t); e.Handled = true; } };
+            // resting the pointer on the word opens it after a moment (touch keeps its tap: a touch's promoted mouse events are left out)
+            h.MouseEnter += (s, e) => { if (!FromTouch(e)) HoverEnter(h, host, t); };
+            h.MouseLeave += (s, e) => { if (!FromTouch(e)) HoverLeave(h); };
             return h;
         }
+
+        /// <summary>a mouse event Windows made from a touch (a tap is a click, never a hover)</summary>
+        static bool FromTouch(MouseEventArgs e) => e.StylusDevice?.TabletDevice != null && e.StylusDevice.TabletDevice.Type == TabletDeviceType.Touch;
 
         /// <summary>an explained word's open or closed state, for assistive technology: UI Automation's expand/collapse state and the item
         /// status (the window's equivalent of the website's aria-expanded), with a change notice when it changes</summary>
@@ -222,20 +231,104 @@ namespace CcsBackup.Ui
             protected override string GetItemStatusCore() => AutomationProperties.GetItemStatus(Owner);
             public ExpandCollapseState ExpandCollapseState => Expanded ? ExpandCollapseState.Expanded : ExpandCollapseState.Collapsed;
             public void Expand() { if (!Expanded) ((TermHyperlink)Owner).Toggle?.Invoke(); }
-            public void Collapse() { if (Expanded) ((TermHyperlink)Owner).Toggle?.Invoke(); }
+            public void Collapse() { if (Expanded) CloseTerm(true); }
         }
 
         // ------------------------------------------------------------------ the explanation panel (one open at a time, in every window)
-        static Popup openTerm; static Hyperlink openLink;
+        /// <summary>how long the pointer rests on an explained word before its explanation opens (passing over a word opens nothing), and how
+        /// long an explanation opened by hovering waits, once the pointer has left both the word and the explanation, before it closes. The
+        /// website (studio/glossary.js: GL_HOVER_OPEN_MS, GL_HOVER_LEAVE_MS) uses the same two values.</summary>
+        internal static readonly TimeSpan HoverOpenDelay = TimeSpan.FromMilliseconds(600), HoverLeaveGrace = TimeSpan.FromMilliseconds(200);
+        /// <summary>a hover opens an explanation only in the active window (a test may turn this off)</summary>
+        internal static bool HoverNeedsActiveWindow = true;
+
+        static Popup openTerm; static Hyperlink openLink; static bool openByHover; static Button openClose; static Border openPanel;
+        static System.Windows.Threading.DispatcherTimer hoverOpenTimer, hoverCloseTimer; static Hyperlink hoverLink; static Action hoverOpen;
         /// <summary>the explanation open now (for tests and probes): the term's key, or null</summary>
         internal static string OpenTermKey => openTerm != null && openTerm.IsOpen ? (openLink?.Tag as string)?.Substring(TermTag.Length) : null;
         internal static Popup OpenTermPopup => openTerm != null && openTerm.IsOpen ? openTerm : null;
+        /// <summary>whether the open explanation was opened by hovering (and not yet chosen with a click, Enter or Space)</summary>
+        internal static bool OpenTermByHover => OpenTermPopup != null && openByHover;
+        /// <summary>the word whose explanation is waiting for the hover delay (tests), or null</summary>
+        internal static string PendingHoverKey => hoverLink != null && hoverOpenTimer != null && hoverOpenTimer.IsEnabled ? (hoverLink.Tag as string)?.Substring(TermTag.Length) : null;
 
-        void ToggleTerm(Hyperlink h, TextBlock host, GlossaryTerm t)
+        /// <summary>the pointer came onto a word: back on the word of its own hover-opened explanation, that explanation stays; otherwise the
+        /// word's explanation opens once the pointer has rested on it for HoverOpenDelay. An explanation opened on purpose (click, Enter, Space)
+        /// stays until it is closed: hovering another word does not replace it.</summary>
+        void HoverEnter(Hyperlink h, TextBlock host, GlossaryTerm t)
         {
-            if (openTerm != null && openLink == h && openTerm.IsOpen) { CloseTerm(true); return; }
+            if (openLink == h && OpenTermPopup != null) { StopHoverClose(); return; }
+            if (OpenTermPopup != null && !openByHover) return;
+            CancelHoverOpen();
+            hoverLink = h;
+            hoverOpen = () => { if (HoverStillWanted(h, host)) OpenTerm(h, host, t, true); };
+            if (hoverOpenTimer == null) { hoverOpenTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Normal, Dispatcher) { Interval = HoverOpenDelay }; hoverOpenTimer.Tick += (s, e) => { hoverOpenTimer.Stop(); var a = hoverOpen; hoverLink = null; hoverOpen = null; a?.Invoke(); }; }
+            hoverOpenTimer.Stop(); hoverOpenTimer.Interval = HoverOpenDelay; hoverOpenTimer.Start();
+        }
+
+        /// <summary>the pointer left a word: before the delay, nothing opens at all; from its own hover-opened explanation's word, that
+        /// explanation closes after HoverLeaveGrace unless the pointer reaches the explanation (or comes back) first</summary>
+        static void HoverLeave(Hyperlink h)
+        {
+            if (hoverLink == h) CancelHoverOpen();
+            if (openLink == h && openByHover) StartHoverClose();
+        }
+
+        /// <summary>whether a word's waiting explanation may still open: the word is still shown, in the active window, and no explanation
+        /// chosen on purpose is open</summary>
+        static bool HoverStillWanted(Hyperlink h, TextBlock host)
+        {
+            if (!host.IsVisible || PresentationSource.FromVisual(host) == null) return false;
+            if (OpenTermPopup != null && !openByHover) return false;
+            var w = Window.GetWindow(host);
+            return w != null && (!HoverNeedsActiveWindow || w.IsActive);
+        }
+
+        static void CancelHoverOpen() { hoverOpenTimer?.Stop(); hoverLink = null; hoverOpen = null; }
+        static void StopHoverClose() => hoverCloseTimer?.Stop();
+        static void StartHoverClose()
+        {
+            if (hoverCloseTimer == null)
+            {
+                hoverCloseTimer = new System.Windows.Threading.DispatcherTimer { Interval = HoverLeaveGrace };
+                hoverCloseTimer.Tick += (s, e) =>
+                {
+                    hoverCloseTimer.Stop();
+                    if (!openByHover || OpenTermPopup == null) return;
+                    if ((openLink != null && openLink.IsMouseOver) || (openPanel != null && (openPanel.IsMouseOver || openPanel.IsKeyboardFocusWithin))) return;
+                    CloseTerm(false);
+                };
+            }
+            hoverCloseTimer.Stop(); hoverCloseTimer.Interval = HoverLeaveGrace; hoverCloseTimer.Start();
+        }
+
+        /// <summary>a page, a Help topic or a window changed, or a window stopped being the active one: a waiting hover is dropped and an
+        /// explanation opened by hovering closes (an explanation opened on purpose is the page's own business: Show closes it)</summary>
+        internal static void DropHover()
+        {
+            CancelHoverOpen();
+            if (OpenTermByHover) CloseTerm(false);
+        }
+
+        /// <summary>a click, Enter, Space (or UI Automation's Expand) on a word: opens its explanation at once; on the word of an explanation
+        /// opened by hovering, keeps that explanation open as if it had been opened on purpose; on the word of one opened on purpose, closes it</summary>
+        void ActivateTerm(Hyperlink h, TextBlock host, GlossaryTerm t)
+        {
+            CancelHoverOpen();
+            if (openTerm != null && openLink == h && openTerm.IsOpen)
+            {
+                if (openByHover) { openByHover = false; StopHoverClose(); openTerm.StaysOpen = false; openClose?.Focus(); return; }
+                CloseTerm(true); return;
+            }
+            OpenTerm(h, host, t, false);
+        }
+
+        /// <summary>opens a word's explanation (closing any other). byHover: it takes no keyboard focus, stays open while the pointer is on the
+        /// word or the explanation, and lets the window keep the mouse; otherwise its Close gets the focus and a click elsewhere closes it.</summary>
+        void OpenTerm(Hyperlink h, TextBlock host, GlossaryTerm t, bool byHover)
+        {
             CloseTerm(false);
-            var pop = new Popup { PlacementTarget = host, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true, Focusable = false };
+            var pop = new Popup { PlacementTarget = host, Placement = PlacementMode.Bottom, StaysOpen = byHover, AllowsTransparency = true, Focusable = false };
             var panel = TermPanel(t, () => CloseTerm(true), () => { CloseTerm(false); OpenHelp("glossary"); }, out var close);
             pop.Child = panel;
             var rect = LinkRect(h, host);
@@ -261,20 +354,43 @@ namespace CcsBackup.Ui
                     }
                 }
                 catch (InvalidOperationException) { }
-                SetTermExpanded(h, true); close.Focus();
+                SetTermExpanded(h, true);
+                if (openTerm == pop && !openByHover) close.Focus();   // opened by hovering: the focus stays where the person had it
             };
-            pop.Closed += (s, e) => { SetTermExpanded(h, false); if (openTerm == pop) { openTerm = null; openLink = null; } };
-            openTerm = pop; openLink = h; pop.IsOpen = true;
+            pop.Closed += (s, e) => { SetTermExpanded(h, false); if (openTerm == pop) { openTerm = null; openLink = null; openByHover = false; openClose = null; openPanel = null; } };
+            // the pointer may cross from the word into its explanation (a hover-opened one waits HoverLeaveGrace) and use Close or More in Help
+            panel.MouseEnter += (s, e) => { if (openTerm == pop) StopHoverClose(); };
+            panel.MouseLeave += (s, e) => { if (openTerm == pop && openByHover) StartHoverClose(); };
+            panel.LostKeyboardFocus += (s, e) => { if (openTerm == pop && openByHover && !panel.IsKeyboardFocusWithin) StartHoverClose(); };
+            // the word disappears (its page or topic changed, its part was hidden): its explanation goes with it
+            DependencyPropertyChangedEventHandler gone = null;
+            gone = (s, e) => { if (!host.IsVisible) { host.IsVisibleChanged -= gone; if (openTerm == pop) CloseTerm(false); } };
+            host.IsVisibleChanged += gone;
+            pop.Closed += (s, e) => host.IsVisibleChanged -= gone;
+            openTerm = pop; openLink = h; openByHover = byHover; openClose = close; openPanel = panel; pop.IsOpen = true;
         }
 
-        /// <summary>shuts the open explanation, if any; refocus: the focus goes back to its word. True when one was open.</summary>
+        /// <summary>shuts the open explanation, if any; refocus: the focus goes back to its word, for an explanation opened on purpose only (one
+        /// opened by hovering never had the focus, and closing it leaves the focus where it is). True when one was open.</summary>
         internal static bool CloseTerm(bool refocus)
         {
-            var p = openTerm; var l = openLink; openTerm = null; openLink = null;
+            CancelHoverOpen(); StopHoverClose();
+            var p = openTerm; var l = openLink; bool byHover = openByHover;
+            openTerm = null; openLink = null; openByHover = false; openClose = null; openPanel = null;
             if (p == null) return false;
             bool was = p.IsOpen; p.IsOpen = false;
-            if (refocus && l != null) { try { l.Focus(); } catch (InvalidOperationException) { } }
+            if (refocus && !byHover && l != null) { try { l.Focus(); } catch (InvalidOperationException) { } }
             return was;
+        }
+
+        /// <summary>a click in a window while an explanation opened by hovering is open: anywhere but its own word (whose click keeps it open,
+        /// ActivateTerm), it closes, leaving the focus where it is</summary>
+        static void OnWindowMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!OpenTermByHover) return;
+            for (var d = e.OriginalSource as DependencyObject; d != null; d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) ?? LogicalTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+                if (d == openLink) return;
+            CloseTerm(false);
         }
 
         /// <summary>where the word is in its block (its first line when it wraps), for the panel to open just under it</summary>
@@ -299,6 +415,7 @@ namespace CcsBackup.Ui
             var body = new StackPanel { MaxWidth = 380 };
             body.Children.Add(new TextBlock { Text = t.Word, FontSize = 13.5, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap });
             body.Children.Add(new TextBlock { Text = t.Text, FontSize = 13, LineHeight = 19, TextWrapping = TextWrapping.Wrap });
+            if (t.Detail != null) body.Children.Add(new TextBlock { Text = t.Detail, FontSize = 12, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap });
             if (t.Tech != null) body.Children.Add(new TextBlock { Text = "Technical name: " + t.Tech, FontSize = 12, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap });
             var row = new StackPanel { Orientation = Orientation.Horizontal }; row.Children.Add(close); row.Children.Add(help); body.Children.Add(row);
             var panel = new Border { Background = Res<Brush>("B.MenuSurface") ?? Res<Brush>("B.Surface2"), BorderBrush = Res<Brush>("B.Red3") ?? Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 4, 8, 8), Child = body };
