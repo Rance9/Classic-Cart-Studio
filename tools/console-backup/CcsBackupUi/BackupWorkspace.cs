@@ -237,7 +237,9 @@ namespace CcsBackup.Ui
             what.Children.Add(T("Everything on the console's built-in storage, exactly as stored: its startup software, Nintendo's system and games, every save and setting, and anything other programs added (games, emulators, menus, scripts). If the console's original Nintendo startup software is still on it, a separate copy of that is saved too.", Ty.Text));
             what.Children.Add(T("Games and saves on a USB drive or SD card connected to the console are not included.", Ty.Text, false, true));
             what.Children.Add(T("Where it is saved", Ty.Heading, true, false, new Thickness(0, 10, 0, 6)));
-            what.Children.Add(T(profile.ConsoleTasks ? "One file of about 1.0 GB in your backup location:" : "One file in your backup location:", Ty.Text));   // 1.0 GB: the NES Classic Mini's backup what.Children.Add(PathText(settings.PrimaryFolder));
+            // 1.0 GB: the NES Classic Mini's backup
+            what.Children.Add(T(profile.ConsoleTasks ? "One file of about 1.0 GB in your backup location:" : "One file in your backup location:", Ty.Text));
+            what.Children.Add(PathText(settings.PrimaryFolder));
             if (string.IsNullOrEmpty(settings.ArchiveFolder)) what.Children.Add(T("Additional copy not configured.", Ty.Text, false, true));
             else { what.Children.Add(T("An additional copy goes to:", Ty.Text)); what.Children.Add(PathText(settings.ArchiveFolder)); }
             if (!string.IsNullOrEmpty(settings.ArchiveFolder) && Durable.VolumeId(settings.ArchiveFolder) == Durable.VolumeId(settings.PrimaryFolder))
