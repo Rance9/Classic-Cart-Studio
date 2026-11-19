@@ -157,12 +157,20 @@ namespace CcsBackup.Ui
         }
         void OpenPageHelp() => OpenHelp(HelpTopicFor(PageTag));
 
-        /// <summary>the guide: contents and search on the left, the topic on the right. In the Help window each side scrolls on its own; in
-        /// the page, the page scrolls.</summary>
+        /// <summary>the guide: Back, search and contents on the left, the topic on the right. In the Help window each side scrolls on its
+        /// own; in the page, the page scrolls.
+        ///   Back (WB-UX-12)   a normal button with a left arrow at the top left of both Help views (also Alt+Left and a mouse's back button):
+        ///                     it returns to the topic read before, with the search and the place on the page it had then; it is dimmed
+        ///                     while there is no earlier topic. Every way to another topic (a link, the contents, a search result, Help on
+        ///                     This Page) adds to that history.</summary>
         FrameworkElement HelpView(string start, bool window, out Action<string> go)
         {
             var g = new Grid(); g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(window ? 270 : 250) }); g.ColumnDefinitions.Add(new ColumnDefinition());
             var left = new StackPanel { Margin = new Thickness(window ? 18 : 0, window ? 16 : 0, 18, 16) };
+            var backButton = BackButton("Back", null); backButton.Margin = new Thickness(0, 0, 0, 14); backButton.IsEnabled = false;
+            AutomationProperties.SetAcceleratorKey(backButton, "Alt+Left");
+            ToolTipService.SetShowOnDisabled(backButton, true);
+            left.Children.Add(backButton);
             var searchLabel = new TextBlock { Text = "Search Help", FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(0, 0, 0, 5) };
             var search = new TextBox(); AutomationProperties.SetName(search, "Search Help"); AutomationProperties.SetLabeledBy(search, searchLabel);
             left.Children.Add(searchLabel); left.Children.Add(search);
@@ -177,7 +185,9 @@ namespace CcsBackup.Ui
                 R = rsv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = right, Focusable = false };
             }
             g.Children.Add(L); Grid.SetColumn(R, 1); g.Children.Add(R);
-            var history = new Stack<string>(); string current = null;
+            // what Back returns to: the topic, what was in the search box and how far down the topic was scrolled
+            var history = new Stack<(string topic, string search, double offset)>(); string current = null;
+            ScrollViewer Scroll() => window ? rsv : scroller;
             Action<string> open = null;
             void Contents()
             {
@@ -204,24 +214,44 @@ namespace CcsBackup.Ui
                 var b = new Button { Content = content, Style = Res<Style>("Wb.Nav"), Tag = t.Id == current ? "on" : null, Padding = new Thickness(10, 5, 8, 5), HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 AutomationProperties.SetName(b, t.Title); var id = t.Id; b.Click += (s, e) => open(id); return b;
             }
+            void ShowTopic(HelpTopic t)
+            {
+                current = t.Id; if (!window) helpTopic = t.Id;
+                topicHost.Content = TopicView(t, x => open(x));
+                Contents();
+                backButton.IsEnabled = history.Count > 0;
+                var before = history.Count > 0 ? HelpContent.Find(history.Peek().topic)?.Title : null;
+                backButton.ToolTip = before != null ? "Back to " + before + " (Alt+Left)" : "No earlier topic yet";
+                AutomationProperties.SetHelpText(backButton, before != null ? "Back to the topic " + before : "No earlier topic yet");
+            }
             open = id =>
             {
                 var t = HelpContent.Find(id) ?? HelpContent.Find("start") ?? HelpContent.Topics.FirstOrDefault(); if (t == null) { topicHost.Content = Note("Help is not available in this copy.", "warn"); return; }
-                if (current != null && current != t.Id) history.Push(current);
-                current = t.Id; if (!window) helpTopic = t.Id;
-                topicHost.Content = TopicView(t, history.Count > 0 ? (Action)(() => { var back = history.Pop(); current = null; open(back); }) : null, x => open(x));
-                Contents(); rsv?.ScrollToTop(); if (!window) scroller?.ScrollToTop();
+                if (current != null && current != t.Id) history.Push((current, search.Text, Scroll()?.VerticalOffset ?? 0));
+                ShowTopic(t); Scroll()?.ScrollToTop();
             };
+            void GoBack()
+            {
+                if (history.Count == 0) return;
+                var (id, q, offset) = history.Pop(); var t = HelpContent.Find(id); if (t == null) return;
+                if (search.Text != q) search.Text = q;   // the contents or the search results as they were
+                ShowTopic(t);
+                var sv = Scroll(); if (sv == null) return;
+                sv.ScrollToVerticalOffset(offset);
+                Dispatcher.BeginInvoke(new Action(() => sv.ScrollToVerticalOffset(offset)), System.Windows.Threading.DispatcherPriority.Loaded);   // once the topic is laid out
+            }
+            backButton.Click += (s, e) => GoBack();
+            g.PreviewKeyDown += (s, e) => { if ((e.Key == Key.System ? e.SystemKey : e.Key) == Key.Left && Keyboard.Modifiers == ModifierKeys.Alt) { GoBack(); e.Handled = true; } };
+            g.PreviewMouseDown += (s, e) => { if (e.ChangedButton == MouseButton.XButton1) { GoBack(); e.Handled = true; } };
             search.TextChanged += (s, e) => Contents();
             go = open; open(start);
             return g;
         }
 
-        /// <summary>one topic: its title and summary, Back when it was reached from another topic, and its blocks</summary>
-        FrameworkElement TopicView(HelpTopic t, Action back, Action<string> link)
+        /// <summary>one topic: its title and summary and its blocks (Back is at the top left of Help, HelpView)</summary>
+        FrameworkElement TopicView(HelpTopic t, Action<string> link)
         {
             var sp = new StackPanel(); NewTermScope(sp);
-            if (back != null) { var b = new Button { Content = "‹ Back", Style = Res<Style>("Btn.Link"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 8) }; AutomationProperties.SetName(b, "Back to the topic before"); b.Click += (s, e) => back(); sp.Children.Add(b); }
             sp.Children.Add(new TextBlock { Text = t.Title, Style = Res<Style>("T.Title"), FontSize = 20, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
             if (t.Summary != null) sp.Children.Add(new TextBlock { Text = t.Summary, Style = Res<Style>("T.Muted"), FontSize = 13.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) });
             if (t.Builtin != null) sp.Children.Add(BuiltinTopic(t.Builtin));
@@ -290,11 +320,12 @@ namespace CcsBackup.Ui
             return g;
         }
 
-        /// <summary>a screenshot of a page (sample data), as wide as the topic allows, in a frame of its own with "Screenshot:" before its
-        /// caption, so it is never taken for the live page; a click, Enter or Space opens it larger, and closing that puts the focus back here</summary>
+        /// <summary>a screenshot of a page (sample data), as wide as the topic allows, in a frame of its own with its caption (italic,
+        /// "Screenshot:" first) directly under it, so it is never taken for the live page; a click, Enter or Space opens it larger, and
+        /// closing that puts the focus back here (its focus ring shows only when the keyboard was used: FocusCue)</summary>
         FrameworkElement Shot(string name, string caption)
         {
-            var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 14) };
+            var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 16) };
             var src = HelpPicture(name);
             if (src == null) { sp.Children.Add(Note("Picture not available in this copy: " + caption, "info")); return sp; }
             var img = new Image { Source = src, Stretch = Stretch.Uniform, MaxWidth = src.PixelWidth, HorizontalAlignment = HorizontalAlignment.Left, SnapsToDevicePixels = true };
@@ -305,7 +336,7 @@ namespace CcsBackup.Ui
             // over the window it was chosen in (Help or the main window)
             b.Click += (s, e) => { ShowPicture(src, "Screenshot from Help", caption, "A screenshot of a Workbench page with sample data: a picture, not the page itself.", Window.GetWindow(b)); b.Focus(); };
             sp.Children.Add(b);
-            sp.Children.Add(new TextBlock { Text = "Screenshot: " + caption, FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
+            sp.Children.Add(PictureCaption("Screenshot: " + caption, b));
             return sp;
         }
 
@@ -329,17 +360,17 @@ namespace CcsBackup.Ui
             }
         }
 
-        /// <summary>a picture larger, in its own window (its whole width and height kept in proportion), with its name, a description and
-        /// what it is. The picture sits in its own frame; the window's one Close button is below it, apart from the picture, beside a line
-        /// that says what the picture is. Close, Escape or the window's X shut it; the focus goes back to what opened it.</summary>
+        /// <summary>a picture larger, in its own window (its whole width and height kept in proportion), with its name above it and its
+        /// caption (WB-UX-13: italic, directly under it). The picture sits in its own frame; the window's one Close button is below,
+        /// apart from the picture, beside a line that says what the picture is. Close, Escape or the window's X shut it; the focus goes
+        /// back to what opened it.</summary>
         internal void ShowPicture(ImageSource src, string title, string description, string note, Window owner = null) => Modal(PictureWindow(src, title, description, note, owner));
         internal Window PictureWindow(ImageSource src, string title, string description, string note, Window owner = null)
         {
             var w = Owned(title, Math.Max(760, Math.Min(1500, ActualWidth - 40)), true, owner); w.Height = Math.Max(520, Math.Min(1000, ActualHeight - 20)); w.MinWidth = 520; w.MinHeight = 400;
             var root = new DockPanel { Margin = new Thickness(20, 16, 20, 14) };
             var head = new StackPanel(); DockPanel.SetDock(head, Dock.Top);
-            head.Children.Add(new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
-            if (description != null) head.Children.Add(new TextBlock { Text = description, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
+            head.Children.Add(new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
             root.Children.Add(head);
             var foot = new Grid { Margin = new Thickness(0, 12, 0, 0) }; DockPanel.SetDock(foot, Dock.Bottom);
             foot.ColumnDefinitions.Add(new ColumnDefinition()); foot.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -349,8 +380,11 @@ namespace CcsBackup.Ui
             root.Children.Add(foot);
             var img = new Image { Source = src, Stretch = Stretch.Uniform }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
             AutomationProperties.SetName(img, description ?? title);
-            // the picture in a frame of its own: a picture, apart from the window's own controls
-            root.Children.Add(new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Background = Res<Brush>("B.Surface2"), Padding = new Thickness(8), Child = img });
+            // the picture in a frame of its own: a picture, apart from the window's own controls; its caption directly under the frame
+            var figure = new DockPanel();
+            if (!string.IsNullOrEmpty(description)) { var cap = PictureCaption(description); DockPanel.SetDock(cap, Dock.Bottom); figure.Children.Add(cap); }
+            figure.Children.Add(new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Background = Res<Brush>("B.Surface2"), Padding = new Thickness(8), Child = img });
+            root.Children.Add(figure);
             w.Content = root; w.Loaded += (s, e) => close.Focus();
             return w;
         }
@@ -369,13 +403,14 @@ namespace CcsBackup.Ui
                 case "about-app":
                 {
                     var ab = new StackPanel();
-                    ab.Children.Add(T(ProductTitle + ", version " + opt.Version, Ty.Body, true));
+                    ab.Children.Add(T(ProductTitle + ", version " + VersionLabel, Ty.Body, true));
                     ab.Children.Add(T("By Rance9 (Rance9 LLC). Independent; not affiliated with Nintendo.", Ty.Text));
                     ab.Children.Add(T("Free software under the GNU General Public License, version 3 or later. It includes code from Hakchi2 CE and FelLib (GPL-3.0), LibUsbDotNet (LGPL-3.0) and, in the program it sends to the console, hakchi's recovery kernel and tools (GPL). Credits lists every part and its license.", Ty.Text));
-                    ab.Children.Add(T("Version " + opt.Version + " · engine " + EngineInfo.Engine, Ty.Fine, false, true));
+                    ab.Children.Add(T("Version " + VersionLabel + " · engine " + EngineInfo.Engine, Ty.Fine, false, true));
                     var problem = new ContentControl();
                     ab.Children.Add(Buttons(B("Credits and Licenses", "Btn", () => { Activate(); Go("Credits"); }), B("Source Code", "Btn.Ghost", () => { if (!Launch(SourceUrl)) problem.Content = Note("The web browser could not be opened. The address is " + SourceUrl, "warn"); })));
                     ab.Children.Add(problem);
+                    ab.Children.Add(UpdatePanel());   // the version check: Check for Updates and its answer (WorkbenchUpdates.cs)
                     return Card(ab);
                 }
                 case "glossary":

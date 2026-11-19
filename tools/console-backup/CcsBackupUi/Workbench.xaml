@@ -1,7 +1,8 @@
 <!-- CCS Console Workbench window: the Windows app's theme (Theme.xaml, shared) plus the Workbench's own parts. Copyright (C) 2026 Rance9.
      GPL-3.0-or-later. Only the Workbench window uses this dictionary; the app's own windows keep Theme.xaml as it is. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:wb="clr-namespace:CcsBackup.Ui">
   <ResourceDictionary.MergedDictionaries>
     <ResourceDictionary Source="pack://application:,,,/CcsBackupUi;component/Theme.xaml"/>
   </ResourceDictionary.MergedDictionaries>
@@ -9,6 +10,101 @@
   <SolidColorBrush x:Key="B.Side" Color="#FF131318"/>
   <SolidColorBrush x:Key="B.NavHover" Color="#12FFFFFF"/>
   <SolidColorBrush x:Key="B.NavOn" Color="#FF23232B"/>
+
+  <!-- WB-UX-14: a focus mark (the red ring, a button's red edge, a link's underline) shows only while the keyboard is in use (FocusCue.cs:
+       wb:FocusCue.Shown, set on the focused control after a key press, cleared by a mouse, pen or touch press). A click, or closing a
+       window with the mouse, never leaves a ring behind; Tab, the arrow keys and closing a window with Escape or Enter show it. The
+       Workbench's buttons below are the theme's (Theme.xaml, unchanged for Classic Cart Studio's own windows) with that one change. -->
+  <Style x:Key="Btn" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource B.Line2}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="14,7"/>
+    <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="#80FFFFFF"/><Setter TargetName="bd" Property="Background" Value="#FF26262E"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Background" Value="#FF14141A"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Red3}"/>
+            </MultiTrigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="Btn.Primary" TargetType="Button" BasedOn="{StaticResource Btn}">
+    <Setter Property="Background" Value="{StaticResource B.Red}"/>
+    <Setter Property="BorderBrush" Value="#FFFF5A63"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Red3}"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Red2}"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="White"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="Btn.Ghost" TargetType="Button" BasedOn="{StaticResource Btn}">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+    <Setter Property="FontWeight" Value="Normal"/>
+  </Style>
+  <Style x:Key="Btn.Link" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource B.Red3}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <TextBlock x:Name="t" Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}"/>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="t" Property="TextDecorations" Value="Underline"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="t" Property="TextDecorations" Value="Underline"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- WB-UX-13: a picture's caption, the same everywhere (Help's screenshots, About Classic Cart Studio's screenshots, a picture opened
+       larger, HOME Designer's theme examples): italic, smaller, directly under its picture (BackupWorkspace.PictureCaption) -->
+  <Style x:Key="Wb.Caption" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontStyle" Value="Italic"/>
+    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="LineHeight" Value="18"/>
+    <Setter Property="Foreground" Value="{StaticResource B.Ink2}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="Margin" Value="2,6,0,0"/>
+  </Style>
 
   <!-- the side list of sections: plain rows (a group's sections indented under its heading), the open one marked by a red bar, a lighter
        row and heavier text; keyboard focus draws a ring; a row that cannot be opened while a console task runs is dimmed -->
@@ -32,7 +128,10 @@
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.NavHover}"/><Setter Property="Foreground" Value="{StaticResource B.Ink}"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.NavHover}"/><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="Background" Value="{StaticResource B.NavHover}"/><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/>
+            </MultiTrigger>
             <Trigger Property="Tag" Value="on">
               <Setter TargetName="bd" Property="Background" Value="{StaticResource B.NavOn}"/>
               <Setter TargetName="bar" Property="Background" Value="{StaticResource B.Red}"/>
@@ -67,7 +166,10 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/><Setter Property="Foreground" Value="{StaticResource B.Ink}"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/>
+            </MultiTrigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
@@ -88,7 +190,7 @@
     <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
   </DataTemplate>
   <!-- a clickable row (a folder in a file list): flat, lighter under the pointer -->
-  <!-- a button that is only its content (a picture, an explained word): a focus ring with the keyboard focus, a light hover -->
+  <!-- a button that is only its content (a picture, an explained word): a focus ring while the keyboard is in use, a light hover -->
   <Style x:Key="Wb.Plain" TargetType="Button">
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -102,7 +204,10 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ring" Property="Background" Value="{StaticResource B.NavHover}"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource B.FocusRing}"/>
+            </MultiTrigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -124,7 +229,10 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/></Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Hover}"/>
+            </MultiTrigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>

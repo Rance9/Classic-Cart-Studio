@@ -496,6 +496,9 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
 /* game details: what a player wants first, the technical record on request */
 #details .dfacts{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:12px 0 4px;font-size:14px}#details .dfacts dt{color:var(--muted)}#details .dfacts dd{margin:0;color:#fff}
 #details .dver{color:var(--muted);margin-top:2px}
+#details .dshotrow{display:flex;flex-wrap:wrap;gap:12px}#details .dshotrow figure{margin:0;display:flex;flex-direction:column;gap:4px;width:min(232px,calc(50% - 6px))}
+#details .dshot{display:block;width:100%;padding:0;border:0;background:#000;border-radius:var(--r2);overflow:hidden;cursor:zoom-in;-webkit-tap-highlight-color:transparent}#details .dshot:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+#details .dshot img{display:block;width:100%;height:auto;image-rendering:pixelated}#details .dshotrow figcaption{font-size:12.5px;color:var(--muted)}
 #details .dnotes{display:flex;flex-direction:column;gap:8px}#details .dnote{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink2)}#details .dnote b{color:#fff}
 #details .dmore{margin-top:14px;border:1px solid var(--line2);border-radius:var(--r2);padding:0 14px}#details .dmore>summary{cursor:pointer;padding:10px 0;font-weight:600;color:var(--ink2)}#details .dmore[open]>summary{border-bottom:1px solid var(--line);margin-bottom:8px}
 #details .dmore h3{margin:14px 0 6px}#details .dmore dl{margin:0 0 6px}

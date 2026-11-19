@@ -100,6 +100,10 @@ namespace CcsBackup.Ui
             Derive(typeof(TextBox), new Setter(Control.FontFamilyProperty, ui), new Setter(Control.FontSizeProperty, 13.0), new Setter(Control.PaddingProperty, new Thickness(8, 6, 8, 6)),
                    new Setter(MinHeightProperty, 34.0), new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             Derive(typeof(ComboBox), new Setter(MinHeightProperty, 34.0), new Setter(Control.FontSizeProperty, 13.0));
+            // WB-UX-14: the theme's red glow around a focused choice list shows only while the keyboard is in use (FocusCue), not after a
+            // choice made with the mouse
+            if (Resources[typeof(ComboBox)] is Style combo)
+                combo.Triggers.Add(new MultiTrigger { Conditions = { new Condition(IsKeyboardFocusWithinProperty, true), new Condition(FocusCue.ShownProperty, false) }, Setters = { new Setter(EffectProperty, null) } });
             var wrap = new TextOnlyTemplate { Template = Res<DataTemplate>("Wb.CheckText") };
             // a choice list's own box shows the chosen item with that item's template (not a selector), and every choice here is plain text
             Derive(typeof(ComboBoxItem), new Setter(ContentControl.ContentTemplateProperty, Res<DataTemplate>("Wb.ChoiceText")));
@@ -125,6 +129,30 @@ namespace CcsBackup.Ui
             return sp;
         }
         TextBlock PageTitle(string title) => new TextBlock { Text = title, Style = Res<Style>("T.Title"), FontSize = 22, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) };
+
+        /// <summary>WB-UX-13: a picture's caption, the one way every picture is captioned (Help's screenshots, About Classic Cart Studio's
+        /// screenshots, a picture opened larger, HOME Designer's theme examples): italic, smaller, directly under its picture (style
+        /// Wb.Caption). With under, it is never wider than that picture, so it reads as the picture's own line.</summary>
+        internal TextBlock PictureCaption(string text, FrameworkElement under = null)
+        {
+            var t = new TextBlock { Text = text, Style = Res<Style>("Wb.Caption") };
+            if (t.Style == null) { t.FontStyle = FontStyles.Italic; t.FontSize = Ty.Small; t.TextWrapping = TextWrapping.Wrap; t.HorizontalAlignment = HorizontalAlignment.Left; t.Margin = new Thickness(2, 6, 0, 0); }
+            if (under != null) t.SetBinding(MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth") { Source = under });
+            return t;
+        }
+
+        /// <summary>WB-UX-12: a normal button with a left arrow, for going back (Help's Back, Settings' Back to Back Up Console): the same
+        /// size and look as the window's other buttons, at the top left of what it belongs to</summary>
+        internal Button BackButton(string text, Action click)
+        {
+            var b = new Button { Style = Res<Style>("Btn"), HorizontalAlignment = HorizontalAlignment.Left, MinHeight = 34, MinWidth = 96, Padding = new Thickness(12, 6, 16, 6) };
+            b.Content = new StackPanel { Orientation = Orientation.Horizontal, Children = {
+                new TextBlock { Text = "", FontFamily = Res<FontFamily>("F.Icons") ?? new FontFamily("Segoe MDL2 Assets"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 1, 9, 0) },
+                new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center } } };
+            System.Windows.Automation.AutomationProperties.SetName(b, text);
+            if (click != null) b.Click += (s, e) => click();
+            return b;
+        }
 
         /// <summary>a heading inside a page, above a group of cards or fields</summary>
         TextBlock Group(string title, double top = 8) => new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, top, 0, 10) };

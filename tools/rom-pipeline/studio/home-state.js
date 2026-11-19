@@ -24,7 +24,7 @@ const HOME_MARQUEE_DELAY=900;
 function homeDescSteps(g){ if(!g) return 0; const d=g.descriptions; const parts=d?[...(d.official?['Official description',...String(d.official).split(/\n\s*\n/)]:[]),'Game overview',...String(d.overview||HOME_NO_OVERVIEW_S).split(/\n\s*\n/)]:(g.description?[g.description]:[]);   // no Official section without an official text
  const lines=parts.reduce((n,p)=>n+Math.max(1,Math.ceil(String(p).length/70))+(d?0.5:0),0); return Math.max(0,Math.ceil((lines-8)/4)); }
 const HOME_NO_OFFICIAL_S='No verified official description available.', HOME_NO_OVERVIEW_S='No game overview available.';
-function homeInitialState(theme){ return {v:1, theme:theme||'arcade-grid', section:{type:'allgames'}, zone:'games', overlay:null, index:0, navIndex:0, landmark:0, keyRow:0, keyCol:0, suggestIndex:0, resultIndex:0, browseIndex:0, historyIndex:0, settingsIndex:0, overlayIndex:0, descScroll:0, detailsFocus:'play', query:'', memo:{}, lastGame:null, launchCount:0, repeat:{button:null,since:0,count:0}}; }
+function homeInitialState(theme){ return {v:1, theme:theme||'featured-shelf', section:{type:'allgames'}, zone:'games', overlay:null, index:0, navIndex:0, landmark:0, keyRow:0, keyCol:0, suggestIndex:0, resultIndex:0, browseIndex:0, historyIndex:0, settingsIndex:0, overlayIndex:0, descScroll:0, detailsFocus:'play', query:'', memo:{}, lastGame:null, launchCount:0, repeat:{button:null,since:0,count:0}}; }
 function homeLocKey(sec){ return sec.type+(sec.id?':'+sec.id:''); }
 function homeSortable(sec){ return ['allgames','folder','category','favorites'].includes(sec.type); }
 

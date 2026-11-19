@@ -8,7 +8,7 @@ r"""A HOME Designer design carried by a collection, losslessly (CCS-FORMAT.md "H
                    change only what they understand, and carry the bytes out unchanged (node)
   compiled design  the package builder's ingest of a compiled design (native_home/design_ingest.py) takes the C# compiler's bytes as they
                    are and refuses a changed or extra file
-  carried design   the Windows app compiles a collection's carried design through the host program's --design-compile (design_compile.py)
+  carried design   the Windows app compiles a collection's carried design through the installed Workbench's --design-compile (design_compile.py)
                    to exactly the bytes the Workbench compiles; a design the console cannot show stops the build with its reason in words
                    (never left out); the package and the CCS Mod and CCS Nucleus console packages carry the same compiled design and startup
                    picture, and their sessions name the same design folder on the console; a .ccs keeps the design and the startup picture

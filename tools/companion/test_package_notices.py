@@ -33,7 +33,7 @@ def main() -> int:
              {"id": "g2", "title": "Another", "cover": "cover/3333333333333333.jpg", "cover_source": None, "cover_kind": "user", "scene": "forest-of-illusion", "text": None}]
     files = {"bin/ccs-player-armv7": b"\x7fELF player", "home/bin/ccs-home-armv7": b"\x7fELF home", "fonts/silk17.ccsf": b"f", "fonts/OFL-Silkscreen.txt": b"ofl",
              "home/font/body.ccsf": b"f", "home/licenses/OFL-Barlow.txt": b"ofl", "home/licenses/THIRD-PARTY.txt": b"tp", "home/theme/arcade-grid/scene.png": b"s",
-             "home/theme/icon-games-22.png": b"i", "home/hero/aaaa.jpg": b"h", "home/wide/bbbb.jpg": b"w", "home/cover/1111111111111111.jpg": b"c1",
+             "home/theme/icon-games-22.png": b"i", "home/hero/aaaa.jpg": b"h", "home/snap/dddd.png": b"s", "home/cover/1111111111111111.jpg": b"c1",
              "home/cover/2222222222222222.jpg": b"c2", "home/cover/3333333333333333.jpg": b"c3", "home/folder/cccc.jpg": b"fo", "home/design/design.json": b"{}",
              "home/music/ccs-home-theme.wav": b"RIFF", "home/text/aaaaaaaaaaaaaaaa.json": b"{}", "home/text/bbbbbbbbbbbbbbbb.json": b"{}",
              f"roms/{thw['content_sha256']}.nes": b"NES\x1a", f"roms/{other}.nes": b"NES\x1a", "startup/startup-pixel-worlds.jpg": b"j", "startup/startup-custom-0123456789abcdef.jpg": b"j",
@@ -60,7 +60,7 @@ def main() -> int:
         ok("NOTICE.txt names the Included Game's source and archive", f"site-data/{thw['source']}" in notice and thw["original_archive"]["sha256"] in notice and thw["file_sha256"] in notice)
         ok("Magic Cliffs credited: CC BY 3.0, license address, author, source, changes",
            all(x in notice for x in ("Magic Cliffs Environment", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/", "Luis Zuno", "https://opengameart.org/content/magic-cliffs-environment", "Changes: Composed")))
-        ok("NOTICE.txt covers each part present", all(x in notice for x in ("The game player", "The HOME program", "Fonts", "HOME theme art", "Game backdrops", "The Included Games' covers",
+        ok("NOTICE.txt covers each part present", all(x in notice for x in ("The game player", "The HOME program", "Fonts", "HOME theme art", "Game backdrops", "Game screens", "The Included Games' covers",
            "Game box art", "Pictures Classic Cart Studio draws", "The collection's own pictures", "HOME Music", "Console startup images", "Game descriptions", "Games (roms/)", "Classic Cart Studio's own files")))
         ok("the person's own game is not given a license", "1 other game file(s): supplied by the person who made this collection" in notice)
         ok("no license is claimed for box art", "no license claimed" in notice)

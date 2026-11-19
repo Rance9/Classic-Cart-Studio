@@ -141,10 +141,18 @@ class B_Typical(Base):
         # reported and the folder shows the collage of its covers (test_browse.py covers real folder artwork)
         self.assertEqual(m["sizes"]["by_category"]["folder-artwork"], 0); self.assertTrue(any("folder Adventures: custom artwork is listed" in w for w in m["warnings"]), m["warnings"])
         self.assertTrue(m["runtime"]["features"]["browse-folders"]); self.assertFalse([e for e in m["excluded"] if "folder artwork" in e["asset"]])
-        by_scene = {}   # every game shows the shared scene of its genre, one Details backdrop and one key-art file per scene
+        by_scene = {}   # every game shows the shared scene of its genre, one Details backdrop per scene
         for g in self.games():
-            self.assertEqual(g["scene"], SC.scene_for(CAT[g["id"]].get("genre"))["id"]); by_scene.setdefault(g["scene"], set()).add((g["hero"], g["hero_wide"]))
+            self.assertEqual(g["scene"], SC.scene_for(CAT[g["id"]].get("genre"))["id"]); by_scene.setdefault(g["scene"], set()).add(g["hero"])
+            self.assertNotIn("hero_wide", g)   # no theme's main HOME shows a game or genre scene, so no Featured Shelf key art
         self.assertTrue(all(len(v) == 1 for v in by_scene.values()), by_scene)
+        self.assertFalse([f["path"] for f in m["files"] if f["path"].startswith("wide/")])
+        # Featured Shelf: each catalog game with a game screen carries it (the site's file, unchanged); a game without one carries none
+        for g in self.games():
+            want = CAT.get(g["id"], {}).get("art_snap")
+            if want: self.assertEqual(g.get("snap"), f"snap/{DV.sha256_file(CF._art_path(want))[:16]}.png", g["id"]); self.assertEqual(DV.sha256_file(os.path.join(self.root, "current", *g["snap"].split("/"))), DV.sha256_file(CF._art_path(want)))
+            else: self.assertNotIn("snap", g, g["id"])
+        self.assertTrue(any(g.get("snap") for g in self.games()), "some games carry their game screen")
         if EVIDENCE:
             os.makedirs(EVIDENCE, exist_ok=True); shutil.copyfile(os.path.join(self.root, "current", "manifest.json"), os.path.join(EVIDENCE, "sample-manifest-typical.json"))
             _jsave({"configuration": "B: 20 factory games + 10 added, 2 folders, 3 favorites", "files": len(m["files"]), "sizes": m["sizes"], "excluded": m["excluded"]}, os.path.join(EVIDENCE, "sizes-typical.json"))
@@ -257,6 +265,7 @@ class F_Development(Base):
         self.assertFalse(os.path.isdir(os.path.join(self.root, "current")), "the development package never becomes the current package")
         m = self.assertPackageIntegrity("development"); self.assertEqual(m["mode"], "development"); self.assertFalse(m["installable"]); self.assertIn("never an installation", m["not_installable_reason"])
         self.assertEqual(len(m["games"]), 773)
+        self.assertEqual(_jload(os.path.join(self.root, "development", "pack.json"))["theme_default"], "featured-shelf", "the default theme is Featured Shelf")
         import importlib.util
         spec = importlib.util.spec_from_file_location("nhp", os.path.join(TOOLS, "console-simulator", "adapter", "native_home_pack.py")); nhp = importlib.util.module_from_spec(spec); spec.loader.exec_module(nhp)
         exp = sorted((nhp.entry_for(g) for g in CAT.values()), key=lambda e: (e["sort"], e["id"])); g = self.games("development")

@@ -62,8 +62,18 @@ def main(site: str):
     cat = json.load(open(os.path.join(site, "catalog.json"), encoding="utf-8")); with_art = [g for g in cat["games"] if g.get("art")]
     # N3.1 artwork audit: 5 catalog scans that showed another product or region were hidden on purpose (the generated cover shows instead)
     ok("curated_cover_art_coverage_restored", len(cat["games"]) > 700 and len(with_art) >= 740, f"{len(with_art)} of {len(cat['games'])}")
-    ok("cover_art_files_exist", all(os.path.exists(os.path.join(site, g["art"])) for g in with_art) and len(os.listdir(os.path.join(site, "art"))) >= 800)
+    # one file per group of byte-identical covers (build_site_ci.py fold_covers): a folded name resolves through art/aliases.json to a kept file
+    try: al = json.load(open(os.path.join(site, "art", "aliases.json"), encoding="utf-8"))
+    except (OSError, ValueError): al = {}
+    amap = al.get("aliases") or {}; here = lambda rel: os.path.exists(os.path.join(site, *amap.get(rel, rel).split("/")))
+    ok("cover_art_files_exist", all(here(g["art"]) for g in with_art) and len(os.listdir(os.path.join(site, "art"))) >= 800)
+    import hashlib as _h
+    covers = [n for n in os.listdir(os.path.join(site, "art")) if re.fullmatch(r"[0-9a-f]{16}\.jpg", n)]; digests = [_h.sha256(open(os.path.join(site, "art", n), "rb").read()).digest() for n in covers]
+    ok("covers_kept_once", al.get("schema") == "ccs-art-aliases/1" and len(set(digests)) == len(digests) and all(not os.path.exists(os.path.join(site, *k.split("/"))) and os.path.exists(os.path.join(site, *v.split("/"))) for k, v in amap.items()),
+       f"{len(covers)} covers, {len(set(digests))} distinct, {len(amap)} folded")
     lib = json.load(open(os.path.join(site, "library.json"), encoding="utf-8")); titles = list(lib["titles"].values()) if isinstance(lib["titles"], dict) else lib["titles"]
+    ok("library_cover_files_resolve", all(here(v[k]) for v in lib["versions"] for k in ("art", "art_family") if v.get(k)) and all(here(t["art"]) for t in titles if t.get("art")))
+    pcov = set(re.findall(r'"(art/[0-9a-f]{16}\.jpg)"(?!:)', page)); ok("page_names_only_shipped_covers", len(pcov) >= 740 and all(os.path.exists(os.path.join(site, *c.split("/"))) for c in pcov), f"{len(pcov)} cover names in the page, missing {sorted(c for c in pcov if not os.path.exists(os.path.join(site, *c.split('/'))))[:3]}")
     ok("library_art_mappings_kept", sum(1 for t in titles if t.get("art")) >= 740 and sum(1 for v in lib["versions"] if v.get("art")) >= 800, (sum(1 for t in titles if t.get("art")), sum(1 for v in lib["versions"] if v.get("art"))))
     sprites = set(re.findall(r'src="(brand/ccs/[^"]+\.png)"', page)); ok("every_sprite_reference_exists", len(sprites) >= 20 and all(os.path.exists(os.path.join(site, s)) for s in sprites), str(len(sprites)))
     ci = json.load(open(os.path.join(site, "brand", "ccs", "index.json"), encoding="utf-8")); known = {f for c in ci["characters"] for f in c["frames"]} | {x["file"] for k in ("items", "icons", "tiles") for x in ci[k]}
@@ -85,7 +95,7 @@ def main(site: str):
     ok("footer_links_branded_source", 'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>' in page and "download: <a href=\"https://github.com/Rance9/Classic-Cart-Studio\"" not in page)
     ok("footer_cast_pauses_on_hover", "footer .castwrap:hover .cast,footer .castwrap:focus-within .cast{animation-play-state:paused}" in page)
     ok("app_download_page_is_first_party", 'http-equiv="refresh"' not in app and "location.replace(" not in app and "<title>Classic Cart Studio | Windows Downloads</title>" in app and 'href="https://classiccartstudio.com/app/"' in app and 'name="robots" content="noindex,follow"' in app)
-    ok("app_download_page_separates_preview_products", "/releases/download/v0.11.3/ClassicCartStudio-Setup-0.11.3.exe" in app and "/releases/download/workbench-v0.11.3/CCS-Console-Workbench-0.11.3.exe" in app and "Development previews" in app and "unsigned" in app and "Console connections, console writes and USB driver actions are disabled" in app and "/releases/latest" not in app and 'href="https://github.com/Rance9/Classic-Cart-Studio"' not in app)
+    ok("app_download_page_separates_preview_products", "/releases/download/v0.11.4/ClassicCartStudio-Setup-0.11.4.exe" in app and "/releases/download/workbench-v0.11.4/CCS-Console-Workbench-0.11.4.exe" in app and "Development previews" in app and "unsigned" in app and "Console connections, console writes and USB driver actions are disabled" in app and "/releases/latest" not in app and 'href="https://github.com/Rance9/Classic-Cart-Studio"' not in app)
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
 
 SITE_URL = "https://classiccartstudio.com"

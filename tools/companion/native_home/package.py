@@ -10,11 +10,13 @@ selected games' (the union of what the four themes draw for them):
   games         the collection's games, in the HOME order (folders and favorites are recorded, but the native runtime cannot show
                 Browse or Favorites yet, so folder artwork is unreachable and not packaged)
   per game      its effective cover (user replacement > authentic art > NES-style mock cover; fitted whole; one image serves all
-                four themes and Details), its own approved hero as the Details backdrop and as the Featured Shelf key art, its
-                effective texts (user overrides > canonical) and the short previews the themes show
+                four themes and Details), the shared scene of its genre as the Details backdrop (no theme's main
+                HOME shows a genre scene), the catalog game's own screen behind it in Featured Shelf (snap/, the site's 256 x 240 PNG as
+                it is: the HOME scales it nearest-neighbor, so it stays crisp), its effective texts (user overrides > canonical) and the
+                short previews the themes show
   shared        each theme's scene, the sprites its renderer draws (with the own pixels of each one it draws over the background, for a
                 HOME design's background: own_sprites.py) and its picker thumbnail, the icons at the sizes drawn, the
-                universal fallback backdrop and key art (only when some game uses them), fonts baked per role for the
+                fonts baked per role for the
                 characters the package shows, the native runtime executable, and the licenses that must travel with them
   theme         the Windows-chosen default theme; with "apply", a one-time request that the console switch to it
 An empty, sample or inconsistent configuration is refused (no package); deployment never falls back to the full catalog. The
@@ -214,8 +216,8 @@ class Builder:
                 if cfg["mode"] == "play":   # the computer: the same icon drawn at twice the size
                     p2 = self.cached("icon", DV.sha256_bytes(k.encode()), str(sz * 2), ".png", lambda out, k=k, sz=sz: DV.meta_icon(k, out, sz * 2)); icons2[f"{k}-{sz}"] = self.put(f"theme/icon-{k}-{sz}-2x.png", p2, "shared", "icon-png")
         done += 4; tick("themes")
-        # games: effective cover (user > authentic > mock), the Details backdrop and the Featured Shelf key art (the shared scene of
-        # the game's genre, config.py; the same five source images as the website's HOME), effective texts and their previews
+        # games: effective cover (user > authentic > mock), the Details backdrop (the shared scene of the game's genre, config.py; the
+        # same five source images as the website's HOME; one file per scene), effective texts and their previews
         recs = []; chars = set(DV.UI_TEXT); titles = set(); n_kind = {"user": 0, "authentic": 0, "mock": 0}
         design = None   # a compiled HOME design: its bytes as the C# compiler wrote them; its labels and folder names need their glyphs
         if cfg.get("design_embed") is not None and not cfg.get("design_compiled_dir"):   # the collection's carried .ccshome: compiled by the one C# compiler for these games
@@ -238,8 +240,9 @@ class Builder:
             if hs:
                 h = DV.sha256_file(hs)
                 p = self.cached("hero", h, f"hero{DV.DETAILS_ART}", ".jpg", lambda out, hs=hs: DV.hero(hs, "hero", out)); rec["hero"] = self.put(f"hero/{DV.sha256_file(p)[:16]}.jpg", p, "shared", "backdrop-jpeg")
-                p = self.cached("hero-wide", h, f"{DV.HERO_WIDE}", ".jpg", lambda out, hs=hs: DV.hero_wide(hs, out)); rec["hero_wide"] = self.put(f"wide/{DV.sha256_file(p)[:16]}.jpg", p, "shared", "keyart-jpeg")
-                rec["hero_kind"] = "hero"; rec["scene"] = g.get("scene"); rec["hero_title"] = {k: v for k, v in (g.get("hero_title") or {}).items() if k in ("x", "y", "w", "align")} or None
+                rec["hero_kind"] = "hero"; rec["scene"] = g.get("scene")
+            sp = CF._art_path(g.get("snap"))   # the game's own screen behind it in Featured Shelf: the site's file, unchanged (one per screen)
+            if sp: rec["snap"] = self.put(f"snap/{DV.sha256_file(sp)[:16]}.png", sp, "game-theme-artwork", "snap-png")
             t = g.get("texts")
             if t:
                 body = {k: v for k, v in t.items() if v is not None}
@@ -356,7 +359,7 @@ class Builder:
         pack = _jload(os.path.join(self.stage, "pack.json")); gd = _jload(os.path.join(self.stage, "games.json"))
         refs = [pack["games"]] + list(pack["icons"].values()) + list((pack.get("icons_2x") or {}).values()) + [f["file"] for f in pack["fonts"].values()] + [f["file_2x"] for f in pack["fonts"].values() if f.get("file_2x")]
         for t in pack["themes"].values(): refs += [t["scene"], t["thumb"]] + [t[k] for k in ("scene_2x", "thumb_2x") if t.get(k)] + [s["file"] for s in t["sprites"].values()] + [s[k] for s in t["sprites"].values() for k in ("file_2x", "file_own") if s.get(k)]
-        for g in gd["games"]: refs += [x for x in (g.get("cover"), g.get("hero"), g.get("hero_wide"), g.get("text")) if x]
+        for g in gd["games"]: refs += [x for x in (g.get("cover"), g.get("hero"), g.get("snap"), g.get("text")) if x]
         refs += [f["art"] for f in (pack.get("browse") or {}).get("folders") or [] if f.get("art")]   # folder tile artwork (Browse)
         if (pack.get("music") or {}).get("file"): refs.append(pack["music"]["file"])   # HOME Music
         refs += (pack.get("design") or {}).get("files") or []   # a compiled HOME design

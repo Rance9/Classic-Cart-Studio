@@ -27,7 +27,7 @@ function homeStartupCustom(prev){ const c=prev&&prev.startup_custom; if(!c||type
  if(!id) return null; if(!sha||c.id!==id) return {id, problem:typeof c.problem==='string'?c.problem.slice(0,200):'the picture is not described correctly'};
  const o={id, sha256:sha, name:String(c.name||'My picture').slice(0,80), fit:c.fit==='fill'?'fill':'fit', bytes:Number.isSafeInteger(c.bytes)&&c.bytes>0?c.bytes:0, width:1280, height:720}; if(typeof c.problem==='string') o.problem=c.problem.slice(0,200); return o; }
 function homeStartupChoice(prev){ const v=prev&&prev.startup_image; if(HOME_STARTUP.some(s=>s.id===v)) return v; const c=homeStartupCustom(prev); return c&&c.id===v?v:'random'; }
-const HOME_DEFAULT_THEME='arcade-grid';
+const HOME_DEFAULT_THEME='featured-shelf';   // Featured Shelf is the default everywhere, by its id (never by its place in HOME_THEMES)
 const HOME_SORTS=[{id:'custom',label:'Custom Order'},{id:'title-az',label:'Title A–Z'},{id:'title-za',label:'Title Z–A'},{id:'year-old',label:'Release Year: Oldest First'},{id:'year-new',label:'Release Year: Newest First'},{id:'pub-az',label:'Publisher A–Z'},{id:'pub-za',label:'Publisher Z–A'}];
 const HOME_MAX_FOLDER_DEPTH=5;
 const HOME_EMPTY={

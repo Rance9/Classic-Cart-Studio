@@ -26,9 +26,12 @@ namespace CcsBackup.Ui
     public sealed partial class BackupWorkspace
     {
         bool driverReady; DriverRecord driverRecord;
-        // a driver a Workbench window inside Classic Cart Studio set up in this run of the app: that window's own close never offers its
-        // removal (the app may still use the console), so the app's own close asks (DriverAtAppClose). The same holds for a certificate an
-        // earlier removal kept: inside the app its cleanup is offered only when the app closes.
+        // a driver a Workbench window inside Classic Cart Studio's own process set up in this run of the app: that window's own close never
+        // offers its removal (the app may still use the console), so the app's own close asks (DriverAtAppClose). The same holds for a
+        // certificate an earlier removal kept: inside the app its cleanup is offered only when the app closes. WB-UX-20: a Workbench that
+        // Classic Cart Studio starts as its own program (installed mode, opt.Studio) owns its console connection like the standalone, so
+        // it asks at its own close and offers a kept certificate's cleanup at its own start, exactly as the standalone does.
+        bool InStudioProcess => opt.HostedInFullApp && opt.Studio == null;
         static string appRunDriverFile;
         static readonly List<string> appCleanupFiles = new List<string>();
         public static bool AppRunDriverPending => appRunDriverFile != null || appCleanupFiles.Count > 0;
@@ -155,7 +158,7 @@ namespace CcsBackup.Ui
                 {
                     var o = t.IsFaulted ? new SetupOutcome { Result = SetupResult.Failed, Message = t.Exception.GetBaseException().Message } : t.Result;
                     driverRecord = o.Record ?? driverRecord;
-                    if (opt.HostedInFullApp && o.Record != null) appRunDriverFile = o.Record.File;
+                    if (InStudioProcess && o.Record != null) appRunDriverFile = o.Record.File;
                     bool ok = o.Result == SetupResult.Installed || o.Result == SetupResult.InstalledNotOwned || o.Result == SetupResult.Reused || o.Result == SetupResult.NotNeeded;
                     if (ok) { driverReady = true; go(); return; }
                     var main = t.IsFaulted ? "The USB driver setup stopped with a problem, so Workbench cannot say whether it finished. Workbench checks this PC again before its next console task." : o.Message ?? "The USB driver setup did not finish.";
@@ -171,7 +174,7 @@ namespace CcsBackup.Ui
         DriverUsage CurrentUsage(bool countIdle)
         {
             bool running = worker != null && worker.Running;
-            var u = new DriverUsage { Host = opt.HostedInFullApp ? HostKind.Embedded : HostKind.Standalone, ParentAppNeedsDevice = opt.HostedInFullApp,
+            var u = new DriverUsage { Host = opt.HostedInFullApp ? HostKind.Embedded : HostKind.Standalone, ParentAppNeedsDevice = InStudioProcess,
                 ConsoleOperationActive = running && (!gotResult || countIdle), ConsoleWriteInProgress = writing };
             try { u.OtherProgramsOpen = DriverUsage.OtherProgramsFromProcesses(); } catch (Exception) { }
             try { u.OtherWorkbenchOperation = !running && ConsoleLock.IsBusy(); } catch (Exception) { }   // the console lock held by another window or program
@@ -300,7 +303,7 @@ namespace CcsBackup.Ui
             try { dlg.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/CcsBackupUi;component/Workbench.xaml", UriKind.Absolute) }); } catch { }
             var ink = dlg.TryFindResource("B.Ink") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.White;
             dlg.Background = dlg.TryFindResource("B.Bg") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Black;
-            dlg.SourceInitialized += (s, e) => Dark(dlg);
+            dlg.SourceInitialized += (s, e) => WindowFrame.Prepare(dlg);
             var sp = new StackPanel { Margin = new Thickness(24, 20, 24, 14) };
             sp.Children.Add(new TextBlock { Text = title, FontSize = 17, FontWeight = FontWeights.Bold, Foreground = ink, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
             foreach (var para in (body ?? "").Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries)) sp.Children.Add(new TextBlock { Text = para, FontSize = 13.5, Foreground = ink, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
@@ -354,7 +357,7 @@ namespace CcsBackup.Ui
         {
             var dlg = new Window { Title = title, Owner = IsLoaded ? this : null, SizeToContent = SizeToContent.Height, Width = 560, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = IsLoaded ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen, Background = Res<System.Windows.Media.Brush>("B.Bg"), ShowInTaskbar = false };
             foreach (var md in Resources.MergedDictionaries) dlg.Resources.MergedDictionaries.Add(md);
-            dlg.SourceInitialized += (s, e) => Dark(dlg);
+            dlg.SourceInitialized += (s, e) => WindowFrame.Prepare(dlg);
             int chosen = cancelIndex >= 0 ? cancelIndex : buttons.Length - 1;
             dlg.Content = DriverDialogPanel(title, body, buttons, defaultIndex, cancelIndex, details, k => { chosen = k; dlg.Close(); });
             dlg.ShowDialog();
@@ -377,7 +380,7 @@ namespace CcsBackup.Ui
             DriverLedger ledger;
             try { ledger = new DriverLedger(settings.PrimaryFolder); if (!Directory.Exists(ledger.Folder) || Directory.GetFiles(ledger.Folder, "usb-driver-*.json").Length == 0) return; }
             catch (Exception) { return; }
-            var store = new WindowsDriverStore(); var ctx = DriverContext(store); var usage = CurrentUsage(false); bool hosted = opt.HostedInFullApp;
+            var store = new WindowsDriverStore(); var ctx = DriverContext(store); var usage = CurrentUsage(false); bool hosted = InStudioProcess;
             Task.Run(() =>
             {
                 var rep = DriverSetup.Reconcile(ledger, store);

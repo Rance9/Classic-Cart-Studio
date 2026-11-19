@@ -55,13 +55,13 @@ Some reviews can be confirmed only once, and only for a limited time. If the tim
 
 ! Workbench never promises that a console can be brought back to an earlier state. Keep your backups, check them now and then, and keep an additional copy on another drive.
 
-## Standalone or inside Classic Cart Studio
+## Standalone or opened from Classic Cart Studio
 
 Workbench comes two ways, with the same pages and the same steps:
 
 | Where it runs | What is different |
 | The standalone CCS Console Workbench | One program file, with no installer. Your settings are kept only while it is open, unless you save them to a settings file of your own; when it closes with settings that are not saved, it asks first. When it closes, it may also offer to remove the USB driver it set up. |
-| Inside Classic Cart Studio for Windows | Opens from Classic Cart Studio and saves its settings automatically, with Classic Cart Studio's own settings. HOME Designer can also preview a design with the HOME menu Classic Cart Studio prepared on this PC. The Workbench window never removes the USB driver when it closes, because Classic Cart Studio may still use it; Classic Cart Studio asks when it closes instead. |
+| Opened from Classic Cart Studio for Windows | Classic Cart Studio installs the same program file and opens it in a window of its own. Only one opens at a time: opening it again brings that window forward. It keeps working when Classic Cart Studio closes. It saves its settings automatically, with Classic Cart Studio's own settings. HOME Designer can also preview a design with the HOME menu Classic Cart Studio prepared on this PC. When it closes, it may offer to remove the USB driver it set up, as the standalone does; Classic Cart Studio itself never asks. |
 
 For the parts of the window, see [The Workbench Window](#window). Words you may not know have a dotted underline where they appear: choose one to see what it means, or see the [Glossary](#glossary). For how Help works, see [Using Help](#using-help).
 
@@ -153,11 +153,11 @@ Each case says what it means and what you can do. **Open a Backup File…** is a
 
 [shot 00d-dashboard-unreadable | Recent backups when the backup location could not be read, with Technical details open.]
 
-## Inside Classic Cart Studio
+## Opened from Classic Cart Studio
 
-The Dashboard looks and works the same when Workbench opens from Classic Cart Studio for Windows.
+The Dashboard looks and works the same when Classic Cart Studio for Windows opens Workbench: it is the same program, in a window of its own.
 
-[shot 00f-hosted-dashboard | The Dashboard inside Classic Cart Studio for Windows, with the same cards and sample backups.]
+[shot 00f-hosted-dashboard | The Dashboard of Workbench opened from Classic Cart Studio for Windows, with the same cards and sample backups.]
 
 ## Getting back
 
@@ -237,14 +237,12 @@ In each case, backup files on this PC can still be opened, browsed, checked and 
 
 ## Removing the driver when Workbench closes
 
-When you close the standalone Workbench, it asks **Remove the USB driver?** only if Workbench itself set up the driver and nothing else on this PC still needs it. Removing it may mean setting up the driver again later, for Workbench or for Hakchi.
+When you close Workbench, it asks **Remove the USB driver?** only if Workbench itself set up the driver and nothing else on this PC still needs it. This is the same whether you opened the standalone Workbench or opened Workbench from Classic Cart Studio. Removing it may mean setting up the driver again later, for Workbench or for Hakchi.
 
 | Button | What it does |
 | No — Keep Driver | Keeps the driver for next time, and Workbench closes. This is the default. |
 | Yes — Remove Driver | Removes only the driver Workbench set up, then its certificate. Windows asks for an administrator's name and password. Your console and backup files are not changed. |
 | Cancel | Keeps Workbench open. |
-
-Inside Classic Cart Studio, the Workbench window never removes the driver when it closes, because Classic Cart Studio may still use the console connection. Classic Cart Studio asks when it closes.
 
 [shot 55e-driver-close-question | The Remove the USB driver? question, with No — Keep Driver as the default.]
 
@@ -327,23 +325,35 @@ While a console task runs, the other entries are locked; they open again when th
 
 The Classic Cart Studio wordmark at the top of the side column is a button: choose it (click, or Tab to it and press Enter or Space) to open **About Classic Cart Studio**. See [About Classic Cart Studio](#about-studio).
 
+A red outline around a button or picture shows where the keyboard is: it appears when you use Tab or the arrow keys, and not after a click.
+
 ## The console line at the top
 
 | Part | What it does |
-| Console | The console family Workbench works with: **NES Classic Mini (2018 Release) — North America / Europe** or **SNES Classic Mini — North America / Europe**. Choosing one never connects to or checks a console, and never changes a console a task already identified. See [About This Console](#about-console). |
+| Console | The console family Workbench works with: **NES Classic Mini — North America / Europe** or **SNES Classic Mini — North America / Europe**. Choosing one never connects to or checks a console, and never changes a console a task already identified. When the window is narrow, **Help on This Page** and **About This Console** move to a line of their own so the console's whole name stays visible. See [About This Console](#about-console). |
 | The status beside it | What the latest console task found: **Console not checked**, **Console not identified yet · session open**, or a console label such as Console 73f23039 with when it was identified. A console an earlier task found is shown apart, as **Earlier session**. |
 | Help on This Page | Opens the Help for the page you are on, in the Help window beside Workbench. F1 does the same. |
 | About This Console | Opens the About This Console window. |
 
 ## The status line at the bottom
 
-The line at the bottom of the window says what Workbench is doing now: **No task running**, a task running on this PC or with the console, or a console session that is still open.
+The line at the bottom of the window says what Workbench is doing now: **No task running**, a task running on this PC or with the console, or a console session that is still open. When a newer version of Workbench is published, **Update available** appears at its right: choose it to open [About Workbench](#about-app).
+
+## The title bar
+
+The title bar names Workbench and the version you are running, for example **CCS Console Workbench — v0.11.4 (Preview)**. **(Preview)** marks a preview version. Workbench shows its own version in the title bar however it was opened, also from Classic Cart Studio.
 
 ## The window buttons
 
 The buttons at the top right of the window are **Minimize**, **Maximize** (it becomes **Restore** while the window fills the screen) and **Close**. Double-clicking the title bar also fills the screen or brings the window back, and Windows' own keys work too (Windows key with Up or Down arrow). A window that fills the screen leaves the taskbar visible.
 
-**Close** asks first when something is not finished: settings that are not saved (in the standalone), a HOME design with changes, a console task that is running, or the USB driver Workbench set up. Each question has its own Cancel, and canceling one keeps the window open with everything as it was. See [Settings](#settings) and [Connect Your Console](#connect).
+**Close** asks first when something is not finished, in this order:
+
+1. **Save before closing?** lists, in one question, the work that is not saved: your settings (in the standalone), a settings change Workbench could not save, a HOME design with changes, and anything a page holds that is not kept. **Save & Close** saves them and closes; **Close Without Saving** closes and lets go of exactly the work listed; **Cancel** keeps the window open with everything as it was. If you cancel choosing a file, or a file cannot be saved, Workbench stays open, keeps your work and says what was not saved.
+2. A console task that is running asks whether to stop it.
+3. The USB driver question, only for a driver Workbench set up.
+
+Canceling any of them keeps the window open with everything as it was. See [Settings](#settings) and [Connect Your Console](#connect).
 
 [shot 00w-window | The whole Workbench window on the Dashboard, its title bar included: the window buttons at the top right, the side column, the console line with Help on This Page and About This Console, and the status line at the bottom.]
 
@@ -354,10 +364,10 @@ The buttons at the top right of the window are **Minimize**, **Maximize** (it be
 @pages
 @summary The window the wordmark opens: what Classic Cart Studio is, what its name means and how Workbench relates to it.
 
-Choose the Classic Cart Studio wordmark at the top of the side column to open this window. It says what Classic Cart Studio is and what its name means, shows a few screenshots of the full app with sample games, and lists what the full app gives you. It also says how Workbench relates to it: the standalone Workbench works on its own, and the same Workbench opens inside Classic Cart Studio for Windows.
+Choose the Classic Cart Studio wordmark at the top of the side column to open this window. It says what Classic Cart Studio is and what its name means, shows a few screenshots of the full app with sample games (its HOME in the Featured Shelf theme among them), and lists what the full app gives you. It also says how Workbench relates to it: the standalone Workbench works on its own, and the same Workbench opens from Classic Cart Studio for Windows.
 
 - Choose a screenshot to see it larger.
-- **Visit classiccartstudio.com** opens https://classiccartstudio.com/ in your web browser. Nothing is downloaded or installed, and nothing opens until you choose the button.
+- **Visit ClassicCartStudio.com** opens ClassicCartStudio.com in your web browser. Nothing opens until you choose the button.
 - **Close**, Escape or the window's X closes it; your page stays as it is.
 
 [shot 00h-about-studio | The About Classic Cart Studio window.]
@@ -401,22 +411,22 @@ The information above is the same as in the **About This Console** window. Open 
 
 The About This Console window has its own **Console to read about** choice. Choosing another console there only changes what the window shows: Workbench keeps working with the console it had, and nothing is saved.
 
-When you close the window (with **Close**, its X or Escape) after choosing a different console, Workbench asks:
+When you close the window (with **Close**, its X or Escape) after choosing a different console, Workbench asks **Change console?**, because you selected a different console in Help than the one Workbench uses. The question shows **Current console** (the one Workbench uses now) and a **Use console** choice that starts on the console you chose in Help; you can still change it there.
 
 | Button | What it does |
-| Use [the console you chose] | Workbench works with that console from now on, as if you had chosen it at the top of the window. |
-| Keep [the console you had] | The window closes and nothing changes. |
-| Continue Browsing | The window stays open, on the console you chose. |
+| Use Selection | Workbench works with the console in **Use console** from now on, as if you had chosen it at the top of the window, and the window closes. |
+| Keep Current | The window closes and nothing changes. |
+| Back to Help | The question closes and you are back in the window, on the console you chose. Escape and the question's X do the same. |
 
-Choosing the same console as before, or going back to it, closes the window without asking. While a console task or session is open, Workbench cannot change the console it works with: the window says so, and you can keep reading. If the page you are on has changes that are not saved, its own question comes first.
+Choosing the same console as before, or going back to it, closes the window without asking; so does **Use Selection** with the current console in **Use console**. While a console task or session is open, Workbench cannot change the console it works with: the window says so, and you can keep reading. If the page you are on has changes that are not saved, its own question comes first.
 
-This version knows two console families: the NES Classic Mini (2018 Release) and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. Workbench's console tasks for the SNES Classic Mini are being built and are not in this version yet.
+This version knows two console families: the NES Classic Mini and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. Workbench's console tasks for the SNES Classic Mini are being built and are not in this version yet.
 
-[shot 59-about-console | The About This Console window, on the NES Classic Mini (2018 Release).]
+[shot 59-about-console | The About This Console window, on the NES Classic Mini.]
 
 [shot 59b-about-console-other | The About This Console window showing the SNES Classic Mini, while Workbench still works with the NES Classic Mini.]
 
-[shot 59c-about-console-use-question | The question when the window closes on a different console (here the SNES Classic Mini): Use, Keep or Continue Browsing.]
+[shot 59c-about-console-use-question | Change console?, when the window closes on a different console (here the SNES Classic Mini): the current console, Use console, and Use Selection, Keep Current or Back to Help.]
 
 ## The 2016 NES Classic and CCS Nucleus
 
@@ -474,7 +484,7 @@ The states in the list are **Complete · checked**, **Complete · checked, with 
 ## Make a backup
 
 1. Choose **Back Up Console** on the Console Backup page or on the Dashboard.
-2. Read **What is backed up** and **Where it is saved**. To change the folder, choose **Backup Locations…**; this opens Settings.
+2. Read **What is backed up** and **Where it is saved**. To change the folder, choose **Edit in Settings** beside it: Settings opens at **Backup locations**, ready for typing in the backup location's box. **Back to Back Up Console**, at the top of Settings, brings you back here, where the new folder shows.
 3. Start the console in recovery mode, as the **Connect the console** steps show. See [Connect Your Console](#connect).
 4. Choose **Start Backup**.
 5. Keep the USB cable connected while the progress page shows what is being read. See [Progress and Messages](#progress).
@@ -483,7 +493,7 @@ The states in the list are **Complete · checked**, **Complete · checked, with 
 [shot 02-backup-start | The Back Up Console page: what is backed up, where it is saved and how to connect the console.]
 
 | Button | What it does |
-| Backup Locations… | Opens Settings, where you choose where new backups are saved. |
+| Edit in Settings | Beside the folder under **Where it is saved**: opens Settings at **Backup locations**, where you choose where new backups are saved. A new folder is used for new backups only; backups already saved stay where they are. |
 | Technical details | Shows what the backup file holds. Copy Details copies that text. |
 | Start Backup | Starts the backup. If this PC has no USB driver for the console, Workbench asks first. |
 | Back | Returns to the Console Backup page. Escape does the same. |
@@ -1318,122 +1328,121 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 
 @topic designer
 @title HOME Designer
-@pages designer, design-editor
-@summary Design how CCS HOME looks, with your own pictures, colors, folders and game order, starting from one of its four themes.
+@pages designer, design-editor, design-screens
+@summary Design how CCS HOME looks, step by step, with your own pictures, colors, folders and game order, and see the real HOME as you work.
 
-HOME Designer lets you design how CCS HOME looks on your console; in this version CCS HOME is made for the NES Classic Mini. You work on a Shared HOME Design file (.ccshome) on this PC. Nothing on the console changes until you check the design and apply it. See [Check and Apply a Design](#design-apply).
+HOME Designer lets you design how CCS HOME looks on your console; in this version CCS HOME is made for the NES Classic Mini. You work on a Shared HOME Design file (.ccshome) on this PC, and you see the real HOME as you go: Workbench draws it with the console HOME's own program, here on this PC. Nothing on the console changes until you check the design and apply it. See [Check and Apply a Design](#design-apply).
+
+A design can change pictures, the startup picture, colors and fonts (the HOME's own), the place of the HOME's controls, folders and the game order. It cannot add animation, new fonts, programs or scripts, and it never holds games, saves or console files.
 
 Open it from **Console Composer** (**HOME Designer**) or from **Open** beside HOME Designer on the Dashboard.
 
-## Start a design
-
-| Field or button | What it does |
-| Starting theme | Arcade Grid, Box Art Showcase, Featured Shelf or Adventure Map. A picture of the chosen theme, filled with the NES Classic's built-in games, shows under the choice and changes with it. |
-| The theme's picture | Choose it (click, tap, Enter or Space) to see it larger, with its description; **Close** or Escape closes it. It is an example of the theme, not your design, and not a check of your design. |
-| New Design | Starts a new design, named My HOME, from the chosen theme. |
-| Open a Shared HOME Design… | Opens a .ccshome file to keep working on it. |
-| Back | Returns to Console Composer. |
-
-A design can change pictures, the startup picture, text and colors (with the HOME's existing fonts), the layout and the folders and game order. It cannot change animation, add new fonts, programs or scripts, and it never holds games, saves or console files. The HOME's controls move as whole groups and keep their theme's size, and a design's pictures must fit in the memory the console's HOME has. The editor shows both as you work.
-
-[shot 46-designer | The HOME Designer start page, with Arcade Grid as the starting theme and its example picture.]
-
-[shot 46b-theme-example-large | The Arcade Grid example picture, as it opens larger.]
-
-[shot 46c-designer-theme-adventure | The start page with Adventure Map chosen: the example picture follows the choice.]
-
-The editor shows the same example for the design's starting theme, under **Starting theme**. The editor's own preview and the design check, further down, show your design itself.
-
-## The editor
-
-The top of the editor shows whether the design is saved: **Not saved yet**, **all changes saved**, or **has changes that are not saved**. A memory line says how much memory the HOME needs at once with your pictures, and the limit.
-
-[shot 47-designer-editor | The HOME Designer editor for a new design called My HOME.]
+## Start
 
 | Button | What it does |
+| New Design | Starts a new design, named My HOME, from Featured Shelf. You choose the theme in the first step. |
+| Open a Shared HOME Design… | Opens a .ccshome file to keep working on it. Its own theme and choices stay as they are. |
+| Back | Returns to Console Composer. |
+
+[shot 46-designer | The HOME Designer start page with New Design and Open a Shared HOME Design.]
+
+## The five steps
+
+A design is made in five steps, listed at the top: **Theme**, **Pictures & Startup**, **Text & Colors**, **Layout & Folders** and **Review & Save**. Steps 2 to 4 are optional: choose **Next** to skip one. **Next** and **Back** at the bottom move one step; choose a step's name at the top to go straight to it. **Close Design** closes the design; if it has changes that are not saved, Workbench asks first.
+
+The top right shows the design's name and whether it is saved.
+
+[shot 47-designer-theme | Step 1, Theme, with Featured Shelf chosen and the real HOME beside it.]
+
+## The preview
+
+Beside the step (above it in a narrow window) is your HOME as the console HOME's own program draws it, here on this PC, with the Included Games: the games that come with CCS HOME. No console or backup is needed.
+
+- After each change, the picture is drawn again. **Updating…** shows while it is drawn; until then, the picture is the one from before your change, shown dimmed.
+- Under it are more of the HOME's screens for the step you are on, such as Game Details, the START menu or Browse. They take a few seconds longer. If some text is hard to read over your pictures, a short note says where.
+- Select a picture to see it larger.
+- If the preview cannot be drawn, a short message says why, with **Retry** when trying again can help.
+- **Preview with** draws the preview with other games: when Classic Cart Studio opened Workbench, the HOME menu it prepared on this PC with your collection's games, or the CCS HOME in a backup of one of your consoles. This changes only the preview, never your design.
+
+If the page says the preview is not available in this copy, the console HOME's program is not part of this copy of Workbench.
+
+## Step 1: Theme
+
+Choose one of the four themes: Featured Shelf, Arcade Grid, Box Art Showcase or Adventure Map. The small pictures are examples of each theme filled with games; the preview shows your own design. You can change the theme later.
+
+## Step 2: Pictures & Startup
+
+[shot 47b-designer-pictures | Step 2, Pictures & Startup, with a picture of your own as the HOME background.]
+
+For each picture the theme shows: **Choose…** a PNG or JPEG picture of your own, **Use the Theme's Own** to go back to the theme's, or, for a design you opened, **Undo My Change**. Each picture is fitted to its place for you. For the HOME background, the Game Details background and your own startup picture, **Fit** chooses whether the picture fills the whole space (its edges may be trimmed) or shows all of it (with bars where needed).
+
+| Picture | Where it shows |
+| HOME background | Fills the screen behind the HOME. |
+| Game Details background | Behind a game's details, on the Game Details screen. |
+| Frame | Over the background, under the HOME's controls. Clear parts of a PNG picture stay clear. |
+| Icons | Arcade Grid and Featured Shelf only: the icons for All Games, folders, favorites, recently played (Arcade Grid) and settings. |
+
+**Startup picture** is what your console shows while CCS HOME starts: **A different built-in picture each time**, **The same built-in picture every time** (then choose which), or **A picture of your own**.
+
+If a picture is too large, a short message says so: choose a smaller picture.
+
+## Step 3: Text & Colors
+
+[shot 47c-designer-text | Step 3, Text & Colors, with a text color and a highlight color chosen.]
+
+| Choice | What it does |
+| Text color, Highlight color, Panel color | The colors of the HOME's menus and panels. Choose a color, or type a color code such as #e4000f. The highlight color is behind the chosen menu row and buttons, under white lettering. |
+| How solid the panels are | From 0% to 100%. |
+| Title font, Text font | The HOME's own fonts, for menu titles and menu text. |
+| HOME settings | Play the HOME music, show the button hints, and less motion. |
+
+If the text color is too close to the panel color, or the highlight color is too light, a short message says what to choose instead.
+
+## Step 4: Layout & Folders
+
+[shot 47d-designer-layout | Step 4, Layout & Folders, with the game list moved and the placement guides drawn over the preview.]
+
+**The HOME's controls**: move a group of the theme's controls, such as the game list or the button hints, with **Left**, **Right**, **Up** and **Down**, or type its place under **Exact place**. Each group moves whole and keeps its size, inside the screen's safe area. **Back to the Theme's Place** puts it back. Moving a group needs your own HOME background, because each theme's own background has its controls' panels painted in place.
+
+**Show where the HOME's controls are**, under the preview, draws outlines over the real HOME: the screen's safe area, the controls that stay, and each group where it will be.
+
+**Your panels, labels and pictures**: **Add a Panel**, **Add a Picture…** or **Add a Label** (type its text first). Each has **Place and size** to change it, and **Remove**.
+
+**Folders**: type a name, choose where it goes, then **Add the Folder**. A folder can be renamed, given a picture of your own, or removed (a folder with folders inside cannot be removed).
+
+**Game order**: a design opened from a file can carry its own order of games, which **Up**, **Down** and **Take Out** change. Without one, the HOME's own order is used.
+
+## Step 5: Review & Save
+
+[shot 47e-designer-review | Step 5, Review & Save: the design's name, what it changes, and Save, Save As and Share.]
+
+| Part | What it does |
+| Design name, Made by (optional) | The design's name and who made it. |
+| What your design changes | What the design changes from where it started; **Changed** marks each change. |
 | Save | Saves the design to its file. The first time, it asks where. |
 | Save As… | Saves the design to a new file. |
 | Share… | Makes a copy you can give to someone else. See [Share a HOME Design](#design-share). |
+| See Every Screen | Shows every screen of the theme with your design, drawn by the console HOME's own program on this PC. |
 | Check and Apply on My Console… | Checks the design with your console's games, then applies it. See [Check and Apply a Design](#design-apply). |
-| Export the Original File… | Shown only for a design made by a newer version of Classic Cart Studio, which can be looked at but not changed: saves it exactly as it was received. |
-| Close | Closes the design. If it has changes that are not saved, Workbench asks first. |
+| Credits | Who made the pictures or the design: type **Made by**, and if you like a title and a license, then **Add the Credit**. |
+| Export the Original File… | Shown only for a design made by a newer version of Classic Cart Studio: saves it exactly as it was received. |
+| Technical details | The checks' figures, such as how much picture memory the design may need. They are estimates and checks on this PC, not tests on console hardware. |
 
-Most sections have their own **Apply** button: changes you type there take effect in the design when you choose it. Remember to **Save** afterward.
+If something keeps the design from going on a console, a short list says what to change, for example **These pictures are too large. Choose smaller pictures.**
 
-## Design
+[shot 47g-designer-too-large | Review & Save for a design whose pictures are too large: a short message, with the figures in Technical details.]
 
-| Field | What it does |
-| Design name | The design's name. |
-| Made by (optional) | Your name, or whoever made the design. |
-| Starting theme | The theme the design is based on. |
+[shot 48b-designer-every-screen | See Every Screen: every screen of the theme with the design.]
 
-## Preview
+## A design from a newer version
 
-- **Layout sketch**: a sketch, not the console's own picture, of your pictures, panels and labels, the outlines of the HOME's controls where they will be, and the controls that stay in place. The dashed line is the screen's safe area.
-- Below it, a preview made by the console's own HOME program. Choose what to make it with under **Draw it with**: inside Classic Cart Studio, the HOME menu Classic Cart Studio prepared on this PC with your collection's games; the CCS HOME this program places, with the Included Games; or the CCS HOME from a backup of one of your consoles. Then choose **Draw the Preview**, or **Draw It Again** after changes. Nothing on a console changes.
+A design made by a newer version of Classic Cart Studio opens for looking only: it cannot be changed, shared, drawn or applied here. **Export the Original File…** in Review & Save keeps it exactly as it was received.
 
-If the page says the console's HOME program is not available in this copy, this preview cannot be made there.
-
-## Pictures
-
-Each picture has its size rule, a small view of it, and buttons: **Choose…** (a PNG or JPEG file), **Use the Theme's Own** and, for an opened design, **Revert**. For a picture with an exact size, Workbench asks whether to fill the space and trim the edges (Yes) or show all of the picture with bars (No).
-
-| Picture | Size |
-| The HOME background | exactly 1280 × 720 |
-| The game details background | exactly 1272 × 712 |
-| The frame or plate over the background | up to 1256 × 696, see-through allowed |
-| The All Games icon | up to 128 × 128, see-through allowed |
-| The folder icon | up to 128 × 128, see-through allowed |
-| The favorites icon | up to 128 × 128, see-through allowed |
-| The recently played icon | up to 128 × 128, see-through allowed |
-| The settings icon | up to 128 × 128, see-through allowed |
-
-## Startup picture
-
-| Button | What it does |
-| A Different One Each Time | Shows a different built-in startup picture each time. |
-| Built-in startup picture, then Use This One | Uses the built-in picture you chose, every time. |
-| My Own Picture… | Uses your own picture: a 1280 × 720 JPEG of at most 450 KB. |
-
-## Text and colors
-
-| Field | What it does |
-| Text color, Highlight color, Panel color | Colors written as #rrggbb, for example #e4000f. A swatch shows each color. |
-| Panel opacity | How solid the panels are, from 0% to 100%. |
-| Title font, Text font | Choose from the HOME's existing fonts and sizes. |
-| Apply | Puts these into the design. |
-
-## Settings
-
-| Setting | What it does |
-| HOME music on | Plays the HOME's music. |
-| Show button hints | Shows the button hints at the bottom of the HOME. |
-| Less motion | Reduces movement on the HOME. |
-
-## Layout
-
-**The HOME's own controls**: you can move some groups of the theme's controls, such as the game list, the collection status and the button hints. Each group moves whole and keeps the theme's size; only its place changes, inside the screen's safe area. Type **x (left)** and **y (top)** within the range shown, then choose **Move**. **Back to the Theme's Place** puts a group back. Moving a group needs your own HOME background, because each theme's own background has its controls' panels painted in place.
-
-**Panels, labels and pictures**: **Add a Panel**, **Add a Label** (type the **New label's text** first) and **Add a Picture…** add your own items inside the safe area, under the HOME's controls. Each one can be changed with its own **Apply** or taken out with **Remove**.
-
-## Folders and game order
-
-| Field or button | What it does |
-| New folder | The new folder's name. |
-| Where | Where the folder goes: at the top level or inside another folder. |
-| Add the Folder | Adds the folder. |
-| Rename, Picture…, Remove | For each folder: change its name, give it a picture of your own, or remove it. A folder with folders inside cannot be removed. |
-| Up, Down, Take Out | For each game in the game order: move it, or take it out of the order. |
-
-Without folders, games are listed in the game order. Without a game order of your own, the HOME's own order is used.
-
-## Credits
-
-Type **Made by**, and optionally **Title** and **License**, then choose **Add the Credit**. Credits say who made the pictures or the design.
+[shot 47h-designer-inspect-only | A design from a newer version of Classic Cart Studio: shown, not changed.]
 
 ## Getting back
 
-**Close** closes the design and returns to the start page; if there are changes that are not saved, Workbench asks first. Closing the Workbench window asks the same. Opening another section does not ask and does not close the design: it stays open with its changes, and **HOME Designer** returns to it. Changes are kept only in this window until you save them.
+Opening another section does not close the design: it stays open with its changes and its step, and **HOME Designer** returns to it. Changes are kept only in this window until you save them. Closing the Workbench window asks about a design with changes that are not saved.
 
 @end
 
@@ -1442,16 +1451,16 @@ Type **Made by**, and optionally **Title** and **License**, then choose **Add th
 @pages design-share
 @summary Save a copy of your HOME design that you can give to someone else.
 
-**Share…** in the HOME Designer editor makes a separate Shared HOME Design file to give to someone else. Your own design file stays as it is.
+**Share…** in HOME Designer's last step, **Review & Save**, makes a separate Shared HOME Design file to give to someone else. Your own design file stays as it is.
 
-[shot 48-designer-share | Share the HOME Design: what the shared copy includes.]
+[shot 48-designer-share | Share Your Design: what the shared copy holds.]
 
 ## Share a design
 
-1. In the editor, choose **Share…**.
-2. Read what the shared copy holds. **Included** lists the design, its theme, its pictures and their size, its folders and game order, and any game references to the public catalog (titles only). **Removed from the shared copy**, when shown, lists what was left out.
+1. In **Review & Save**, choose **Share…**.
+2. Read what the shared copy holds: the design, its theme, its pictures and their size, its folders and game order, and any game references to the public catalog (titles only). **Left out of the shared copy**, when shown, lists what was left out.
 3. Choose **Save the Shared Copy…**, and choose where to save it. Its name ends in (shared).ccshome.
-4. Workbench saves it and checks that it is safe to share, then says so.
+4. Workbench saves it and checks that it is safe to share. The page then says **The shared copy was saved and checked**, with where it is. If the check does not pass, the copy is not kept, and a notice says so.
 
 A shared design never holds games, saves, console system files, a console's identity, file locations or notes. Picture details stored inside picture files are removed when each picture is added.
 
@@ -1459,7 +1468,7 @@ A shared design never holds games, saves, console system files, a console's iden
 
 If something in the design cannot be shared, the problems are listed, and a shared copy cannot be saved until they are fixed in the design.
 
-**Back to the Design** returns to the editor.
+**Back to the Design** returns to HOME Designer.
 
 @end
 
@@ -1472,7 +1481,7 @@ Before a design can go on your console, it is checked: it is fitted to the games
 
 ! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
-In the editor, choose **Check and Apply on My Console…**.
+In HOME Designer's last step, **Review & Save**, choose **Check and Apply on My Console…**.
 
 [shot 49-designer-console | Check and Apply on My Console, with a sample backup chosen and the Revert Design buttons.]
 
@@ -1486,7 +1495,7 @@ If there is no backup yet, the page offers **Back Up Console**. If the page says
 
 | Title | What it means |
 | The design passed the check | Every screen is readable and within the console's memory limits. The screens are shown as pictures. Apply to the Console… is available. |
-| The design did not pass the check | The problems are listed, for example text that is hard to read over a picture. A design that did not pass cannot be applied: change it in the editor, then check it again. |
+| The design did not pass the check | Short sentences say what to change, for example that some text is hard to read over your pictures; the check's own words are in Technical details. A design that did not pass cannot be applied: change it in HOME Designer, then check it again. |
 | The design could not be checked | Something stopped the check. Nothing changed. Choose Back to Check and Apply or Back to the Design. |
 
 The result may also list what was **Left out** or **Not shown**, for example a picture larger than the console allows.
@@ -1527,7 +1536,7 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 
 [shot 51-design-result | Design applied and checked, with the backup made just before.]
 
-**Back to the Design** returns to the editor.
+**Back to the Design** returns to HOME Designer.
 
 @end
 
@@ -2154,7 +2163,7 @@ In this version, with a real console, Developer Mode's changes say that develope
 @topic settings
 @title Settings
 @pages settings
-@summary Where new backups are saved, the additional copy, and how your settings are kept in the standalone and inside Classic Cart Studio.
+@summary Where new backups are saved, the additional copy, and how your settings are kept in the standalone and when Workbench is opened from Classic Cart Studio.
 
 ## Backup locations
 
@@ -2166,6 +2175,8 @@ In this version, with a real console, Developer Mode's changes say that develope
 A change is used when you leave the box, press Enter, choose a folder with **Change…**, or tick or clear the box. A path that is not a full folder path (for example D:\Console Backups) is not used, and the page says why.
 
 Changing these affects only new backups. Backups already saved stay where they are; Workbench never moves them.
+
+Opened with **Edit in Settings** on Back Up Console, this page starts with the backup location's box ready for typing, and **Back to Back Up Console** at its top returns there.
 
 [shot 53-folders | Settings in the standalone, as it starts: the backup location and no additional copy.]
 
@@ -2186,28 +2197,28 @@ The page says whether your settings are saved, and what is not saved yet.
 
 [shot 53e-settings-file | Settings in the standalone with a settings file chosen.]
 
-When you close the standalone with changes that are not saved (made on this page, with the console choice, or still typed in a box), Workbench asks **Save your settings?**:
+When you close the standalone with changes that are not saved (made on this page, with the console choice, or still typed in a box), Workbench's one close question, **Save before closing?**, lists them, together with any other work that is not saved, such as a HOME design with changes:
 
 | Button | What it does |
-| Save Settings… | Saves to your settings file, or asks where to save one first. If you cancel choosing a file, or the file cannot be written, Workbench stays open and keeps your changes. |
-| Don't Save | Closes without saving your settings. |
+| Save & Close | Saves your settings to your settings file (asking where to save one first, when you have none) and anything else listed, then closes. If you cancel choosing a file, or a file cannot be written, Workbench stays open, keeps your changes and says what was not saved. |
+| Close Without Saving | Closes without saving the work listed. Nothing else is let go. |
 | Cancel | Keeps Workbench open. Nothing else has been stopped or changed. |
 
-This question comes before any other question at close, such as about a running task or the USB driver.
+This question comes before any other question at close, such as about a running task or the USB driver. See [The Workbench Window](#window).
 
-[shot 60-close-settings-question | The Save your settings? question when the standalone closes with changes that are not saved.]
+[shot 60-close-settings-question | The Save before closing? question when the standalone closes with settings that are not saved.]
 
-## Inside Classic Cart Studio
+## Opened from Classic Cart Studio
 
-Inside Classic Cart Studio for Windows, your settings are saved automatically, with Classic Cart Studio's settings on this PC, and they are there the next time you open Workbench. The page shows where they are kept and **Saved.** once they are.
+When you open Workbench from Classic Cart Studio for Windows, your settings are saved automatically, with Classic Cart Studio's settings on this PC, and they are there the next time you open Workbench. There are no Save Settings buttons and no settings question when Workbench closes. The page shows where they are kept and **Saved.** once they are.
 
-If a setting could not be saved, the page says so and why, and offers **Try Again**; the change is still used while Workbench is open. If you close Workbench while a change is still not saved, Workbench offers to try again first.
+If a setting could not be saved, the page says so and why, and offers **Try Again**; the change is still used while Workbench is open. If you close Workbench while a change is still not saved, **Save before closing?** lists it, and **Save & Close** tries to save it again.
 
-[shot 53c-hosted-settings | Settings inside Classic Cart Studio, saved automatically.]
+[shot 53c-hosted-settings | Settings when Classic Cart Studio opened Workbench, saved automatically.]
 
-[shot 53f-hosted-settings-failed | Settings inside Classic Cart Studio when a change could not be saved, with Try Again.]
+[shot 53f-hosted-settings-failed | Settings when Classic Cart Studio opened Workbench and a change could not be saved, with Try Again.]
 
-[shot 60b-hosted-close-failed-question | The question inside Classic Cart Studio when Workbench closes with a change that could not be saved.]
+[shot 60b-hosted-close-failed-question | The close question, in Workbench opened from Classic Cart Studio, with a settings change that could not be saved.]
 
 @end
 
@@ -2235,9 +2246,23 @@ Links on this page open in your web browser only when you choose them.
 @title About Workbench
 @pages
 @builtin about-app
-@summary This program's version, who makes it, its license and its source code.
+@summary This program's version, who makes it, its license and its source code, and Check for Updates.
 
-[shot 52g-help-about-app | About Workbench in Help, with Credits and Licenses and Source Code.]
+[shot 52g-help-about-app | About Workbench in Help, with Credits and Licenses, Source Code and Check for Updates.]
+
+## Check for Updates
+
+Shortly after Workbench opens, it asks classiccartstudio.com once which version is newest. The answer is shown here, under **Updates**, with the version you are running:
+
+| What it says | What it means |
+| Up to date | You have the newest version. A preview version is offered only newer preview versions. |
+| Update available | A newer version is published. **Open the Download Page** opens classiccartstudio.com/app/ in your web browser: download the new version there. Workbench never downloads, installs or replaces anything itself. |
+| Could not check | There was no answer, it was too slow, or it could not be read. Workbench works the same; choose **Check for Updates** to ask again. |
+| Not checked yet | Workbench has not asked yet. |
+
+When Workbench was opened from Classic Cart Studio, it is updated with Classic Cart Studio: it says **Classic Cart Studio update available** instead, and **Update Classic Cart Studio…** opens Classic Cart Studio's own update, also when its window was closed.
+
+**Check for Updates** asks again at any time. The question sends only Workbench's name and version: nothing about your console, your backups or this PC, and nothing is saved. When a newer version is published, **Update available** also appears at the right of the status line at the bottom of the window.
 
 @end
 
@@ -2263,8 +2288,8 @@ The same explanations are listed here, and the Classic Cart Studio website uses 
 - **Help on This Page**, at the top of Workbench, or F1, opens the help for the page you are on in the Help window, beside Workbench. The page you were on stays as it is.
 - **Help and About**, in the side column, shows the same Help in the main window.
 - **Search Help** finds the topics that have all the words you type.
-- Links in a topic open another topic; **‹ Back** returns to the one before.
-- Pictures in Help are screenshots: each has its own frame, with **Screenshot:** before its caption. A screenshot opens larger when you choose it; the larger view's **Close** button below the picture, Escape or the window's X closes it. Screenshots are only pictures: nothing in them can be clicked. They show sample backups and consoles.
+- Links in a topic open another topic. **Back**, at the top left of Help, returns to the topic you read before, with your search and your place in it; Alt+Left does the same. It is dimmed when there is no earlier topic.
+- Pictures in Help are screenshots: each has its own frame, with its caption in italics directly under it, starting with **Screenshot:**. A screenshot opens larger when you choose it; the larger view's **Close** button below the picture, Escape or the window's X closes it. Screenshots are only pictures: nothing in them can be clicked. They show sample backups and consoles.
 
 Help is part of Workbench: it works without a network connection, without a console and without a backup.
 

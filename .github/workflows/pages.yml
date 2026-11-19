@@ -28,6 +28,7 @@ jobs:
         run: |
           python tools/rom-pipeline/test_manifest_v4_pure.py
           python tools/publish/test_scan_prohibited.py
+          python tools/publish/test_release_streams.py
       - name: The Installation Terms (the Help chapter, the installer's and the release's copies are the one maintained source's)
         run: python tools/publish/legal_terms.py --check
       - name: The browser game player (W1) from this commit, with the pinned zig (version, URL and SHA-256 from toolchain.lock.json; FCEUmm is vendored)
@@ -44,12 +45,11 @@ jobs:
         env:
           NES_STUDIO_SITE: ${{ github.workspace }}/build/site
         run: python tools/companion/test_artwork_consistency.py --no-render
-      - name: Attach the latest companion release information for the download section
+      - name: Attach the release information (release-streams.json, the four product/channel streams the update checks read; release.json and workbench-release.json, each product's newest preview, for earlier releases and the download section)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python tools/publish/release_notes.py --include-prereleases --write-release-json build/site/release.json
-          python tools/publish/release_notes.py --include-prereleases --write-workbench-json build/site/workbench-release.json
+          python tools/publish/release_notes.py --include-prereleases --write-streams-json build/site/release-streams.json --write-release-json build/site/release.json --write-workbench-json build/site/workbench-release.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/site
