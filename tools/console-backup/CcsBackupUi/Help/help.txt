@@ -6,7 +6,7 @@
 
 ## What Workbench does
 
-CCS Console Workbench takes care of the built-in storage of your NES Classic. It is part of Classic Cart Studio, by Rance9. With it you can:
+CCS Console Workbench takes care of the built-in storage of your Classic console: the NES Classic Mini or the SNES Classic Mini, chosen at the top of the window. It is part of Classic Cart Studio, by Rance9. With it you can:
 
 - make a complete, checked backup of the console on this PC
 - look through any console backup on this PC and copy files out of it
@@ -23,7 +23,9 @@ CCS HOME is separate from the console's original menu. Setting it up is your cho
 
 ## Console tasks in this version
 
-! Each console task in this version has been built and checked on a PC, but stays turned off for a real console until it has passed testing on real NES Classic hardware. This covers Back Up Console, the Console Browser check-up, Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, CCS Mod and CCS Nucleus changes, Your System Images, Expert Mode and Developer Mode. If you start one with a real console, Workbench shows **Not available in this version**, and nothing on the console or this PC changes. Setting up the USB driver on this PC is turned off the same way.
+! Each console task in this version has been built and checked on a PC for the NES Classic Mini, but stays turned off for a real console until it has passed testing on real NES Classic Mini hardware. This covers Back Up Console, the Console Browser check-up, Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, CCS Mod and CCS Nucleus changes, Your System Images, Expert Mode and Developer Mode. If you start one with a real console, Workbench shows **Not available in this version**, and nothing on the console or this PC changes. Setting up the USB driver on this PC is turned off the same way.
+
+For the SNES Classic Mini, Workbench's console tasks are being built and are not in this version yet, and none has been tested on a real SNES Classic Mini. With the SNES Classic Mini chosen at the top of the window, a console task's page says so and starts nothing: no console connection, no USB driver check, nothing written. Backup Browser and Backup Repair work the same whichever console is chosen.
 
 You can still open every console page in this version and read what each task will do.
 
@@ -77,6 +79,8 @@ The Dashboard is the first page Workbench shows, and the first entry in the side
 ## Start here
 
 **Start here** is the first thing to do: **Back Up Console**, with what a backup copies. Under it, a short line says that Workbench connects to a console only when you start a console task, and that backups already on this PC can be browsed, checked and repaired without a console or a USB driver.
+
+With the SNES Classic Mini chosen at the top of the window, a note above **Start here** says that Workbench's console tasks for it are being built and are not in this preview version yet. Backup files on this PC can still be browsed, checked and repaired under Backup Files.
 
 ## The console line above the Dashboard
 
@@ -164,24 +168,24 @@ Choose **Dashboard** at the top of the side column whenever no console task is r
 @topic connect
 @title Connect Your Console
 @pages driver, driver-setup
-@summary Start the NES Classic in its recovery mode for a console task, and understand the USB driver pages.
+@summary Start your console in its recovery mode for a console task, and understand the USB driver pages.
 
-Every console task (a backup, a check-up, a restore or a change) talks to the NES Classic over its USB cable while the console is in its recovery mode. In recovery mode, a small program runs from the console's memory. Connecting does not install anything on the console.
+Every console task (a backup, a check-up, a restore or a change) talks to the console over its USB cable while the console is in its recovery mode. In recovery mode, a small program runs from the console's memory. Connecting does not install anything on the console.
 
 ! In this version, connecting to a real console and setting up the USB driver are turned off until they have passed testing on real hardware. Workbench then shows **Not available in this version**, and nothing on the console or this PC changes. See [Start Here](#start).
 
 ## What you need
 
-- The NES Classic and its USB cable.
+- The console and its USB cable.
 - A free USB port on this PC.
 - The TV connected to the console, so you can see its screen.
 - The console's USB driver on this PC. If Windows does not have it, Workbench asks before setting it up. It never installs a driver by itself.
 
-## Start the console in recovery mode
+## Start the NES Classic Mini in recovery mode
 
-Each console task shows these steps under **Connect the console**. Follow them before you choose the task's start button.
+These steps are the NES Classic Mini's. Each of its console tasks shows them under **Connect the console**. Follow them before you choose the task's start button. Steps for the SNES Classic Mini come with its console tasks, which are not in this version yet: with it chosen, a task's page shows that note instead.
 
-1. Turn the NES Classic off with its POWER switch.
+1. Turn the NES Classic Mini off with its POWER switch.
 2. Connect the console to this PC with its USB cable.
 3. Hold the console's RESET button.
 4. Switch POWER on, and keep holding RESET for about 5 seconds. Then let go.
@@ -201,13 +205,13 @@ The console stays on the Classic Cart Studio screen until you choose one of thes
 
 ## The USB driver on this PC
 
-Windows needs a USB driver to talk to your NES Classic. Workbench uses it only for console tasks: backing up, checking, restoring or changing the console. Opening, browsing, checking and repairing backup files never need it.
+Windows needs a USB driver to talk to your console. Workbench uses it only for console tasks: backing up, checking, restoring or changing the console. Opening, browsing, checking and repairing backup files never need it.
 
 Before the first console task, Workbench reads this PC's list of USB drivers; reading changes nothing. If a driver it can use is already there, Workbench uses it and leaves it in place. It never replaces or removes another program's driver, such as Hakchi's.
 
 If this PC has no driver for the console, the **USB driver setup required** page lists every change setup would make to this PC before anything happens:
 
-1. A small driver package that tells Windows to use its own WinUSB driver for your NES Classic. It contains no driver program.
+1. A small driver package that tells Windows to use its own WinUSB driver for your console. It contains no driver program.
 2. A new certificate, made for this setup only, added to this PC's Trusted Root Certification Authorities and Trusted Publishers lists so that Windows accepts the package. It can sign nothing else.
 3. Nothing else is installed, nothing is installed on the console, and no other driver or certificate is replaced or removed.
 4. Windows keeps its own record of the setup in its logs. Removing the driver later does not erase that record.
@@ -259,7 +263,7 @@ After the restart, once nothing on this PC uses the certificate, Workbench asks 
 
 [shot 55h-driver-cleanup-question | The question about removing the USB driver's certificate after the driver was removed.]
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - In recovery mode the console uses the USB identity 1F3A:EFE8.
 - The driver package is ccs_console_usb.inf with its catalog. Windows' own WinUSB driver does the work.
@@ -274,7 +278,7 @@ After the restart, once nothing on this PC uses the certificate, Workbench asks 
 Workbench works with several kinds of files. They are different things, and none of them can be used as another.
 
 | Kind of file | What it is |
-| Console backup (.zip) | A complete copy of one console's built-in storage, made by Back Up Console. Restore a Backup puts it back on that same console. Its name looks like NES Classic Backup 2026-11-15 1324 (console 73f23039).zip. |
+| Console backup (.zip) | A complete copy of one console's built-in storage, made by Back Up Console. Restore a Backup puts it back on that same console. An NES Classic Mini's backup is named like NES Classic Backup 2026-11-15 1324 (console 73f23039).zip. |
 | Classic Cart Studio backup (.ccs) | A collection or full Studio backup made in the Classic Cart Studio app, with its game files. It is not a console backup and is not used here. |
 | Game save file | A battery save converted from a backup for Classic Cart Studio's player, saved with a report beside it. The backup itself is never changed. |
 | Shared HOME Design (.ccshome) | Pictures and appearance settings for CCS HOME, made in HOME Designer. No games, saves or console files. |
@@ -326,7 +330,7 @@ The Classic Cart Studio wordmark at the top of the side column is a button: choo
 ## The console line at the top
 
 | Part | What it does |
-| Console | The console family Workbench works with: **NES Classic Mini (2018 Release) — North America / Europe**. Choosing it never connects to or checks a console. See [About This Console](#about-console). |
+| Console | The console family Workbench works with: **NES Classic Mini (2018 Release) — North America / Europe** or **SNES Classic Mini — North America / Europe**. Choosing one never connects to or checks a console, and never changes a console a task already identified. See [About This Console](#about-console). |
 | The status beside it | What the latest console task found: **Console not checked**, **Console not identified yet · session open**, or a console label such as Console 73f23039 with when it was identified. A console an earlier task found is shown apart, as **Earlier session**. |
 | Help on This Page | Opens the Help for the page you are on, in the Help window beside Workbench. F1 does the same. |
 | About This Console | Opens the About This Console window. |
@@ -389,7 +393,7 @@ Each task ends on its result page, which says what was done and what was not. Th
 @title About This Console
 @pages
 @builtin about-console
-@summary The console Workbench works with, its names in North America and Europe, the 2016 and 2018 releases, and what choosing a console does.
+@summary The consoles Workbench works with, their names in North America and Europe, their releases, and what choosing a console does.
 
 The information above is the same as in the **About This Console** window. Open the window with **About This Console** at the top of Workbench, on the Dashboard, or with the button above.
 
@@ -406,19 +410,19 @@ When you close the window (with **Close**, its X or Escape) after choosing a dif
 
 Choosing the same console as before, or going back to it, closes the window without asking. While a console task or session is open, Workbench cannot change the console it works with: the window says so, and you can keep reading. If the page you are on has changes that are not saved, its own question comes first.
 
-This version knows one console family, so the choice has one entry.
+This version knows two console families: the NES Classic Mini (2018 Release) and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. Workbench's console tasks for the SNES Classic Mini are being built and are not in this version yet.
 
 [shot 59-about-console | The About This Console window, on the NES Classic Mini (2018 Release).]
 
-[shot 59b-about-console-other | The About This Console window showing another console (a made-up one, for this picture): Workbench still works with the first.]
+[shot 59b-about-console-other | The About This Console window showing the SNES Classic Mini, while Workbench still works with the NES Classic Mini.]
 
-[shot 59c-about-console-use-question | The question when the window closes on a different console: Use, Keep or Continue Browsing.]
+[shot 59c-about-console-use-question | The question when the window closes on a different console (here the SNES Classic Mini): Use, Keep or Continue Browsing.]
 
-## The 2016 console and CCS Nucleus
+## The 2016 NES Classic and CCS Nucleus
 
 A system image and startup software are different things:
 
-- **A system image** (a .hsqs file) is a console's system: its own software and built-in games. With CCS Nucleus, a system image you supply, for example one from your own 2016 console, can be added as one of Nucleus's choices. See [Your System Images](#firmware).
+- **A system image** (a .hsqs file) is a console's system: its own software and built-in games. With CCS Nucleus, a system image you supply, for example one from your own 2016 NES Classic, can be added as one of Nucleus's choices. See [Your System Images](#firmware).
 - **Startup software** (the kernel) is what the console's circuit board loads first; a system image does not replace it. A restore puts a console's own backup back on that same console, and Console Rescue repairs a console only from its own backup. Some steps replace a console's startup software on purpose and say so before you confirm: preparing a console replaces its startup software and bootloader, and a change you review in Developer Mode can replace its startup software. Return to Original Software puts back Nintendo's startup software and the console's own bootloader.
 
 To add a 2016 system image with CCS Nucleus you need: a console prepared with CCS Nucleus (Prepare Console, or CCS Mod and CCS Nucleus), the system image file from your own console on this PC, and enough free room on the console. Workbench checks the file before anything is written. It never supplies, links to or downloads a system image.
@@ -432,9 +436,11 @@ To add a 2016 system image with CCS Nucleus you need: a console prepared with CC
 @topic backup
 @title Back Up Your Console
 @pages backup-home, backup, result
-@summary Make a complete, checked copy of your NES Classic's built-in storage on this PC, and see every backup you have made.
+@summary Make a complete, checked copy of your console's built-in storage on this PC, and see every backup you have made.
 
 A console backup is one file on this PC that holds everything on the console's built-in storage, exactly as stored. Making a backup only reads the console. Nothing on it changes.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 ## What is in a backup
 
@@ -519,7 +525,7 @@ In each case nothing on the console was changed. An unfinished file is kept and 
 
 [shot 04-backup-result-stopped | The backup stopped because the console stopped answering partway through.]
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - The backup is a ZIP file. restore/ holds the startup software and each part of the built-in storage as images. recovery/ holds the original Nintendo kernel when it is found. reference/ holds the raw NAND image, bootloaders and storage table, kept as evidence and never written to a console. inventory/ lists the files on the data storage. A manifest records every part's size and checksums.
 - While a backup is being made, its file has a temporary name. It gets its final name only after it has been read back in full and checked.
@@ -576,7 +582,9 @@ Backup Repair can ask Windows to check your backups on a schedule. See [Repair a
 @pages restore-hub, restore-pick, restore-review, plan
 @summary Put a backup back on the console it came from, after reviewing exactly what would change.
 
-Restoring puts a console backup back on the NES Classic it came from. It changes the console, so Workbench first backs the console up as it is now, then shows exactly what would change. Nothing is written until you confirm.
+Restoring puts a console backup back on the console it came from. It changes the console, so Workbench first backs the console up as it is now, then shows exactly what would change. Nothing is written until you confirm.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 ## The Console Restore page
 
@@ -677,7 +685,7 @@ The progress page says **Do not unplug the console.** **Stop After This Part** f
 
 **Back** on the list and the review pages, or Escape, returns to Console Restore. **Done** on a result page does the same.
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - A restore writes whole storage parts from the backup's images, and reads each one back.
 - Before it writes, it checks that the console is the backup's console and that its storage table still matches the backup's.
@@ -687,9 +695,11 @@ The progress page says **Do not unplug the console.** **Stop After This Part** f
 @topic prepare
 @title Prepare Your Console for CCS HOME
 @pages prepare, prep-plan
-@summary Set your NES Classic up for CCS HOME, and choose how it starts: CCS Mod for Hakchi or CCS Nucleus.
+@summary Set your console up for CCS HOME, and choose how it starts: CCS Mod for Hakchi or CCS Nucleus.
 
-Prepare Console sets your NES Classic up for CCS HOME, the game menu Classic Cart Studio puts on the console. Workbench installs the software CCS HOME runs on; no other program is needed. Nintendo's HOME, its 30 games and their saves stay. A console that is already prepared this way is left as it is, and only CCS HOME and the way it starts are updated.
+Prepare Console sets your console up for CCS HOME, the game menu Classic Cart Studio puts on the console; in this version CCS HOME is made for the NES Classic Mini. Workbench installs the software CCS HOME runs on; no other program is needed. Nintendo's HOME, its built-in games and their saves stay. A console that is already prepared this way is left as it is, and only CCS HOME and the way it starts are updated.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 Open it from **Console Composer**: choose **Start Fresh** on the **Start Fresh with Classic Cart Studio** card.
 
@@ -781,7 +791,7 @@ If preparing stops partway, do not run it again straight away. Back up the conso
 
 **Return to Original Software…**, at the bottom of the page, undoes the preparation. See [Return to Original Software](#return).
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - What is installed: Hakchi2 CE 3.9.3's kernel and files, with CCS HOME's package and the start method you choose.
 - CCS Mod for Hakchi is the hakchi package ccs-mod (ccs-mod.hmod); CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod). The chosen package is placed in hakchi's transfer folder, and hakchi installs it at the console's next normal start, then restarts the console once.
@@ -796,6 +806,8 @@ If preparing stops partway, do not run it again straight away. Back up the conso
 @summary Change how Classic Cart Studio starts on a prepared console, or remove the way it starts. Games and saves stay.
 
 A console Classic Cart Studio prepared starts CCS HOME in one of two ways. On this page you can switch to the other way, or remove the one installed.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 | Way | What it is |
 | CCS Mod for Hakchi | CCS HOME is a hakchi module and an entry in the console's own menu. The console starts in its own menu, unless you choose to open CCS HOME when the console is turned on. |
@@ -856,7 +868,7 @@ In this version, with a real console, the result says that removing or changing 
 
 [shot 19b-method-result-stopped | Stopped before every step was written, with the steps that were done.]
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - CCS Mod is the hakchi package ccs-mod (ccs-mod.hmod) and CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod).
 - Removing places the package's removal list in hakchi's transfer folder. Changing places the new package and the old one's removal list there, and CCS HOME's package in the new method's layout. Only the removed package's unchanged files are removed; its settings stay on the console as data.
@@ -869,7 +881,9 @@ In this version, with a real console, the result says that removing or changing 
 @pages return, return-plan
 @summary Undo Classic Cart Studio's preparation: Nintendo's startup software and the console's own bootloader go back, then the backup made before preparing is restored.
 
-Return to Original Software undoes Classic Cart Studio's preparation of your NES Classic. It is not a factory reset: it brings back the console as it was just before it was prepared.
+Return to Original Software undoes Classic Cart Studio's preparation of your console. It is not a factory reset: it brings back the console as it was just before it was prepared.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 ! This changes the console's startup software, bootloader, storage table and data storage. You review every step first.
 
@@ -894,7 +908,7 @@ Workbench first backs the console up as it is now, so saves made since preparing
 3. Choose **Check the Console**. Nothing is changed in this step.
 4. Read **Review the Return**, tick the **I understand** box, and choose **Return Now**.
 5. When the result says **Nintendo's software is back**, choose **Restore the Backup Made Before Preparing…**.
-6. When Workbench asks, connect the console again the same way: POWER off, hold RESET, POWER on. Then follow the restore steps. See [Restore a Backup](#restore).
+6. When Workbench asks, connect the console again the same way (on the NES Classic Mini: POWER off, hold RESET, POWER on). Then follow the restore steps. See [Restore a Backup](#restore).
 
 **Back** on the first page returns to Console Restore without connecting.
 
@@ -937,7 +951,7 @@ Your two backups are bound to this return: the one made before preparing and the
 
 If a return stops partway, do not run it again straight away. Back up the console as it is now first, then decide what to do. Workbench cannot promise that a console can be brought back.
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - The steps are Hakchi2 CE 3.9.3's own uninstall, done as checked steps, with one difference: the bootloader written is this console's own, from the backup made before preparing. If that backup has no complete bootloader image, the return is refused before anything changes.
 - Both backups are checked again when you confirm.
@@ -951,7 +965,9 @@ If a return stops partway, do not run it again straight away. Back up the consol
 @pages rescue, rescue-choose, rescue-plan
 @summary For a console that no longer starts because a startup stage is damaged: write this console's own copy of that stage back from one of its backups.
 
-Console Rescue is for an NES Classic that no longer starts because one of its startup stages is damaged. It writes this console's own copy of that stage back from one of its backups. It changes the console only after you confirm.
+Console Rescue is for a console that no longer starts because one of its startup stages is damaged. It writes this console's own copy of that stage back from one of its backups. It changes the console only after you confirm.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 It is not the same as Backup Repair: Backup Repair fixes a backup file on this PC and never touches a console. See [Repair a Backup File](#backup-repair).
 
@@ -1020,7 +1036,7 @@ In this version, with a real console, the result says that repairing a real cons
 
 **Cancel** on the choice and review pages ends the session without writing anything and returns to Console Rescue. **Done** on the result page does the same after the task.
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - The startup stages are boot0, the first stage, and boot1, u-boot, the bootloader. They are read from the console's storage and checked against the copies in the backup.
 - Each chosen stage is written once and read back. If a write or its read-back fails, nothing is retried.
@@ -1034,7 +1050,9 @@ In this version, with a real console, the result says that repairing a real cons
 @pages composer, composer-plan, compose-plan
 @summary Set a console up from your own backups and files: fresh with Classic Cart Studio, like another console of yours, or rebuilt from your backups.
 
-Console Composer sets up your NES Classic from your own backups and files. Each setup changes the console: you review it first, and the console is backed up before anything is written. Open **Console Composer** in the side column.
+Console Composer sets up your console from your own backups and files. Each setup changes the console: you review it first, and the console is backed up before anything is written. Open **Console Composer** in the side column.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 [shot 24-composer | The Console Composer page, with its setup cards and its designs, system images and packages cards.]
 
@@ -1042,7 +1060,7 @@ Console Composer sets up your NES Classic from your own backups and files. Each 
 
 | Card | What it does |
 | Start Fresh with Classic Cart Studio | Prepares this console for CCS HOME, after a complete backup of it. Its button is Start Fresh. See [Prepare Your Console for CCS HOME](#prepare). |
-| Set Up Like My Other Console | Copies saves, settings and games from a backup of your other NES Classic to the connected one. |
+| Set Up Like My Other Console | Copies saves, settings and games from a backup of your other console of the same kind to the connected one. |
 | Rebuild from My Backups | Puts chosen files from one or more backups of this console back on it. |
 | HOME Designer | Designs how CCS HOME looks. See [HOME Designer](#designer). |
 | Your System Images | Adds a system image of your own as a CCS Nucleus choice, or removes one. See [Your System Images](#firmware). |
@@ -1061,7 +1079,7 @@ The console keeps its own startup software, bootloaders, storage layout and iden
 
 ## Set Up Like My Other Console
 
-Copies files from a backup of your other NES Classic to the NES Classic connected to this PC. This is not a restore. To put a whole backup back on the console it came from, use Restore a Backup. To bring back files from backups of the connected console itself, use Rebuild from My Backups.
+Copies files from a backup of your other console of the same kind to the console connected to this PC. This is not a restore. To put a whole backup back on the console it came from, use Restore a Backup. To bring back files from backups of the connected console itself, use Rebuild from My Backups.
 
 You need a backup of your other console in your backup location. If there is none, the page says so and offers **Back Up Console**: connect your other console and back it up first.
 
@@ -1071,7 +1089,7 @@ You need a backup of your other console in your backup location. If there is non
 
 ## Rebuild from My Backups
 
-Puts chosen files from your own backups of this NES Classic back on it. This is not a full restore: to put a whole backup back exactly as it was, use Restore a Backup. To bring files over from another console, use Set Up Like My Other Console.
+Puts chosen files from your own backups of this console back on it. This is not a full restore: to put a whole backup back exactly as it was, use Restore a Backup. To bring files over from another console, use Set Up Like My Other Console.
 
 Every backup you choose here must be of the console connected to this PC. To take other files from another backup of it, choose **Add Another Backup**; each file comes from the backup you choose it in. The same file chosen from two backups is refused.
 
@@ -1127,7 +1145,7 @@ In this version, with a real console, the result says that composing a real cons
 
 [shot 28b-compose-result-stopped | Stopped before every file was written, naming the file where it stopped.]
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - Console Composer moves only files under clover/profiles/ (saves and settings of Nintendo's HOME), hakchi/games/ (games added with hakchi) and ccs/ (Classic Cart Studio's data) on the console's data storage.
 - When you review, every chosen backup is checked again in full, and each file is compared with that backup's own file list (SHA-256).
@@ -1235,6 +1253,8 @@ A plan is never a restore point: every change is reviewed on your console first,
 
 A system image is the main software of a console system, in one file. You can add one of your own from this PC as a choice in CCS Nucleus's chooser. It starts only when you pick it, for that one start. When you don't pick it, your console starts its own system as before, and that stays your way back.
 
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+
 Workbench does not supply or download system images. Adding one changes files on the console: you review it first, and the console is backed up before anything is written. Workbench does not promise that every system image works.
 
 ## What you need
@@ -1264,7 +1284,7 @@ The review shows the console, the image file and its size, which system the file
 - The console's startup software, bootloader, own system, games and saves are not changed by adding it.
 - The system version the image records, and how much space is free before and after.
 
-For an SNES Classic system image, the notes also say that its games use the X, Y, L and R buttons, which the NES Classic controller does not have, so you need an SNES Classic controller to play them, and that hakchi keeps that system's HOME menu saves apart from the NES Classic system's.
+On an NES Classic Mini, for an SNES Classic system image, the notes also say that its games use the X, Y, L and R buttons, which the NES Classic controller does not have, so you need an SNES Classic controller to play them, and that hakchi keeps that system's HOME menu saves apart from the NES Classic system's.
 
 [shot 29b-firmware-plan-snes | Review: Add a System Image, for a sample SNES Classic system image named My SNES System.]
 
@@ -1288,7 +1308,7 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 
 **Back** returns to Console Composer. If you typed a name or an id, Workbench asks before leaving.
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - A system image is a SquashFS file (.hsqs) holding a console system's root file system. It is checked with hakchi's own rules, and a kernel file is refused.
 - It goes to CCS Nucleus's own folder on the console's data storage, never to hakchi's firmware folder, because hakchi starts the first image there by itself, without a choice.
@@ -1301,7 +1321,7 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 @pages designer, design-editor
 @summary Design how CCS HOME looks, with your own pictures, colors, folders and game order, starting from one of its four themes.
 
-HOME Designer lets you design how CCS HOME looks on your NES Classic. You work on a Shared HOME Design file (.ccshome) on this PC. Nothing on the console changes until you check the design and apply it. See [Check and Apply a Design](#design-apply).
+HOME Designer lets you design how CCS HOME looks on your console; in this version CCS HOME is made for the NES Classic Mini. You work on a Shared HOME Design file (.ccshome) on this PC. Nothing on the console changes until you check the design and apply it. See [Check and Apply a Design](#design-apply).
 
 Open it from **Console Composer** (**HOME Designer**) or from **Open** beside HOME Designer on the Dashboard.
 
@@ -1450,6 +1470,8 @@ If something in the design cannot be shared, the problems are listed, and a shar
 
 Before a design can go on your console, it is checked: it is fitted to the games in a backup of your console and every screen is made by the console's own HOME program, here on this PC. Checking reads a backup and changes nothing. Applying changes the console, and the console is backed up first.
 
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+
 In the editor, choose **Check and Apply on My Console…**.
 
 [shot 49-designer-console | Check and Apply on My Console, with a sample backup chosen and the Revert Design buttons.]
@@ -1514,9 +1536,11 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 @topic console-browser
 @title Check Your Console
 @pages console-browser, checkup
-@summary Run a check-up that only reads your NES Classic, then look through its files while it is connected.
+@summary Run a check-up that only reads your console, then look through its files while it is connected.
 
-Console Browser checks your NES Classic and lets you look through its files while it is connected. The check-up and browsing only read the console. The session runs in the console's memory, with nothing installed on your console, and Workbench does not write to the console's storage in this mode.
+Console Browser checks your console and lets you look through its files while it is connected. The check-up and browsing only read the console. The session runs in the console's memory, with nothing installed on your console, and Workbench does not write to the console's storage in this mode.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 Open **Console Browser** in the side column, or choose **Check the Console** on the Dashboard.
 
@@ -1561,7 +1585,7 @@ After the session has ended, the page says **The console session has ended. Star
 
 To look through files, see [Look Through a Backup](#backup-browser). To copy files, see [Copy Files Out](#export).
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - The check-up's Condition is the status recorded in the data storage's file system header. Workbench does not replay or repair the file system's journal.
 - The Technical details on the check-up also say whether hakchi's files and Classic Cart Studio's files were found, and the size of the data storage part.
@@ -1573,7 +1597,9 @@ To look through files, see [Look Through a Backup](#backup-browser). To copy fil
 @pages files-intro, files, files-plan
 @summary Add, replace or remove your own game files, saves, artwork and settings on the console, under a restore point you choose.
 
-Expert Mode changes your own files on your NES Classic: you can add, replace or remove game files, saves, artwork and settings. It writes to the console's storage, and you review each change before it is made. Nothing else on the console is written.
+Expert Mode changes your own files on your console: you can add, replace or remove game files, saves, artwork and settings. It writes to the console's storage, and you review each change before it is made. Nothing else on the console is written.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 Open **Console Browser** and choose **Expert Mode…**.
 
@@ -1626,7 +1652,7 @@ The review lists each change as **Add**, **Replace** or **Remove**, with the fil
 
 In this version, with a real console, Expert Mode says that changing files on a real console is not available in this version.
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - Before a change, the file on the console must still be exactly what you reviewed. It is written under a temporary name, renamed into place, then read back and compared.
 - Developer Mode uses the same session with any file on the data storage, plus the startup software and the system part. See [Developer Mode](#developer).
@@ -1706,7 +1732,7 @@ Click a file's name to see what it is and where its checksum comes from, with a 
 In **All Files**, the restore folder holds the backup's parts. Some of them can be opened like folders with **Files inside**:
 
 - **The startup software.** A startup image holds the console's kernel and its ramdisk, and the ramdisk holds the console's system key file, marked **(private)**.
-- **The system part.** The NES Classic keeps its system part encrypted. Workbench opens it on this PC, read only, with the key from the backup's own startup software, so you can see its files. Their checksums are worked out on this PC from a checked part of the backup, not recorded when the backup was made, and the page says so.
+- **The system part.** The NES Classic Mini keeps its system part encrypted. Workbench opens it on this PC, read only, with the key from the backup's own startup software, so you can see its files. Their checksums are worked out on this PC from a checked part of the backup, not recorded when the backup was made, and the page says so.
 - **The data storage**, with the console's games, saves and settings.
 
 If no key that can open the system part is found in the backup's startup software, the system part is listed as one image, and its files are not listed. It can still be exported as one exact image, checked against the backup's checksum.
@@ -1748,7 +1774,7 @@ A damaged backup is never offered as a backup to restore, and opening it is not 
 
 **Back to the Backup List** returns to the list. Escape on the Find What Can Be Saved page does the same.
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - The backup's top-level folders are restore/ (the parts a restore puts back, such as boot2-active.img for the startup software in use, boot2-slot68.img for the spare startup slot, nandb.img for the system part and nandc.img for the data storage), recovery/ (the original Nintendo kernel, when found), reference/, inventory/ and repair/, with ccs-console-backup.json (the manifest) and README.txt.
 - The system part is decrypted on this PC with the key in the backup's own startup image. The key's bytes are never shown or kept by the window.
@@ -1804,11 +1830,11 @@ The page shows the folder the files were saved in. If the separate key file was 
 @title Battery Saves and Suspend Points
 @summary Find your game saves in a backup, copy them out, and convert a battery save into a Game save file for Classic Cart Studio's player.
 
-The NES Classic keeps two kinds of saves:
+A Classic console keeps two kinds of saves:
 
 | Kind | What it is |
-| Battery save | The save a game keeps itself, like the battery-backed memory in a cartridge. On the console it is a file such as save.sram or cartridge.sram, in the game's folder. |
-| Suspend point | A snapshot the console makes when you suspend a game. On the console it is a file such as 1.state. |
+| Battery save | The save a game keeps itself, like the battery-backed memory in a cartridge. On the NES Classic Mini it is a file such as save.sram or cartridge.sram, in the game's folder. |
+| Suspend point | A snapshot the console makes when you suspend a game. On the NES Classic Mini it is a file such as 1.state. |
 
 Both are in every console backup. Suspend points are kept and copied exactly as they are; nothing converts them.
 
@@ -1842,7 +1868,7 @@ The same conversion works for a connected console's files in Console Browser.
 
 To put saves back on the console they came from, use Rebuild from My Backups, or Set Up Like My Other Console to bring them from another console. See [Console Composer](#composer). Restore a Backup puts back everything in a backup, saves included. See [Restore a Backup](#restore).
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - The console keeps each game's saves in its profile folder, clover/profiles/0/ followed by the game's code.
 - The console's battery-save format starts with a 40-character check value of the rest of the file.
@@ -1997,7 +2023,9 @@ If the page says recovery data cannot be made, checked or used in this copy of W
 @pages developer, developer-return, test-boot, test-boot-plan, kernel-plan, system-plan
 @summary For experienced users who develop for the console: change its startup software, system part and any file, or try a startup image in the console's memory.
 
-Developer Mode changes your NES Classic's own software: its startup software, its system part and any file on its data storage. It is for experienced users who develop for the console.
+Developer Mode changes your console's own software: its startup software, its system part and any file on its data storage. It is for experienced users who develop for the console.
+
+! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 ! Code you put on the console runs with full control of it once it starts. It can write the console's storage, its startup stages or its keys, and a restore point cannot undo what it does to the startup stages or keys.
 
@@ -2058,9 +2086,9 @@ A test boot sends a startup image to the console's memory once and starts it the
 
 If there is no complete backup in your backup location, the page says so: choose **Browse…** or make one with Back Up Console first.
 
-To connect for a test boot:
+To connect an NES Classic Mini for a test boot (the SNES Classic Mini's steps come with its console tasks):
 
-1. Turn your NES Classic off and connect it to this PC with its USB cable.
+1. Turn your NES Classic Mini off and connect it to this PC with its USB cable.
 2. Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go. The TV stays dark: the console waits for this PC.
 3. Workbench reads only the console's hardware ID until you confirm the test boot.
 
@@ -2111,7 +2139,7 @@ This puts the console back the way one of its backups recorded it. It changes th
 
 In this version, with a real console, Developer Mode's changes say that developer changes to a real console are not available in this version.
 
-## Technical details
+## Technical details (NES Classic Mini)
 
 - Startup software: the console's active startup image (boot2), an Android boot image holding its kernel, ramdisk and command line. A startup image file must be an Android boot image in this console's own startup layout.
 - System part: the console's root file system (rootfs on nandb), a SquashFS image, written through the console's own encryption.
@@ -2135,7 +2163,7 @@ In this version, with a real console, Developer Mode's changes say that develope
 | Also save an additional copy of each new backup | When ticked, each new backup is saved a second time, in the additional copy location, and each copy is checked on its own. |
 | Additional copy location | The folder for the additional copy. Choose one on another drive: a copy on the same drive, or in the same cloud account, does not protect against losing that drive. |
 
-A change is used when you leave the box, press Enter, choose a folder with **Change…**, or tick or clear the box. A path that is not a full folder path (for example D:\NES Backups) is not used, and the page says why.
+A change is used when you leave the box, press Enter, choose a folder with **Change…**, or tick or clear the box. A path that is not a full folder path (for example D:\Console Backups) is not used, and the page says why.
 
 Changing these affects only new backups. Backups already saved stay where they are; Workbench never moves them.
 

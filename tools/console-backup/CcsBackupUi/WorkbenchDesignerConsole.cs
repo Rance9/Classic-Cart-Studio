@@ -66,7 +66,7 @@ namespace CcsBackup.Ui
             rv.Children.Add(T("Puts the console's HOME back to its previous design, or to the theme's own look. Only the HOME's appearance changes; games and saves stay as they are, including saves made since. This changes the console: it is backed up first, and you confirm the change.", 13, false, true));
             rv.Children.Add(Buttons(B("Back to the Previous Design", "Btn.Ghost", () => StartDesignOp("revert", "previous")), B("Back to the Theme's Own Look", "Btn.Ghost", () => StartDesignOp("revert", "defaults"))));
             sp.Children.Add(Card(rv));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole)) sp.Children.Add(ConnectSteps("Applying or reverting backs up the console first; nothing is written until you confirm."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Applying or reverting backs up the console first; nothing is written until you confirm."));
             sp.Children.Add(Buttons(B("Back to the Design", "Btn.Ghost", () => ShowDesignEditor())));
             Show(sp, "design-console");
         }

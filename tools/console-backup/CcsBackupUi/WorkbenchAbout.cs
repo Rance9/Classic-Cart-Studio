@@ -55,7 +55,7 @@ namespace CcsBackup.Ui
             foreach (var md in Resources.MergedDictionaries) w.Resources.MergedDictionaries.Add(md);
             foreach (var k in Resources.Keys) w.Resources[k] = Resources[k];   // the Workbench's own derived styles (DeriveStyles)
             TextOptions.SetTextFormattingMode(w, TextFormattingMode.Ideal);
-            w.SourceInitialized += (s, e) => Dark(w); NewTermScope(w);
+            w.SourceInitialized += (s, e) => Dark(w); NewTermScope(w); w.Deactivated += (s, e) => DropHover();
             w.PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape && !e.Handled) { e.Handled = true; if (!CloseTerm(true)) w.Close(); } };
             return w;
         }

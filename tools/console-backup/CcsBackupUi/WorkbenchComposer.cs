@@ -166,7 +166,7 @@ namespace CcsBackup.Ui
                 ShowSharePlan(DraftFrom(start, pol, name, ch.First().backup, ch.Select(x => x.path).ToList()), () => ShowComposerPlan(start, ch, name, pol));
             })));
             sp.Children.Add(Card(share));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole)) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the changes; the console is backed up first."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the changes; the console is backed up first."));
             sp.Children.Add(Buttons(B("Review the Changes", "Btn.Primary", () =>
             {
                 var ch = Chosen(); if (ch == null) return;

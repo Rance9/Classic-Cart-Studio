@@ -7,6 +7,9 @@ browser's input layer.
             back on the word and Help stays open; a click elsewhere closes it; a second word replaces the first (one open at a time)
   keys      Tab to a word, then Enter or Space, opens it; Close closes it
   state     the chapter's scroll position and the open chapter are kept; nothing opens when the pointer only passes over a word
+  hover     resting the mouse on a word opens it after 600 ms without moving the focus; a quick pass opens nothing; the pointer can cross into
+            the explanation; leaving both closes it after 200 ms; a click keeps a hover-opened one open as if chosen; Escape leaves the focus;
+            another word waits its own full delay; a touch tap opens at once; closing Help drops a waiting hover
   phone     at 390 px wide the explanation stays inside the screen
   python test_glossary_web.py <built site folder> [--page preview/index.html] [--out results.json]      Exit 0 = PASS (--page: the public
   build's app page; the Windows build's is index.html)."""
@@ -56,7 +59,7 @@ def main() -> int:
             y0 = ed.js("document.getElementById('guideArt').scrollTop")
             p = at(ed, "document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"nucleus\"]')")
             y0 = ed.js("document.getElementById('guideArt').scrollTop")
-            mouse(ed, p["x"], p["y"], "move"); ok("state: the pointer passing over a word opens nothing", ed.js(POP) is None)
+            mouse(ed, p["x"], p["y"], "move"); ok("state: the pointer resting on a word for less than the hover delay opens nothing", ed.js(POP) is None)
             mouse(ed, p["x"], p["y"]); pop = ed.js(POP); t = next(t for t in GLOSSARY["terms"] if t["key"] == "nucleus")
             ok("click: the word's explanation opens with the glossary's text", pop and pop["title"] == t["word"] and pop["text"] == t["text"], pop)
             ok("click: it is just under the word and inside the window", pop and pop["t"] >= p["y"] - 2 and pop["l"] >= 8 and pop["r"] <= pop["vw"] - 8 and pop["b"] <= pop["vh"] - 4, pop)
@@ -82,6 +85,59 @@ def main() -> int:
             ed.js("document.querySelector('#guideArt section[data-ch=\"install\"] .gterm').blur()")
             tab = ed.js("(()=>{ const b=document.querySelector('#guideArt section[data-ch=\"install\"] .gterm'); return b.tabIndex>=0&&getComputedStyle(b).display; })()")
             ok("keys: a word is reached with Tab like any other button", tab == "inline", tab)
+            # freeze 16: delayed hover (GL_HOVER_OPEN_MS 600, GL_HOVER_LEAVE_MS 200), no focus taken, a click keeps it open, touch stays a tap
+            ed.call("Emulation.setFocusEmulationEnabled", {"enabled": True}); ed.js("openGuide('backup')"); time.sleep(1.0)
+            ok("hover: the two delays are named, 600 ms and 200 ms (the same as the Workbench window)", ed.js("[GL_HOVER_OPEN_MS,GL_HOVER_LEAVE_MS]") == [600, 200])
+            def mv(x, y): ed.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y})
+            def wait_pop(sec):
+                t0 = time.time()
+                while time.time() - t0 < sec:
+                    if ed.js(POP) is not None: return time.time() - t0
+                    time.sleep(0.03)
+                return None
+            hb = at(ed, "document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"storage\"]')")
+            hd = at(ed, "document.querySelector('#guideArt section[data-ch=\"backup\"] h4')")
+            away = (hd["x"] + 60, hd["y"])
+            ed.js("document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"mod\"]').focus()"); time.sleep(0.1)
+            hb = at(ed, "document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"storage\"]')")
+            focus0 = ed.js("document.activeElement.dataset.g")
+            mv(*away); time.sleep(0.2); mv(hb["x"], hb["y"]); time.sleep(0.3); mv(*away); time.sleep(0.8)
+            ok("hover: passing over a word (leaving before 600 ms) never opens it, not later either", ed.js(POP) is None)
+            t0 = time.time(); mv(hb["x"], hb["y"]); time.sleep(0.25); early = ed.js(POP); got = wait_pop(2.0); el = time.time() - t0
+            pop = ed.js(POP)
+            ok("hover: resting on a word opens its explanation after the delay, not before (bounded: 0.55 s to 2 s)", early is None and got is not None and 0.55 <= el < 2.0 and pop and pop["title"] == "Built-in storage", (early, el, pop))
+            ok("hover: the keyboard focus stays where it was; the word says it is expanded", ed.js("document.activeElement.dataset.g") == focus0 == "mod" and ed.js("document.querySelector('.gterm[data-g=\"storage\"]').getAttribute('aria-expanded')") == "true", (focus0, ed.js("document.activeElement.id||document.activeElement.dataset.g")))
+            ok("hover: the explanation shows the meaning and the detail named for these consoles", ed.js("document.querySelector('#gpop .gdetail')?.textContent") == next(t for t in GLOSSARY["terms"] if t["key"] == "storage")["detail"])
+            pr = ed.js("(()=>{const r=document.getElementById('gpop').getBoundingClientRect(); return {x:Math.round(r.left+r.width/2), y:Math.round(r.top+12)}})()")
+            mv(hb["x"], hb["y"] + 8); mv(pr["x"], pr["y"]); time.sleep(0.5)
+            ok("hover: the pointer can move from the word into its explanation, across the gap, and it stays open", ed.js(POP) is not None)
+            mv(*away); time.sleep(0.08); still = ed.js(POP) is not None; time.sleep(0.5)
+            ok("hover: leaving both closes it after the grace, not at once, and the focus stays where it was", still and ed.js(POP) is None and ed.js("document.activeElement.dataset.g") == "mod")
+            mv(hb["x"], hb["y"]); wait_pop(2.0); mouse(ed, hb["x"], hb["y"]); popc = ed.js(POP)
+            ok("hover then click: the same explanation stays open, now as if chosen (focus on its Close)", popc and popc["title"] == "Built-in storage" and popc["focus"] == "gpopClose", popc)
+            mv(*away); time.sleep(0.6)
+            ok("an explanation chosen on purpose does not close when the pointer leaves", ed.js(POP) is not None)
+            key(ed, "Escape", "Escape", 27)
+            ok("Escape closes the chosen explanation and puts the focus back on its word", ed.js(POP) is None and ed.js("document.activeElement.dataset.g") == "storage")
+            ed.js("document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"mod\"]').focus()"); time.sleep(0.1)
+            mv(hb["x"], hb["y"]); wait_pop(2.0); key(ed, "Escape", "Escape", 27)
+            ok("Escape closes a hover-opened explanation and leaves the focus where it was", ed.js(POP) is None and ed.js("document.activeElement.dataset.g") == "mod")
+            mv(*away); time.sleep(0.3)
+            # two words of one list item, both measured after one scroll (the item with CCS Mod for Hakchi and CCS Nucleus)
+            LI = "[...document.querySelectorAll('#guideArt section[data-ch=\"backup\"] li')].find(li=>li.querySelector('.gterm[data-g=\"mod\"]')&&li.querySelector('.gterm[data-g=\"nucleus\"]'))"
+            hm = at(ed, LI + ".querySelector('.gterm[data-g=\"mod\"]')")
+            hn = ed.js("(()=>{ const r=" + LI + ".querySelector('.gterm[data-g=\"nucleus\"]').getBoundingClientRect(); return {x:Math.round(r.left+Math.min(8,r.width/2)), y:Math.round(r.top+r.height/2)}; })()")
+            mv(*away); time.sleep(0.3); mv(hm["x"], hm["y"]); time.sleep(0.4); mv(hn["x"], hn["y"]); time.sleep(0.4); waits = ed.js(POP) is None; got = wait_pop(1.5)
+            ok("hover: another word starts its own full wait, then opens", waits and got is not None and ed.js(POP)["title"] == "CCS Nucleus", (waits, got, ed.js(POP), hm, hn))
+            hb = at(ed, "document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"storage\"]')")
+            mv(*away); time.sleep(0.5)
+            ed.call("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": hb["x"], "y": hb["y"]}]}); ed.call("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []}); time.sleep(0.35)
+            popt = ed.js(POP)
+            ok("touch: a tap opens the explanation at once (no hover needed, no double opening)", popt and popt["title"] == "Built-in storage" and ed.js("document.querySelectorAll('#gpop').length") == 1, popt)
+            key(ed, "Escape", "Escape", 27)
+            mv(hb["x"], hb["y"]); time.sleep(0.25); ed.js("closeGuide()"); time.sleep(0.9)
+            ok("hover: closing Help while a word waits shows no explanation later", ed.js(POP) is None)
+            ed.js("openGuide('backup')"); time.sleep(0.6); mv(*away)
             # the Website App comparison (a Studio dialog): Hakchi2 CE in its own row
             ed.js("closeGuide()"); time.sleep(0.5); ed.js("pwaDialog()"); time.sleep(0.8)   # the Studio menu's Install the Website App…
             comp = ed.js(TERMS + "(" + json.dumps("#collBody") + ")")

@@ -54,7 +54,7 @@ namespace CcsBackup.Ui
                 }
             }
             c.Children.Add(T("CCS HOME, with the Included Games, is put on the console in the same session. The way it starts takes effect the next time the console starts normally. Classic Cart Studio for Windows can later put your own collection there.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
-            c.Children.Add(Details("Technical details", "CCS Mod for Hakchi is the hakchi package ccs-mod (ccs-mod.hmod); CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod). The chosen package is placed in hakchi's own transfer folder, and hakchi installs it at the console's next normal start, then restarts the console once.",
+            c.Children.Add(Details(TechNes, "CCS Mod for Hakchi is the hakchi package ccs-mod (ccs-mod.hmod); CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod). The chosen package is placed in hakchi's own transfer folder, and hakchi installs it at the console's next normal start, then restarts the console once.",
                 "CCS HOME at power-on is CCS Mod's own optional start setting (its start script in hakchi's overlay); CCS Nucleus does not use it."));
             return Card(c);
         }
@@ -69,7 +69,7 @@ namespace CcsBackup.Ui
                                         ("CCS Nucleus", "A chooser: you pick CCS HOME, the console's own system or one of your own system images.")));
             what.Children.Add(T("Removing one takes away that way of starting, and the console starts in its own menu again. Changing installs the other one in its place. Either way, games, saves, settings, other hakchi packages and your system images stay, and the change takes effect the next time the console starts normally.", Ty.Text));
             what.Children.Add(T("Only for a console Classic Cart Studio prepared; the review refuses any other. If neither is installed, choose one by preparing the console again (Prepare Console).", Ty.Small, false, true, new Thickness(0)));
-            what.Children.Add(Details("Technical details", "CCS Mod is the hakchi package ccs-mod (ccs-mod.hmod) and CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod), both pinned in this build's preparation program.",
+            what.Children.Add(Details(TechNes, "CCS Mod is the hakchi package ccs-mod (ccs-mod.hmod) and CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod), both pinned in this build's preparation program.",
                 "Removing places the package's removal list in hakchi's transfer folder; changing places the new package and the old one's removal list there, and CCS HOME's package in the new method's layout. hakchi applies them at the console's next normal start and restarts the console once. Only the removed package's unchanged files are removed; its settings stay on the console as data.",
                 "Only files on the console's data storage are written (hakchi's transfer folder and CCS HOME's folder); no kernel, bootloader or system is changed. The console must run Hakchi2 CE 3.9.3's hakchi."));
             sp.Children.Add(Card(what));
@@ -91,7 +91,7 @@ namespace CcsBackup.Ui
                 c.Children.Add(card);
             }
             sp.Children.Add(c); sp.Children.Add(Card(start));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole)) sp.Children.Add(ConnectSteps("Nothing changes until you confirm; the change takes effect at the console's next normal start."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing changes until you confirm; the change takes effect at the console's next normal start."));
             sp.Children.Add(Buttons(B("Back", "Btn.Ghost", BackToSection)));
             Show(sp, "methods");
         }
@@ -106,7 +106,7 @@ namespace CcsBackup.Ui
                                       "Workbench checks the file and tells you which system it holds, in the review, before anything is written.",
                                       "The image becomes a choice in CCS Nucleus's chooser. It starts only when you pick it, for that one start. When you don't pick it, your console starts its own system as before, and that stays your way back."));
             how.Children.Add(T("CCS Nucleus must be installed on the console (Prepare Console, or CCS Mod and CCS Nucleus in Console Restore).", Ty.Small, false, true, new Thickness(0, 4, 0, 0)));
-            how.Children.Add(Details("Technical details", "A system image is a SquashFS file (.hsqs) holding a console system's root file system. It is checked with hakchi's own rules, and a kernel file is refused.",
+            how.Children.Add(Details(TechNes, "A system image is a SquashFS file (.hsqs) holding a console system's root file system. It is checked with hakchi's own rules, and a kernel file is refused.",
                 "It goes to CCS Nucleus's own folder on the console's data storage, never to hakchi's firmware folder (hakchi starts the first image there by itself, without a choice). The image and " + Units.Gb(FirmwareEngine.Reserve) + " more must fit on the data storage.",
                 "The console must run Hakchi2 CE 3.9.3's hakchi with CCS Nucleus installed; its list of start choices is read before anything is written."));
             sp.Children.Add(Card(how));
@@ -135,7 +135,7 @@ namespace CcsBackup.Ui
             id.TextChanged += (s, e) => { remove.IsEnabled = !string.IsNullOrWhiteSpace(id.Text); need.Visibility = remove.IsEnabled ? Visibility.Collapsed : Visibility.Visible; };
             c.Children.Add(Buttons(remove)); c.Children.Add(need);
             sp.Children.Add(Card(c));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole)) sp.Children.Add(ConnectSteps("Nothing changes until you confirm."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing changes until you confirm."));
             sp.Children.Add(Buttons(B("Back", "Btn.Ghost", () => { if (LeaveOk()) BackToSection(); })));
             Show(sp, "firmware");
             leaveCheck = () => (label.Text.Trim().Length == 0 && id.Text.Trim().Length == 0)

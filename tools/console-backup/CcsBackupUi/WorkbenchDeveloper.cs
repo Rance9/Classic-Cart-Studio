@@ -36,7 +36,7 @@ namespace CcsBackup.Ui
                 ActionCard("Test Boot in Memory", "Try a startup image, or your restore point's own startup software, by starting it from the console's memory. Workbench writes nothing to the console's storage for it.", "Btn", () => ShowTestBootIntro(), "Test Boot"),
                 ActionCard("Return to a Restore Point", "Put the console back the way one of its backups recorded it, through Console Restore or Console Rescue and their own checks.", "Btn", () => ShowDeveloperReturn(), "Return")));
             sp.Children.Add(T("Developer Mode never writes the console's startup stages, its storage table or hakchi's spare startup slot.", Ty.Small, false, true));
-            sp.Children.Add(Details("Technical details",
+            sp.Children.Add(Details(TechNes,
                 "Startup software: the console's active startup image (boot2), an Android boot image holding its kernel, ramdisk and command line.",
                 "System part: the console's root file system (rootfs on nandb), a SquashFS image. When the console's startup software opens it with a key, Workbench writes it through the console's own encryption: the console uses that key there, and the write does not send it to this PC. A backup's copy of the startup software holds the key too, so keep backups private.",
                 "Data storage: any regular file, including hakchi/rootfs/ (hakchi's system overlay); never a link, a folder or a device.",
@@ -163,16 +163,17 @@ namespace CcsBackup.Ui
             var emptyLine = T(empty ?? "", Ty.Small, false, true); emptyLine.Visibility = empty == null ? Visibility.Collapsed : Visibility.Visible;
             c.Children.Add(Field("Restore point (a backup of this console)", list, BrowseRestorePoint(list, () => emptyLine.Visibility = Visibility.Collapsed)));
             c.Children.Add(emptyLine);
-            c.Children.Add(Details("Technical details",
+            c.Children.Add(Details(TechNes,
                 "A startup image file must be an Android boot image in this console's own startup layout: its page size, load addresses and header version, a zImage kernel, its own checksum, a plain command line and a ramdisk format the console knows. It is checked on this PC before anything is sent.",
                 "My restore point's own startup software is the startup image recorded in that backup, checked against its recorded checksums.",
                 "The console waits in its boot ROM's USB mode (FEL). Workbench reads its hardware id (SID) and compares it with the restore point's console before anything is sent; the image is then sent to its memory once and started, never again on that connection."));
             sp.Children.Add(Card(c));
             sp.Children.Add(Note(TestBootEngine.ImageNotice, "warn"));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole))
+            if (!profile.ConsoleTasks || profile.TestBootRecoveryStep == null) sp.Children.Add(FamilyNotYetNote());
+            else if (string.IsNullOrEmpty(opt.SimulatedConsole))
             {
                 var s = new StackPanel(); s.Children.Add(T("Connect the console", Ty.Heading, true, false, new Thickness(0, 0, 0, 10)));
-                s.Children.Add(Numbered("Turn your " + Con + " off and connect it to this PC with its USB cable.", "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go. The TV stays dark: the console waits for this PC.", "Workbench reads only the console's hardware id until you confirm the test boot."));
+                s.Children.Add(Numbered("Turn your " + Con + " off and connect it to this PC with its USB cable.", profile.TestBootRecoveryStep, "Workbench reads only the console's hardware id until you confirm the test boot."));
                 s.Children.Add(T("This PC needs the console's USB driver. If Windows does not have it, Workbench asks before setting it up; it never installs a driver by itself.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
                 sp.Children.Add(Card(s));
             }
@@ -251,7 +252,7 @@ namespace CcsBackup.Ui
             Button open = null; var why = T("Choose a restore point above to open Console Restore.", Ty.Small, false, true); why.Visibility = list.Items.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
             c.Children.Add(Field("Restore point", list, BrowseRestorePoint(list, () => { emptyLine.Visibility = Visibility.Collapsed; why.Visibility = Visibility.Collapsed; if (open != null) open.IsEnabled = true; })));
             c.Children.Add(emptyLine);
-            c.Children.Add(Details("Technical details", "The startup stages are boot0 and boot1 (u-boot). Console Restore does not write them; Console Rescue writes a stage back only from this console's own backup.",
+            c.Children.Add(Details(TechNes, "The startup stages are boot0 and boot1 (u-boot). Console Restore does not write them; Console Rescue writes a stage back only from this console's own backup.",
                 "Console Restore checks that the console is the backup's console and that its storage table still matches the backup's before it writes anything."));
             sp.Children.Add(Card(c));
             sp.Children.Add(Note(SessionRestorePoint.NoticeText, "warn"));
