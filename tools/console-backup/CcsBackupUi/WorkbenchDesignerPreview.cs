@@ -4,9 +4,12 @@
 // package, and the HOME starts with it the way the console starts (HomeBoot): its first screen is the large preview, drawn again within
 // moments of each accepted change. A little later the full render check draws every other screen of the design's theme in the background
 // (the same check Check and Apply runs), and the wizard shows the screens that matter for its step (Game Details, the START menu, Browse,
-// the startup picture) under the large one, with that check's findings in short sentences. By default the package is the CCS HOME this
-// program carries (its Included Games), so no console and no backup are needed; Classic Cart Studio's prepared HOME menu (the person's own
-// games) and the CCS HOME in a backup are choices under "Preview with". The last pictures stay, marked, while new ones are drawn; a picture
+// the startup picture) under the large one, with that check's findings in short sentences. By default the HOME is drawn with the sample
+// games this program carries (the NES Classic's 30 built-in games as the theme examples show them: names, details, box art and game
+// screens, never a game file; build_home_package.py's sample.json), marked "Sample games" over the picture, so a new design shows a full
+// shelf with no console and no backup. The sample is only pictures for this preview: it never becomes a collection, part of a design or a
+// console's package, and nothing in it can be played. The Included Games (the CCS HOME this program carries), Classic Cart Studio's prepared
+// HOME menu (the person's own games) and the CCS HOME in a backup are choices under "Preview with"; a chosen source stays chosen. The last pictures stay, marked, while new ones are drawn; a picture
 // that does not show the latest changes says so. A preview that cannot be drawn says why, with Retry where trying again can help: never a
 // sketch or an imitation in its place. Nothing is written anywhere but this window's own folder under the PC's temporary folder (removed
 // when the window closes), and nothing on a console changes.
@@ -34,9 +37,20 @@ namespace CcsBackup.Ui
     public sealed partial class BackupWorkspace
     {
         const string EmbeddedHome = "embedded:mod";   // the release-built CCS HOME this program carries (HomePackage.Embedded)
+        const string SampleHome = "embedded:sample";  // the sample games: a preview-only HOME this program carries (ram/ccs-home/sample.json)
 
         /// <summary>a HOME package a preview can be drawn with</summary>
-        sealed class PreviewSource { public string Key, Label, Short, Path; public bool Backup; }
+        sealed class PreviewSource { public string Key, Label, Short, Path; public bool Backup, Sample; }
+
+        /// <summary>the sample games' list (sample.json: each file's SHA-256 and size; the files are the engine's HOME blobs); null when this
+        /// build does not carry it</summary>
+        static readonly Lazy<Dictionary<string, object>> sampleIndex = new Lazy<Dictionary<string, object>>(() =>
+        {
+            var b = CcsBackup.Device.RecoveryImages.HomeResource("sample.json"); if (b == null) return null;
+            try { var m = Json.Parse(Encoding.UTF8.GetString(b)); return m.S("schema") == "ccs-home-preview-sample/1" && m.O("files") != null ? m : null; }
+            catch (FormatException) { return null; }
+        });
+        readonly HashSet<string> pvEmpty = new HashSet<string>();   // sources whose HOME has no games (the preview then offers the sample games)
 
         string pvWork;                 // this window's preview folder (created when first needed)
         string pvPick;                 // the chosen source's key (null: the first one available)
@@ -70,6 +84,7 @@ namespace CcsBackup.Ui
         List<PreviewSource> PreviewSources(bool withBackups)
         {
             var l = new List<PreviewSource>();
+            if (sampleIndex.Value != null) l.Add(new PreviewSource { Key = SampleHome, Label = "Sample games (the NES Classic's 30 built-in games, as pictures only, to show the layout)", Short = "sample games", Sample = true });
             try { if (HomePackage.Embedded("mod") != null) l.Add(new PreviewSource { Key = EmbeddedHome, Label = "The Included Games (the CCS HOME that comes with Workbench)", Short = "the Included Games" }); }
             catch (HomePackageException) { }
             var app = opt.PreparedHomePackage;
@@ -245,11 +260,13 @@ namespace CcsBackup.Ui
             {
                 if (pvPacks.TryGetValue(src.Key, out var have) && Directory.Exists(have.dir)) return have;
                 string dir;
-                if (src.Key == EmbeddedHome) dir = EmbeddedHomeFolder(System.IO.Path.Combine(work, "pack-included-" + Guid.NewGuid().ToString("N").Substring(0, 6)));
+                if (src.Key == SampleHome) dir = SampleHomeFolder(System.IO.Path.Combine(work, "pack-sample-" + Guid.NewGuid().ToString("N").Substring(0, 6)));
+                else if (src.Key == EmbeddedHome) dir = EmbeddedHomeFolder(System.IO.Path.Combine(work, "pack-included-" + Guid.NewGuid().ToString("N").Substring(0, 6)));
                 else if (src.Backup) { var st = DesignApplyEngine.ReadState(src.Path); dir = DesignApplyEngine.HomePackage(src.Path, st, null, System.IO.Path.Combine(work, "pack-" + Guid.NewGuid().ToString("N").Substring(0, 8))); }
                 else dir = src.Path;
                 var games = Json.Parse(File.ReadAllText(System.IO.Path.Combine(dir, "games.json"), Encoding.UTF8)).A("games").OfType<Dictionary<string, object>>().Select(g => new ConsoleGame { Id = g.S("id"), Title = g.S("title"), CatalogId = g.S("catalog") }).ToList();
                 pvPacks[src.Key] = (dir, games);
+                lock (pvEmpty) { if (games.Count == 0 && !src.Sample) pvEmpty.Add(src.Key); else pvEmpty.Remove(src.Key); }
                 return (dir, games);
             }
         }
@@ -262,6 +279,24 @@ namespace CcsBackup.Ui
             {
                 var dst = System.IO.Path.Combine(outDir, f.Rel.Substring(5).Replace('/', System.IO.Path.DirectorySeparatorChar)); Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dst));
                 try { File.WriteAllBytes(dst, p.Read(f.Rel)); } catch (HomePackageException ex) { throw new InvalidDataException(ex.Message); }
+            }
+            return outDir;
+        }
+
+        /// <summary>the sample games' HOME folder written out for the HOME program, every file checked against sample.json (size and SHA-256)</summary>
+        static string SampleHomeFolder(string outDir)
+        {
+            var files = sampleIndex.Value?.O("files") ?? throw new InvalidDataException("this copy does not carry the sample games");
+            var full = System.IO.Path.GetFullPath(outDir);
+            foreach (var kv in files)
+            {
+                var info = kv.Value as Dictionary<string, object>; var sha = info?.S("sha256"); long size = info?.L("size", -1) ?? -1;
+                var dst = System.IO.Path.GetFullPath(System.IO.Path.Combine(full, kv.Key.Replace('/', System.IO.Path.DirectorySeparatorChar)));
+                if (!dst.StartsWith(full + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !CcsBackup.Hex.IsHex(sha, 64)) throw new InvalidDataException("the sample games list a file they may not carry: " + kv.Key);
+                var b = CcsBackup.Device.RecoveryImages.HomeResource(sha + ".blob");
+                if (b == null || b.LongLength != size) throw new InvalidDataException(kv.Key + " is missing from the sample games.");
+                using (var h = System.Security.Cryptography.SHA256.Create()) if (CcsBackup.Hex.Of(h.ComputeHash(b)) != sha) throw new InvalidDataException(kv.Key + " differs from the sample games' list.");
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dst)); File.WriteAllBytes(dst, b);
             }
             return outDir;
         }
@@ -283,7 +318,9 @@ namespace CcsBackup.Ui
             var guides = new Canvas { Width = 1280, Height = 720, IsHitTestVisible = false };
             var pill = new Border { Background = new SolidColorBrush(Color.FromArgb(0xe0, 0x10, 0x10, 0x14)), CornerRadius = new CornerRadius(26), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 26, 26, 0), Visibility = Visibility.Collapsed,
                                     Child = new TextBlock { Text = "Updating…", FontSize = 30, Foreground = Brushes.White, Margin = new Thickness(22, 8, 22, 10) } };
-            var stage = new Grid { Width = 1280, Height = 720 }; stage.Children.Add(placeholder); stage.Children.Add(img); stage.Children.Add(guides); stage.Children.Add(pill);
+            var tag = new Border { Background = new SolidColorBrush(Color.FromArgb(0xe0, 0x10, 0x10, 0x14)), CornerRadius = new CornerRadius(26), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(26, 26, 0, 0), Visibility = Visibility.Collapsed,
+                                   Child = new TextBlock { Text = "Sample games", FontSize = 30, Foreground = Brushes.White, Margin = new Thickness(22, 8, 22, 10) } };
+            var stage = new Grid { Width = 1280, Height = 720 }; stage.Children.Add(placeholder); stage.Children.Add(img); stage.Children.Add(guides); stage.Children.Add(tag); stage.Children.Add(pill);
             var frame = new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Background = Brushes.Black, Padding = new Thickness(1), Child = new Viewbox { Child = stage, Stretch = Stretch.Uniform } };
             var open = new Button { Style = Res<Style>("Wb.Plain"), Content = frame, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0) };
             open.Click += (s, e) => { if (pvImage != null) { ShowPicture(pvImage, "Your HOME", PreviewCaption(), "Drawn on this PC by the console HOME's own program. Nothing on a console changed."); open.Focus(); } };
@@ -292,7 +329,8 @@ namespace CcsBackup.Ui
             var status = PictureCaption(null); status.VerticalAlignment = VerticalAlignment.Center; status.Margin = new Thickness(2, 6, 10, 0);   // the preview's caption: what it shows, or why it is not up to date
             AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
             var retry = Small("Retry", () => { pvFailed = false; pvShotsFailed = false; RequestPreview(); }, true, "Retry the preview"); retry.Visibility = Visibility.Collapsed;
-            var line = new DockPanel(); DockPanel.SetDock(retry, Dock.Right); line.Children.Add(retry); line.Children.Add(status);
+            var useSample = Small("Preview with Sample Games", () => { pvPick = SampleHome; pvFailed = false; pvBlocked = null; RequestPreview(); ShowDesigner(); }, true, "Preview with the sample games"); useSample.Visibility = Visibility.Collapsed;
+            var line = new DockPanel(); DockPanel.SetDock(retry, Dock.Right); line.Children.Add(retry); DockPanel.SetDock(useSample, Dock.Right); line.Children.Add(useSample); line.Children.Add(status);
             sp.Children.Add(line);
             var tech = new ContentControl { Focusable = false }; sp.Children.Add(tech);
 
@@ -338,6 +376,10 @@ namespace CcsBackup.Ui
                 else if (pvBlocked != null) { say = pvBlocked + (pvImage != null ? " The picture shows your design before your latest change." : ""); techText = pvBlockedDetail; }
                 else if (current) say = PreviewCaption();
                 else say = "Updating…";
+                bool empty = src != null && !src.Sample && current && IsEmptySource(src.Key);
+                if (empty) say = "There are no games in " + src.Short + ", so the HOME is drawn empty." + (sampleIndex.Value != null ? " Sample games can show how your design looks with a full shelf." : "");
+                useSample.Visibility = empty && sampleIndex.Value != null ? Visibility.Visible : Visibility.Collapsed;
+                tag.Visibility = pvImage != null && pvImageKey != null && pvImageKey.EndsWith("|" + SampleHome, StringComparison.Ordinal) ? Visibility.Visible : Visibility.Collapsed;
                 waitText.Text = pvImage != null ? "" : renderer == null || src == null ? "No preview in this copy" : pvBusy ? "Drawing your HOME…" : pvFailed ? "The preview could not be drawn" : pvBlocked != null ? "Not drawn" : "Drawing your HOME…";
                 img.Source = pvImage; img.Opacity = stale ? 0.4 : 1;
                 pill.Visibility = pvBusy && pvImage != null ? Visibility.Visible : Visibility.Collapsed;
@@ -381,15 +423,18 @@ namespace CcsBackup.Ui
         string PreviewCaption()
         {
             var s = PreviewSourceNow();
+            if (s != null && s.Sample) return "Sample games: your HOME's first screen with the NES Classic's 30 built-in games, drawn by the console HOME's own program on this PC. They are pictures to show the layout, never part of your design, and cannot be played here.";
             return "Your HOME's first screen with " + (s?.Short ?? "games") + ", drawn by the console HOME's own program on this PC.";
         }
 
-        /// <summary>"Preview with": the games the preview is drawn with, closed at first (the Included Games unless the person chooses other games)</summary>
+        bool IsEmptySource(string key) { lock (pvEmpty) return pvEmpty.Contains(key); }
+
+        /// <summary>"Preview with": the games the preview is drawn with, closed at first (the sample games unless the person chooses other games)</summary>
         UIElement PreviewWith()
         {
             var body = new StackPanel();
             var pick = new ComboBox { MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left }; AutomationProperties.SetName(pick, "Games to preview with");
-            body.Children.Add(T("The HOME is drawn with these games. This changes only the preview, never your design.", Ty.Small, false, true, new Thickness(0, 0, 0, 6)));
+            body.Children.Add(T("The HOME is drawn with these games. This changes only the preview, never your design. Sample games are pictures only: they are never added to a collection, a design or a console.", Ty.Small, false, true, new Thickness(0, 0, 0, 6)));
             body.Children.Add(pick);
             bool filled = false;
             void Fill()

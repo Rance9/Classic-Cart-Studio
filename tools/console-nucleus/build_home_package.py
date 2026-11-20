@@ -13,9 +13,12 @@ programs' folder gets it as ccs-home/, which the .NET build embeds next to the f
   <sha256>.blob            every file of either package once, named by its SHA-256 (the two layouts share all but session.json)
   HOME.json                schema ccs-home-release/1: per layout its MANIFEST.json SHA-256, the files and the total bytes; the games and
                            their licenses (each game file is the author's own exact build; its source is in the website's included/source/)
+  sample.json              schema ccs-home-preview-sample/1: HOME Designer's sample games, a preview-only HOME (see build_sample); its files
+                           are blobs here too (most it shares with the packages)
 Each layout carries licenses/ (NOTICE.txt and the license texts its parts require, tools/companion/native_home/notices.py); the build stops
 when a record is missing or a file of the package has no notice.
-The engine (CcsBackup Engine/HomePackage.cs) reads a layout back by its MANIFEST.json and checks every blob's size and SHA-256 against it."""
+The engine (CcsBackup Engine/HomePackage.cs) reads a layout back by its MANIFEST.json and checks every blob's size and SHA-256 against it.
+The sample is never part of a layout: no MANIFEST.json names its files, so it is never sent to a console."""
 from __future__ import annotations
 import argparse, hashlib, json, os, shutil, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.dirname(HERE)
@@ -79,12 +82,56 @@ def build(site: str, player: str, runtime: str, out: str) -> dict:
                 blobs[info["sha256"]] = b
             open(os.path.join(out, f"{layout}.MANIFEST.json"), "wb").write(mb)
             rel["layouts"][layout] = {"manifest_sha256": sha(mb), "manifest_bytes": len(mb), "files": len(m["files"]), "total_bytes": m["total_bytes"], "games": m["games"], "playable": m["playable"]}
+        sm, sb = build_sample(os.path.join(work, "sample"))
+        blobs.update(sb); open(os.path.join(out, "sample.json"), "w", encoding="utf-8", newline="\n").write(json.dumps(sm, indent=1, sort_keys=True) + "\n")
+        rel["sample"] = {"games": len(sm["games"]), "files": len(sm["files"]), "total_bytes": sum(f["size"] for f in sm["files"].values())}
         for h, b in sorted(blobs.items()): open(os.path.join(out, f"{h}.blob"), "wb").write(b)
         rel["blobs"] = len(blobs); rel["blob_bytes"] = sum(len(b) for b in blobs.values())
         open(os.path.join(out, "HOME.json"), "w", encoding="utf-8", newline="\n").write(json.dumps(rel, indent=1) + "\n")
         return rel
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+# HOME Designer's sample games: the console's own 30 built-in games, most popular first, with two folders (Mario, Adventures), four
+# favorites and Adventure Map's two folder signs, exactly as the theme examples (CcsBackupUi/theme-examples/build_pack.py) were drawn.
+SAMPLE_CODES = ["CLV-P-NAACE", "CLV-P-NAANE", "CLV-P-NAAAE", "CLV-P-NAAQE", "CLV-P-NABBE", "CLV-P-NABQE", "CLV-P-NAATE", "CLV-P-NAAPE",
+                "CLV-P-NAAEE", "CLV-P-NAADE", "CLV-P-NAASE", "CLV-P-NABJE", "CLV-P-NABME", "CLV-P-NACBE", "CLV-P-NAAVE", "CLV-P-NAAXE",
+                "CLV-P-NABNE", "CLV-P-NAAHE", "CLV-P-NACDE", "CLV-P-NABKE", "CLV-P-NABCE", "CLV-P-NACHE", "CLV-P-NABVE", "CLV-P-NABXE",
+                "CLV-P-NABRE", "CLV-P-NAAZE", "CLV-P-NAAUE", "CLV-P-NAAWE", "CLV-P-NAARE", "CLV-P-NAAFE"]
+
+def build_sample(work: str) -> tuple[dict, dict]:
+    """HOME Designer's preview-only sample HOME (the HOME package builder's own "preview" mode: rendered on a computer, never an
+    installation): the games' names, details, box art and game screens the site already carries, never a game file (a HOME package holds
+    no ROM data). Workbench draws HOME Designer's preview with it by default and labels it "Sample games"; it is never playable, never a
+    collection or a console payload. -> (sample.json, {sha256: bytes})"""
+    import library_lookup as LL
+    from native_home import package as P
+    cat = LL._catalog(); rows = [LL.factory_row(c) for c in SAMPLE_CODES]
+    if not all(rows) or len({r["game_id"] for r in rows}) != len(SAMPLE_CODES): raise SystemExit("the sample games are not the console's 30 built-in games")
+    ids = [r["game_id"] for r in rows]; sel, hg = [], []
+    for gid in ids:   # as the Studio page selects a built-in game (test_native_home_package.sel_for)
+        g = cat[gid]; factory = (g.get("builtin_status") or "") == "BUILT-IN: EXACT MATCH"
+        sel.append({"game_id": gid, "version_id": gid, "title_id": LL.title_id_for(gid), "display_title": g["display_title"], "nointro_name": g.get("nointro_name"),
+                    "source": "catalog", "builtin_code": g.get("builtin_code"), "install_required": not factory})
+        hg.append({"id": gid, "title": g["display_title"], "version_label": "factory version" if factory else g.get("nointro_name"), "kind": "factory" if factory else "added"})
+    by = dict(zip(SAMPLE_CODES, ids))
+    folders = [{"id": "f:mario", "name": "Mario", "parent": None, "order": [by[c] for c in ("CLV-P-NAACE", "CLV-P-NAAAE", "CLV-P-NAADE", "CLV-P-NAAXE", "CLV-P-NAAWE")]},
+               {"id": "f:adventure", "name": "Adventures", "parent": None, "order": [by[c] for c in ("CLV-P-NAANE", "CLV-P-NAASE", "CLV-P-NAAQE", "CLV-P-NAAVE", "CLV-P-NABJE", "CLV-P-NAAZE")]}]
+    man = {"schema": "nes-classic-collection/4", "name": "Sample games", "selections": sel, "hidden_factory_games": []}
+    home = {"schema": "ccs-home-collection/1", "theme": "featured-shelf", "order": ids, "games": hg, "folders": folders, "favorites": {"items": {i: {"on": True} for i in ids[:4]}},
+            "settings": {"reduced_motion": False, "hints": True}, "sample": False, "map_shortcuts": ["f:mario", "f:adventure"]}
+    r = P.build(man, home, mode="preview", root=work, progress=lambda *a: None)
+    if not r.get("ok") or not r.get("package_dir"): raise SystemExit(f"the sample HOME could not be built: {r.get('error')}")
+    d = r["package_dir"]; files, data = {}, {}
+    for base, _, names in os.walk(d):
+        for n in names:
+            if n == P.OWNED: continue
+            p = os.path.join(base, n); rel = os.path.relpath(p, d).replace(os.sep, "/"); b = open(p, "rb").read(); h = sha(b)
+            files[rel] = {"sha256": h, "size": len(b)}; data[h] = b
+    if "pack.json" not in files or "games.json" not in files: raise SystemExit("the sample HOME has no pack.json or games.json")
+    return {"schema": "ccs-home-preview-sample/1", "label": "Sample games",
+            "note": "HOME Designer's preview only: the NES Classic's 30 built-in games' names, details, box art and game screens, never a game file; never playable, never a collection, never sent to a console",
+            "games": [g["title"] for g in hg], "files": files}, data
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
