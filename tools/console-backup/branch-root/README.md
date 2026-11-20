@@ -1,6 +1,6 @@
 # CCS Console Workbench
 
-Current preview: **0.11.5**, aligned with Classic Cart Studio and the shared engine; Classic Cart Studio 0.11.5 installs this same program. Earlier previews (0.11.4, 0.11.3, 0.11.2, 0.11.1, 0.11.0, and 1.0.0, which was not a production release) are superseded and stay available as they were.
+Current preview: **0.11.6**, aligned with Classic Cart Studio and the shared engine; Classic Cart Studio 0.11.6 installs this same program. Earlier previews (0.11.5, 0.11.4, 0.11.3, 0.11.2, 0.11.1, 0.11.0, and 1.0.0, which was not a production release) are superseded and stay available as they were.
 
 > **Unsigned development preview:** console connections, console writes and driver actions are disabled. PC/offline features are available; real-console and Windows on Arm qualification remain incomplete.
 
