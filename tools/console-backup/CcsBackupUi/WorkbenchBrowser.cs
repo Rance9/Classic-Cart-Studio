@@ -310,37 +310,51 @@ namespace CcsBackup.Ui
             {
                 shown = string.IsNullOrEmpty(browseSearch) ? c.Children("") : c.Search(browseSearch);
                 var table = new StackPanel(); table.Children.Add(FileHeader());
-                // a flat row with a chevron; what is inside is listed under it the first time it is opened, with its export button
-                void Expander(string label, int depth, StackPanel into, Func<IEnumerable<BrowseEntry>> kids, Func<ExportRequest> export)
+                // folders and files are rows of one table: the same thin line between every row, the check boxes in one column, and each
+                // level indented in the name column with a faint guide line, so what is inside a folder is plainly under it. A folder's row
+                // has a chevron and how many items it holds; what is inside is listed under it the first time it is opened, then its export
+                void Expander(string label, int depth, StackPanel into, Func<IEnumerable<BrowseEntry>> kids, Func<ExportRequest> export, int count)
                 {
                     var inner = new StackPanel { Visibility = Visibility.Collapsed }; bool loaded = false;
-                    var chev = new TextBlock { Text = "", FontFamily = Res<FontFamily>("F.Icons"), FontSize = 10, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 10, 0) };
-                    var head = new StackPanel { Orientation = Orientation.Horizontal }; head.Children.Add(chev);
-                    head.Children.Add(new TextBlock { Text = label, FontSize = 13, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var row = new Button { Content = head, Style = Res<Style>("Wb.Row"), Margin = new Thickness(depth * 16, 1, 0, 1) };
-                    System.Windows.Automation.AutomationProperties.SetName(row, label);
+                    var g = FileGrid(0); g.Margin = new Thickness(-2, 0, -2, 0);   // the button's 2-pixel focus edge: the columns stay in line with the files'
+                    var chev = new TextBlock { Text = "", FontFamily = Res<FontFamily>("F.Icons"), FontSize = 10, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, Width = 14, Margin = new Thickness(0, 0, 6, 0) };
+                    var head = new DockPanel(); var guides = Guides(depth); DockPanel.SetDock(guides, Dock.Left); head.Children.Add(guides); DockPanel.SetDock(chev, Dock.Left); head.Children.Add(chev);
+                    head.Children.Add(new TextBlock { Text = label, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Ink"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 7, 12, 7) });
+                    Grid.SetColumn(head, 1); g.Children.Add(head);
+                    var n = new TextBlock { Text = count == 1 ? "1 item" : count.ToString("N0", CultureInfo.InvariantCulture) + " items", FontSize = 12, Foreground = Res<Brush>("B.Muted"), TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
+                    Grid.SetColumn(n, 2); g.Children.Add(n);
+                    var row = new Button { Content = g, Style = Res<Style>("Wb.Plain"), HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0) };
+                    System.Windows.Automation.AutomationProperties.SetName(row, label + ", folder, " + n.Text + ", closed");
                     row.Click += (s, ev) =>
                     {
-                        if (!loaded) { loaded = true; Tree(kids(), depth + 1, inner); var eb = Buttons(B("Export This Folder…", "Btn.Ghost", () => DoExport(export()))); eb.Margin = new Thickness((depth + 1) * 16, 6, 0, 0); inner.Children.Add(eb); }
+                        if (!loaded)
+                        {
+                            loaded = true; Tree(kids(), depth + 1, inner);
+                            var eg = FileGrid(0); var ep = new DockPanel(); var gd = Guides(depth + 1); DockPanel.SetDock(gd, Dock.Left); ep.Children.Add(gd);
+                            var eb = B("Export This Folder…", "Btn.Ghost", () => DoExport(export())); eb.Margin = new Thickness(0, 6, 0, 6); eb.MinHeight = 30; ep.Children.Add(eb);
+                            Grid.SetColumn(ep, 1); eg.Children.Add(ep); inner.Children.Add(new Border { Child = eg, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0) });
+                        }
                         bool open = inner.Visibility != Visibility.Visible; inner.Visibility = open ? Visibility.Visible : Visibility.Collapsed; chev.Text = open ? "" : "";
+                        System.Windows.Automation.AutomationProperties.SetName(row, label + ", folder, " + n.Text + (open ? ", open" : ", closed"));
                     };
-                    into.Children.Add(row); into.Children.Add(inner);
+                    into.Children.Add(new Border { Child = row, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0) }); into.Children.Add(inner);
                 }
                 void Tree(IEnumerable<BrowseEntry> es, int depth, StackPanel into)
                 {
                     foreach (var e in es.Take(2000))
                     {
                         var ee = e;
-                        if (e.Kind == EntryKind.Folder) { Expander(e.Name + "/", depth, into, () => c.Children(ee.Id), () => ExportRequest.Folder(c, ee, PickFolder())); continue; }
-                        into.Children.Add(FileRow(e, preview, depth * 16));
+                        if (e.Kind == EntryKind.Folder) { Expander(e.Name + "/", depth, into, () => c.Children(ee.Id), () => ExportRequest.Folder(c, ee, PickFolder()), c.Children(ee.Id).Count); continue; }
+                        into.Children.Add(FileRow(e, preview, depth));
                         // the data storage image is a part of the backup file that also holds the console's files: they open under it
-                        if (c.Children(e.Id).Count > 0)
+                        var inside = c.Children(e.Id).Count;
+                        if (inside > 0)
                             Expander("Files inside " + e.Name, depth, into, () => c.Children(ee.Id), () =>
                             {
                                 var dest = PickFolder(); if (dest == null) return null;
                                 var r = new ExportRequest { Destination = dest, Scope = ExportScope.Folder, Layout = ExportLayout.OriginalPaths, FolderName = ee.Member == c.DataMember && ee.Source == EntrySource.Member ? "Console files" : "Files inside " + ee.Name, ScopeText = "Everything inside " + ee.DisplayPath + ", with its original folders." };
                                 r.Entries.AddRange(c.Children(ee.Id)); return r;
-                            });
+                            }, inside);
                     }
                 }
                 Tree(shown, 0, table);
@@ -373,10 +387,20 @@ namespace CcsBackup.Ui
             return g;
         }
 
-        /// <summary>one file: its check box (selection), its name with its folder under it (click to preview), its size and its date</summary>
-        FrameworkElement FileRow(BrowseEntry e, StackPanel preview, double indent = 0)
+        /// <summary>the indent of a row at this depth of the All Files tree: 18 pixels a level, each with a faint guide line, so the rows under
+        /// a folder line up under it</summary>
+        FrameworkElement Guides(int depth)
         {
-            var g = FileGrid(indent); SetNoTerms(g, true);   // a backup's own file names and folders
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            for (int i = 0; i < depth; i++) sp.Children.Add(new Border { Width = 11, Margin = new Thickness(7, 0, 0, 0), BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1, 0, 0, 0) });
+            return sp;
+        }
+
+        /// <summary>one file: its check box (selection), its name with its folder under it (click to preview), its size and its date. In the
+        /// All Files tree (depth 0 or more) the name is indented to its level and its folder is the row above it, so only the name is shown.</summary>
+        FrameworkElement FileRow(BrowseEntry e, StackPanel preview, int depth = -1)
+        {
+            var g = FileGrid(0); SetNoTerms(g, true);   // a backup's own file names and folders
             // a file that cannot be copied (damaged, or not checkable in a damaged backup) is shown with its state and cannot be selected
             bool blocked = e.Kind == EntryKind.File && e.Unreadable != null;
             var cb = new CheckBox { IsChecked = browseSel.Contains(e) && !blocked, IsEnabled = !blocked, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
@@ -392,9 +416,15 @@ namespace CcsBackup.Ui
             if (blocked) nt.Foreground = Res<Brush>("B.Muted");
             nm.Children.Add(nt);
             var folder = e.DisplayPath != null && e.DisplayPath.Length > name.Length && e.DisplayPath.EndsWith(name) ? e.DisplayPath.Substring(0, e.DisplayPath.Length - name.Length).TrimEnd('/') : null;
-            if (!string.IsNullOrEmpty(folder)) nm.Children.Add(new TextBlock { Text = folder, FontSize = 11.5, Foreground = Res<Brush>("B.Muted"), TextTrimming = TextTrimming.CharacterEllipsis });
+            if (!string.IsNullOrEmpty(folder) && depth < 0) nm.Children.Add(new TextBlock { Text = folder, FontSize = 11.5, Foreground = Res<Brush>("B.Muted"), TextTrimming = TextTrimming.CharacterEllipsis });
             nm.MouseLeftButtonUp += (s, ev) => Preview(e, preview);
-            Grid.SetColumn(nm, 1); g.Children.Add(nm);
+            if (depth >= 0)
+            {   // the tree's indent, then the name (20 pixels: where a folder's chevron is, so a file's name lines up with its folder's)
+                var line = new DockPanel(); var gd = Guides(depth); DockPanel.SetDock(gd, Dock.Left); line.Children.Add(gd);
+                nm.Margin = new Thickness(20, 6, 12, 6); line.Children.Add(nm);
+                Grid.SetColumn(line, 1); g.Children.Add(line);
+            }
+            else { Grid.SetColumn(nm, 1); g.Children.Add(nm); }
             var size = new TextBlock { Text = e.Kind == EntryKind.Folder ? "" : Units.Gb(e.Size), FontSize = 12.5, Foreground = Res<Brush>("B.Ink2"), TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
             Grid.SetColumn(size, 2); g.Children.Add(size);
             var date = new TextBlock { Text = e.MtimeUtc?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "No date", FontSize = 12.5, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = e.DateText };

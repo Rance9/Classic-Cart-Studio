@@ -276,16 +276,30 @@ done:
 }
 
 int32_t ccs_home_design_boot(const char *pack_dir, const char *design_root, const char *state_dir, const char *frame_ppm, char *report, uint32_t cap, uint32_t *rlen) {
+    return ccs_home_design_screen(pack_dir, design_root, state_dir, NULL, frame_ppm, report, cap, rlen);
+}
+
+/* the same cold start, then (screen not NULL or "start") one of the render check's screens of the HOME's own theme, set up through the
+   HOME's own controls exactly as the check sets it up: HOME Designer's preview of the screen a change is for (a color of the START menu,
+   say), quickly, without the whole check */
+int32_t ccs_home_design_screen(const char *pack_dir, const char *design_root, const char *state_dir, const char *screen, const char *frame_ppm, char *report, uint32_t cap, uint32_t *rlen) {
     if (rlen) *rlen = 0; if (!pack_dir || !report || cap < 2) return CCS_HOME_CHECK_BAD_REQUEST;
-    int sv = ccs_scale; ccs_scale = 1; char err[600] = ""; sb R = { 0 }; framebuffer fb = { 0 }; int rc = CCS_HOME_CHECK_PASSED;
+    int st = -1; if (screen && strcmp(screen, "start")) { for (int i = 0; i < ST_COUNT; i++) if (!strcmp(screen, ST_ID[i])) st = i; if (st < 0) return CCS_HOME_CHECK_BAD_REQUEST; }
+    int sv = ccs_scale; ccs_scale = 1; probes_off(); char err[600] = ""; sb R = { 0 }; framebuffer fb = { 0 }; int rc = CCS_HOME_CHECK_PASSED;
     if (state_dir) ccs_mkdirs(state_dir);
     home *h = home_load3(pack_dir, state_dir, design_root, NULL, emitnull, err, sizeof err);
-    sbf(&R, "{\"schema\":\"ccs-home-design-boot/1\"");
+    sbf(&R, "{\"schema\":\"ccs-home-design-boot/1\",\"screen\":\"%s\"", st < 0 ? "start" : ST_ID[st]);
     if (!h || fb_init(&fb, CCS_FB_W, CCS_FB_H)) { rc = CCS_HOME_CHECK_ERROR; sbf(&R, ",\"ok\":false,\"error\":"); sbs(&R, err[0] ? err : "out of memory"); }
     else {
-        const char *why; const char *src = home_design_source(h, &why); home_render(h, &fb, 1000); char hx[65]; ccs_sha256_hex(fb.rgb, (size_t)CCS_FB_W * CCS_FB_H * 3, hx);
-        if (frame_ppm) write_ppm(frame_ppm, fb.rgb, fb.w, fb.h);
-        sbf(&R, ",\"ok\":true,\"source\":\"%s\",\"design\":\"%s\",\"theme\":\"%s\",\"frame_sha256\":\"%s\",\"why\":", src, home_design_id(h), home_theme(h), hx); sbs(&R, why);
+        const char *why; const char *src = home_design_source(h, &why); int t = -1, shown = 1; uint64_t at = 1000;
+        for (int i = 0; i < 4; i++) if (!strcmp(home_theme(h), TH_ID[i])) t = i;
+        if (st >= 0) { g_clock = 1000; pick_games(h); shown = t >= 0 && setup(h, t, st); at = g_clock + 100; }
+        if (!shown) sbf(&R, ",\"ok\":false,\"source\":\"%s\",\"design\":\"%s\",\"theme\":\"%s\",\"error\":\"this HOME has no such screen\"", src, home_design_id(h), home_theme(h));
+        else {
+            home_render(h, &fb, at); char hx[65]; ccs_sha256_hex(fb.rgb, (size_t)CCS_FB_W * CCS_FB_H * 3, hx);
+            if (frame_ppm) write_ppm(frame_ppm, fb.rgb, fb.w, fb.h);
+            sbf(&R, ",\"ok\":true,\"source\":\"%s\",\"design\":\"%s\",\"theme\":\"%s\",\"frame_sha256\":\"%s\",\"why\":", src, home_design_id(h), home_theme(h), hx); sbs(&R, why);
+        }
     }
     sbf(&R, "}"); home_free(h); fb_free(&fb); ccs_scale = sv;
     if (R.oom || !R.b) { free(R.b); return CCS_HOME_CHECK_ERROR; }

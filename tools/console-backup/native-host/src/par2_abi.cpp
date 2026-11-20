@@ -602,9 +602,9 @@ static const ccs_host_abi g_abi = {
     CCS_HOST_ABI_MAGIC, CCS_HOST_ABI_VERSION, (uint32_t)sizeof(ccs_host_abi), (uint32_t)sizeof(ccs_par2_report), 0,
     CCS_HOST_VERSION_W, nullptr, L"par2cmdline " CCS_PAR2_VERSION_W, ccs_par2_create, ccs_par2_verify, ccs_par2_repair,
 #ifdef CCS_WITH_HOME   /* the single-file host links the native HOME renderer (build_host.sh) */
-    CCS_HOME_CHECK_ABI, 0, ccs_home_render_check, ccs_home_design_boot,
+    CCS_HOME_CHECK_ABI, 0, ccs_home_render_check, ccs_home_design_boot, ccs_home_design_screen,
 #else
-    0, 0, nullptr, nullptr,
+    0, 0, nullptr, nullptr, nullptr,
 #endif
 };
 
@@ -620,3 +620,4 @@ static_assert(__builtin_offsetof(ccs_par2_report, source_bytes) == 40, "u64 fiel
 static_assert(__builtin_offsetof(ccs_host_abi, host_version) == 24, "pointer fields after the header");
 static_assert(__builtin_offsetof(ccs_host_abi, home_check_abi) == 24 + 6 * sizeof(void *), "version 2 fields after par2_repair");
 static_assert(__builtin_offsetof(ccs_host_abi, home_render_check) == 32 + 6 * sizeof(void *), "the render check after the two u32 fields");
+static_assert(__builtin_offsetof(ccs_host_abi, home_design_screen) == 32 + 8 * sizeof(void *), "version 3: the screen after the boot");

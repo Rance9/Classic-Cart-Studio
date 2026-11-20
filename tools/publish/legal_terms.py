@@ -34,7 +34,22 @@ def md_plain(s: str) -> str: return re.sub(r"`([^`]*)`", r"\1", s.replace("**", 
 def md_html(s: str) -> str:
     s = html.escape(s, quote=False)
     s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s); s = re.sub(r"`([^`]*)`", r"<code>\1</code>", s)
-    return re.sub(r"(https://[A-Za-z0-9./_-]+[A-Za-z0-9/_-])", r'<a href="\1" rel="noopener">\1</a>', s)
+    return link_names(re.sub(r"(https://[A-Za-z0-9./_-]+[A-Za-z0-9/_-])", r'<a href="\1" rel="noopener">\1</a>', s))
+
+# the shown names of the developer and the publisher open their site in a new tab (the words stay exactly as they are). Never inside a tag,
+# a link, an address, an e-mail or an account name (github.com/Rance9, rance9@...): only "Rance9" and "Rance9 LLC" as words of the text.
+DEVELOPER_URL = "https://Rance9.com"
+NAME = re.compile(r"(?<![\w@/.\-])Rance9(?: LLC)?(?![\w@/\-])(?!\.\w)")
+def link_names(fragment: str) -> str:
+    out, inside = [], 0
+    for part in re.split(r"(<[^>]+>)", fragment):
+        if part.startswith("<"):
+            if re.match(r"<a[\s>]", part, re.I): inside += 1
+            elif re.match(r"</a\s*>", part, re.I): inside = max(0, inside - 1)
+            out.append(part)
+        elif inside: out.append(part)
+        else: out.append(NAME.sub(lambda m: f'<a href="{DEVELOPER_URL}" target="_blank" rel="noopener">{m.group(0)}</a>', part))
+    return "".join(out)
 
 def blocks(md: str):
     """(kind, text) for every non-empty line of the source: title (# / ## at the top), heading (## N.), paragraph"""
@@ -81,7 +96,7 @@ def manifest(md: str, txt: bytes, frag: str) -> dict:
             "source_sha256": sha(md.encode("utf-8")), "text_identity_sha256": source_identity(md),
             "copies": {"installer_and_release_txt": {"path": "tools/publish/assets/legal/INSTALLATION-TERMS.txt", "sha256": sha(txt), "text_identity_sha256": identity(txt.decode("utf-8-sig"))},
                        "help_chapter": {"path": "tools/rom-pipeline/studio/guide.html (between its markers)", "sha256": sha(frag.encode("utf-8")), "text_identity_sha256": identity(html_doc_text(frag))}},
-            "normalization": "Markdown marks removed (**, `, heading #); Help adds <b>, <code>, links on https addresses and <h4> headings; whitespace collapsed for the text identity"}
+            "normalization": "Markdown marks removed (**, `, heading #); Help adds <b>, <code>, links on https addresses, links on the names Rance9 and Rance9 LLC (to https://Rance9.com) and <h4> headings; whitespace collapsed for the text identity"}
 
 def source_identity(md: str) -> str: return identity("\n".join(md_plain(t) for _, t in blocks(md)))
 

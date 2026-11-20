@@ -26,6 +26,8 @@ using System.Windows.Media.Imaging;
 namespace CcsBackup.Ui
 {
     public sealed class HelpBlock { public string Kind, Text, Shot; public List<string> Items = new List<string>(); public List<string[]> Rows = new List<string[]>(); }
+    /// <summary>one picture of a set the larger-picture window steps through: the picture, its name and its caption</summary>
+    public sealed class GalleryPicture { public ImageSource Source; public string Title, Caption; }
     public sealed class HelpTopic
     {
         public string Id, Title, Section, Summary, Builtin; public string[] Pages = new string[0];
@@ -296,7 +298,35 @@ namespace CcsBackup.Ui
                 }
                 else tb.Inlines.Add(new Run(m.Value));
             }
+            LinkNames(tb);   // "Rance9" and "Rance9 LLC" open Rance9.com
             AutomationProperties.SetName(tb, InlineText(tb));   // its words, for screen readers (a block built from pieces has no Text)
+            return tb;
+        }
+
+        /// <summary>the developer's and the publisher's own site, which every shown "Rance9" and "Rance9 LLC" opens</summary>
+        internal const string DeveloperUrl = "https://Rance9.com";
+        /// <summary>the names as words: never part of an address, an e-mail, a file or an account name (Rance9.com, rance9@…, /Rance9/)</summary>
+        static readonly Regex DeveloperName = new Regex(@"(?<![\w@/.\-])Rance9(?: LLC)?(?![\w@/\-])(?!\.\w)");
+        /// <summary>every "Rance9" and "Rance9 LLC" in a text block's own text (not inside its links) becomes a link to Rance9.com, opened in the
+        /// web browser; the words, their weight and their size stay exactly as they were</summary>
+        internal T LinkNames<T>(T tb) where T : TextBlock
+        {
+            foreach (var r in tb.Inlines.OfType<Run>().ToList())
+            {
+                var ms = DeveloperName.Matches(r.Text ?? ""); if (ms.Count == 0) continue;
+                Run Piece(string text) { var x = new Run(text) { FontWeight = r.FontWeight, FontStyle = r.FontStyle }; if (r.ReadLocalValue(TextElement.FontSizeProperty) != DependencyProperty.UnsetValue) x.FontSize = r.FontSize; return x; }
+                int at = 0;
+                foreach (Match m in ms)
+                {
+                    if (m.Index > at) tb.Inlines.InsertBefore(r, Piece(r.Text.Substring(at, m.Index - at)));
+                    var h = new Hyperlink(Piece(m.Value)) { Foreground = Res<Brush>("B.Red3"), ToolTip = "Rance9.com" };
+                    h.Click += (s, e) => Launch(DeveloperUrl);
+                    AutomationProperties.SetName(h, m.Value); AutomationProperties.SetHelpText(h, "Opens Rance9.com in your web browser");
+                    tb.Inlines.InsertBefore(r, h); at = m.Index + m.Length;
+                }
+                if (at < r.Text.Length) tb.Inlines.InsertBefore(r, Piece(r.Text.Substring(at)));
+                tb.Inlines.Remove(r);
+            }
             return tb;
         }
         /// <summary>the words of a text block built from pieces</summary>
@@ -365,12 +395,24 @@ namespace CcsBackup.Ui
         /// apart from the picture, beside a line that says what the picture is. Close, Escape or the window's X shut it; the focus goes
         /// back to what opened it.</summary>
         internal void ShowPicture(ImageSource src, string title, string description, string note, Window owner = null) => Modal(PictureWindow(src, title, description, note, owner));
-        internal Window PictureWindow(ImageSource src, string title, string description, string note, Window owner = null)
+        internal Window PictureWindow(ImageSource src, string title, string description, string note, Window owner = null) =>
+            GalleryWindow(new List<GalleryPicture> { new GalleryPicture { Source = src, Title = title, Caption = description } }, 0, note, owner);
+
+        /// <summary>WB-UX-24: several pictures of one set (one design's screens) in the same window, opened at the one chosen</summary>
+        internal void ShowGallery(IList<GalleryPicture> items, int start, string note, Window owner = null) { if (items != null && items.Count > 0) Modal(GalleryWindow(items, start, note, owner)); }
+
+        /// <summary>the larger-picture window: one picture, or one of a set with Previous and Next (WB-UX-24). The window's title, the picture's
+        /// name above it and its caption under it follow the picture shown; Previous, Next and "3 of 15" are in a row of their own under the
+        /// caption, never over the picture, and only when there is more than one; they go round from the last to the first. The Left and Right
+        /// arrow keys do the same; Escape, Close or the window's X shut it, and the focus goes back to what opened it.</summary>
+        internal Window GalleryWindow(IList<GalleryPicture> items, int start, string note, Window owner = null)
         {
-            var w = Owned(title, Math.Max(760, Math.Min(1500, ActualWidth - 40)), true, owner); w.Height = Math.Max(520, Math.Min(1000, ActualHeight - 20)); w.MinWidth = 520; w.MinHeight = 400;
+            int at = Math.Max(0, Math.Min(items.Count - 1, start)); bool many = items.Count > 1;
+            var w = Owned(items[at].Title, Math.Max(760, Math.Min(1500, ActualWidth - 40)), true, owner); w.Height = Math.Max(520, Math.Min(1000, ActualHeight - 20)); w.MinWidth = 520; w.MinHeight = 400;
             var root = new DockPanel { Margin = new Thickness(20, 16, 20, 14) };
             var head = new StackPanel(); DockPanel.SetDock(head, Dock.Top);
-            head.Children.Add(new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
+            var title = new TextBlock { FontSize = 18, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
+            head.Children.Add(title);
             root.Children.Add(head);
             var foot = new Grid { Margin = new Thickness(0, 12, 0, 0) }; DockPanel.SetDock(foot, Dock.Bottom);
             foot.ColumnDefinitions.Add(new ColumnDefinition()); foot.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -378,13 +420,40 @@ namespace CcsBackup.Ui
             if (note != null) foot.Children.Add(new TextBlock { Text = note, FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 12, 16, 0) });
             var close = B("Close", "Btn.Primary", () => w.Close()); close.Margin = new Thickness(0, 12, 0, 0); close.IsDefault = true; Grid.SetColumn(close, 1); foot.Children.Add(close);
             root.Children.Add(foot);
-            var img = new Image { Source = src, Stretch = Stretch.Uniform }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
-            AutomationProperties.SetName(img, description ?? title);
-            // the picture in a frame of its own: a picture, apart from the window's own controls; its caption directly under the frame
+            var img = new Image { Stretch = Stretch.Uniform }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+            // the picture in a frame of its own: a picture, apart from the window's own controls; its caption directly under the frame, then
+            // (a set) the row that moves between the pictures
             var figure = new DockPanel();
-            if (!string.IsNullOrEmpty(description)) { var cap = PictureCaption(description); DockPanel.SetDock(cap, Dock.Bottom); figure.Children.Add(cap); }
+            var under = new StackPanel(); DockPanel.SetDock(under, Dock.Bottom); figure.Children.Add(under);
+            var cap = PictureCaption(null); under.Children.Add(cap);
+            var pos = new TextBlock { FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0), MinWidth = 60, TextAlignment = TextAlignment.Center };
+            AutomationProperties.SetLiveSetting(pos, AutomationLiveSetting.Polite);
+            void Show(int k)
+            {
+                at = (k % items.Count + items.Count) % items.Count; var x = items[at];
+                img.Source = x.Source; AutomationProperties.SetName(img, x.Caption ?? x.Title);
+                title.Text = x.Title; w.Title = x.Title;
+                cap.Text = x.Caption ?? ""; cap.Visibility = string.IsNullOrEmpty(x.Caption) ? Visibility.Collapsed : Visibility.Visible;
+                pos.Text = (at + 1) + " of " + items.Count; AutomationProperties.SetName(pos, x.Title + ", picture " + (at + 1) + " of " + items.Count);
+                if (many) try { System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(pos)?.RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.LiveRegionChanged); } catch (Exception) { }
+            }
+            if (many)
+            {
+                var nav = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
+                var prev = B("‹  Previous", "Btn", () => Show(at - 1)); prev.Margin = new Thickness(0); prev.MinWidth = 120; AutomationProperties.SetName(prev, "Previous screenshot");
+                var next = B("Next  ›", "Btn", () => Show(at + 1)); next.Margin = new Thickness(0); next.MinWidth = 120; AutomationProperties.SetName(next, "Next screenshot");
+                nav.Children.Add(prev); nav.Children.Add(pos); nav.Children.Add(next);
+                under.Children.Add(nav);
+                // the arrow keys move between the pictures wherever the focus is in this window (no text box or list here takes them)
+                w.PreviewKeyDown += (s, e) =>
+                {
+                    if (e.Handled || Keyboard.Modifiers != ModifierKeys.None) return;
+                    if (e.Key == Key.Left) { Show(at - 1); e.Handled = true; } else if (e.Key == Key.Right) { Show(at + 1); e.Handled = true; }
+                };
+            }
             figure.Children.Add(new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Background = Res<Brush>("B.Surface2"), Padding = new Thickness(8), Child = img });
             root.Children.Add(figure);
+            Show(at);
             w.Content = root; w.Loaded += (s, e) => close.Focus();
             return w;
         }
@@ -404,7 +473,7 @@ namespace CcsBackup.Ui
                 {
                     var ab = new StackPanel();
                     ab.Children.Add(T(ProductTitle + ", version " + VersionLabel, Ty.Body, true));
-                    ab.Children.Add(T("By Rance9 (Rance9 LLC). Independent; not affiliated with Nintendo.", Ty.Text));
+                    ab.Children.Add(LinkNames(T("By Rance9 (Rance9 LLC). Independent; not affiliated with Nintendo.", Ty.Text)));
                     ab.Children.Add(T("Free software under the GNU General Public License, version 3 or later. It includes code from Hakchi2 CE and FelLib (GPL-3.0), LibUsbDotNet (LGPL-3.0) and, in the program it sends to the console, hakchi's recovery kernel and tools (GPL). Credits lists every part and its license.", Ty.Text));
                     ab.Children.Add(T("Version " + VersionLabel + " · engine " + EngineInfo.Engine, Ty.Fine, false, true));
                     var problem = new ContentControl();

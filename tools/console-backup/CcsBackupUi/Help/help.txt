@@ -463,6 +463,8 @@ Games and saves on a USB drive or SD card connected to the console are not inclu
 
 A backup is one file of about 1.0 GB, saved in your backup location. If you turned on an additional copy in Settings, a second copy is saved there too. See [Settings](#settings).
 
+The backup can be larger than your console's storage. It keeps both a full storage copy and separate parts used for restoring and browsing. The NES Classic Mini's built-in storage is 537 MB in all, used and free space together; its backup file is about 1.0 GB, and an additional copy needs about as much again on its drive.
+
 ## The Console Backup page
 
 Open **Console Backup** in the side column. It has two cards and the list of your backups.
@@ -1360,7 +1362,7 @@ Beside the step (above it in a narrow window) is your HOME as the console HOME's
 
 - After each change, the picture is drawn again. **Updating…** shows while it is drawn; until then, the picture is the one from before your change, shown dimmed.
 - Under it are more of the HOME's screens for the step you are on, such as Game Details, the START menu or Browse. They take a few seconds longer. If some text is hard to read over your pictures, a short note says where.
-- Select a picture to see it larger.
+- Select a picture to see it larger. **Previous** and **Next** under the larger picture, or the Left and Right arrow keys, go through the other screens drawn for the same design.
 - If the preview cannot be drawn, a short message says why, with **Retry** when trying again can help.
 - **Preview with** draws the preview with other games: the Included Games that come with CCS HOME, when Classic Cart Studio opened Workbench the HOME menu it prepared on this PC with your collection's games, or the CCS HOME in a backup of one of your consoles. This changes only the preview, never your design. If the games you chose are none at all, the preview says so and offers **Preview with Sample Games**.
 
@@ -1391,7 +1393,8 @@ If a picture is too large, a short message says so: choose a smaller picture.
 [shot 47c-designer-text | Step 3, Text & Colors, with a text color and a highlight color chosen.]
 
 | Choice | What it does |
-| Text color, Highlight color, Panel color | The colors of the HOME's menus and panels. Choose a color, or type a color code such as #e4000f. The highlight color is behind the chosen menu row and buttons, under white lettering. |
+| Text color, Highlight color, Panel color | The colors of the HOME's menus and panels: the START menu, Settings, the theme picker, notices and the Browse panel. Choose a color, or type a color code such as #e4000f. The highlight color is behind the chosen menu row and buttons, under white lettering. A color too close to another to read is not used: a message says why and which color stays. |
+| Show | The screen the large preview shows while you choose colors: the **START menu** at first, or **Browse**, **Game Details** or the **HOME screen**. The HOME screen uses these colors only for the button hints and what is in focus; its pictures keep their own colors. |
 | How solid the panels are | From 0% to 100%. |
 | Title font, Text font | The HOME's own fonts, for menu titles and menu text. |
 | HOME settings | Play the HOME music, show the button hints, and less motion. |
