@@ -152,8 +152,9 @@ static int render_check_main(int argc, char **argv) {   /* the HOME Designer's r
 }
 static int design_boot_main(int argc, char **argv) {
     const char *pack = opt(argc, argv, "--pack"), *work = opt(argc, argv, "--work");
-    if (!pack || !work) { fprintf(stderr, "--design-boot needs --pack DIR --design-root DIR --work DIR [--frame FILE.ppm]\n"); return 64; }
-    char r[8192]; uint32_t len = 0; int rc = ccs_home_design_boot(pack, opt(argc, argv, "--design-root"), work, opt(argc, argv, "--frame"), r, sizeof r, &len);
+    if (!pack || !work) { fprintf(stderr, "--design-boot needs --pack DIR --design-root DIR --work DIR [--frame FILE.ppm] [--screen NAME]\n"); return 64; }
+    char r[8192]; uint32_t len = 0; int rc = ccs_home_design_screen(pack, opt(argc, argv, "--design-root"), work, opt(argc, argv, "--screen"), opt(argc, argv, "--frame"), r, sizeof r, &len);
+    if (rc == CCS_HOME_CHECK_BAD_REQUEST) { fprintf(stderr, "--design-boot: unknown --screen\n"); return 64; }
     if (rc != CCS_HOME_CHECK_PASSED && rc != CCS_HOME_CHECK_ERROR) return 2;
     fputs(r, stdout); fputc('\n', stdout); fflush(stdout); return rc == CCS_HOME_CHECK_PASSED ? 0 : 2;
 }

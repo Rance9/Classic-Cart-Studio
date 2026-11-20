@@ -1,6 +1,7 @@
 // About: compact, branded, with the version, the links that matter and the independent-project disclaimer.
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -23,7 +24,11 @@ namespace ClassicCartStudio
             t.Inlines.Add(new System.Windows.Documents.Run("Studio") { Foreground = (Brush)Application.Current.FindResource("B.Red3") });
             titles.Children.Add(t);
             titles.Children.Add(Text("for Windows · version " + App.VersionLabel, "T.Muted", 13, new Thickness(0, 2, 0, 0)));
-            titles.Children.Add(Text("By Rance9 · Published by Rance9 LLC", "T.Muted", 12, new Thickness(0, 2, 0, 0)));
+            // the developer's and the publisher's names open Rance9.com in the web browser (the same words as before)
+            var by = Text("", "T.Muted", 12, new Thickness(0, 2, 0, 0)); by.Inlines.Clear();
+            Hyperlink Name(string n) { var h = new Hyperlink(new Run(n)) { ToolTip = "Rance9.com" }; h.Click += (s, e) => App.OpenExternal("https://Rance9.com"); System.Windows.Automation.AutomationProperties.SetName(h, n); System.Windows.Automation.AutomationProperties.SetHelpText(h, "Opens Rance9.com in your web browser"); return h; }
+            by.Inlines.Add(new Run("By ")); by.Inlines.Add(Name("Rance9")); by.Inlines.Add(new Run(" · Published by ")); by.Inlines.Add(Name("Rance9 LLC"));
+            titles.Children.Add(by);
             head.Children.Add(titles);
             stack.Children.Add(head);
             stack.Children.Add(Text("An independent game collection manager for the NES Classic Edition. Everything it needs, including the Game Library and its artwork, is installed on this computer, so it works without an internet connection (it checks for updates when it can) (sharing links needs one).", null, 13, new Thickness(0, 16, 0, 0)));

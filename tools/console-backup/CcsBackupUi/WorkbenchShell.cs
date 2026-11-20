@@ -44,6 +44,8 @@ namespace CcsBackup.Ui
         /// <summary>whether this version has console tasks for the family; false: none starts (TasksNotYet says why)</summary>
         public bool ConsoleTasks = true;
         public string TasksNotYet;
+        /// <summary>the console's whole built-in storage in bytes, used and free space together (0: not given, for a family without tasks)</summary>
+        public long StorageBytes;
         /// <summary>the family's own way into recovery mode, as the second of the connection steps (a task's and the test boot's)</summary>
         public string RecoveryStep, TestBootRecoveryStep;
         public override string ToString() => Name;
@@ -51,6 +53,7 @@ namespace CcsBackup.Ui
         public static readonly ConsoleProfile NesClassicMini = new ConsoleProfile
         {
             Id = "nes-classic-na", Name = "NES Classic Mini — North America / Europe", Short = "NES Classic",
+            StorageBytes = 536870912L,   // its NAND: 4,096 blocks of 64 pages of 2,048 bytes (ConsoleFacts.PhysicalBytes)
             About = "Nintendo's small NES console with 30 built-in games, first sold in 2016 and again in 2018, in North America and in Europe. Workbench's tests on a real console will use a North American console from the 2018 release.",
             RegionalNames = new[] { ("North America", "NES Classic Edition"), ("Europe", "Nintendo Classic Mini: Nintendo Entertainment System") },
             Sections = new[]
@@ -606,7 +609,7 @@ namespace CcsBackup.Ui
                 var second = list.FirstOrDefault(x => x != e && x.BackupId == e.BackupId && e.BackupId != null && x.Copy == "Second copy");
                 sp.Children.Add(RecentRow(e, second));
             }
-            sp.Children.Add(T("A passed file check means the file was intact when it was checked. It is not a test of restoring it to a console.", Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
+            sp.Children.Add(T("A passed file check means the file was intact when it was checked. It is not a test of restoring it to a console. " + BackupSizeNote, Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
             return sp;
         }
 

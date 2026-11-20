@@ -2,13 +2,16 @@
 // HOME Designer's preview: the actual HOME, drawn on this PC by the console HOME's own program (in the standalone Workbench the one linked
 // into it, otherwise Classic Cart Studio's ccs-sim-core.exe) with real games. The design is compiled by the one compiler for a CCS HOME
 // package, and the HOME starts with it the way the console starts (HomeBoot): its first screen is the large preview, drawn again within
-// moments of each accepted change. A little later the full render check draws every other screen of the design's theme in the background
-// (the same check Check and Apply runs), and the wizard shows the screens that matter for its step (Game Details, the START menu, Browse,
-// the startup picture) under the large one, with that check's findings in short sentences. By default the HOME is drawn with the sample
+// moments of each accepted change. On Text & Colors the large preview is the screen the colors are for (WB-UX-25): the START menu at first,
+// or Browse, Game Details or the HOME screen as the person chooses, set up after the start through the HOME's own controls by the same
+// program (HomeBoot.Draw with a screen); the HOME's first screen uses the menu colors hardly at all. A little later the full render check
+// draws every other screen of the design's theme in the background (the same check Check and Apply runs), and the wizard shows the screens
+// that matter for its step under the large one, with that check's findings in short sentences. Any of these pictures opens larger in one
+// viewer that steps through the pictures drawn for the same design and games (WB-UX-24). By default the HOME is drawn with the sample
 // games this program carries (the NES Classic's 30 built-in games as the theme examples show them: names, details, box art and game
-// screens, never a game file; build_home_package.py's sample.json), marked "Sample games" over the picture, so a new design shows a full
-// shelf with no console and no backup. The sample is only pictures for this preview: it never becomes a collection, part of a design or a
-// console's package, and nothing in it can be played. The Included Games (the CCS HOME this program carries), Classic Cart Studio's prepared
+// screens, never a game file; build_home_package.py's sample.json), so a new design shows a full shelf with no console and no backup; the
+// caption says so, and nothing is drawn over the picture (WB-UX-23). The sample is only pictures for this preview: it never becomes a
+// collection, part of a design or a console's package, and nothing in it can be played. The Included Games (the CCS HOME this program carries), Classic Cart Studio's prepared
 // HOME menu (the person's own games) and the CCS HOME in a backup are choices under "Preview with"; a chosen source stays chosen. The last pictures stay, marked, while new ones are drawn; a picture
 // that does not show the latest changes says so. A preview that cannot be drawn says why, with Retry where trying again can help: never a
 // sketch or an imitation in its place. Nothing is written anywhere but this window's own folder under the PC's temporary folder (removed
@@ -56,7 +59,10 @@ namespace CcsBackup.Ui
         string pvPick;                 // the chosen source's key (null: the first one available)
         List<PreviewSource> pvBackupSources;   // backups listed once "Preview with" is opened
         readonly Dictionary<string, (string dir, List<ConsoleGame> games)> pvPacks = new Dictionary<string, (string, List<ConsoleGame>)>();
-        BitmapSource pvImage; string pvImageKey;          // the first screen as last drawn, and the design and source it shows
+        BitmapSource pvImage; string pvImageKey;          // the large picture as last drawn, and the design, source and screen it shows
+        string pvScreenPick = "menu";                     // Text & Colors: the screen the large preview shows (the START menu at first)
+        /// <summary>the last few large pictures by design, source and screen: going back to a screen or step already drawn shows it at once</summary>
+        readonly List<KeyValuePair<string, BitmapSource>> pvRecent = new List<KeyValuePair<string, BitmapSource>>();
         bool pvBusy, pvFailed; string pvFailDetail;       // drawing now; the last try failed (Retry)
         string pvBlocked, pvBlockedDetail;               // why the design cannot be drawn as it is (the person can change that)
         int pvRound;
@@ -109,11 +115,31 @@ namespace CcsBackup.Ui
         /// <summary>a new or another design: nothing drawn for the earlier one is shown for it</summary>
         void PreviewForget()
         {
-            pvImage = null; pvImageKey = null; pvFailed = false; pvFailDetail = pvBlocked = pvBlockedDetail = null;
+            pvImage = null; pvImageKey = null; pvFailed = false; pvFailDetail = pvBlocked = pvBlockedDetail = null; pvRecent.Clear(); pvScreenPick = "menu";
             pvShotsCancel?.Cancel(); pvShots = null; pvShotsKey = null; pvShotsCheck = null; pvShotsFailed = false; pvShotsFailDetail = null;
         }
 
-        string PreviewKey() { var h = design; var s = PreviewSourceNow(); return h == null || s == null ? null : h.ContentSha256 + "|" + s.Key; }
+        /// <summary>the design and the games it is drawn with (what the other screens are drawn for)</summary>
+        string DesignSourceKey() { var h = design; var s = PreviewSourceNow(); return h == null || s == null ? null : h.ContentSha256 + "|" + s.Key; }
+        /// <summary>the screen the large preview shows now: on Text &amp; Colors the chosen one, on every other step the HOME's first screen</summary>
+        string PreviewScreen() => designStep == StepText ? pvScreenPick : "start";
+        /// <summary>the design, the games and the screen of the large picture</summary>
+        string PreviewKey() { var k = DesignSourceKey(); return k == null ? null : k + "|" + PreviewScreen(); }
+
+        /// <summary>the screens Text &amp; Colors can show large, with what the colors do on each (the console HOME's own use of them)</summary>
+        static readonly (string id, string name, string colors)[] ColorScreens =
+        {
+            ("menu", "START menu", "the text color on its words, the panel color behind them and the highlight color on the chosen row"),
+            ("browse", "Browse", "the panel color behind the folders and categories, and the highlight color around the one in focus"),
+            ("details", "Game Details", "the highlight color on the button in focus and the button hints; its other colors are the theme's own"),
+            ("start", "HOME screen", "the highlight color on the button hints and on what is in focus; the theme's own pictures keep their colors"),
+        };
+        static string ScreenName(string id) => id == "start" ? "first screen" : ColorScreens.FirstOrDefault(x => x.id == id).name ?? (StateNames.TryGetValue(id, out var n) ? n : id);
+        void RememberPicture(string key, BitmapSource b)
+        {
+            pvRecent.RemoveAll(x => x.Key == key); pvRecent.Add(new KeyValuePair<string, BitmapSource>(key, b));
+            while (pvRecent.Count > 8) pvRecent.RemoveAt(0);
+        }
 
         /// <summary>why the open design cannot be drawn now (null: it can), in a short sentence and the model's words</summary>
         (string text, string detail)? PreviewCannot(HomeDesign h)
@@ -129,7 +155,7 @@ namespace CcsBackup.Ui
         void RequestPreview()
         {
             if (design == null) return;
-            if (pvShotsBusy && pvShotsCancel != null && !pvShotsCancel.IsCancellationRequested && PreviewKey() != pvShotsKeyDrawing) pvShotsCancel.Cancel();
+            if (pvShotsBusy && pvShotsCancel != null && !pvShotsCancel.IsCancellationRequested && DesignSourceKey() != pvShotsKeyDrawing) pvShotsCancel.Cancel();
             if (!pvBusy) DrawPreview(); else pvRefresh?.Invoke();
         }
 
@@ -146,11 +172,13 @@ namespace CcsBackup.Ui
                     if (cannot != null) { pvBlocked = cannot.Value.text; pvBlockedDetail = cannot.Value.detail; break; }
                     var src = PreviewSourceNow(); var renderer = PreviewRenderer();
                     if (src == null || renderer == null) { pvBlocked = null; break; }   // the panel says what is missing
-                    var key = h.ContentSha256 + "|" + src.Key;
+                    var screen = PreviewScreen(); var key = h.ContentSha256 + "|" + src.Key + "|" + screen;
                     if (key == pvImageKey) { pvBlocked = null; break; }   // already shown
+                    var known = pvRecent.FirstOrDefault(x => x.Key == key).Value;
+                    if (known != null) { pvImage = known; pvImageKey = key; pvBlocked = pvBlockedDetail = null; pvRefresh?.Invoke(); continue; }   // drawn a moment ago: shown at once
                     var work = PreviewFolder();
                     var pack = await Task.Run(() => PreviewPack(src, work));
-                    if (design != h || h.ContentSha256 + "|" + src.Key != key) continue;   // changed meanwhile: the newest is drawn
+                    if (design != h || PreviewKey() != key) continue;   // changed meanwhile: the newest is drawn
                     CompiledDesign compiled;
                     try { compiled = DesignCompiler.Compile(h, pack.games); }   // here, on the window's thread: the design exactly as it is now
                     catch (ComposeException ex) { var (t, d) = Plain(ex); pvBlocked = t; pvBlockedDetail = d ?? ex.Message; break; }
@@ -160,12 +188,13 @@ namespace CcsBackup.Ui
                         var f = fault?.Invoke(key); if (f != null) throw f;
                         var root = System.IO.Path.Combine(work, "design-root"); HomeBoot.Place(compiled, root);
                         var w = System.IO.Path.Combine(work, "start-" + n);
-                        try { var r = HomeBoot.Draw(renderer, pack.dir, root, w); return (r, r.UsedDesign ? Bitmap(r.Frame) : null); }
+                        try { var r = HomeBoot.Draw(renderer, pack.dir, root, w, screen); return (r, r.UsedDesign ? Bitmap(r.Frame) : null); }
                         finally { try { Directory.Delete(w, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
                     });
                     if (design != h) continue;
+                    if (bmp == null && res.Ok == false && res.Source == "current" && screen != "start") { pvBlocked = "This HOME has no " + ScreenName(screen) + " screen to show."; pvBlockedDetail = res.Why ?? res.Report; break; }
                     if (bmp == null) { pvBlocked = "The HOME could not use this design as it is."; pvBlockedDetail = res.Why ?? res.Report; break; }
-                    pvImage = bmp; pvImageKey = key; pvBlocked = pvBlockedDetail = null;
+                    pvImage = bmp; pvImageKey = key; pvBlocked = pvBlockedDetail = null; RememberPicture(key, bmp);
                     pvRefresh?.Invoke();
                 }
             }
@@ -184,7 +213,7 @@ namespace CcsBackup.Ui
         string pvShotsKeyDrawing;
         void ScheduleShots()
         {
-            if (design == null || pvBlocked != null || pvFailed || pvImageKey == null || PreviewKey() != pvImageKey || pvShotsKey == pvImageKey && !pvShotsFailed) return;
+            if (design == null || pvBlocked != null || pvFailed || pvImageKey == null || PreviewKey() != pvImageKey || pvShotsKey == DesignSourceKey() && !pvShotsFailed) return;
             if (pvShotsTimer == null) { pvShotsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) }; pvShotsTimer.Tick += (s, e) => { pvShotsTimer.Stop(); DrawShots(); }; }
             pvShotsTimer.Stop(); pvShotsTimer.Start();
         }
@@ -202,7 +231,7 @@ namespace CcsBackup.Ui
                 var pack = await Task.Run(() => PreviewPack(src, work));
                 if (design != h || h.ContentSha256 + "|" + src.Key != key || cts.IsCancellationRequested) return;
                 var compiled = DesignCompiler.Compile(h, pack.games);
-                var (r, shots) = await RunCheck(renderer, pack.dir, compiled, key, work, cts.Token, 0.5);
+                var (r, shots) = await RunCheck(renderer, pack.dir, compiled, key, work, cts.Token, 1);   // whole size: each opens larger, sharp
                 if (cts.IsCancellationRequested || design != h) return;
                 pvShots = shots; pvShotsCheck = r; pvShotsKey = key;
             }
@@ -211,7 +240,7 @@ namespace CcsBackup.Ui
             finally
             {
                 pvShotsBusy = false; pvShotsKeyDrawing = null; pvRefresh?.Invoke();
-                if (design != null && PreviewKey() != pvShotsKey && !pvShotsFailed) ScheduleShots();
+                if (design != null && DesignSourceKey() != pvShotsKey && !pvShotsFailed) ScheduleShots();
             }
         }
 
@@ -304,7 +333,7 @@ namespace CcsBackup.Ui
         // ------------------------------------------------------------------ the preview panel
         /// <summary>the screens each step shows under the large first screen (only those the check drew for this design)</summary>
         static string[] StepScreens(int step) =>
-            step == StepPictures ? new[] { "details", "startup", "menu" } : step == StepText ? new[] { "menu", "details", "browse" } : step == StepLayout ? new[] { "browse", "folder", "details" } : new[] { "details", "menu", "browse" };
+            step == StepPictures ? new[] { "details", "startup", "menu" } : step == StepText ? new[] { "menu-focus", "theme-picker", "notice" } : step == StepLayout ? new[] { "browse", "folder", "details" } : new[] { "details", "menu", "browse" };
 
         /// <summary>the preview as the wizard shows it: the HOME's first screen, a status line (with Retry when drawing failed), more of the
         /// HOME's screens for the step, the optional placement guides (Layout &amp; Folders) and, closed, the choice of games it is drawn with</summary>
@@ -318,12 +347,27 @@ namespace CcsBackup.Ui
             var guides = new Canvas { Width = 1280, Height = 720, IsHitTestVisible = false };
             var pill = new Border { Background = new SolidColorBrush(Color.FromArgb(0xe0, 0x10, 0x10, 0x14)), CornerRadius = new CornerRadius(26), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 26, 26, 0), Visibility = Visibility.Collapsed,
                                     Child = new TextBlock { Text = "Updating…", FontSize = 30, Foreground = Brushes.White, Margin = new Thickness(22, 8, 22, 10) } };
-            var tag = new Border { Background = new SolidColorBrush(Color.FromArgb(0xe0, 0x10, 0x10, 0x14)), CornerRadius = new CornerRadius(26), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(26, 26, 0, 0), Visibility = Visibility.Collapsed,
-                                   Child = new TextBlock { Text = "Sample games", FontSize = 30, Foreground = Brushes.White, Margin = new Thickness(22, 8, 22, 10) } };
-            var stage = new Grid { Width = 1280, Height = 720 }; stage.Children.Add(placeholder); stage.Children.Add(img); stage.Children.Add(guides); stage.Children.Add(tag); stage.Children.Add(pill);
+            // WB-UX-23: nothing is drawn over the picture (the "Updating…" note only while a new one is drawn); what it shows is said under it
+            var stage = new Grid { Width = 1280, Height = 720 }; stage.Children.Add(placeholder); stage.Children.Add(img); stage.Children.Add(guides); stage.Children.Add(pill);
             var frame = new Border { BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Background = Brushes.Black, Padding = new Thickness(1), Child = new Viewbox { Child = stage, Stretch = Stretch.Uniform } };
             var open = new Button { Style = Res<Style>("Wb.Plain"), Content = frame, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0) };
-            open.Click += (s, e) => { if (pvImage != null) { ShowPicture(pvImage, "Your HOME", PreviewCaption(), "Drawn on this PC by the console HOME's own program. Nothing on a console changed."); open.Focus(); } };
+            open.Click += (s, e) => { if (pvImage != null) { ShowPreviewGallery(null); open.Focus(); } };
+
+            // WB-UX-25: on Text & Colors, the screen the colors are for, chosen here; each is drawn by the HOME's own program with the design
+            if (step == StepText)
+            {
+                var pick = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                pick.Children.Add(new TextBlock { Text = "Show:", FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 8, 0) });
+                foreach (var (id, name, _) in ColorScreens)
+                {
+                    var sid = id;
+                    var b = new RadioButton { Content = name, GroupName = "preview-screen", IsChecked = pvScreenPick == id, Margin = new Thickness(0, 4, 16, 0), VerticalAlignment = VerticalAlignment.Center };
+                    AutomationProperties.SetName(b, "Show " + name); AutomationProperties.SetHelpText(b, "Shows the HOME's " + name + " in the large preview, with your colors");
+                    b.Checked += (s, e) => { if (pvScreenPick != sid) { pvScreenPick = sid; RequestPreview(); pvRefresh?.Invoke(); } };
+                    pick.Children.Add(b);
+                }
+                sp.Children.Add(pick);
+            }
             sp.Children.Add(open);
 
             var status = PictureCaption(null); status.VerticalAlignment = VerticalAlignment.Center; status.Margin = new Thickness(2, 6, 10, 0);   // the preview's caption: what it shows, or why it is not up to date
@@ -345,7 +389,7 @@ namespace CcsBackup.Ui
                 var cap = PictureCaption(name); cap.Margin = new Thickness(2, 3, 0, 0);
                 var cell = new StackPanel(); cell.Children.Add(box); cell.Children.Add(cap);
                 var b = new Button { Style = Res<Style>("Wb.Plain"), Content = cell, Margin = new Thickness(4, 0, 4, 0), Padding = new Thickness(0), HorizontalContentAlignment = HorizontalAlignment.Stretch };
-                b.Click += (s, e) => { if (pvShots != null && pvShots.TryGetValue(st, out var pic)) { ShowPicture(pic, name, "Your design on the HOME's " + name + " screen.", "Drawn on this PC by the console HOME's own program. Nothing on a console changed."); b.Focus(); } };
+                b.Click += (s, e) => { if (pvShots != null && pvShots.ContainsKey(st)) { ShowPreviewGallery(st); b.Focus(); } };
                 cells.Add((st, im, cap, b)); more.Children.Add(b);
             }
             sp.Children.Add(more);
@@ -379,18 +423,17 @@ namespace CcsBackup.Ui
                 bool empty = src != null && !src.Sample && current && IsEmptySource(src.Key);
                 if (empty) say = "There are no games in " + src.Short + ", so the HOME is drawn empty." + (sampleIndex.Value != null ? " Sample games can show how your design looks with a full shelf." : "");
                 useSample.Visibility = empty && sampleIndex.Value != null ? Visibility.Visible : Visibility.Collapsed;
-                tag.Visibility = pvImage != null && pvImageKey != null && pvImageKey.EndsWith("|" + SampleHome, StringComparison.Ordinal) ? Visibility.Visible : Visibility.Collapsed;
                 waitText.Text = pvImage != null ? "" : renderer == null || src == null ? "No preview in this copy" : pvBusy ? "Drawing your HOME…" : pvFailed ? "The preview could not be drawn" : pvBlocked != null ? "Not drawn" : "Drawing your HOME…";
                 img.Source = pvImage; img.Opacity = stale ? 0.4 : 1;
                 pill.Visibility = pvBusy && pvImage != null ? Visibility.Visible : Visibility.Collapsed;
                 status.Text = say;
                 if (techText != lastTech) { tech.Content = string.IsNullOrEmpty(techText) ? null : Details("Technical details", techText); lastTech = techText; }
                 open.IsEnabled = pvImage != null;
-                AutomationProperties.SetName(open, pvImage == null ? "Preview of your HOME: " + waitText.Text : (current ? "Preview of your HOME's first screen, as the console HOME draws it" : "Preview of your HOME, before your latest change") + ". Select to see it larger.");
+                AutomationProperties.SetName(open, pvImage == null ? "Preview of your HOME: " + waitText.Text : (current ? "Preview of your HOME's " + ScreenName(PreviewScreen()) + ", as the console HOME draws it" : "Preview of your HOME, before your latest change") + ". Select to see it larger.");
                 DrawGuides(guides, h, layoutStep && designGuides);
 
                 // the other screens
-                bool shotsCurrent = pvShots != null && pvShotsKey == key;
+                bool shotsCurrent = pvShots != null && pvShotsKey == DesignSourceKey();
                 bool anyShown = false;
                 foreach (var (st, im, cap, b) in cells)
                 {
@@ -420,11 +463,44 @@ namespace CcsBackup.Ui
             return sp;
         }
 
-        string PreviewCaption()
+        string PreviewCaption() => PreviewCaption(PreviewScreen());
+        string PreviewCaption(string screen)
         {
             var s = PreviewSourceNow();
-            if (s != null && s.Sample) return "Sample games: your HOME's first screen with the NES Classic's 30 built-in games, drawn by the console HOME's own program on this PC. They are pictures to show the layout, never part of your design, and cannot be played here.";
-            return "Your HOME's first screen with " + (s?.Short ?? "games") + ", drawn by the console HOME's own program on this PC.";
+            var what = screen == "start" ? "first screen" : ScreenName(screen);
+            var colors = designStep == StepText ? ColorScreens.FirstOrDefault(x => x.id == screen).colors : null;
+            var lead = colors != null ? "Your colors on the HOME's " + what + ": " + colors + ". " : "";
+            if (s != null && s.Sample) return lead + "Sample games: your HOME's " + what + " with the NES Classic's 30 built-in games, drawn by the console HOME's own program on this PC. They are pictures to show the layout, never part of your design, and cannot be played here.";
+            return lead + "Your HOME's " + what + " with " + (s?.Short ?? "games") + ", drawn by the console HOME's own program on this PC.";
+        }
+
+        /// <summary>WB-UX-24: the preview's pictures larger, in one viewer: the large picture, then the other screens drawn for the same design
+        /// and games (none from another drawing or another theme), in the order the HOME is used; it opens at the picture chosen (state null:
+        /// the large one) and steps through them with Previous and Next</summary>
+        void ShowPreviewGallery(string state)
+        {
+            var items = new List<GalleryPicture>(); int start = 0;
+            const string note = "Drawn on this PC by the console HOME's own program. Nothing on a console changed.";
+            var bigScreen = pvImageKey != null ? pvImageKey.Substring(pvImageKey.LastIndexOf('|') + 1) : null;
+            if (pvImage != null)
+            {
+                bool current = pvImageKey == PreviewKey();
+                items.Add(new GalleryPicture { Source = pvImage, Title = current ? "Your HOME: " + (bigScreen == "start" ? "first screen" : ScreenName(bigScreen)) : "Your HOME, before your latest change", Caption = current ? PreviewCaption(bigScreen) : "Your design before your latest change. The new picture is being drawn." });
+            }
+            // the other screens only when they were drawn for the design and games the large picture shows
+            var gen = pvImageKey != null ? pvImageKey.Substring(0, pvImageKey.LastIndexOf('|')) : null;
+            if (pvShots != null && pvShotsKey != null && (gen == null || pvShotsKey == gen))
+            {
+                bool older = pvShotsKey != DesignSourceKey();
+                foreach (var kv in pvShots.OrderBy(x => StateOrder(x.Key)))
+                {
+                    if (kv.Key == bigScreen || bigScreen == "start" && kv.Key == "all-games") continue;   // the large picture already shows it
+                    var name = StateNames.TryGetValue(kv.Key, out var nm) ? nm : kv.Key;
+                    if (kv.Key == state) start = items.Count;
+                    items.Add(new GalleryPicture { Source = kv.Value, Title = name + (older ? ", before your latest change" : ""), Caption = "Your design on the HOME's " + name + " screen" + (older ? ", before your latest change." : ".") });
+                }
+            }
+            if (items.Count > 0) ShowGallery(items, start, note);
         }
 
         bool IsEmptySource(string key) { lock (pvEmpty) return pvEmpty.Contains(key); }
@@ -492,7 +568,7 @@ namespace CcsBackup.Ui
                 var pack = await Task.Run(() => PreviewPack(src, work));
                 if (canceled || design != h) return;
                 var compiled = DesignCompiler.Compile(h, pack.games);
-                (r, shots) = await RunCheck(renderer, pack.dir, compiled, key, work, cts.Token, 0.5);
+                (r, shots) = await RunCheck(renderer, pack.dir, compiled, key, work, cts.Token, 1);
             }
             catch (Exception ex) when (ex is OperationCanceledException || canceled) { return; }
             catch (Exception ex)
@@ -515,6 +591,7 @@ namespace CcsBackup.Ui
             var sp = SectionHead("Every Screen", r.Ok ? "Every screen of " + ThemeName(r.DesignTheme ?? h.BaseTheme) + " with your design, drawn on this PC by the console HOME's own program. Every screen passed its checks." : "Some screens need a change before this design can go on a console.");
             if (!r.Ok) sp.Children.Add(Note(string.Join("\n", PlainCheck(r).Select(x => "• " + x)), "warn"));
             var grid = new CardPanel { MinItemWidth = 240, MaxColumns = 3, Gap = 12 };
+            var all = new List<GalleryPicture>();   // every screen here, in this order, in one viewer (WB-UX-24)
             foreach (var kv in shots.OrderBy(x => StateOrder(x.Key)))
             {
                 var st = r.States.FirstOrDefault(s => s.Theme == r.DesignTheme && s.State == kv.Key); bool ok = st == null || st.Ok;
@@ -523,7 +600,8 @@ namespace CcsBackup.Ui
                 var im = new Image { Source = pic, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 0, 4) }; RenderOptions.SetBitmapScalingMode(im, BitmapScalingMode.HighQuality);
                 var b = new Button { Style = Res<Style>("Wb.Plain"), Content = im, Padding = new Thickness(0) };
                 AutomationProperties.SetName(b, name + (ok ? "" : ", hard to read") + ". Select to see it larger.");
-                b.Click += (s, e) => { ShowPicture(pic, name, "Your design on the HOME's " + name + " screen.", "Drawn on this PC by the console HOME's own program. Nothing on a console changed."); b.Focus(); };
+                var at = all.Count; all.Add(new GalleryPicture { Source = pic, Title = name, Caption = "Your design on the HOME's " + name + " screen." });
+                b.Click += (s, e) => { ShowGallery(all, at, "Drawn on this PC by the console HOME's own program. Nothing on a console changed."); b.Focus(); };
                 cell.Children.Add(b);
                 cell.Children.Add(PictureCaption(name + (ok ? "" : "  ·  hard to read")));   // the cell is as wide as its picture
                 grid.Children.Add(cell);
