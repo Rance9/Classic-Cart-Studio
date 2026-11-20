@@ -1085,7 +1085,8 @@ static void render_menu(home *h, framebuffer *fb, const char *title, const char 
     gfx_fill(fb, FULL, x + (rpg ? 4 : 2), yy, W - (rpg ? 8 : 4), 1, RGBA(0xFFFFFF, 36)); yy += 8;
     for (int i = 0; i < n; i++) {
         int foc = i == focus; const font *f = foc ? fb2 : fi; design_upper_if_needed(f, items[i], ib, sizeof ib);
-        if (rpg) { if (foc) { const font *s = &h->f[F_SYM13]; T(fb, FULL, s, x + 22, baseline_center(s, yy, ih), "\xE2\x96\xB6", RED2, 255, 0); } T(fb, FULL, f, x + 22 + (foc ? 22 : 0), baseline_center(f, yy, ih), ib, foc ? 0xFFD166 : design_text(h, 0xE9E7E1), 255, 0); }
+        if (rpg) { if (foc) { const font *s = &h->f[F_SYM13]; T(fb, FULL, s, x + 22, baseline_center(s, yy, ih), "\xE2\x96\xB6", h->accent != RED_DEF ? h->accent : RED2, 255, 0); }   /* the chosen row's pointer: a design's highlight color (WB-UX-25), else the theme's own red */
+        T(fb, FULL, f, x + 22 + (foc ? 22 : 0), baseline_center(f, yy, ih), ib, foc ? 0xFFD166 : design_text(h, 0xE9E7E1), 255, 0); }
         else { if (foc) gfx_fill(fb, FULL, x + 2, yy, W - 4, ih, RGBA(RED, 255)); if (foc) Tb(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), ib, 0xFFFFFF, 255, 0); else T(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), ib, design_text(h, 0xE9E7E1), 255, 0); }
         LR(h, foc ? "menu-focus" : "menu-item", x, yy, x + W, yy + ih); LT(h, HT_MENU, i, x, yy, x + W, yy + ih); yy += ih;
     }

@@ -21,6 +21,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 
 namespace CcsBackup.Ui
@@ -117,23 +118,52 @@ namespace CcsBackup.Ui
         // ------------------------------------------------------------------ chrome and building blocks
         T Res<T>(string k) where T : class => (TryFindResource(k) as T);
 
+        /// <summary>WB-UX-22: the title bar's own surface, a little lighter than the page under it, with a quiet line between them (fixed colors:
+        /// never the Windows accent color)</summary>
+        static readonly Brush TitleBarBg = Frozen(Color.FromRgb(0x20, 0x20, 0x26)), TitleBarLine = Frozen(Color.FromRgb(0x34, 0x34, 0x3C));
+
         UIElement TitleBar()
         {
-            var bar = new Grid { Background = Res<Brush>("B.Bar") };
-            bar.ColumnDefinitions.Add(new ColumnDefinition()); for (int i = 0; i < 3; i++) bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var caption = new TextBlock { FontSize = 12.5, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 1) };
+            var bar = new Grid { Background = TitleBarBg };
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); bar.ColumnDefinitions.Add(new ColumnDefinition()); for (int i = 0; i < 3; i++) bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            // WB-UX-22: the program's own controller icon (app.ico, the executable's and the taskbar's icon) beside the title, 16 x 16 like any
+            // Windows title bar, from the icon file's frame for the display's scale so it stays sharp (chosen again when the scale changes)
+            var icon = new Image { Width = 16, Height = 16, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 1), SnapsToDevicePixels = true, Focusable = false };
+            RenderOptions.SetBitmapScalingMode(icon, BitmapScalingMode.HighQuality); System.Windows.Automation.AutomationProperties.SetName(icon, "CCS Console Workbench");
+            void IconFor() { double scale = 1; try { scale = VisualTreeHelper.GetDpi(this).DpiScaleX; } catch (Exception) { } icon.Source = TitleIcon(16 * scale) ?? opt.AppIcon; icon.Visibility = icon.Source != null ? Visibility.Visible : Visibility.Collapsed; }
+            IconFor(); Loaded += (s, e) => IconFor(); DpiChanged += (s, e) => IconFor();
+            bar.Children.Add(icon);
+            var caption = new TextBlock { FontSize = 12.5, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(9, 0, 0, 1) };
             caption.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(Title)) { Source = this });   // always the window's own title
-            bar.Children.Add(caption);
-            var min = new Button { Content = "", Style = Res<Style>("Caption"), Height = 38, ToolTip = "Minimize" }; System.Windows.Automation.AutomationProperties.SetName(min, "Minimize"); min.Click += (s, e) => WindowState = WindowState.Minimized; WindowChrome.SetIsHitTestVisibleInChrome(min, true); Grid.SetColumn(min, 1);
-            var close = new Button { Content = "", Style = Res<Style>("Caption.Close"), Height = 38, ToolTip = "Close" }; System.Windows.Automation.AutomationProperties.SetName(close, "Close"); close.Click += (s, e) => Close(); WindowChrome.SetIsHitTestVisibleInChrome(close, true); Grid.SetColumn(close, 3);
+            Grid.SetColumn(caption, 1); bar.Children.Add(caption);
+            var min = new Button { Content = "", Style = Res<Style>("Caption"), Height = 37, ToolTip = "Minimize" }; System.Windows.Automation.AutomationProperties.SetName(min, "Minimize"); min.Click += (s, e) => WindowState = WindowState.Minimized; WindowChrome.SetIsHitTestVisibleInChrome(min, true); Grid.SetColumn(min, 2);
+            var close = new Button { Content = "", Style = Res<Style>("Caption.Close"), Height = 37, ToolTip = "Close" }; System.Windows.Automation.AutomationProperties.SetName(close, "Close"); close.Click += (s, e) => Close(); WindowChrome.SetIsHitTestVisibleInChrome(close, true); Grid.SetColumn(close, 4);
             // maximize / restore between them: its symbol, name and tooltip follow the window's state however it changed (this button, a
             // double-click on the title bar, Snap, Win+Up/Down or the system menu)
-            var max = new Button { Content = "\uE922", Style = Res<Style>("Caption"), Height = 38, ToolTip = "Maximize" }; System.Windows.Automation.AutomationProperties.SetName(max, "Maximize");
+            var max = new Button { Content = "\uE922", Style = Res<Style>("Caption"), Height = 37, ToolTip = "Maximize" }; System.Windows.Automation.AutomationProperties.SetName(max, "Maximize");
             max.Click += (s, e) => { if (WindowState == WindowState.Maximized) SystemCommands.RestoreWindow(this); else SystemCommands.MaximizeWindow(this); };
-            WindowChrome.SetIsHitTestVisibleInChrome(max, true); Grid.SetColumn(max, 2);
+            WindowChrome.SetIsHitTestVisibleInChrome(max, true); Grid.SetColumn(max, 3);
             StateChanged += (s, e) => { bool m = WindowState == WindowState.Maximized; max.Content = m ? "\uE923" : "\uE922"; max.ToolTip = m ? "Restore" : "Maximize"; System.Windows.Automation.AutomationProperties.SetName(max, m ? "Restore" : "Maximize"); };
             bar.Children.Add(min); bar.Children.Add(max); bar.Children.Add(close);
-            return bar;
+            return new Border { Background = TitleBarBg, BorderBrush = TitleBarLine, BorderThickness = new Thickness(0, 0, 0, 1), Child = bar };
+        }
+
+        /// <summary>the frame of this library's app.ico (the controller icon every Workbench window and the executable carry) at least px pixels
+        /// wide, the smallest such (else the largest there is); null when it cannot be read</summary>
+        static BitmapSource TitleIcon(double px)
+        {
+            try
+            {
+                var info = Application.GetResourceStream(new Uri("pack://application:,,,/CcsBackupUi;component/app.ico", UriKind.Absolute)); if (info == null) return null;
+                using (var s = info.Stream)
+                {
+                    var d = new IconBitmapDecoder(s, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                    var f = d.Frames.Where(x => x.PixelWidth >= px - 0.5).OrderBy(x => x.PixelWidth).ThenByDescending(x => x.Format.BitsPerPixel).FirstOrDefault() ?? d.Frames.OrderByDescending(x => x.PixelWidth).FirstOrDefault();
+                    if (f != null && f.CanFreeze) f.Freeze();
+                    return f;
+                }
+            }
+            catch (Exception) { return null; }
         }
 
         TextBlock T(string t, double size = 13.5, bool bold = false, bool muted = false, Thickness? m = null)
@@ -172,6 +202,8 @@ namespace CcsBackup.Ui
             Go(name ?? section);
         }
         static string Size(long b) => Units.Gb(b);
+        /// <summary>why a backup file is larger than the console it came from (beside every place its size could be read as the console's)</summary>
+        internal const string BackupSizeNote = "The backup can be larger than your console's storage. It keeps both a full storage copy and separate parts used for restoring and browsing.";
         /// <summary>"1 file", "3 files", "1,873 files"</summary>
         static string Count(long n, string one, string many = null) => n.ToString("N0", En) + " " + (n == 1 ? one : many ?? one + "s");
         static string Capital(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
@@ -210,6 +242,7 @@ namespace CcsBackup.Ui
                     if (file != null && File.Exists(file) && e.Status != BackupStatus.Damaged && e.Status != BackupStatus.Incomplete) acts.Children.Add(B("Restore This Backup…", "Btn.Ghost", () => ShowRestoreReview(file)));
                 };
                 sp.Children.Add(lb); sp.Children.Add(acts);
+                sp.Children.Add(T(BackupSizeNote, Ty.Fine, false, true, new Thickness(0, 6, 0, 0)));
             }
             Show(sp, "backup-home");
         }
@@ -269,6 +302,8 @@ namespace CcsBackup.Ui
             System.Windows.Automation.AutomationProperties.SetName(edit, "Edit in Settings"); System.Windows.Automation.AutomationProperties.SetHelpText(edit, "Opens Settings at Backup locations");
             edit.Click += (s, e) => EditBackupLocation(); Grid.SetColumn(edit, 1); where.Children.Add(edit);
             what.Children.Add(where);
+            // the file is larger than the console's storage: why, with the console's real capacity (a file's size is never its capacity)
+            if (profile.ConsoleTasks) what.Children.Add(T(BackupSizeNote + (profile.StorageBytes > 0 ? " The " + profile.Short + "'s built-in storage is " + Size(profile.StorageBytes) + " in all, used and free space together; the backup file is about 1.0 GB, and an additional copy needs about as much again on its drive." : ""), Ty.Small, false, true, new Thickness(0, 2, 0, 10)));
             if (string.IsNullOrEmpty(settings.ArchiveFolder)) what.Children.Add(T("Additional copy not configured.", Ty.Text, false, true));
             else { what.Children.Add(T("An additional copy goes to:", Ty.Text)); what.Children.Add(PathText(settings.ArchiveFolder)); }
             if (!string.IsNullOrEmpty(settings.ArchiveFolder) && Durable.VolumeId(settings.ArchiveFolder) == Durable.VolumeId(settings.PrimaryFolder))
@@ -378,7 +413,7 @@ namespace CcsBackup.Ui
             var list = History.List(Reload()).Where(e => (e.Status == BackupStatus.Verified || e.Status == BackupStatus.NeedsVerification) && (e.PrimaryPath ?? e.ArchivePath) != null).ToList();
             var lb = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), MaxHeight = 340 }; ScrollViewer.SetHorizontalScrollBarVisibility(lb, ScrollBarVisibility.Disabled);
             foreach (var e in list) lb.Items.Add(new ListBoxItem { Content = HistoryRow(e), Tag = e.PrimaryPath ?? e.ArchivePath, Margin = new Thickness(0, 0, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Stretch });
-            if (list.Count == 0) sp.Children.Add(Card(T("No complete backups in your backup locations. Choose Browse for a Backup File to use one saved somewhere else.", Ty.Body, false, true))); else sp.Children.Add(lb);
+            if (list.Count == 0) sp.Children.Add(Card(T("No complete backups in your backup locations. Choose Browse for a Backup File to use one saved somewhere else.", Ty.Body, false, true))); else { sp.Children.Add(lb); sp.Children.Add(T(BackupSizeNote, Ty.Fine, false, true, new Thickness(0, 0, 0, 8))); }
             var next = B("Review This Backup", "Btn.Primary", () => { if (lb.SelectedItem is ListBoxItem it) ShowRestoreReview(it.Tag as string); }, false);
             lb.SelectionChanged += (s, e) => next.IsEnabled = lb.SelectedItem != null;
             sp.Children.Add(Buttons(next, B("Browse for a Backup File…", "Btn", () => { var d = new Microsoft.Win32.OpenFileDialog { Filter = FileKinds.ConsoleBackupFilter, Title = "Choose a console backup" }; if (d.ShowDialog(this) == true) ShowRestoreReview(d.FileName); }), B("Back", "Btn.Ghost", BackToSection)));

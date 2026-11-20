@@ -160,10 +160,16 @@ namespace CcsBackup.Ui
             return x;
         }
 
+        /// <summary>the explained words' own neutral gray (the website's .gterm uses the same #9CA3AF): their dotted underline, their panel's
+        /// edge and their focus mark; red stays for buttons, links, the chosen page and warnings</summary>
+        static readonly Color TermGray = Color.FromRgb(0x9C, 0xA3, 0xAF);
+        static readonly Brush TermGrayBrush = FrozenBrush(TermGray), TermFocusBg = FrozenBrush(Color.FromArgb(0x40, 0x9C, 0xA3, 0xAF));
+        static Brush FrozenBrush(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+
         TextDecorationCollection TermUnderline(bool focused)
         {
-            var brush = Res<Brush>("B.Red3") ?? Brushes.IndianRed;
-            var pen = new Pen(brush, focused ? 2 : 1.5) { DashStyle = focused ? DashStyles.Solid : new DashStyle(new double[] { 1, 1 }, 0), DashCap = PenLineCap.Flat };
+            // dotted, focused or not (thicker in focus); the word keeps its own color and weight
+            var pen = new Pen(TermGrayBrush, focused ? 2 : 1.5) { DashStyle = new DashStyle(new double[] { 1, 1 }, 0), DashCap = PenLineCap.Flat };
             pen.Freeze();
             var c = new TextDecorationCollection { new TextDecoration(TextDecorationLocation.Underline, pen, 2, TextDecorationUnit.Pixel, TextDecorationUnit.Pixel) };
             c.Freeze(); return c;
@@ -179,7 +185,7 @@ namespace CcsBackup.Ui
             AutomationProperties.SetHelpText(h, "Explained word: opens a short explanation of " + t.Word);
             SetTermExpanded(h, false);
             ToolTipService.SetIsEnabled(h, false);
-            var focusBg = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0x3B, 0x45)); focusBg.Freeze();
+            var focusBg = TermFocusBg;   // a clear, neutral focus mark behind the word
             h.GotKeyboardFocus += (s, e) => { h.Background = focusBg; h.TextDecorations = TermUnderline(true); };
             h.LostKeyboardFocus += (s, e) => { h.Background = null; h.TextDecorations = TermUnderline(false); };
             h.Toggle = () => ActivateTerm(h, host, t);
@@ -418,7 +424,7 @@ namespace CcsBackup.Ui
             if (t.Detail != null) body.Children.Add(new TextBlock { Text = t.Detail, FontSize = 12, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap });
             if (t.Tech != null) body.Children.Add(new TextBlock { Text = "Technical name: " + t.Tech, FontSize = 12, Foreground = Res<Brush>("B.Muted"), Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap });
             var row = new StackPanel { Orientation = Orientation.Horizontal }; row.Children.Add(close); row.Children.Add(help); body.Children.Add(row);
-            var panel = new Border { Background = Res<Brush>("B.MenuSurface") ?? Res<Brush>("B.Surface2"), BorderBrush = Res<Brush>("B.Red3") ?? Res<Brush>("B.Line2"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 4, 8, 8), Child = body };
+            var panel = new Border { Background = Res<Brush>("B.MenuSurface") ?? Res<Brush>("B.Surface2"), BorderBrush = TermGrayBrush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 4, 8, 8), Child = body };
             // a popup is not inside the window's tree: its text color, font and the window's styles are given here
             panel.SetValue(TextElement.ForegroundProperty, Res<Brush>("B.Ink")); var ui = Res<FontFamily>("F.Ui"); if (ui != null) panel.SetValue(TextElement.FontFamilyProperty, ui);
             foreach (var k in Resources.Keys) panel.Resources[k] = Resources[k];

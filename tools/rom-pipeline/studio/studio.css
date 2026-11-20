@@ -1208,8 +1208,8 @@ p.mempty{margin:6px 12px;color:var(--muted)}
 .hf-st-draft{max-width:440px}   /* framing your own startup picture: a larger preview (startup-custom.js) */
 /* explained words (glossary.js): the word itself, in its sentence's own font and color, with a dotted underline that is always visible; its
    explanation opens just under it on a click, a tap, Enter or Space */
-.gterm{all:unset;display:inline;cursor:pointer;color:inherit;font:inherit;text-decoration:underline dotted var(--red3);text-decoration-thickness:1.5px;text-underline-offset:3px;border-radius:3px}
-.gterm:focus-visible{outline:2px solid var(--red3);outline-offset:2px;background:rgba(255,59,69,.16);text-decoration-style:solid}
-.gterm[aria-expanded=true]{background:rgba(255,59,69,.16)}
-#gpop{position:fixed;z-index:10050;box-sizing:border-box;background:#1f1f26;border:1px solid var(--red3);border-radius:10px;padding:12px 16px;box-shadow:0 12px 30px rgba(0,0,0,.6);color:var(--ink);font:13.5px/1.45 var(--font);text-align:left;text-transform:none;letter-spacing:normal}
+.gterm{all:unset;display:inline;cursor:pointer;color:inherit;font:inherit;text-decoration:underline dotted #9CA3AF;text-decoration-thickness:1.5px;text-underline-offset:3px;border-radius:3px}
+.gterm:focus-visible{outline:2px solid #9CA3AF;outline-offset:2px;background:rgba(156,163,175,.18)}
+.gterm[aria-expanded=true]{background:rgba(156,163,175,.18)}
+#gpop{position:fixed;z-index:10050;box-sizing:border-box;background:#1f1f26;border:1px solid #9CA3AF;border-radius:10px;padding:12px 16px;box-shadow:0 12px 30px rgba(0,0,0,.6);color:var(--ink);font:13.5px/1.45 var(--font);text-align:left;text-transform:none;letter-spacing:normal}
 #gpop b{display:block;font-size:14px;margin-bottom:4px;color:#fff}#gpop p{margin:0 0 8px}#gpop .gtech,#gpop .gdetail{color:var(--muted);font-size:12.5px}#gpop .btn{margin-top:2px}

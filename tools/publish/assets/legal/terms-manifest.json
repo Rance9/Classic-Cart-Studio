@@ -13,9 +13,9 @@
   },
   "help_chapter": {
    "path": "tools/rom-pipeline/studio/guide.html (between its markers)",
-   "sha256": "18144d53748dd74573efcec65a4f74024c867a8f75bb19d8b1e36e31ea2e86a4",
+   "sha256": "1d129a701690220392bd4c63692b2669a74bfa0c5ef530b3020ea6a1ec391a4d",
    "text_identity_sha256": "1be425b168cae1babae3e74f3ad2e16f787ab1ebdbf51eb8e904e0c342fd35f1"
   }
  },
- "normalization": "Markdown marks removed (**, `, heading #); Help adds <b>, <code>, links on https addresses and <h4> headings; whitespace collapsed for the text identity"
+ "normalization": "Markdown marks removed (**, `, heading #); Help adds <b>, <code>, links on https addresses, links on the names Rance9 and Rance9 LLC (to https://Rance9.com) and <h4> headings; whitespace collapsed for the text identity"
 }
