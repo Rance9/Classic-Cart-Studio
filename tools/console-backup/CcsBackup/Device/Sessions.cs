@@ -56,8 +56,9 @@ namespace CcsBackup.Device
         }
 
         /// <summary>a file of the release-built CCS HOME package this build carries (ram/ccs-home/: tools/console-nucleus/build_home_package.py;
-        /// Engine/HomePackage checks each against its layout's MANIFEST.json); null when this build does not carry it</summary>
-        public static byte[] HomeResource(string name) => System.Text.RegularExpressions.Regex.IsMatch(name ?? "", "^((mod|nucleus)\\.MANIFEST\\.json|[0-9a-f]{64}\\.blob|HOME\\.json)$") ? Resource("ram/ccs-home/" + name) : null;
+        /// Engine/HomePackage checks each against its layout's MANIFEST.json; sample.json lists HOME Designer's preview-only sample games, which
+        /// no layout names, so they are never sent to a console); null when this build does not carry it</summary>
+        public static byte[] HomeResource(string name) => System.Text.RegularExpressions.Regex.IsMatch(name ?? "", "^((mod|nucleus)\\.MANIFEST\\.json|[0-9a-f]{64}\\.blob|HOME\\.json|sample\\.json)$") ? Resource("ram/ccs-home/" + name) : null;
 
         /// <summary>the image's id (MANIFEST.json image_id), which the console reports back once the image runs</summary>
         public static (string id, string sha256) IdOf(ImageKind k)
