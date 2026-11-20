@@ -1348,7 +1348,7 @@ Open it from **Console Composer** (**HOME Designer**) or from **Open** beside HO
 
 ## The five steps
 
-A design is made in five steps, listed at the top: **Theme**, **Pictures & Startup**, **Text & Colors**, **Layout & Folders** and **Review & Save**. Steps 2 to 4 are optional: choose **Next** to skip one. **Next** and **Back** at the bottom move one step; choose a step's name at the top to go straight to it. **Close Design** closes the design; if it has changes that are not saved, Workbench asks first.
+A design is made in five steps, listed at the top: **Theme**, **Pictures & Startup**, **Text & Colors**, **Layout & Folders** and **Review & Save**. Steps 2 to 4 are optional: choose **Next** to skip one. **Next** and **Back** at the bottom move one step; choose a step's name at the top to go straight to it. Text you typed but did not add yet (a label's text, a folder's name or a credit) stays in its box while you move between steps; it becomes part of the design only when you add it. **Close Design** closes the design; if it has changes that are not saved, or text you typed but did not add, Workbench asks first.
 
 The top right shows the design's name and whether it is saved.
 
