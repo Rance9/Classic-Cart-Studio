@@ -37,9 +37,23 @@ namespace CcsBackup.Ui
         readonly Dictionary<string, string> designFits = new Dictionary<string, string>();
         /// <summary>the open wizard page's parts that change in place</summary>
         Border designNote; TextBlock designState; ScrollViewer designControls;
-        /// <summary>the wizard page's boxes for something typed but not added yet (a label's text, a folder's name, a credit)</summary>
-        readonly List<TextBox> designPending = new List<TextBox>();
-        TextBox Pending(TextBox t) { designPending.Add(t); return t; }
+        /// <summary>what is typed but not added yet (a label's text, a folder's name, a credit), by its box's name, and the new folder's place
+        /// (its parent folder's id; null: at the top). Kept with the open wizard, never in the design, so a step change, the page drawn again
+        /// after a change, or a visit to Share or See Every Screen keeps it. Let go only by the Add that used it, by the person's own
+        /// answer when leaving the page or closing the design, or when another design starts.</summary>
+        readonly Dictionary<string, string> designDrafts = new Dictionary<string, string>();
+        string designDraftParent;
+        /// <summary>a box for text that its own Add button adds: it shows its kept draft, and what is typed in it is kept</summary>
+        TextBox Pending(string name, bool ro)
+        {
+            var t = new TextBox { IsReadOnly = ro }; AutomationProperties.SetName(t, name);
+            if (designDrafts.TryGetValue(name, out var was)) t.Text = was;
+            t.TextChanged += (s, e) => { if (t.Text.Length > 0) designDrafts[name] = t.Text; else designDrafts.Remove(name); };
+            return t;
+        }
+        /// <summary>the leave question's and the close review's words for typed text not added yet (null: none)</summary>
+        internal string DesignDraftWords() => designDrafts.Values.Any(v => v.Trim().Length > 0) ? "What you typed in HOME Designer but did not add (a label, a folder or a credit)" : null;
+        void ForgetDesignDrafts() { designDrafts.Clear(); designDraftParent = null; }
         const string DesignFilter = "Shared HOME Designs (*.ccshome)|*.ccshome";
         const string PictureFilter = "Pictures (PNG or JPEG)|*.png;*.jpg;*.jpeg";
         /// <summary>the theme a new design starts from (by its stable id, never by its place in a list): Featured Shelf (owner decision D-230)</summary>
@@ -70,13 +84,13 @@ namespace CcsBackup.Ui
         /// <summary>a design was started or opened: its wizard opens on the first step, with nothing carried over from another design</summary>
         void DesignStarted()
         {
-            designProblem = designProblemDetail = null; designSources.Clear(); designFits.Clear(); PreviewForget();
+            designProblem = designProblemDetail = null; designSources.Clear(); designFits.Clear(); PreviewForget(); ForgetDesignDrafts();
             ShowDesignEditor();
         }
 
         void OpenDesign()
         {
-            if (!DesignLeaveOk("Save First", "Open Without Saving")) return;
+            if (!DesignLeaveOk("Save First", "Open Without Saving", "Open Without It")) return;
             var d = new Microsoft.Win32.OpenFileDialog { Title = "Open a Shared HOME Design", Filter = DesignFilter };
             if (d.ShowDialog(this) != true) return;
             try
@@ -98,11 +112,16 @@ namespace CcsBackup.Ui
         // ------------------------------------------------------------------ leaving and closing a design
         /// <summary>before the open design with changes that are not saved is closed or replaced on its own page (Close Design, Open a Shared
         /// HOME Design…): the Workbench's own question with Save (Save As when it has no file yet), leave without saving, or Cancel. True: go
-        /// on. Closing the window asks in its one close review instead (BackupWorkspace.CloseReview, with DesignUnsavedName).</summary>
-        bool DesignLeaveOk(string saveAnd, string without)
+        /// on. Closing the window asks in its one close review instead (BackupWorkspace.CloseReview, with DesignUnsavedName). Text typed but
+        /// not added is named in the same one question, never in a second one: it is not part of the design, so saving does not keep
+        /// it; with only such text, the question offers Keep Designing or leaving without it.</summary>
+        bool DesignLeaveOk(string saveAnd, string without, string withoutTyped)
         {
-            var name = DesignUnsavedName(); if (name == null) return true;
-            var k = Ask("Save your design?", "\"" + name + "\" has changes that are not saved.", new[] { saveAnd, without, "Cancel" }, 0, 2);
+            var name = DesignUnsavedName(); bool typed = DesignDraftWords() != null;
+            if (name == null && !typed) return true;
+            if (name == null) return Ask("Let go of what you typed?", "You typed a label, a folder or a credit but did not add it to the design.", new[] { "Keep Designing", withoutTyped }, 0, 0) == 1;
+            var k = Ask("Save your design?", "\"" + name + "\" has changes that are not saved." + (typed ? "\n\nWhat you typed but did not add (a label, a folder or a credit) is not part of the design, so it is let go either way." : ""),
+                        new[] { saveAnd, without, "Cancel" }, 0, 2);
             if (k == 0) return SaveDesign(false);
             return k == 1;
         }
@@ -118,9 +137,9 @@ namespace CcsBackup.Ui
 
         void CloseDesign()
         {
-            if (!DesignLeaveOk("Save and Close", "Close Without Saving")) return;
+            if (!DesignLeaveOk("Save and Close", "Close Without Saving", "Close Without It")) return;
             design = designOpened = null; designPath = null; designDirty = false; designProblem = designProblemDetail = null; designStep = StepTheme;
-            designSources.Clear(); designFits.Clear(); PreviewForget();
+            designSources.Clear(); designFits.Clear(); PreviewForget(); ForgetDesignDrafts();
             ShowDesigner();
         }
 
@@ -182,16 +201,15 @@ namespace CcsBackup.Ui
 
         bool IsDesignPage() => (page.Content as FrameworkElement)?.Tag as string == "design-editor";
 
-        /// <summary>the wizard again, as it is now: the same step, the focus on the control that had it and the step's controls scrolled as before</summary>
+        /// <summary>the wizard again, as it is now: the same step, the focus on the control that had it and the step's controls scrolled as
+        /// before (typed text not added yet comes back from designDrafts, as on every drawing of the wizard)</summary>
         void RefreshDesigner()
         {
             if (!IsDesignPage()) return;
             string focus = null;
             if (Keyboard.FocusedElement is DependencyObject f && Within(page, f)) focus = AutomationProperties.GetName(f);
             double off = designControls?.VerticalOffset ?? 0;
-            var typed = designPending.Where(t => t.Text.Length > 0).GroupBy(t => AutomationProperties.GetName(t) ?? "").ToDictionary(g => g.Key, g => g.First().Text);
             ShowDesignEditor();
-            foreach (var t in designPending) if (typed.TryGetValue(AutomationProperties.GetName(t) ?? "", out var was) && t.Text.Length == 0) t.Text = was;
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 designControls?.ScrollToVerticalOffset(off);
@@ -314,7 +332,6 @@ namespace CcsBackup.Ui
             var h = design; if (h == null) { ShowDesigner(); return; }
             bool ro = h.InspectOnly;
             designStep = Math.Max(0, Math.Min(StepNames.Length - 1, designStep));
-            designPending.Clear();
 
             // the head: title, the design's name and state, the steps, a message
             var head = new StackPanel();
@@ -375,9 +392,10 @@ namespace CcsBackup.Ui
             Grid.SetRow(footLine, 2); root.Children.Add(footLine);
             Show(root, "design-editor");
             // another page may be opened: the design stays open with its changes (the close review names it); only typed text that was not
-            // added yet is lost by leaving, so leaving asks about that alone
-            LeaveGuard(() => designPending.Any(t => t.Text.Trim().Length > 0 && Within(page, t)) ? "What you typed in HOME Designer but did not add (a label, a folder or a credit)" : null,
-                       "You typed a label, a folder or a credit in HOME Designer but did not add it. Your design stays open either way; only what you typed is let go.");
+            // added yet is let go by leaving, so leaving asks about that alone, and Leave Without It lets it go (Stay keeps it)
+            LeaveGuard(DesignDraftWords,
+                       "You typed a label, a folder or a credit in HOME Designer but did not add it. Your design stays open either way; only what you typed is let go.",
+                       ForgetDesignDrafts);
             PinToViewport(root, wide);
             RequestPreview();
         }
@@ -675,7 +693,7 @@ namespace CcsBackup.Ui
                 sp.Children.Add(box);
             }
             string NewId(string kind) { int n = 1; while (regs.Any(x => x["id"] as string == kind + "-" + n)) n++; return kind + "-" + n; }
-            var lt = Pending(new TextBox { IsReadOnly = ro }); AutomationProperties.SetName(lt, "New label's text");
+            var lt = Pending("New label's text", ro);
             var add = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
             add.Children.Add(Small("Add a Panel", () => DesignEdit(() => design.UpsertRegion(NewId("panel"), x => { x["kind"] = "panel"; x["x"] = 40L; x["y"] = 40L; x["w"] = 300L; x["h"] = 120L; x["layer"] = 1L; x["opacity"] = 80L; x["color"] = "#101018"; })), !ro));
             add.Children.Add(Small("Add a Picture…", () => PickPicture("decoration", DesignProfile.Slots["decoration"], bytes => { var sha = design.AddImage(bytes); design.UpsertRegion(NewId("picture"), x => { x["kind"] = "image"; x["x"] = 40L; x["y"] = 40L; x["w"] = 300L; x["h"] = 200L; x["layer"] = 1L; x["image"] = sha; }); }), !ro));
@@ -769,9 +787,13 @@ namespace CcsBackup.Ui
             }
             Level("", 0);
             if (folders.Count == 0) sp.Children.Add(T("No folders yet: games are listed in the game order.", Ty.Small, false, true));
-            var nameBox = Pending(new TextBox { IsReadOnly = ro }); AutomationProperties.SetName(nameBox, "New folder's name");
-            var parentBox = new ComboBox { IsEnabled = !ro }; parentBox.Items.Add(new ComboBoxItem { Content = "At the top", Tag = null, IsSelected = true });
+            var nameBox = Pending("New folder's name", ro);
+            var parentBox = new ComboBox { IsEnabled = !ro }; parentBox.Items.Add(new ComboBoxItem { Content = "At the top", Tag = null });
             foreach (var f in folders) parentBox.Items.Add(new ComboBoxItem { Content = "Inside " + Display.Line(f["name"] as string, 40), Tag = f["id"] as string });
+            // the place chosen for a folder not added yet is kept with its name (a folder removed since: at the top)
+            parentBox.SelectedItem = parentBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag as string == designDraftParent) ?? parentBox.Items[0];
+            designDraftParent = (parentBox.SelectedItem as ComboBoxItem)?.Tag as string;
+            parentBox.SelectionChanged += (s, e) => designDraftParent = (parentBox.SelectedItem as ComboBoxItem)?.Tag as string;
             AutomationProperties.SetName(parentBox, "Where the new folder goes");
             var addRow = FieldRow(("New folder", nameBox, 200), ("Where", parentBox, 200));
             addRow.Children.Add(BottomAligned(Small("Add the Folder", () => DesignEdit(() =>
@@ -780,7 +802,7 @@ namespace CcsBackup.Ui
                 var slug = new string(n.ToLowerInvariant().Select(ch => ch >= 'a' && ch <= 'z' || ch >= '0' && ch <= '9' ? ch : '-').ToArray()).Trim('-'); if (slug.Length == 0) slug = "folder"; if (slug.Length > 32) slug = slug.Substring(0, 32).Trim('-');
                 var fid = slug; int k = 2; while (folders.Any(f => f["id"] as string == fid)) fid = slug + "-" + k++;
                 var parent = (parentBox.SelectedItem as ComboBoxItem)?.Tag as string;
-                design.UpsertFolder(fid, x => { x["name"] = n; if (parent != null) x["parent"] = parent; x["pos"] = (long)folders.Count(f => (f["parent"] as string) == parent); x["games"] = new List<object>(); }); nameBox.Text = "";
+                design.UpsertFolder(fid, x => { x["name"] = n; if (parent != null) x["parent"] = parent; x["pos"] = (long)folders.Count(f => (f["parent"] as string) == parent); x["games"] = new List<object>(); }); nameBox.Text = ""; designDraftParent = null;
             }), !ro)));
             sp.Children.Add(addRow);
         }
@@ -843,11 +865,11 @@ namespace CcsBackup.Ui
             var credits = (h.Document["credits"] as List<object> ?? new List<object>()).OfType<JObj>().ToList();
             if (credits.Count == 0) cr.Children.Add(T("No credits yet. A credit says who made the pictures or the design.", Ty.Small, false, true));
             foreach (var c0 in credits) cr.Children.Add(NoTerms(T("• " + Display.Line(c0["by"] as string, 60) + (c0["title"] is string ct ? ": " + Display.Line(ct, 80) : "") + (c0["license"] is string cl ? " (" + Display.Line(cl, 60) + ")" : ""), 13)));
-            var by = Pending(new TextBox { IsReadOnly = ro }); var ti = Pending(new TextBox { IsReadOnly = ro }); var li = Pending(new TextBox { IsReadOnly = ro });
-            AutomationProperties.SetName(by, "Credit: made by"); AutomationProperties.SetName(ti, "Credit: title (optional)"); AutomationProperties.SetName(li, "Credit: license (optional)");
+            var by = Pending("Credit: made by", ro); var ti = Pending("Credit: title (optional)", ro); var li = Pending("Credit: license (optional)", ro);
             cr.Children.Add(FieldRow(("Made by", by, 200), ("Title (optional)", ti, 200), ("License (optional)", li, 160)));
             cr.Children.Add(Buttons(Small("Add the Credit", () => { if (by.Text.Trim().Length == 0) { SetDesignProblem("Type who made it first.", null); return; } DesignEdit(() => { design.AddCredit(by.Text.Trim(), Null(ti.Text), Null(li.Text)); by.Text = ti.Text = li.Text = ""; }); }, !ro)));
-            sp.Children.Add(Disclosure("Credits (" + credits.Count + ")", cr, false));
+            // open when it holds a credit typed but not added yet, so the kept text is in view
+            sp.Children.Add(Disclosure("Credits (" + credits.Count + ")", cr, new[] { by, ti, li }.Any(t => t.Text.Trim().Length > 0)));
 
             var tech = new List<object>();
             tech.Add("Pictures to decode when the HOME starts, as this program works it out: " + CUnits.Size(bud.DecodeWorkBytes) + " (at most " + CUnits.Size(bud.WorkLimit) + ").");

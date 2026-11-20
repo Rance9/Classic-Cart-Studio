@@ -1,6 +1,6 @@
 # CCS Console Workbench: source and release plan (for approval; nothing here has been created or pushed)
 
-The current Workbench preview is **0.11.4**, matching the app and shared engine; Classic Cart Studio 0.11.4 installs this same program. The earlier 0.11.3, 0.11.2, 0.11.1, 0.11.0 and 1.0.0 previews are superseded (1.0.0 was not a production release). Product tags and feeds remain separate.
+The current Workbench preview is **0.11.5**, matching the app and shared engine; Classic Cart Studio 0.11.5 installs this same program. The earlier 0.11.4, 0.11.3, 0.11.2, 0.11.1, 0.11.0 and 1.0.0 previews are superseded (1.0.0 was not a production release). Product tags and feeds remain separate.
 
 > Current development previews use separate app and Workbench releases. The standalone's public branch is `CCS-Console-Workbench`; its ENGINE-PIN.txt identifies the exact app/engine source commit, tree and archive hash. Workflow dispatch can rebuild that pinned source without changing release tags. The templates in branch-root mirror the deployed Workbench workflow. All console/driver boundaries remain closed, and upstream source/redistribution gaps remain disclosed rather than resolved.
 

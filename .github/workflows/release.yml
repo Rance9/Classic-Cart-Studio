@@ -311,6 +311,8 @@ jobs:
           $env:NES_STUDIO_DATA = Join-Path $env:RUNNER_TEMP "ccs-selftest"
           & build/dist/ClassicCartStudioBackend/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
           if ($LASTEXITCODE -ne 0) { throw "desktop self-test failed" }
+      - name: Setup's WebView2 Runtime check starts from Setup's own few files (only the files installer.iss extracts for it; its simulated absence, so nothing is installed or started)
+        run: python tools/companion/test_setup_runtime_check.py build/dist/ClassicCartStudioBackend
       - name: Copy the Start menu icon (the installer's own pictures and icon come from the repository)
         shell: pwsh
         run: |
