@@ -1356,13 +1356,13 @@ The top right shows the design's name and whether it is saved.
 
 ## The preview
 
-Beside the step (above it in a narrow window) is your HOME as the console HOME's own program draws it, here on this PC, with the Included Games: the games that come with CCS HOME. No console or backup is needed.
+Beside the step (above it in a narrow window) is your HOME as the console HOME's own program draws it, here on this PC, with **Sample games**: the NES Classic's 30 built-in games with their box art, details and game screens, so you can see your design with a full shelf. They are only pictures for the preview: they are never added to a collection, your design or a console, and they cannot be played. No console or backup is needed.
 
 - After each change, the picture is drawn again. **Updating…** shows while it is drawn; until then, the picture is the one from before your change, shown dimmed.
 - Under it are more of the HOME's screens for the step you are on, such as Game Details, the START menu or Browse. They take a few seconds longer. If some text is hard to read over your pictures, a short note says where.
 - Select a picture to see it larger.
 - If the preview cannot be drawn, a short message says why, with **Retry** when trying again can help.
-- **Preview with** draws the preview with other games: when Classic Cart Studio opened Workbench, the HOME menu it prepared on this PC with your collection's games, or the CCS HOME in a backup of one of your consoles. This changes only the preview, never your design.
+- **Preview with** draws the preview with other games: the Included Games that come with CCS HOME, when Classic Cart Studio opened Workbench the HOME menu it prepared on this PC with your collection's games, or the CCS HOME in a backup of one of your consoles. This changes only the preview, never your design. If the games you chose are none at all, the preview says so and offers **Preview with Sample Games**.
 
 If the page says the preview is not available in this copy, the console HOME's program is not part of this copy of Workbench.
 
