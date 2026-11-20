@@ -585,7 +585,7 @@ namespace CcsBackup.Ui
 
         void TextStep(StackPanel sp, HomeDesign h, bool ro)
         {
-            StepHead(sp, "Colors", "The colors of the HOME's menus and panels.");
+            StepHead(sp, "Colors", "The colors of the HOME's menus and panels: the START menu, Settings, the theme picker, notices and the Browse panel. The preview shows the START menu at first; Show, above the preview, chooses another screen.");
             var ap = h.Document["appearance"] as JObj ?? new JObj();
             sp.Children.Add(ColorRow("Text color", "text_color", TextColors, ap, ro));
             sp.Children.Add(ColorRow("Highlight color", "accent_color", AccentColors, ap, ro, "Behind the chosen menu row and buttons, under white lettering."));
@@ -621,6 +621,32 @@ namespace CcsBackup.Ui
             }
         }
 
+        /// <summary>a color's name for messages: the preset's name and code, or "your color #rrggbb"</summary>
+        static string ColorName(string key, string hex)
+        {
+            var list = key == "text_color" ? TextColors : key == "accent_color" ? AccentColors : PanelColors;
+            var p = list.FirstOrDefault(x => x.hex == hex);
+            return p.name != null ? p.name + " (" + hex + ")" : "your color " + hex;
+        }
+
+        /// <summary>WB-UX-25: a color chosen for text, highlight or panels is used when the console HOME can show it readably (the design's
+        /// own contrast rules, checked here first so the message can say which color stays); otherwise nothing changes, and the message says
+        /// why and which color is still in use. True when it was used.</summary>
+        bool UseColor(string label, string key, string v)
+        {
+            var a = design?.Document["appearance"] as JObj; string Cur(string k) => (a?[k] as string ?? "").ToLowerInvariant();
+            string why = null; double c = 0;
+            if (key == "accent_color" && (c = HomeDesign.Contrast(v, "#ffffff")) < 4.5) why = "That highlight color is too light for the white lettering the HOME draws on it.";
+            else if (key == "text_color" && Cur("panel_color").Length == 7 && (c = HomeDesign.Contrast(v, Cur("panel_color"))) < 4.5) why = "That text color is too close to the panel color to read.";
+            else if (key == "panel_color" && Cur("text_color").Length == 7 && (c = HomeDesign.Contrast(Cur("text_color"), v)) < 4.5) why = "That panel color is too close to the text color to read.";
+            if (why != null)
+            {
+                SetDesignProblem(why + " It was not used: the " + label.ToLowerInvariant() + " is still " + ColorName(key, Cur(key)) + ".", "Not used: " + v + " (contrast " + c.ToString("0.0", En) + ":1; at least 4.5:1).");
+                return false;
+            }
+            return DesignEdit(() => design.SetAppearance(key, v));
+        }
+
         UIElement ColorRow(string label, string key, (string hex, string name)[] presets, JObj ap, bool ro, string what = null)
         {
             var cur = (ap[key] as string ?? "").ToLowerInvariant();
@@ -636,21 +662,27 @@ namespace CcsBackup.Ui
                 var ring = new Border { Padding = new Thickness(2), CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(2), BorderBrush = on ? Res<Brush>("B.Ink") : Brushes.Transparent, Child = sw };
                 var b = new Button { Style = Res<Style>("Wb.Plain"), Content = ring, Margin = new Thickness(0, 0, 4, 4), IsEnabled = !ro, ToolTip = name };
                 AutomationProperties.SetName(b, label + ": " + name + (on ? ", chosen" : ""));
-                var hx = hex; b.Click += (s, e) => { if (hx != ((design?.Document["appearance"] as JObj)?[key] as string ?? "").ToLowerInvariant()) DesignEdit(() => design.SetAppearance(key, hx)); };
+                var hx = hex; b.Click += (s, e) => { if (hx != ((design?.Document["appearance"] as JObj)?[key] as string ?? "").ToLowerInvariant()) UseColor(label, key, hx); };
                 row.Children.Add(b);
             }
             sp.Children.Add(row);
             var custom = new TextBox { Text = cur, IsReadOnly = ro, Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2, 0, 0) };
             AutomationProperties.SetName(custom, label + ", as #rrggbb");
+            // only a code the person typed here is ever used, and only from a box still on the page: a box left behind when the page was
+            // drawn again for another change (a swatch chosen through UI Automation while the box kept the keyboard focus) never puts its
+            // older code back (before, two such boxes could undo each other's change without end)
+            bool edited = false; custom.TextChanged += (s, e) => edited = true;
             void Commit()
             {
+                if (!edited) return; edited = false;
                 var v = custom.Text.Trim().ToLowerInvariant(); if (v.Length > 0 && v[0] != '#') v = "#" + v;
                 if (v == ((design?.Document["appearance"] as JObj)?[key] as string ?? "").ToLowerInvariant()) return;
-                if (!System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9a-f]{6}$")) { SetDesignProblem("Write a color as # and six letters or digits, for example #e4000f.", null); return; }
-                DesignEdit(() => design.SetAppearance(key, v));
+                var keep = ((design?.Document["appearance"] as JObj)?[key] as string ?? "").ToLowerInvariant();
+                if (!System.Text.RegularExpressions.Regex.IsMatch(v, "^#[0-9a-f]{6}$")) { SetDesignProblem("Write a color as # and six letters or digits, for example #e4000f. The " + label.ToLowerInvariant() + " is still " + ColorName(key, keep) + ".", null); custom.Text = keep; edited = false; return; }
+                if (!UseColor(label, key, v)) { custom.Text = keep; edited = false; }   // what is in the box is always the color in use
             }
             custom.KeyDown += (s, e) => { if (e.Key == Key.Enter) { Commit(); e.Handled = true; } };
-            custom.LostKeyboardFocus += (s, e) => { if (!ro && IsDesignPage()) Dispatcher.BeginInvoke(new Action(() => { if (IsDesignPage()) Commit(); }), DispatcherPriority.Input); };
+            custom.LostKeyboardFocus += (s, e) => { if (!ro && IsDesignPage()) Dispatcher.BeginInvoke(new Action(() => { if (IsDesignPage() && Within(page, custom)) Commit(); }), DispatcherPriority.Input); };
             var cr = new StackPanel { Orientation = Orientation.Horizontal }; cr.Children.Add(new TextBlock { Text = "Or a color code", FontSize = Ty.Small, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 8, 0) }); cr.Children.Add(custom);
             sp.Children.Add(cr);
             return sp;

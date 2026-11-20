@@ -20,10 +20,11 @@
 extern "C" {
 #endif
 
-/* version 2 adds the HOME Designer's render check (tools/console-simulator/core/design_check.h, linked into the host) */
+/* version 2 adds the HOME Designer's render check (tools/console-simulator/core/design_check.h, linked into the host); version 3 adds
+ * home_design_screen (one screen of the HOME as it starts, for the HOME Designer's preview of the screen a change is for) */
 #include "design_check.h"
 
-#define CCS_HOST_ABI_VERSION   2u
+#define CCS_HOST_ABI_VERSION   3u
 #define CCS_HOST_ABI_MAGIC     0x3154534f48534343ull   /* "CCSHOST1" little-endian */
 #define CCS_HOST_ABI_DATA_NAME L"CcsNativeHost.Abi"
 
@@ -112,6 +113,8 @@ typedef struct ccs_host_abi {
     uint32_t home_reserved;
     int32_t (*home_render_check)(const ccs_home_check_request *req, char *report, uint32_t report_cap, uint32_t *report_len);
     int32_t (*home_design_boot)(const char *pack_dir, const char *design_root, const char *state_dir, const char *frame_ppm, char *report, uint32_t report_cap, uint32_t *report_len);
+    /* version 3 (offset 96 with 8-byte pointers; size 104): ccs_home_design_screen, or NULL without the HOME renderer */
+    int32_t (*home_design_screen)(const char *pack_dir, const char *design_root, const char *state_dir, const char *screen, const char *frame_ppm, char *report, uint32_t report_cap, uint32_t *report_len);
 } ccs_host_abi;
 
 /* the exported entry points (also reachable through the table) */

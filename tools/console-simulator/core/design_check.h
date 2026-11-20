@@ -38,4 +38,8 @@ int32_t ccs_home_render_check(const ccs_home_check_request *req, char *report, u
 /* a cold start with the console's design folder (current -> known-good -> defaults): which design came up and its first frame's
    SHA-256, as JSON (schema ccs-home-design-boot/1) */
 int32_t ccs_home_design_boot(const char *pack_dir, const char *design_root, const char *state_dir, const char *frame_ppm, char *report, uint32_t report_cap, uint32_t *report_len);
+/* the same cold start, then one of the render check's screens of the HOME's theme, set up through its own controls ("menu",
+   "details", "notice", ...; NULL or "start": the first screen, as ccs_home_design_boot). The report names the screen; ok false when
+   this HOME has no such screen (an empty folder, say). An unknown screen name: CCS_HOME_CHECK_BAD_REQUEST. */
+int32_t ccs_home_design_screen(const char *pack_dir, const char *design_root, const char *state_dir, const char *screen, const char *frame_ppm, char *report, uint32_t report_cap, uint32_t *report_len);
 #endif
