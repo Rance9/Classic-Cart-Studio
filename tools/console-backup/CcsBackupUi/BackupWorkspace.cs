@@ -698,11 +698,16 @@ namespace CcsBackup.Ui
         Func<string> pageUnsaved;
 
         /// <summary>a page whose work is lost if the window leaves it: leaving the page asks first (Stay on This Page / Leave Without It), and
-        /// the close review lists what as not kept</summary>
-        void LeaveGuard(Func<string> what, string question)
+        /// the close review lists what as not kept. letGo (optional): runs when the window leaves the page (after Leave Without It, or with
+        /// nothing to ask about), for work kept apart from the page itself (HOME Designer's typed text); Stay keeps it.</summary>
+        void LeaveGuard(Func<string> what, string question, Action letGo = null)
         {
             pageUnsaved = what;
-            leaveCheck = () => what() == null || Ask("Leave this page?", question, new[] { "Stay on This Page", "Leave Without It" }, 0, 0) == 1;
+            leaveCheck = () =>
+            {
+                if (what() != null && Ask("Leave this page?", question, new[] { "Stay on This Page", "Leave Without It" }, 0, 0) != 1) return false;
+                letGo?.Invoke(); return true;
+            };
         }
 
         void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -736,6 +741,8 @@ namespace CcsBackup.Ui
             var design = DesignUnsavedName();
             if (design != null) save.Add("Your HOME design “" + design + "”");
             if (pageUnsaved?.Invoke() is string page) lost.Add(page);
+            // HOME Designer's typed text not added yet stays with the open design while another page is open: named here too
+            if (DesignDraftWords() is string typed && !lost.Contains(typed)) lost.Add(typed);
             if (save.Count == 0 && lost.Count == 0) return true;
             int k = Review(save, lost);
             if (k == ReviewDiscard) { discardDesignAtClose = design != null; return true; }
