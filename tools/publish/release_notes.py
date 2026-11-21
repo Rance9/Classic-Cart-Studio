@@ -21,7 +21,7 @@ UTILITY_PREFIX = "CCS-Console-Backup-Restore-Utility-"   # earlier app releases 
 # ClassicCartStudio-Setup-<version>.exe) and CCS Console Workbench (tags workbench-v<version>, file CCS-Console-Workbench-<version>.exe,
 # published with "latest" turned off). GitHub's "latest release" is never trusted to be the right product: each feed lists releases and
 # takes the published, non-draft one (prereleases require explicit opt-in) with the highest version number whose tag AND installer file
-# both belong to that product; a tag in release_streams.EXCLUDED (the superseded workbench-v1.0.0) is never taken.
+# both belong to that product; a tag in release_streams.EXCLUDED is never taken.
 PRODUCTS = {
     "app": {"tag": re.compile(r"^v(\d+\.\d+\.\d+)$"), "asset": re.compile(r"^ClassicCartStudio-Setup-(\d+\.\d+\.\d+)\.exe$", re.I)},
     "workbench": {"tag": re.compile(r"^workbench-v(\d+\.\d+\.\d+)$"), "asset": re.compile(r"^CCS-Console-Workbench-(\d+\.\d+\.\d+)\.exe$", re.I)},

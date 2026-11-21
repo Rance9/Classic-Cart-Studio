@@ -10,7 +10,7 @@ repository-wide "latest" release or a release date to decide what is newest.
 Which releases are listed (build(): pure, offline; the GitHub reading is separate, in release_notes.py):
 - published releases only (drafts never), whose tag names one product with a plain version (N.N.N) and whose main file is that product's,
   of the same version; a release that also carries the other product's main file is refused;
-- never a tag in EXCLUDED (the historical workbench-v1.0.0 preview, superseded by 0.11.0 although its number is larger);
+- never a tag in EXCLUDED (a published release kept available but never offered by an update check; none at present);
 - the channel is the release's own metadata: build-info.json "channel" (the app) or build-record.json "channel" (the Workbench), with its
   "product" and "version" when given matching the release, and agreeing with GitHub's prerelease mark (preview = prerelease). A release
   whose metadata names no channel (every release up to 0.11.3) is preview when GitHub marks it a prerelease, production otherwise: 0.11.0
@@ -38,9 +38,7 @@ PRODUCTS = {
                   "meta": "build-record.json"},
 }
 # published releases that are kept available but never offered by an update check (their numbers may be larger than the current ones)
-EXCLUDED = {
-    "workbench-v1.0.0": "superseded: the first Workbench preview, relabeled 0.11.0 (it was never a production release)",
-}
+EXCLUDED = {}
 
 
 def version(s) -> tuple | None:
