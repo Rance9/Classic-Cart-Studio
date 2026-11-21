@@ -13,13 +13,13 @@ The window opens on its Dashboard (the console's status, Back Up Console, the co
 Console Restore, Console Rescue, Console Composer, Console Browser (Expert Mode inside), Backup Browser, Backup Repair, Developer Mode;
 then Settings (backup locations), Help and About (the illustrated guide) and Credits. In the standalone, the Classic Cart Studio introduction page (its Download button
 opens classiccartstudio.com/app/) is built but its side-column entry is held back until the full app is released
-(`BackupWorkspace.FullAppEntryReleased`). The console strip names the console family (`ConsoleProfile`; one family in this version) and
-says "Console not checked" until an operation's own session identifies a console. Each worker is its own session (`NewSession`): it
+(`BackupWorkspace.FullAppEntryReleased`). The console strip names the console family (`ConsoleProfile`: the NES Classic Mini and the SNES Classic Mini, whose console tasks are
+being built) and says "Console not checked" until an operation's own session identifies a console. Each worker is its own session (`NewSession`): it
 starts unidentified, a console an earlier session identified is shown apart as "Earlier session", and a superseded session's late events
 change nothing. The check-up's Condition is the status the file system records in its header, not a complete check.
 
-The console family is **NES Classic Mini — North America / Europe** (`ConsoleProfile.NesClassicMini`; its saved id stays
-`nes-classic-na`). About This Console (`WorkbenchAbout.cs`) is one modal window from every entry point, with its own draft console choice:
+The console families are **NES Classic Mini — North America / Europe** (`ConsoleProfile.NesClassicMini`; its saved id stays
+`nes-classic-na`) and **SNES Classic Mini — North America / Europe** (`ConsoleProfile.SnesClassicMini`). About This Console (`WorkbenchAbout.cs`) is one modal window from every entry point, with its own draft console choice:
 a different final choice asks once, in one Change console? question (Use Selection / Keep Current / Back to Help, its Use console list
 starting at the draft), on every way of closing it, and Use Selection goes through the one guarded change
 (`ApplyProfile`: refused while a console task or session is open). A family is never a console: it never identifies, relabels or admits one.
