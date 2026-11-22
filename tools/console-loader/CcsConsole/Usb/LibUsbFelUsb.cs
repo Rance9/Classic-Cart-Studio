@@ -1,5 +1,19 @@
-// Classic Cart Studio console engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
-// The open/claim/endpoint logic is upstream FelLib's Fel.Open (e28ddfe), moved here unchanged in substance.
+// Classic Cart Studio console engine: the USB transport of the FEL loader (CcsConsole.Usb.IFelUsb over LibUsbDotNet).
+// Derived in part from FelLib by Team Shinkansen (https://github.com/TeamShinkansen/FelLib), commit
+// e28ddfed0e2dea29279fb37fa379329329fa6cca, file FelLib/Fel.cs: the USB-device opening, configuration, interface claiming and
+// endpoint selection of Fel.Open, and the endpoint reads and writes of its Close, WriteToUSB and ReadFromUSB.
+// Pinned source: https://github.com/TeamShinkansen/FelLib/blob/e28ddfed0e2dea29279fb37fa379329329fa6cca/FelLib/Fel.cs
+// That portion is licensed under the GNU General Public License version 3, the LICENSE of that repository at that commit (the file
+// itself carries no copyright notice); Classic Cart Studio does not change its terms.
+// Changes for Classic Cart Studio, Copyright (C) 2026 Rance9, GPL-3.0-or-later (provenance and change notice added 2026-11-22):
+//   - the device opening and endpoint check implement IFelUsb, so the FEL protocol (FelLib/Fel.cs here) can also run against a
+//     simulated device;
+//   - Open takes the device's VID and PID and, when it fails (no device, unexpected endpoints, a USB error), closes the device and
+//     returns the reason in plain words; the debug output and the endpoints' maximum packet sizes are not kept;
+//   - the board check (VerifyDevice, board 0x00166700) is not part of opening the device: FelLib/Fel.cs here does it after Open;
+//   - Close also releases interface 0 of a whole USB device;
+//   - Write and Read are single transfers with the caller's timeout (the loop over a whole buffer stays in FelLib/Fel.cs here);
+//   - LibUsbDeviceList (the devices LibUsbDotNet can see) is this project's own.
 // LibUsbDotNet 2.2.29 (LGPL-3.0) is the same transport Hakchi2 CE uses; on Windows it reaches the console through the
 // WinUSB driver already installed for the FEL device (libwdi "Nintendo Classic", USB\VID_1F3A&PID_EFE8).
 using LibUsbDotNet;
