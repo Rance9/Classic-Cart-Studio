@@ -1,7 +1,21 @@
-// Classic Cart Studio console engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
-// The sequence is Hakchi2 CE 3.9.3's FEL memboot (Tasks/MembootTasks.cs: WaitForFelOrMembootableShell + MembootFel):
-//   open the FEL device, verify board 0x00166700, run fes1 (DRAM init), write the boot image at 0x47400000 in 64 KiB
-//   FEL_DOWNLOAD chunks, then write u-boot at 0x47000000 with bootcmd="boota 47400000" and run it. Nothing else is sent.
+// Classic Cart Studio console engine: the RAM boot (a validated RAM image sent to a console in FEL mode and started there).
+// This project's RAM-boot orchestration, derived from the FEL memboot sequence of Hakchi2 CE 3.9.3 by Team Shinkansen
+// (https://github.com/TeamShinkansen/Hakchi2-CE), commit 25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc, file Tasks/MembootTasks.cs,
+// WaitForFelOrMembootableShell and MembootFel: open the FEL device, verify board 0x00166700, run fes1 (DRAM init), write the boot
+// image at 0x47400000 in 65,536-byte FEL_DOWNLOAD chunks, then write u-boot at 0x47000000 with bootcmd="boota 47400000" and run it.
+// Pinned source: https://github.com/TeamShinkansen/Hakchi2-CE/blob/25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc/Tasks/MembootTasks.cs
+// That sequence is licensed under the GNU General Public License version 3, the LICENSE of that repository at that commit (the file
+// itself carries no copyright notice); Classic Cart Studio does not change its terms.
+// Changes for Classic Cart Studio, Copyright (C) 2026 Rance9, GPL-3.0-or-later (provenance and change notice added 2026-11-22):
+//   - the sequence runs in this project's own RamBootLoader, outside Hakchi2 CE's task and window framework: the USB device list
+//     and the transport are given to it, it reports named stages and progress, and it never throws (a failure comes back in
+//     RamBootResult with the stage it stopped at);
+//   - the console is found only by its FEL identity (USB 1F3A:EFE8) and exactly one such device must be connected; there is no
+//     waiting window and no shell path (WaitForFelOrMembootableShell's shell and SD-card checks are not used);
+//   - fes1, u-boot and the boot image come from a RAM image already validated by RamImage.Load, instead of Hakchi2 CE's resources
+//     and hakchi package; MembootFel's kernel-size adjustment and its kernel command-line edit are not done here;
+//   - the boot command is fixed (RamImage.BootCommand), and the result says that sending it does not prove the console booted.
+// Nothing else is sent.
 using CcsConsole.Usb;
 using FelLib;
 using System;
