@@ -14,7 +14,7 @@ Which releases are listed (build(): pure, offline; the GitHub reading is separat
 - the channel is the release's own metadata: build-info.json "channel" (the app) or build-record.json "channel" (the Workbench), with its
   "product" and "version" when given matching the release, and agreeing with GitHub's prerelease mark (preview = prerelease). A release
   whose metadata names no channel (every release up to 0.11.3) is preview when GitHub marks it a prerelease, production otherwise: 0.11.0
-  to 0.11.3 of both products are previews, v0.10.1 is the app's newest production release;
+  to 0.11.3 of both products are previews; every published release of both products is now a prerelease, so both production streams are empty;
 - each stream is ordered newest first by numeric version (0.11.10 is newer than 0.11.9).
 App entries carry their Studio bundle when the build information names one (bundle.workbench version, channel and files, and the engine
 source): an app release is the one installable unit for Studio users; a Workbench entry is never a Studio update.
