@@ -8,7 +8,7 @@
 // Classic Cart Studio window (an open one is left as it is: not brought forward, not used), no HOME, nothing added to the Game Library or a
 // collection. The file is read as it is at that moment, every time (a file rebuilt under the same name runs its new bytes) and is never
 // written, moved or held open. The game's saves and its game and controller settings are the ones every way of playing that game uses (by
-// its content), in the app's data folder (NES_STUDIO_DATA when set). The command waits until the player window closes and then exits with:
+// its content), in the app's data folder (CCS_STUDIO_DATA when set). The command waits until the player window closes and then exits with:
 //   0  the player closed normally (also at its start choice) 3  the file cannot be played (not there, not readable, not an NES game file)
 //   1  the player ended with an error                        4  a game is already open in the player (it is left as it is)
 //   2  the command was not used as above                     5  the player could not start (a missing or damaged installation)
@@ -51,7 +51,7 @@ namespace ClassicCartStudio
             { psi.FileName = "python"; psi.Arguments = "-u \"" + Path.Combine(src, "companion_app.py") + "\" --play-file \"" + file + "\""; psi.WorkingDirectory = src; }
             else return Fail(StartProblem, "A program file of Classic Cart Studio is missing. Reinstall Classic Cart Studio; your collections are kept.", quiet);
             psi.Environment["CCS_HOST_PID"] = Process.GetCurrentProcess().Id.ToString();   // the player closes when this command is ended
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NES_STUDIO_DATA"))) psi.Environment["NES_STUDIO_DATA"] = App.DataRoot;   // as a full path
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CCS_STUDIO_DATA"))) psi.Environment["CCS_STUDIO_DATA"] = App.DataRoot;   // as a full path
             psi.Environment.Remove("CCS_HOST_TOKEN");
             App.Log("play file: " + Path.GetFileName(file));
             string line = null;
@@ -72,11 +72,15 @@ namespace ClassicCartStudio
             catch (Exception e) { return Fail(StartProblem, "The game player could not start (" + e.Message + ").", quiet); }
         }
 
+        /// <summary>the command refused before it starts (exit code 2): nothing runs, and nothing is written (not even the log: the data folder
+        /// is not known)</summary>
+        public static int Refuse(string[] args, string message) => Fail(Usage, message, Array.IndexOf(args, "--quiet") >= 0, false);
+
         static string Unescape(string s) => Regex.Unescape(s);
 
-        static int Fail(int code, string message, bool quiet)
+        static int Fail(int code, string message, bool quiet, bool log = true)
         {
-            App.Log("play file: " + message);
+            if (log) App.Log("play file: " + message);
             if (AttachConsole(-1)) { try { using (var e = new StreamWriter(Console.OpenStandardError())) e.WriteLine("Classic Cart Studio: " + message); } catch (Exception) { } }
             if (!quiet) MessageBox.Show(message, Program.ProductName, MessageBoxButton.OK, code == Busy ? MessageBoxImage.Information : MessageBoxImage.Warning);
             return code;

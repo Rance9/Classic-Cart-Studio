@@ -136,7 +136,7 @@ def play_file(path: str) -> tuple[int, str]:
     """(exit code, message): the game file at path, as it is now, in the game player by itself: no HOME, no library or collection, nothing
     added anywhere. Its bytes are read once, now, and kept for the player in this run's own folder, so the file itself is never written, moved
     or held open; its saves and its game and controller settings are the ones every way of playing that game uses (by its content, in this
-    app's data folder, NES_STUDIO_DATA when set). The run's folders are removed when the player has closed."""
+    app's data folder, CCS_STUDIO_DATA when set). The run's folders are removed when the player has closed."""
     import ccs_package as cp, personal as ps
     p = os.path.abspath(path)
     if not os.path.isfile(p): return PLAY_FILE, f"There is no game file at {p}."

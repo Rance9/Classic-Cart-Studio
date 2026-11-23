@@ -8,7 +8,7 @@ Checks: everything the installed application needs is inside the release folder 
 CE 3.9.3 package with its console tools and USB driver (recorded size and SHA-256, required components inside), both native binaries
 in _internal\native (ELF 32-bit ARM, statically linked; a Windows PE executable), the bundled site, fonts, helper scripts and
 notices, the website's Store left out (no site\store folder, no Amazon link in any bundled .html/.json/.js file), and the installation's file list (bundle-manifest.json: every listed file present and matching its SHA-256);
-then, in a child process whose only inputs are the release folder (NES_STUDIO_SITE and CCS_NATIVE_HOME_RUNTIME point into it, the
+then, in a child process whose only inputs are the release folder (CCS_STUDIO_SITE and CCS_NATIVE_HOME_RUNTIME point into it, the
 development build folder is pointed at an empty place), a deployment package of all 30 factory games and four added ones with all four themes is built (every factory cover
 authentic, from the catalog art in the release site, Excitebike by name): ready, no
 blockers, the packaged runtime byte-identical to the release's; finally the release's Windows renderer loads that package."""
@@ -83,8 +83,8 @@ def main(dist: str) -> int:
     ok("method_package_sources_bundled", os.path.isfile(os.path.join(internal, "console-nucleus", "build_packages.py")) and os.path.isfile(os.path.join(internal, "console-nucleus", "console", "lib.sh")))   # ccs_install builds CCS Mod / CCS Nucleus from them
     if all(c[1] for c in checks):
         tmp = tempfile.mkdtemp(prefix="ccs-release-layout-")
-        env = dict(os.environ, NES_STUDIO_SITE=site, CCS_NATIVE_HOME_RUNTIME=rt, CCS_SIM_BUILD_WIN=os.path.join(tmp, "no-dev-build"), NES_STUDIO_DATA=os.path.join(tmp, "data"),
-                   NES_PERSONAL_DIR=os.path.join(tmp, "data", "personal"), CCS_T_HERE=HERE, CCS_T_TMP=tmp, PYTHONIOENCODING="utf-8")
+        env = dict(os.environ, CCS_STUDIO_SITE=site, CCS_NATIVE_HOME_RUNTIME=rt, CCS_SIM_BUILD_WIN=os.path.join(tmp, "no-dev-build"), CCS_STUDIO_DATA=os.path.join(tmp, "data"),
+                   CCS_PERSONAL_DIR=os.path.join(tmp, "data", "personal"), CCS_T_HERE=HERE, CCS_T_TMP=tmp, PYTHONIOENCODING="utf-8")
         r = subprocess.run([sys.executable, "-W", "ignore", "-c", CHILD], env=env, capture_output=True, text=True, timeout=1800)
         try: res = json.loads(r.stdout.strip().splitlines()[-1])
         except Exception: res = {"ok": False, "error": (r.stdout + r.stderr)[-800:]}

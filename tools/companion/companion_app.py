@@ -5,12 +5,11 @@ A small status window plus the loopback server from nes_companion.py (same code 
   * starts the server on 127.0.0.1:8765 (refuses to start when another program holds the port; if the other program IS this
     companion, the new instance just hands over and exits — single instance),
   * shows status and buttons to open the Studio on this computer or the public website,
-  * handles a legacy nesstudio:// link by opening the website,
   * writes a short log to <data>\\logs\\companion.log (no tokens).
 Closing the window stops the companion; nothing keeps running in the background. It never touches the console.
 """
 from __future__ import annotations
-import os, sys, json, threading, time, webbrowser, urllib.request, urllib.parse, logging, logging.handlers
+import os, sys, json, threading, time, webbrowser, urllib.request, logging, logging.handlers
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline"))
 from common import DATA_ROOT, SITE_ROOT, FROZEN
 import nes_companion as nc
@@ -35,14 +34,6 @@ def other_instance(port: int) -> dict | None:
         return {"ours": j.get("app") == APP_ID, "version": j.get("version")}
     except urllib.error.HTTPError as e: return {"ours": False, "version": None, "http": e.code}
     except Exception: return None
-
-def handle_protocol_arg(argv: list[str]) -> str | None:
-    """nesstudio://... -> the website (the Windows app handles classiccartstudio:// and nesstudio:// links itself)."""
-    for a in argv:
-        if a.lower().startswith("nesstudio:"):
-            u = urllib.parse.urlparse(a); q = dict(urllib.parse.parse_qsl(u.query))
-            return SITE_URL
-    return None
 
 class App:
     def __init__(self, port: int):
@@ -115,7 +106,7 @@ def play_file_main(argv: list[str]) -> int:
 def main():
     os.makedirs(DATA_ROOT, exist_ok=True); setup_logging()
     if "--play-file" in sys.argv[1:]: sys.exit(play_file_main(sys.argv[1:]))   # before anything else: no server, no window
-    port = int(nc.CFG.get("port", DEFAULT_PORT)); link = handle_protocol_arg(sys.argv[1:])
+    port = int(nc.CFG.get("port", DEFAULT_PORT))
     if "--console-worker" in sys.argv[1:]:   # the console engine worker (simulation tier): line protocol on stdin/stdout, no window, no network
         import io
         # The protocol runs on the pipes the parent provides, whatever the process's own std streams are: a windowed frozen
@@ -135,9 +126,8 @@ def main():
             except Exception: pass
         sys.exit(run_headless(port))
     other = other_instance(port)
-    if other and other["ours"]:   # already running: hand over the link (or just show the website) and exit
-        LOG.info("another instance is running (version %s); handing over", other["version"]); webbrowser.open(link or SITE_URL); return
-    if link: threading.Timer(1.5, lambda: webbrowser.open(link)).start()
+    if other and other["ours"]:   # already running: show the website and exit
+        LOG.info("another instance is running (version %s); handing over", other["version"]); webbrowser.open(SITE_URL); return
     App(port).run()
 
 if __name__ == "__main__":

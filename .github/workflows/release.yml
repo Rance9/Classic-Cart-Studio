@@ -267,7 +267,7 @@ jobs:
           exit 0
       - name: Freeze the companion (PyInstaller, one-folder; bundles every required component and fails without one)
         env:
-          NES_SITE_DIR: ${{ github.workspace }}\build\site
+          CCS_SITE_DIR: ${{ github.workspace }}\build\site
           CCS_NATIVE_HOME_RUNTIME: ${{ github.workspace }}\build\native\arm-musl-device\ccs-home-armv7
           CCS_NATIVE_PREVIEW_CORE: ${{ github.workspace }}\build\native\windows-x86_64\ccs-sim-core.exe
           CCS_REQUIRE_NATIVE: "1"
@@ -277,7 +277,7 @@ jobs:
         run: python tools/companion/test_release_layout.py build/dist/ClassicCartStudioBackend
       - name: Artwork consistency (every game shows the same cover in the Game Library, Preview on TV and the console package; drawn by the native renderer)
         env:
-          NES_STUDIO_SITE: ${{ github.workspace }}\build\site
+          CCS_STUDIO_SITE: ${{ github.workspace }}\build\site
           CCS_NATIVE_PREVIEW_CORE: ${{ github.workspace }}\build\native\windows-x86_64\ccs-sim-core.exe
         run: python tools/companion/test_artwork_consistency.py
       - name: Build Classic Cart Studio for Windows (WPF + WebView2 host, .NET Framework 4.8)
@@ -308,7 +308,7 @@ jobs:
       - name: Self-test the desktop host against the frozen backend (starts it, desktop channel, stops it)
         shell: pwsh
         run: |
-          $env:NES_STUDIO_DATA = Join-Path $env:RUNNER_TEMP "ccs-selftest"
+          $env:CCS_STUDIO_DATA = Join-Path $env:RUNNER_TEMP "ccs-selftest"
           & build/dist/ClassicCartStudioBackend/ClassicCartStudio.exe --selftest | Tee-Object -Variable out
           if ($LASTEXITCODE -ne 0) { throw "desktop self-test failed" }
       - name: Setup's WebView2 Runtime check starts from Setup's own few files (only the files installer.iss extracts for it; its simulated absence, so nothing is installed or started)

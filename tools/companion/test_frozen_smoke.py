@@ -14,7 +14,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("exe"); ap.add_argument("--port", type=int, default=8794); a = ap.parse_args(); a.exe = os.path.abspath(a.exe)
     data = os.path.join(tempfile.gettempdir(), "nes-frozen-smoke"); shutil.rmtree(data, ignore_errors=True); os.makedirs(data)
     json.dump({"port": a.port}, open(os.path.join(data, "companion.json"), "w"))
-    env = dict(os.environ, NES_STUDIO_DATA=data); checks = []; ok = lambda k, v, n="": checks.append(f"{k}={'true' if v else 'false'}{(' ('+n+')') if n and not v else ''}")
+    env = dict(os.environ, CCS_STUDIO_DATA=data); checks = []; ok = lambda k, v, n="": checks.append(f"{k}={'true' if v else 'false'}{(' ('+n+')') if n and not v else ''}")
     p = subprocess.Popen([a.exe], env=env, cwd=os.path.dirname(a.exe)); B = f"http://127.0.0.1:{a.port}"
     try:
         up = False

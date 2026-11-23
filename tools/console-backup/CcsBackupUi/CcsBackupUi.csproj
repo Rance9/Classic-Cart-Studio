@@ -21,7 +21,7 @@
     <Reference Include="System.Web.Extensions" />
     <Page Include="..\..\desktop\ClassicCartStudio\Theme.xaml" Link="Theme.xaml" />
     <Resource Include="..\..\publish\assets\brand-wordmark.png" Link="brand-wordmark.png" />
-    <Resource Include="..\..\publish\assets\app.ico" Link="app.ico" />
+    <Resource Include="..\..\publish\assets\workbench.ico" Link="workbench.ico" />
     <EmbeddedResource Include="..\NOTICE" Link="NOTICE" LogicalName="NOTICE" />
     <!-- Credits: Classic Cart Studio's approved Credits, read from its own Help (WorkbenchCredits.cs); never a second copy -->
     <EmbeddedResource Include="..\..\rom-pipeline\studio\guide.html" Link="credits\guide.html" LogicalName="credits/guide.html" />

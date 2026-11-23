@@ -10,7 +10,7 @@ from __future__ import annotations
 import io, json, os, shutil, subprocess, sys, tempfile, threading, time, unittest
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline"))
 import console_test_guard   # noqa: E402,F401  (first: the controlled console boundary, k3e)
-_T = tempfile.mkdtemp(prefix="ccs-dispatch-"); os.environ["NES_STUDIO_DATA"] = _T   # console_runs' folder: never real app data
+_T = tempfile.mkdtemp(prefix="ccs-dispatch-"); os.environ["CCS_STUDIO_DATA"] = _T   # console_runs' folder: never real app data
 import console_runs, console_home, console_confirm as CC   # noqa: E402
 from console_engine import gate, ccs_install as CI   # noqa: E402
 from console_engine.worker import Worker, read_home_records   # noqa: E402

@@ -1,7 +1,7 @@
 r"""ClassicCartStudio.exe --play FILE (tools/desktop/ClassicCartStudio/PlayFile.cs, companion_app.py --play-file, play.play_file): the built
 launcher started for real, with its backend (the installed ClassicCartStudioBackend.exe beside it, or, for a launcher built in a checkout,
 this source through CCS_DEV/CCS_BACKEND_SOURCE) and the game player given here. A synthetic original game file (an iNES file made here, not
-a real game, at a path with spaces and letters outside ASCII); a new data folder (NES_STUDIO_DATA); no console, no network.
+a real game, at a path with spaces and letters outside ASCII); a new data folder (CCS_STUDIO_DATA); no console, no network.
   play        only the game player's window opens (no Classic Cart Studio window), in direct mode (no HOME), running a copy this run owns of the
               file's current bytes; its saves are the content's own saves in the data folder; closing the window ends the command with 0; the
               file is unchanged, nothing is added to the library or a collection, and the run's folders are gone
@@ -28,9 +28,9 @@ def game(seed: str) -> bytes:   # an iNES file made here: 32 KB of program and 8
     return bytes([0x4E, 0x45, 0x53, 0x1A, 2, 1, 0, 0]) + bytes(8) + bytes(body)
 T = tempfile.mkdtemp(prefix="ccs-playfile-"); DATA = os.path.join(T, "data")
 FOLDER = os.path.join(T, "play test", "Ünïcödé gämes ✓"); os.makedirs(FOLDER); ROM = os.path.join(FOLDER, "Test Game.nes")
-ENV = dict(os.environ, NES_STUDIO_DATA=DATA, CCS_PLAYER_EXE=A.player, CCS_PLAYER_FONTS=A.fonts, CCS_DEV="1", CCS_BACKEND_SOURCE=HERE, NES_WORK=os.path.join(T, "work"),
+ENV = dict(os.environ, CCS_STUDIO_DATA=DATA, CCS_PLAYER_EXE=A.player, CCS_PLAYER_FONTS=A.fonts, CCS_DEV="1", CCS_BACKEND_SOURCE=HERE, CCS_WORK=os.path.join(T, "work"),
            PATH=os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", ""))
-if A.site: ENV["NES_STUDIO_SITE"] = A.site
+if A.site: ENV["CCS_STUDIO_SITE"] = A.site
 ENV.pop("CCS_HOST_TOKEN", None)
 INSTALLED = os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(A.launcher)), "ClassicCartStudioBackend.exe"))   # the launcher's own backend beside it
 if INSTALLED: ENV.pop("CCS_DEV", None); ENV.pop("CCS_BACKEND_SOURCE", None)

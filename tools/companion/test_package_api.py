@@ -15,7 +15,7 @@ from __future__ import annotations
 import io, json, os, secrets, shutil, subprocess, sys, tempfile, time, urllib.error, urllib.request, zipfile
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
 TMP = tempfile.mkdtemp(prefix="ccs-api-")
-os.environ["NES_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["NES_STUDIO_DATA"] = os.path.join(TMP, "studio-data")
+os.environ["CCS_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["CCS_STUDIO_DATA"] = os.path.join(TMP, "studio-data")
 import ccs_package as cp, package_api as pk
 from test_ccs_package import make_rom, collection, craft, NoNetwork
 
@@ -117,10 +117,10 @@ def main():
 
 def http_checks(ok, package_path):
     from version import SITE_ORIGINS
-    port = int(os.environ.get("NES_TEST_PORT", "8796")); B = f"http://127.0.0.1:{port}"; site = SITE_ORIGINS[0]; work = os.path.join(TMP, "http")
+    port = int(os.environ.get("CCS_TEST_PORT", "8796")); B = f"http://127.0.0.1:{port}"; site = SITE_ORIGINS[0]; work = os.path.join(TMP, "http")
     os.makedirs(work); token = secrets.token_hex(32)
     cfgp = os.path.join(work, "companion.json"); json.dump({"hakchi_exe": os.path.join(work, "no-hakchi", "hakchi.exe"), "hakchi_args": ["/portable"], "exports_dir": os.path.join(work, "e"), "staging_dir": os.path.join(work, "s"), "port": port, "no_launch": True}, open(cfgp, "w"))
-    env = dict(os.environ, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=os.path.join(work, "personal"), NES_STUDIO_DATA=work, CCS_HOST_TOKEN=token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8")
+    env = dict(os.environ, CCS_COMPANION_CONFIG=cfgp, CCS_PERSONAL_DIR=os.path.join(work, "personal"), CCS_STUDIO_DATA=work, CCS_HOST_TOKEN=token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8")
     log = open(os.path.join(work, "companion.log"), "w", encoding="utf-8")
     proc = subprocess.Popen([sys.executable, "-u", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(port)], env=env, stdout=log, stderr=subprocess.STDOUT)
     def req(method, path, body=None, headers=None, raw=None):

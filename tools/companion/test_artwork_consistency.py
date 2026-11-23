@@ -20,7 +20,7 @@ The rule (one contract for the Game Library, the Preview on TV sample, the TV Pr
              against the same package with a generated cover in its place)
 
   python test_artwork_consistency.py [--report out.json] [--frames DIR] [--no-render]      Exit 0 = PASS.
-  The site comes from NES_STUDIO_SITE (the release build's site) or the development checkout; the native core from
+  The site comes from CCS_STUDIO_SITE (the release build's site) or the development checkout; the native core from
   CCS_NATIVE_PREVIEW_CORE or the development build."""
 from __future__ import annotations
 import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile, threading, queue, time
@@ -211,7 +211,7 @@ def alias_checks(root: str):
     site = os.path.join(root, "alias-site"); os.makedirs(os.path.join(site, "art")); keep = "art/0000000000000000.jpg"
     shutil.copyfile(src, os.path.join(site, *keep.split("/"))); json.dump({"aliases": {rel: keep}}, open(os.path.join(site, "art", "aliases.json"), "w"))
     empty = os.path.join(root, "empty"); os.makedirs(empty)
-    env = dict(os.environ, NES_STUDIO_SITE=site, NES_STUDIO_DATA=empty, T_HERE=HERE, T_EMPTY=empty, T_REL=rel)
+    env = dict(os.environ, CCS_STUDIO_SITE=site, CCS_STUDIO_DATA=empty, T_HERE=HERE, T_EMPTY=empty, T_REL=rel)
     r = subprocess.run([sys.executable, "-W", "ignore", "-c", ALIAS_CHILD], env=env, capture_output=True, text=True, timeout=120)
     try: res = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception: res = {"error": (r.stdout + r.stderr)[-400:]}

@@ -19,7 +19,7 @@ from common import PROJECT, REPORTS, DB_PATH, detect_format, SITE_ROOT, DATA_ROO
 from catalog import compat
 import hakchi_inspect as hi
 
-PERSONAL_DIR = os.environ.get("NES_PERSONAL_DIR") or data_path("personal"); FILES_DIR = os.path.join(PERSONAL_DIR, "files"); ART_DIR = os.path.join(PERSONAL_DIR, "art"); INDEX = os.path.join(PERSONAL_DIR, "index.json")
+PERSONAL_DIR = os.environ.get("CCS_PERSONAL_DIR") or data_path("personal"); FILES_DIR = os.path.join(PERSONAL_DIR, "files"); ART_DIR = os.path.join(PERSONAL_DIR, "art"); INDEX = os.path.join(PERSONAL_DIR, "index.json")
 LIB_FILES_DIR = os.path.join(PERSONAL_DIR, "library"); LIB_STORE = os.path.join(PERSONAL_DIR, "library-store.json")   # managed copies of files whose bytes are known versions
 ROM_EXT = (".nes", ".unh", ".unif", ".bin", ".rom", ".fds"); INCOMING = os.path.join(PERSONAL_DIR, "incoming")   # files being copied in
 MAX_RATIO = 400                  # per ZIP member: refuses decompression bombs (the rule .ccs packages use); not a size limit

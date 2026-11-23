@@ -70,7 +70,7 @@ namespace ClassicCartStudio
             }
             else { LastError = "A program file of Classic Cart Studio is missing. Reinstall Classic Cart Studio; your collections are kept."; App.Log(LastError); return false; }
             psi.Environment["CCS_HOST_TOKEN"] = Token;
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NES_STUDIO_DATA"))) psi.Environment["NES_STUDIO_DATA"] = App.DataRoot;   // the window's own data folder, as a full path
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CCS_STUDIO_DATA"))) psi.Environment["CCS_STUDIO_DATA"] = App.DataRoot;   // the window's own data folder, as a full path
             psi.Environment["CCS_HOST_PID"] = Process.GetCurrentProcess().Id.ToString();
             // HOME Designer's one compiler for the package builder: the installed CCS Console Workbench's --design-compile (design_compile.py)
             if (File.Exists(WorkbenchLauncher.ExePath)) psi.Environment["CCS_DESIGN_COMPILER"] = WorkbenchLauncher.ExePath;

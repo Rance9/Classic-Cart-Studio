@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from common import REPORTS, DB_PATH, SITE_ROOT, DATA_ROOT, site_path, data_path
 from catalog import KACHI_CMD, RA_CMD
 
-PERSONAL_INDEX = os.path.join(os.environ.get("NES_PERSONAL_DIR") or data_path("personal"), "index.json")   # tests isolate the personal store through NES_PERSONAL_DIR
-LIBRARY_STORE = os.path.join(os.environ.get("NES_PERSONAL_DIR") or data_path("personal"), "library-store.json")   # managed copies of imported files whose bytes are known versions
+PERSONAL_INDEX = os.path.join(os.environ.get("CCS_PERSONAL_DIR") or data_path("personal"), "index.json")   # tests isolate the personal store through CCS_PERSONAL_DIR
+LIBRARY_STORE = os.path.join(os.environ.get("CCS_PERSONAL_DIR") or data_path("personal"), "library-store.json")   # managed copies of imported files whose bytes are known versions
 
 @functools.lru_cache(maxsize=1)
 def _library():

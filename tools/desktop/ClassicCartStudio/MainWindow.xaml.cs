@@ -1,6 +1,6 @@
 // The one application window: custom dark title bar (App tools, caption buttons with Snap Layouts), WebView2 showing the live
 // Studio website, a branded loading state, the recovery screen when the website cannot load, the desktop token injection for the
-// approved origin only, navigation filtering (anything else opens in the user's browser) and the nesstudio:// link handling.
+// approved origin only, navigation filtering (anything else opens in the user's browser) and the classiccartstudio:// link handling.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -24,9 +24,12 @@ namespace ClassicCartStudio
         readonly Settings settings = Settings.Load();
         readonly string[] startupArgs;
         bool coreReady, backendStarting, closing, recoveryShown, firstPageShown;
-        // the interface is served by this window's own backend: while another program (another Classic Cart Studio window, with another data
-        // folder) holds its port, that program's page is never loaded here; the window waits on its recovery screen for its own backend
-        bool portHeld;
+        // The interface is served by this window's own backend. A page from the backend's address is loaded only while that is this window's
+        // own backend: the process this window started (with its data folder), still running, ready and accepting this window's own token
+        // (OwnBackendRunning). A program that merely answers on that port (another Classic Cart Studio window with another data folder, or
+        // anything else) is never trusted: the window stays on its recovery screen until its own backend runs, then loads its page. Every way
+        // to the page goes through LoadInterface (startup, Reload, Try Again, the backend starting) and the navigation check refuses the rest.
+        bool waitingForOwnBackend;
         string pendingLink; bool pendingUpdateCheck;
         readonly System.Collections.Generic.List<string[]> pendingActions = new System.Collections.Generic.List<string[]>();   // [kind, value] for the page: share, package, file
         int devtoolsPort;
@@ -135,7 +138,7 @@ namespace ClassicCartStudio
         }
 
         // menu actions
-        void Menu_Reload(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; Navigate(); }
+        void Menu_Reload(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; LoadInterface("reload", true); }
         void Menu_OpenSite(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.OpenExternal(App.WebsiteUrl); }
         void Menu_DataFolder(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; try { Directory.CreateDirectory(App.DataRoot); Process.Start(new ProcessStartInfo("explorer.exe", "\"" + App.DataRoot + "\"") { UseShellExecute = true }); } catch { } }
         void Menu_Diagnostics(object s, RoutedEventArgs e) { menuPopup.IsOpen = false; App.Log("menu: diagnostics"); ShowDiagnostics(); }
@@ -221,8 +224,7 @@ namespace ClassicCartStudio
                 await core.AddScriptToExecuteOnDocumentCreatedAsync(DesktopBootstrapScript(backend.Ready));
                 SetLoading("Loading Classic Cart Studio…");
                 await Task.Delay(120);   // let the status text paint once before the site navigation replaces the page
-                if (siteOnBackend && !backend.Ready && backend.ForeignOnPort) { portHeld = true; App.Log("port held by another program: its page is not loaded"); ShowRecovery("Classic Cart Studio Cannot Start Yet", backend.LastError, ""); }
-                else Navigate();
+                LoadInterface("start", false);
             }
             catch (WebView2RuntimeNotFoundException e) { App.Log("webview init: runtime not found: " + e); RuntimeMissing(new Runtime.Found { Detail = Runtime.Describe(e) }); }
             catch (Exception e)
@@ -263,7 +265,7 @@ namespace ClassicCartStudio
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     if (!ok) ShowBackendProblem();
-                    else if (portHeld) { portHeld = false; Navigate(); }   // its own backend at last: its own page
+                    else if (waitingForOwnBackend) LoadInterface("its own backend started", false);   // its own backend at last: its own page
                     else if (coreReady && web.CoreWebView2 != null) { _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsBackendReady && window.__ccsBackendReady()"); DeliverPendingLink(); }
                     if (ok) _ = Task.Run(async () => { await Task.Delay(1500); try { Dispatcher.BeginInvoke(new Action(() => { if (web.CoreWebView2 != null) _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsBackendReady && window.__ccsBackendReady()"); })); } catch { } });
                 }));
@@ -279,7 +281,26 @@ namespace ClassicCartStudio
             if (retry) _ = Task.Run(() => StartBackend());
         }
 
-        void Navigate()
+        /// <summary>the page comes from this window's backend's address (the installed app; a workspace build may serve it elsewhere)</summary>
+        bool SiteOnBackend => IsBackendOrigin(App.OriginOf(App.StartUrl));
+        bool IsBackendOrigin(string origin) => string.Equals(origin, backend.Base, StringComparison.OrdinalIgnoreCase) || string.Equals(origin, "http://localhost:" + backend.Port, StringComparison.OrdinalIgnoreCase);
+        /// <summary>this window's own backend runs at its address: the process it started is alive and became ready by accepting this window's
+        /// own token (Backend.Start); while that process runs, no other program can hold the port</summary>
+        bool OwnBackendRunning => backend.Ready && backend.Process != null && !backend.Process.HasExited;
+
+        /// <summary>the one way to the interface: loaded only once this window's own backend is confirmed again (alive, and answering this window's
+        /// own token now); otherwise the recovery screen stays, and the page loads when its own backend has started</summary>
+        async void LoadInterface(string why, bool startBackend)
+        {
+            if (!coreReady) return;
+            var own = !SiteOnBackend || (OwnBackendRunning && await Task.Run(() => { var v = backend.Version(); return v != null && v.Value.Key && OwnBackendRunning; }));
+            if (own) { waitingForOwnBackend = false; Navigate(); return; }
+            waitingForOwnBackend = true; App.Log(why + ": this window's own backend is not running at its address; its page is not loaded");
+            ShowRecovery("Classic Cart Studio Cannot Start Yet", backend.ForeignOnPort ? backend.LastError : "Classic Cart Studio's background helper for this window is not running. Choose Try Again.", "");
+            if (startBackend && !backendStarting) _ = Task.Run(() => StartBackend());
+        }
+
+        void Navigate()   // only from LoadInterface, after the check
         {
             if (!coreReady) return; recoveryShown = false; loadingPage = false;
             try { web.CoreWebView2.Navigate(App.StartUrl); } catch (Exception e) { App.Log("navigate failed: " + e.Message); }
@@ -298,6 +319,11 @@ namespace ClassicCartStudio
         {
             var url = e.Uri ?? ""; var origin = App.OriginOf(url);
             if (url.StartsWith("about:") || url.StartsWith("data:")) return;
+            if (IsBackendOrigin(origin) && !OwnBackendRunning)   // a reload, a key, a link or the page itself: never a page this window's own backend does not serve
+            {
+                e.Cancel = true; lastBlocked = DateTime.Now; App.Log("refused a page from " + origin + ": this window's own backend is not running there");
+                Dispatcher.BeginInvoke(new Action(() => LoadInterface("navigation", false))); return;
+            }
             if (App.IsApprovedOrigin(origin) && !IsShortLink(url)) return;
             e.Cancel = true; lastBlocked = DateTime.Now; App.Log("blocked navigation to " + (App.IsApprovedOrigin(origin) ? url : origin) + " (opened externally)"); App.OpenExternal(url);
         }
@@ -366,7 +392,7 @@ namespace ClassicCartStudio
             string cmd = ""; try { var m = Regex.Match(e.WebMessageAsJson ?? "", "\"cmd\"\\s*:\\s*\"([a-z]+)\""); if (m.Success) cmd = m.Groups[1].Value; } catch { }
             switch (cmd)
             {
-                case "retry": if (portHeld) { if (!backendStarting) _ = Task.Run(() => StartBackend()); break; } Navigate(); if (!backend.Ready && !backendStarting) _ = Task.Run(() => StartBackend()); break;
+                case "retry": LoadInterface("try again", true); break;
                 case "network": try { Process.Start(new ProcessStartInfo("ms-settings:network-status") { UseShellExecute = true }); } catch { } break;
                 case "diagnostics": ShowDiagnostics(); break;
                 case "exit": Close(); break;
@@ -406,7 +432,7 @@ namespace ClassicCartStudio
         //   <path>.ccs                                    a collection package opened from File Explorer (double-click, Open With)
         //   --check-updates                               the update check, as Check for Updates (CCS Console Workbench started from this
         //                                                 installation asks for it: Update Classic Cart Studio…)
-        // nesstudio:// (earlier releases) is accepted the same way. Every value is validated; nothing in a link is ever run as a command.
+        // No other link type is accepted. Every value is validated; nothing in a link is ever run as a command.
         public void OnActivatedFromAnotherInstance(string payload)
         {
             App.Log("activated by another instance"); BringToFrontNow();
@@ -425,7 +451,7 @@ namespace ClassicCartStudio
                 else App.Log("package file not found");
                 return;
             }
-            var m = Regex.Match(arg, @"^(?:classiccartstudio|nesstudio)://([a-z]+)(?:/([A-Za-z0-9]{6,32}))?/?(?:\?(?:.*&)?(?:offer|id)=([A-Za-z0-9_-]{8,64}))?(?:&.*)?$", RegexOptions.IgnoreCase);
+            var m = Regex.Match(arg, @"^classiccartstudio://([a-z]+)(?:/([A-Za-z0-9]{6,32}))?/?(?:\?(?:.*&)?(?:offer|id)=([A-Za-z0-9_-]{8,64}))?(?:&.*)?$", RegexOptions.IgnoreCase);
             if (!m.Success) { if (arg.IndexOf("://", StringComparison.Ordinal) > 0) { var safe = Regex.Replace(arg, "[^A-Za-z0-9:/?=&._-]", ""); App.Log("link ignored: " + safe.Substring(0, Math.Min(80, safe.Length))); } return; }
             var verb = m.Groups[1].Value.ToLowerInvariant(); var path = m.Groups[2].Value; var q = m.Groups[3].Value;
             if (verb == "handoff" && q.Length > 0) { pendingLink = q; App.Log("handoff link for offer " + q); DeliverPendingLink(); return; }

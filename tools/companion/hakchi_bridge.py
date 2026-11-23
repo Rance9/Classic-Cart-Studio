@@ -50,7 +50,7 @@ SYSTEM_NAME = "Nintendo - Nintendo Entertainment System"   # CoreCollection.Syst
 
 def load_cfg() -> dict:
     d = {"hakchi_exe": (data_path("hakchi", "hakchi2-ce-3.9.3", "hakchi.exe") if FROZEN else os.path.join(PROJECT, "hakchi", "hakchi2-ce-3.9.3", "hakchi.exe")), "hakchi_args": ["/portable"], "exports_dir": data_path("exports"), "staging_dir": data_path("hakchi-staging"), "port": 8765}
-    path = os.environ.get("NES_COMPANION_CONFIG") or CFG_PATH   # tests point this at a config for the disposable rehearsal tree
+    path = os.environ.get("CCS_COMPANION_CONFIG") or CFG_PATH   # tests point this at a config for the disposable rehearsal tree
     if os.path.exists(path): d.update(json.load(open(path, encoding="utf-8")))
     return d
 

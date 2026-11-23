@@ -89,7 +89,7 @@ class T(unittest.TestCase):
         relay = rd(os.path.join(REPO, "tools", "companion", "metrics_relay.py"))
         self.assertIn('CHOICE_FILE = "usage-reporting.json"; CHOICE_SCHEMA = "ccs-usage-choice/1"', relay); self.assertIn("USAGE_SCHEMA = 'ccs-usage-choice/1';", s)
         for c in ("on", "off"): self.assertIn("'\\usage-reporting.json', '{\"schema\":\"' + USAGE_SCHEMA + '\",\"choice\":\"" + c + "\",\"source\":\"installer\"}'", s)
-        self.assertIn("ExpandConstant('{localappdata}\\ClassicCartStudio')", s); self.assertIn("ExpandConstant('{localappdata}\\NESClassicCollectionStudio')", s)
+        self.assertIn("ExpandConstant('{localappdata}\\ClassicCartStudio')", s); self.assertNotIn("NESClassicCollectionStudio", s)
         for net in ("DownloadTemporaryFile", "CreateOleObject", "WinHttp", "http"): self.assertNotIn(net, code, "the setup sends nothing")
         for src in ('Source: "..\\publish\\assets\\legal\\USAGE-REPORTS.txt"; DestDir: "{app}\\legal"', 'Source: "..\\publish\\assets\\legal\\USAGE-REPORTS.txt"; DestName: "ccs-usage.txt"; Flags: dontcopy'): self.assertIn(src, s)
     def test_07_one_account_of_what_continues(self):   # the setup's "What Is Sent?", Privacy and Help say the same three things
@@ -107,31 +107,29 @@ class T(unittest.TestCase):
             t = rd(os.path.join(REPO, rel))
             for stale in ("off by default", "off until you turn it on", "it starts off", "essential"): self.assertNotIn(stale, t, rel)
 
-    def test_08_the_choice_moves_with_an_earlier_data_folder(self):   # the setup never creates the new data folder while the app still has to move the earlier one
+    def test_08_no_other_data_folder_is_moved_or_used(self):   # the data folder is ClassicCartStudio; a folder of an earlier name stays as it is
         s = rd(ISS)
-        self.assertIn("if (not DirExists(Now_)) and DirExists(Old) then Result := Old else Result := Now_;", s)
+        self.assertIn("Result := ExpandConstant('{localappdata}\\ClassicCartStudio');", s); self.assertNotIn("NESClassicCollectionStudio", s)
         self.assertIn("if not FileExists(UsageDataDir + '\\usage-reporting.json') then Exit;\n  Result := 'file';", s)   # any file there: no page, kept as it is
         self.assertIn("if FileExists(Dir + '\\usage-reporting.json') then Exit;", s); self.assertIn("if not DirExists(Dir) then ForceDirectories(Dir);", s)
         self.assertNotIn("{localappdata}\\ClassicCartStudio", s.split("[Code]", 1)[0], "nothing else in the setup creates the data folder")
-        # the app's own rule, in both of its halves: the earlier folder is moved whole, and only while the new one does not exist
-        self.assertIn("if (!Directory.Exists(now) && Directory.Exists(old)) { try { Directory.Move(old, now); }", rd(os.path.join(REPO, "tools", "desktop", "ClassicCartStudio", "App.cs")))
-        self.assertIn("if not os.path.isdir(new) and os.path.isdir(old):\n        try: os.rename(old, new)", rd(os.path.join(REPO, "tools", "rom-pipeline", "common.py")))
+        for rel in (("tools", "desktop", "ClassicCartStudio", "App.cs"), ("tools", "rom-pipeline", "common.py")): self.assertNotIn("NESClassicCollectionStudio", rd(os.path.join(REPO, *rel)), rel[-1])
         sys.path.insert(0, os.path.join(REPO, "tools", "companion")); import metrics_relay as MR
         def first_start(la):   # the packaged backend's first start (common.py at import), in a fresh process with this LOCALAPPDATA
-            env = {k: v for k, v in os.environ.items() if k != "NES_STUDIO_DATA"}; env["LOCALAPPDATA"] = la
+            env = {k: v for k, v in os.environ.items() if k != "CCS_STUDIO_DATA"}; env["LOCALAPPDATA"] = la
             code = "import sys; sys.frozen = True; sys.path.insert(0, sys.argv[1]); import common; print(common.DATA_ROOT)"
             r = subprocess.run([sys.executable, "-c", code, os.path.join(REPO, "tools", "rom-pipeline")], capture_output=True, text=True, env=env)
             self.assertEqual(r.returncode, 0, r.stderr); return r.stdout.strip()
         la = tempfile.mkdtemp(prefix="ccs-data-")
         try:
             old, new = os.path.join(la, "NESClassicCollectionStudio"), os.path.join(la, "ClassicCartStudio"); os.makedirs(old)
-            wr(os.path.join(old, "library.json"), b"{}"); wr(os.path.join(old, "usage-reporting.json"), INSTALLER_ON.encode())   # where the setup writes it
-            self.assertEqual(os.path.normcase(first_start(la)), os.path.normcase(new))
-            self.assertFalse(os.path.exists(old)); self.assertTrue(os.path.exists(os.path.join(new, "library.json")), "the person's data moved")
+            wr(os.path.join(old, "library.json"), b"{}"); wr(os.path.join(old, "usage-reporting.json"), INSTALLER_ON.encode())
+            before = sorted(os.listdir(old))
+            self.assertEqual(os.path.normcase(first_start(la)), os.path.normcase(new), "the data folder is ClassicCartStudio, never the other one")
+            self.assertEqual(sorted(os.listdir(old)), before, "the other folder is left as it is"); self.assertFalse(os.path.exists(new), "nothing is moved or copied into the data folder")
+            os.makedirs(new); wr(os.path.join(new, "usage-reporting.json"), INSTALLER_ON.encode())   # a current data folder beside it: used, the other untouched
+            self.assertEqual(os.path.normcase(first_start(la)), os.path.normcase(new)); self.assertEqual(sorted(os.listdir(old)), before)
             self.assertEqual(MR.load_choice(lambda *p: os.path.join(new, *p)), {"choice": "on", "chosen": True, "source": "installer"})
-            # what the rule prevents: a setup that had created the new folder for its file would have stopped the move
-            shutil.rmtree(new); os.makedirs(old); os.makedirs(new); wr(os.path.join(old, "library.json"), b"{}"); wr(os.path.join(new, "usage-reporting.json"), INSTALLER_ON.encode())
-            first_start(la); self.assertFalse(os.path.exists(os.path.join(new, "library.json"))); self.assertTrue(os.path.exists(os.path.join(old, "library.json")))
         finally: shutil.rmtree(la, ignore_errors=True)
     def test_09_the_owner_approved_look(self):   # dark style, the PNG art at six scalings from the repository, the CCS icon, no BMP wizard images,
         # the CCS wordmark top right (not the controller icon), and text laid out from the display's own measures (no clipped or overlapping words)

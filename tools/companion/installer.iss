@@ -1,10 +1,10 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.11.8 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release /DWorkbenchDir=..\..\build\workbench-host installer.iss
+; Build: ISCC.exe /DAppVersion=0.11.9 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release /DWorkbenchDir=..\..\build\workbench-host installer.iss
 ; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe and the WebView2 assemblies, copied there by the release workflow. The wizard's
 ; pictures (tools/publish/make_installer_art.py) and the setup's icon come from the repository, relative to this script, like the legal files.
 ; Needs Inno Setup 6.7.0 or later (the dark style's hidebevels, WizardBackColor and WizardBackImageFile).
-; Stable technical identifiers are kept on purpose (upgrade compatibility with the earlier "companion" releases): AppId, the install
-; folder, the nesstudio:// link type; the program folder, the backend executable and the data folder carry the product name since 0.3.2 (data moved on first start).
+; Stable technical identifiers are kept on purpose (upgrade compatibility with the earlier "companion" releases): AppId and the install
+; folder; the program folder, the backend executable and the data folder carry the product name since 0.3.2.
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
@@ -176,13 +176,7 @@ Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; IconFilename: "{
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Registry]
-; nesstudio:// link handler (per user), kept for compatibility. The website uses it only to open or bring forward the application
-; (nesstudio://open, nesstudio://handoff?offer=<id>); the application accepts an offer id only, never commands, paths or data.
-Root: HKCU; Subkey: "Software\Classes\nesstudio"; ValueType: string; ValueName: ""; ValueData: "URL:Classic Cart Studio"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\nesstudio"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\nesstudio\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"",0"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\nesstudio\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Flags: uninsdeletekey
-; classiccartstudio:// links (per user): the website opens the application on a published collection (classiccartstudio://share/<id>), on
+; classiccartstudio:// links (per user), the application's only link type: the website opens the application on a published collection (classiccartstudio://share/<id>), on
 ; a collection or a .ccs package it handed to this computer (handoff?offer=, package?offer=), or just brings it forward (open). The
 ; application validates every link and accepts identifiers only, never commands, paths or data.
 Root: HKCU; Subkey: "Software\Classes\classiccartstudio"; ValueType: string; ValueName: ""; ValueData: "URL:Classic Cart Studio"; Flags: uninsdeletekey
@@ -223,14 +217,6 @@ Type: files; Name: "{app}\CcsBackup.dll"
 Type: files; Name: "{app}\CcsConsole.dll"
 Type: files; Name: "{app}\LibUsbDotNet.LibUsbDotNet.dll"
 Type: files; Name: "{app}\ccs-par2.dll"
-; shortcuts of the earlier "NES Classic Collection Studio Companion" releases (0.1.x): same AppId, new names and group
-Type: files; Name: "{userprograms}\NES Classic Collection Studio\NES Classic Collection Studio Companion.lnk"
-Type: files; Name: "{userprograms}\NES Classic Collection Studio\NES Classic Collection Studio (website).url"
-Type: files; Name: "{userprograms}\NES Classic Collection Studio\Classic Cart Studio.lnk"
-Type: files; Name: "{userprograms}\NES Classic Collection Studio\Classic Cart Studio website.url"
-Type: dirifempty; Name: "{userprograms}\NES Classic Collection Studio"
-Type: files; Name: "{autodesktop}\NES Classic Collection Studio Companion.lnk"
-Type: filesandordirs; Name: "{localappdata}\Programs\NESClassicCollectionStudio"
 
 [UninstallDelete]
 ; program files only — the user's data (%LOCALAPPDATA%\ClassicCartStudio: imported games, personal games, collections, logs) is kept on purpose
@@ -251,10 +237,7 @@ Type: filesandordirs; Name: "{app}\_internal"
 // changes it, and an opt-out stays; any usage-reporting.json already there, even one the app would not accept, is never overwritten (no
 // choice there means off, and the Studio menu can set it). The choice is written once the program files are in place, before the app can
 // first start; Cancel writes nothing; a silent setup shows no page and writes nothing (no choice means off). The setup itself never sends anything.
-// The data folder: while an earlier release's NESClassicCollectionStudio folder exists and ClassicCartStudio does not, the app moves the
-// whole earlier folder to the new name on its first start (App.cs DataRoot and common.py _data_root, both only when the new folder is
-// absent). The setup must not create the new folder then, or that move would be skipped and the person's data would seem lost: the
-// choice is written INTO the earlier folder and moves with it.
+// The data folder is %LOCALAPPDATA%\ClassicCartStudio (App.cs DataRoot and common.py _data_root); no other folder is moved or used.
 const
   USAGE_SCHEMA = 'ccs-usage-choice/1';
   OBM_CHECKBOXES = 32759; CHECK_OFFSET = 4;   // TNewCheckListBox: its check width is a quarter of Windows' check-box bitmap, with 4 px either side
@@ -336,11 +319,9 @@ begin
   WizardForm.NextButton.Enabled := TermsAgree.Checked[0];
 end;
 
-function UsageDataDir: String;   // the app's data folder; an earlier release's folder that the app moves there on its first start, if that one is still waiting
-var Now_, Old: String;
+function UsageDataDir: String;   // the app's data folder
 begin
-  Now_ := ExpandConstant('{localappdata}\ClassicCartStudio'); Old := ExpandConstant('{localappdata}\NESClassicCollectionStudio');
-  if (not DirExists(Now_)) and DirExists(Old) then Result := Old else Result := Now_;
+  Result := ExpandConstant('{localappdata}\ClassicCartStudio');
 end;
 
 function UsageChoiceKept: String;   // 'on' or 'off' when usage-reporting.json holds a valid choice (as the app reads it), 'file' when it holds
@@ -612,9 +593,9 @@ procedure CurStepChanged(CurStep: TSetupStep);   // after the program files, bef
 var Dir: String;
 begin
   if (CurStep = ssPostInstall) and (not WizardSilent) and (UsageStored = '') then begin
-    Dir := UsageDataDir;   // decided again now: the earlier folder while it waits to be moved (it exists, so nothing new is created)
+    Dir := UsageDataDir;
     if FileExists(Dir + '\usage-reporting.json') then Exit;   // never overwrite a choice made meanwhile
-    if not DirExists(Dir) then ForceDirectories(Dir);   // only the new folder, and only when no earlier folder waits
+    if not DirExists(Dir) then ForceDirectories(Dir);
     if UsageBox.Checked[0] then SaveStringToFile(Dir + '\usage-reporting.json', '{"schema":"' + USAGE_SCHEMA + '","choice":"on","source":"installer"}', False)
     else SaveStringToFile(Dir + '\usage-reporting.json', '{"schema":"' + USAGE_SCHEMA + '","choice":"off","source":"installer"}', False);
   end;

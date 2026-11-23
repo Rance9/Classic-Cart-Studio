@@ -205,7 +205,7 @@ def meta_icon(kind: str, out: str, size: int = 18):
 # ---------- fonts ----------
 def press_start_path(theme_root: str) -> str:
     """Press Start 2P (OFL 1.1) ships with the site brand fonts (brand/fonts), next to the HOME assets (brand/home)"""
-    site = os.environ.get("NES_STUDIO_SITE") or ""   # the site the backend serves (a release keeps the font in its bundled site)
+    site = os.environ.get("CCS_STUDIO_SITE") or ""   # the site the backend serves (a release keeps the font in its bundled site)
     for p in (os.path.join(theme_root, "..", "fonts", "PressStart2P-Regular.ttf"), os.path.join(theme_root, "..", "..", "..", "..", "reports", "brand", "fonts", "PressStart2P-Regular.ttf"),
               os.path.join(HERE, "..", "..", "..", "reports", "brand", "fonts", "PressStart2P-Regular.ttf"),
               os.path.join(site, "brand", "fonts", "PressStart2P-Regular.ttf") if site else "",

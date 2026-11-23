@@ -13,7 +13,7 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # check names carry arrows and dashes; any console prints them
     ap = argparse.ArgumentParser(); ap.add_argument("site"); ap.add_argument("--player", default=""); ap.add_argument("--out", default=""); a = ap.parse_args()
     site = os.path.abspath(a.site); work = tempfile.mkdtemp(prefix="ccs-incl-console-"); res = []; net = []
-    os.environ["NES_STUDIO_SITE"] = site; os.environ["NES_STUDIO_DATA"] = os.path.join(work, "data"); os.makedirs(os.environ["NES_STUDIO_DATA"])
+    os.environ["CCS_STUDIO_SITE"] = site; os.environ["CCS_STUDIO_DATA"] = os.path.join(work, "data"); os.makedirs(os.environ["CCS_STUDIO_DATA"])
     real = socket.socket.connect
     def guard(self, addr):
         host = addr[0] if isinstance(addr, tuple) else str(addr)

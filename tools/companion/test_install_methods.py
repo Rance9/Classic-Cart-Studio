@@ -28,7 +28,7 @@ from __future__ import annotations
 import hashlib, io, json, os, secrets, shutil, subprocess, sys, tempfile, time, unittest, urllib.error, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
 import console_test_guard   # noqa: E402,F401  (first: the controlled console boundary, k3e)
-_T = tempfile.mkdtemp(prefix="ccs-addons-"); os.environ.setdefault("NES_STUDIO_DATA", _T)
+_T = tempfile.mkdtemp(prefix="ccs-addons-"); os.environ.setdefault("CCS_STUDIO_DATA", _T)
 from console_engine import ccs_install as CI   # noqa: E402
 from console_engine.worker import Worker   # noqa: E402
 from native_home import console_package as CPK   # noqa: E402
@@ -581,7 +581,7 @@ class Page(unittest.TestCase):
         m30 = bytes([0x4E, 0x45, 0x53, 0x1A, 1, 1, 0xE0, 0x10]) + bytes(8) + bytes(24576)   # an empty cartridge image of mapper 30 (not a game)
         staged(os.path.join(cls.nh, "console", "current"), more=[("g2", "Mapper Thirty Demo", m30)])
         cfgp = os.path.join(cls.t, "companion.json"); wr(cfgp, json.dumps({"hakchi_exe": os.path.join(cls.t, "no-hakchi", "hakchi.exe"), "port": PORT, "no_launch": True, "exports_dir": os.path.join(cls.t, "exports"), "staging_dir": os.path.join(cls.t, "staging")}))
-        cls.token = secrets.token_hex(32); env = dict(os.environ, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=os.path.join(cls.t, "personal"), NES_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
+        cls.token = secrets.token_hex(32); env = dict(os.environ, CCS_COMPANION_CONFIG=cfgp, CCS_PERSONAL_DIR=os.path.join(cls.t, "personal"), CCS_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
                                                        CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8")
         cls.log = open(os.path.join(cls.t, "companion.log"), "w", encoding="utf-8")
         cls.proc = subprocess.Popen([sys.executable, "-u", "-B", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT)], env=env, stdout=cls.log, stderr=subprocess.STDOUT)
@@ -620,7 +620,7 @@ class Page(unittest.TestCase):
         self.assertEqual(out["games_rehearse"], {"result": "installed", "delivery": "games", "published": 1, "added": []}, out)
         self.assertEqual(out["games_verify"], {"files": True, "menu": True}, out); self.assertEqual(out["games_ready"], {"said": True}, out)
 
-REAL = ("NES_STUDIO_SITE", "CCS_CONSOLE_PLAYER", "CCS_NATIVE_HOME_RUNTIME", "CCS_PLAYER_FONTS")
+REAL = ("CCS_STUDIO_SITE", "CCS_CONSOLE_PLAYER", "CCS_NATIVE_HOME_RUNTIME", "CCS_PLAYER_FONTS")
 PORT2 = 8775; B2 = f"http://127.0.0.1:{PORT2}"
 @unittest.skipUnless(all(os.environ.get(k) and os.path.exists(os.environ[k]) for k in REAL), "the built site, console player, HOME runtime and player fonts are not given (" + ", ".join(REAL) + ")")
 class RealPackage(unittest.TestCase):
@@ -630,10 +630,10 @@ class RealPackage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.t = tempfile.mkdtemp(prefix="ccs-add-real-", dir=_T); cls.nh = os.path.join(cls.t, "native-home")
-        if "personal" not in sys.modules: os.environ["NES_PERSONAL_DIR"] = os.path.join(cls.t, "personal")
+        if "personal" not in sys.modules: os.environ["CCS_PERSONAL_DIR"] = os.path.join(cls.t, "personal")
         import personal as ps, library_lookup as LL
         pdir = ps.PERSONAL_DIR   # the backend reads the same personal library
-        site = os.environ["NES_STUDIO_SITE"]; idx = json.load(open(os.path.join(site, "included", "index.json"), encoding="utf-8")); g = idx["games"][0]
+        site = os.environ["CCS_STUDIO_SITE"]; idx = json.load(open(os.path.join(site, "included", "index.json"), encoding="utf-8")); g = idx["games"][0]
         r = ps.ingest(os.path.join(site, "included", g["file_name"]), origin="included"); cls.pid = pid = r["entry"]["id"]; ps.merge_metadata(pid, {"title": g["title"], "version_label": g["version"]})
         title = LL.personal_index()["entries"][pid]["user"]["title"]
         import test_startup_custom_package as SC, base64
@@ -643,7 +643,7 @@ class RealPackage(unittest.TestCase):
                     "settings": {"reduced_motion": False, "hints": True}, "sample": False, "map_shortcuts": [None, None], "apply_theme": False, "startup_image": "custom-" + h[:16],
                     "startup_custom": {"id": "custom-" + h[:16], "sha256": h, "name": "Living room", "fit": "fill", "bytes": len(jp), "width": 1280, "height": 720, "data": base64.b64encode(jp).decode()}}
         cfgp = os.path.join(cls.t, "companion.json"); wr(cfgp, json.dumps({"hakchi_exe": os.path.join(cls.t, "no-hakchi", "hakchi.exe"), "port": PORT2, "no_launch": True, "exports_dir": os.path.join(cls.t, "exports"), "staging_dir": os.path.join(cls.t, "staging")}))
-        cls.token = secrets.token_hex(32); env = dict(os.environ, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=pdir, NES_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh, CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8")
+        cls.token = secrets.token_hex(32); env = dict(os.environ, CCS_COMPANION_CONFIG=cfgp, CCS_PERSONAL_DIR=pdir, CCS_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh, CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8")
         cls.log = open(os.path.join(cls.t, "companion.log"), "w", encoding="utf-8")
         cls.proc = subprocess.Popen([sys.executable, "-u", "-B", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT2)], env=env, stdout=cls.log, stderr=subprocess.STDOUT)
         for _ in range(200):

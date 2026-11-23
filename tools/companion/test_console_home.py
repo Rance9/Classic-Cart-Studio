@@ -145,7 +145,7 @@ class Routes(unittest.TestCase):
         cls.t = tempfile.mkdtemp(prefix="ccs-home-api-"); cls.nh = os.path.join(cls.t, "native-home"); cls.pkg = make_package(os.path.join(cls.nh, "console", "current"))
         cfgp = os.path.join(cls.t, "companion.json"); wr(cfgp, json.dumps({"hakchi_exe": os.path.join(cls.t, "no-hakchi", "hakchi.exe"), "port": PORT, "no_launch": True, "exports_dir": os.path.join(cls.t, "exports"), "staging_dir": os.path.join(cls.t, "staging")}))
         wb = os.path.join(cls.t, "workbench-settings.json"); wr(wb, json.dumps({"schema": "ccs-console-backup-settings/1", "earlier_home_versions": 2}).encode())   # Workbench's setting: two
-        cls.token = secrets.token_hex(32); env = dict(os.environ, CCS_WORKBENCH_SETTINGS=wb, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=os.path.join(cls.t, "personal"), NES_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
+        cls.token = secrets.token_hex(32); env = dict(os.environ, CCS_WORKBENCH_SETTINGS=wb, CCS_COMPANION_CONFIG=cfgp, CCS_PERSONAL_DIR=os.path.join(cls.t, "personal"), CCS_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
                                                        CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8", CCS_PHYSICAL_WRITE="1", CCS_GATE="open", **chooser_env())
         cls.log = open(os.path.join(cls.t, "companion.log"), "w", encoding="utf-8")
         cls.proc = subprocess.Popen([sys.executable, "-u", "-B", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT)], env=env, stdout=cls.log, stderr=subprocess.STDOUT)
