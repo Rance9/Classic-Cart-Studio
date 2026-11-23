@@ -104,7 +104,7 @@ def export(data_path, out: str, shas=None, version: str = "") -> dict:
         with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr(MANIFEST, json.dumps(man, ensure_ascii=False, indent=1) + "\n")
             for g in games:
-                for n, b, _ in g["files"]: z.writestr(f"saves/{g['sha']}/{n}", b)
+                for n, b, _ in g["files"]: z.writestr(f"saves/{g['sha']}/{n}", b, compress_type=_method(b))
         read(tmp)   # the file reads back exactly as an import will read it
         os.replace(tmp, out)
     except (OSError, SavesError) as e:
@@ -113,6 +113,14 @@ def export(data_path, out: str, shas=None, version: str = "") -> dict:
         return {"ok": False, "error": f"The Game Saves file could not be written ({getattr(e, 'strerror', None) or e}). Nothing was saved."}
     return {"ok": True, "path": out, "name": os.path.basename(out), "games": len(games), "files": sum(len(g["files"]) for g in games),
             "bytes": os.path.getsize(out), "skipped": skipped}
+
+def _method(b: bytes) -> int:
+    """How a saved game is written: compressed, unless it compresses past half the readers' limit (MAX_RATIO). A legitimate save can be
+    mostly one repeated byte (a Mapper 30 flash save is 524,800 bytes, nearly all erased), and the readers here and in the browser refuse a
+    member that expands more than MAX_RATIO times; such a save is stored as it is, so every file this writer makes is one they accept."""
+    if not b: return zipfile.ZIP_STORED
+    c = zlib.compressobj(6, zlib.DEFLATED, -15); n = len(c.compress(b)) + len(c.flush())
+    return zipfile.ZIP_DEFLATED if len(b) / max(1, n) <= MAX_RATIO / 2 else zipfile.ZIP_STORED
 
 # ---------------- reading a Game Saves file (nothing is written) ----------------
 def _member(z: zipfile.ZipFile, name: str, limit: int) -> bytes:

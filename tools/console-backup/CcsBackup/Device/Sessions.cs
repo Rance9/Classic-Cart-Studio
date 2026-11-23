@@ -19,7 +19,7 @@ using System.Threading;
 
 namespace CcsBackup.Device
 {
-    public enum ImageKind { Backup, Restore, Prepare, Return, Rescue, Files, Method, Firmware }   // Return and Method: the preparation image (its ccsprep has the return steps and the method steps), each under its own boundary; Rescue: ccs-rescue (ccsrescue)
+    public enum ImageKind { Backup, Restore, Prepare, Return, Rescue, Files, Method, Firmware, Community }   // Return, Method and Community: the preparation image (its ccsprep has the return and method steps, ccscomm the community steps), each under its own boundary; Rescue: ccs-rescue (ccsrescue)
 
     public static class RecoveryImages
     {
@@ -91,8 +91,9 @@ namespace CcsBackup.Device
             if (kind == ImageKind.Return && !CcsBackup.Gate.ReturnWrites) throw new GateClosedException(CcsBackup.Gate.ReturnText, "open a return session");
             if (kind == ImageKind.Method && !CcsBackup.Gate.MethodWrites) throw new GateClosedException(CcsBackup.Gate.MethodText, "open a method session");
             if (kind == ImageKind.Firmware && !CcsBackup.Gate.FirmwareWrites) throw new GateClosedException(CcsBackup.Gate.FirmwareText, "open a session to add a system image");
+            if (kind == ImageKind.Community && !CcsBackup.Gate.CommunityWrites) throw new GateClosedException(CcsBackup.Gate.CommunityText, "open a community mods session");
             if (kind == ImageKind.Rescue && !CcsBackup.Gate.RescueWrites) throw new GateClosedException(CcsBackup.Gate.RescueText, "open a rescue session");
-            if (kind == ImageKind.Files && !CcsBackup.Gate.ExpertWrites && !CcsBackup.Gate.DeveloperWrites && !CcsBackup.Gate.ComposerWrites) throw new GateClosedException(CcsBackup.Gate.ExpertText, "open a file session");
+            if (kind == ImageKind.Files && !CcsBackup.Gate.ExpertWrites && !CcsBackup.Gate.DeveloperWrites && !CcsBackup.Gate.ComposerWrites && !CcsBackup.Gate.CleanupWrites) throw new GateClosedException(CcsBackup.Gate.ExpertText, "open a file session");
             var img = RecoveryImages.Load(kind); var want = RecoveryImages.IdOf(kind).id;
             var loader = new RamBootLoader(new LibUsbDeviceList(), () => new LibUsbFelUsb());
             loader.Progress += p => { if (p.Message != null) say?.Invoke(p.Message); };

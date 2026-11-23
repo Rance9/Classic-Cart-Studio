@@ -2,6 +2,7 @@
 // Where backups go and what is remembered about them.
 //   Settings     the two destinations (primary, and the second copy or none), in %LOCALAPPDATA%\CCS Console Backup\settings.json,
 //                shared by Classic Cart Studio and the Utility; defaults: Documents\CCS Console Backups and its "Second Copy" folder
+//                (and the earlier CCS HOME versions to keep on the console, earlier_home_versions: one unless it is set, 0 to 9)
 //   Record       one durable JSON file per operation in <primary>\.ccs-records\ (WriteAtomic each time its state moves on): what was
 //                started, what each step found, where the files are. A record is history, never authority: nothing is trusted because a
 //                record says "verified" (every use checks the file again; Verifier).
@@ -19,15 +20,20 @@ namespace CcsBackup.Library
     {
         public string PrimaryFolder, ArchiveFolder;   // ArchiveFolder null or empty: one copy only
         public string Path;
-        /// <summary>the standalone Workbench's ordinary preferences: kept in memory only (no settings file, no AppData) unless the person
-        /// chooses a settings file of their own (then Path is that file)</summary>
+        /// <summary>the standalone Workbench's ordinary preferences: kept in memory unless the person chooses a settings file of their own
+        /// (then Path is that file; the window remembers which file, LastSettingsFile)</summary>
         public bool InMemory;
         /// <summary>the console family the Workbench window last used (its profile id; null: the window's default). A window preference
         /// only: never a console's identity, firmware or an approval.</summary>
         public string ConsoleProfile;
+        /// <summary>how many earlier CCS HOME versions the console keeps when CCS HOME is updated (Settings > CCS HOME > Earlier HOME
+        /// versions); null: the default. The console's own backups on this PC are kept apart and are never affected.</summary>
+        public int? EarlierHomeVersions;
+        /// <summary>the number in force: the setting when it is a valid number, otherwise the storage specification's default (one)</summary>
+        public int EarlierHomeKeep => Engine.StorageSpec.EarlierKeep(EarlierHomeVersions.HasValue ? (object)(long)EarlierHomeVersions.Value : null);
         /// <summary>fields a settings file holds that this version does not use (a newer version's): kept as they are and written back</summary>
         readonly List<KeyValuePair<string, object>> other = new List<KeyValuePair<string, object>>();
-        static readonly string[] Known = { "schema", "primary_folder", "archive_folder", "console_profile" };
+        static readonly string[] Known = { "schema", "primary_folder", "archive_folder", "console_profile", "earlier_home_versions" };
         public static Settings Portable(string primary, string archive) => new Settings { InMemory = true, PrimaryFolder = string.IsNullOrWhiteSpace(primary) || !System.IO.Path.IsPathRooted(primary) ? DefaultPrimary : primary, ArchiveFolder = string.IsNullOrWhiteSpace(archive) || !System.IO.Path.IsPathRooted(archive) ? null : archive };
         public static string DefaultPath => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CCS Console Backup", "settings.json");
         public static string DefaultPrimary => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CCS Console Backups");
@@ -44,6 +50,7 @@ namespace CcsBackup.Library
                     var p = d.S("primary_folder"); if (!string.IsNullOrWhiteSpace(p) && System.IO.Path.IsPathRooted(p)) s.PrimaryFolder = p;
                     if (d.ContainsKey("archive_folder")) { var a = d.S("archive_folder"); s.ArchiveFolder = string.IsNullOrWhiteSpace(a) || !System.IO.Path.IsPathRooted(a) ? null : a; }
                     var cp = d.S("console_profile"); if (!string.IsNullOrWhiteSpace(cp)) s.ConsoleProfile = cp;
+                    var ev = d.L("earlier_home_versions", -1); if (ev >= 0 && ev == Engine.StorageSpec.EarlierKeep(ev)) s.EarlierHomeVersions = (int)ev;
                     foreach (var kv in d) if (Array.IndexOf(Known, kv.Key) < 0) s.other.Add(kv);
                 }
             }
@@ -57,11 +64,12 @@ namespace CcsBackup.Library
         {
             var j = new JObj { { "schema", "ccs-console-backup-settings/1" }, { "primary_folder", PrimaryFolder }, { "archive_folder", ArchiveFolder ?? "" } };
             if (!string.IsNullOrEmpty(ConsoleProfile)) j.Add("console_profile", ConsoleProfile);
+            if (EarlierHomeVersions.HasValue) j.Add("earlier_home_versions", (long)EarlierHomeVersions.Value);
             foreach (var kv in other) j.Add(kv.Key, kv.Value);
             Durable.WriteAtomic(file, Json.Write(j));
         }
         /// <summary>a copy (the same file, values and kept fields)</summary>
-        public Settings Copy() { var c = new Settings { PrimaryFolder = PrimaryFolder, ArchiveFolder = ArchiveFolder, Path = Path, InMemory = InMemory, ConsoleProfile = ConsoleProfile }; c.other.AddRange(other); return c; }
+        public Settings Copy() { var c = new Settings { PrimaryFolder = PrimaryFolder, ArchiveFolder = ArchiveFolder, Path = Path, InMemory = InMemory, ConsoleProfile = ConsoleProfile, EarlierHomeVersions = EarlierHomeVersions }; c.other.AddRange(other); return c; }
         public string RecordsFolder => System.IO.Path.Combine(PrimaryFolder, ".ccs-records");
     }
 

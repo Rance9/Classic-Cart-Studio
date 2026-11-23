@@ -101,7 +101,7 @@ namespace CcsBackup.Repair
                 Directory.CreateDirectory(destinationFolder);
                 // 1. the backup itself, checked in full
                 opt.Say("verify", "Checking the backup before copying it...");
-                var v = Verifier.VerifyFile(source, null, opt.Cancelled, (d, t) => opt.Say("verify", "Checking the backup before copying it...", d, t));
+                var v = External.AnyBackup.Verify(source, null, opt.Cancelled, (d, t) => opt.Say("verify", "Checking the backup before copying it...", d, t));
                 rep.Original = new JObj { { "role", "backup" }, { "label", "the backup file" }, { "file", Path.GetFileName(source) }, { "folder", Path.GetDirectoryName(source) }, { "bytes", fi0.Length }, { "sha256_as_read", v.ArchiveSha256 },
                     { "backup_id", v.Manifest?.S("backup_id") }, { "console_tag", v.ConsoleTag }, { "made_utc", v.Manifest?.S("completed_utc") }, { "condition", v.Ok ? "it passed the full check" + (v.RestoreReady ? " and is restore-ready" : "") : "it did not pass its check: " + string.Join(" ", v.Problems) } };
                 if (!v.Ok) return End("refused", "This backup did not pass its check, so it was not copied (" + v.Problems[0] + "). A damaged backup is repaired into a new file instead (Repair).");

@@ -33,6 +33,7 @@ import argparse, json, os, shutil, struct, sys, time, uuid
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.normpath(os.path.join(HERE, "..", ".."))
 if os.path.dirname(HERE) not in sys.path: sys.path.insert(0, os.path.dirname(HERE))
 from native_home import derive as DV, config as CF   # noqa: E402
+from console_engine import storage_model as SM   # noqa: E402  (the shared storage accounting: block size, rounding)
 from common import FROZEN, APP_ROOT, site_path, data_path, WORK   # noqa: E402
 
 PACKAGE_SCHEMA = "ccs-native-home-package/2"; PACK_SCHEMA = "ccs-native-home-pack/2"; GAMES_SCHEMA = "ccs-native-home-games/2"
@@ -104,17 +105,28 @@ def _touch(p: str):
 def _jload(p: str):
     with open(p, encoding="utf-8") as f: return json.load(f)
 
+# A console package's HOME Music: "wav" (the PCM song: what this version ships) or "mp3" (the held MP3, home_music.MP3_FILE, played only by
+# the game player's MP3 build). A module constant for a private build that proves the MP3; no setting chooses it.
+HOME_MUSIC_FORMAT = "wav"
+
 class Builder:
     def __init__(self, cfg: dict, root: str, progress=None, cache_root: str | None = None):
         self.cfg = cfg; self.root = root; self.progress = progress or (lambda stage, done, total, text="": None)
         self.cache = DV.Cache(cache_root or os.path.join(root, "cache")); self.files: dict[str, dict] = {}; self.blockers: list[dict] = []; self.warnings: list[str] = []
-        self.excluded: list[dict] = []; self.stage = None; self.design_tmp = None; self.design_result = None
+        self.excluded: list[dict] = []; self.stage = None; self.design_tmp = None; self.design_result = None; self.font_files: dict[str, str] = {}
 
     def put(self, rel: str, src: str, category: str, kind: str, **meta):
-        """place one file into the staging tree (relative path, deduplicated by path); records category and type for accounting"""
+        """place one file into the staging tree (relative path, deduplicated by path); records category and type for accounting. A PNG is
+        placed in its smallest exact encoding (derive.png_exact: the same decoded pixels, cached by its content)"""
         if rel in self.files: return rel
+        if rel.endswith(".png"): src = self.cached("png", DV.sha256_file(src), "exact", ".png", lambda out, s=src: DV.png_exact(s, out))
         dst = os.path.join(self.stage, rel.replace("/", os.sep)); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(src, dst)
         self.files[rel] = {"category": category, "type": kind, **meta}; return rel
+    def put_font(self, rel: str, src: str) -> str:
+        """a baked font atlas; one whose bytes equal an atlas already placed is not stored again: pack.json names that file for both"""
+        h = DV.sha256_file(src)
+        if h in self.font_files: return self.font_files[h]
+        self.font_files[h] = self.put(rel, src, "font", "font-atlas"); return self.font_files[h]
     def put_bytes(self, rel: str, data: bytes, category: str, kind: str, **meta):
         dst = os.path.join(self.stage, rel.replace("/", os.sep)); os.makedirs(os.path.dirname(dst), exist_ok=True)
         with open(dst, "wb") as f: f.write(data)
@@ -171,17 +183,25 @@ class Builder:
     def game_cover(self, g: dict) -> tuple[str | None, str, str | None]:
         """effective cover (config.cover_source: the user's replacement > authentic art > the NES-style mock cover; always one image
         per game) -> (package path, kind, the site art path it was derived from)"""
+        reduced = self.cfg["mode"] != "play" and DV.REDUCED_CONSOLE_COVERS   # a console's covers (derive.CONSOLE_COVER_SCALE), from the source
+        p, kind, rel = self.cover_file(g, reduced)
+        d = DV.sha256_file(p); return self.put(f"cover/{d[:16]}.jpg", p, "game-covers", "cover-jpeg", art=kind), kind, rel
+
+    def cover_file(self, g: dict, reduced: bool) -> tuple[str, str, str | None]:
+        """the game's effective cover made (or found) in the derivation cache -> (cached file, kind, site art path). reduced: a console's
+        cover (derive.CONSOLE_COVER_SCALE); otherwise the Details fit at quality 85 (the computer's "play" HOME: twice the box)"""
         cs = CF.cover_source(g); kind = cs["kind"]; box = DV.COVER_BOX_HI if self.cfg["mode"] == "play" else DV.COVER_BOX   # the computer: full resolution
+        rk = f"|console{DV.CONSOLE_COVER_SCALE[0]}q{DV.CONSOLE_COVER_QUALITY}" if reduced else ""
         if cs["problem"]: self.warnings.append(f"{g['title']}: {cs['problem']}; the mock cover is shown")
         if kind == "user":
             u = g["art_user"]; crop = json.dumps(u.get("crop"), sort_keys=True); h = u.get("sha256") or DV.sha256_file(u["path"])
-            p = self.cached("user-cover", h, f"{crop}|{box}", ".jpg", lambda out: DV.user_cover(u["path"], u.get("crop"), out, box))
+            p = self.cached("user-cover", h, f"{crop}|{box}{rk}", ".jpg", lambda out: DV.user_cover(u["path"], u.get("crop"), out, box, reduced))
         elif kind == "authentic":
-            src = cs["path"]; p = self.cached("cover", DV.sha256_file(src), f"contain{box}", ".jpg", lambda out: DV.cover(src, out, box))
+            src = cs["path"]; p = self.cached("cover", DV.sha256_file(src), f"contain{box}{rk}", ".jpg", lambda out: DV.cover(src, out, box, reduced))
         else:
             key = DV.sha256_bytes(json.dumps([g["id"], g.get("title"), g.get("publisher"), g.get("year")], ensure_ascii=False).encode())
-            p = self.cached("mock", key, f"mock-2|{box}", ".jpg", lambda out: DV.mock(g.get("title") or g["id"], g.get("publisher"), g.get("year"), g["id"], out, theme_root(), box))
-        d = DV.sha256_file(p); return self.put(f"cover/{d[:16]}.jpg", p, "game-covers", "cover-jpeg", art=kind), kind, cs["rel"]
+            p = self.cached("mock", key, f"mock-2|{box}{rk}", ".jpg", lambda out: DV.mock(g.get("title") or g["id"], g.get("publisher"), g.get("year"), g["id"], out, theme_root(), box, reduced))
+        return p, kind, cs["rel"]
 
     def _assemble(self) -> dict:
         cfg = self.cfg; troot = theme_root(); art = _jload(os.path.join(troot, "home-art.json")); games = cfg["games"]
@@ -287,13 +307,13 @@ class Builder:
                 p = self.cached("font", src_id, f"{name}|hd-{gf}|{DV.COVERAGE_EXP}", ".ccsf", lambda out, name=name, fam=fam, w=w, px=px, want=want, gf=gf: DV.bake_font(name, fam, w, px, want, troot, out, glyphs_from=gf))
             else:
                 p = self.cached("font", src_id, f"{name}|{DV.COVERAGE_EXP}", ".ccsf", lambda out, name=name, fam=fam, w=w, px=px, want=want: DV.bake_font(name, fam, w, px, want, troot, out))
-            fonts[name] = {"file": self.put(f"font/{name}.ccsf", p, "font", "font-atlas"), "px": px, "family": DV.FAMILY_LABEL[hd[0] if hd else fam]}   # the face its glyphs are drawn from
+            fonts[name] = {"file": self.put_font(f"font/{name}.ccsf", p), "px": px, "family": DV.FAMILY_LABEL[hd[0] if hd else fam]}   # the face its glyphs are drawn from
             if hd: fonts[name]["layout"] = DV.FAMILY_LABEL[fam]   # the approved design's metrics the smooth face keeps (F19)
             if cfg["mode"] == "play":   # the computer's full-resolution HOME draws these glyphs (the 1x face still lays out)
                 src2 = DV.sha256_bytes(("".join(want) + fam + str(w) + str(px * 2)).encode())
                 gf2 = (hd[0], hd[1], max(1, round(px * 2 * hd[2])), hd[3]) if hd else None
                 p2 = self.cached("font", src2, f"{name}@2x|{gf2 or ''}|{DV.COVERAGE_EXP}", ".ccsf", lambda out, name=name, fam=fam, w=w, px=px, want=want, gf2=gf2: DV.bake_font(name, fam, w, px * 2, want, troot, out, glyphs_from=gf2))
-                fonts[name]["file_2x"] = self.put(f"font/{name}-2x.ccsf", p2, "font", "font-atlas")
+                fonts[name]["file_2x"] = self.put_font(f"font/{name}-2x.ccsf", p2)
             missing |= {c for c in want if c.strip()} - _atlas_chars(p)
         if missing: self.warnings.append(f"{len(missing)} character(s) have no glyph in some face and show as '?': {''.join(sorted(missing))[:40]}")
         for lic, src in DV.font_licenses(troot).items(): self.put(f"licenses/{lic}", src, "font", "license")
@@ -308,11 +328,18 @@ class Builder:
             if not (info.get("machine") == "ARM" and info.get("class") == "32-bit"): self.blockers.append({"code": "runtime-arch", "text": f"the native runtime is {info.get('class')} {info.get('machine')}, not 32-bit ARM"})
         elif cfg["mode"] == "deployment": self.blockers.append({"code": "runtime-missing", "text": RUNTIME_PROBLEM or "the native HOME runtime for the console (32-bit ARM) is not available in this installation"})
         done += 1; tick("runtime")
-        # HOME Music: an installation carries the song once (PCM, played by the runtime's device adapter); a TV Preview package only
-        # says that HOME Music exists and what this computer's choice is (the page plays it; generating frames never plays sound); a Play
-        # on PC package has none (the game window plays it from the application)
+        # HOME Music: an installation carries the song once (PCM, played by the runtime's device adapter), unless Include HOME music was
+        # left out (then it carries none: no song on the console, and HOME Music says it is not part of this installation); a TV Preview
+        # package only says that HOME Music exists and what this computer's choice is (the page plays it; generating frames never plays
+        # sound); a Play on PC package has none (the game window plays it from the application)
         music = None
-        if cfg["mode"] == "deployment":
+        if cfg["mode"] == "deployment" and cfg.get("include_music") is False: pass
+        elif cfg["mode"] == "deployment" and HOME_MUSIC_FORMAT == "mp3":   # (a private build proving the held MP3; never this version's default)
+            import home_music as HMU
+            mp = HMU.mp3_asset()
+            if mp: music = {"file": self.put("music/" + HMU.MP3_FILE, mp, "music", "mp3"), "default": "on", "format": "mp3", "rate": 48000, "channels": 2, "frames": HMU.MP3_FRAMES, "sha256": HMU.MP3_SHA256}
+            else: self.blockers.append({"code": "music-mp3-missing", "text": "the MP3 HOME Music this build asks for is not available"})
+        elif cfg["mode"] == "deployment":
             import home_music as HMU
             mp, mi = HMU.asset(), HMU.info().get("native") or {}
             if mp: music = {"file": self.put("music/" + HMU.FILE, mp, "music", "pcm-wav"), "default": "on", "format": "s16le", "rate": 48000, "channels": 2, "frames": mi.get("frames"), "sha256": mi.get("sha256")}
@@ -328,6 +355,7 @@ class Builder:
         self.put_bytes("games.json", json.dumps(gdoc, ensure_ascii=False, indent=0).encode("utf-8"), "catalog", "games-json")
         self.put_bytes("pack.json", json.dumps(pack, ensure_ascii=False, indent=1).encode("utf-8"), "catalog", "pack-json")
         snap = {k: cfg.get(k) for k in ("schema", "mode", "theme", "theme_apply", "theme_apply_epoch", "themes_enabled", "collection", "folders", "favorites", "hidden_factory_codes", "settings", "fingerprint")}
+        if cfg.get("include_music") is False: snap["include_music"] = False   # (recorded only when the song was left out)
         snap["games"] = [g["id"] for g in recs]
         self.put_bytes("config.json", json.dumps(snap, ensure_ascii=False, indent=1).encode("utf-8"), "configuration", "config-json")
         done += 1; tick("manifest")
@@ -373,6 +401,8 @@ class Builder:
         man_bytes = json.dumps(man, ensure_ascii=False, indent=1).encode("utf-8")
         with open(os.path.join(self.stage, "manifest.json"), "wb") as f: f.write(man_bytes)
         man["sizes"]["manifest"] = len(man_bytes); man["sizes"]["total_with_manifest"] = man["sizes"]["total"] + len(man_bytes)
+        bs = SM.SPEC["policies"]["default_block_bytes"]   # each file in whole blocks (the block size of both dated console references)
+        man["sizes"]["allocated"] = {"block_bytes": bs, "bytes": sum(SM.rounded(f["size"], bs) for f in man["files"]) + SM.rounded(len(man_bytes), bs), "files": len(man["files"]) + 1}
         status = "ready" if man["installable"] and not problems else (self.cfg["mode"] if self.cfg["mode"] != "deployment" else "not-ready")
         return {"ok": not problems, "valid": not problems, "problems": problems, "status": status, "ready": status == "ready", "manifest": {k: man[k] for k in ("schema", "mode", "installable", "not_installable_reason", "configuration", "sizes", "warnings", "blockers", "excluded")},
                 "files": len(man["files"]), "cache": {"hits": self.cache.hits, "misses": self.cache.misses}}
@@ -450,6 +480,20 @@ def browse_index(cfg: dict, recs: list) -> dict:
 
 import threading as _threading
 _BUILD_LOCK = _threading.Lock()   # one build at a time: Preview, Play on PC and installation share the derivation cache (its files are renamed into place)
+def native_cover_sources(manifest: dict, home: dict, cache_root: str) -> dict[str, bytes]:
+    """the pictures Original Menu's covers are made from (console_engine/hakchi_publish.art_pngs), one per game: the game's cover in the
+    Details fit at quality 85, from the same source as its CCS HOME cover. That is the picture CCS HOME's console cover was before
+    console covers became smaller (derive.CONSOLE_COVER_SCALE), so Original Menu's covers stay exactly as they were. They stay on this
+    computer: the console package lists them apart from its files (console_package.py pc_files) and never sends them to a console.
+    -> {game id (games.json): JPEG bytes}"""
+    with _BUILD_LOCK:
+        cfg = CF.resolve(manifest, home); cfg["mode"] = "deployment"
+        b = Builder(cfg, cache_root, cache_root=cache_root); out = {}
+        for g in cfg["games"]:
+            p, _, _ = b.cover_file(g, False)
+            with open(p, "rb") as f: out[g["id"]] = f.read()
+        return out
+
 def build(manifest: dict | None, home: dict | None, *, mode: str = "deployment", root: str | None = None, progress=None, apply_epoch: int | None = None, cache_root: str | None = None) -> dict:
     """the one entry point (backend route and CLI): resolve the configuration, then build, validate and stage. cache_root: a
     derivation cache shared with another package root (default: the root's own cache)"""

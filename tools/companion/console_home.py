@@ -1,8 +1,14 @@
 """Classic Cart Studio's HOME on a console, the backend side (K3; docs/console-install-architecture.md sections 13 to 15). The one dispatcher behind
 /api/console/home/*: the page names an operation and, where it applies, a plan by its hash, a reviewed removal by its hash, an attempt by its
-id, a simulated profile, a rehearsal and CCS Mod's start at power-on (on or off) for a new plan; nothing else reaches a worker. A check (the
-preflight against a simulated console, or check against the checked console) answers with the plan for the method that console uses, which
-is then the plan reviewed and confirmed. Rehearsals run against disposable stand-ins (the simulation tier). The
+id, a simulated profile, a rehearsal and, for a new plan, the add-ons the console should have afterwards (mod: true or false; nucleus:
+"none", "direct" or "chooser"; start: "native" or "ccs-home"; auto: "menu", "last" or "wait"; hakchi_games: true or false, the collection's
+games also added to Original Menu as ordinary Hakchi games; what is not given is Studio's default: CCS Mod added, CCS Nucleus only when asked
+for, Hakchi games when CCS Mod is not; without CCS Mod only the game files those Hakchi games need go to the console, never CCS HOME, and a
+choice with neither CCS Mod nor Hakchi games is refused in plain words); nothing else reaches a worker. A check (the preflight against a simulated console, or check
+against the checked console) reads that console's add-ons and CCS Nucleus's start and answers with what the reviewed plan adds or changes,
+in plain words; a plan that would remove an add-on is refused there, with the console's add-ons and the nearest choice that keeps them.
+inspect reports the console's add-ons and what opens at power-on in plain words. Rehearsals run against disposable stand-ins (the
+simulation tier). The
 physical operations run the same engine code (console_engine.ccs_install through console_engine.worker), each asking Gate G1 here first
 (closed in code: refused before any worker starts), then again inside the worker, then in the transport worker:
   inspect   reads the console and makes it the checked console (its identity, for SESSION_TTL; a new check replaces it and voids every
@@ -32,6 +38,9 @@ import console_confirm as cc
 from console_engine import gate as cg
 
 SESSION_TTL = 600   # seconds: a console checked longer ago is checked again before anything is confirmed or run on it
+ORIGINAL_UNAVAILABLE_TITLE = "Returning to Nintendo's original software is unavailable"   # = CcsBackup Admission.OriginalUnavailableTitle/Text
+ORIGINAL_UNAVAILABLE_TEXT = ("Classic Cart Studio can back up your current Hakchi setup and add the changes you choose. It cannot return this console to Nintendo's "
+                             "original software without the original material from your own backup.")
 WRITE = {"install": "home-execute", "update": "home-execute", "uninstall": "home-uninstall", "recover": "home-recover"}
 READ = {"inspect": "home-inspect", "check": "home-check", "verify": "home-verify", "uninstall-review": "home-uninstall-review", "recover-review": "home-recover-review", "export": "home-export-console"}
 TIER = {**{k: "inspect" for k in READ}, **{k: "install" for k in WRITE}}
@@ -39,6 +48,7 @@ CLOSED = {"inspect": "Reading a real console is not available in this version.",
 BUSY = {"ok": False, "code": "busy", "error": "Another console operation is still running; wait for it to finish."}
 STUCK = {"ok": False, "code": "busy", "error": "The last console operation did not stop. Close Classic Cart Studio and open it again before the next console operation."}
 SCENARIOS = ("first-install", "update", "repeat", "repair", "interrupted")
+CHOICE = {"mod": bool, "nucleus": str, "start": str, "auto": str, "hakchi_games": bool}   # a new plan's add-on choice (console_engine.ccs_install.addon_choice) and its Hakchi games
 
 def _hex(v, n: int) -> str: s = re.sub(r"[^0-9a-f]", "", str(v or ""))[:n]; return s if len(s) == n else ""
 
@@ -46,6 +56,7 @@ class Dispatcher:
     def __init__(self, runs=None, allowed=None, confirmations=None, clock=None, spawn=None, admit=None):
         self.runs = runs or console_runs; self.allowed = allowed or cg.allowed; self.conf = confirmations or cc.BACKEND
         self.admit = admit or backup_admission.admit   # (hwid, operation, subject) -> {"ok", "ticket", ...}: the backup prerequisite
+        self.admit_preview = backup_admission.preview   # the same answer without a ticket, for the confirmation (data-only notice)
         self.clock = clock or time.time; self.spawn = spawn; self.lock = threading.Lock(); self.console: dict | None = None
         self.active: dict | None = None; self.last: str | None = None; self.epoch = 0   # the running operation; the last run; admissions so far
 
@@ -67,7 +78,7 @@ class Dispatcher:
         self.console = {"id": secrets.token_hex(6), "epoch": epoch, "device": dev["hwid"], "at": self.clock(), "written": False, "simulated": bool(r.get("simulated")),
                         "label": f"NES Classic ({dev.get('system')}, hakchi {dev.get('hakchi')}), console {hashlib.sha256(dev['hwid'].encode()).hexdigest()[:8]}",
                         "identity": {k: dev.get(k) for k in ("system", "kernel", "hakchi")},
-                        "state": {k: r.get(k) for k in ("pointer", "module", "method", "method_problem", "mod_start", "attempts", "copies", "in_use", "free_bytes")}}
+                        "state": {k: r.get(k) for k in ("pointer", "module", "addons", "addons_text", "addons_problem", "start", "attempts", "copies", "games_copies", "in_use", "free_bytes")}}
     def _finished(self, epoch: int, op: str, ev: dict | None, stopped: bool = True):
         """a run's completion (console_runs calls it after the worker has stopped, without its own lock held). A change was already counted
         when it was admitted, so a write's completion has nothing to add; only an inspection's answer is used, and only if nothing was
@@ -81,7 +92,11 @@ class Dispatcher:
     # ---- requests
     def post(self, op: str, body: dict) -> tuple[int, dict]:
         hsh = _hex(body.get("plan_hash"), 64); prof = re.sub(r"[^a-z0-9-]", "", str(body.get("profile") or ""))[:40]
-        if op == "plan": return self._res(self.runs.call("home-plan", {"mod_start": "on"} if body.get("mod_start") == "on" else {}, timeout=300, spawn=self.spawn))   # CCS Mod's start at power-on: on only when asked
+        if op == "plan":   # the add-on choice: only its fields, each of its own kind (the worker checks the values and says why one cannot be made)
+            choice = {k: body[k] for k in CHOICE if body.get(k) is not None}
+            if any(not isinstance(v, CHOICE[k]) or (isinstance(v, str) and not re.fullmatch(r"[a-z-]{1,16}", v)) for k, v in choice.items()):
+                return 400, {"ok": False, "code": "bad-choice", "error": "Choose the add-ons again, then make the plan again."}
+            return self._res(self.runs.call("home-plan", choice, timeout=300, spawn=self.spawn))
         if op == "preflight":
             if not hsh or not prof: return 400, {"ok": False, "error": "Prepare and review the plan again, then choose a simulated console."}
             return self._res(self.runs.call("home-preflight", {"plan_hash": hsh, "profile": prof}, timeout=120, spawn=self.spawn))
@@ -118,8 +133,14 @@ class Dispatcher:
             except cg.GateClosed: return 403, {"ok": False, "code": "physical-disabled", "physical": False, "error": CLOSED["install"]}
             except cc.ConfirmationRefused as e: return 400, {"ok": False, "code": e.code, "error": str(e)}
             label = s["label"]
-        what = {"install": "install this plan's HOME", "update": "update to this plan's HOME", "uninstall": "remove Classic Cart Studio's HOME exactly as reviewed", "recover": "recover this interrupted attempt"}[op]
-        return 200, {"ok": True, "confirmation": c["token"], "operation": op, "subject": subject, "console": label, "expires_in": c["expires_in"],
+        what = {"install": "install this collection as planned", "update": "update this console as planned", "uninstall": "remove what Classic Cart Studio added, exactly as reviewed", "recover": "recover this interrupted attempt"}[op]
+        # what the backup prerequisite will be, before anything proceeds: a data-only admission (no original Nintendo material in this
+        # console's backups) is said here, in the approved words; the change itself checks again
+        try: pv = self.admit_preview(s["device"], backup_admission.operation_for(op, body), subject)
+        except Exception: pv = {}
+        backup = {"data_only": pv.get("data_only") is True, "ok": pv.get("ok") is True, "text": str(pv.get("text") or "")}
+        if backup["data_only"]: backup.update(title=ORIGINAL_UNAVAILABLE_TITLE, notice=ORIGINAL_UNAVAILABLE_TEXT)
+        return 200, {"ok": True, "confirmation": c["token"], "operation": op, "subject": subject, "console": label, "expires_in": c["expires_in"], "backup": backup,
                      "covers": f"Once, within {c['expires_in'] // 60} minutes: {what} on {label}. Another console, plan or change needs a new confirmation."}
 
     def _physical(self, op: str, body: dict) -> tuple[int, dict]:

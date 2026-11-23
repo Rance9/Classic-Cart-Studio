@@ -110,6 +110,7 @@ namespace CcsBackup.Engine
             try { id = con.Identify(); }
             catch (ConsoleRefusedException ex) { return (null, Refuse(ex.Message)); }
             if (string.IsNullOrEmpty(id.Hwid)) return (null, Refuse("The console's identity could not be read, so no backup can be matched to it."));
+            var mw = ConsoleModels.RefusalFor(id, "rescue"); if (mw != null) return (null, Refuse(mw + " Nothing was changed."));
             ctx.Say("diagnose", "Checking the console's startup stages...");
             RescueDiagnosis dg;
             try { dg = Diagnose(con); } catch (ConsoleRefusedException ex) { return (null, Refuse(ex.Message)); }

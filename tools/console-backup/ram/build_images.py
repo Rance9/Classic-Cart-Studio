@@ -2,13 +2,15 @@
 changed so that it can only do what Console Backup & Restore needs. Copyright (C) 2026 Rance9, GPL-3.0-or-later (hakchi parts GPL-3.0,
 kernel GPL-2.0).
 
-  python build_images.py --hakchi-release DIR|ZIP --out DIR [--variants ccs-backup,ccs-restore,ccs-prepare]
+  python build_images.py --hakchi-release DIR|ZIP --ccsboot FILE --chooser-program ccs-home-armv7 --out DIR [--chooser-fonts DIR] [--variants ccs-backup,ccs-restore,ccs-prepare]
 
 DIR (--hakchi-release): the pinned Hakchi2 CE 3.9.3 release files basehmods.tar and hakchi.exe, or ZIP: the official portable package they
 come in (hakchi2-ce-3.9.3-portable.zip, which tools/publish/fetch_hakchi_package.py downloads and verifies); every input is checked by
-SHA-256 and never changed. The preparation image (ccs-prepare) also carries the pinned hakchi.hmod's files and ccsprep, and the two
-install-method packages (CCS Mod, CCS Nucleus: tools/console-nucleus/build_packages.py, built here from their sources and pinned by
-METHOD_SHAS) at ccs/prep/methods/<name>.hmod, which ccsprep's "method" step places in hakchi's transfer folder.
+SHA-256 and never changed. The preparation image (ccs-prepare) also carries the pinned hakchi.hmod's files, ccsprep, ccscomm (Community
+Mods' steps: a listed author's package placed and removed through hakchi's transfer folder; it never carries such a package), and the three
+add-on packages (CCS Mod, CCS Nucleus and CCS Nucleus's chooser: tools/console-nucleus/build_packages.py, built here from their sources
+and, for the chooser, the console build of the native HOME program and the player's menu fonts given with --chooser-program and
+--chooser-fonts; pinned by METHOD_SHAS) at ccs/prep/methods/<name>.hmod, which ccsprep's "method" step places in hakchi's transfer folder.
 For each variant a NEW folder <out>/<variant>/ with the image (ccs-<variant>-boot.img), fes1.bin and uboot-sd.bin (hakchi 3.9.3's,
 pinned), MANIFEST.json (schema ccs-h1-ram-image/2, which the first-party FEL loader CcsConsole.RamBoot accepts, plus image_id and the
 audit of every ramdisk change) and SHA256SUMS. Building authorizes nothing: loading an image on a console is a separately approved session.
@@ -42,10 +44,11 @@ UBOOT_SD_SHA = "3bfc4a56417aade7d3fa3afcf3d2344b07ea38d9f42de504eda3014844f86b5b
 # armv7). Both hashes are pinned: a changed source or a different build fails here until the pins are deliberately updated.
 CCSBOOT_SRC_SHA = "6b18c2ea41ab576b05fbd3df90dd388abced95f3b22bf60b230262bc7a60df9c"
 CCSBOOT_SHA = "6c67045275ba7c19857540149b23f70419f23109825c032db88955a7f62ab5b4"
-# CCS Mod and CCS Nucleus (tools/console-nucleus): built here from their sources (reproducible), pinned like ccsboot: a changed package
+# CCS Mod, CCS Nucleus and its chooser (tools/console-nucleus): built here (reproducible), pinned like ccsboot: a changed package
 # fails here until the pins are deliberately updated (and the C# engine reads them back from this image's MANIFEST.json "methods")
-METHOD_SHAS = {"ccs-mod": "0274a29108416151a7673aac147ae4dc870f725dea66cd1dd6127fcdc9fda662",
-               "ccs-nucleus": "c41bca718b04dcf60e9a6217c6f93276cb42db05949d10690c847473af5220d1"}
+METHOD_SHAS = {"ccs-mod": "5c5318b62efc712a4fb5b36f123ecd8b17953d770233a2674dbe6cb41668530c",
+               "ccs-nucleus": "65bc716ee6b7386bea45344be10ae0da5421378bb7a9da0f5928200c6ade5d7b",
+               "ccs-nucleus-chooser": "9f35f7b0e3d30ab846466365c7823a5fd7c1cd44a7b4d78468d423afc19d1801"}
 FEL_MAX = 0x2000000; FEL_SECTOR = 0x20000
 MTIME = 1763078400                       # 2025-11-14 00:00 UTC: fixed, so the same sources give the same image
 VARIANTS = ("ccs-backup", "ccs-restore", "ccs-prepare", "ccs-rescue", "ccs-files")
@@ -183,11 +186,13 @@ def ccsbr_for(variant: str) -> bytes:
     return src.encode()
 
 _methods = None
+CHOOSER_INPUTS: dict | None = None   # {"program": the console build of the native HOME program, "fonts": the player's menu fonts}
 def method_packages() -> dict:
-    """ccs-mod.hmod and ccs-nucleus.hmod, built from tools/console-nucleus's sources (byte-identical every time) and checked against METHOD_SHAS"""
+    """ccs-mod.hmod, ccs-nucleus.hmod and ccs-nucleus-chooser.hmod, built (byte-identical every time) and checked against METHOD_SHAS"""
     global _methods
     if _methods is None:
         sys.path.insert(0, os.path.join(TOOLS, "console-nucleus")); import build_packages as BP
+        if CHOOSER_INPUTS: BP.CHOOSER_INPUTS = CHOOSER_INPUTS
         _methods = {f"ccs-{m}": BP.hmod_bytes(BP.members(m)) for m in BP.PACKAGES}
         for n, b in _methods.items():
             if sha(b) != METHOD_SHAS.get(n): raise SystemExit(f"{n}.hmod is not the pinned package (its sources changed: update METHOD_SHAS deliberately)")
@@ -214,6 +219,7 @@ def build_variant(inp: dict, variant: str, out: str) -> dict:
     dirs = ["ccs", "ccs/bin", "ccs/cards"]
     if variant == "ccs-prepare":
         files["ccs/bin/ccsprep"] = (0o100755, lf(os.path.join(HERE, "ccsprep")))
+        files["ccs/bin/ccscomm"] = (0o100755, lf(os.path.join(HERE, "ccscomm")))   # Community Mods: a listed author's package placed and removed through hakchi's route
         files["ccs/bin/ccsboot"] = (0o100755, inp["ccsboot"])
         # the pinned hakchi.hmod's files (its install and uninstall scripts are left out: ccsprep does their work as checked steps)
         import gzip
@@ -291,7 +297,16 @@ def build_variant(inp: dict, variant: str, out: str) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--hakchi-release", required=True); ap.add_argument("--out", required=True); ap.add_argument("--variants", default=",".join(VARIANTS))
     ap.add_argument("--ccsboot", required=True, help="the console build of ram/ccsboot (ccsboot/build.sh), pinned by CCSBOOT_SHA")
+    ap.add_argument("--chooser-program", required=True, help="the console build of the native HOME program (ccs-home-armv7: tools/console-simulator, reproducible), for CCS Nucleus's chooser package")
+    ap.add_argument("--chooser-fonts", help="the player's menu fonts (.ccsf and their OFL license files), for CCS Nucleus's chooser package; default: baked here from the HOME theme's own fonts (tools/publish/assets/home, as the site's build does)")
     a = ap.parse_args()
+    global CHOOSER_INPUTS
+    fonts = a.chooser_fonts
+    if not fonts:   # the same fonts the site's build bakes (tools/player/bake_fonts.py from brand/home, a copy of tools/publish/assets/home)
+        import subprocess, tempfile
+        fonts = os.path.join(tempfile.mkdtemp(prefix="ccs-chooser-fonts-"), "fonts")
+        subprocess.run([sys.executable, os.path.join(TOOLS, "player", "bake_fonts.py"), os.path.join(TOOLS, "publish", "assets", "home"), fonts], check=True, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+    CHOOSER_INPUTS = {"program": a.chooser_program, "fonts": fonts}
     if os.path.exists(a.out) and os.listdir(a.out): raise SystemExit(f"{a.out} exists and is not empty: images are always built into a new folder")
     if sha(open(os.path.join(HERE, "ccsboot", "ccsboot.c"), "rb").read()) != CCSBOOT_SRC_SHA: raise SystemExit("ccsboot.c is not the pinned source (update CCSBOOT_SRC_SHA and CCSBOOT_SHA deliberately)")
     cb = open(a.ccsboot, "rb").read()

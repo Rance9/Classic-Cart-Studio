@@ -74,10 +74,11 @@ namespace CcsBackup.Compose
         public const bool CanAuthorizeWrites = false, IsRestorePoint = false;
         public const int MaxBytes = 1000000, MaxEnvironments = 8, MaxGames = 5000, MaxMods = 500, MaxInputs = 32;
         public static readonly string[] StartingPoints = { "like-my-other-console", "rebuild-from-backups", "fresh-ccs" };
-        public static readonly string[] InstallPolicies = { "ccs-mod", "ccs-nucleus" };
-        /// <summary>a starting point's and a start method's names as the window shows them (the codes stay in the plan file)</summary>
+        /// <summary>the add-ons a plan asks for: CCS Mod, CCS Nucleus, both, or none (each is added or removed on its own)</summary>
+        public static readonly string[] InstallPolicies = { "ccs-mod", "ccs-nucleus", "ccs-mod+ccs-nucleus", "none" };
+        /// <summary>a starting point's and the add-ons' names as the window shows them (the codes stay in the plan file)</summary>
         public static string StartingPointName(string s) => s == "like-my-other-console" ? "Set Up Like My Other Console" : s == "rebuild-from-backups" ? "Rebuild from My Backups" : s == "fresh-ccs" ? "Start Fresh with Classic Cart Studio" : s;
-        public static string PolicyName(string s) => s == "ccs-mod" ? "CCS Mod for Hakchi" : s == "ccs-nucleus" ? "CCS Nucleus" : s;
+        public static string PolicyName(string s) => s == "ccs-mod" ? "CCS Mod (CCS HOME)" : s == "ccs-nucleus" ? "CCS Nucleus" : s == "ccs-mod+ccs-nucleus" ? "CCS Mod (CCS HOME) and CCS Nucleus" : s == "none" ? "No add-ons" : s;
         public static readonly string[] EnvironmentKinds = { "nintendo-original", "ccs-home", "hakchi-ce" };
         public static readonly string[] InputRoles = { "console-system", "console-saves", "ccs-component", "hakchi-kernel" };
         public static readonly string[] CcsComponents = { "ccs-mod", "ccs-nucleus" };

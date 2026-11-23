@@ -14,6 +14,9 @@
 //                        restore point. Its own boundary.
 //   ComposerWrites       Console Composer: chosen saves, settings, hakchi games and Classic Cart Studio data from verified backups onto this
 //                        console's data storage, under the strict policy (a backup in the same session). Its own boundary.
+//   CleanupWrites        the Sega Mini menu pictures clean-up: removing the eligible pictures for the Sega Mini menu Hakchi2 CE made in
+//                        hakchi's game folders, and putting exactly those files back (SegaCleanup), under the strict policy (a backup in
+//                        the same session). Its own boundary.
 //   DeveloperWrites      Developer Mode: writable file areas, developer kernel/system images under a session restore point. Its own
 //                        boundary; custom boot0/boot1/partition-table writes are not part of it (they do not exist in this version).
 //   DeveloperTestBoot    Developer Mode's test boot: a startup image that is not a Classic Cart Studio console program, sent to the
@@ -26,6 +29,14 @@
 //                        installing a method as part of a preparation is under PreparationWrites.
 //   DriverChanges        this PC, not the console: setting up or removing Workbench's USB driver package and its certificate (the elevated
 //                        --driver-action mode, Driver/DriverActionHost.cs). Its own boundary; it opens no console boundary and none opens it.
+//   StorageRawReads      this PC, not the console: reading a connected USB drive or SD card whole, sector by sector, for a whole drive
+//                        image (Windows needs administrator permission for that; External/RawDisk.cs). Its own boundary. Files and folders
+//                        backups read through ordinary Windows file access and need none; a drive image FILE the person chooses needs none.
+//   StorageDiskWrites    this PC, not the console: writing a whole drive image back onto a connected USB drive or SD card (a destructive
+//                        restore of the whole drive; External/ExternalRestore.cs). Its own boundary; a drive image FILE as the target needs none.
+//   CommunityWrites      Community Mods: a listed author's package placed in hakchi's transfer folder or named in its removal list, and the
+//                        mod's settings kept or put back in Classic Cart Studio's own folder (CommunityEngine, ram/ccscomm). Its own boundary;
+//                        MethodWrites never opens it.
 // A restore, a preparation or a return needs ConsoleSessions AND its own write boundary; RecoveryConsole asks the write boundary again before
 // every write command. With a constant false, the compiler leaves the code behind it out (CS0162): no path in this version reaches
 // the hardware. A simulated console (a folder of files on the PC, SimulatedConsole) is not behind these boundaries: it can only ever
@@ -45,9 +56,13 @@ namespace CcsBackup
         public const bool DeveloperWrites = false;      // Developer Mode writes: NOT approved
         public const bool DeveloperTestBoot = false;    // Developer Mode's test boot of a startup image in the console's memory: NOT approved
         public const bool ComposerWrites = false;       // Console Composer's file composition: NOT approved
+        public const bool CleanupWrites = false;        // removing or putting back the pictures for the Sega Mini menu on a real console: NOT approved
         public const bool MethodWrites = false;         // removing or changing CCS Mod / CCS Nucleus on a real console: NOT approved
         public const bool FirmwareWrites = false;       // an owner's system image added to or removed from CCS Nucleus on a real console: NOT approved
         public const bool DriverChanges = false;        // setting up or removing the USB driver package and its certificate on this PC: NOT approved
+        public const bool StorageRawReads = false;      // reading a connected USB drive or SD card whole, for a whole drive image: NOT approved
+        public const bool StorageDiskWrites = false;    // writing a whole drive image back onto a connected USB drive or SD card: NOT approved
+        public const bool CommunityWrites = false;      // installing, updating or removing a listed community mod on a real console: NOT approved
         public const string SessionsText = "Connecting to a real console is not available in this version.";
         public const string RestoreText = "Restoring a real console is not available in this version.";
         public const string PreparationText = "Preparing a real console is not available in this version.";
@@ -57,9 +72,13 @@ namespace CcsBackup
         public const string DeveloperText = "Developer changes to a real console are not available in this version.";
         public const string DeveloperTestBootText = "Starting a startup image in a real console's memory is not available in this version.";
         public const string ComposerText = "Composing a real console is not available in this version.";
+        public const string CleanupText = "Removing or putting back pictures on a real console is not available in this version.";
         public const string MethodText = "Removing or changing CCS Mod or CCS Nucleus on a real console is not available in this version.";
         public const string FirmwareText = "Adding or removing a system image on a real console is not available in this version.";
         public const string DriverText = "Setting up or removing the USB driver on this PC is not available in this version.";
+        public const string StorageRawText = "Copying a connected USB drive or SD card as a whole drive image is not available in this version.";
+        public const string StorageDiskText = "Writing a whole drive image back onto a connected USB drive or SD card is not available in this version.";
+        public const string CommunityText = "Installing, updating or removing community mods on a real console is not available in this version.";
     }
 
     public sealed class GateClosedException : Exception

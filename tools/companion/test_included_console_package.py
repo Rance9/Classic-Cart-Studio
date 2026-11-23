@@ -50,6 +50,35 @@ def main() -> int:
             cs = CF.cover_source(CF.resolve_game(pid, {}))
             ok("its cover is the author's own screen from the game (the Included Games cover), not a generated one", cs["kind"] == "authentic" and cs["rel"] == "included/" + g["cover"]["file"] and hg.get("cover") and os.path.isfile(os.path.join(out, "home", hg["cover"])), (cs, {k: v for k, v in hg.items() if "cover" in k}))
             ok("the package verifies", cpk.verify(out)["ok"])
+            # Include HOME music: selected by default, the song is in the package and its player's session; left out, the package carries none
+            def music_of(d):
+                files = json.load(open(os.path.join(d, "MANIFEST.json"), encoding="utf-8"))["files"]
+                pack = json.load(open(os.path.join(d, "home", "pack.json"), encoding="utf-8")); sess = json.load(open(os.path.join(d, "session.json"), encoding="utf-8"))
+                cfgj = json.load(open(os.path.join(d, "home", "config.json"), encoding="utf-8"))
+                return [f for f in files if f.startswith("home/music/")], pack.get("music"), sess["home"]["music"]["asset"], cfgj.get("include_music"), sum(f["size"] for f in files.values())
+            dm, dp, da, dc, dt = music_of(out)
+            ok("Include HOME music (the default): the song is in the package and the player's session", dm == ["home/music/ccs-home-theme.wav"] and dp and dp.get("file") and da.endswith("/home/music/ccs-home-theme.wav") and dc is None, (dm, dp, da, dc))
+            out2 = os.path.join(work, "console-no-music"); b2 = cpk.build_console(man, dict(home, include_music=False), out2, layout="install", player=a.player or None, label="Included Games")
+            if b2.get("ok"):
+                nm, np_, na, nc, nt = music_of(out2)
+                ok("Include HOME music left out: no song in the package, its HOME or the player's session (the payload, not only muted)",
+                   nm == [] and np_ is None and na == "" and nc is False and not os.path.exists(os.path.join(out2, "home", "music")) and cpk.verify(out2)["ok"], (nm, np_, na, nc))
+                fa = json.load(open(os.path.join(out, "MANIFEST.json"), encoding="utf-8"))["files"]; fb = json.load(open(os.path.join(out2, "MANIFEST.json"), encoding="utf-8"))["files"]
+                diff = sorted(k for k in set(fa) | set(fb) if (fa.get(k) or {}).get("sha256") != (fb.get(k) or {}).get("sha256"))
+                ok("leaving it out changes only the song (gone), its notice, and the records that name it; the totals agree",
+                   diff == ["home/config.json", "home/manifest.json", "home/music/ccs-home-theme.wav", "home/pack.json", "licenses/NOTICE.txt", "session.json"] and "home/music/ccs-home-theme.wav" not in fb
+                   and dt - nt == sum((fa.get(k) or {}).get("size", 0) - (fb.get(k) or {}).get("size", 0) for k in diff) and dt - nt > 11907116, (diff, dt, nt))
+            else: ok("Include HOME music left out: the package builds", False, b2.get("error"))
+            # HOME Music as MP3 is held in this version: a build that asks for it without its exact file is refused (never a package without its song)
+            from native_home import package as PK
+            PK.HOME_MUSIC_FORMAT = "mp3"; os.environ.pop("CCS_HOME_MUSIC_MP3", None)
+            try: b3 = cpk.build_console(man, home, os.path.join(work, "console-mp3"), layout="install", player=a.player or None, label="Included Games")
+            finally: PK.HOME_MUSIC_FORMAT = "wav"
+            ok("HOME Music as MP3 without its file: refused, not built without music", not b3.get("ok") and "MP3 HOME Music" in (b3.get("error") or "") and not os.path.exists(os.path.join(work, "console-mp3", "MANIFEST.json")), b3)
+            import home_music as HMU
+            fake = os.path.join(work, "fake.mp3"); open(fake, "wb").write(b"\0" * HMU.MP3_BYTES); os.environ["CCS_HOME_MUSIC_MP3"] = fake
+            try: ok("only the exact held MP3 is accepted (its SHA-256)", HMU.mp3_asset() is None and PK.HOME_MUSIC_FORMAT == "wav")
+            finally: os.environ.pop("CCS_HOME_MUSIC_MP3", None)
         ok("no network connection was attempted", not net, net)
     finally:
         socket.socket.connect = real; shutil.rmtree(work, ignore_errors=True)

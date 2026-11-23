@@ -22,6 +22,7 @@ namespace CcsWorker.Ops
         public const int CommandTimeoutMs = 20000;      // the longest silence a command may keep
         public const int SimpleTimeoutMs = 2000;        // upstream ExecuteSimple
         public const int ModuleTimeoutMs = 60000;
+        public const int CollectionsTimeoutMs = 600000;   // a collection's entries written and checked one by one
         public const int ProgressStep = 256 * 1000;
         const int MaxCommand = 32000;
 
@@ -207,6 +208,59 @@ namespace CcsWorker.Ops
             return new Dictionary<string, object> { ["hashes"] = hashes };
         }
 
+        /// <summary>the places the console's menus list games: hakchi's folders on the data storage (its game storage and its overlay of
+        /// the system's own games folder) and hakchi's folder on a USB drive or SD card (its findGameStorage looks there first)</summary>
+        public static readonly string[] MenuRoots = { "/var/lib/hakchi", "/media/hakchi" };
+        static readonly Regex MenuName = new Regex("^(pkg|games)/[0-9a-f]{16}\\.[0-9a-f]{8}$");
+
+        /// <summary>Read only: which menu entries (.desktop files under MenuRoots) name one of Classic Cart Studio's copies, given as
+        /// "pkg/COPY" (a CCS HOME copy) or "games/COPY" (a games copy); an entry names it when a line holds "ccs/NAME". The stock BusyBox has
+        /// no find or grep: a shell function walks the folders and each entry is read line by line by the shell. A link is never walked: an
+        /// entry that is a link is read through it. Any other link matters where the console's menus list games, or on the way there:
+        /// games/ under a root (hakchi's game storage) and hakchi's overlay of the console's own games folder (rootfs/usr/share/games). There a
+        /// link to a folder is accepted only when its real path is inside a root this walk reads (its folders are read there) or inside the
+        /// console's read-only system image (/var/squashfs, mounted read-only: it was made before any copy existed and nothing writes to it),
+        /// and is otherwise reported as "linked", as is a link that leads nowhere; a link to a file holds no entries. Links elsewhere (hakchi's
+        /// own programs, libraries and settings) are not where the menus list games. complete is false when anything was not read or not
+        /// told apart (an unreadable folder or entry,
+        /// a reported link, a root that is a link or not a folder, an unfinished or unexpected answer): the caller then cannot know that
+        /// nothing names a copy.</summary>
+        public Dictionary<string, object> MenuRefs(IList<object> names)
+        {
+            if (names == null || names.Count == 0 || names.Count > 64) throw new OpException("bad-args", "names: 1 to 64 copies");
+            var list = names.Select(n => n as string).ToList();
+            if (list.Any(n => n == null || !MenuName.IsMatch(n)) || list.Distinct().Count() != list.Count) throw new OpException("bad-args", "names: pkg/COPY or games/COPY, each once");
+            var needles = string.Join(" ", list.Select(n => "'ccs/" + n + "'"));
+            var r = Exec("SQ=''; while read -r a m y o x; do [ \"$m\" = '/var/squashfs' ] && case \",$o,\" in *,ro,*) SQ='/var/squashfs';; esac; done < '/proc/mounts'; " +
+                         "RC=''; for R in " + string.Join(" ", MenuRoots.Select(Q)) + "; do if [ -d \"$R\" ] && [ ! -L \"$R\" ]; then c=$(realpath \"$R\" 2>/dev/null) && RC=\"$RC $c\"; fi; done; " +
+                         "k(){ local n=\"$1\" t c; case \"$n\" in \"$R/games\"|\"$R/games/\"*|\"$R/rootfs\"|\"$R/rootfs/usr\"|\"$R/rootfs/usr/share\"|\"$R/rootfs/usr/share/games\"|\"$R/rootfs/usr/share/games/\"*) ;; *) return 0;; esac; " +
+                         "if [ -d \"$n\" ]; then t=$(realpath \"$n\" 2>/dev/null) || { printf 'linked\\t%s\\n' \"$n\"; return 0; }; " +
+                         "for c in $RC $SQ; do case \"$t/\" in \"$c\"/*) return 0;; esac; done; printf 'linked\\t%s\\n' \"$n\"; elif [ ! -e \"$n\" ]; then printf 'linked\\t%s\\n' \"$n\"; fi; return 0; }; " +
+                         "s(){ local f=\"$1\" l n h=' '; { while IFS= read -r l || [ -n \"$l\" ]; do for n in " + needles + "; do case \"$l\" in *\"$n\"*) case \"$h\" in *\" $n \"*) ;; *) h=\"$h$n \";; esac;; esac; done; done; } < \"$f\" || return 1; " +
+                         "for n in $h; do set -- $(sha256sum \"$f\") || return 1; printf 'ref\\t%s\\t%s\\t%s\\n' \"${n#ccs/}\" \"$1\" \"$f\"; done; }; " +
+                         "w(){ local d=\"$1\" n; [ -r \"$d\" ] && [ -x \"$d\" ] || { printf 'unreadable\\t%s\\n' \"$d\"; return 0; }; for n in \"$d\"/* \"$d\"/.[!.]* \"$d\"/..?*; do [ -e \"$n\" ] || [ -L \"$n\" ] || continue; " +
+                         "if [ -L \"$n\" ]; then case \"$n\" in *.desktop) s \"$n\" || printf 'unreadable\\t%s\\n' \"$n\";; *) k \"$n\";; esac; elif [ -d \"$n\" ]; then w \"$n\"; " +
+                         "elif [ -f \"$n\" ]; then case \"$n\" in *.desktop) s \"$n\" || printf 'unreadable\\t%s\\n' \"$n\";; esac; fi; done; }; " +
+                         "for R in " + string.Join(" ", MenuRoots.Select(Q)) + "; do if [ -L \"$R\" ]; then printf 'root\\t%s\\tlink\\n' \"$R\"; elif [ -d \"$R\" ]; then printf 'root\\t%s\\tlisted\\n' \"$R\"; w \"$R\"; printf 'end\\t%s\\n' \"$R\"; " +
+                         "elif [ -e \"$R\" ]; then printf 'root\\t%s\\tother\\n' \"$R\"; else printf 'root\\t%s\\tabsent\\n' \"$R\"; fi; done; echo done", null, 4 << 20, 600000);
+            var roots = new Dictionary<string, object>(); var refs = new List<object>(); var unreadable = new List<object>(); var linked = new List<object>(); bool complete = r.Code == 0 && !r.Overflow, done = false;
+            var ended = new HashSet<string>();
+            foreach (var l in r.Text.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Length > 0))
+            {
+                var f = l.Split('\t');
+                if (l == "done" && !done) { done = true; continue; }
+                if (done) { complete = false; continue; }
+                if (f[0] == "root" && f.Length == 3 && MenuRoots.Contains(f[1]) && !roots.ContainsKey(f[1])) { roots[f[1]] = f[2]; if (f[2] == "link" || f[2] == "other") complete = false; }
+                else if (f[0] == "end" && f.Length == 2 && MenuRoots.Contains(f[1])) ended.Add(f[1]);
+                else if (f[0] == "ref" && f.Length == 4 && list.Contains(f[1]) && Hex64(f[2])) refs.Add(new Dictionary<string, object> { ["name"] = f[1], ["sha256"] = f[2], ["path"] = f[3] });
+                else if (f[0] == "unreadable" && f.Length == 2) { unreadable.Add(f[1]); complete = false; }
+                else if (f[0] == "linked" && f.Length == 2) { linked.Add(f[1]); complete = false; }   // a folder link whose entries this walk does not read
+                else complete = false;   // an answer that cannot be told apart (a name with a tab or a line break)
+            }
+            if (!done || MenuRoots.Any(x => !roots.ContainsKey(x)) || roots.Any(kv => (string)kv.Value == "listed" && !ended.Contains(kv.Key))) complete = false;
+            return new Dictionary<string, object> { ["roots"] = roots, ["refs"] = refs, ["unreadable"] = unreadable, ["linked"] = linked, ["complete"] = complete };
+        }
+
         public Dictionary<string, object> Read(string path, long maxBytes)
         {
             path = ConsolePath.Read(path);
@@ -368,8 +422,8 @@ namespace CcsWorker.Ops
         }
 
         // ---------------------------------------------------------------- hakchi's own package handling (b0030_package)
-        // The install method of the CCS Console Workbench's shared policy (tools/console-nucleus): CCS Mod ("ccs-mod") or CCS Nucleus
-        // ("ccs-nucleus"), only the exact builds pinned in ConsolePath.MethodPackages, installed with hakchi's own pack_install (the package's
+        // The add-ons (tools/console-nucleus): CCS Mod ("ccs-mod"), CCS Nucleus ("ccs-nucleus") and its chooser ("ccs-nucleus-chooser", after
+        // CCS Nucleus), only the exact builds pinned in ConsolePath.MethodPackages, installed with hakchi's own pack_install (the package's
         // install script checks that every file it would copy is free or its own, hakchi copies them, the script records them and adds the
         // menu entry) and removed with hakchi's pack_uninstall (the package's own removal: only its unchanged files). The earlier start-up
         // module "ccs-home" (one overlay S81clover-mcp, which hakchi's script/removed deletes at every start) is only read and removed.
@@ -378,7 +432,7 @@ namespace CcsWorker.Ops
         public Dictionary<string, object> ModuleInstall(Dictionary<string, object> a)
         {
             var name = a.TryGetValue("name", out var n) ? n as string : null;
-            if (!Method(name)) throw new OpException("bad-args", "name: ccs-mod or ccs-nucleus (the earlier ccs-home module is never installed)");
+            if (!Method(name)) throw new OpException("bad-args", "name: ccs-mod, ccs-nucleus or ccs-nucleus-chooser (the earlier ccs-home module is never installed)");
             if (!(a.TryGetValue("hmod", out var hv) && hv is Dictionary<string, object> h)) throw new OpException("bad-args", "hmod: an object");
             var want = h.TryGetValue("sha256", out var hs) ? hs as string : null;
             if (want != MethodPins[name]) throw new OpException("not-pinned", name + ": only the pinned build of the package is installed");
@@ -393,16 +447,18 @@ namespace CcsWorker.Ops
             var r = Exec("hakchi pack_install " + Q(file) + "; r=$?; rm -rf " + Q(dir) + "; exit $r", null, 1 << 20, ModuleTimeoutMs);
             var output = Bound(r.Text + (r.Err.Length > 0 ? "\n" + r.Err : ""), 4096);
             if (r.Code != 0) throw new OpException("module-failed", "hakchi pack_install answered " + r.Code + ": " + output);
-            // the package's own install script ends with one line "result postinstall ok ..." (or refuses: then hakchi keeps no uninstall list)
-            var post = r.Text.Replace("\r", "").Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("result postinstall ", StringComparison.Ordinal) || l.StartsWith("result preinstall ", StringComparison.Ordinal));
+            // the package's own install script ends with one line "result postinstall ok ..." (the chooser's: "result chooser-postinstall
+            // ok ..."), or refuses (then hakchi keeps no uninstall list)
+            var (postP, preP) = name == "ccs-nucleus-chooser" ? ("result chooser-postinstall ", "result chooser-preinstall ") : ("result postinstall ", "result preinstall ");
+            var post = r.Text.Replace("\r", "").Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith(postP, StringComparison.Ordinal) || l.StartsWith(preP, StringComparison.Ordinal) || l.StartsWith("result install ", StringComparison.Ordinal));
             var list = UninstallList(name);
-            if (post == null || !post.StartsWith("result postinstall ok", StringComparison.Ordinal) || !list.Item1) throw new OpException("module-failed", name + " was not installed: " + (post ?? output));
+            if (post == null || !post.StartsWith(postP + "ok", StringComparison.Ordinal) || !list.Item1) throw new OpException("module-failed", name + " was not installed: " + (post ?? output));
             return new Dictionary<string, object> { ["output"] = output, ["postinstall"] = post, ["uninstall_list"] = list.Item2, ["hmod_sha256"] = want };
         }
 
         public Dictionary<string, object> ModuleUninstall(string name)
         {
-            if (name != ConsolePath.ModuleName && !Method(name)) throw new OpException("bad-args", "name: ccs-mod, ccs-nucleus or the earlier ccs-home");
+            if (name != ConsolePath.ModuleName && !Method(name)) throw new OpException("bad-args", "name: ccs-mod, ccs-nucleus, ccs-nucleus-chooser or the earlier ccs-home");
             var r = Exec("hakchi pack_uninstall " + Q(name), null, 1 << 20, ModuleTimeoutMs);
             var output = Bound(r.Text + (r.Err.Length > 0 ? "\n" + r.Err : ""), 4096);
             if (r.Code != 0) throw new OpException("module-failed", "hakchi pack_uninstall answered " + r.Code + ": " + output);
@@ -410,23 +466,46 @@ namespace CcsWorker.Ops
             return new Dictionary<string, object> { ["output"] = output };
         }
 
-        /// <summary>CCS Mod's optional start at power-on, by CCS Mod's own command on the console ("ccs-mod autostart on|off"):
-        /// on writes its start script from the package's template only where nothing else is and delegates to the
-        /// console's own start; off removes it while it is still the one CCS Mod wrote. Only while hakchi lists CCS Mod; the program run is the
-        /// one hakchi's overlay holds (the installer checks it is the pinned package's, unchanged, before it asks). Its one result line; anything
-        /// but its plain success is an error</summary>
-        public Dictionary<string, object> ModStart(string state)
+        /// <summary>What opens at power-on, by CCS Nucleus's own command on the console ("ccs-nucleus start DEFAULT CHOOSER HOME": DEFAULT
+        /// native or ccs-home, CHOOSER always or never, HOME on or off), which changes its registry in place (the owner's own system images
+        /// stay listed). Only while hakchi lists CCS Nucleus; the program run is the one hakchi's overlay holds (the installer checks it is the
+        /// pinned package's, unchanged, before it asks). Its one result line; anything but its success is an error</summary>
+        public Dictionary<string, object> NucleusStart(string def, string chooser, string home, string selection = "default", string timeout = "10")
         {
-            if (state != "on" && state != "off") throw new OpException("bad-args", "state: on or off");
-            if (!UninstallList("ccs-mod").Item1) throw new OpException("not-installed", "CCS Mod is not installed (hakchi does not list it)");
+            if (def != "native" && def != "ccs-home" || chooser != "always" && chooser != "never" || home != "on" && home != "off" || selection != "default" && selection != "last"
+                || timeout == null || !Regex.IsMatch(timeout, "^([0-9]|[1-9][0-9])$")) throw new OpException("bad-args", "default: native or ccs-home; chooser: always or never; home: on or off; selection: default or last; timeout: 0 to 99");
+            if (!UninstallList("ccs-nucleus").Item1) throw new OpException("not-installed", "CCS Nucleus is not installed (hakchi does not list it)");
             CheckCancel();
             // CCS_ROOT is empty on a console (the program's own place, less its path): the same text runs in the tests' stand-in folder
-            var r = Exec("p='/var/lib/hakchi/rootfs/bin/ccs-mod'; if [ -L \"$p\" ] || [ ! -f \"$p\" ]; then exit 4; fi; CCS_ROOT=\"${p%/var/lib/hakchi/rootfs/bin/ccs-mod}\" sh \"$p\" autostart " + state, null, 65536, ModuleTimeoutMs);
-            if (r.Code == 4) throw new OpException("not-a-file", "CCS Mod's program is not a plain file");
+            var r = Exec("p='/var/lib/hakchi/rootfs/bin/ccs-nucleus'; if [ -L \"$p\" ] || [ ! -f \"$p\" ]; then exit 4; fi; CCS_ROOT=\"${p%/var/lib/hakchi/rootfs/bin/ccs-nucleus}\" sh \"$p\" start " + def + " " + chooser + " " + home + " " + selection + " " + timeout, null, 65536, ModuleTimeoutMs);
+            if (r.Code == 4) throw new OpException("not-a-file", "CCS Nucleus's program is not a plain file");
             var output = Bound(r.Text + (r.Err.Length > 0 ? "\n" + r.Err : ""), 4096);
-            var line = r.Text.Replace("\r", "").Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("result autostart ", StringComparison.Ordinal));
-            if (line != "result autostart ok " + state) throw new OpException("module-failed", "CCS Mod's own command answered: " + (line ?? output));
+            var line = r.Text.Replace("\r", "").Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("result start ", StringComparison.Ordinal));
+            if (line == null || !line.StartsWith("result start ok ", StringComparison.Ordinal)) throw new OpException("module-failed", "CCS Nucleus's own command answered: " + (line ?? output));
             return new Dictionary<string, object> { ["result"] = line, ["output"] = output };
+        }
+
+        /// <summary>The console program for Hakchi games (ConsolePath.CollectionsProgram): "where", "check STAGE", "apply STAGE", "remove" or
+        /// "status", STAGE a folder under /var/lib/ccs/integration/stage that the PC wrote. The program and its library run only when both are
+        /// exactly the pinned files (checked in the same shell command that runs them); the program writes only the menu entries and folders
+        /// its own journal records and the index (its header). Its whole output; its last "result" line decides success (the caller
+        /// reads it)</summary>
+        public Dictionary<string, object> Collections(string command, string stage)
+        {
+            if (command != "where" && command != "check" && command != "apply" && command != "remove" && command != "status") throw new OpException("bad-args", "command: where, check, apply, remove or status");
+            var staged = command == "check" || command == "apply";
+            if (staged != (stage != null) || staged && !Regex.IsMatch(stage, "^/var/lib/ccs/integration/stage/[0-9a-f]{8}$")) throw new OpException("bad-args", "stage: a folder under /var/lib/ccs/integration/stage, for check and apply only");
+            var d = ConsolePath.CollectionsDir; var p = d + "/ccs-collections"; var l = d + "/lib.sh";
+            CheckCancel();
+            // CCS_ROOT is empty on a console (the program's own place, less its path): the same text runs in the tests' stand-in folder
+            var r = Exec("p=" + Q(p) + "; l=" + Q(l) + "; for f in \"$p\" \"$l\"; do if [ -L \"$f\" ] || [ ! -f \"$f\" ]; then exit 4; fi; done; set -- $(sha256sum \"$p\"); [ \"$1\" = '" + ConsolePath.CollectionsProgram["ccs-collections"]
+                + "' ] || exit 5; set -- $(sha256sum \"$l\"); [ \"$1\" = '" + ConsolePath.CollectionsProgram["lib.sh"] + "' ] || exit 5; CCS_ROOT=\"${p%" + p + "}\" sh \"$p\" " + command + (staged ? " " + Q(stage) : ""),
+                null, 1 << 20, CollectionsTimeoutMs);
+            if (r.Code == 4 || r.Code == 5) throw new OpException("not-installed", "the console program for Hakchi games is not in " + d + " as pinned");
+            var output = Bound(r.Text + (r.Err.Length > 0 ? "\n" + r.Err : ""), 900000);
+            var line = r.Text.Replace("\r", "").Split('\n').Select(x => x.Trim()).LastOrDefault(x => x.StartsWith("result " + command + " ", StringComparison.Ordinal));
+            if (line == null) throw new OpException("module-failed", "the console program did not answer: " + Bound(output, 4096));
+            return new Dictionary<string, object> { ["output"] = output, ["result"] = line };
         }
 
         Tuple<bool, string> UninstallList(string name)
@@ -443,9 +522,14 @@ namespace CcsWorker.Ops
         static readonly Regex FilesLine = new Regex("^([0-9a-f]{64}) (0[0-7]{3}) ([A-Za-z0-9._/-]{1,200})$");
         /// <summary>the earlier module: the files its uninstall list names, with their SHA-256 now. A method package: hakchi lists it or not, its
         /// VERSION's package id, and every file its own FILES list names (and the list itself), with the SHA-256 each has now (null: missing)</summary>
+        /// <summary>a file in hakchi's overlay that an add-on's own FILES list may name: its own folder /etc/ccs/NAME/; the chooser's also
+        /// CCS Nucleus's chooser folder and the menu entry's two pictures it puts beside CCS Nucleus (tools/console-nucleus build_packages.py)</summary>
+        static bool Own(string m, string p) => p.StartsWith("/etc/ccs/" + m + "/", StringComparison.Ordinal)
+            || m == "nucleus-chooser" && (p.StartsWith("/etc/ccs/nucleus/chooser/", StringComparison.Ordinal) || p == "/etc/ccs/nucleus/entry.png" || p == "/etc/ccs/nucleus/entry-small.png");
+
         public Dictionary<string, object> ModuleFiles(string name)
         {
-            if (name != ConsolePath.ModuleName && !Method(name)) throw new OpException("bad-args", "name: ccs-mod, ccs-nucleus or the earlier ccs-home");
+            if (name != ConsolePath.ModuleName && !Method(name)) throw new OpException("bad-args", "name: ccs-mod, ccs-nucleus, ccs-nucleus-chooser or the earlier ccs-home");
             var list = UninstallList(name);
             var files = new Dictionary<string, object>(); var unreadable = new List<object>(); var ignored = new List<object>();
             if (!list.Item1) return new Dictionary<string, object> { ["files"] = files, ["present"] = false };
@@ -463,7 +547,7 @@ namespace CcsWorker.Ops
                     {
                         var fm = FilesLine.Match(l.Trim()); if (!fm.Success) continue;
                         var p = "/" + fm.Groups[3].Value;
-                        if (ConsolePath.Plain(p) && (ConsolePath.ReadExact.Contains(ConsolePath.HakchiRootfs + p) || p.StartsWith("/etc/ccs/" + m + "/", StringComparison.Ordinal))) paths.Add(p); else unreadable.Add(p);
+                        if (ConsolePath.Plain(p) && (ConsolePath.ReadExact.Contains(ConsolePath.HakchiRootfs + p) || Own(m, p))) paths.Add(p); else unreadable.Add(p);
                     }
                 if (fl.ContainsKey("b64")) paths.Add("/etc/ccs/" + m + "/FILES");
                 CheckCancel();

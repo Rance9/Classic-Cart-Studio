@@ -1,0 +1,69 @@
+#!/bin/sh
+# ccs-ci: a reference reader for the CCS Collection Interface v1 index, for console menus and scripts (POSIX sh and awk: BusyBox, mawk,
+# gawk). Part of the CCS Collection Interface kit. Copyright (c) 2026 Rance9. MIT License (see LICENSE).
+#
+#   ccs-ci [-f INDEX] COMMAND [ARGUMENTS]       INDEX: /var/lib/ccs/integration/v1/index.json unless given
+#     check                    the index is a CCS Collection Interface v1 index: prints its generation (exit 0), or why not (exit 1)
+#     generation               the generation (it changes with every rewrite of the index)
+#     collections              one line per collection, in order: ID <TAB> NAME
+#     games COLLECTION         one line per game of the collection, in its order: ID <TAB> TITLE <TAB> ENTRY (the standard entry's path on
+#                              the console, or "-" when the game has none)
+#     folders COLLECTION       one line per folder, parents before their folders: ID <TAB> PARENT ("-" at the top) <TAB> NAME <TAB> ENTRY
+#     folder-games COLLECTION FOLDER    the folder's game ids, in order
+#     favorites COLLECTION     the collection's favorite game ids
+#     game ID                  NAME <TAB> VALUE lines: title, status, reason, entry, cover, thumbnail (paths on the console)
+#     flat                     every value of the index (ccs-ci-flat.awk's lines)
+# Values in the output are written as ccs-ci-flat.awk writes them (a newline as \n, a tab as \t, a backslash as \\).
+# Rules this reader keeps (see README.md): it reads only fields it knows and ignores every other one; it uses a reference only when its base
+# is listed in "bases" and its path is plain and relative (no "..", nothing absolute); it never runs anything the index names. Exit status 2:
+# the index cannot be read as JSON.
+set -f
+LC_ALL=C; export LC_ALL
+HERE="$(dirname "$0")"; FLAT="$HERE/ccs-ci-flat.awk"
+AWK="${CCS_CI_AWK:-awk}"   # another awk, for example "busybox awk"
+INDEX=/var/lib/ccs/integration/v1/index.json
+if [ "$1" = "-f" ]; then INDEX="$2"; shift 2; fi
+CMD="$1"; [ $# -gt 0 ] && shift
+[ -f "$FLAT" ] || { echo "ccs-ci: ccs-ci-flat.awk is not beside this script" >&2; exit 3; }
+[ -f "$INDEX" ] || { echo "ccs-ci: no index at $INDEX" >&2; exit 1; }
+T="${TMPDIR:-/tmp}/ccs-ci.$$"
+trap 'rm -f "$T"' EXIT INT TERM
+$AWK -f "$FLAT" "$INDEX" > "$T" || exit 2
+
+# q AWKPROGRAM [ARGS...]: run an awk program over the flattened index; the program sees V[path] (values), Y[path] (types) and the arguments
+q(){
+  prog="$1"; shift
+  $AWK -F '\t' -v a1="$1" -v a2="$2" '
+    { V[$1] = $3; Y[$1] = $2 }
+    function safe(p) { return p ~ /^[A-Za-z0-9_][A-Za-z0-9._-]*(\/[A-Za-z0-9_][A-Za-z0-9._-]*)*$/ && ("/" p "/") !~ /\/\.\.?\// }
+    function base(b) { return (Y["bases." b] == "string" && V["bases." b] ~ /^(\/[A-Za-z0-9_][A-Za-z0-9._-]*)+$/) ? V["bases." b] : "" }
+    function ref(p,   b, x) {   # the console path a reference at p names, or "-"
+      if (Y[p ".base"] != "string" || Y[p ".path"] != "string") return "-"
+      b = base(V[p ".base"]); x = V[p ".path"]
+      return (b != "" && safe(x)) ? b "/" x : "-"
+    }
+    function col(id,   i) { for (i = 0; i < V["collections"] + 0; i++) if (V["collections." i ".id"] == id) return "collections." i; return "" }
+    function v1() { return Y["schema"] == "string" && V["schema"] == "ccs-collection-interface" && Y["version"] == "number" && V["version"] + 0 == 1 && Y["generation"] == "number" && V["generation"] ~ /^[1-9][0-9]*$/ }
+    END { if (!v1()) { print "ccs-ci: not a CCS Collection Interface v1 index" > "/dev/stderr"; exit 1 } '"$prog"' }' "$T"
+}
+
+case "$CMD" in
+  check) q 'print V["generation"]' ;;
+  generation) q 'print V["generation"]' ;;
+  collections) q 'for (i = 0; i < V["collections"] + 0; i++) printf "%s\t%s\n", V["collections." i ".id"], V["collections." i ".name"]' ;;
+  games) q 'c = col(a1); if (c == "") exit 1
+           for (i = 0; i < V[c ".games"] + 0; i++) { g = V[c ".games." i]; printf "%s\t%s\t%s\n", g, V["games." g ".title"], ref("games." g ".entry") }' "$1" ;;
+  folders) q 'c = col(a1); if (c == "") exit 1
+             for (i = 0; i < V[c ".folders"] + 0; i++) { f = c ".folders." i; printf "%s\t%s\t%s\t%s\n", V[f ".id"], (Y[f ".parent"] == "string" ? V[f ".parent"] : "-"), V[f ".name"], ref(f ".entry") }' "$1" ;;
+  folder-games) q 'c = col(a1); if (c == "") exit 1
+                  for (i = 0; i < V[c ".folders"] + 0; i++) { f = c ".folders." i; if (V[f ".id"] != a2) continue
+                    for (j = 0; j < V[f ".games"] + 0; j++) print V[f ".games." j]; exit 0 }
+                  exit 1' "$1" "$2" ;;
+  favorites) q 'c = col(a1); if (c == "") exit 1
+               for (i = 0; i < V[c ".favorites"] + 0; i++) print V[c ".favorites." i]' "$1" ;;
+  game) q 'g = "games." a1; if (Y[g] != "object") exit 1
+          printf "title\t%s\nstatus\t%s\nreason\t%s\nentry\t%s\ncover\t%s\nthumbnail\t%s\n", V[g ".title"], (Y[g ".status"] == "string" ? V[g ".status"] : "-"),
+                 (Y[g ".reason"] == "string" ? V[g ".reason"] : "-"), ref(g ".entry"), ref(g ".art.cover"), ref(g ".art.thumbnail")' "$1" ;;
+  flat) cat "$T" ;;
+  *) echo "usage: ccs-ci [-f INDEX] check|generation|collections|games C|folders C|folder-games C F|favorites C|game ID|flat" >&2; exit 64 ;;
+esac

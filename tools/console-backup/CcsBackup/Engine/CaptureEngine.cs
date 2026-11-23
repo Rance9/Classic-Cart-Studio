@@ -98,7 +98,7 @@ namespace CcsBackup.Engine
                 if (f2 >= 0 && f2 < (sameVol ? need * 2 : need)) { o.State = "refused"; o.Problem = "There is not enough free space for the second copy: about " + Units.Gb(sameVol ? need * 2 : need) + " is needed and " + Units.Gb(f2) + " is free. Nothing was read."; return o; }
             }
             o.Id = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
-            var stem = BackupFormat.FileStem(started, id.ShortTag, con.Simulated);
+            var stem = BackupFormat.FileStem(started, id.ShortTag, con.Simulated, id.Model);
             o.PartialPath = Unique(s.PrimaryFolder, stem, BackupFormat.Partial);
             var finalPath = o.PartialPath.Substring(0, o.PartialPath.Length - ".partial".Length);
             Record rec;
@@ -124,7 +124,7 @@ namespace CcsBackup.Engine
                     var order = new List<string> { "boot2" };
                     if (id.Slot68Valid) order.Add("boot2-68");
                     order.AddRange(new[] { "boot0", "boot1", "parttable" });
-                    order.AddRange(parts.Select(p => p.Device).OrderBy(d => d == "nandc" || d == parts.FirstOrDefault(x => x.Label == "data")?.Device ? 1 : 0).ThenBy(d => d));
+                    order.AddRange(parts.Select(p => p.Device).OrderBy(d => d == parts.FirstOrDefault(x => x.Label == "data" || x.Label == "rootfs_data")?.Device ? 1 : 0).ThenBy(d => d));   // the data storage last, found by its label
                     if (id.KernelKiB.ContainsKey("nand")) order.Add("nand");
                     order.Add("phy");
                     long totalBytes = parts.Sum(p => p.Bytes) + Support.PhysicalBytes + (id.KernelKiB.TryGetValue("nand", out var nk) ? nk * 1024 : 0) + Math.Max(0, id.ActiveSize) * 2;
@@ -325,7 +325,8 @@ namespace CcsBackup.Engine
                 { "scope", new JObj { { "kind", "internal" }, { "label", "Internal Console Backup" }, { "text", BackupFormat.ScopeText }, { "external_storage", notes },
                     { "not_included", new[] { "USB or SD storage connected to the console (left untouched by backup and restore)", "the console's memory (RAM) and other volatile state", "NAND wear, flash-translation tables and free-space history" } } } },
                 { "tool", new JObj { { "name", ctx.ToolName }, { "version", ctx.ToolVersion }, { "engine", EngineInfo.Engine }, { "entry", ctx.Entry }, { "recovery_image", new JObj { { "id", ctx.RecoveryImageId }, { "sha256", ctx.RecoveryImageSha256 } } }, { "transport", con.Kind } } },
-                { "console", new JObj { { "model", "NES Classic Edition" }, { "board", id.Board }, { "region", id.Region }, { "oem_version", id.OemVersion }, { "hwid", id.Hwid }, { "tag", id.ShortTag } } },
+                { "console", new JObj { { "model", (id.Model ?? ConsoleModels.Nes).Name }, { "physical_model", (id.Model ?? ConsoleModels.Nes).Id }, { "board", id.Board }, { "region", id.Region }, { "oem_version", id.OemVersion }, { "hwid", id.Hwid }, { "tag", id.ShortTag } } },
+                { Compose.Capabilities.TargetKey, (id.Model ?? ConsoleModels.Nes).TargetJson() },   // the physical model, its software and storage layout, stated
                 { "layout", new JObj { { "nandinfo", id.NandInfo }, { "partition_table", id.Get("parttable") }, { "partitions", parts.Select(p => (object)new JObj { { "device", p.Device }, { "label", p.Label }, { "bytes", p.Bytes } }).ToList() }, { "kernel_view_kib", id.Get("partitions") } } },
                 { "state", new JObj { { "kind", cls.Kind }, { "text", cls.Text }, { "active_md5", id.ActiveMd5 }, { "active_size", id.ActiveSize }, { "active_hakchi_entries", (long)id.ActiveHakchiEntries },
                     { "slot68", new JObj { { "present", id.Slot68Valid }, { "md5", id.Slot68Md5 }, { "size", id.Slot68Valid ? id.Slot68Size : 0 } } },

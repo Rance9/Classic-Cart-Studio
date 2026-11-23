@@ -24,6 +24,9 @@ namespace ClassicCartStudio
         readonly Settings settings = Settings.Load();
         readonly string[] startupArgs;
         bool coreReady, backendStarting, closing, recoveryShown, firstPageShown;
+        // the interface is served by this window's own backend: while another program (another Classic Cart Studio window, with another data
+        // folder) holds its port, that program's page is never loaded here; the window waits on its recovery screen for its own backend
+        bool portHeld;
         string pendingLink; bool pendingUpdateCheck;
         readonly System.Collections.Generic.List<string[]> pendingActions = new System.Collections.Generic.List<string[]>();   // [kind, value] for the page: share, package, file
         int devtoolsPort;
@@ -218,7 +221,8 @@ namespace ClassicCartStudio
                 await core.AddScriptToExecuteOnDocumentCreatedAsync(DesktopBootstrapScript(backend.Ready));
                 SetLoading("Loading Classic Cart Studio…");
                 await Task.Delay(120);   // let the status text paint once before the site navigation replaces the page
-                Navigate();
+                if (siteOnBackend && !backend.Ready && backend.ForeignOnPort) { portHeld = true; App.Log("port held by another program: its page is not loaded"); ShowRecovery("Classic Cart Studio Cannot Start Yet", backend.LastError, ""); }
+                else Navigate();
             }
             catch (WebView2RuntimeNotFoundException e) { App.Log("webview init: runtime not found: " + e); RuntimeMissing(new Runtime.Found { Detail = Runtime.Describe(e) }); }
             catch (Exception e)
@@ -259,6 +263,7 @@ namespace ClassicCartStudio
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     if (!ok) ShowBackendProblem();
+                    else if (portHeld) { portHeld = false; Navigate(); }   // its own backend at last: its own page
                     else if (coreReady && web.CoreWebView2 != null) { _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsBackendReady && window.__ccsBackendReady()"); DeliverPendingLink(); }
                     if (ok) _ = Task.Run(async () => { await Task.Delay(1500); try { Dispatcher.BeginInvoke(new Action(() => { if (web.CoreWebView2 != null) _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsBackendReady && window.__ccsBackendReady()"); })); } catch { } });
                 }));
@@ -361,7 +366,7 @@ namespace ClassicCartStudio
             string cmd = ""; try { var m = Regex.Match(e.WebMessageAsJson ?? "", "\"cmd\"\\s*:\\s*\"([a-z]+)\""); if (m.Success) cmd = m.Groups[1].Value; } catch { }
             switch (cmd)
             {
-                case "retry": Navigate(); if (!backend.Ready && !backendStarting) _ = Task.Run(() => StartBackend()); break;
+                case "retry": if (portHeld) { if (!backendStarting) _ = Task.Run(() => StartBackend()); break; } Navigate(); if (!backend.Ready && !backendStarting) _ = Task.Run(() => StartBackend()); break;
                 case "network": try { Process.Start(new ProcessStartInfo("ms-settings:network-status") { UseShellExecute = true }); } catch { } break;
                 case "diagnostics": ShowDiagnostics(); break;
                 case "exit": Close(); break;

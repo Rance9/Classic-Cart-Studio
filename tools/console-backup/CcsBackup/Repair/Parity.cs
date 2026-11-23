@@ -53,7 +53,7 @@ namespace CcsBackup.Repair
             var r = new ParityResult();
             if (!Par2Native.Available) { r.Text = Par2Native.UnavailableReason; return r; }
             if (FilesOf(backup).Count > 0) { r.Text = "This backup already has recovery data; check it instead (nothing is replaced)."; return r; }
-            var v = Verifier.VerifyFile(backup, null, () => cancel.IsCancellationRequested, (d, t) => progress?.Invoke("Checking the backup", d, t));
+            var v = External.AnyBackup.Verify(backup, null, () => cancel.IsCancellationRequested, (d, t) => progress?.Invoke("Checking the backup", d, t));
             if (!v.Ok) { r.Text = "Recovery data is made only for a backup that passes its full check (" + v.Problems.FirstOrDefault() + ")."; return r; }
             var c = Par2Native.Create(backup, IndexOf(backup), percent, 1, 0, Stages(progress, "Making recovery data"), cancel); r.Report = c;
             if (!c.Ok) { r.Text = c.Message; return r; }
@@ -101,7 +101,7 @@ namespace CcsBackup.Repair
             try { File.Move(temp, output); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             { try { File.Delete(temp); } catch (Exception) { } r.Text = "The rebuilt file could not be named " + outName + " (" + ex.Message.TrimEnd('.') + "); nothing was kept."; return r; }
-            var v = Verifier.VerifyFile(output, null, () => cancel.IsCancellationRequested, (d, t) => progress?.Invoke("Checking the rebuilt backup", d, t)); r.OutputCheck = v; r.OutputPath = output;
+            var v = External.AnyBackup.Verify(output, null, () => cancel.IsCancellationRequested, (d, t) => progress?.Invoke("Checking the rebuilt backup", d, t)); r.OutputCheck = v; r.OutputPath = output;
             r.Ok = v.Ok; r.Text = k.Message + (v.Ok ? " The rebuilt backup passes its full check." : " The rebuilt file does not pass the backup's full check (" + v.Problems.FirstOrDefault() + "), so it is not a backup.");
             return r;
         }
@@ -178,7 +178,7 @@ namespace CcsBackup.Repair
             var hurt = damaged.Count == 0 ? "" : "Damaged on the way: " + string.Join(", ", damaged) + ". ";
             var k = Check(r.OutputPath, progress, cancel);
             if (k.Report?.Status == Par2Status.DamagedRepairable) { var b = Rebuild(r.OutputPath, progress, cancel); b.Text = "Unpacked to " + destinationFolder + ". " + hurt + "The backup inside was damaged: " + b.Text; return b; }
-            var v = Verifier.VerifyFile(r.OutputPath, null, () => cancel.IsCancellationRequested); r.OutputCheck = v; r.Ok = v.Ok;
+            var v = External.AnyBackup.Verify(r.OutputPath, null, () => cancel.IsCancellationRequested); r.OutputCheck = v; r.Ok = v.Ok;
             r.Text = "Unpacked to " + destinationFolder + ". " + hurt + (k.Ok ? "It matches its recovery data. " : Par2Native.Available ? "Recovery data: " + k.Text + " " : "") + (v.Ok ? "The backup passes its full check." : "The backup does not pass its full check (" + v.Problems.FirstOrDefault() + "), so it is not a backup.");
             return r;
         }

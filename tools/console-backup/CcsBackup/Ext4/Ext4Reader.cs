@@ -17,6 +17,7 @@ namespace CcsBackup.Ext4
     public sealed class Ext4Entry
     {
         public string Path; public char Type; public int Mode; public int Uid, Gid; public long Size; public long Mtime; public int Links; public uint Inode;
+        public long Allocated;   // the space its inode records as allocated (data and extent blocks), from i_blocks: a measurement of the image
         public string LinkTarget; public bool Unreadable; public string Note;
     }
 
@@ -130,6 +131,13 @@ namespace CcsBackup.Ext4
 
         public long FileSize(byte[] ino) => U32(ino, 4) | (long)U32(ino, 0x6C) << 32;
 
+        /// <summary>the space an inode records as allocated to it (i_blocks: 512-byte units, or file system blocks for a huge file)</summary>
+        public long AllocatedBytes(byte[] ino)
+        {
+            bool huge = (FeatureRoCompat & 0x8) != 0; long n = U32(ino, 0x1C) | (huge ? (long)U16(ino, 0x74) << 32 : 0);
+            return huge && (U32(ino, 0x20) & 0x40000) != 0 ? n * BlockSize : n * 512;
+        }
+
         /// <summary>streams a regular file's content (holes as zeros) into sink; at most max bytes</summary>
         public void ReadFile(uint inode, Stream sink, long max = long.MaxValue)
         {
@@ -228,7 +236,7 @@ namespace CcsBackup.Ext4
             var e = new Ext4Entry
             {
                 Path = path, Inode = inode, Mode = mode & 0xFFF, Uid = U16(ino, 2) | U16(ino, 0x78) << 16, Gid = U16(ino, 0x18) | U16(ino, 0x7A) << 16,
-                Size = FileSize(ino), Mtime = U32(ino, 0x10), Links = U16(ino, 0x1A)
+                Size = FileSize(ino), Mtime = U32(ino, 0x10), Links = U16(ino, 0x1A), Allocated = AllocatedBytes(ino)
             };
             switch (mode & 0xF000)
             {

@@ -35,17 +35,19 @@
 # p7080_hmods first runs packs_uninstall on the names in $installpath/transfer/uninstall, then pack_install on every *.hmod there, then
 # removes the folder and restarts. These steps only place files there (the PC's Preparation and MethodEngine, their own boundaries); the
 # data storage is mounted only inside them, read-only without journal replay to read, read-write to write, and always unmounted again:
-#   mstate           read-only: hakchi's version, the hakchi packages installed (its uninstall lists), Classic Cart Studio's method in
-#                    charge, and what already waits in the transfer folder (each file's name and SHA-256)
-#   method NAME SHA  this image's own copy of NAME.hmod (ccs-mod or ccs-nucleus, refused unless its SHA-256 is SHA) written to the
-#                    transfer folder through a new name and a rename, then read back from the storage (mounted again read-only)
-#   unlist NAME      a removal list naming NAME (ccs-mod or ccs-nucleus) written the same way: hakchi runs that package's own uninstall
+#   mstate           read-only: hakchi's version, the hakchi packages installed (its uninstall lists), CCS Nucleus's start setting
+#                    (its registry: default, chooser, generation) and what already waits in the transfer folder (name and SHA-256)
+#   method NAME SHA  this image's own copy of NAME.hmod (ccs-mod, ccs-nucleus or ccs-nucleus-chooser, refused unless its SHA-256 is
+#                    SHA) written to the transfer folder through a new name and a rename, then read back from the storage (read-only)
+#   unlist NAME...   a removal list naming one or more of those packages, in the order given (the chooser before CCS Nucleus), written
+#                    the same way: hakchi runs each package's own uninstall
 #   Both refuse when hakchi's files are not on the data storage, when a link is on the way, or when something else already waits under
 #   that name; the same bytes already there are "ok already" (an interrupted operation is finished, never written twice).
-#   mstart on|off    CCS Mod's start at power-on, the owner's choice: this image's own pinned CCS Mod program (from its ccs-mod.hmod,
-#                    unpacked in RAM) records it as CCS Mod's own setting ("ccs-mod start-setting", Classic Cart Studio's folder ccs/mod
-#                    only); CCS Mod's install, which hakchi runs at the next start, then applies it with CCS Mod's own autostart command
-#                    (its start script delegates to the console's own start). Read back; the same setting already there is "ok already"
+#   nstart DEFAULT CHOOSER HOME SELECTION TIMEOUT   what opens at power-on: this image's own pinned CCS Nucleus program runs
+#                    "ccs-nucleus start" on the data storage (DEFAULT native|ccs-home, CHOOSER always|never, HOME on|off: CCS HOME
+#                    offered, SELECTION default|last, TIMEOUT 0-99 seconds, 0: wait for a choice): the first registry, or
+#                    the one in force changed in place (the owner's own system images stay listed). Works before hakchi installs CCS
+#                    Nucleus, whose install keeps a valid registry. Read back; the same setting already in force is "ok already"
 # An owner's own system image as a CCS Nucleus choice (the PC's FirmwareEngine, Console Composer's Browse for Firmware; CCS Nucleus must
 # be installed). The image goes to Nucleus's own folder, never to hakchi's firmware folders (hakchi starts the first image there by itself):
 #   rput ID SIZE SHA      exactly SIZE bytes from the PC written to /var/lib/ccs/nucleus/staging/ID.hsqs through a new name (straight to
@@ -70,6 +72,11 @@
 #                         same copy is finished (its unpacked part replaced), never another one's
 #   huse COPY PRIOR       the switch: only while pkg/current still names PRIOR (or "absent") and COPY reads back complete against its record:
 #                         pkg/current replaced in one rename, the attempt's record removed; read back
+#   hdrop COPY CURRENT    an earlier copy removed, after the switch: only while pkg/current names CURRENT (never COPY), no installation is
+#                         unfinished, no entry of Original Menu names COPY's files (and none is recorded where it cannot be read now) and COPY
+#                         is exactly what its record names (every file with its SHA-256, nothing else); then its files,
+#                         its folders and its record removed; read back (the copy and its record gone, pkg/current unchanged). A copy that
+#                         differs from its record is kept whole
 # Every step prints "result <step> ok ..." or "result <step> failed <why>"; nothing is retried; no step formats, erases or repartitions
 # anything beyond what hakchi's own mod_install does (it tunes the data storage's table and file system: sunxi-part tune) and its own
 # mod_uninstall undoes (sunxi-part shrink).
@@ -114,7 +121,7 @@ r(){ echo "result $1 $2"; [ "$2" = ok ] || [ "${2#ok}" != "$2" ] && exit 0; exit
 D="$NEWROOT/var/lib"
 dmount(){ mountpoint -q "$D" && return 1; mkdir -p "$D"; mount -o "$1,noatime" "$DEV/nandc" "$D"; }
 dumount(){ sync; umount "$D"; }
-pkgname(){ [ "$1" = ccs-mod ] || [ "$1" = ccs-nucleus ]; }
+pkgname(){ [ "$1" = ccs-mod ] || [ "$1" = ccs-nucleus ] || [ "$1" = ccs-nucleus-chooser ]; }
 rootid(){ echo "$1" | grep -qE '^[a-z0-9][a-z0-9-]{0,30}$'; }   # an owner image's option id (its path fits hakchi's 63-character loop name)
 K=3.4.113.29-madmonkey   # the kernel an owner image starts with: hakchi 3.9.3's (it mounts the image as the console's system)
 # CCS Nucleus is installed (hakchi lists it, its registry is there) and nothing on the way to its folders is a link
@@ -122,15 +129,21 @@ nfree(){ [ -f "$D/hakchi/hmod/uninstall-ccs-nucleus" ] && [ -f "$D/ccs/nucleus/r
   for x in ccs ccs/nucleus ccs/nucleus/staging ccs/nucleus/roots; do [ -L "$D/$x" ] && { echo "a link is on the way"; return 1; }; done; return 0; }
 # the image's own pinned CCS Nucleus program and library, unpacked in RAM (never the copy on the console's storage)
 npkg(){ X="$ST/nucleus-pkg"; rm -rf "$X"; mkdir -p "$X" && ( cd "$X" && tar -xzf "$CCS/prep/methods/ccs-nucleus.hmod" ) && [ -f "$X/bin/ccs-nucleus" ]; }
-mpkg(){ Y="$ST/mod-pkg"; rm -rf "$Y"; mkdir -p "$Y" && ( cd "$Y" && tar -xzf "$CCS/prep/methods/ccs-mod.hmod" ) && [ -f "$Y/bin/ccs-mod" ]; }
-# CCS Mod's start setting as its own records keep it (sealed ccs-mod-config/1): on, off, none (no setting) or invalid
-mset(){ local f="$D/ccs/mod/config" e; [ -e "$f" ] || [ -L "$f" ] || { echo none; return; }
-  [ -f "$f" ] && [ ! -L "$f" ] && e=$(tail -n 1 "$f") && [ "$(head -n 1 "$f")" = schema=ccs-mod-config/1 ] && [ "${e#end=}" = "$(sed '$d' "$f" | sha256sum | cut -d' ' -f1)" ] || { echo invalid; return; }
-  case "$(sed -n 's/^autostart=//p' "$f" | head -n 1)" in on) echo on ;; *) echo off ;; esac; }
+# CCS Nucleus's start setting as its registry keeps it: "DEFAULT CHOOSER HOME SELECTION TIMEOUT" (HOME on when CCS HOME is listed),
+# none or invalid
+rstart(){ local f="$D/ccs/nucleus/registry" e o
+  [ -f "$f" ] && [ ! -L "$f" ] || { echo none; return; }
+  e=$(tail -n 1 "$f"); [ "$(head -n 1 "$f")" = schema=ccs-boot-registry/1 ] && [ "${e#end=}" = "$(sed '$d' "$f" | sha256sum | cut -d' ' -f1)" ] || { echo invalid; return; }
+  o=off; case " $(sed -n 's/^options=//p' "$f") " in *" ccs-home "*) o=on ;; esac
+  echo "$(sed -n 's/^default=//p' "$f") $(sed -n 's/^chooser=//p' "$f") $o $(sed -n 's/^selection=//p' "$f") $(sed -n 's/^timeout=//p' "$f")"; }
 # the transfer folder may be written: hakchi's files are there, nothing on the way is a link, and transfer is a real folder or absent
 tfree(){ [ -f "$D/hakchi/rootfs/etc/preinit" ] || { echo "hakchi is not installed on the data storage"; return 1; }
-  [ ! -L "$D/hakchi" ] && [ ! -L "$D/hakchi/transfer" ] || { echo "a link is on the way"; return 1; }
-  [ ! -e "$D/hakchi/transfer" ] || [ -d "$D/hakchi/transfer" ] || { echo "the transfer folder is not a folder"; return 1; }; }
+  [ ! -L "$D/hakchi" ] && [ ! -L "$D/hakchi/transfer" ] && [ ! -L "$D/hakchi/transfer/hmod" ] || { echo "a link is on the way"; return 1; }
+  [ ! -e "$D/hakchi/transfer" ] || [ -d "$D/hakchi/transfer" ] || { echo "the transfer folder is not a folder"; return 1; }
+  [ ! -e "$D/hakchi/transfer/hmod" ] || [ -d "$D/hakchi/transfer/hmod" ] || { echo "the transfer folder's hmod folder is not a folder"; return 1; }; }
+# where a package waits: hakchi installs transfer/*.hmod in sorted order and then transfer/hmod/*.hmod, so the chooser (which needs CCS
+# Nucleus installed first, and whose name sorts before it) waits in transfer/hmod/
+tpath(){ [ "$1" = ccs-nucleus-chooser ] && echo "$D/hakchi/transfer/hmod/$1.hmod" || echo "$D/hakchi/transfer/$1.hmod"; }
 # CCS HOME's package (hput, huse): its places on the data storage; nothing on the way is a link, each folder is a real folder or absent
 HC="$D/ccs"
 copyname(){ echo "$1" | grep -qE '^[0-9a-f]{16}\.[0-9a-f]{8}$'; }
@@ -144,6 +157,11 @@ vsums(){ awk -v re='^  "[A-Za-z0-9_][A-Za-z0-9._/-]*": "[0-9a-f]+",?$' 'index($0
 hcheck(){ [ -s "$2" ] && [ -d "$1" ] && [ ! -L "$1" ] || return 1
   ( cd "$1" && sha256sum -c -s "$2" ) || return 1
   [ "$(cd "$1" && find . -type f | wc -l | tr -d ' ')" = "$(wc -l < "$2" | tr -d ' ')" ] && [ -z "$(cd "$1" && find . ! -type f ! -type d)" ]; }
+# hexact DIR RECORD: hcheck against the record's own list, read through a pipe (mstate writes nothing, not even a file in RAM)
+hexact(){ local n; [ -d "$1" ] && [ ! -L "$1" ] && [ -f "$2" ] || return 1
+  n=$(vsums "$2" 2>/dev/null | wc -l | tr -d ' '); [ "$n" -gt 0 ] || return 1
+  ( cd "$1" && vsums "$2" | sed 's#  #  ./#' | sha256sum -c -s ) || return 1
+  [ "$(cd "$1" && find . -type f | wc -l | tr -d ' ')" = "$n" ] && [ -z "$(cd "$1" && find . ! -type f ! -type d)" ]; }
 # RAM free for a received archive: MemFree only (the 3.4 kernel has no MemAvailable; what the page cache holds is not counted)
 ramfree(){ awk '/^MemFree:/ { print $2 * 1024 }' /proc/meminfo; }
 # the copy pkg/current names: "absent", the copy (the file is exactly "<copy>\n", as the installer writes it), or "other"
@@ -153,6 +171,44 @@ A="$ST/home"
 hram(){ rm -rf "$ST/home"; }
 hstage(){ rm -rf "$HC/staging/$copy"; }
 # the records of unfinished installations other than this attempt's ($att)
+# whether an entry of Original Menu names the copy's files: yes (a .desktop file in hakchi's folders on the data storage names
+# ccs/pkg/COPY), unknown (not every entry could be read: the listing did not finish, an entry cannot be read, a link to a folder leads
+# where nothing here reads, a link leads nowhere; or the console program recorded entries on a USB drive or SD card, which cannot be read
+# now) or no. A link is never walked: an entry that is a link is read where it leads (hmap). Any other link matters where the console's
+# menus list games, or on the way there (hakchi's game storage games/ and its overlay of the console's own games folder,
+# rootfs/usr/share/games): there a link to a folder hides no entry when its real place is inside hakchi's folders on the data storage
+# (read here) or, for a link to /var/squashfs/..., inside the console's system, which is mounted read-only (it was made before any copy
+# existed); a link to a file holds no entries. Links elsewhere (hakchi's own programs, libraries and settings) are not where menus list games
+# hmap LINK: where a link on the data storage leads, as this RAM system sees the console's paths: /var/squashfs/... the console's system
+# at $NEWROOT, /var/lib/... the data storage under it, a relative target beside the link; any other absolute target is not known here
+hmap(){ local t; t=$(readlink "$1") || return 1
+  case "$t" in /var/squashfs/*) echo "$NEWROOT${t#/var/squashfs}" ;; /var/lib/*) echo "$NEWROOT$t" ;; /*) return 1 ;; *) echo "${1%/*}/$t" ;; esac; }
+sysro(){ awk -v r="$NEWROOT" '$2 == r { n = split($4, a, ","); for (i = 1; i <= n; i++) if (a[i] == "ro") f = 1 } END { exit !f }' "$MOUNTS" 2>/dev/null; }
+hlinkok(){ local p r h d s; p=$(hmap "$1") || return 1
+  if [ -d "$p" ]; then
+    r=$(realpath "$p" 2>/dev/null) && h=$(realpath "$D/hakchi" 2>/dev/null) && d=$(realpath "$D" 2>/dev/null) && s=$(realpath "$NEWROOT" 2>/dev/null) || return 1
+    case "$(readlink "$1")" in
+      /var/squashfs/*) case "$r/" in "$d"/*) return 1 ;; "$s"/*) sysro ;; *) return 1 ;; esac ;;
+      *) case "$r/" in "$h"/*) return 0 ;; *) return 1 ;; esac ;;
+    esac
+  else [ -e "$p" ]; fi; }
+hnamed(){ local o s
+  if [ -L "$D/hakchi" ]; then echo unknown; return
+  elif [ -d "$D/hakchi" ]; then
+    o=$(find "$D/hakchi" \( -name '*.desktop' ! -type d \) -o \( -type l ! -name '*.desktop' \) 2>/dev/null; echo "end $?")
+    [ "$(echo "$o" | tail -n 1)" = "end 0" ] || { echo unknown; return; }
+    s=$(echo "$o" | sed '$d' | while IFS= read -r q; do
+        case "$q" in "$D/hakchi/"*) ;; *) echo unknown; break ;; esac
+        case "$q" in
+          *.desktop) if [ -L "$q" ]; then q=$(hmap "$q") || { echo unknown; break; }; fi
+            grep -qF "ccs/pkg/$1" "$q" 2>/dev/null; case $? in 0) echo yes; break ;; 1) ;; *) echo unknown; break ;; esac ;;
+          "$D/hakchi/games"|"$D/hakchi/games/"*|"$D/hakchi/rootfs"|"$D/hakchi/rootfs/usr"|"$D/hakchi/rootfs/usr/share"|"$D/hakchi/rootfs/usr/share/games"|"$D/hakchi/rootfs/usr/share/games/"*)
+            hlinkok "$q" || { echo unknown; break; } ;;
+        esac
+      done)
+    case "$s" in yes) echo yes; return ;; unknown) echo unknown; return ;; esac
+  elif [ -e "$D/hakchi" ]; then echo unknown; return; fi
+  [ -f "$HC/owned/published.own" ] && grep -q '^file=[0-9a-f]\{64\} [0-7]\{4\} /media/' "$HC/owned/published.own" && { echo unknown; return; }; echo no; }
 hother(){ local f; for f in "$HC/install"/attempt-*.json; do [ -f "$f" ] && [ "$f" != "$HC/install/attempt-$att.json" ] && echo "${f##*/}"; done; }
 
 case "$1" in
@@ -242,15 +298,6 @@ case "$1" in
     v=$(sed -n "s/^hakchiVersion='\([^']*\)'.*/\1/p" "$D/hakchi/rootfs/etc/preinit.d/b0000_defines" 2>/dev/null | head -n 1)
     echo "hakchi=${v:-none}"
     for f in "$D"/hakchi/hmod/uninstall-*; do [ -f "$f" ] && echo "package=${f##*/uninstall-}"; done
-    pol=none; f="$D/ccs/policy"
-    if [ -f "$f" ] && [ ! -L "$f" ]; then
-      e=$(tail -n 1 "$f"); [ "$(head -n 1 "$f")" = schema=ccs-policy/1 ] && [ "${e#end=}" = "$(sed '$d' "$f" | sha256sum | cut -d' ' -f1)" ] && pol=$(sed -n 's/^active=//p' "$f" | head -n 1) || pol=invalid
-    fi
-    echo "policy=$pol"
-    # CCS Mod's start at power-on: its setting, and its start script in hakchi's overlay (ours: the package's template, exactly)
-    sc=absent; s81="$D/hakchi/rootfs/etc/init.d/S81ccs-mod"
-    if [ -e "$s81" ] || [ -L "$s81" ]; then sc=other; [ -f "$s81" ] && [ ! -L "$s81" ] && cmp -s "$s81" "$D/hakchi/rootfs/etc/ccs/mod/S81ccs-mod" && sc=ours; fi
-    echo "modstart=$(mset) $sc"
     echo "free=$(( $(df -k "$D" | tail -n 1 | awk '{print $4}') * 1024 ))"
     f="$D/ccs/nucleus/registry"
     if [ -f "$f" ] && [ ! -L "$f" ]; then
@@ -262,11 +309,14 @@ case "$1" in
         done
       else echo "registry=invalid"; fi
     else echo "registry=none"; fi
+    echo "start=$(rstart)"   # none, invalid or the five words: always reported
     if [ -L "$D/hakchi/transfer" ]; then echo "transfer=link"
     elif [ -d "$D/hakchi/transfer" ]; then
-      for f in "$D"/hakchi/transfer/* "$D"/hakchi/transfer/.[!.]*; do
+      for f in "$D"/hakchi/transfer/* "$D"/hakchi/transfer/.[!.]* "$D"/hakchi/transfer/hmod/* "$D"/hakchi/transfer/hmod/.[!.]*; do
         [ -e "$f" ] || [ -L "$f" ] || continue
-        if [ -f "$f" ] && [ ! -L "$f" ]; then echo "waiting=${f##*/} $(sha256sum "$f" | cut -d' ' -f1)"; else echo "waiting=${f##*/} other"; fi
+        n=${f#$D/hakchi/transfer/}
+        [ "$n" = hmod ] && [ -d "$f" ] && [ ! -L "$f" ] && continue   # its contents are listed as hmod/NAME
+        if [ -f "$f" ] && [ ! -L "$f" ]; then echo "waiting=$n $(sha256sum "$f" | cut -d' ' -f1)"; else echo "waiting=$n other"; fi
       done
     fi
     # CCS HOME's package: the copy in use, each recorded copy (its MANIFEST.json's SHA-256, whether its folder is there), each installation
@@ -275,7 +325,22 @@ case "$1" in
       echo "home_pointer=$(hcur)"
       for f in "$HC"/install/v-*.json; do [ -f "$f" ] || continue; c=${f##*/v-}; c=${c%.json}; copyname "$c" || continue
         m=$(sed -n 's/^ "manifest_sha256": "\([0-9a-f]\{64\}\)",\{0,1\}$/\1/p' "$f" | head -n 1); d=nodir; [ -d "$HC/pkg/$c" ] && [ ! -L "$HC/pkg/$c" ] && d=dir
-        echo "home_copy=$c ${m:--} $d"; done
+        echo "home_copy=$c ${m:--} $d"
+        # the copy's details for the earlier-versions review: the copy in use before it (its record), whether it is exactly what its
+        # record names, its files' bytes, the space it takes (du, KB), its collection name (base64 of its MANIFEST.json's), games and when it
+        # was installed (its record's installed_utc, the PC's time: the console has no clock to trust), and whether an entry of Original
+        # Menu names its files (yes, no, or unknown: entries recorded on a USB drive or SD card)
+        p=$(sed -n 's/^ "previous": "\([0-9a-f.]*\)",\{0,1\}$/\1/p' "$f" | head -n 1); copyname "${p:-x}" || p=-; x=nodir; b=-; k=-; l=-; g=-
+        t=$(sed -n 's/^ "installed_utc": "\([0-9]\{4\}-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z\)",\{0,1\}$/\1/p' "$f" | head -n 1); [ -n "$t" ] || t=-
+        if [ "$d" = dir ]; then
+          x=differs; hexact "$HC/pkg/$c" "$f" && x=exact
+          b=$(find "$HC/pkg/$c" -type f | while read -r q; do cat "$q"; done | wc -c | tr -d ' '); k=$(du -sk "$HC/pkg/$c" | cut -f1)
+          if [ -f "$HC/pkg/$c/MANIFEST.json" ]; then
+            l=$(sed -n 's/^ "label": "\(.*\)",\{0,1\}$/\1/p' "$HC/pkg/$c/MANIFEST.json" | head -n 1 | head -c 400 | base64 | tr -d '\n'); [ -n "$l" ] || l=-
+            g=$(sed -n 's/^ "games": \([0-9]\{1,6\}\),\{0,1\}$/\1/p' "$HC/pkg/$c/MANIFEST.json" | head -n 1); [ -n "$g" ] || g=-
+          fi
+        fi
+        echo "home_copy_info=$c $p $x $b $k $l $g $t $(hnamed "$c")"; done
       for f in "$HC"/install/attempt-*.json; do [ -f "$f" ] || continue; a=${f##*/attempt-}; a=${a%.json}
         c=$(sed -n 's/^ "copy": "\([0-9a-f.]*\)",\{0,1\}$/\1/p' "$f" | head -n 1); echo "home_attempt=$a ${c:--}"; done
       if [ -f "$HC/data/IDENTITY.json" ]; then echo "home_identity=$(head -c 65536 "$HC/data/IDENTITY.json" | base64 | tr -d '\n')"; else echo "home_identity=absent"; fi
@@ -290,21 +355,22 @@ case "$1" in
     [ -f "$src" ] && [ "$(sha256sum < "$src" | cut -d' ' -f1)" = "$want" ] || r method "refused this image does not carry that package"
     dmount rw || r method "failed mount"
     why=$(tfree) || { dumount; r method "refused $why"; }
-    t="$D/hakchi/transfer/$name.hmod"
+    t=$(tpath "$name")
     if [ -e "$t" ] || [ -L "$t" ]; then
       [ -f "$t" ] && [ ! -L "$t" ] && [ "$(sha256sum < "$t" | cut -d' ' -f1)" = "$want" ] && { dumount; r method "ok already $want"; }
       dumount; r method "refused another $name.hmod already waits in the transfer folder"
     fi
     echo "began method"
-    mkdir -p "$D/hakchi/transfer" && cp "$src" "$t.ccs-new" && sync && mv -f "$t.ccs-new" "$t" && sync || { rm -f "$t.ccs-new"; dumount; r method "failed write (not written again)"; }
+    mkdir -p "${t%/*}" && cp "$src" "$t.ccs-new" && sync && mv -f "$t.ccs-new" "$t" && sync || { rm -f "$t.ccs-new"; dumount; r method "failed write (not written again)"; }
     dumount || r method "failed unmount"
     dmount ro,noload || r method "failed readback mount"
     back=$(sha256sum < "$t" | cut -d' ' -f1); dumount
     [ "$back" = "$want" ] || r method "failed readback $back"
     r method "ok $want" ;;
   unlist)
-    name=$2
-    pkgname "$name" || r unlist "refused request"
+    shift; name="$*"
+    [ -n "$name" ] && [ $# -le 3 ] || r unlist "refused request"
+    for n in "$@"; do pkgname "$n" || r unlist "refused request"; done
     want=$(echo "$name" | sha256sum | cut -d' ' -f1)
     dmount rw || r unlist "failed mount"
     why=$(tfree) || { dumount; r unlist "refused $why"; }
@@ -320,25 +386,25 @@ case "$1" in
     back=$(sha256sum < "$t" | cut -d' ' -f1); dumount
     [ "$back" = "$want" ] || r unlist "failed readback $back"
     r unlist "ok $want" ;;
-  mstart)
-    v=$2; [ "$v" = on ] || [ "$v" = off ] || r mstart "refused request"
-    mpkg || r mstart "failed this image's CCS Mod program"
-    dmount ro,noload || r mstart "failed mount"
-    why=$(tfree) || { dumount; r mstart "refused $why"; }
-    for x in ccs ccs/mod ccs/mod/config; do [ -L "$D/$x" ] && { dumount; r mstart "refused a link is on the way ($x)"; }; done
-    [ ! -e "$D/ccs/mod" ] || [ -d "$D/ccs/mod" ] || { dumount; r mstart "refused ccs/mod is not a folder"; }
-    now=$(mset); dumount
-    [ "$now" = "$v" ] && r mstart "ok already $v"
-    dmount rw || r mstart "failed mount"
-    echo "began mstart"
-    out=$(CCS_ROOT="$NEWROOT" sh "$Y/bin/ccs-mod" start-setting "$v" 2>&1 | tail -n 1)
-    sync; dumount || r mstart "failed unmount"
-    [ "$out" = "result start-setting ok $v" ] || r mstart "failed ${out#result start-setting } (not written again)"
-    dmount ro,noload || r mstart "failed readback mount"
-    back=$(mset); dumount
-    [ "$back" = "$v" ] || r mstart "failed readback $back"
-    r mstart "ok $v" ;;
-  # ---- an owner's own system image as a CCS Nucleus choice (see the head of this file)
+  nstart)
+    d=$2; c=$3; h=$4; s=$5; t=$6
+    [ $# -eq 6 ] && echo "$d $c $h $s $t" | grep -qE '^(native|ccs-home) (always|never) (on|off) (default|last) [0-9]{1,2}$' || r nstart "refused request"
+    npkg || r nstart "failed this image's CCS Nucleus program"
+    dmount ro,noload || r nstart "failed mount"
+    why=$(tfree) || { dumount; r nstart "refused $why"; }
+    for x in ccs ccs/nucleus ccs/nucleus/registry; do [ -L "$D/$x" ] && { dumount; r nstart "refused a link is on the way ($x)"; }; done
+    now=$(rstart); dumount
+    [ "$now" = "$d $c $h $s $t" ] && r nstart "ok already $d $c $h $s $t"
+    dmount rw || r nstart "failed mount"
+    echo "began nstart"
+    mkdir -p "$D/ccs/nucleus" || { dumount; r nstart "failed folder"; }
+    out=$(CCS_ROOT="$NEWROOT" sh "$X/bin/ccs-nucleus" start "$d" "$c" "$h" "$s" "$t" 2>&1 | tail -n 1)
+    sync; dumount || r nstart "failed unmount"
+    echo "$out" | grep -q '^result start ok' || r nstart "failed ${out#result start } (not written again)"
+    dmount ro,noload || r nstart "failed readback mount"
+    back=$(rstart); dumount
+    [ "$back" = "$d $c $h $s $t" ] || r nstart "failed readback $back"
+    r nstart "ok $d $c $h $s $t" ;;
   rput)
     id=$2; size=$3; want=$4
     rootid "$id" && echo "$size" | grep -qE '^[1-9][0-9]{0,8}$' && echo "$want" | grep -qE '^[0-9a-f]{64}$' || r rput "refused request"
@@ -478,5 +544,30 @@ case "$1" in
     back=$(hcur); left=no; [ -e "$I/attempt-$att.json" ] && left=yes; dumount
     [ "$back" = "$copy" ] && [ "$left" = no ] || r huse "failed readback ($back $left)"
     r huse "ok $copy" ;;
+  hdrop)
+    copy=$2; keep=$3
+    copyname "$copy" && copyname "$keep" && [ "$copy" != "$keep" ] || r hdrop "refused request"
+    att=none; P="$HC/pkg"; I="$HC/install"; T="$ST/hdrop-sums"; mkdir -p "$ST"
+    dmount ro,noload || r hdrop "failed mount"
+    why=$(hfree) || { dumount; r hdrop "refused $why"; }
+    cur=$(hcur); other=$(hother)
+    [ "$cur" = "$keep" ] || { dumount; r hdrop "refused the HOME in use is not $keep ($cur)"; }
+    [ -z "$other" ] || { dumount; r hdrop "refused an installation did not finish ($(echo $other))"; }
+    [ -e "$P/$copy" ] || [ -e "$I/v-$copy.json" ] || { dumount; r hdrop "ok already $copy"; }
+    named=$(hnamed "$copy"); [ "$named" = no ] || { dumount; r hdrop "refused an entry of Original Menu may name the copy $copy ($named; it is kept)"; }
+    ok=no; [ -f "$I/v-$copy.json" ] && vsums "$I/v-$copy.json" 2>/dev/null | sed 's#  #  ./#' > "$T" && hcheck "$P/$copy" "$T" && ok=yes
+    dumount
+    [ "$ok" = yes ] || { rm -f "$T"; r hdrop "refused the copy $copy is not exactly what its record names (it is kept)"; }
+    dmount rw || { rm -f "$T"; r hdrop "failed mount"; }
+    now=$(hcur); { [ "$now" = "$keep" ] && [ -z "$(hother)" ] && hcheck "$P/$copy" "$T"; } || { dumount; rm -f "$T"; r hdrop "refused the console's HOME folders changed while it was read"; }
+    echo "began hdrop"
+    { ( cd "$P/$copy" && awk '{ print $2 }' "$T" | while read -r f; do rm -f "$f" || exit 1; done ) \
+      && find "$P/$copy" -type d | sort -r | while read -r d; do rmdir "$d" || exit 1; done \
+      && rm -f "$I/v-$copy.json" && sync; } || { dumount; rm -f "$T"; r hdrop "failed removal (stopped; the backup made before keeps the copy)"; }
+    rm -f "$T"; dumount || r hdrop "failed unmount"
+    dmount ro,noload || r hdrop "failed readback mount"
+    gone=no; [ ! -e "$P/$copy" ] && [ ! -e "$I/v-$copy.json" ] && gone=yes; back=$(hcur); dumount
+    [ "$gone" = yes ] && [ "$back" = "$keep" ] || r hdrop "failed readback ($gone $back)"
+    r hdrop "ok $copy" ;;
   *) echo "ccsprep: unknown step" >&2; exit 2 ;;
 esac

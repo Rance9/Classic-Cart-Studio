@@ -73,7 +73,7 @@ namespace CcsBackup.Engine
             if (con.Profile != SessionProfile.Files) return (null, "The console is not in a file session.");
             var rp = RestorePoints.Require(point, con, RestorePoints.SystemPart, cancelled); if (rp != null) return (null, rp);
             if (image == null || image.Length < 96) return (null, "This file cannot be the console's system: it is not a SquashFS file system.");
-            var id = con.Identify();
+            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "developer"); if (mw != null) return (null, mw + " Nothing was changed.");
             var sys = id.Table.FirstOrDefault(t => t.Label == "rootfs");
             if (sys == null || sys.Device != "nandb") return (null, "This console's storage table does not name its system part as this version knows it (rootfs on nandb), so it is not changed.");
             var (fs, board, bad) = CheckImage(image); if (bad != null) return (null, "This file cannot be the console's system: " + bad + ".");

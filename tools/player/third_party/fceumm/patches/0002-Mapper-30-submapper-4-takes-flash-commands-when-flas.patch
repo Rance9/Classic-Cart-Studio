@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Rance9 <rance9@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 11:42:41 -0600
+Subject: [PATCH 2/2] Mapper 30: submapper 4 takes flash commands when flash is
+ enabled
+
+With the battery bit set, writes to $8000-$BFFF reach the flash command
+handler on submapper 4 as on submappers 0 and 1; without it the window
+stays unhandled.
+---
+ src/boards/unrom512.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/boards/unrom512.c b/src/boards/unrom512.c
+index 56bd58e..69aa650 100644
+--- a/src/boards/unrom512.c
++++ b/src/boards/unrom512.c
+@@ -174,7 +174,7 @@ static void UNROM512LatchPower(void) {
+ 		SetWriteHandler(0x8000, 0xFFFF, UNROM512HLatchWrite);
+ 	else
+ 	{
+-		if (submapper != 4) SetWriteHandler(0x8000, 0xBFFF, UNROM512LLatchWrite);
++		if (submapper != 4 || flash_save) SetWriteHandler(0x8000, 0xBFFF, UNROM512LLatchWrite);
+ 		SetWriteHandler(0xC000, 0xFFFF, UNROM512HLatchWrite);
+ 	}
+ }
+-- 
+2.53.0
+

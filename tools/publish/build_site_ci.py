@@ -83,6 +83,8 @@ def main(out: str, public: str | None = None):
     subprocess.run([sys.executable, os.path.join(REPO, "tools", "rom-pipeline", "build_html.py"), "--public", "--out", out], check=True, env=dict(os.environ, NES_STUDIO_SITE=out, NES_PUBLIC_BUILD="1"))
     shutil.copy2(os.path.join(out, "nes-catalog.html"), os.path.join(out, "index.html"))
     shutil.copytree(os.path.join(REPO, "tools", "publish", "site-static"), out, ignore=shutil.ignore_patterns("README.md", "store.sample.json"), dirs_exist_ok=True)   # static pages such as /app (the Windows app short link)
+    sys.path.insert(0, HERE); import kit_download   # the CCS Collection Interface kit on /app/: only with CCS_PUBLISH_COLLECTION_KIT=1 (not published yet)
+    if kit_download.apply(out): print("collection interface kit: on the downloads page")
     for n in ("favicon.ico", "icon-32.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"): shutil.copy2(os.path.join(os.path.join(REPO, "tools", "publish", "assets"), "app-32.png" if n == "icon-32.png" else n), os.path.join(out, n))   # browser tab / home-screen icons
     shutil.copy2(os.path.join(os.path.join(REPO, "tools", "publish", "assets"), "as-seen-on-tv.png"), os.path.join(out, "brand", "public", "as-seen-on-tv.png"))
     if os.path.isdir(os.path.join(REPO, "tools", "publish", "assets", "help")): shutil.copytree(os.path.join(REPO, "tools", "publish", "assets", "help"), os.path.join(out, "brand", "help"), dirs_exist_ok=True)   # Help & User Guide figures   # the Preview on TV badge (Wikimedia Commons PNG, public domain, see THIRD_PARTY_NOTICES)
@@ -98,13 +100,15 @@ def main(out: str, public: str | None = None):
         subprocess.run([sys.executable, os.path.join(REPO, "tools", "player", "bake_fonts.py"), os.path.join(out, "brand", "home"), os.path.join(pd, "fonts")], check=True, stdout=subprocess.DEVNULL)
         import re
         gh = open(os.path.join(REPO, "tools", "player", "core", "gp.h"), encoding="utf-8").read(); core = " ".join(re.search(rf'#define {k} "([^"]+)"', gh).group(1) for k in ("GP_CORE_ID", "GP_CORE_VERSION"))
+        core_build = re.search(r'#define GP_CORE_BUILD "([^"]+)"', gh).group(1)   # the built core: the pin with its recorded patches (VENDORED.md)
         zig = json.load(open(os.path.join(REPO, "tools", "console-simulator", "toolchain.lock.json"), encoding="utf-8"))["zig"]["version"]   # the pinned toolchain that built it
-        h = hashlib.sha256(open(wp, "rb").read()).hexdigest(); json.dump({"schema": "ccs-web-player/1", "engine_sha256": h, "core": core, "toolchain": f"zig {zig} wasm32-wasi"}, open(os.path.join(pd, "engine.json"), "w"))
+        h = hashlib.sha256(open(wp, "rb").read()).hexdigest(); json.dump({"schema": "ccs-web-player/1", "engine_sha256": h, "core": core, "core_build": core_build, "toolchain": f"zig {zig} wasm32-wasi"}, open(os.path.join(pd, "engine.json"), "w"))
         print("browser player:", os.path.getsize(wp), "bytes, sha256", h[:16])
     elif os.environ.get("CCS_REQUIRE_WEB_PLAYER") == "1": raise SystemExit("the browser player engine is missing (build_player.sh <repo>/build/web-player web)")
     entry = None
     if public:   # the public website's entry pages (never the Windows app's copy)
-        sys.path.insert(0, HERE); import public_entry; entry = public_entry.apply(out, public)
+        sys.path.insert(0, HERE); import community_showcase; community_showcase.write(out, public)   # Community Mods: browse only (/community/)
+        import public_entry; entry = public_entry.apply(out, public)
     pwa(out, entry)
     open(os.path.join(out, ".nojekyll"), "w").close(); open(os.path.join(out, "robots.txt"), "w").write("User-agent: *\nAllow: /\n")
     if not os.path.exists(os.path.join(out, "release.json")): json.dump({"version": None, "note": "no companion release published yet"}, open(os.path.join(out, "release.json"), "w"))

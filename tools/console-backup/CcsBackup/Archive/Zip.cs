@@ -30,6 +30,14 @@ namespace CcsBackup.Archive
 
     public sealed class ZipFormatException : Exception { public ZipFormatException(string m) : base(m) { } }
 
+    /// <summary>How large a member index the reader accepts: the console backup's own limits by default (Console); a USB or SD storage
+    /// backup (External/ExternalFormat.cs) names larger ones of its own. Every other rule of the reader is the same for both.</summary>
+    public sealed class ZipIndexLimits
+    {
+        public long MaxMembers = 256, MaxIndexBytes = 4 * 1024 * 1024;
+        public static readonly ZipIndexLimits Console = new ZipIndexLimits();
+    }
+
     public sealed class ZipWriter : IDisposable
     {
         public const uint UnixRegular0644 = (0x8000u | 0x1A4u) << 16;
@@ -196,15 +204,22 @@ namespace CcsBackup.Archive
         public long CentralDirectoryOffset { get; private set; }
 
         /// <summary>Reads and checks the whole structure; allowedName decides each member name (the format's own list).</summary>
-        public ZipReader(Stream seekable, Func<string, bool> allowedName, bool ownStream = false)
+        readonly ZipIndexLimits limits = ZipIndexLimits.Console;
+
+        public ZipReader(Stream seekable, Func<string, bool> allowedName, bool ownStream = false) : this(seekable, allowedName, ownStream, null) { }
+
+        /// <summary>the same reader with other index limits (null: the console backup's)</summary>
+        public ZipReader(Stream seekable, Func<string, bool> allowedName, bool ownStream, ZipIndexLimits limits)
         {
-            s = seekable; own = ownStream;
+            s = seekable; own = ownStream; this.limits = limits ?? ZipIndexLimits.Console;
             if (!s.CanSeek || !s.CanRead) throw new ZipFormatException("the backup file cannot be read from start to end");
             Entries = Parse(allowedName ?? (n => true));
         }
 
         public static ZipReader Open(string path, Func<string, bool> allowedName) =>
             new ZipReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan), allowedName, true);
+        public static ZipReader Open(string path, Func<string, bool> allowedName, ZipIndexLimits limits) =>
+            new ZipReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan), allowedName, true, limits);
 
         ZipReader(Stream seekable, List<ZipEntryInfo> located) { s = seekable; own = false; Entries = located; }
 
@@ -256,11 +271,11 @@ namespace CcsBackup.Archive
                 count = U64(rec, 32); cdSize = U64(rec, 40); cdOff = U64(rec, 48); cdEnd = recPos;
                 if (U64(rec, 24) != count) throw new ZipFormatException("the ZIP64 member counts disagree");
             }
-            if (count > MaxMembers) throw new ZipFormatException("the archive has more members than a console backup can (" + count + ")");
+            if (count > limits.MaxMembers) throw new ZipFormatException("the archive has more members than a console backup can (" + count + ")");
             if (cdOff + cdSize != cdEnd) throw new ZipFormatException("bytes lie between the member index and the end of the archive");
-            if (cdSize > 4 * 1024 * 1024) throw new ZipFormatException("the member index is too large");
+            if (cdSize > limits.MaxIndexBytes) throw new ZipFormatException("the member index is too large");
             var cd = ReadAt(cdOff, (int)cdSize);
-            var list = new List<ZipEntryInfo>(); var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase); int p = 0;
+            var list = new List<ZipEntryInfo>((int)Math.Min(count, 1 << 20)); var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase); int p = 0;
             for (long k = 0; k < count; k++)
             {
                 if (p + 46 > cd.Length || U32(cd, p) != 0x02014b50) throw new ZipFormatException("the member index is damaged");

@@ -25,8 +25,8 @@ namespace CcsBackup.Browse
     public enum Category { Games, Saves, SuspendPoints, Artwork, ModsAndEmulators, Settings, SystemFiles, EverythingElse }
     /// <summary>ImageFile: inside a system image (its Container); PackageFile: inside the nested CCS HOME package (its Container);
     /// StartupPart: a part of a startup image (its Container: the member); RamdiskFile: a file of a startup image's ramdisk (its Container:
-    /// the ramdisk part)</summary>
-    public enum EntrySource { Member, DataFile, VirtualFolder, ImageFile, PackageFile, StartupPart, RamdiskFile }
+    /// the ramdisk part); StorageFile: a file of a USB and SD storage backup (BackupContents.Storage.cs)</summary>
+    public enum EntrySource { Member, DataFile, VirtualFolder, ImageFile, PackageFile, StartupPart, RamdiskFile, StorageFile }
     public enum EntryKind { File, Folder, Link, Special }
     /// <summary>where an entry's SHA-256 comes from; only Manifest, Inventory, PackageList, Derived and DerivedIndex are trusted for a
     /// verified export. Recorded when the backup was made: Manifest (the backup's own list), Inventory (the backup's file list),
@@ -56,6 +56,7 @@ namespace CcsBackup.Browse
         public string ImagePath;     // inside the data storage image ("/clover/profiles/0/..."), DataFile only
         public string ConsolePath;   // where it is on the console ("/var/lib/clover/profiles/0/..."), DataFile only
         public long Size; public int Mode, Uid, Gid, Links; public uint Inode; public string Owner;
+        public long Allocated = -1;  // the space its inode records as allocated in the data storage (DataFile read from the image); -1: not known
         public string LinkTarget;    // a link's target as written on the console (never followed)
         public string Unreadable;    // why its bytes cannot be read on the PC (null: readable)
         public string StateWord;     // a short label beside its name when it cannot be copied ("damaged", "cannot be checked"); null otherwise

@@ -86,7 +86,7 @@ def expected_from_manifest(man: dict, root: str, db_path: str = DB_PATH, builtin
     visible, additional, seen = set(), {}, {}
     stored = {}
     if os.path.exists(db_path):
-        con = sqlite3.connect(db_path); stored = {r[0]: r[1] for r in con.execute("SELECT sha256, stored FROM payloads")}; con.close()
+        con = sqlite3.connect(db_path); stored = {r[0]: r[1] for r in con.execute("SELECT sha256, stored FROM payloads") if r[1] and os.path.isfile(r[1])}; con.close()   # a development path whose file is gone never hides a managed copy
     try:
         from library_lookup import library_store
         for vid, e in library_store().items():   # managed copies of known versions (imported by the user)

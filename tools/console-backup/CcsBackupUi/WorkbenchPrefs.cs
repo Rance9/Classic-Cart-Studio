@@ -1,11 +1,14 @@
 // Classic Cart Studio console backup and restore window. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
-// CCS Console Workbench: Settings (the backup locations, and where the settings are kept) and what happens to the preferences when the window
-// closes. One preference model (CcsBackup.Library.Settings: the backup location, the additional copy and the console family chosen at the
+// CCS Console Workbench: Settings (the backup locations, CCS HOME's earlier versions to keep, and where the settings are kept) and what happens to the preferences when the window
+// closes. One preference model (CcsBackup.Library.Settings: the backup location, the additional copy, the earlier HOME versions and the console family chosen at the
 // top of the window) and one file schema (ccs-console-backup-settings/1; fields a newer version wrote are kept) in both hosts.
-//   The standalone   preferences live in memory until the person saves them to a settings file of their own (Save Settings…; no AppData
-//                    file, no registry, nothing beside the program, no automatic remembering). Changes that are not in that file (made on
-//                    Settings, by the console choice, or still typed in Settings' boxes) are listed in the window's one close review
-//                    (BackupWorkspace.CloseReview, WB-UX-20). Loading another settings file asks about them first.
+//   The standalone   preferences live in memory until the person saves them to a settings file of their own (Save Settings…). The
+//                    settings file last saved or loaded successfully is remembered (only its path, LastSettingsFile in AppData) and opened
+//                    at the next start unless --settings names another; one that cannot be opened is offered for locating, or the usual
+//                    settings are used this time, and the record is left as it is. Saving the settings themselves is always the person's
+//                    choice. Changes that are not in that file (made on Settings, by the console choice, or still typed in Settings'
+//                    boxes) are listed in the window's one close review (BackupWorkspace.CloseReview, WB-UX-20). Loading another settings
+//                    file asks about them first.
 //   Installed mode   started by Classic Cart Studio from its installation (WorkspaceOptions.Studio, a validated launch context) or inside the
 //                    app (HostedInFullApp): a change is used and saved at once to the app's Workbench settings file (%LOCALAPPDATA%\CCS
 //                    Console Backup, where it always was), when a box is left, Enter is pressed, a folder is chosen or the box is ticked:
@@ -15,13 +18,16 @@
 //                    Which mode applies comes from how the program was started, never from which program file runs.
 // Unsaved settings and an unsaved HOME design are one close review; a console task's safe stop and the USB driver's close question come
 // after it as their own steps, so its Cancel has not stopped a task or touched a driver.
+using CcsBackup.Engine;
 using CcsBackup.Library;
 using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace CcsBackup.Ui
 {
@@ -41,9 +47,9 @@ namespace CcsBackup.Ui
         Action settingsRefresh;
         /// <summary>WB-UX-11: set only while Back Up Console's Edit in Settings opens Settings: where Settings' Back returns, and that the
         /// backup location's box is brought into view with the keyboard focus</summary>
-        Action settingsBack; bool settingsFocusLocation;
+        Action settingsBack; bool settingsFocusLocation; string settingsBackLabel;
 
-        static string Sig(Settings s) => (s.PrimaryFolder ?? "") + "\n" + (s.ArchiveFolder ?? "") + "\n" + FamilyKey(s.ConsoleProfile);
+        static string Sig(Settings s) => (s.PrimaryFolder ?? "") + "\n" + (s.ArchiveFolder ?? "") + "\n" + FamilyKey(s.ConsoleProfile) + "\n" + s.EarlierHomeKeep;
         /// <summary>freeze 16: no family saved means the first one (the NES Classic Mini), and an alias means its family, so choosing the SNES
         /// Classic Mini and then the NES Classic Mini again leaves nothing unsaved; an id this version does not know stays as written</summary>
         static string FamilyKey(string id) => ConsoleProfile.Find(id)?.Id ?? (string.IsNullOrEmpty(id) ? ConsoleProfile.Supported[0].Id : id);
@@ -58,6 +64,36 @@ namespace CcsBackup.Ui
         {
             savedPrefs = settings.Copy();
             profile = ConsoleProfile.Find(settings.ConsoleProfile) ?? ConsoleProfile.Supported[0];
+            if (opt.RememberedSettingsProblem != null)
+            {   // the remembered settings file could not be opened: asked once the window shows
+                EventHandler ask = null; ask = (s, e) => { ContentRendered -= ask; Dispatcher.BeginInvoke(new Action(RememberedFileMissing), System.Windows.Threading.DispatcherPriority.Background); };
+                ContentRendered += ask;
+            }
+        }
+
+        /// <summary>the remembered settings file could not be opened at this start: locate a settings file (one that loads becomes the
+        /// remembered file), or use the usual settings this time. The file and the record are never changed or removed here.</summary>
+        void RememberedFileMissing()
+        {
+            var file = opt.RememberedSettingsFile; var why = opt.RememberedSettingsProblem;
+            while (true)
+            {
+                int k = Ask("Your settings file could not be opened", "Workbench opens the settings file you used last, " + file + ", but " + why + ".\n\nLocate your settings file, or use the usual settings this time. Nothing is saved over your settings file unless you save it.",
+                            new[] { "Locate the Settings File…", "Use Usual Settings This Time" }, 0, 1);
+                if (k != 0) { UpdateStatus("Using the usual settings this time. Your settings file was not changed; Workbench tries it again next time."); return; }
+                var pick = ChooseFile(false, "Locate your Workbench settings file", null);
+                if (pick == null) continue;
+                if (LoadPrefsFrom(pick)) { if (page.Content is FrameworkElement fe && fe.Tag as string == "settings") ShowSettings(); return; }
+            }
+        }
+
+        /// <summary>remembers this settings file for the next start (the ordinary standalone window only); a record that cannot be written
+        /// is said, and changes nothing else</summary>
+        void RememberFile(string file)
+        {
+            if (!Standalone || !opt.RememberSettingsFile) return;
+            try { LastSettingsFile.Write(file); opt.RememberedSettingsFile = null; opt.RememberedSettingsProblem = null; }
+            catch (Exception ex) { UpdateStatus("Workbench could not note this settings file for next time (" + ex.Message.TrimEnd('.') + "). Load it again next time."); }
         }
 
         /// <summary>the settings a page should use: the window's own; a settings file is read again (another window may have changed it)
@@ -93,6 +129,7 @@ namespace CcsBackup.Ui
             if (savedPrefs == null || (settings.PrimaryFolder ?? "") != (savedPrefs.PrimaryFolder ?? "")) l.Add("the backup location");
             if (savedPrefs == null || (settings.ArchiveFolder ?? "") != (savedPrefs.ArchiveFolder ?? "")) l.Add("the additional copy");
             if (savedPrefs == null || FamilyKey(settings.ConsoleProfile) != FamilyKey(savedPrefs.ConsoleProfile)) l.Add("the console chosen at the top of the window");
+            if (savedPrefs == null || settings.EarlierHomeKeep != savedPrefs.EarlierHomeKeep) l.Add("the earlier HOME versions to keep");
             return l.Count == 0 ? "your settings" : l.Count == 1 ? l[0] : string.Join(", ", l.Take(l.Count - 1)) + " and " + l.Last();
         }
 
@@ -107,13 +144,82 @@ namespace CcsBackup.Ui
             finally { settingsBack = null; settingsFocusLocation = false; }
         }
 
+        /// <summary>Settings > CCS HOME > Earlier HOME versions: how many earlier CCS HOME versions the console keeps when CCS HOME is updated
+        /// (one by default; none; or a number), used at once and saved the way every setting here is (the standalone: Save Settings; started
+        /// by Classic Cart Studio: automatically). A number that is not valid is not used, and the page says so.</summary>
+        UIElement EarlierHomeCard()
+        {
+            int max = (int)StorageSpec.Spec.O("policies").L("earlier_home_versions_max");
+            var c = new StackPanel();
+            c.Children.Add(T("CCS HOME", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
+            c.Children.Add(T("Earlier HOME versions", Ty.Body, true, false, new Thickness(0, 0, 0, 4)));
+            var head = T("Keep earlier HOME versions on this console", Ty.Text, false, false, new Thickness(0, 0, 0, 6));
+            c.Children.Add(head);
+            var one = new RadioButton { GroupName = "earlier-home", Margin = new Thickness(0, 0, 0, 6), Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "Keep one earlier version (recommended)" } };
+            var none = new RadioButton { GroupName = "earlier-home", Margin = new Thickness(0, 0, 0, 6), Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "Keep none" } };
+            var pick = new RadioButton { GroupName = "earlier-home", Margin = new Thickness(0, 0, 0, 6), Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "Choose a number" } };
+            foreach (var r in new[] { one, none, pick }) System.Windows.Automation.AutomationProperties.SetLabeledBy(r, head);
+            var num = new TextBox { Width = 64, VerticalContentAlignment = VerticalAlignment.Center };
+            System.Windows.Automation.AutomationProperties.SetName(num, "Number of earlier HOME versions to keep (0 to " + max + ")");
+            // the number's step arrows (typing it stays): one more / one fewer within 0 to max; the Up and Down keys in the box do the same
+            RepeatButton Arrow(string name, string path)
+            {
+                var b = new RepeatButton { Style = Res<Style>("Wb.Spin"), Content = new System.Windows.Shapes.Path { Data = Geometry.Parse(path), Stroke = Res<Brush>("B.Ink"), StrokeThickness = 1.6, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round, Width = 10, Height = 6, Stretch = Stretch.None } };
+                System.Windows.Automation.AutomationProperties.SetName(b, name); b.ToolTip = name; return b;
+            }
+            var up = Arrow("One more earlier version", "M1,5 L5,1 L9,5"); var down = Arrow("One fewer earlier version", "M1,1 L5,5 L9,1");
+            var arrows = new Grid { Margin = new Thickness(4, 0, 0, 0) };
+            arrows.RowDefinitions.Add(new RowDefinition()); arrows.RowDefinitions.Add(new RowDefinition());
+            down.Margin = new Thickness(0, 2, 0, 0); Grid.SetRow(down, 1); arrows.Children.Add(up); arrows.Children.Add(down);
+            var numRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(26, 0, 0, 8) };
+            numRow.Children.Add(num); numRow.Children.Add(arrows);
+            var warn = new ContentControl(); var problem = new ContentControl();
+            int keep = settings.EarlierHomeKeep;
+            (keep == 1 ? one : keep == 0 ? none : pick).IsChecked = true; num.Text = keep.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            int Typed() => int.TryParse(num.Text.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var t) ? t : -1;
+            void Arrows() { int t = Typed(); bool on = pick.IsChecked == true; up.IsEnabled = on && (t < 0 || t < max); down.IsEnabled = on && t > 0; }
+            void Show()
+            {
+                num.IsEnabled = pick.IsChecked == true; Arrows();
+                warn.Content = settings.EarlierHomeKeep == 0 ? Note("There will be no earlier HOME version on the console to go back to. Your backups on this PC will not be removed.", "warn") : null;
+            }
+            void Set(int v) { if (settings.EarlierHomeVersions == v) { Show(); return; } settings.EarlierHomeVersions = v; problem.Content = null; Show(); PrefsChanged(); }
+            void UseNumber()
+            {
+                if (pick.IsChecked != true) return;
+                if (int.TryParse(num.Text.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var v) && v >= 0 && v <= max) Set(v);
+                else problem.Content = Note("Not used yet: choose a whole number from 0 to " + max + ".", "warn");
+            }
+            void Step(int by)
+            {
+                if (pick.IsChecked != true) return;
+                int t = Typed(); if (t < 0 || t > max) t = Math.Min(Math.Max(settings.EarlierHomeKeep, 0), max);   // from the number in use when the box holds none
+                num.Text = Math.Min(max, Math.Max(0, t + by)).ToString(System.Globalization.CultureInfo.InvariantCulture); num.CaretIndex = num.Text.Length; UseNumber(); Arrows();
+            }
+            up.Click += (s, e) => Step(1); down.Click += (s, e) => Step(-1);
+            one.Checked += (s, e) => Set(1); none.Checked += (s, e) => Set(0); pick.Checked += (s, e) => { Show(); UseNumber(); };
+            num.TextChanged += (s, e) => Arrows();
+            num.LostKeyboardFocus += (s, e) => UseNumber();
+            num.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter) { UseNumber(); e.Handled = true; }
+                else if (e.Key == Key.Up) { Step(1); e.Handled = true; }
+                else if (e.Key == Key.Down) { Step(-1); e.Handled = true; }
+            };
+            c.Children.Add(one); c.Children.Add(none); c.Children.Add(pick); c.Children.Add(numRow); c.Children.Add(problem);
+            c.Children.Add(T("When you update CCS HOME, keep this many earlier versions on the console so you can go back to one. Your backups on this PC are kept separately.", Ty.Small, false, true, new Thickness(0, 2, 0, 6)));
+            c.Children.Add(warn);
+            Show();
+            var card = Card(c); System.Windows.Automation.AutomationProperties.SetName(card, "Earlier HOME versions"); return card;
+        }
+
         void ShowSettings()
         {
-            var back = settingsBack; bool focusLocation = settingsFocusLocation; settingsBack = null; settingsFocusLocation = false;
+            var back = settingsBack; var backLabel = settingsBackLabel ?? "Back to Back Up Console"; bool focusLocation = settingsFocusLocation; settingsBack = null; settingsBackLabel = null; settingsFocusLocation = false;
             settings = Reload();
             var sp = PageHead("Settings", Standalone ? "Where Workbench saves new console backups, and the settings file that keeps your choices for next time."
                                                      : "Where Workbench saves new console backups. Changes are saved automatically.");
-            if (back != null) { var bb = BackButton("Back to Back Up Console", () => { if (LeaveOk()) back(); }); bb.Margin = new Thickness(0, 0, 0, 16); sp.Children.Insert(0, bb); }
+            if (back != null) { var bb = BackButton(backLabel, () => { if (LeaveOk()) back(); }); bb.Margin = new Thickness(0, 0, 0, 16); sp.Children.Insert(0, bb); }
             var prim = new TextBox { Text = settings.PrimaryFolder };
             var arch = new TextBox { Text = settings.ArchiveFolder ?? "" };
             var two = new CheckBox { Content = "Also save an additional copy of each new backup", IsChecked = !string.IsNullOrEmpty(settings.ArchiveFolder), Margin = new Thickness(0, 4, 0, 10) };
@@ -162,6 +268,7 @@ namespace CcsBackup.Ui
             Refresh();
             loc.Children.Add(problem);
             sp.Children.Add(Card(loc));
+            sp.Children.Add(EarlierHomeCard());   // CCS HOME > Earlier HOME versions
 
             // where the settings are kept, and whether they are saved
             var keep = new StackPanel();
@@ -178,8 +285,9 @@ namespace CcsBackup.Ui
             if (Standalone)
             {
                 keep.Children.Add(T("Your settings file", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
-                if (settings.InMemory) keep.Children.Add(T("Workbench keeps your settings only while it is open: it writes no settings file of its own. To keep them, save them to a settings file you choose, and load that file the next time.", Ty.Text, false, true));
-                else { keep.Children.Add(T("Your settings are kept in the settings file you chose:", Ty.Text, false, true)); keep.Children.Add(PathText(settings.Path)); }
+                keep.Children.Add(T("Workbench remembers which settings file you used and opens it next time. Save your changes with Save Settings.", Ty.Text, false, true, new Thickness(0, 0, 0, 6)));
+                if (settings.InMemory) keep.Children.Add(T("No settings file is open: Workbench is using these settings now. To keep them, save them to a settings file you choose.", Ty.Text, false, true));
+                else { keep.Children.Add(T("Your settings file:", Ty.Text, false, true)); keep.Children.Add(PathText(settings.Path)); }
                 keep.Children.Add(state);
                 keep.Children.Add(Buttons(B(settings.InMemory ? "Save Settings…" : "Save Settings", "Btn", () => { if (Pending() is string why) { problem.Content = Note("Not used yet: " + why + ".", "warn"); return; } if (SavePrefs(false)) ShowSettings(); }),
                                           settings.InMemory ? null : B("Save Settings As…", "Btn.Ghost", () => { if (Pending() is string why) { problem.Content = Note("Not used yet: " + why + ".", "warn"); return; } if (SavePrefs(true)) ShowSettings(); }),
@@ -192,7 +300,7 @@ namespace CcsBackup.Ui
                 keep.Children.Add(PathText(settings.Path));
                 keep.Children.Add(state);
             }
-            keep.Children.Add(T("Kept with your settings: the backup locations above and the console chosen at the top of the window (now " + profile.Name + "). A settings file is separate from your console backups.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
+            keep.Children.Add(T("Kept with your settings: the backup locations above, the earlier HOME versions to keep and the console chosen at the top of the window (now " + profile.Name + "). A settings file is separate from your console backups.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
             sp.Children.Add(Card(keep));
             State();
             Show(sp, "settings");
@@ -229,6 +337,7 @@ namespace CcsBackup.Ui
             }
             settings.InMemory = false; settings.Path = file; savedPrefs = settings.Copy();
             UpdateStatus("Settings saved to " + file + ".");
+            RememberFile(file);
             return true;
         }
 
@@ -245,6 +354,13 @@ namespace CcsBackup.Ui
             }
             var file = ChooseFile(false, "Load Workbench settings", null);
             if (file == null) return false;
+            return LoadPrefsFrom(file);
+        }
+
+        /// <summary>loads this file as the window's settings: true only when it is a Workbench settings file that could be used (then it is
+        /// also remembered for next time); otherwise nothing changes and the person is told why</summary>
+        bool LoadPrefsFrom(string file)
+        {
             try { if (Json.Parse(File.ReadAllText(file)).S("schema") != "ccs-console-backup-settings/1") { Ask("Not a settings file", "That file is not a Workbench settings file. Nothing was changed.", new[] { "OK" }, 0, 0); return false; } }
             catch (Exception ex) { Ask("Not a settings file", "That file could not be read as Workbench settings: " + ex.Message + " Nothing was changed.", new[] { "OK" }, 0, 0); return false; }
             var s = Settings.Load(file); var p = s.ConsoleProfile == null ? ConsoleProfile.Supported[0] : ConsoleProfile.Find(s.ConsoleProfile);   // a file naming no console: the first family
@@ -252,6 +368,7 @@ namespace CcsBackup.Ui
             settings = s; savedPrefs = s.Copy();
             if (p != null && p != profile) { profile = p; ShowProfileInStrip(); }
             UpdateStatus("Settings loaded from " + file + "." + (s.ConsoleProfile != null && p == null ? " The console it names is not one this version knows; Workbench keeps " + profile.Name + "." : ""));
+            RememberFile(file);
             return true;
         }
 

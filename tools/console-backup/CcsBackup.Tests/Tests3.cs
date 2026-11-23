@@ -35,10 +35,14 @@ namespace CcsBackup.Tests
             Check(sim.Ok && !r1.Ok, "a simulated console's backup never admits a change to a real console (" + r1.Code + ")");
             var noorig = RealFlagged(Console_("modified-noorig"), s);
             var r2 = Admission.Admit(s, HwidA, "install", "plan1");
-            Check(noorig.Ok && !r2.Ok && r2.Code == "backup-required", "a backup without the original kernel is not a recovery baseline: refused (" + r2.Text + ")");
+            // A complete current backup without the original kernel admits a DATA-ONLY change (its own type, its own notice);
+            // it is never a recovery baseline and never admits preparation (TestsDataOnly.cs covers the rest of that type)
+            Check(noorig.Ok && r2.Ok && r2.DataOnly && r2.BaselinePath == null && r2.Code == "admitted-data-only", "a backup without the original kernel is not a recovery baseline: an install is admitted only as data-only (" + r2.Text + ")");
+            var r2p = Admission.Admit(s, HwidA, "prepare", "plan1", null, false, "session-x");
+            Check(!r2p.Ok && r2p.Code == "backup-required", "and preparation with it: refused (" + r2p.Text + ")");
             var good = RealFlagged(Console_("modified"), s);
             var r3 = Admission.Admit(s, HwidA, "install", "plan1");
-            Check(good.Ok && r3.Ok && r3.BaselinePath == good.PrimaryPath && r3.TicketId != null, "a verified recovery-baseline backup of this console admits the install (" + r3.Text + ")");
+            Check(good.Ok && r3.Ok && !r3.DataOnly && r3.BaselinePath == good.PrimaryPath && r3.TicketId != null, "a verified recovery-baseline backup of this console admits the install (" + r3.Text + ")");
             Check(!Admission.Admit(s, HwidB, "install", "plan1").Ok, "another console's identity: refused");
             // the worker's own check
             var u0 = Admission.Use(s, r3.TicketId, "update", "plan1", HwidA); Check(!u0.Ok && u0.Code == "admission-mismatch", "used for a different operation: refused");

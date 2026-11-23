@@ -6,15 +6,17 @@ One implementation behind two entry points, with the same sections and the same 
 
 - **Classic Cart Studio for Windows**: the Console Workbench button on the first screen and the Studio menu open this window (hosted,
   without the standalone's Classic Cart Studio introduction page).
-- **CCS Console Workbench** (standalone): one executable, no installer, no AppData (`CCS-Console-Workbench.exe`; earlier versions were
-  `CCS-Console-Backup-Restore-Utility.exe`, and backups and records they made are read as before).
+- **CCS Console Workbench** (standalone): one executable, no installer (`CCS-Console-Workbench.exe`; earlier versions were
+  `CCS-Console-Backup-Restore-Utility.exe`, and backups and records they made are read as before). After you save or load a settings
+  file, it remembers which file that was, and only that, in `%LOCALAPPDATA%\CCS Console Workbench\last-settings-file.json`, and opens
+  it next time.
 
 The window opens on its Dashboard (the console's status, Back Up Console, the common tasks, recent backups). Sections: Console Backup,
 Console Restore, Console Rescue, Console Composer, Console Browser (Expert Mode inside), Backup Browser, Backup Repair, Developer Mode;
 then Settings (backup locations), Help and About (the illustrated guide) and Credits. In the standalone, the Classic Cart Studio introduction page (its Download button
 opens classiccartstudio.com/app/) is built but its side-column entry is held back until the full app is released
-(`BackupWorkspace.FullAppEntryReleased`). The console strip names the console family (`ConsoleProfile`: the NES Classic Mini and the SNES Classic Mini, whose console tasks are
-being built) and says "Console not checked" until an operation's own session identifies a console. Each worker is its own session (`NewSession`): it
+(`BackupWorkspace.FullAppEntryReleased`). The console strip names the console family (`ConsoleProfile`: the NES Classic Mini and the SNES Classic Mini; a task asks the
+console model's own capability first, `FamilyHasTasks`) and says "Console not checked" until an operation's own session identifies a console. Each worker is its own session (`NewSession`): it
 starts unidentified, a console an earlier session identified is shown apart as "Earlier session", and a superseded session's late events
 change nothing. The check-up's Condition is the status the file system records in its header, not a complete check.
 

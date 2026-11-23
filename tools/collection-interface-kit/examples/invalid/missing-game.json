@@ -1,0 +1,37 @@
+{
+ "schema": "ccs-collection-interface",
+ "version": 1,
+ "generation": 1,
+ "bases": {
+  "entries": "/var/lib/hakchi/games"
+ },
+ "collections": [
+  {
+   "id": "installed",
+   "name": "Weekend Picks",
+   "games": [
+    "nes-0f1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "nes-1a2b3c4d5e6f708192a3b4c5d6e7f809",
+    "nes-ffffffffffffffffffffffffffffffff"
+   ]
+  }
+ ],
+ "games": {
+  "nes-0f1e2d3c4b5a69788796a5b4c3d2e1f0": {
+   "title": "Example Quest",
+   "entry": {
+    "base": "entries",
+    "path": "CLV-H-ABCDE/CLV-H-ABCDE.desktop",
+    "code": "CLV-H-ABCDE"
+   }
+  },
+  "nes-1a2b3c4d5e6f708192a3b4c5d6e7f809": {
+   "title": "Sample Racer",
+   "entry": {
+    "base": "entries",
+    "path": "CLV-H-FGHIJ/CLV-H-FGHIJ.desktop",
+    "code": "CLV-H-FGHIJ"
+   }
+  }
+ }
+}

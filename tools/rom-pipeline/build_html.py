@@ -141,8 +141,20 @@ input[type=checkbox]:checked{background:var(--red);border-color:var(--red3)}inpu
 .btn.hk{background:linear-gradient(180deg,#ff2a36,var(--red2));border-color:#ff5a63;color:#fff;font-weight:700;letter-spacing:.3px;box-shadow:0 2px 12px var(--glow);padding:8px 14px}.btn.hk .ico,.btn.tray .ico{width:12px;height:12px}.btn.hk.off{background:linear-gradient(180deg,#3a3a44,#2a2a32);border-color:var(--line2);color:var(--silver);box-shadow:none}.btn.hk .cnt{font-family:var(--display);font-size:14px;margin:0 2px}
 .btn.secondary{background:transparent;border-color:var(--line2);color:var(--ink2)}
 #hkpanel .mbox{width:min(1100px,100%)}#hkpanel .sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:6px 0 12px}#hkpanel .sum .sb{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--r2);padding:8px 10px}#hkpanel .sum .sb b{display:block;font-family:var(--display);font-size:22px;color:#fff}#hkpanel .sum .sb span{font-size:11.5px;color:var(--muted)}#hkpanel .sum .sb.warn b{color:var(--warn)}#hkpanel .sum .sb.bad b{color:var(--bad)}#hkpanel .sum .sb.ok b{color:var(--ok)}#hkpanel .sum .sb.info b{color:var(--info)}
-#hkpanel table.pv{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}#hkpanel table.pv th{font-family:var(--display);font-size:11.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--silver);text-align:left;padding:5px 8px;border-bottom:1px solid var(--line2);position:sticky;top:0;background:#1d1d24}#hkpanel table.pv td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-#hkpanel .pvwrap{max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:var(--r2)}
+#hkpanel table.pv{width:100%;min-width:640px;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:12.5px}#hkpanel table.pv col.g{width:31%}#hkpanel table.pv col.k{width:12%}#hkpanel table.pv col.s{width:18%}#hkpanel table.pv col.e{width:11%}#hkpanel table.pv col.d{width:28%}
+#hkpanel table.pv th{font-family:var(--display);font-size:11.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--silver);text-align:left;padding:7px 8px;border-bottom:1px solid var(--line2);position:sticky;top:0;z-index:1;background:#1d1d24;box-shadow:1px 0 0 #1d1d24}   /* the shadow covers the hairline seam between header cells at fractional widths */
+#hkpanel table.pv thead th:first-child{border-top-left-radius:calc(var(--r2) - 1px)}#hkpanel table.pv thead th:last-child{border-top-right-radius:calc(var(--r2) - 1px)}
+#hkpanel table.pv td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere;white-space:normal}#hkpanel table.pv td.g b{display:block;overflow-wrap:normal;word-break:normal}#hkpanel table.pv td.g .small{margin-top:2px;color:var(--muted)}
+@media (max-width:900px){#hkpanel table.pv col.g{width:29%}#hkpanel table.pv col.k{width:11%}#hkpanel table.pv col.s{width:23%}#hkpanel table.pv col.e{width:12%}#hkpanel table.pv col.d{width:25%}}   /* a status label stays on one line */
+#hkpanel table.pv th,#hkpanel table.pv td{display:table-cell}   /* the game list's narrow-window column rules (nth-child) are not this table's: every column stays */
+#hkpanel table.pv tbody tr:last-child td{border-bottom:0}#hkpanel table.pv tbody.pvgrp td{padding:0;background:rgba(255,255,255,.025);border-top:1px solid var(--line2)}
+#hkpanel .pvtog{display:flex;align-items:center;gap:8px;width:100%;padding:8px;background:none;border:0;color:var(--silver);font:inherit;font-weight:600;text-align:left;cursor:pointer}#hkpanel .pvtog:hover{color:#fff;background:rgba(255,255,255,.04)}#hkpanel .pvtog:focus-visible{outline:2px solid var(--info);outline-offset:-2px}
+#hkpanel .pvtog .ar{display:inline-block;width:1em;transition:transform .15s}#hkpanel .pvtog[aria-expanded="true"] .ar{transform:rotate(90deg)}#hkpanel .pvtog .small{font-weight:400;color:var(--muted)}
+#hkpanel .pvwrap{max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:var(--r2);background:#18181e;color-scheme:dark}
+@media not (forced-colors:active){#hkpanel .pvwrap::-webkit-scrollbar{width:12px;height:12px}#hkpanel .pvwrap::-webkit-scrollbar-track{background:#18181e}#hkpanel .pvwrap::-webkit-scrollbar-corner{background:#18181e}
+#hkpanel .pvwrap::-webkit-scrollbar-thumb{background:#4a4a58;border-radius:999px;border:3px solid #18181e}#hkpanel .pvwrap::-webkit-scrollbar-thumb:hover{background:#6c6c80}#hkpanel .pvwrap::-webkit-scrollbar-thumb:active{background:#8a8aa0}}
+@supports not selector(::-webkit-scrollbar){#hkpanel .pvwrap{scrollbar-color:#4a4a58 #18181e}}
+@media (prefers-reduced-motion:reduce){#hkpanel .pvtog .ar{transition:none}}
 .st{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--line2)}.st.ok{color:var(--ok);border-color:rgba(57,211,122,.45)}.st.info{color:var(--info);border-color:rgba(74,155,255,.5)}.st.warn{color:var(--warn);border-color:rgba(240,160,48,.5)}.st.bad{color:var(--bad);border-color:rgba(255,90,90,.5)}.st.dim{color:var(--muted)}
 #hkpanel .msg{margin-top:10px;padding:9px 12px;border-radius:var(--r2);border:1px solid var(--line2);background:rgba(255,255,255,.04);font-size:13px;color:var(--ink2);line-height:1.5}#hkpanel .msg.bad{border-color:rgba(255,90,90,.5);background:rgba(255,90,90,.08)}#hkpanel .msg.ok{border-color:rgba(57,211,122,.45);background:rgba(57,211,122,.07)}#hkpanel .msg.warn{border-color:rgba(240,160,48,.5);background:rgba(240,160,48,.08)}#hkpanel .msg code{font-family:Consolas,monospace;font-size:12px;background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px}
 #hkpanel .msg.envl{font-size:12px}#hkpanel .msg.envl .btn{padding:4px 9px;font-size:12px}#hkpanel .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}#hkpanel .acts .sp{flex:1}
@@ -243,7 +255,7 @@ __STUDIO_CSS__
    <div class="pills"><span class="pill"><span class="led"></span><b id="heroGames"></b> games in the catalog</span><span class="pill"><b id="heroSel">0</b> <span id="heroSelL">in collection</span></span><span class="pill"><b id="heroFav">0</b> favorites</span></div>
   </div>
   <div class="hardware dlwrap"><a class="dlbtn" id="dlApp" aria-label="Download Classic Cart Studio for Windows 10 and 11" href="https://github.com/Rance9/Classic-Cart-Studio/releases/latest" rel="noopener"><span class="dlic" aria-hidden="true"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 1h6.6v6.6H1zM8.4 1H15v6.6H8.4zM1 8.4h6.6V15H1zM8.4 8.4H15V15H8.4z"/></svg></span><span class="dlt"><b>Download CCS</b><small>for Windows 10/11</small></span></a></div>
-  <div class="hardware dlwrap cbrwrap" id="cbrWrap" hidden><button class="dlbtn" id="consoleBackupBtn" type="button" aria-label="CCS Console Workbench" title="Back up, restore, repair and compose your NES Classic."><span class="dlic" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5 13.5 3.6v4.1c0 3.3-2.3 5.7-5.5 6.8C4.8 13.4 2.5 11 2.5 7.7V3.6z"/><path d="M5.6 8.1 7.3 9.8l3.2-3.4"/></svg></span><span class="dlt"><b>Console</b><small>Workbench</small></span></button></div>
+  <div class="hardware dlwrap cbrwrap" id="cbrWrap" hidden><button class="dlbtn" id="consoleBackupBtn" type="button" aria-label="CCS Console Workbench" title="Back up, restore, repair and compose your NES Classic."><span class="dlic emo" aria-hidden="true">🧰</span><span class="dlt"><b>Console</b><small>Workbench</small></span></button></div>
  </div>
  <div class="parade" aria-hidden="true"><div class="lane"><div class="cast">__HERO_CAST__</div></div><div class="ground"></div></div>
 </header>
@@ -383,7 +395,7 @@ function compatInfo(g){ const notes=(g.compat_notes||'').split(';').map(x=>x.tri
  return {level,title,lines,evidence:`Confidence ${g.compat_confidence||'unknown'} — ${g.compat_evidence||''}`}; }
 const CI_ICON={info:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.8v.2"/></svg>',alt:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2.2l6 11H2z"/><path d="M8 6.5v3.2M8 12v.2"/></svg>',uncertain:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6.2"/><path d="M6 6.3a2 2 0 1 1 3 1.7c-.7.4-1 .8-1 1.5M8 12v.2"/></svg>',blocker:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6.2"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5"/></svg>'};
 // ---- controller / accessory requirements (separate from emulator compatibility) ----
-const INPUT_SUPPORT_TEXT={supported:'Standard NES Classic controllers are sufficient.',partial:'Standard controllers cover the 1–2 player modes; the extra modes need hardware the NES Classic does not have.',unverified:'No compatible alternative has been verified for this console.',unsupported:'The NES Classic has no equivalent of this accessory; not playable with the standard controllers.',unknown:'Input requirements are not documented for this game file; do not assume it is playable.'};
+const INPUT_SUPPORT_TEXT={supported:'Standard NES Classic controllers are sufficient.',partial:'Standard controllers cover the 1–2 player modes; the extra modes need hardware the NES Classic does not have.',unverified:'Needs a compatible accessory setup; the standard NES Classic controllers do not provide it.',unsupported:'The NES Classic has no equivalent of this accessory; not playable with the standard controllers.',unknown:'Input requirements are not documented for this game file; do not assume it is playable.'};
 function inputInfo(g){ const L=g.input_level||'unknown'; if(L==='none') return {level:'none'}; const acc=g.input_special_accessory||'special accessory'; const req=g.input_accessory_requirement; const sup=g.input_nes_classic_support||'unknown';
  const title=L==='required'?`Requires ${acc}`:L==='partial'?`${acc} for some modes`:L==='optional'?`${acc} optional`:L==='unknown'?'Controller needs unknown':`Controller note`;
  const lines=[]; if(L==='required') lines.push(`This game needs ${acc} input; it is not playable with a standard controller.`); if(L==='partial') lines.push(g.input_notes||`Some modes need ${acc}.`); if(L==='optional') lines.push(`${acc} is optional; the game plays with a standard controller.`); if(L==='unknown') lines.push(g.input_notes||'No input-device record for this game file.');
@@ -689,7 +701,9 @@ function buildManifest(){ const chosen=games.filter(g=>sel.has(g.game_id)).sort(
   games:chosen.map(g=>({game_id:g.game_id,display_title:g.display_title,nointro_name:g.nointro_name,payload_sha256:g.payload_sha256,recommended_emulator:g.recommended_emulator,builtin_status:g.builtin_status,builtin_code:g.builtin_code||null,builtin_factory_version:g.builtin_factory_version||null,comparison_status:comparisonStatus(g),install_required:installRequired(g),revision_decision:decisionOf(g),consensus_rank:(rankOf(g)||{}).consensus||null,input_requirements:{primary:g.input_primary,modes:g.input_modes,min_controllers:g.input_min_controllers,special_accessory:g.input_special_accessory||null,requirement:g.input_accessory_requirement,standard_controller_playable:g.input_standard_controller_playable,nes_classic_support:g.input_nes_classic_support,level:g.input_level}}))}; }
 function confirmExportWarnings(){ const chosen=window.selectedGames?selectedGames():games.filter(g=>sel.has(g.game_id)); const hw=chosen.filter(needsHardware);
  if(!chosen.length && !confirm('This list is empty. Installing it would hide every built-in game on the NES Classic. Continue?')) return false;
- if(hw.length && !confirm(`${hw.length} game${hw.length===1?' needs':'s need'} special controllers:\n\n${hw.map(g=>'• '+g.display_title+' ('+(g.input_special_accessory||'special controller')+')').join('\n')}\n\nContinue?`)) return false;
+ const req=hw.filter(g=>g.input_level==='required'), unk=hw.filter(g=>g.input_level!=='required');   /* "needs" only when it is known; otherwise it is not known */
+ if(hw.length && !confirm([req.length?`${req.length} game${req.length===1?' needs':'s need'} special controllers:\n\n${req.map(g=>'• '+g.display_title+' ('+(g.input_special_accessory||'special controller')+')').join('\n')}`:'',
+   unk.length?`For ${unk.length} game${unk.length===1?'':'s'}, whether ${unk.length===1?'it works':'they work'} with standard controllers is not known:\n\n${unk.map(g=>'• '+g.display_title).join('\n')}`:''].filter(Boolean).join('\n\n')+'\n\nContinue?')) return false;
  return true; }
 $('export').onclick=()=>{ if(!confirmExportWarnings()) return; const m=buildManifest();
  const b=new Blob([JSON.stringify(m,null,1)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='selection.json'; a.click(); toast(`Exported ${m.count} game(s) to selection.json`); };
@@ -708,8 +722,18 @@ function renderPreview(pv, mode){ const S=pv.summary||{}; const sb=(v,l,c)=>`<di
  let h=`<div class="sum">${sb(S.collection,'games')}${sb(S.factory_visible,'built-in shown','info')}${sb(S.factory_hidden,'built-in hidden','')}${sb(S.to_prepare_total,'games to add','ok')}${sb(S.retroarch,'need RetroArch',S.retroarch?'warn':'')}${sb(S.controller_warnings,'controller notes',S.controller_warnings?'warn':'')}${sb(S.revision_pending,'decisions pending',S.revision_pending?'warn':'')}${sb(S.install_size||fmt(S.install_bytes||0),'estimated size')}${(()=>{ const G=pv.games||[]; const miss=G.filter(g=>(g.statuses||[]).includes('missing ROM payload')).length, rev=G.filter(g=>(g.statuses||[]).some(x=>x==='needs review'||x==='revision approval required')).length, avail=Math.max(0,(S.to_prepare_total||0)-miss); return sb(avail,'game files on this computer',avail?'ok':'')+sb(miss,'game files missing',miss?'bad':'')+sb(rev,'need your review',rev?'warn':''); })()}</div>`;
  if(pv.problems&&pv.problems.length) h+=`<div class="msg bad"><b>Fix these first:</b><ol>${pv.problems.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></div>`;
  if(pv.warnings&&pv.warnings.length) h+=`<div class="msg warn">${pv.warnings.map(x=>`<div>⚠ ${esc(x)}</div>`).join('')}</div>`;
- h+=`<div class="pvwrap"><table class="pv"><thead><tr><th>Game</th><th>Kind</th><th>Status</th><th>Emulator</th><th>Detail</th></tr></thead><tbody>${(pv.games||[]).map(g=>`<tr><td><b>${esc(g.title)}</b><div class="small">${esc(g.nointro_name||g.code||'')}</div></td><td class="small">${esc(g.kind)}</td><td>${(g.statuses||[]).map(st=>stTag(STATUS_CLS[st]||'dim',STATUS_TXT[st]||st)).join(' ')}</td><td class="small">${esc(g.emulator||'')}</td><td class="small">${esc(g.detail||'')}${(g.statuses||[]).includes('missing ROM payload')&&g.game_id&&typeof COMPANION!=='undefined'&&COMPANION.ok?`<div><button class="btn sm" data-locate="${esc(g.game_id)}">Locate Game File…</button></div>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+ // the built-in games this collection leaves out, only to say so (nothing to decide, nothing wrong): one closed group with their count;
+ // every other row (chosen, changed, a problem or something to review) stays in view
+ const row=g=>`<tr><td class="g"><b>${esc(g.title)}</b><div class="small">${esc(g.nointro_name||g.code||'')}</div></td><td class="small">${esc(g.kind)}</td><td>${(g.statuses||[]).map(st=>stTag(STATUS_CLS[st]||'dim',STATUS_TXT[st]||st)).join(' ')}</td><td class="small">${esc(g.emulator||'')}</td><td class="small">${esc(g.detail||'')}${(g.statuses||[]).includes('missing ROM payload')&&g.game_id&&typeof COMPANION!=='undefined'&&COMPANION.ok?`<div><button class="btn sm" data-locate="${esc(g.game_id)}">Locate Game File…</button></div>`:''}</td></tr>`;
+ const quiet=g=>g.kind==='factory'&&(g.statuses||[]).length===1&&g.statuses[0]==='factory game hidden';
+ const G=pv.games||[], shown=G.filter(g=>!quiet(g)), hid=G.filter(quiet), gid='pvHid'+(++PV_GROUPS);
+ h+=`<div class="pvwrap"><table class="pv"><colgroup><col class="g"><col class="k"><col class="s"><col class="e"><col class="d"></colgroup><thead><tr><th scope="col">Game</th><th scope="col">Kind</th><th scope="col">Status</th><th scope="col">Emulator</th><th scope="col">Detail</th></tr></thead><tbody>${shown.map(row).join('')}</tbody>`
+  +(hid.length?`<tbody class="pvgrp"><tr><td colspan="5"><button type="button" class="pvtog" aria-expanded="false" aria-controls="${gid}"><span class="ar" aria-hidden="true">▸</span>Built-in games hidden from the menu (${hid.length})<span class="small">kept on the console, not shown in its menu</span></button></td></tr></tbody><tbody id="${gid}" class="pvhid" hidden>${hid.map(row).join('')}</tbody>`:'')
+  +`</table></div>`;
  return h; }
+let PV_GROUPS=0;
+document.addEventListener('click',e=>{ const b=e.target&&e.target.closest&&e.target.closest('.pvtog'); if(!b) return; const open=b.getAttribute('aria-expanded')!=='true', g=document.getElementById(b.getAttribute('aria-controls'));
+ b.setAttribute('aria-expanded',String(open)); if(g) g.hidden=!open; });
 function hkEnvLine(env){ const i=env.install||{}, d=env.driver||{}; const drv=d.installed?'installed':d.state==='installer-unavailable'?'<b>not installed</b> (set up Hakchi2 CE first)':'<b>not installed</b>';
  return `<div class="msg envl">Hakchi2 CE: ${i.state==='ok'?`<b>${esc(i.version||'3.9.3')}</b> (verified)`:i.state==='different-version'?`<b>different version</b> (${esc(i.version||'unknown')})`:'<b>not set up</b>'} · NES Classic USB driver: ${drv}${d.simulated?' <span class="small">(simulated)</span>':''} · Hakchi2 CE open: ${env.hakchi_running?'<b>yes</b>':'no'} · NES Classic connected: ${env.console_connected?'<b>yes</b>':'no'}${(!d.installed&&d.state==='missing')?` <button class="btn secondary" id="hkDrvBtn" style="margin-left:8px">Install USB Driver…</button>`:''}</div>`; }
 function hkWireDriver(){ const b=$('hkDrvBtn'); if(!b) return; b.onclick=async()=>{ const NL=String.fromCharCode(10); if(!confirm(['Install the NES Classic USB driver?','','Windows will ask for administrator permission. Nothing is sent to the console, and it does not need to be connected.'].join(NL))) return;
@@ -721,10 +745,33 @@ function hkInstallPanel(inst, env){
   ${hkEnvLine(env)}
   <div class="acts"><span class="small">Nothing here changes the console.</span><span class="sp"></span><button class="btn secondary" id="hkCancel">Cancel</button><button class="btn hk" id="hkInstall" ${inst.root_nonempty||(inst.package_state&&inst.package_state!=='ok')?'disabled':''}>Set Up Hakchi2 CE</button></div>`);
  hkWireDriver(); $('hkCancel').onclick=()=>$('hkpanel').classList.remove('open');
- $('hkInstall').onclick=async()=>{ $('hkInstall').disabled=true; $('hkInstall').textContent='Setting up… (about a minute)'; const r=await hkPost('/api/install-hakchi',{}); const res=r.result||{};
-  $('hkTitle').textContent='Install on NES Classic'; $('hkSub').textContent=r.ok?'Hakchi2 CE is ready':'Hakchi2 CE was not set up';
-  $('hkBody').innerHTML=`<div class="msg ${r.ok?'ok':'bad'}"><b>${r.ok?'Hakchi2 CE 3.9.3 is set up.':'Nothing was changed.'}</b> ${r.ok?'':esc(res.message||r.error||'')}</div>`+(res.env?hkEnvLine(res.env):'')+`<div class="acts"><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button>${r.ok?'<button class="btn hk" id="hkAgain">Continue</button>':''}</div>`;
-  hkWireDriver(); $('hkDone').onclick=()=>$('hkpanel').classList.remove('open'); if($('hkAgain')) $('hkAgain').onclick=()=>{ $('hkpanel').classList.remove('open'); companionStatus().then(()=>{ hkLabelUpdate(); $('hkBtn').click(); }); }; }; }
+ hkSetupGet().then(s=>{ if(s&&s.ok&&s.job&&s.job.state==='running'&&$('hkInstall')){ $('hkInstall').disabled=true; hkSetupWatch(false); } });   // a setup already under way: its progress, never a second one
+ $('hkInstall').onclick=async()=>{ const b=$('hkInstall'); b.disabled=true; b.textContent='Starting…'; let r;
+  try{ r=await hkPost('/api/install-hakchi',{}); }catch(e){ r={unreachable:true}; }
+  if(r.started||r.running||r.timeout||r.unreachable) return hkSetupWatch(!(r.started||r.running));   // no answer: the setup may have started, so its outcome is read, never guessed
+  hkSetupShow({ok:true,job:{state:'failed',changed:r.changed===false?false:null,error:r.error||''},install:{}}); }; }
+// Set Up Hakchi2 CE runs in Classic Cart Studio's background (one at a time): its stage while it runs, then the outcome together with what is
+// on this computer now. "Nothing was changed" is said only when Classic Cart Studio established it.
+function hkSetupStage(j){ const s=(j&&j.stage)||'checking'; return s==='extracting'&&j.total?`Copying Hakchi2 CE's files… ${j.done} of ${j.total}`:({checking:'Checking…',verifying:'Checking the copied files…',placing:'Putting Hakchi2 CE in place…',reading:'Checking the result…'})[s]||'Setting up…'; }
+async function hkSetupGet(){ try{ if(typeof capi==='function') return await capi('/api/install-hakchi/status'); const r=await fetch('/api/install-hakchi/status',{cache:'no-store'}); return await r.json(); }catch(e){ return {ok:false,error:String(e&&e.message||e)}; } }
+async function hkSetupWatch(lost){ const t0=Date.now(); let miss=0;
+ while(Date.now()-t0<20*60000){ const s=await hkSetupGet();
+  if(!s||!s.ok){ if(++miss>=8) break; }   // the answer did not arrive: asked again a few times, then said plainly
+  else { miss=0; const j=s.job;
+   if(j&&j.state==='running'){ const w=hkSetupStage(j); if($('hkInstall')) $('hkInstall').textContent=w; if($('hkSetupMsg')) $('hkSetupMsg').textContent=w; }
+   else if(!(lost&&!j&&(s.install||{}).state!=='ok'&&Date.now()-t0<60000)) return hkSetupShow(s); }   // right after a lost answer the setup may still be starting
+  await new Promise(r=>setTimeout(r,1000)); }
+ return hkSetupShow(null); }
+function hkSetupShow(s){ const j=s&&s.job, res=(j&&j.result)||{}, now=(s&&s.install)||{}, set=now.state==='ok'; let kind, head, text='';
+ if(set){ kind='ok'; head='Hakchi2 CE 3.9.3 is set up.'; }
+ else if(!s){ kind='warn'; head='Classic Cart Studio could not confirm whether the setup finished.'; text='Check again in a moment. Nothing is started again until the result is known.'; }
+ else if(j&&j.state==='failed'){ kind='bad'; head=j.changed===false?'Nothing was changed.':'Hakchi2 CE was not set up.'; text=res.message||j.error||''; }
+ else { kind='warn'; head='Hakchi2 CE is not set up.'; text='The setup did not finish (it stops when Classic Cart Studio closes). Choose Install on NES Classic again to set it up.'; }
+ $('hkTitle').textContent='Install on NES Classic'; $('hkSub').textContent=set?'Hakchi2 CE is ready':(!s?'Setup result not confirmed':'Hakchi2 CE was not set up');
+ $('hkBody').innerHTML=`<div class="msg ${kind}"><b>${esc(head)}</b> ${esc(text)}</div>`+(res.env?hkEnvLine(res.env):'')+`<div class="acts"><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button>${!s?'<button class="btn hk" id="hkRecheck">Check Again</button>':''}${set?'<button class="btn hk" id="hkAgain">Continue</button>':''}</div>`;
+ hkWireDriver(); $('hkDone').onclick=()=>$('hkpanel').classList.remove('open');
+ if($('hkRecheck')) $('hkRecheck').onclick=()=>{ $('hkBody').innerHTML='<div class="msg" id="hkSetupMsg">Checking…</div>'; hkSetupWatch(false); };
+ if($('hkAgain')) $('hkAgain').onclick=()=>{ $('hkpanel').classList.remove('open'); companionStatus().then(()=>{ hkLabelUpdate(); $('hkBtn').click(); }); }; }
 function hkOpenPanel(title, sub, body){ $('hkTitle').textContent=title; $('hkSub').textContent=sub||''; $('hkBody').innerHTML=body; $('hkpanel').classList.add('open'); }
 $('hkClose').onclick=()=>$('hkpanel').classList.remove('open'); $('hkpanel').onclick=e=>{ if(e.target.id==='hkpanel') $('hkpanel').classList.remove('open'); };
 async function hkPost(path, body){ const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-NES-Token':COMPANION.token},body:JSON.stringify(body),cache:'no-store'}); const j=await r.json().catch(()=>({ok:false,error:'bad response'})); if(!r.ok&&!j.error) j.error='HTTP '+r.status; return j; }
@@ -788,12 +835,16 @@ addEventListener('scroll',()=>{ if(!FOLD.auto&&!FOLD.pinned&&scrollY<=10) FOLD.a
 function barMeasure(){ const bar=$('toolbar').querySelector('.row.bar'); const items=[...bar.querySelectorAll(':scope>*, :scope>.actions>*, :scope>.actions>.pair>*')].filter(e=>e.offsetParent&&getComputedStyle(e).display!=='none'&&e.tagName!=='SPAN'); if(items.length<2) return;
   const tops=items.map(e=>e.getBoundingClientRect().top); bar.classList.toggle('wrapped',Math.max(...tops)-Math.min(...tops)>4); }
 // toolbar: search and its controls on the left, Preview · My Collections · Studio on the right, on one line when both fit at their natural
-// widths; otherwise the buttons take the first line and the search line the second, both from the left (measured, not guessed)
+// widths; otherwise the buttons take the first line and the search line the second, both from the left (measured, not guessed). On two
+// lines both have one width (--tbspan): the buttons' natural width, or the search line's when that needs more (its search box at least
+// 200 px), never more than the toolbar; the search box takes what its line has left, so both lines end at the same right edge
 function tbLayout(){ const t=$('toolbar'); if(matchMedia('(max-width:640px)').matches){ t.classList.remove('tb-two'); return; }
   const inn=t.querySelector('.in'), bar=t.querySelector('.row.bar'), tools=$('toolsFold').querySelector('.row.tools'), cs=getComputedStyle(inn);
   const nat=(row,extra)=>{ const k=[...row.children].filter(e=>e.offsetParent&&!(e.type==='search')); const g=parseFloat(getComputedStyle(row).columnGap)||8; return k.reduce((a,e)=>a+e.offsetWidth,0)+g*Math.max(0,k.length-1+(extra?1:0))+(extra||0); };
   const barW=nat(bar,0), toolsW=nat(tools,260), pl=parseFloat(cs.paddingLeft)||0, pr=parseFloat(cs.paddingRight)||0;   /* 260: the search box's comfortable width */
   const two=toolsW+barW+24>inn.clientWidth-pl-pr; t.classList.toggle('tb-two',two);
+  const avail=inn.clientWidth-pl-pr, span=Math.min(avail, Math.max(barW, nat(tools,200))); t.classList.toggle('tb-span',two);   /* both lines share one width (buttons that need more wrap within it) */
+  inn.style.setProperty('--tbspan',Math.floor(span)+'px');
   inn.style.setProperty('--barw',(two?0:barW+16)+'px'); inn.style.setProperty('--tbpt',(parseFloat(cs.paddingTop)||0)+'px'); inn.style.setProperty('--tbpr',pr+'px'); }
 // the header's walkers: their lane runs from the wordmark to the download button (measured); the whole width when the header stacks
 function heroLane(){ const p=document.querySelector('.hero .parade'), lk=document.querySelector('.hero .lockup'), dl=$('dlApp'); if(!p||!lk) return;
@@ -844,7 +895,7 @@ M_COLL = ('<div class="menu wide" id="collMenu" role="menu" aria-label="My Colle
     + _mi("mToWeb", "", "Continue on the Website…", hidden=True) + "</div>")
 M_APP = ('<div class="menu wide" id="appMenu" role="menu" aria-label="Studio menu" hidden>' + _mhead('<img src="icon-192.png" alt="" width="26" height="26" onerror="this.remove()">', "Studio Menu", close="Close the Studio menu")
     + _mi("mGoHome", "🏠", "Home") + _mi("howBtn", "📖", "Help &amp; User Guide")
-    + '<div class="sep" id="mCbrL" hidden></div>' + _mi("mConsoleBackup", "🛡️", "CCS Console Workbench…", hidden=True)
+    + '<div class="sep" id="mCbrL" hidden></div>' + _mi("mConsoleBackup", "🧰", "CCS Console Workbench…", hidden=True)
     + '<div class="sep" id="mPlayL" hidden></div>' + _mi("mPlaySet", "🎮", "Play on PC Settings…", hidden=True)
     + '<div class="sep" id="mDevL" hidden></div>' + _mi("mInstall", "📲", "Install the Website App…", hidden=True) + _mi("mUpdate", "⬆️", "Update Ready…", hidden=True)
     + '<div class="sep" id="mUpdL" hidden></div>' + _mi("mUpdChk", "⬆️", "Check for Updates…", hidden=True) + _mi("mUpdAuto", "🔄", "Check for Updates Automatically", hidden=True, role="menuitemcheckbox")
@@ -927,10 +978,11 @@ def _startup_images() -> str:
     return json.dumps([{"id": i["id"], "name": i["name"], "thumb": i["thumb"]["file"]} for i in d["images"]], separators=(",", ":"), ensure_ascii=False).replace("</", "<" + chr(92) + "/")
 
 def _storage_model():
-    """the NES Classic storage model the installation plan uses (tools/companion/console_engine/storage_model.py), loaded by path"""
+    """the shared storage accounting specification (tools/platform/ccs-storage-spec.json, which tools/companion/console_engine/storage_model.py
+    carries byte for byte and the installation plan uses), loaded by path"""
     import importlib.util
     spec = importlib.util.spec_from_file_location("ccs_storage_model", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "companion", "console_engine", "storage_model.py"))
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m.MODEL
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m.SPEC
 
 def _platform_registry() -> str:
     """the platform registry (tools/platform/ccs-platform-registry.json) as one JS string literal: platform-ids.js parses it

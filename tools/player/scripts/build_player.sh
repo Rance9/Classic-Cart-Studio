@@ -7,7 +7,9 @@
 #                                            for frame and save parity with the native headless player),
 #                                            console (ccs-player-armv7: the player on the NES Classic itself, host_dev.c + devio.c + console_libc.c, static, stripped),
 #                                            console-sym (the same with its symbols: for the system-call check), console-x86 (ccs-player-dev-x86_64:
-#                                            the same console host for x86-64 Linux, for fast host tests in WSL)
+#                                            the same console host for x86-64 Linux, for fast host tests in WSL), console-mp3 and
+#                                            console-x86-mp3 (ccs-player-armv7-mp3, ccs-player-dev-x86_64-mp3: the same players with HOME Music
+#                                            as MP3, core/gp_mp3.c with third_party/minimp3; built for its proof, not shipped in this version)
 # The same pinned zig compiles every target (WebAssembly included, with the wasi-libc zig bundles); nothing else is installed.
 # The sources are copied to a Linux folder first (compiling through /mnt/c is slow); FCEUmm is compiled once per target into a static
 # library and reused while its sources are unchanged.
@@ -46,6 +48,8 @@ for t in $TARGETS; do case "$t" in
   console) build armdev "-target arm-linux-musleabihf -mcpu=cortex_a7 -DCCS_CONSOLE" "$P/host_dev.c $C/devio.c $P/console_libc.c" ccs-player-armv7 "-static -s $LIBC_WRAP" ;;
   console-sym) build armdev "-target arm-linux-musleabihf -mcpu=cortex_a7 -DCCS_CONSOLE" "$P/host_dev.c $C/devio.c $P/console_libc.c" ccs-player-armv7.sym "-static $LIBC_WRAP" ;;
   console-x86) build linuxdev "-target x86_64-linux-musl -DCCS_CONSOLE" "$P/host_dev.c $C/devio.c" ccs-player-dev-x86_64 "-static" ;;
+  console-mp3) build armdev "-target arm-linux-musleabihf -mcpu=cortex_a7 -DCCS_CONSOLE" "-DGP_HOME_MP3 $P/gp_mp3.c $P/host_dev.c $C/devio.c $P/console_libc.c" ccs-player-armv7-mp3 "-static -s $LIBC_WRAP" ;;
+  console-x86-mp3) build linuxdev "-target x86_64-linux-musl -DCCS_CONSOLE" "-DGP_HOME_MP3 $P/gp_mp3.c $P/host_dev.c $C/devio.c" ccs-player-dev-x86_64-mp3 "-static" ;;
   web) PSRC="${PSRC/ $P\/player_main.c/}" build wasm "-target wasm32-wasi -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL" "-DCCS_WEB -mexec-model=reactor $P/host_web.c" ccs-player.wasm "-lwasi-emulated-mman -lwasi-emulated-signal -Wl,-z,stack-size=8388608 -Wl,--strip-debug" ;;
   headless-wasm) build wasm "-target wasm32-wasi -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL" "$P/host_headless.c" ccs-player-headless.wasm "-lwasi-emulated-mman -lwasi-emulated-signal -Wl,-z,stack-size=8388608 -Wl,--strip-debug" ;;
   *) echo "unknown target $t"; rc=1 ;; esac; done

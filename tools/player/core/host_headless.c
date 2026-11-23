@@ -46,7 +46,7 @@ host *host_open(const host_config *c, const gp_settings *s, char *err, size_t n)
         char line[256]; while (fgets(line, sizeof line, f)) { sline l = { 0 }; unsigned long long t; int k = sscanf(line, "%llu %15s %63s %63s %63s", &t, l.cmd, l.a, l.b, l.c); if (k < 2) continue; l.t = t;
             H->s = realloc(H->s, (H->n + 1) * sizeof *H->s); H->s[H->n++] = l; }
         fclose(f); }
-    host_trace(H, "{\"ev\":\"host\",\"kind\":\"headless\",\"input\":\"injected-script\",\"platform\":\"%s\"}", GP_PLATFORM); return H; }
+    host_trace(H, "{\"ev\":\"host\",\"kind\":\"headless\",\"input\":\"injected-script\",\"platform\":\"%s\",\"core_build\":\"%s\"}", GP_PLATFORM, GP_CORE_BUILD); return H; }
 static void au_end(void);
 void host_close(host *H) { if (!H) return; au_end(); host_trace(H, "{\"ev\":\"host_close\",\"audio_frames\":%llu}", (unsigned long long)H->audio_frames); if (H->trace) fclose(H->trace); free(H->s); free(H); }
 void host_poll(host *H, gp_pad *pad, host_events *ev) {

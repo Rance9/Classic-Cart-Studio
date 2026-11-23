@@ -5,7 +5,7 @@ evidence-based header) plus reports/library.json (compatibility, input, title) â
 entries come from reports/personal/index.json (written by the companion): a managed copy of the user's file; if that file is a headered
 .nes its own header is used as-is, otherwise it cannot be prepared (no evidence-based header) and the row says so."""
 from __future__ import annotations
-import os, sys, json, sqlite3, hashlib, functools
+import os, re, sys, json, sqlite3, hashlib, functools
 sys.path.insert(0, os.path.dirname(__file__))
 from common import REPORTS, DB_PATH, SITE_ROOT, DATA_ROOT, site_path, data_path
 from catalog import KACHI_CMD, RA_CMD
@@ -48,7 +48,7 @@ def resolve(version_id: str) -> dict | None:
     cat = _catalog()
     if version_id in cat:
         row = dict(cat[version_id], source="catalog")
-        if not os.path.exists(DB_PATH):   # packaged companion: the curated row's bytes must come from the user's own imported copy
+        if not _dev_stored(row.get("payload_sha256") or ""):   # no development payload file here: the user's own imported copy (Add Games, Locate Game File); a stale or absent development path never hides it
             ls = library_store().get(version_id); row["stored"] = ls["path"] if ls and os.path.exists(ls["path"]) else ""; row["headered_file"] = bool(ls and ls.get("format") in ("iNES", "NES2.0")); row["file_missing"] = not row["stored"]
             if not row["stored"]:
                 lib = _library(); pl = lib["payloads"].get(row["payload_sha256"]) or {}; row["header_hex"] = (pl.get("header") or {}).get("hex") or ""
@@ -76,6 +76,22 @@ def resolve(version_id: str) -> dict | None:
             "input_level": v.get("input_level") or "unknown", "input_special_accessory": v.get("input_accessory") or "", "input_nes_classic_support": v.get("input_support") or "unknown", "input_accessory_requirement": v.get("input_requirement") or "unknown",
             "input_standard_controller_playable": "true" if v.get("input_level") == "none" else "unknown", "input_modes": v.get("input_modes") or ["standard-controller"], "input_primary": "standard-controller",
             "header_hex": i.get("header_hex") or "", "stored": stored or "", "headered_file": headered_file, "file_missing": not stored, "source": "catalog" if v.get("curated") else "extended", "title_id": v["title_id"], "identity": v["identity"], "kind": v["kind"]}
+
+def evidence_header(payload_sha256: str) -> str:
+    """the evidence-based 16-byte iNES header the Game Library records for this payload (library.json), as hex; "" when it has none (a
+    header is never guessed)"""
+    h = ((_library()["payloads"].get(payload_sha256 or "") or {}).get("header") or {}).get("hex") or ""
+    return h.lower() if isinstance(h, str) and re.fullmatch(r"(?i)4e45531a[0-9a-f]{24}", h) else ""
+
+def _dev_stored(sha: str) -> str:
+    """the development payload store's file for this content, when the development database names one and that file is there; else \"\""""
+    if not sha or not os.path.exists(DB_PATH): return ""
+    try:
+        con = sqlite3.connect(DB_PATH)
+        try: r = con.execute("SELECT stored FROM payloads WHERE sha256=?", (sha,)).fetchone()
+        finally: con.close()
+    except sqlite3.Error: return ""
+    return r[0] if r and r[0] and os.path.isfile(r[0]) else ""
 
 def library_store() -> dict:
     return json.load(open(LIBRARY_STORE, encoding="utf-8")) if os.path.exists(LIBRARY_STORE) else {}

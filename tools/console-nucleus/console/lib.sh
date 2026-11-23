@@ -14,7 +14,6 @@ ccs_paths(){
   HKR="$R0/var/lib/hakchi/rootfs"       # hakchi's overlay ("rootfs"), where hakchi packages install their files
   HKI="$R0/var/lib/hakchi"              # hakchi's own folder
   CCSD="$R0/var/lib/ccs"                # Classic Cart Studio's folder on the data storage (shared by both methods)
-  POLICY="$CCSD/policy"                 # the method in charge: sealed, active=mod or active=nucleus
   OWNED="$CCSD/owned"                   # ownership journals: <method>.own (ccs-ownership/1)
   TMPC="$R0/tmp/ccs"                    # RAM: links, logs and markers of this power-on
 }
@@ -83,19 +82,6 @@ ccs_sealed(){
 
 # ccs_get FILE KEY: the value of the first line KEY=... (the key compared exactly)
 ccs_get(){ awk -v k="$2=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }' "$1" 2>/dev/null; }
-
-# ---------------------------------------------------------------- the method in charge (one at a time)
-ccs_policy(){
-  ccs_sealed "$POLICY" ccs-policy/1 || return 0
-  ccs_get "$POLICY" active
-}
-ccs_policy_set(){   # mod | nucleus | none
-  case "$1" in
-    mod|nucleus) printf 'schema=ccs-policy/1\nactive=%s\n' "$1" | ccs_put_sealed "$POLICY" ;;
-    none) rm -f "$POLICY"; sync ;;
-    *) return 1 ;;
-  esac
-}
 
 # ---------------------------------------------------------------- ownership journal (ccs-ownership/1)
 # One journal per method, $OWNED/<method>.own:
@@ -247,6 +233,11 @@ ccs_pkg_record(){
 # ---------------------------------------------------------------- CCS HOME (the shared package: /var/lib/ccs/pkg/<version>.<attempt>, named by pkg/current)
 # The same checks as the existing installer's start script: the pointer is a file naming one copy, the copy is a real folder with the
 # player and its session. Sets HOME_DIR.
+# ccs_chooser_installed: CCS Nucleus's startup chooser (its full profile, the ccs-nucleus-chooser package) is installed: its own journal is
+# valid and the chooser program it carries is there. Used by every menu's "Choose Another Menu": the chooser when it is installed,
+# otherwise Original Menu.
+ccs_chooser_installed(){ ccs_own_valid nucleus-chooser && [ -f "$R0/var/lib/hakchi/rootfs/etc/ccs/nucleus/chooser/bin/ccs-home-armv7" ]; }
+
 ccs_home_dir(){
   local P="$CCSD/pkg" V=""
   HOME_DIR=""
@@ -308,15 +299,26 @@ ccs_home_stop(){
 # ---------------------------------------------------------------- the console's menu entry (a folder in hakchi's game storage)
 # ccs_menu_dir: where the console's menu lists games now, found with hakchi's own findGameStorage (its root menu "000" when there is
 # one); with no hakchi game storage, the console's built-in games folder in hakchi's overlay. Sets MENU_DIR (a console path).
+# findGameStorage looks first in games/<type>-<region> (Hakchi2 CE's own storage, e.g. games/nes-usa) and needs hakchi's sftype and
+# sfregion, which sourcing hakchi's defines resets: they are found here read only, by the same files and rules as hakchi's softwareCheck
+# (b0010_functions), whose other work (moving the menu's save files) must not run here. hakchi's containsGames needs filename globbing.
 ccs_menu_dir(){
   MENU_DIR=""
   mkdir -p "$TMPC" || return 1
   (
+    set +f
     mountpoint="$R0"; temppath="$R0/tmp"
     . "$HKR/etc/preinit" 2>/dev/null && source_base "$HKR/etc/preinit.d" >/dev/null 2>&1 || exit 1
+    if [ -d "$squashfs/etc/clover" ]; then
+      sftype=nes; sfregion=usa
+      [ "$(cat "$squashfs/etc/clover/boardtype" 2>/dev/null)" = dp-shvc ] && sftype=snes
+      grep -qF dp-hvcj "$squashfs/etc/issue" 2>/dev/null && sftype=hvcj
+      case "$(cat "$squashfs/etc/clover/REGION" 2>/dev/null)" in JPN) sfregion=jpn ;; EUR) sfregion=eur ;; esac
+    fi
     gs="$(findGameStorage 2>/dev/null)" || gs=""
     gs="${gs%/}"
-    if [ -n "$gs" ]; then if [ -d "$gs/000" ]; then echo "$gs/000"; else echo "$gs"; fi; else echo "$HKR/usr/share/games/nes/kachikachi"; fi
+    builtin="$HKR/usr/share/games"; [ "$sftype" = snes ] || builtin="$builtin/nes/kachikachi"
+    if [ -n "$gs" ]; then if [ -d "$gs/000" ]; then echo "$gs/000"; else echo "$gs"; fi; else echo "$builtin"; fi
   ) > "$TMPC/menudir.$$" 2>/dev/null
   read -r MENU_DIR < "$TMPC/menudir.$$"; rm -f "$TMPC/menudir.$$"
   [ -n "$MENU_DIR" ] || MENU_DIR="$HKR/usr/share/games/nes/kachikachi"

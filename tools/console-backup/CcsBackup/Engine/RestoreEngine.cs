@@ -39,6 +39,8 @@ namespace CcsBackup.Engine
         public BoundArchive BackupArchive, ProtectiveArchive;
         public string ProtectivePath => ProtectiveArchive?.Path;
         public string BackupWhen, BackupStateText, CurrentStateText;
+        /// <summary>the storage part the backup's table names as the system (rootfs), restored only together with the startup software</summary>
+        public string SystemTarget = "nandb";
         public List<RestoreStep> Steps = new List<RestoreStep>();
         public List<string> Notes = new List<string>(), Refusals = new List<string>();
         public int FilesAdded, FilesRemoved, FilesChanged; public List<string> AddedSample = new List<string>(), RemovedSample = new List<string>();
@@ -66,7 +68,22 @@ namespace CcsBackup.Engine
 
     public static class RestoreEngine
     {
+        /// <summary>the NES Classic's write order (a backup whose table has no labels keeps it); OrderFor derives the same order from any
+        /// labeled table: the system part, the boot part, the other parts, the data storage last, then the spare and the active startup</summary>
         public static readonly string[] WriteOrder = { "nandb", "nanda", "nandd", "nande", "nandc", "boot2-68", "boot2" };
+        static readonly string[] RoleOrder = { "rootfs", "boot", "private", "UDISK" };
+        public static List<string> OrderFor(IEnumerable<Dictionary<string, object>> partitions)
+        {
+            var parts = (partitions ?? Enumerable.Empty<Dictionary<string, object>>()).Select(x => (dev: x.S("device"), label: x.S("label"))).ToList();
+            if (parts.Count == 0 || parts.Any(x => string.IsNullOrEmpty(x.dev) || string.IsNullOrEmpty(x.label))) return WriteOrder.ToList();
+            bool IsData(string l) => l == "data" || l == "rootfs_data";
+            var o = new List<string>();
+            foreach (var role in RoleOrder) o.AddRange(parts.Where(x => x.label == role).Select(x => x.dev).OrderBy(d => d, StringComparer.Ordinal));
+            o.AddRange(parts.Where(x => !RoleOrder.Contains(x.label) && !IsData(x.label)).Select(x => x.dev).OrderBy(d => d, StringComparer.Ordinal));
+            o.AddRange(parts.Where(x => IsData(x.label)).Select(x => x.dev).OrderBy(d => d, StringComparer.Ordinal));
+            o.Add("boot2-68"); o.Add("boot2");
+            return o;
+        }
         public static readonly TimeSpan ConfirmWindow = TimeSpan.FromMinutes(10);
 
         static Func<bool> Boundary(RecoveryConsole con) => () => con.Simulated || Gate.RestoreWrites;
@@ -79,7 +96,7 @@ namespace CcsBackup.Engine
         {
             var (plan, refused) = Prepare(con, backupPath, ctx);
             if (plan == null || only == null) return (plan, refused);
-            var sys = plan.Steps.FirstOrDefault(s => s.Label != null && (s.Target == "nandb"))?.Target ?? "nandb";
+            var sys = plan.SystemTarget;
             if (only.Contains("boot2") != only.Contains(sys) && plan.Steps.Any(s => (s.Target == "boot2" || s.Target == sys) && s.Action == "write"))
                 plan.Refusals.Add("The startup software and the system part are restored together or not at all: one without the other may not start.");
             foreach (var s in plan.Steps.Where(x => x.Action == "write" && !only.Contains(x.Target))) { s.Action = "skipped"; plan.Notes.Add(s.Label + " differs from the backup but was not chosen: it stays as it is now."); }
@@ -101,8 +118,9 @@ namespace CcsBackup.Engine
             if (!v.Simulated && con.Simulated) { o.State = "refused"; o.Problem = "A real console's backup is not restored to a simulated console."; return (null, o); }
             ctx.Say("admit", "Checking the console...");
             ConsoleIdentity id;
-            try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId); }
+            try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId, "restore"); }
             catch (ConsoleRefusedException ex) { o.State = "refused"; o.Problem = ex.Message; return (null, o); }
+            if (v.Model == null || v.Model != (id.Model ?? ConsoleModels.Nes)) { o.State = "refused"; o.Problem = "This backup is of " + (v.Model?.Name ?? "a console this version does not support") + ", not of this console's model (" + (id.Model ?? ConsoleModels.Nes).Name + "): one kind of console's backup is never put on another kind. Nothing was changed."; return (null, o); }
             var m = v.Manifest; var plan = new RestorePlan { BackupPath = backupPath, BackupSha256 = v.ArchiveSha256, BackupId = m.S("backup_id"), Hwid = id.Hwid, ConsoleTag = id.ShortTag, Simulated = con.Simulated, CreatedUtc = DateTime.UtcNow, Session = con.SessionId };
             plan.BackupArchive = BoundArchive.From("backup to restore", backupPath, v);
             plan.BackupWhen = m.S("completed_utc"); plan.BackupStateText = m.O("state")?.S("text");
@@ -122,7 +140,9 @@ namespace CcsBackup.Engine
                 if (a.sha256 != b.sha256) plan.Refusals.Add("The console's bootloader (" + (r.Contains("boot0") ? "first stage" : "second stage, u-boot") + ") has changed since this backup was made. Writing a bootloader is not something this restore does, so it is not available.");
             }
             // 4 plan, part by part
-            foreach (var t in WriteOrder)
+            var mparts = (m.O("layout")?.A("partitions") ?? new List<object>()).OfType<Dictionary<string, object>>().ToList();
+            plan.SystemTarget = mparts.FirstOrDefault(x => x.S("label") == "rootfs")?.S("device") ?? "nandb";
+            foreach (var t in OrderFor(mparts))
             {
                 string member = t == "boot2" ? "restore/boot2-active.img" : t == "boot2-68" ? "restore/boot2-slot68.img" : "restore/" + t + ".img";
                 bool inBackup = v.Members.ContainsKey(member), now = pv.Members.ContainsKey(member);
@@ -132,7 +152,7 @@ namespace CcsBackup.Engine
                 {
                     if (t == "boot2-68")
                     {
-                        bool genuine = cur.O("state")?.S("original_source") == "slot68" || KnownKernels.IsStock(pv.Members[member].md5);
+                        bool genuine = cur.O("state")?.S("original_source") == "slot68" || KnownKernels.IsStockFor(pv.Model, pv.Region, pv.Members[member].md5);
                         if (genuine) { plan.Notes.Add("The console now keeps a spare copy of the original Nintendo kernel (it was empty in this backup). That copy is left in place: it is a safety copy, and removing it is not part of a restore."); continue; }
                         plan.Refusals.Add("The console's spare startup slot holds software that was not there when this backup was made, and this restore cannot remove it."); continue;
                     }

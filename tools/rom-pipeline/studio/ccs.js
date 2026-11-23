@@ -107,6 +107,33 @@ async function ccsInspect(blob, opt){ opt=opt||{}; let z; try{ z=await ccsUnzip(
 const ROMSRC=new Map();   // game id -> {name, ext, sha256, content_sha256, size, raw:{blob, method, crc, csize, usize} | file}
 function ccsSrcAdd(rec){ const k=rec.content_sha256.slice(0,16); [k, 'p_'+k].forEach(id=>{ if(!ROMSRC.has(id)) ROMSRC.set(id, rec); }); if(typeof keptAvailChanged==='function') keptAvailChanged(); }   // cards of games kept without a library record follow (collections.js)
 async function ccsIdentifyBytes(u8, name){ const sha=await ccsSha(u8); return {name, ext:ccsRomExt(u8), sha256:sha, content_sha256:await ccsSha(ccsRomContent(u8)), size:u8.length}; }
+// what a game file's iNES / NES 2.0 header (its 16 bytes as hex) says: the same reading as the Windows app's (personal.py parse_header);
+// null without a header. Mapper 30 (UNROM 512) reads its two layout bits its own way: bit 3 with bit 0 is four-screen, bit 3 alone is
+// one-screen switched by the game, and on submapper 3 the game switches horizontal and vertical itself (boards/unrom512.c).
+function nesHdr(hex){ hex=String(hex||'').toLowerCase(); if(!/^4e45531a[0-9a-f]{24}$/.test(hex)) return null; const b=hex.match(/../g).map(x=>parseInt(x,16)), nes2=(b[7]&0x0C)===0x08;
+ let mapper=(b[6]>>4)|(b[7]&0xF0), sub=0, prg=b[4]*16384, chr=b[5]*8192;
+ if(nes2){ mapper|=(b[8]&0x0F)<<8; sub=b[8]>>4; if((b[9]&15)!==15) prg=((b[9]&15)<<8|b[4])*16384; if((b[9]>>4)!==15) chr=((b[9]>>4)<<8|b[5])*8192; }
+ const layout=(b[6]&1)|((b[6]&8)>>2);
+ return {header_hex:hex, nes2, mapper, submapper:sub, prg, chr, battery:!!(b[6]&2), trainer:!!(b[6]&4), layout, chr_ram:nes2&&(b[11]&15)?64<<(b[11]&15):0, chr_nvram:nes2&&(b[11]>>4)?64<<(b[11]>>4):0,
+  mirroring:mapper===30?(sub===3?'switchable':['horizontal','vertical','one-screen','four-screen'][layout]):(b[6]&8?'four-screen':b[6]&1?'vertical':'horizontal')}; }
+// Mapper 30 (UNROM 512, nesdev.org/wiki/UNROM_512) as the header describes it: what its submapper means, its CHR RAM, its nametables and
+// whether it saves to flash. The header can say a cartridge saves to flash, not that the game does. Null for other cartridges.
+const M30_VARIANT=['the original board: with the battery bit it saves by rewriting its flash memory; without it, a write to the bank register is combined with the ROM byte there (a bus conflict)',
+ 'no bus conflicts; it saves by rewriting its flash memory when the battery bit is set',
+ 'bus conflicts: a write to the bank register is combined with the ROM byte there; no flash saving',
+ 'no bus conflicts; the game switches between horizontal and vertical mirroring itself',
+ 'no bus conflicts, and lights on the board that the game can switch (they are not shown); it saves by rewriting its flash memory when the battery bit is set'];
+function m30Info(h){ if(!h||h.mapper!==30) return null; const sub=h.submapper, odd=[];
+ if(sub>4) odd.push(`submapper ${sub} is not described for this board`);
+ if(h.battery&&(sub===2||sub===3)) odd.push(`submapper ${sub} with the battery bit set is not a combination the board's documentation describes`);
+ if(sub===3&&h.layout) odd.push("for submapper 3 the header's mirroring bits should be clear");
+ if(h.chr) odd.push('the header declares CHR ROM; this board has CHR RAM');
+ const ram=h.chr?0:h.nes2?h.chr_ram:32768, known=[8192,16384,32768].includes(ram);
+ if(h.nes2&&!h.chr&&!ram) odd.push('the header does not declare the CHR RAM size');
+ else if(h.nes2&&ram&&!known) odd.push(`${ram.toLocaleString('en-US')} bytes of CHR RAM is not a size this board has`);
+ return {name:'Mapper 30 — UNROM 512', submapper:sub, nes2:h.nes2, variant:M30_VARIANT[sub]||'not described for this board', flash:h.battery&&[0,1,4].includes(sub), battery:h.battery,
+  chr_ram:ram, chr_banks:known?ram/8192:0, chr_declared:!!h.nes2, odd,
+  mirroring:sub===3?'horizontal or vertical, switched by the game':['horizontal mirroring (the nametables are arranged vertically)','vertical mirroring (the nametables are arranged horizontally)','one-screen, switched by the game between its two nametables',"four-screen: four nametables in the cartridge's own memory (the last 8,192 bytes of its CHR RAM)"][h.layout]}; }
 // a whole-console backup (Console Backup & Restore's .zip: its manifest member) is never read as a ZIP of game files
 function ccsIsConsoleBackup(z){ return z.entries.some(en=>en.name==='ccs-console-backup.json'); }
 const CCS_CONSOLE_BACKUP_WHY='it is a backup of a whole NES Classic console, not game files; put it back with CCS Console Workbench (in Classic Cart Studio for Windows, or on its own)';

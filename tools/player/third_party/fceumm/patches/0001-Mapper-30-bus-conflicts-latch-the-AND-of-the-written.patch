@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Rance9 <rance9@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 11:42:41 -0600
+Subject: [PATCH 1/2] Mapper 30: bus conflicts latch the AND of the written and
+ ROM values
+
+Boards with bus conflicts (submapper 0 without the battery bit, and
+submapper 2) latch the bitwise AND of the CPU's value and the ROM byte,
+as datalatch.c does.
+---
+ src/boards/unrom512.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/boards/unrom512.c b/src/boards/unrom512.c
+index 5494060..56bd58e 100644
+--- a/src/boards/unrom512.c
++++ b/src/boards/unrom512.c
+@@ -139,7 +139,7 @@ static DECLFW(UNROM512LLatchWrite) {
+ 
+ static DECLFW(UNROM512HLatchWrite) {
+ 	if (bus_conflict)
+-		latche = (V == CartBR(A)) ? V : 0;
++		latche = V & CartBR(A);
+ 	else
+ 		latche = V;
+ 	latcha = A;
+-- 
+2.53.0
+

@@ -45,9 +45,6 @@ namespace CcsBackup.Compose
         /// as the sum over its distinct pictures (the startup picture apart) of width x height x 4 bytes: eight full frames, 29,491,200 bytes
         /// (29.49 MB). A start decodes each once and draws it into the one background frame, so this bounds time, not resident memory.</summary>
         public const long DecodeWorkBudget = 8 * FrameBytes;
-        /// <summary>ENFORCED by the apply plan: the data storage keeps at least this much free after a design is staged (decimal 8 MB, the
-        /// same room the HOME installation keeps for saves and settings)</summary>
-        public const long StorageReserve = 8000000;
         /// <summary>the shared menus' lettering the console HOME lays out: menu titles at most 16 px, menu text 13 to 22 px</summary>
         public const int MaxMenuTitlePx = 16, MinMenuTextPx = 13, MaxMenuTextPx = 22;
         /// <summary>true: the HOME's own controls move in bounded groups (ui regions): in the design's

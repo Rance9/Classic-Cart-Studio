@@ -76,7 +76,7 @@ host *host_open(const host_config *c, const gp_settings *s, char *err, size_t n)
     { char *sl = strrchr(HS.pads_path, '/'); snprintf(sl ? sl + 1 : HS.pads_path, sizeof HS.pads_path - (size_t)(sl ? sl + 1 - HS.pads_path : 0), "player-pads.json"); }
     snprintf(HS.assign_path, sizeof HS.assign_path, "%s", HS.pads_path);
     { char *sl = strrchr(HS.assign_path, '/'); snprintf(sl ? sl + 1 : HS.assign_path, sizeof HS.assign_path - (size_t)(sl ? sl + 1 - HS.assign_path : 0), "player-assign.json"); } assign_load(&HS);
-    host_trace(&HS, "{\"ev\":\"host\",\"kind\":\"web\",\"platform\":\"%s\"}", GP_PLATFORM); return &HS; }
+    host_trace(&HS, "{\"ev\":\"host\",\"kind\":\"web\",\"platform\":\"%s\",\"core_build\":\"%s\"}", GP_PLATFORM, GP_CORE_BUILD); return &HS; }
 void host_close(host *H) { (void)H; js_audio_close(); host_trace(&HS, "{\"ev\":\"host_close\"}"); }
 static void who_plays(host *H, int *who) {   /* gp_assign_players with the remembered choices that are connected now */
     int n = IN.npads < WP ? IN.npads : WP, pick[GP_PLAYERS];

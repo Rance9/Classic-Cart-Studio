@@ -53,8 +53,10 @@ def utility_note(bi: dict) -> str:
             "needs no installation (the Windows app has the same feature built in).\n\n")
 
 def notes(version: str, bi: dict, preview: bool = False) -> str:
-    warning = ("**Development preview — unsigned.** All console connections, console writes and driver actions are disabled in this build. "
-               "Real-console and Windows on Arm qualification are not complete. Offline backup-file tools and the PC interface are available.\n\n") if preview else ""
+    warning = ("**Development preview — unsigned.** Classic Cart Studio's own console connections, console writes and driver actions are "
+               "disabled in this build. Offline backup-file tools and the PC interface are available. Games prepared on this computer are "
+               "transferred by you in the included Hakchi2 CE 3.9.3 (Continue in Hakchi2 CE), which writes to the console under your "
+               "control.\n\n") if preview else ""
     return f"""# Classic Cart Studio for Windows {version}
 
 {warning}

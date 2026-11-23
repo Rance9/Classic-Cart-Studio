@@ -53,7 +53,6 @@ namespace CcsBackup.Engine
     public static class FirmwareEngine
     {
         public static readonly string[] Steps = { "rput", "rimport", "rdrop" };
-        public const long Reserve = 8000000;   // room kept beyond the image (the same reserve as the HOME installer's)
         static readonly Regex IdRe = new Regex("^[a-z0-9][a-z0-9-]{0,30}$"), LabelRe = new Regex("^[A-Za-z0-9 .,'!&()+:-]{1,60}$");
         public static bool IdOk(string id) => id != null && IdRe.IsMatch(id) && id != "native" && id != "ccs-home";
         public static string DefaultId(string sha256) => "owner-" + sha256.Substring(0, 8);
@@ -97,12 +96,12 @@ namespace CcsBackup.Engine
             }
             else { if (!IdOk(id)) return (null, Refuse("Choose the system image to remove.")); p.Id = id; }
             ConsoleIdentity cid;
-            try { cid = con.Identify(); Support.CheckForBackup(cid, ctx.RecoveryImageId); }
+            try { cid = con.Identify(); Support.CheckForBackup(cid, ctx.RecoveryImageId, "firmware"); }
             catch (ConsoleRefusedException ex) { return (null, Refuse(ex.Message)); }
             p.Hwid = cid.Hwid; p.ConsoleTag = cid.ShortTag;
             var st = con.PrepState();
             if (!st.Ok) return (null, Refuse("The console's CCS Nucleus could not be read (" + st.Problem + "). Nothing was changed."));
-            if (st.Hakchi != Preparation.PinnedHakchiVersion) return (null, Refuse("This console does not run Hakchi2 CE 3.9.3's hakchi. System images are added only as CCS Nucleus choices on a console prepared with it."));
+            if (st.Hakchi != Preparation.PinnedHakchiVersion) return (null, Refuse(HakchiRequirement.Refusal(HakchiRequirement.Detected(st.Hakchi))));
             if (!st.Installed("ccs-nucleus") || st.Registry != "ok") return (null, Refuse(st.Installed("ccs-nucleus") ? "CCS Nucleus's list of choices cannot be read on this console. Nothing was changed." : "CCS Nucleus is not installed on this console. A system image is added as one of its choices: install CCS Nucleus first."));
             p.Before = st;
             if (op == "add")
@@ -111,7 +110,13 @@ namespace CcsBackup.Engine
                 var same = st.Options.FirstOrDefault(x => x.Value.sha256 == p.ImageSha256).Key;
                 if (same != null) return (null, Refuse("This system image is already one of CCS Nucleus's choices (" + same + "). Nothing to do."));
                 if (st.Free < 0) return (null, Refuse("The console's free space could not be read. Nothing was changed."));
-                if (st.Free < p.ImageBytes + Reserve) return (null, Refuse("Not enough room on the console: the system image needs " + Compose.Units.Size(p.ImageBytes) + " and " + Compose.Units.Size(Reserve) + " more is kept free, but only " + Compose.Units.Size(st.Free) + " is free."));
+                // the shared storage accounting: the image in whole blocks, room kept for saves and the safety margin, against df's figure
+                var room = StorageSpec.Account(new Dictionary<string, object>
+                {
+                    ["profile"] = StorageSpec.NesModel, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = st.Free },
+                    ["items"] = new object[] { new Dictionary<string, object> { ["category"] = "image", ["label"] = "the system image", ["files"] = new object[] { new Dictionary<string, object> { ["bytes"] = p.ImageBytes } } } },
+                });
+                if (!(bool)room["write_ok"]) return (null, Refuse(Capacity.Why(room, out _, out _) + " Nothing was changed."));
                 p.Steps.Add("rput"); p.Steps.Add("rimport");
                 p.Text = "Add the " + p.System.Text + " (" + Compose.Units.Size(p.ImageBytes) + ") as the choice \"" + p.Label + "\" in CCS Nucleus's chooser.";
                 p.Notes.Add("It goes to CCS Nucleus's own folder on the data storage, never to hakchi's firmware folder: it starts only when you choose it, for one start. When you don't choose it, the console starts its own system as before, and that stays the way back.");

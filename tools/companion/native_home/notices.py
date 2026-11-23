@@ -47,6 +47,7 @@ RECORDS = {
     "musl": "tools/player/third_party/zig-runtime/musl-COPYRIGHT",
     "apache_llvm": "tools/player/third_party/zig-runtime/wasi-libc-LICENSE-APACHE-LLVM",
     "stb": "tools/console-simulator/core/third_party/stb_image.h",
+    "minimp3": "tools/player/third_party/minimp3/LICENSE",
 } | {"lrc:" + f: LRC + f for f in LIBRETRO_COMMON}
 
 def record_path(key: str) -> str:
@@ -94,10 +95,16 @@ TEXTS = {
     "stb_image-LICENSE.txt": (("stb",), _stb),
     "musl-COPYRIGHT.txt": (("musl",), lambda r: r["musl"]),
     "Apache-2.0-with-LLVM-Exceptions.txt": (("apache_llvm",), lambda r: r["apache_llvm"]),
+    "minimp3-LICENSE.txt": (("minimp3",), lambda r: r["minimp3"]),
 }
 PLAYER_TEXTS = ["GPL-3.0.txt", "FCEUmm-Copying.txt", "FCEUmm-Authors.txt", "emu2413-LICENSE.txt", "pic16c5x-LICENSE.txt", "libretro-common-NOTICES.txt",
                 "SDL_GameControllerDB-LICENSE.txt", "stb_image-LICENSE.txt", "musl-COPYRIGHT.txt", "Apache-2.0-with-LLVM-Exceptions.txt"]
 HOME_TEXTS = ["GPL-3.0.txt", "stb_image-LICENSE.txt", "musl-COPYRIGHT.txt", "Apache-2.0-with-LLVM-Exceptions.txt"]
+MP3_MARK = b'"music_format","format":"mp3"'   # in the game player built with HOME Music as MP3 (tools/player/core/gp_session.c, -DGP_HOME_MP3) and only there
+def player_has_mp3(read_file) -> bool:
+    """the package's game player was built with HOME Music as MP3 (and so contains minimp3)"""
+    try: return MP3_MARK in read_file("bin/ccs-player-armv7")
+    except (OSError, KeyError): return False
 
 def texts(names) -> dict[str, bytes]:
     keys = {k for n in names for k in TEXTS[n][0]}; recs = {k: read(k) for k in keys}
@@ -173,8 +180,9 @@ def classify(files, games: list) -> dict[str, list[str]]:
     return out
 
 # ------------------------------------------------------------------ the notice
-def build(files, games: list, label: str) -> tuple[dict[str, bytes], dict]:
-    """the licenses/ files for a package of these files (paths; licenses/ itself is left out) whose HOME lists these games: (name -> bytes, the matrix)"""
+def build(files, games: list, label: str, player_mp3: bool = False) -> tuple[dict[str, bytes], dict]:
+    """the licenses/ files for a package of these files (paths; licenses/ itself is left out) whose HOME lists these games: (name -> bytes, the matrix).
+    player_mp3: its game player was built with HOME Music as MP3 (player_has_mp3), so it contains minimp3 too"""
     parts = classify([f for f in files if not f.startswith("licenses/")], games)
     if parts.get(""): raise ValueError("no notice covers these files of the package: " + ", ".join(parts[""][:5]))
     inc = included(); roms = parts.get("games") or []
@@ -185,7 +193,8 @@ def build(files, games: list, label: str) -> tuple[dict[str, bytes], dict]:
     scenes = sorted({g.get("scene") for g in games if g.get("scene")}) if parts.get("scenes") else []; credits = scene_credits() if scenes else {}
     bad = [s for s in scenes if not (credits.get(s) or {}).get("license")]
     if bad: raise ValueError("a HOME scene has no credit record: " + ", ".join(bad))
-    names = sorted(set((PLAYER_TEXTS if "player" in parts else []) + (HOME_TEXTS if "home-runtime" in parts else []) + (["GPL-3.0.txt"] if {"ccs-files", "ccs-drawn"} & set(parts) else [])))
+    ptexts = PLAYER_TEXTS + (["minimp3-LICENSE.txt"] if player_mp3 else [])
+    names = sorted(set((ptexts if "player" in parts else []) + (HOME_TEXTS if "home-runtime" in parts else []) + (["GPL-3.0.txt"] if {"ccs-files", "ccs-drawn"} & set(parts) else [])))
     out = texts(names) | gtexts
     mx = {"schema": SCHEMA, "label": label, "parts": [], "texts": {}, "record_gaps": []}
     L: list[str] = []
@@ -205,18 +214,21 @@ def build(files, games: list, label: str) -> tuple[dict[str, bytes], dict]:
           "material below, which stays under its owners' rights and licenses.", ""]
     item("player", "The game player (bin/ccs-player-armv7)",
          "Classic Cart Studio's game player for the console (tools/player, with the HOME core files of tools/console-simulator/core), compiled by zig 0.17.0 "
-         "for arm-linux-musleabihf as one static program. It contains: FCEUmm (libretro-fceumm) at commit ac0d00a7fc01166f84c7bac01d1084ebfd2b865e, unchanged "
-         "(tools/player/third_party/fceumm/VENDORED.md lists what is compiled); in it, libretro-common (the parts FCEUmm compiles), pic16c5x (Tony La Porta, from MAME) "
+         "for arm-linux-musleabihf as one static program. It contains: FCEUmm (libretro-fceumm) at commit ac0d00a7fc01166f84c7bac01d1084ebfd2b865e with two Mapper 30 fixes "
+         "prepared for upstream submission, applied as recorded patches (tools/player/third_party/fceumm/patches: 0001, SHA-256 "
+         "f844a1eb7b0a573fef99138b3dafbc8c06e7929df9bb15e89a7a6584d40c1088, and 0002, SHA-256 7a805ec420044a902fd9071b8fddfb74b9662da23dd333ae8fa68b9907bc7768; "
+         "core build ac0d00a7+patches.6dcff395; tools/player/third_party/fceumm/VENDORED.md lists what is compiled and what the patches change); in it, libretro-common (the parts FCEUmm compiles), pic16c5x (Tony La Porta, from MAME) "
          "and emu2413 0.60 as modified for FCE Ultra and FCEUmm; SDL_GameControllerDB at commit 07af1d50187e94c861c9f9f5d8a55b148f11306b, as data (the layouts of known "
-         "controllers, tools/player/core/gp_pad_db.h); stb_image v2.30; and, as zig 0.17.0 carries and links them, musl libc and compiler-rt.",
+         "controllers, tools/player/core/gp_pad_db.h); stb_image v2.30; " + ("minimp3 at commit 142823796ab8efa55e1bf11406028f3be77ecceb (HOME Music as MP3, "
+         "tools/player/third_party/minimp3); " if player_mp3 else "") + "and, as zig 0.17.0 carries and links them, musl libc and compiler-rt.",
          "Classic Cart Studio's code: GPL-3.0-or-later. FCEUmm: GNU GPL version 2 or (at your option) any later version; the combined player is distributed under "
          "GPL version 3 or later. libretro-common: an MIT-style permission notice in each file. pic16c5x: BSD-3-Clause. emu2413: MIT License, Copyright (c) "
          "2001-2019 Mitsutaka Okazaki. SDL_GameControllerDB: zlib License. stb_image: public domain (Unlicense) or MIT, at the user's choice. musl libc: MIT. "
-         "compiler-rt: Apache-2.0 with LLVM Exceptions.",
+         "compiler-rt: Apache-2.0 with LLVM Exceptions." + (" minimp3: CC0 1.0 Universal (minimp3-LICENSE.txt)." if player_mp3 else ""),
          CCS_SOURCE + " (tools/player, tools/console-simulator/core, and the vendored sources in tools/player/third_party). Upstream: "
          "https://github.com/libretro/libretro-fceumm (at the commit above), https://github.com/mdqinc/SDL_GameControllerDB (at the commit above), "
-         "https://github.com/nothings/stb; zig 0.17.0: https://ziglang.org/download/0.17.0/ (tools/console-simulator/toolchain.lock.json gives the archive's SHA-256).",
-         PLAYER_TEXTS)
+         "https://github.com/nothings/stb; " + ("https://github.com/lieff/minimp3 (at the commit above); " if player_mp3 else "") + "zig 0.17.0: https://ziglang.org/download/0.17.0/ (tools/console-simulator/toolchain.lock.json gives the archive's SHA-256).",
+         ptexts)
     item("home-runtime", "The HOME program (home/bin/ccs-home-armv7)",
          "Classic Cart Studio's native HOME (tools/console-simulator/core), compiled by zig 0.17.0 for arm-linux-musleabihf as one static program, with stb_image v2.30 "
          "and, as zig 0.17.0 carries and links them, musl libc and compiler-rt.",
@@ -275,10 +287,10 @@ def build(files, games: list, label: str) -> tuple[dict[str, bytes], dict]:
 
 def write(st, games: list, label: str) -> dict:
     """adds licenses/ to a package being staged (console_package.Stage) and checks what was written; returns the matrix"""
-    out, mx = build(list(st.files), games, label)
-    for n, b in sorted(out.items()): st.put("licenses/" + n, b, "license")
     def rf(rel):
         with open(os.path.join(st.d, *rel.split("/")), "rb") as f: return f.read()
+    out, mx = build(list(st.files), games, label, player_has_mp3(rf))
+    for n, b in sorted(out.items()): st.put("licenses/" + n, b, "license")
     probs = check(st.files, rf, label, games)
     if probs: raise ValueError("the package's notices are not complete: " + "; ".join(probs[:5]))
     return mx
@@ -290,7 +302,7 @@ def check(files: dict, read_file, label: str, games: list | None = None) -> list
     if games is None:
         try: games = json.loads(read_file("home/games.json")).get("games") or []
         except Exception: return ["the package's home/games.json cannot be read"]
-    try: want, _ = build(list(files), games, label)
+    try: want, _ = build(list(files), games, label, player_has_mp3(read_file))
     except (ValueError, KeyError, OSError) as e: return [str(e)]
     have = {f[len("licenses/"):] for f in files if f.startswith("licenses/")}
     p = [f"licenses/{n} is missing" for n in sorted(set(want) - have)] + [f"licenses/{n} is not a notice of this package" for n in sorted(have - set(want))]

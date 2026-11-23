@@ -10,8 +10,9 @@ r"""A HOME Designer design carried by a collection, losslessly (CCS-FORMAT.md "H
                    are and refuses a changed or extra file
   carried design   the Windows app compiles a collection's carried design through the installed Workbench's --design-compile (design_compile.py)
                    to exactly the bytes the Workbench compiles; a design the console cannot show stops the build with its reason in words
-                   (never left out); the package and the CCS Mod and CCS Nucleus console packages carry the same compiled design and startup
-                   picture, and their sessions name the same design folder on the console; a .ccs keeps the design and the startup picture
+                   (never left out); the package and the console package (CCS HOME's one layout, which CCS Mod provides) carry the same
+                   compiled design and startup picture, and its session names the design folder on the console; a .ccs keeps the design and
+                   the startup picture
 Environment (set by the engine tests, group "designer"): CCS_TEST_CCSHOME, a .ccshome the C# HomeDesign wrote; CCS_TEST_COMPILED, a folder
 the C# DesignCompiler wrote; CCS_DESIGN_COMPILER, CCS_TEST_CCSHOME_MOVED, CCS_TEST_GAMES, CCS_TEST_COMPILED_MOVED, CCS_TEST_CCSHOME_REFUSED,
 NES_STUDIO_SITE, CCS_TEST_PLAYER (class CarriedDesign). Without them, synthetic bytes stand in where they can, and the rest is skipped.
@@ -156,7 +157,7 @@ class CarriedDesign(unittest.TestCase):
             with self.assertRaises(DC.CompileRefused) as c2: DC.compile_carried(DE.embed(open(newer, "rb").read(), name="Future"), [{"id": "0123456789abcdef", "title": "x"}], os.path.join(self.tmp, "z"))
             m2 = str(c2.exception); self.assertIn("newer version", m2); self.assertIn("Update Classic Cart Studio", m2); self.assertIn("home-design/9", m2)
 
-    def test_the_package_builder_carries_the_compiled_design_into_both_methods(self):
+    def test_the_package_builder_carries_the_compiled_design_into_the_console_package(self):
         e = _env("CCS_DESIGN_COMPILER", "CCS_TEST_CCSHOME_MOVED", "CCS_TEST_GAMES", "CCS_TEST_COMPILED_MOVED", "NES_STUDIO_SITE", "CCS_TEST_CCSHOME_REFUSED")
         if not e: self.skipTest("no compiler, design or built site given")
         import test_native_home_package as TN
@@ -175,17 +176,16 @@ class CarriedDesign(unittest.TestCase):
         if not (player and os.path.isfile(player)): self.skipTest("no console game player given (CCS_TEST_PLAYER): the package part passed")
         no_rom = lambda vid, title, ctx: {"playable": False, "code": "test", "reason": "no game file in this test"}
         trees, sess = {}, {}
-        for layout in ("mod", "nucleus"):   # CCS Mod and CCS Nucleus: the same HOME package, design and startup picture; the same design folder on the console
+        for layout in ("mod",):   # CCS HOME's one layout (CCS Mod provides CCS HOME): the HOME package's design and startup picture, the design folder on the console
             out = os.path.join(self.tmp, layout); c = CP.build_console(man, home, out, layout=layout, rom_resolver=no_rom, player=player, pack_dir=r["package_dir"], created_utc="2026-11-16T00:00:00Z")
             self.assertTrue(c.get("ok"), c.get("error")); self.assertTrue(CP.verify(out)["ok"])
             trees[layout] = {k: v for k, v in _tree(out).items() if k.startswith("home/design/") or k.startswith("startup/")}
             s = json.load(open(os.path.join(out, "session.json"), encoding="utf-8")); sess[layout] = s["home"]["design_root"]
             st = json.load(open(os.path.join(out, "startup", "startup.json"), encoding="utf-8")); self.assertEqual(st["choice"], home["startup_image"]); self.assertEqual(st["images"][0]["id"], home["startup_image"])
             mf = json.load(open(os.path.join(out, "MANIFEST.json"), encoding="utf-8")); self.assertEqual(mf["startup"]["custom"]["source_sha256"], hashlib.sha256(jp).hexdigest())
-        self.assertEqual(trees["mod"], trees["nucleus"]); self.assertEqual(sess["mod"], sess["nucleus"]); self.assertEqual(sess["mod"], "/var/lib/ccs/data/home-design")
-        # the app stages CCS Nucleus's layout from CCS Mod's package (derive_layout): byte for byte the package the builder makes for it
-        dv = CP.derive_layout(os.path.join(self.tmp, "mod"), os.path.join(self.tmp, "derived"), "nucleus"); self.assertTrue(dv.get("ok"), dv.get("error"))
-        self.assertEqual(_tree(os.path.join(self.tmp, "derived")), _tree(os.path.join(self.tmp, "nucleus")))
+        self.assertEqual(sess["mod"], "/var/lib/ccs/data/home-design")
+        nu = CP.build_console(man, home, os.path.join(self.tmp, "nucleus"), layout="nucleus", rom_resolver=no_rom, player=player, pack_dir=r["package_dir"])
+        self.assertIn("unknown layout", nu.get("error") or "", "there is no other CCS HOME layout"); self.assertFalse(os.path.exists(os.path.join(self.tmp, "nucleus")))
         self.assertEqual({k[len("home/design/"):]: v for k, v in trees["mod"].items() if k.startswith("home/design/")}, _tree(e[3]))
 
     def test_a_ccs_file_keeps_the_design_and_the_startup_picture(self):

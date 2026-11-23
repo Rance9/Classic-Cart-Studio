@@ -18,9 +18,10 @@ CORE_MODULES = {
 MODULE_PINS = {   # SHA-256 placeholders are filled from the Stage 7 record when a module is actually obtained; unknown means "not cleared"
     "_km_retroarch_1910_ozone": None, "_km_fceumm_xtreme": None, "_km_nestopia": None,
 }
-from .storage_model import MODEL as STORAGE_MODEL, estimate as storage_estimate   # the one storage calculation (also the Loadout editor's meter)
-_PG = STORAGE_MODEL["per_game"]
-ART_BYTES, ART_SMALL_BYTES, DESKTOP_BYTES, METADATA_BYTES = _PG["cover"], _PG["cover_small"], _PG["desktop"], _PG["metadata"]
+from .storage_model import SPEC as STORAGE_SPEC, estimate as storage_estimate   # the shared storage accounting (also the loadout meter's)
+_NE = STORAGE_SPEC["estimates"]["native_entry"]   # an Original Menu entry's files before they are prepared (labeled estimates)
+ART_BYTES, ART_SMALL_BYTES, DESKTOP_BYTES = _NE["cover_bytes"], _NE["cover_small_bytes"], _NE["desktop_bytes"]
+METADATA_BYTES = 180   # this simulated plan's own per-game record (metadata.json)
 
 
 def _bridge():
@@ -34,7 +35,8 @@ def _code_for_custom(hb, item: dict) -> tuple[str, int, int]:
     if path and os.path.exists(path):
         size = os.path.getsize(path)
         with open(path, "rb") as f: data = f.read()
-        if item.get("headered_file") or (item.get("header_hex") and data[:4] == b"NES\x1a"): data = data[HEADER_LEN:]
+        if "content_offset" in item: data = data[item["content_offset"]:]; size = len(data)   # where the game's content starts in its file (hakchi_bridge.plan); size: the content
+        elif item.get("headered_file") or (item.get("header_hex") and data[:4] == b"NES\x1a"): data = data[HEADER_LEN:]
         crc = zlib.crc32(data) & 0xffffffff
         return hb.code_for(crc), size, crc
     return "CLV-H-?????", size, crc
@@ -70,7 +72,7 @@ def build(manifest: dict, *, device: dict | None = None, foreign: dict | None = 
             if req is None: problems.append(f"{row['title']}: needs an emulator that Classic Cart Studio cannot set up in this version."); req = ["?"]
             for m in req: modules_needed[m] = modules_needed.get(m, 0) + 1
             entries.append({"code": code, "kind": kind2, "title": row["title"], "action": "add", "size": size, "sha256": g.get("payload_sha256"), "version_id": g.get("game_id"), "crc32": crc, "core": core, "exec": exec_cmd, "requires": req,
-                            "files": {f"{code}/{code}.desktop": DESKTOP_BYTES, f"{code}/{code}.png": ART_BYTES, f"{code}/{code}_small.png": ART_SMALL_BYTES, f"{code}/metadata.json": METADATA_BYTES, f"{code}/{(g.get('nointro_name') or 'rom.nes').replace('/', '_')}.nes" if not (g.get('nointro_name') or '').endswith('.nes') else f"{code}/{g.get('nointro_name')}": size + (HEADER_LEN if g.get("headered_file") is False else 0)}})
+                            "files": {f"{code}/{code}.desktop": DESKTOP_BYTES, f"{code}/{code}.png": ART_BYTES, f"{code}/{code}_small.png": ART_SMALL_BYTES, f"{code}/metadata.json": METADATA_BYTES, f"{code}/{(g.get('nointro_name') or 'rom.nes').replace('/', '_')}.nes" if not (g.get('nointro_name') or '').endswith('.nes') else f"{code}/{g.get('nointro_name')}": size + (HEADER_LEN if "content_offset" in it or g.get("headered_file") is False else 0)}})
         else:
             entries.append({"code": row.get("code") or "", "kind": "unresolved", "title": row["title"], "action": "none", "size": 0, "core": "", "requires": [], "detail": row.get("detail", ""), "statuses": st})
     for code, files in (foreign or {}).items():
@@ -85,22 +87,24 @@ def build(manifest: dict, *, device: dict | None = None, foreign: dict | None = 
         st = dev["storage"]; total, used, free = st["total"], st["used"], st["free"]
         src = "simulated" if dev.get("simulated") else "measured"
     else:
-        from .storage_model import capacity
         total = None; used = None; free = None; src = "reference"
     # the native HOME package (N3.1): MEASURED from the package staged on this computer; otherwise the model's estimate (labeled)
     nh = native_home if native_home is not None else _native_home_staged()
     nh_bytes = (nh or {}).get("bytes") if isinstance((nh or {}).get("bytes"), int) else None
-    per = sum(_PG.values())
-    sgames = [{"bytes": sum(e["files"].values()) - per, "install": True, "retroarch": bool(e.get("requires"))} for e in entries if e["action"] == "add"]         + [{"bytes": None, "install": True, "retroarch": False} for e in entries if e["kind"] == "unresolved"] + [{"install": False} for e in entries if e["action"] == "keep"]
+    per = ART_BYTES + ART_SMALL_BYTES + DESKTOP_BYTES + METADATA_BYTES
+    sgames = [{"bytes": sum(e["files"].values()) - per, "install": True} for e in entries if e["action"] == "add"]         + [{"bytes": None, "install": True} for e in entries if e["kind"] == "unresolved"] + [{"install": False} for e in entries if e["action"] == "keep"]
     shown = sum(1 for e in entries if e["action"] in ("add", "keep") or e["kind"] == "unresolved")
-    est = storage_estimate({"games": sgames, "home": {"measured": nh_bytes, "games": shown}, "free": free,
-                            "hakchi_present": dev.get("needs_first_time_setup") is False, "retroarch_present": "_km_retroarch_1910_ozone" in (dev.get("modules") or [])})
-    required = est["content"]; margin = est["margin"]
-    fits = est["used"] <= est["available"] if not est["unknown"] or est["remaining"] < 0 else None
+    nadd = sum(1 for e in entries if e["action"] == "add")
+    mods = [{"category": "module", "label": f"emulator module {m['name']}", "files": [{"bytes": None}]} for m in modules if m["action"] == "install"]   # its size is not known
+    est = storage_estimate({"games": sgames, "home": {"measured": nh_bytes, "games": shown}, "free": free, "mod": True, "native_entries": True,
+                            "hakchi_present": dev.get("needs_first_time_setup") is False},
+                           extra_items=([{"category": "native-records", "label": "Hakchi metadata records", "files": [{"bytes": METADATA_BYTES}] * nadd}] if nadd else []) + mods)
+    required = est["peak_bytes"]; margin = est["margin_bytes"]
+    fits = True if est["write_ok"] else False if est["status"] in ("over", "over-at-peak") else None
     if nh_bytes is None: warnings.append("The native HOME package is not prepared yet, so its size is estimated. Prepare it in Review Changes to measure it.")
     if free is None: warnings.append("The console's free space is not known until it is inspected, so the storage check is estimated from a standard NES Classic.")
     budget = {"source": src, "total": total, "used": used, "free": est["available"], "proposed_add_bytes": add_bytes, "foreign_kept_bytes": keep_foreign_bytes, "margin": margin, "fits": fits, "status": est["status"],
-              "native_home_bytes": nh_bytes, "native_home_estimate": None if nh_bytes is not None else est["home"], "components": est["components"], "estimate": est,
+              "native_home_bytes": nh_bytes, "native_home_estimate": None if nh_bytes is not None else est["home"], "components": {"hakchi": est["hakchi"]}, "estimate": est,
               "native_home": {"source": "measured: the package staged on this computer" if nh_bytes is not None else "estimated (not prepared)", "files": (nh or {}).get("files"), "installable": (nh or {}).get("installable")},
               "required_bytes": required,
               "text": {"reference": "estimated from a standard NES Classic, not your console", "simulated": "simulated console figures, not a real measurement", "measured": "measured on the connected console"}[src]}

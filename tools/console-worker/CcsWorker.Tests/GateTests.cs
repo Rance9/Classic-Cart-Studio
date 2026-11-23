@@ -109,7 +109,8 @@ namespace CcsWorker.Tests
                         ["pointer"] = new Dictionary<string, object> { ["path"] = "/var/lib/ccs/pkg/current", ["value"] = "v1" },
                         ["module-install"] = new Dictionary<string, object> { ["name"] = "ccs-mod", ["hmod"] = new Dictionary<string, object>() },
                         ["module-uninstall"] = new Dictionary<string, object> { ["name"] = "ccs-mod" },
-                        ["mod-start"] = new Dictionary<string, object> { ["state"] = "on" },
+                        ["nucleus-start"] = new Dictionary<string, object> { ["default"] = "native", ["chooser"] = "never", ["home"] = "off" },
+                        ["collections"] = new Dictionary<string, object> { ["command"] = "status" },
                     };
                     T.True(writes.Keys.OrderBy(k => k).SequenceEqual(Protocol.WorkerServer.WriteCommands.OrderBy(k => k)), "every write command is tried");
                     foreach (var kv in writes) T.Eq("physical-disabled", Harness.Err(h.Call(kv.Key, kv.Value)), kv.Key + " with writes closed");

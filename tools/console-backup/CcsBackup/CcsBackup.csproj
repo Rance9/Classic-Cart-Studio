@@ -30,6 +30,10 @@
     <InternalsVisibleTo Include="CcsBackup.Tests" />
     <!-- the platform registry, the same bytes the website and the Windows app's backend read -->
     <EmbeddedResource Include="..\..\platform\ccs-platform-registry.json" LogicalName="platform/ccs-platform-registry.json" />
+    <!-- the storage accounting specification, the same bytes the website and the Windows app's backend read -->
+    <EmbeddedResource Include="..\..\platform\ccs-storage-spec.json" LogicalName="platform/ccs-storage-spec.json" />
+    <!-- Community Mods: the curated catalog (Engine/CommunityCatalog.cs), the same bytes the website's showcase reads -->
+    <EmbeddedResource Include="..\..\community\ccs-community-catalog.json" LogicalName="community/ccs-community-catalog.json" />
   </ItemGroup>
   <!-- the recovery images (ram/build_images.py output), embedded and loaded from memory (RecoveryImages); a build without them can never
        open a console session (and every session is closed by Gate in this version anyway) -->

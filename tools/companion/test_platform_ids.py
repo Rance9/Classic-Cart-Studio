@@ -57,7 +57,7 @@ class T(unittest.TestCase):
         e = P.entry("game-system", "snes"); e["status"] = "supported"
         lst = P.entries(); [x.update(status="supported") for x in lst]
         self.assertFalse(P.allowed("game-system", "snes")); self.assertFalse(P.allowed("capability", "snes-gameplay"))
-        self.assertEqual(P.supported_ids("game-system"), ["nes"]); self.assertEqual(P.supported_ids("core"), ["fceumm"]); self.assertEqual(P.supported_ids("physical-model"), ["nes-classic-edition"])
+        self.assertEqual(P.supported_ids("game-system"), ["nes"]); self.assertEqual(P.supported_ids("core"), ["fceumm"]); self.assertEqual(P.supported_ids("physical-model"), ["nes-classic-edition", "snes-classic-edition"])
         os.environ["CCS_ENABLE_SNES"] = "1"
         try: self.assertFalse(P.allowed("game-system", "snes"), "no environment variable opens a reserved entry")
         finally: os.environ.pop("CCS_ENABLE_SNES", None)
@@ -178,8 +178,10 @@ class T(unittest.TestCase):
             w.out = io.StringIO(); w.handle(json.dumps({"v": 1, "id": "x", "cmd": "capabilities", "args": args})); return json.loads(w.out.getvalue().strip().splitlines()[-1])
         self.assertEqual(ask({})["event"], "result", "a request that names nothing: as before")
         self.assertEqual(ask({"game_system": "nes", "capability": "nes-gameplay"})["event"], "result")
+        for args in ({"physical_model": "snes-classic-edition"}, {"capability": "snes-classic-backup"}, {"capability": "snes-classic-restore"}):   # the console hardware, its supported operations
+            self.assertEqual(ask(args)["event"], "result", args)
         for args in ({"capability": "snes-gameplay"}, {"game_system": "snes"}, {"provider": {"kind": "core", "id": "snes-unselected"}}, {"boot_option": "ccs-snes"},
-                     {"ccs_target": SNES_TARGET}, {"physical_model": "snes-classic-edition"}, {"input": "snes-pad"}, {"capability": "snes-classic-restore"}):
+                     {"ccs_target": SNES_TARGET}, {"input": "snes-pad"}, {"capability": "snes-classic-preparation"}, {"capability": "snes-classic-addons"}):
             r = ask(args); self.assertEqual((r["event"], r["code"]), ("error", "unsupported-target"), args); self.assertEqual(r["text"], P.REQUEST_TEXT)
         w.out = io.StringIO(); w.handle(json.dumps({"v": 1, "id": "p", "cmd": "plan", "args": {"manifest": dict(TCP.collection(["0123456789abcdef"]), ccs_target=SNES_TARGET)}}))
         r = json.loads(w.out.getvalue().strip().splitlines()[-1]); self.assertEqual((r["event"], r["code"]), ("error", "unsupported-target"), "a plan request whose collection names SNES")
@@ -207,6 +209,10 @@ class T(unittest.TestCase):
     def test_only_the_supported_core_is_vendored(self):
         core = P.entry("core", "fceumm"); third = os.path.join(REPO, "tools", "player", "third_party")
         self.assertIn(core["pin"], open(os.path.join(REPO, core["source"], "VENDORED.md"), encoding="utf-8").read())
+        # the built core: the pin with the recorded patch series, as VENDORED.md and the player (gp.h GP_CORE_BUILD) name it
+        self.assertIn(core["build"], open(os.path.join(REPO, core["source"], "VENDORED.md"), encoding="utf-8").read())
+        self.assertIn('#define GP_CORE_BUILD "%s"' % core["build"], open(os.path.join(REPO, "tools", "player", "core", "gp.h"), encoding="utf-8").read())
+        self.assertTrue(core["build"].startswith(core["pin"][:8] + "+"), core["build"])
         for n in core["notices"]: self.assertTrue(os.path.isfile(os.path.join(REPO, n)), n)
         self.assertIn("FCEUmm", open(os.path.join(REPO, "THIRD_PARTY_NOTICES.md"), encoding="utf-8").read())
         self.assertEqual(sorted(os.listdir(third)), ["fceumm", "sdl_gamecontrollerdb", "zig-runtime"], "a new third-party folder needs its registry entry (and review) first")
@@ -216,6 +222,7 @@ class T(unittest.TestCase):
 
     # ---- no SNES promise in what people see; the recovery programs take no system
     def test_no_snes_promise_in_ui(self):
+        """the Super NES Classic console is supported hardware (backup, restore, check-up); its games are not: no page may say they play"""
         allowed = {"Do not use it with other models, the Super NES Classic or clones.",   # existing refusals, not promises
                    "The Super NES Classic Edition and the Famicom Mini are different consoles: Workbench does not work with their hardware."}   # About This Console
         hits = []
@@ -227,7 +234,8 @@ class T(unittest.TestCase):
                     for line in open(os.path.join(r, f), encoding="utf-8", errors="replace"):
                         for m in re.finditer(r"[^.<>]*\b(snes|super nes|super nintendo|super famicom)\b[^.<>]*\.?", line, re.I):
                             s = re.sub(r'^\("[^"]*",\s*"', "", m.group(0).strip())   # a C# (heading, "text") pair: its text
-                            if s not in allowed: hits.append(f"{f}: {m.group(0).strip()[:120]}")
+                            plays = re.search(r"\b(play|plays|playing|playable|emulat\w*|core)\b", s, re.I) and not re.search(r"\b(not|no|never|cannot|without|needs?)\b", s, re.I)
+                            if s not in allowed and plays: hits.append(f"{f}: {m.group(0).strip()[:120]}")
         import ast   # the backend's own messages: every string constant in the modules this change touched (the registry's data aside)
         for f in ("ccs_package.py", "saves_transfer.py", "nes_companion.py", "native_home/config.py", "console_engine/ccs_install.py", "console_engine/worker.py"):
             for n in ast.walk(ast.parse(open(os.path.join(HERE, *f.split("/")), encoding="utf-8").read())):
@@ -245,7 +253,9 @@ class T(unittest.TestCase):
         br = open(os.path.join(ram, "ccsbr"), encoding="utf-8").read()
         self.assertIn('TARGETS="boot0 boot1 boot2 boot2-68 nand nanda nandb nandc nandd nande phy parttable"', br, "ccsbr's fixed targets")
         facts = open(os.path.join(REPO, "tools", "console-backup", "CcsBackup", "Device", "ConsoleFacts.cs"), encoding="utf-8").read()
-        self.assertIn("Compose.Capabilities.ModelForBoard(id.Board) == null", facts, "every console session's identity check asks the registry for the model")
+        self.assertIn("var model = id.Model;", facts, "every console session's identity check asks the registry for the model (board and region)")
+        models = open(os.path.join(REPO, "tools", "console-backup", "CcsBackup", "Device", "ConsoleModels.cs"), encoding="utf-8").read()
+        self.assertIn("ById(Capabilities.ModelFor(board, region))", models)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

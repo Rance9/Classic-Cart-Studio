@@ -61,13 +61,16 @@ namespace CcsBackup.Tests
             var all = Capabilities.Entries;
             Check(all.GroupBy(e => e.Kind + "/" + e.Id).All(g => g.Count() == 1) && all.All(e => e.Status == "supported" || e.Status == "reserved"), "every entry is unique and either supported or reserved");
             Check(all.Where(e => !e.Supported).All(e => !Capabilities.Allowed(e.Kind, e.Id)) && !Capabilities.Allowed("game-system", "snes") && !Capabilities.Allowed("capability", "snes-gameplay"), "no reserved entry is ever allowed");
-            Check(Capabilities.SupportedIds("game-system").SequenceEqual(new[] { "nes" }) && Capabilities.SupportedIds("core").SequenceEqual(new[] { "fceumm" }) && Capabilities.SupportedIds("physical-model").SequenceEqual(new[] { "nes-classic-edition" }), "the only supported game system, core and console model are NES, FCEUmm and the NES Classic Edition");
+            Check(Capabilities.SupportedIds("game-system").SequenceEqual(new[] { "nes" }) && Capabilities.SupportedIds("core").SequenceEqual(new[] { "fceumm" }) && Capabilities.SupportedIds("physical-model").SequenceEqual(new[] { "nes-classic-edition", "snes-classic-edition" }), "the only supported game system, core and console model are NES, FCEUmm and the NES Classic Edition");
             Check(all.Where(e => e.Kind == "core").All(e => e.Supported == e.Flag("bundled")) && Capabilities.Entry("core", "snes-unselected").Get("license") == null, "only the supported core is bundled; the reserved core has no license, pin or source (nothing is shipped for it)");
             Check(Capabilities.InputActions("nes-pad").SequenceEqual(new[] { "up", "down", "left", "right", "a", "b", "select", "start" }), "the NES controller definition is the eight existing actions, in the existing order");
             var snesPad = Capabilities.InputActions("snes-pad");
             Check(snesPad.Count == 12 && new[] { "x", "y", "l", "r" }.All(snesPad.Contains) && Capabilities.InputActions("nes-pad").All(snesPad.Contains) && !Capabilities.Allowed("input", "snes-pad"), "the reserved SNES controller definition adds X, Y, L and R to the same actions, and is not allowed");
             Check(!Capabilities.Entry("boot-option", "ccs-snes").Flag("visible") && !Capabilities.Allowed("boot-option", "ccs-snes"), "the reserved SNES boot option is never visible and never allowed");
-            Check(Capabilities.ModelForBoard("dp-nes") == "nes-classic-edition" && new[] { "dp-hvc", "dp-shvc", "", null, "DP-NES" }.All(b => Capabilities.ModelForBoard(b) == null), "only the NES Classic's board answers as a supported model");
+            Check(Capabilities.ModelForBoard("dp-nes") == "nes-classic-edition" && new[] { "dp-hvc", "dp-shvc", "", null, "DP-NES" }.All(b => Capabilities.ModelForBoard(b) == null), "a board alone names only the NES Classic (the Super NES Classic is told apart by its region too)");
+            Check(Capabilities.ModelFor("dp-shvc", "USA") == "snes-classic-edition" && Capabilities.ModelFor("dp-shvc", "EUR") == "snes-classic-edition" && new[] { "JPN", "usa", "", null, "EUR_USA" }.All(r => Capabilities.ModelFor("dp-shvc", r) == null)
+                  && Capabilities.ModelFor("dp-nes", "EUR_USA") == "nes-classic-edition" && Capabilities.ModelFor("dp-hvc", "JPN") == null,
+                  "board dp-shvc is the Super NES Classic only with REGION USA or EUR (the Super Famicom Classic Mini's JPN is not supported); the Famicom Mini is not supported");
             var copy = Capabilities.Entries.ToList(); copy.Clear();
             Check(Capabilities.Entries.Count == all.Count && typeof(RegistryEntry).GetProperties().All(p => !p.CanWrite), "the registry cannot be changed through what it hands out (copies; no setters)");
             var vendored = Path.Combine(src, "..", "player", "third_party", "fceumm", "VENDORED.md");
@@ -84,8 +87,8 @@ namespace CcsBackup.Tests
                 }
             }
             var missing = Path.Combine(Work, "no-such-console-" + Guid.NewGuid().ToString("N").Substring(0, 6));
-            foreach (var (what, extra) in new[] { ("SNES gameplay", "\"capability\":\"snes-gameplay\""), ("a SNES Classic backup", "\"capability\":\"snes-classic-backup\""), ("the reserved core provider", "\"provider\":{\"kind\":\"core\",\"id\":\"snes-unselected\"}"),
-                                                ("a SNES target", "\"ccs_target\":{\"schema\":\"ccs-target/1\",\"game_system\":\"snes\"}"), ("the SNES Classic model", "\"physical_model\":\"snes-classic-edition\"") })
+            foreach (var (what, extra) in new[] { ("SNES gameplay", "\"capability\":\"snes-gameplay\""), ("preparing a SNES Classic", "\"capability\":\"snes-classic-preparation\""), ("the reserved core provider", "\"provider\":{\"kind\":\"core\",\"id\":\"snes-unselected\"}"),
+                                                ("a SNES target", "\"ccs_target\":{\"schema\":\"ccs-target/1\",\"game_system\":\"snes\"}"), ("CCS Mod or CCS Nucleus on a SNES Classic", "\"capability\":\"snes-classic-addons\"") })
             {
                 var r = Ask("{\"cmd\":\"backup\",\"console\":\"simulated\",\"folder\":" + Json.Write(missing).Trim() + "," + extra + "}");
                 Check(r["state"] as string == "unavailable" && r["code"] as string == "reserved" && !Directory.Exists(missing), "worker: a backup request for " + what + " is refused before anything (" + r["problem"] + ")");
@@ -100,14 +103,17 @@ namespace CcsBackup.Tests
                 var jd = Json.Parse(File.ReadAllText(cj)); var jo = new JObj(); foreach (var kv in jd) jo.Add(kv.Key, kv.Value); jo.Set("board", board); File.WriteAllText(cj, Json.Write(jo));
                 var od = NewDir("platform-board"); var os = SettingsIn(od, false);
                 var ob = Backup(other, os);
-                Check(ob.State == "refused" && ob.Problem.Contains("not an NES Classic") && (!Directory.Exists(os.PrimaryFolder) || !Directory.EnumerateFiles(os.PrimaryFolder).Any()), "a console that answers with board \"" + board + "\": refused before anything is read (" + ob.Problem + ")");
+                Check(ob.State == "refused" && ob.Problem.Contains("not an NES Classic Edition or a North American or European Super NES Classic Edition") && (!Directory.Exists(os.PrimaryFolder) || !Directory.EnumerateFiles(os.PrimaryFolder).Any()), "a console that answers with board \"" + board + "\": refused before anything is read (" + ob.Problem + ")");
             }
 
             // ---- the console backup boundary: a manifest that claims the SNES Classic is refused; an explicit NES one verifies
             var c = Console_("modified-noorig"); var dir = NewDir("platform-backup"); var s = SettingsIn(dir, false);
             var b = Backup(c, s);
             var vb = Verifier.VerifyFile(b.PrimaryPath);
-            Check(b.Ok && vb.Ok && !vb.Manifest.ContainsKey(Capabilities.TargetKey), "a new NES Classic backup carries no ccs_target (the format's bytes are unchanged) and verifies");
+            var bt = vb.Manifest.O(Capabilities.TargetKey);
+            Check(b.Ok && vb.Ok && bt?.S("physical_model") == "nes-classic-edition" && bt?.S("firmware") == "nintendo-nes-classic" && bt?.S("layout") == "nes-classic-nand-512m" && vb.Model == CcsBackup.Device.ConsoleModels.Nes
+                  && vb.Manifest.O("console")?.S("model") == "NES Classic Edition" && Path.GetFileName(b.PrimaryPath).StartsWith("SIMULATED NES Classic Backup ", StringComparison.Ordinal),
+                  "a new NES Classic backup states its model, console software and storage layout (ccs_target) and verifies");
             Check(vb.Manifest.O("export")?.S("status") == "included", "the console's own HOME package (no ccs_target: NES) is still exported as CCS/Console-HOME.ccs (" + vb.Manifest.O("export")?.S("reason") + ")");
             // the manifest changed and the file written again, as an earlier-format backup: the two repair parts (whose records describe the
             // original file's exact bytes) are left out of the file and of the manifest's member list; an earlier-format backup verifies without them

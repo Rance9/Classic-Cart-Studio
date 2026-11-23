@@ -9,3 +9,5 @@
 site-data/included/** -text
 tools/publish/assets/legal/runtime/** -text
 tools/player/third_party/fceumm/LICENSE.pic16c5x.txt -text
+tools/player/third_party/fceumm/patches/*.patch -text
+tools/player/third_party/minimp3/** -text

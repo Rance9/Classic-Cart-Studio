@@ -290,6 +290,9 @@ namespace CcsBackup.Browse
         }
 
         /// <summary>a new folder inside dest, never an existing one</summary>
+        /// <summary>a new, empty folder inside dest (never an existing one), for an export that writes its own files (the Storage report)</summary>
+        internal static string NewExportFolder(string dest, string name) => NewFolder(dest, name);
+
         static string NewFolder(string dest, string name)
         {
             for (int n = 1; n < 10000; n++)

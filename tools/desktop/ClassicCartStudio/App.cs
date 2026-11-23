@@ -81,13 +81,14 @@ namespace ClassicCartStudio
         public const string RepoUrl = "https://github.com/Rance9/Classic-Cart-Studio";
         public const string UpdateUrl = "https://ClassicCartStudio.com/app";
 
-        // Data folder: %LOCALAPPDATA%\ClassicCartStudio (the earlier releases' NESClassicCollectionStudio folder is moved there once, on first start)
+        // Data folder: %LOCALAPPDATA%\ClassicCartStudio (the earlier releases' NESClassicCollectionStudio folder is moved there once, on first start),
+        // or NES_STUDIO_DATA when set, as a full path (the backend and the game player are given that same full path)
         public static string DataRoot
         {
             get
             {
                 var env = Environment.GetEnvironmentVariable("NES_STUDIO_DATA");
-                if (!string.IsNullOrEmpty(env)) return env;
+                if (!string.IsNullOrEmpty(env)) { try { return Path.GetFullPath(env); } catch (Exception) { return env; } }
                 var la = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 var now = Path.Combine(la, "ClassicCartStudio"); var old = Path.Combine(la, "NESClassicCollectionStudio");
                 if (!Directory.Exists(now) && Directory.Exists(old)) { try { Directory.Move(old, now); } catch { return old; } }

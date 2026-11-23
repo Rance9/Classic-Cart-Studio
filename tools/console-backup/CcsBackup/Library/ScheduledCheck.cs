@@ -106,9 +106,12 @@ namespace CcsBackup.Library
             foreach (var folder in new[] { s.PrimaryFolder, s.ArchiveFolder }.Where(f => !string.IsNullOrEmpty(f)))
             {
                 if (!Directory.Exists(folder)) { problems.Add("The backup folder " + folder + " is not available (a drive missing or disconnected?)."); continue; }
-                foreach (var f in Directory.GetFiles(folder, "*.zip").OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                // the console backups, then the USB and SD backups in the location's own subfolder (each checked by its own format's rules)
+                var storage = Path.Combine(folder, External.ExternalFormat.FolderName);
+                foreach (var f in Directory.GetFiles(folder, "*.zip").OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .Concat(Directory.Exists(storage) ? Directory.GetFiles(storage, "*.zip").OrderBy(x => x, StringComparer.OrdinalIgnoreCase) : Enumerable.Empty<string>()))
                 {
-                    var v = Verifier.VerifyFile(f, null, cancelled);
+                    var v = External.AnyBackup.Verify(f, null, cancelled);
                     rows.Add(new JObj { { "file", f }, { "ok", v.Ok }, { "problem", v.Ok ? null : v.Problems[0] }, { "checked_utc", Record.Now() } });
                     if (!v.Ok) problems.Add(Path.GetFileName(f) + ": " + v.Problems[0]);
                 }

@@ -52,6 +52,7 @@ namespace CcsBackup.Engine
             if (string.IsNullOrEmpty(backupPath) || !File.Exists(backupPath)) return (null, "Choose a backup of this console to use as the restore point.");
             ConsoleIdentity id;
             try { id = con.Identify(); } catch (ConsoleRefusedException ex) { return (null, ex.Message); }
+            var mw = ConsoleModels.RefusalFor(id, "files"); if (mw != null) return (null, mw);
             return EstablishFor(id.Hwid, con.Simulated, con.SessionId, id.Get("parttable") ?? "", backupPath, cancelled);
         }
 

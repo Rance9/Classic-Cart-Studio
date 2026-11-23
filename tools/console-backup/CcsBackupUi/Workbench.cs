@@ -35,7 +35,7 @@ namespace CcsBackup.Ui
 
         void StartOp(string op, string title, string note, JObj req)
         {
-            if (!FamilyHasTasks()) return;
+            if (!FamilyHasTasks(OperationOf(op))) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartOp(op, title, note, req)); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console task is running", "The console is already in use by this window, another CCS Console Workbench window or Classic Cart Studio. Wait for that task to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, title, note, "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -50,7 +50,7 @@ namespace CcsBackup.Ui
             var sp = SectionHead("Console Restore", "Put a backup back on the console it came from, or undo what Classic Cart Studio changed on your " + Con + ". Each of these changes the console: you review every change first, and the console is backed up before anything is written.");
             sp.Children.Add(CardGrid(260, 3,
                 ActionCard("Restore a Backup", "Put a backup of this console back on it. You review exactly what changes first, and the console as it is now is backed up in the same session before anything is written.", "Btn.Primary", () => ShowRestorePick()),
-                ActionCard("CCS Mod and CCS Nucleus", "Switch between CCS Mod and CCS Nucleus, the two ways Classic Cart Studio's HOME can start on your console, or remove the one installed. Games and saves stay.", "Btn", () => ShowMethods(), "Change or Remove"),
+                ActionCard("Add-ons and Startup", "Add or remove CCS Mod (CCS HOME) and CCS Nucleus, and choose what opens when you turn on your console. Games and saves stay.", "Btn", () => ShowMethods(), "Choose Add-ons"),
                 ActionCard("Return to Original Software", "Undo Classic Cart Studio's preparation: put back Nintendo's startup software and this console's own bootloader, remove hakchi's files, then restore the backup made before preparing. This is not a factory reset.", "Btn", () => ShowReturn())));
             sp.Children.Add(T("A console that no longer starts? Console Rescue writes a damaged startup stage back from this console's own backup.", Ty.Small, false, true));
             Show(sp, "restore-hub");
@@ -142,11 +142,14 @@ namespace CcsBackup.Ui
                 ActionCard("Start Fresh with Classic Cart Studio", "Prepare this console with Classic Cart Studio's HOME (after a complete backup of it), then add your games and saves.", "Btn.Primary", () => ShowPrepare(), "Start Fresh"),
                 ActionCard("Set Up Like My Other Console", "Use a backup of another console as the source: its games, saves and settings, keeping this console's own startup software and identity.", "Btn", () => ShowComposerPlan("like-my-other-console")),
                 ActionCard("Rebuild from My Backups", "Choose what to bring back from one or more backups of this console.", "Btn", () => ShowComposerPlan("rebuild-from-backups"))));
+            sp.Children.Add(Group("Community mods"));
+            sp.Children.Add(CardGrid(270, 2, ActionCard("Community Mods", "Browse mods other authors make for your " + Con + ", and install, update or remove them. You review each change, and the console is backed up first.", "Btn", () => ShowCommunity("browse"))));
             sp.Children.Add(Group("Designs, system images and packages"));
             sp.Children.Add(CardGrid(270, 2,
                 ActionCard("HOME Designer", "Design Classic Cart Studio's HOME with your own pictures, colors, folders and game order.", "Btn", () => ShowDesigner()),
                 ActionCard("Your System Images", "Add a system image of your own as a CCS Nucleus start choice, or remove one. It starts only when chosen.", "Btn", () => ShowFirmware()),
                 ActionCard("Apply a Private Restore Package", "Put the files of a " + FileKinds.Package + " you built on the console it was built for. You review every change first, and the console is backed up before anything is written.", "Btn", () => ShowApplyPackage()),
+                ActionCard(CcsBackup.Browse.SegaPictures.Title, CcsBackup.Browse.SegaPictures.Explanation + " See them and choose whether to remove them; the console is backed up first, and they can be put back.", "Btn", () => ShowSegaPictures()),
                 ActionCard("Open a Shared Plan", "See what a " + FileKinds.Plan + " someone shared asks for: what you supply yourself, what is ready and what cannot be used. A plan never changes a console by itself.", "Btn", () => OpenPlan())));
             Show(sp, "composer");
         }
@@ -205,7 +208,7 @@ namespace CcsBackup.Ui
             sp.Children.Add(Note("This session runs in the console's memory, with nothing installed on your console. Workbench did not write to the console's storage.", "info"));
             bool canBrowse = !ended && r.S("state") == "checked" && worker != null && worker.Running && s.L("part_bytes") > 0;
             if (ended) sp.Children.Add(Note("The console session has ended. Start the check-up again to browse its files.", "info"));
-            sp.Children.Add(Buttons(canBrowse ? B("Browse the Files", "Btn.Primary", () => OpenLiveBrowse(s.L("part_bytes"), c.S("console_tag"), c.S("kernel"))) : null,
+            sp.Children.Add(Buttons(canBrowse ? B("Browse the Files", "Btn.Primary", () => OpenLiveBrowse(s.L("part_bytes"), c.S("console_tag"), c.S("kernel"), c.S("physical_model"))) : null,
                                     !ended && worker != null && worker.Running ? B("Restart the Console", "Btn.Ghost", () => worker?.Send(new JObj { { "cmd", "finish" } })) : null, B("Done", "Btn", () => Leave("Console Browser"))));
             Show(sp, "checkup");
         }
@@ -287,18 +290,20 @@ namespace CcsBackup.Ui
             {
                 case "checkup": ShowCheckup(ev); return true;
                 case "home-design-plan": ShowDesignPlan(ev.O("plan")); return true;
+                case "addon-state": OnAddonState(ev); return true;
                 case "method-plan": ShowMethodOrFirmwarePlan("method", ev.O("plan")); return true;
                 case "firmware-plan": ShowMethodOrFirmwarePlan("firmware", ev.O("plan")); return true;
                 case "rescue-diagnosis": ShowRescueChoice(ev); return true;
                 case "rescue-plan": ShowRescuePlan(ev.O("plan")); return true;
                 case "compose-plan": ShowComposePlan(ev.O("plan")); return true;
+                case "sega-pictures-plan": ShowSegaPlan(ev.O("plan")); return true;
                 case "files-ready": filesPoint = null; ShowFilesSession(); return true;
                 case "restore-point": if (ev.B("ok")) filesPoint = new Dictionary<string, object> { { "banner", ev.S("banner") } }; ShowFilesSession(ev.B("ok") ? null : ev.S("problem"), ev.B("ok") ? "info" : "bad"); return true;
                 case "stat": ShowFilesSession(ev.S("path") + ": " + (ev.S("state") == "absent" ? "not on the console" : ev.S("state") == "folder" ? "a folder" : ev.S("state") == "link" ? "a link" : Units.Gb(ev.L("bytes")) + ", SHA-256 " + ev.S("state"))); return true;
                 case "files-plan": if (ev.B("ok")) ShowFilesPlan(ev.O("plan")); else ShowFilesSession(ev.S("problem"), "bad"); return true;
                 case "files-result": ShowFilesSession(ev.S("state") == "changed" ? "Changed and read back: " + string.Join(", ", (ev.A("done") ?? new List<object>()).OfType<string>()) : ev.S("problem"), ev.S("state") == "changed" ? "ok" : "bad"); return true;
             }
-            return OnDeveloperEvent(ev);
+            return OnCommunityEvent(ev) || OnDeveloperEvent(ev);
         }
     }
 }

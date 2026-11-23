@@ -16,13 +16,16 @@ The package (one folder, every file listed with its size and SHA-256 in MANIFEST
   session.json   the player's session for this package's place on the console (layout): where it reads and where it writes
   licenses/      NOTICE.txt (each part of the package, its terms and its exact source) and the license texts those parts require, made
                  from Classic Cart Studio's records by notices.py; a file no part covers stops the build
+  native-covers/ this computer's only, with PC.json (its list, named in MANIFEST.json by pc_sha256; neither is sent to a console): each
+                 game's cover as CCS HOME carried it before console covers became smaller, from which Original Menu's covers are made
+                 (PC.json native_covers: game id -> file), so those stay exactly as they were
 Layouts: ram-test (K2: the package is inside the RAM image, everything written goes to /tmp/ccs, nothing persistent) and install (K3,
 prepared only: the package in its own folder under /var/lib/ccs/pkg, which the start-up links in RAM as /tmp/ccs/pkg at each start (the paths in
 session.json), saves and settings under /var/lib/ccs/data; the console's own games, saves and Nintendo's
-HOME keep their places). mod and nucleus: the install layout's places for CCS Mod and CCS Nucleus (tools/console-nucleus), whose HOME's
-leave item goes back to the console's own menu (mod) or to the start chooser (nucleus); derive_layout gives a built package the other one
-(the two differ only in session.json and MANIFEST.json). Saves stay on the console: the package never carries saves or Game Settings from
-this computer.
+HOME keep their places). mod: the install layout's places for CCS HOME, which CCS Mod provides (tools/console-nucleus): the one CCS HOME
+layout, whatever else the console has. Its leave item, Choose Another Menu, is decided on the console when it is chosen: CCS Nucleus's
+startup chooser when that is installed, otherwise Original Menu (Nintendo's own menu). Saves stay on the console: the package never carries
+saves or Game Settings from this computer.
 Copyright (C) 2026 Rance9, GPL-3.0-or-later."""
 from __future__ import annotations
 import argparse, hashlib, io, json, os, re, shutil, sys, tempfile, time
@@ -35,6 +38,7 @@ import startup_picture   # noqa: E402
 SCHEMA = "ccs-console-package/1"; STARTUP_SCHEMA = "ccs-startup/1"
 STARTUP_IDS = ("forgotten-keep", "galactic-frontier", "kingdoms-beyond", "neon-highway", "pixel-worlds")
 MIN_VISIBLE_MS = 5000
+PC_FILE = "PC.json"; PC_DIR = "native-covers"; PC_SCHEMA = "ccs-console-package-pc/1"   # this computer's only (what Original Menu's covers are made from); never sent
 CUSTOM_RE = re.compile(r"^custom-[0-9a-f]{16}$")   # the collection's own picture (its checks: tools/companion/startup_picture.py)
 CONTROLLER_MAP = """# The NES Classic's controllers (clovercon), as Linux input codes. Written by Classic Cart Studio; a RAM test confirms them on the console.
 device Nintendo Clovercon - controller1
@@ -55,13 +59,11 @@ LAYOUTS = {
     "install": {"pkg": "/tmp/ccs/pkg", "data": "/var/lib/ccs/data", "scratch": "/tmp/ccs/scratch", "logs": "/tmp/ccs/logs",
                 "leave": {"label": "Switch to Nintendo HOME", "sub": "Its games and saves are kept; this HOME returns at the next start", "title": "Switch to Nintendo's HOME?",
                           "text": "Nintendo's original HOME opens with its own games and saves. Classic Cart Studio's HOME comes back the next time the console is turned on."}},
-    # the two install methods: the same places as "install"; leaving says where it goes back to
+    # CCS HOME on a console with CCS Mod (tools/console-nucleus): the same places as "install". Leaving it is decided on the console when it is
+    # chosen (ccs-mod launch): CCS Nucleus's startup chooser when that is installed, otherwise Original Menu
     "mod": {"pkg": "/tmp/ccs/pkg", "data": "/var/lib/ccs/data", "scratch": "/tmp/ccs/scratch", "logs": "/tmp/ccs/logs",
-            "leave": {"label": "Return to Your Console's Menu", "sub": "", "title": "Return to your console's menu?",
-                      "text": "Your console's own menu opens with its own games and saves. Open CCS HOME again from its CCS HOME entry there."}},
-    "nucleus": {"pkg": "/tmp/ccs/pkg", "data": "/var/lib/ccs/data", "scratch": "/tmp/ccs/scratch", "logs": "/tmp/ccs/logs",
-                "leave": {"label": "Choose Another System", "sub": "", "title": "Choose another system?",
-                          "text": "The chooser opens with your console's own menu, CCS HOME and your other systems. Your games and saves here are kept."}},
+            "leave": {"label": "Choose Another Menu", "sub": "", "title": "Choose another menu?",
+                      "text": "If CCS Nucleus's startup chooser is installed, it opens so you can choose another menu. Otherwise Original Menu (Nintendo's own menu) opens with its own games and saves. Your games and saves here are kept."}},
 }
 
 def _sha(b: bytes) -> str: return hashlib.sha256(b).hexdigest()
@@ -155,6 +157,8 @@ def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-te
         pm = json.load(open(os.path.join(pack_dir, "manifest.json"), encoding="utf-8")); res = {"ok": True, "package_dir": pack_dir, "manifest": pm, "files": len(pm.get("files") or {})}
     else: res = P.build(manifest, home, mode="deployment", root=tmp)
     if not res.get("ok"): return {"ok": False, "error": res.get("error") or "; ".join(res.get("problems") or []) or "the HOME package could not be built"}
+    mb = [b for b in (res.get("manifest") or {}).get("blockers") or [] if b.get("code") == "music-mp3-missing"]
+    if mb: return {"ok": False, "error": mb[0]["text"] + ": the console package is not made without it"}   # never a package that silently lacks its song
     pack = res["package_dir"]; L = LAYOUTS[layout]; os.makedirs(out); st = Stage(out)
     try:
         st.copy_tree(pack, "home", "home")
@@ -174,6 +178,8 @@ def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-te
         st.put("config/controller-map.txt", CONTROLLER_MAP.encode(), "configuration")
         pg = json.load(open(os.path.join(pack, "games.json"), encoding="utf-8")).get("games") or []
         ctx: dict = {}; games = []; unavailable = []; resolver = rom_resolver or default_rom_resolver
+        pc, native, copies = {}, {}, {}   # this computer's files (PC.json): what Original Menu's covers are made from, and Hakchi-ready copies too large for one message
+        from console_engine import hakchi_publish as HPUB
         for e in pg:
             vid = str(e.get("id") or ""); title = str(e.get("title") or vid)[:200]
             r = resolver(vid, title, ctx); g = {"id": vid, "title": title, "version_label": str(e.get("version_label") or "")[:200], "rom": "", "header_hex": "", "content_sha256": "", "unavailable": ""}
@@ -184,28 +190,56 @@ def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-te
                     rel = f"roms/{cs}.nes"
                     if rel not in st.files: st.put(rel, b, "rom")
                     g.update(rom=f"{L['pkg']}/{rel}", header_hex=r.get("header_hex") or "", content_sha256=cs)
+                    # the file in the form Hakchi stores it (hakchi_publish.nes_rom), when it differs and is too large to send within one message:
+                    # kept here, named by its SHA-256, so the Hakchi entry's copy is sent from it (never changed: the package's own game file stays as it is)
+                    try: hr = HPUB.nes_rom(b, g["header_hex"])
+                    except ValueError: hr = {"ok": False}
+                    if hr.get("ok") and not hr["same"] and len(hr["ready"]) > HPUB.INLINE_MAX:
+                        hs = _sha(hr["ready"]); crel = f"{HPUB.COPY_DIR}/{hs[:16]}.nes"
+                        if crel not in pc:
+                            os.makedirs(os.path.join(out, HPUB.COPY_DIR), exist_ok=True)
+                            with open(os.path.join(out, *crel.split("/")), "wb") as f: f.write(hr["ready"])
+                            pc[crel] = {"size": len(hr["ready"]), "sha256": hs}
+                        copies[hs] = crel
             if not r.get("playable"): g["unavailable"] = str(r.get("reason") or "The game file for this game is not in this package."); unavailable.append({"id": vid, "title": title, "code": r.get("code")})
             games.append(g)
         if not games: raise ValueError("this HOME has no games")
-        mus = (json.load(open(os.path.join(pack, "pack.json"), encoding="utf-8")).get("music") or {}).get("file")
+        mpk = json.load(open(os.path.join(pack, "pack.json"), encoding="utf-8")).get("music") or {}; mus = mpk.get("file")
+        from native_home import notices as NTX
+        if mpk.get("format") == "mp3" and NTX.MP3_MARK not in pb: raise ValueError("this HOME's music is MP3, which only the game player built with it plays")
         sess = {"schema": "ccs-play-session/1", "mode": "home", "saves_root": f"{L['data']}/saves", "fonts_dir": f"{L['pkg']}/fonts", "scratch_dir": L["scratch"],
                 "result_path": f"{L['logs']}/result.json", "settings_path": f"{L['pkg']}/config/player-settings.json", "display_path": f"{L['data']}/state/player-display.json",
                 "game_settings_dir": f"{L['data']}/game-settings", "studio_pid": 0, "games": games, "direct_id": "",
                 "home": {"pack": f"{L['pkg']}/home", "state_dir": f"{L['data']}/state", "design_root": f"{L['data']}/home-design", "music": {"asset": f"{L['pkg']}/home/{mus}" if mus else "", "pref": f"{L['data']}/state/home-music.json"},
                          "leave": L["leave"]}}
         st.put("session.json", (json.dumps(sess, indent=1, ensure_ascii=False) + "\n").encode("utf-8"), "configuration")
+        # Original Menu's covers are made from these (hakchi_publish.spec): each game's cover as CCS HOME carried it before console covers
+        # became smaller, from the same source, so those covers stay exactly as they were. This computer's only: PC.json lists them (the
+        # manifest names PC.json by its SHA-256) and neither is ever sent to a console
+        srcs = P.native_cover_sources(manifest, home, os.path.join(os.path.dirname(pack), "cache"))
+        for e in pg:
+            b = srcs.get(str(e.get("id") or ""))
+            if not b: continue
+            rel = f"{PC_DIR}/{_sha(b)[:16]}.jpg"; native[str(e["id"])] = rel
+            if rel not in pc:
+                os.makedirs(os.path.join(out, PC_DIR), exist_ok=True)
+                with open(os.path.join(out, *rel.split("/")), "wb") as f: f.write(b)
+                pc[rel] = {"size": len(b), "sha256": _sha(b)}
+        pcb = (json.dumps({"schema": PC_SCHEMA, "native_covers": dict(sorted(native.items())), **({"hakchi_copies": dict(sorted(copies.items()))} if copies else {}), "files": dict(sorted(pc.items()))}, indent=1) + "\n").encode("utf-8")
+        with open(os.path.join(out, PC_FILE), "wb") as f: f.write(pcb)
         from native_home import notices as NT
         NT.write(st, pg, label or (manifest.get("name") or "HOME"))   # the package's notices (licenses/), checked before the package is listed
         man = {"schema": SCHEMA, "label": label or (manifest.get("name") or "HOME"), "layout": layout, "console_paths": {k: L[k] for k in ("pkg", "data", "scratch", "logs")},
                "created_utc": created_utc or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "games": len(games), "playable": len(games) - len(unavailable), "unavailable": unavailable,
                "startup": {"choice": choice, "min_visible_ms": MIN_VISIBLE_MS, **({"custom": {"name": custom["name"], "sha256": custom["sha256"], "source_sha256": custom["source_sha256"]}} if custom else {})}, "home_package": {"fingerprint": (res.get("manifest") or {}).get("configuration", {}).get("fingerprint"), "files": res.get("files")},
-               "player": {"file": "bin/ccs-player-armv7", "sha256": _sha(pb), "size": len(pb), "core": "fceumm ac0d00a7"},
+               "player": {"file": "bin/ccs-player-armv7", "sha256": _sha(pb), "size": len(pb), "core": "fceumm ac0d00a7", "core_build": "ac0d00a7+patches.6dcff395"},
                "sizes": {k: sum(f["size"] for f in st.files.values() if f["kind"] == k) for k in sorted({f["kind"] for f in st.files.values()})},
-               "total_bytes": sum(f["size"] for f in st.files.values()), "files": dict(sorted(st.files.items()))}
+               "total_bytes": sum(f["size"] for f in st.files.values()), "files": dict(sorted(st.files.items())), "pc_sha256": _sha(pcb)}
         mb = (json.dumps(man, indent=1, ensure_ascii=False) + "\n").encode("utf-8")
         with open(os.path.join(out, "MANIFEST.json"), "wb") as f: f.write(mb)
         with open(os.path.join(out, "SHA256SUMS"), "w", newline="\n") as f:
-            for rel, info in sorted(st.files.items()): f.write(f"{info['sha256']}  {rel}\n")
+            for rel, info in sorted({**st.files, **pc}.items()): f.write(f"{info['sha256']}  {rel}\n")
+            f.write(f"{_sha(pcb)}  {PC_FILE}\n")
             f.write(f"{_sha(mb)}  MANIFEST.json\n")
         return {"ok": True, "out": out, "manifest": man}
     except Exception as e:
@@ -213,46 +247,18 @@ def build_console(manifest: dict, home: dict, out: str, *, layout: str = "ram-te
     finally:
         if tmp and not pack_root: shutil.rmtree(tmp, ignore_errors=True)
 
-def derive_layout(src: str, out: str, layout: str) -> dict:
-    """the package in src (built by build_console) in another install method's layout whose console places are the same (mod and nucleus):
-    every file but session.json is the source's own (a hard link where the storage allows one, else a copy: the bytes are identical),
-    session.json gets that layout's leave item, and MANIFEST.json and SHA256SUMS are written for it exactly as build_console writes them.
-    Built into a new folder; the source is not changed"""
-    if layout not in LAYOUTS: return {"ok": False, "error": f"unknown layout {layout!r}"}
-    if os.path.exists(out): return {"ok": False, "error": f"{out} exists; a package is always built into a new folder"}
-    with open(os.path.join(src, "MANIFEST.json"), "rb") as f: man = json.loads(f.read())
-    A, L = LAYOUTS.get(man.get("layout")), LAYOUTS[layout]
-    if not A or any(A[k] != L[k] for k in ("pkg", "data", "scratch", "logs")): return {"ok": False, "error": f"the {man.get('layout')!r} package cannot be given the {layout!r} layout (its console places differ)"}
-    os.makedirs(out)
-    try:
-        files = {}
-        for rel, info in man["files"].items():
-            s = os.path.join(src, *rel.split("/")); d = os.path.join(out, *rel.split("/")); os.makedirs(os.path.dirname(d), exist_ok=True)
-            if rel == "session.json":
-                with open(s, "rb") as f: sess = json.loads(f.read())
-                sess["home"]["leave"] = L["leave"]
-                b = (json.dumps(sess, indent=1, ensure_ascii=False) + "\n").encode("utf-8")
-                with open(d, "wb") as f: f.write(b)
-                files[rel] = dict(info, size=len(b), sha256=_sha(b)); continue
-            try: os.link(s, d)
-            except OSError: shutil.copyfile(s, d)
-            files[rel] = dict(info)
-        man = dict(man, layout=layout, files=files)
-        man["sizes"] = {k: sum(f["size"] for f in files.values() if f["kind"] == k) for k in sorted({f["kind"] for f in files.values()})}; man["total_bytes"] = sum(f["size"] for f in files.values())
-        mb = (json.dumps(man, indent=1, ensure_ascii=False) + "\n").encode("utf-8")
-        with open(os.path.join(out, "MANIFEST.json"), "wb") as f: f.write(mb)
-        with open(os.path.join(out, "SHA256SUMS"), "w", newline="\n") as f:
-            for rel, info in sorted(files.items()): f.write(f"{info['sha256']}  {rel}\n")
-            f.write(f"{_sha(mb)}  MANIFEST.json\n")
-        return {"ok": True, "out": out, "manifest": man}
-    except Exception as e:
-        shutil.rmtree(out, ignore_errors=True); return {"ok": False, "error": str(e)}
-
 def verify(out: str, notices: bool = False) -> dict:
     """every file listed is there with its size and SHA-256, and nothing else is; notices: also every part's notice and license
     texts (notices.py; the release build and the app's staging ask for it)"""
-    man = json.load(open(os.path.join(out, "MANIFEST.json"), encoding="utf-8")); bad = []; seen = set()
-    for rel, info in man["files"].items():
+    man = json.load(open(os.path.join(out, "MANIFEST.json"), encoding="utf-8")); bad = []; seen = set(); pcf = {}
+    if man.get("pc_sha256"):   # this computer's files: PC.json is the one the manifest names, and every file it lists is there
+        try: pcb = open(os.path.join(out, PC_FILE), "rb").read()
+        except OSError: pcb = b""
+        if _sha(pcb) != man["pc_sha256"]: bad.append(f"changed {PC_FILE}")
+        else:
+            doc = json.loads(pcb); pcf = doc.get("files") or {}; seen.add(PC_FILE)
+            bad += [f"native cover source not listed {r}" for r in (doc.get("native_covers") or {}).values() if r not in pcf]
+    for rel, info in list(man["files"].items()) + list(pcf.items()):
         p = os.path.join(out, *rel.split("/")); seen.add(rel)
         if not os.path.isfile(p): bad.append(f"missing {rel}"); continue
         b = open(p, "rb").read()

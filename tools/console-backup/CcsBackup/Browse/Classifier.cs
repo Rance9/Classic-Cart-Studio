@@ -25,7 +25,9 @@
 //   N3 The 30 game codes of the North American / European NES Classic and their names (Name= in each game's .desktop: the console's own
 //                    /usr/share/games/nes/kachikachi/<code>/<code>.desktop, identical to Hakchi2 CE 3.9.3 data/desktop_entries/nes-usa):
 //                    a save folder named by one of them is that game's, even though its game files are in the system storage, which is
-//                    kept whole in the backup and not browsed here.
+//                    kept whole in the backup and not browsed here. The same for the 21 game codes of the North American / European
+//                    Super NES Classic (/usr/share/games/<code>/<code>.desktop; Hakchi2 CE 3.9.3 data/desktop_entries/snes-usa and snes-eur:
+//                    the same codes and names). Its saves are kept and exported exactly as they are: no conversion of any kind.
 //  hakchi (Hakchi2 CE 3.9.3):
 //   H1 /hakchi/config                                     hakchi's settings (the engine reads cfg_usb_* from it): Settings.
 //   H2 /hakchi/hmod/**, /hakchi/rootfs/**                  installed mods' uninstall lists and the overlay mods install into: Mods and emulators.
@@ -37,7 +39,9 @@
 //                      a file starting with the iNES or FDS header ("NES" 1A / "FDS" 1A)   a game file -> Games
 //                      the file Icon= names, <code>.png, <code>_small.png, <code>_original.png, <code>_spine.png, <code>_logo.png
 //                                                           the game's artwork                       -> Artwork
-//                      anything else                        kept with the game, kind not recognized  -> Everything else
+//                      <icon name>_mdmini.png, <code>_mdmini.png (Hakchi2 CE's picture for the Sega Mini menu; SegaPictures.cs)
+//                                                           artwork, role sega-composite             -> Artwork
+//                      anything else                       kept with the game, kind not recognized  -> Everything else
 //                    Path= (/var/saves/<n> or /var/lib/clover/profiles/0/<n>) names the game's save folder (N1): that folder joins this game.
 //                    /var/saves is taken to be /var/lib/clover/profiles/0 (SaveStateManager uses both for the same folder); saves kept on
 //                    a USB drive are not in a backup of built-in storage at all.
@@ -54,7 +58,7 @@
 //                      startup/startup.json                 the startup screen setting                 -> Settings; the pictures it lists -> Artwork
 //                      home/games.json                      each game's cover (cover=, by the game's id) -> Artwork, linked to the game
 //   C3 /ccs/data/saves/<64 hex>/   one game's saves, named by its game file's content SHA-256 (gp_save.c):
-//                      cart.sav                             the battery save                          -> Saves
+//                      cart.sav                             the cartridge save (battery or flash)     -> Saves
 //                      slot1.ccsstate .. slot4.ccsstate     a suspend point (save slot 1-4)           -> Suspend points
 //                      continue.ccsstate                    an older version's automatic continuation -> Suspend points (set 0)
 //                      last-used.json, slot-names.json, game.json   details of the saves                -> Settings (game.json's last_title
@@ -85,7 +89,16 @@ namespace CcsBackup.Browse
             { "CLV-P-NABJE", "FINAL FANTASY\u00ae" }, { "CLV-P-NABKE", "BUBBLE BOBBLE" }, { "CLV-P-NABME", "PAC-MAN" }, { "CLV-P-NABNE", "Galaga" },
             { "CLV-P-NABQE", "Castlevania" }, { "CLV-P-NABRE", "GRADIUS" }, { "CLV-P-NABVE", "Super C" }, { "CLV-P-NABXE", "Castlevania II Simon's Quest" },
             { "CLV-P-NACBE", "NINJA GAIDEN" }, { "CLV-P-NACDE", "TECMO BOWL" }, { "CLV-P-NACHE", "DOUBLE DRAGON II: The Revenge" },
+            // the Super NES Classic (North America / Europe)
+            { "CLV-P-SAAAE", "Super Mario World" }, { "CLV-P-SAABE", "F-ZERO" }, { "CLV-P-SAAEE", "The Legend of Zelda: A Link to the Past" },
+            { "CLV-P-SAAFE", "Super Mario Kart" }, { "CLV-P-SAAHE", "Super Metroid" }, { "CLV-P-SAAJE", "EarthBound" }, { "CLV-P-SAAKE", "Kirby's Dream Course" },
+            { "CLV-P-SAALE", "Donkey Kong Country" }, { "CLV-P-SAAQE", "Kirby Super Star" }, { "CLV-P-SAAXE", "Super Punch-Out!!" }, { "CLV-P-SABCE", "Mega Man X" },
+            { "CLV-P-SABDE", "Super Ghouls'n Ghosts" }, { "CLV-P-SABHE", "Street Fighter II Turbo: Hyper Fighting" }, { "CLV-P-SABQE", "Super Mario RPG: Legend of the Seven Stars" },
+            { "CLV-P-SABRE", "Secret of Mana" }, { "CLV-P-SABTE", "Final Fantasy III" }, { "CLV-P-SACBE", "Super Castlevania IV" }, { "CLV-P-SACCE", "CONTRA III THE ALIEN WARS" },
+            { "CLV-P-SADGE", "Star Fox" }, { "CLV-P-SADJE", "Yoshi's Island" }, { "CLV-P-SADKE", "Star Fox 2" },
         };
+        /// <summary>the console a stock game code belongs to ("NES Classic", "SNES Classic"), or null for any other code</summary>
+        public static string StockConsole(string code) => code == null || !StockGames.ContainsKey(code) ? null : code.StartsWith("CLV-P-S", StringComparison.Ordinal) ? "SNES Classic" : "NES Classic";
 
         static readonly Regex SaveFolderRe = new Regex(@"^/clover/profiles/0/(CLV-[^/]+)$", RegexOptions.CultureInvariant), StateRe = new Regex(@"^([1-4])\.state$", RegexOptions.CultureInvariant),
             SuspendRe = new Regex(@"^suspendpoint([1-4])$", RegexOptions.CultureInvariant), CopyRe = new Regex(@"^[0-9a-f]{16}\.[0-9a-f]{8}$", RegexOptions.CultureInvariant),
@@ -127,7 +140,7 @@ namespace CcsBackup.Browse
             foreach (var e in data)
             {
                 var p = e.ImagePath;
-                if (In(p, "/clover/profiles/0/home-menu")) Set(e, Category.Settings, "The NES Classic HOME menu's own settings.");
+                if (In(p, "/clover/profiles/0/home-menu")) Set(e, Category.Settings, "The console's own HOME menu settings.");
                 else if (p == "/hakchi/config" && e.Kind == EntryKind.File) Set(e, Category.Settings, "hakchi's settings.");
                 else if (In(p, "/hakchi/hmod")) Set(e, Category.ModsAndEmulators, "hakchi's record of an installed mod.");
                 else if (In(p, "/hakchi/rootfs")) Set(e, Category.ModsAndEmulators, "Installed by a mod (hakchi's overlay of the system).");
@@ -158,6 +171,7 @@ namespace CcsBackup.Browse
                 if (f.TryGetValue("Exec", out var ex)) foreach (var t in ex.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)) { var n = Local(t.Trim('"', '\'')); if (n != null) execFiles.Add(n); }
                 var icon = f.TryGetValue("Icon", out var ic) ? Local(ic.Trim()) : null;
                 var art = new HashSet<string>(StringComparer.Ordinal) { code + ".png", code + "_small.png", code + "_original.png", code + "_spine.png", code + "_logo.png" };
+                var mdmini = SegaPictures.NamesFor(code, icon);
                 foreach (var e in Under(d.ImagePath))
                 {
                     var rel = e.ImagePath.Substring(d.ImagePath.Length + 1); bool direct = rel.IndexOf('/') < 0;
@@ -168,6 +182,7 @@ namespace CcsBackup.Browse
                         var h = head(e, 4);
                         if (h != null && h.Length == 4 && (h[0] == 'N' && h[1] == 'E' && h[2] == 'S' || h[0] == 'F' && h[1] == 'D' && h[2] == 'S') && h[3] == 0x1A) { Set(e, Category.Games, "An NES game file (it starts with the NES game file header).", key, "game-file", -1, rel); continue; }
                         if (icon == e.Name) { Set(e, Category.Artwork, "The game's picture (its hakchi entry shows it).", key, "box-art", -1, rel); continue; }
+                        if (mdmini.Contains(e.Name)) { Set(e, Category.Artwork, "A picture for the Sega Mini menu that Hakchi2 CE makes from the game's picture. " + SegaPictures.Explanation, key, SegaPictures.Role, -1, rel); continue; }
                         if (art.Contains(e.Name)) { Set(e, Category.Artwork, "One of the game's pictures (hakchi's own picture names).", key, "artwork", -1, rel); continue; }
                     }
                     Set(e, Category.EverythingElse, "In this game's hakchi folder; its kind is not recognized.", key, "other", -1, rel);
@@ -283,7 +298,7 @@ namespace CcsBackup.Browse
                 foreach (var e in Under(d.ImagePath))
                 {
                     var rel = e.ImagePath.Substring(d.ImagePath.Length + 1); bool file = rel.IndexOf('/') < 0 && e.Kind == EntryKind.File; Match m;
-                    if (file && e.Name == "cart.sav") Set(e, Category.Saves, "The game's battery save.", key, "battery-save", -1, rel);
+                    if (file && e.Name == "cart.sav") Set(e, Category.Saves, "The game's cartridge save (battery-backed memory, or flash memory on a cartridge that saves to flash).", key, "battery-save", -1, rel);
                     else if (file && (m = SlotRe.Match(e.Name)).Success) Set(e, Category.SuspendPoints, "A suspend point (save slot " + m.Groups[1].Value + ").", key, "suspend-point", int.Parse(m.Groups[1].Value), rel);
                     else if (file && e.Name == "continue.ccsstate") Set(e, Category.SuspendPoints, "An automatic continuation kept from an older version.", key, "suspend-point", 0, rel);
                     else if (file && (e.Name == "last-used.json" || e.Name == "slot-names.json" || e.Name == "game.json"))
@@ -304,14 +319,14 @@ namespace CcsBackup.Browse
                 if (!byKey.TryGetValue(g.Key, out var es)) continue;
                 var gg = new GameGroup { Key = g.Key, Code = g.Code, ContentSha256 = g.Sha };
                 var titles = g.Titles.Where(t => t.title.Length > 0).ToList();
-                if (titles.Count == 0 && g.Code != null && StockGames.TryGetValue(g.Code, out var stock)) titles.Add((stock, "the NES Classic's own game list"));
+                if (titles.Count == 0 && g.Code != null && StockGames.TryGetValue(g.Code, out var stock)) titles.Add((stock, "the " + StockConsole(g.Code) + "'s own game list"));
                 if (titles.Count > 0)
                 {
                     gg.Title = titles[0].title; gg.TitleSource = titles[0].source; gg.TitleKnown = true;
                     gg.OtherTitles.AddRange(titles.Select(t => t.title).Distinct(StringComparer.Ordinal).Where(t => t != gg.Title));
                 }
                 else { gg.Title = g.Code ?? ("Unknown game " + (g.Sha ?? "").Substring(0, Math.Min(16, (g.Sha ?? "").Length))); gg.TitleSource = "no name is recorded for it"; }
-                gg.Kind = g.Key.StartsWith("ccs:", StringComparison.Ordinal) ? "Classic Cart Studio game" : g.Hakchi ? "Game added with hakchi" : g.Code != null && StockGames.ContainsKey(g.Code) ? "NES Classic original game" : "Game known only by its save folder";
+                gg.Kind = g.Key.StartsWith("ccs:", StringComparison.Ordinal) ? "Classic Cart Studio game" : g.Hakchi ? "Game added with hakchi" : g.Code != null && StockGames.ContainsKey(g.Code) ? StockConsole(g.Code) + " original game" : "Game known only by its save folder";
                 gg.Entries.AddRange(es.Where(e => e.Kind != EntryKind.Folder).OrderBy(e => e.ImagePath, StringComparer.Ordinal));
                 gg.BoxArt = gg.Entries.FirstOrDefault(e => e.Role == "box-art") ?? gg.Entries.FirstOrDefault(e => e.Category == Category.Artwork);
                 if (gg.Entries.Count > 0) groups.Add(gg);

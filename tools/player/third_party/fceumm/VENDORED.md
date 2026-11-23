@@ -6,9 +6,26 @@
 - Removed from `src/` because Classic Cart Studio does not compile them: `hdpack/`, `ntsc/` (optional NTSC filter),
   `drivers/libretro/libretro-common/formats/` and `include/formats/` (HD-pack image and audio decoders),
   `include/compat/msvc/`, `streams/trans_stream*.c`, `include/streams/trans_stream.h`, `encodings/encoding_deflate.c`.
-- Patches: none. Every file has the same content as at the upstream commit: 597 are byte-identical to its blobs, and 23 that upstream
-  stores with CRLF line endings are stored with LF by this repository (.gitattributes: text=auto eol=lf); a working checkout may again
-  show CRLF or LF. Nothing else differs. Added here: this file, `LICENSE.emu2413.txt` and `LICENSE.pic16c5x.txt`.
+- Patches: two, in `patches/` (git format-patch mailbox files, applied in this order to the upstream commit above; stored byte for
+  byte, .gitattributes `-text`). Both change one file, `src/boards/unrom512.c` (Mapper 30, UNROM 512):
+  - `0001-Mapper-30-bus-conflicts-latch-the-AND-of-the-written.patch`, SHA-256
+    `f844a1eb7b0a573fef99138b3dafbc8c06e7929df9bb15e89a7a6584d40c1088`: on boards with bus conflicts (submapper 0 without the battery
+    bit, and submapper 2) the bank latch takes the bitwise AND of the written value and the ROM byte (it kept the value only when the
+    two were equal, otherwise 0).
+  - `0002-Mapper-30-submapper-4-takes-flash-commands-when-flas.patch`, SHA-256
+    `7a805ec420044a902fd9071b8fddfb74b9662da23dd333ae8fa68b9907bc7768`: with the battery bit set, submapper 4 takes flash commands at
+    $8000-$BFFF as submappers 0 and 1 do (it had no handler there, so its flash saves were never written).
+  The same two changes were prepared for upstream submission as separate contributions against upstream's current master.
+- Core build identity: `ac0d00a7+patches.6dcff395` (`tools/player/core/gp.h` GP_CORE_BUILD, written into every save state's header as
+  `core_build`). `6dcff395` is the first 8 hex digits of the SHA-256 of the two patch SHA-256 values above, one per line, each line ending
+  with a newline, in series order. Save states keep the identity `ac0d00a7` (GP_CORE_VERSION): neither patch changes save-state data.
+- Every other file has the same content as at the upstream commit: 596 are byte-identical to its blobs, and 23 that upstream stores
+  with CRLF line endings are stored with LF by this repository (.gitattributes: text=auto eol=lf); a working checkout may again show
+  CRLF or LF. `src/boards/unrom512.c` equals the upstream file with both patches applied. Nothing else differs. Added here: this file,
+  `patches/`, `LICENSE.emu2413.txt` and `LICENSE.pic16c5x.txt`.
+- Check: `python tools/player/scripts/check_fceumm_vendor.py --upstream <a libretro-fceumm clone>` compares every file with the
+  upstream commit (and the patched file with the base plus the series), the patch files with their SHA-256 values here, the left-out
+  parts with the list above, and gp.h's core build identity with the series; it exits 0 only when all of them match.
 
 ## Licenses of the compiled files
 

@@ -1,0 +1,7224 @@
+{
+ "schema": "ccs-storage-vectors/1",
+ "about": "Shared storage accounting cases: storage_model.py, storage-model.js and the C# engine (StorageSpec.Account) must each give exactly the recorded result. 'measured' cases use the file lengths of a prepared console package with two Included Games.",
+ "spec_sha256": "87eb01b17a685248a8e75fcc30f05d1b21a1e4c452aa12ede651f68fd4f7bd50",
+ "account": [
+  {
+   "name": "nes-reference-nothing",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": []
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [],
+    "logical_bytes": 0,
+    "allocated_bytes": 0,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 0,
+    "margin_bytes": 0,
+    "steady_bytes": 0,
+    "peak_bytes": 0,
+    "remaining_bytes": 374804480,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "reserve-counted-once-superblock",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": {
+     "source": "measured",
+     "free_bytes": 395460608,
+     "reserved_bytes": 20656128,
+     "block_bytes": 4096
+    },
+    "items": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "files": [
+       {
+        "bytes": 4096
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 374804480,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "measured",
+    "rows": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "exact",
+      "logical_bytes": 4096,
+      "allocated_bytes": 4096,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 4096,
+    "allocated_bytes": 4096,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8388812,
+    "steady_bytes": 18878668,
+    "peak_bytes": 18878668,
+    "remaining_bytes": 355925812,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "df-reading-reserve-already-out",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": {
+     "source": "measured",
+     "available_bytes": 50000000
+    },
+    "items": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "files": [
+       {
+        "bytes": 4096
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 50000000,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "exact",
+      "logical_bytes": 4096,
+      "allocated_bytes": 4096,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 4096,
+    "allocated_bytes": 4096,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8388812,
+    "steady_bytes": 18878668,
+    "peak_bytes": 18878668,
+    "remaining_bytes": 31121332,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "small-files-rounded-each",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "text",
+      "label": "ten one-byte texts",
+      "files": [
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       },
+       {
+        "bytes": 1
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "text",
+      "label": "ten one-byte texts",
+      "kind": "exact",
+      "logical_bytes": 10,
+      "allocated_bytes": 40960,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 10,
+    "allocated_bytes": 40960,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8390656,
+    "steady_bytes": 18917376,
+    "peak_bytes": 18917376,
+    "remaining_bytes": 355887104,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "zero-length-and-block-edges",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "files",
+      "label": "edges",
+      "files": [
+       {
+        "bytes": 0
+       },
+       {
+        "bytes": 4096
+       },
+       {
+        "bytes": 4097
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "files",
+      "label": "edges",
+      "kind": "exact",
+      "logical_bytes": 8193,
+      "allocated_bytes": 12288,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 8193,
+    "allocated_bytes": 12288,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8389222,
+    "steady_bytes": 18887270,
+    "peak_bytes": 18887270,
+    "remaining_bytes": 355917210,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "shared-asset-counted-once",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "home",
+      "label": "collection A",
+      "files": [
+       {
+        "bytes": 100000,
+        "key": "cover/7f3a.jpg"
+       },
+       {
+        "bytes": 5000
+       }
+      ]
+     },
+     {
+      "category": "home",
+      "label": "collection B",
+      "files": [
+       {
+        "bytes": 100000,
+        "key": "cover/7f3a.jpg"
+       },
+       {
+        "bytes": 7000
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "home",
+      "label": "collection A",
+      "kind": "exact",
+      "logical_bytes": 105000,
+      "allocated_bytes": 110592,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "collection B",
+      "kind": "exact",
+      "logical_bytes": 7000,
+      "allocated_bytes": 8192,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 112000,
+    "allocated_bytes": 118784,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8394547,
+    "steady_bytes": 18999091,
+    "peak_bytes": 18999091,
+    "remaining_bytes": 355805389,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "unknown-file-size",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "files": [
+       {
+        "bytes": 262160
+       },
+       {
+        "bytes": null
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "unknown",
+      "logical_bytes": 262160,
+      "allocated_bytes": 266240,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 262160,
+    "allocated_bytes": 266240,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8401920,
+    "steady_bytes": 19153920,
+    "peak_bytes": 19153920,
+    "remaining_bytes": 355650560,
+    "unknown": [
+     "Game files"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "snes-reference-saves-unknown",
+   "input": {
+    "profile": "snes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "files": [
+       {
+        "bytes": 1000000
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "exact",
+      "logical_bytes": 1000000,
+      "allocated_bytes": 1003520,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 1000000,
+    "allocated_bytes": 1003520,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 8438784,
+    "steady_bytes": 9442304,
+    "peak_bytes": 9442304,
+    "remaining_bytes": 272763904,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "unknown-profile",
+   "input": {
+    "profile": "md-mini",
+    "storage": null,
+    "items": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "files": [
+       {
+        "bytes": 4096
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "md-mini",
+    "reference": null,
+    "available_bytes": null,
+    "available_source": "unknown",
+    "block_bytes": 4096,
+    "block_source": "default",
+    "rows": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "exact",
+      "logical_bytes": 4096,
+      "allocated_bytes": 4096,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 4096,
+    "allocated_bytes": 4096,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 8388812,
+    "steady_bytes": 8392908,
+    "peak_bytes": 8392908,
+    "remaining_bytes": null,
+    "unknown": [
+     "the space available on this console",
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "measured-block-size",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": {
+     "source": "measured",
+     "available_bytes": 100000000,
+     "block_bytes": 1024
+    },
+    "items": [
+     {
+      "category": "file",
+      "label": "one file",
+      "files": [
+       {
+        "bytes": 1500
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 100000000,
+    "available_source": "measured",
+    "block_bytes": 1024,
+    "block_source": "measured",
+    "rows": [
+     {
+      "category": "file",
+      "label": "one file",
+      "kind": "exact",
+      "logical_bytes": 1500,
+      "allocated_bytes": 2048,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 1500,
+    "allocated_bytes": 2048,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8388710,
+    "steady_bytes": 18876518,
+    "peak_bytes": 18876518,
+    "remaining_bytes": 81123482,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "peak-does-not-fit-final-would",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": {
+     "source": "measured",
+     "available_bytes": 18900000
+    },
+    "items": [
+     {
+      "category": "file",
+      "label": "a larger copy of one file",
+      "files": [
+       {
+        "bytes": 36864
+       }
+      ],
+      "replaces": [
+       32768
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 18900000,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "file",
+      "label": "a larger copy of one file",
+      "kind": "exact",
+      "logical_bytes": 36864,
+      "allocated_bytes": 36864,
+      "freed_bytes": 32768,
+      "what": null
+     }
+    ],
+    "logical_bytes": 36864,
+    "allocated_bytes": 36864,
+    "freed_bytes": 32768,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8390451,
+    "steady_bytes": 18880307,
+    "peak_bytes": 18913075,
+    "remaining_bytes": -13075,
+    "unknown": [],
+    "status": "over-at-peak",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "old-and-new-package-sizes-differ",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": {
+     "source": "measured",
+     "available_bytes": 60000000
+    },
+    "items": [
+     {
+      "category": "home",
+      "label": "new CCS HOME",
+      "files": [
+       {
+        "bytes": 30000000
+       }
+      ]
+     }
+    ],
+    "removed_after": [
+     {
+      "label": "earlier CCS HOME",
+      "allocated_bytes": 20004864
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 60000000,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "home",
+      "label": "new CCS HOME",
+      "kind": "exact",
+      "logical_bytes": 30000000,
+      "allocated_bytes": 30003200,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 30000000,
+    "allocated_bytes": 30003200,
+    "freed_bytes": 0,
+    "removed_bytes": 20004864,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 9888768,
+    "steady_bytes": 30372864,
+    "peak_bytes": 50377728,
+    "remaining_bytes": 9622272,
+    "unknown": [],
+    "status": "near",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "over",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": {
+     "source": "measured",
+     "available_bytes": 10000000
+    },
+    "items": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "files": [
+       {
+        "bytes": 5000000
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 10000000,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 5000000,
+      "allocated_bytes": 5001216,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 5000000,
+    "allocated_bytes": 5001216,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8638668,
+    "steady_bytes": 24125644,
+    "peak_bytes": 24125644,
+    "remaining_bytes": -14125644,
+    "unknown": [],
+    "status": "over",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "estimate-item",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "hakchi",
+      "label": "Hakchi",
+      "estimate": {
+       "logical_bytes": 100,
+       "allocated_bytes": 4096
+      },
+      "what": "an allowance"
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "hakchi",
+      "label": "Hakchi",
+      "kind": "estimate",
+      "logical_bytes": 100,
+      "allocated_bytes": 4096,
+      "freed_bytes": 0,
+      "what": "an allowance"
+     }
+    ],
+    "logical_bytes": 100,
+    "allocated_bytes": 4096,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8388812,
+    "steady_bytes": 18878668,
+    "peak_bytes": 18878668,
+    "remaining_bytes": 355925812,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "estimate-missing",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "estimate": {
+       "logical_bytes": null,
+       "allocated_bytes": null
+      }
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "unknown",
+      "logical_bytes": 0,
+      "allocated_bytes": 0,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 0,
+    "allocated_bytes": 0,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8388608,
+    "steady_bytes": 18874368,
+    "peak_bytes": 18874368,
+    "remaining_bytes": 355930112,
+    "unknown": [
+     "CCS HOME"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "removed-copy-size-unknown",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "home",
+      "label": "new CCS HOME",
+      "files": [
+       {
+        "bytes": 4096
+       }
+      ]
+     }
+    ],
+    "removed_after": [
+     {
+      "label": "earlier CCS HOME",
+      "allocated_bytes": null
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "home",
+      "label": "new CCS HOME",
+      "kind": "exact",
+      "logical_bytes": 4096,
+      "allocated_bytes": 4096,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 4096,
+    "allocated_bytes": 4096,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8388812,
+    "steady_bytes": 18878668,
+    "peak_bytes": 18878668,
+    "remaining_bytes": 355925812,
+    "unknown": [
+     "earlier CCS HOME"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "simulated-reading",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": {
+     "source": "simulated",
+     "available_bytes": 200000000
+    },
+    "items": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "files": [
+       {
+        "bytes": 4096
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 200000000,
+    "available_source": "simulated",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "exact",
+      "logical_bytes": 4096,
+      "allocated_bytes": 4096,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 4096,
+    "allocated_bytes": 4096,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 8388812,
+    "steady_bytes": 18878668,
+    "peak_bytes": 18878668,
+    "remaining_bytes": 181121332,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "measured-two-game-console-package",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "package",
+      "label": "a prepared two-game console package (measured file lengths)",
+      "files": [
+       {
+        "bytes": 2802264
+       },
+       {
+        "bytes": 320
+       },
+       {
+        "bytes": 44
+       },
+       {
+        "bytes": 4377
+       },
+       {
+        "bytes": 4394
+       },
+       {
+        "bytes": 24643
+       },
+       {
+        "bytes": 39782
+       },
+       {
+        "bytes": 70481
+       },
+       {
+        "bytes": 22762
+       },
+       {
+        "bytes": 425460
+       },
+       {
+        "bytes": 650
+       },
+       {
+        "bytes": 7293
+       },
+       {
+        "bytes": 18666
+       },
+       {
+        "bytes": 6861
+       },
+       {
+        "bytes": 12012
+       },
+       {
+        "bytes": 17073
+       },
+       {
+        "bytes": 33800
+       },
+       {
+        "bytes": 40614
+       },
+       {
+        "bytes": 49900
+       },
+       {
+        "bytes": 61957
+       },
+       {
+        "bytes": 68998
+       },
+       {
+        "bytes": 79015
+       },
+       {
+        "bytes": 4639
+       },
+       {
+        "bytes": 9299
+       },
+       {
+        "bytes": 11199
+       },
+       {
+        "bytes": 15867
+       },
+       {
+        "bytes": 16007
+       },
+       {
+        "bytes": 8426
+       },
+       {
+        "bytes": 11179
+       },
+       {
+        "bytes": 8240
+       },
+       {
+        "bytes": 9131
+       },
+       {
+        "bytes": 12251
+       },
+       {
+        "bytes": 11099
+       },
+       {
+        "bytes": 14129
+       },
+       {
+        "bytes": 17351
+       },
+       {
+        "bytes": 20951
+       },
+       {
+        "bytes": 29094
+       },
+       {
+        "bytes": 5199
+       },
+       {
+        "bytes": 5598
+       },
+       {
+        "bytes": 6753
+       },
+       {
+        "bytes": 4886
+       },
+       {
+        "bytes": 5701
+       },
+       {
+        "bytes": 6110
+       },
+       {
+        "bytes": 7966
+       },
+       {
+        "bytes": 9022
+       },
+       {
+        "bytes": 9641
+       },
+       {
+        "bytes": 9641
+       },
+       {
+        "bytes": 10857
+       },
+       {
+        "bytes": 13535
+       },
+       {
+        "bytes": 14040
+       },
+       {
+        "bytes": 4601
+       },
+       {
+        "bytes": 8662
+       },
+       {
+        "bytes": 9205
+       },
+       {
+        "bytes": 7226
+       },
+       {
+        "bytes": 8794
+       },
+       {
+        "bytes": 9242
+       },
+       {
+        "bytes": 9923
+       },
+       {
+        "bytes": 12625
+       },
+       {
+        "bytes": 15214
+       },
+       {
+        "bytes": 5455
+       },
+       {
+        "bytes": 9242
+       },
+       {
+        "bytes": 50814
+       },
+       {
+        "bytes": 5040
+       },
+       {
+        "bytes": 5817
+       },
+       {
+        "bytes": 6332
+       },
+       {
+        "bytes": 7245
+       },
+       {
+        "bytes": 7866
+       },
+       {
+        "bytes": 10332
+       },
+       {
+        "bytes": 14096
+       },
+       {
+        "bytes": 27191
+       },
+       {
+        "bytes": 3995
+       },
+       {
+        "bytes": 9329
+       },
+       {
+        "bytes": 11866
+       },
+       {
+        "bytes": 13835
+       },
+       {
+        "bytes": 14704
+       },
+       {
+        "bytes": 16901
+       },
+       {
+        "bytes": 19187
+       },
+       {
+        "bytes": 21605
+       },
+       {
+        "bytes": 24758
+       },
+       {
+        "bytes": 26870
+       },
+       {
+        "bytes": 29618
+       },
+       {
+        "bytes": 33066
+       },
+       {
+        "bytes": 35979
+       },
+       {
+        "bytes": 39471
+       },
+       {
+        "bytes": 41071
+       },
+       {
+        "bytes": 6949
+       },
+       {
+        "bytes": 8882
+       },
+       {
+        "bytes": 12478
+       },
+       {
+        "bytes": 1150
+       },
+       {
+        "bytes": 1679
+       },
+       {
+        "bytes": 3210
+       },
+       {
+        "bytes": 8518
+       },
+       {
+        "bytes": 8704
+       },
+       {
+        "bytes": 9826
+       },
+       {
+        "bytes": 11582
+       },
+       {
+        "bytes": 12445
+       },
+       {
+        "bytes": 16740
+       },
+       {
+        "bytes": 2706
+       },
+       {
+        "bytes": 80214
+       },
+       {
+        "bytes": 56132
+       },
+       {
+        "bytes": 4377
+       },
+       {
+        "bytes": 4383
+       },
+       {
+        "bytes": 4413
+       },
+       {
+        "bytes": 4394
+       },
+       {
+        "bytes": 4392
+       },
+       {
+        "bytes": 4367
+       },
+       {
+        "bytes": 441
+       },
+       {
+        "bytes": 43358
+       },
+       {
+        "bytes": 11907116
+       },
+       {
+        "bytes": 27999
+       },
+       {
+        "bytes": 367
+       },
+       {
+        "bytes": 407
+       },
+       {
+        "bytes": 1114784
+       },
+       {
+        "bytes": 1025
+       },
+       {
+        "bytes": 1501
+       },
+       {
+        "bytes": 1043
+       },
+       {
+        "bytes": 1519
+       },
+       {
+        "bytes": 1856
+       },
+       {
+        "bytes": 1790
+       },
+       {
+        "bytes": 1263
+       },
+       {
+        "bytes": 1757
+       },
+       {
+        "bytes": 15645
+       },
+       {
+        "bytes": 16084
+       },
+       {
+        "bytes": 1432
+       },
+       {
+        "bytes": 1367
+       },
+       {
+        "bytes": 18053
+       },
+       {
+        "bytes": 18408
+       },
+       {
+        "bytes": 2545
+       },
+       {
+        "bytes": 2421
+       },
+       {
+        "bytes": 10532
+       },
+       {
+        "bytes": 26290
+       },
+       {
+        "bytes": 6644
+       },
+       {
+        "bytes": 6481
+       },
+       {
+        "bytes": 6339
+       },
+       {
+        "bytes": 5621
+       },
+       {
+        "bytes": 6784
+       },
+       {
+        "bytes": 4049
+       },
+       {
+        "bytes": 4013
+       },
+       {
+        "bytes": 6746
+       },
+       {
+        "bytes": 19358
+       },
+       {
+        "bytes": 544222
+       },
+       {
+        "bytes": 2240
+       },
+       {
+        "bytes": 25117
+       },
+       {
+        "bytes": 25082
+       },
+       {
+        "bytes": 12738
+       },
+       {
+        "bytes": 14411
+       },
+       {
+        "bytes": 1243
+       },
+       {
+        "bytes": 1713
+       },
+       {
+        "bytes": 957
+       },
+       {
+        "bytes": 1270
+       },
+       {
+        "bytes": 1301
+       },
+       {
+        "bytes": 1549
+       },
+       {
+        "bytes": 1782
+       },
+       {
+        "bytes": 2437
+       },
+       {
+        "bytes": 1041
+       },
+       {
+        "bytes": 1522
+       },
+       {
+        "bytes": 1820
+       },
+       {
+        "bytes": 2188
+       },
+       {
+        "bytes": 7082
+       },
+       {
+        "bytes": 7072
+       },
+       {
+        "bytes": 12414
+       },
+       {
+        "bytes": 15994
+       },
+       {
+        "bytes": 12299
+       },
+       {
+        "bytes": 492807
+       },
+       {
+        "bytes": 3752
+       },
+       {
+        "bytes": 3608
+       },
+       {
+        "bytes": 3591
+       },
+       {
+        "bytes": 3425
+       },
+       {
+        "bytes": 4592
+       },
+       {
+        "bytes": 3916
+       },
+       {
+        "bytes": 3445
+       },
+       {
+        "bytes": 6656
+       },
+       {
+        "bytes": 463689
+       },
+       {
+        "bytes": 834
+       },
+       {
+        "bytes": 1534
+       },
+       {
+        "bytes": 777
+       },
+       {
+        "bytes": 1547
+       },
+       {
+        "bytes": 1744
+       },
+       {
+        "bytes": 30397
+       },
+       {
+        "bytes": 21829
+       },
+       {
+        "bytes": 1143
+       },
+       {
+        "bytes": 1925
+       },
+       {
+        "bytes": 1796
+       },
+       {
+        "bytes": 2791
+       },
+       {
+        "bytes": 1202
+       },
+       {
+        "bytes": 1953
+       },
+       {
+        "bytes": 1422
+       },
+       {
+        "bytes": 2444
+       },
+       {
+        "bytes": 8437
+       },
+       {
+        "bytes": 8961
+       },
+       {
+        "bytes": 11984
+       },
+       {
+        "bytes": 12244
+       },
+       {
+        "bytes": 9207
+       },
+       {
+        "bytes": 332
+       },
+       {
+        "bytes": 596
+       },
+       {
+        "bytes": 389
+       },
+       {
+        "bytes": 444
+       },
+       {
+        "bytes": 394
+       },
+       {
+        "bytes": 524
+       },
+       {
+        "bytes": 551
+       },
+       {
+        "bytes": 465
+       },
+       {
+        "bytes": 652
+       },
+       {
+        "bytes": 736
+       },
+       {
+        "bytes": 369
+       },
+       {
+        "bytes": 447
+       },
+       {
+        "bytes": 536
+       },
+       {
+        "bytes": 384
+       },
+       {
+        "bytes": 480
+       },
+       {
+        "bytes": 473
+       },
+       {
+        "bytes": 12243
+       },
+       {
+        "bytes": 793
+       },
+       {
+        "bytes": 18010
+       },
+       {
+        "bytes": 35141
+       },
+       {
+        "bytes": 16970
+       },
+       {
+        "bytes": 884
+       },
+       {
+        "bytes": 35068
+       },
+       {
+        "bytes": 1760
+       },
+       {
+        "bytes": 19890
+       },
+       {
+        "bytes": 6204
+       },
+       {
+        "bytes": 2227
+       },
+       {
+        "bytes": 2794
+       },
+       {
+        "bytes": 35147
+       },
+       {
+        "bytes": 24592
+       },
+       {
+        "bytes": 24592
+       },
+       {
+        "bytes": 1689
+       },
+       {
+        "bytes": 593444
+       },
+       {
+        "bytes": 557530
+       },
+       {
+        "bytes": 667632
+       },
+       {
+        "bytes": 480206
+       },
+       {
+        "bytes": 556584
+       },
+       {
+        "bytes": 1023
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "package",
+      "label": "a prepared two-game console package (measured file lengths)",
+      "kind": "exact",
+      "logical_bytes": 23142274,
+      "allocated_bytes": 23699456,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 23142274,
+    "allocated_bytes": 23699456,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 9573580,
+    "steady_bytes": 43758796,
+    "peak_bytes": 43758796,
+    "remaining_bytes": 331045684,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "measured-two-game-package-on-snes-reference",
+   "input": {
+    "profile": "snes-classic-edition",
+    "storage": null,
+    "items": [
+     {
+      "category": "package",
+      "label": "a prepared two-game console package (measured file lengths)",
+      "files": [
+       {
+        "bytes": 2802264
+       },
+       {
+        "bytes": 320
+       },
+       {
+        "bytes": 44
+       },
+       {
+        "bytes": 4377
+       },
+       {
+        "bytes": 4394
+       },
+       {
+        "bytes": 24643
+       },
+       {
+        "bytes": 39782
+       },
+       {
+        "bytes": 70481
+       },
+       {
+        "bytes": 22762
+       },
+       {
+        "bytes": 425460
+       },
+       {
+        "bytes": 650
+       },
+       {
+        "bytes": 7293
+       },
+       {
+        "bytes": 18666
+       },
+       {
+        "bytes": 6861
+       },
+       {
+        "bytes": 12012
+       },
+       {
+        "bytes": 17073
+       },
+       {
+        "bytes": 33800
+       },
+       {
+        "bytes": 40614
+       },
+       {
+        "bytes": 49900
+       },
+       {
+        "bytes": 61957
+       },
+       {
+        "bytes": 68998
+       },
+       {
+        "bytes": 79015
+       },
+       {
+        "bytes": 4639
+       },
+       {
+        "bytes": 9299
+       },
+       {
+        "bytes": 11199
+       },
+       {
+        "bytes": 15867
+       },
+       {
+        "bytes": 16007
+       },
+       {
+        "bytes": 8426
+       },
+       {
+        "bytes": 11179
+       },
+       {
+        "bytes": 8240
+       },
+       {
+        "bytes": 9131
+       },
+       {
+        "bytes": 12251
+       },
+       {
+        "bytes": 11099
+       },
+       {
+        "bytes": 14129
+       },
+       {
+        "bytes": 17351
+       },
+       {
+        "bytes": 20951
+       },
+       {
+        "bytes": 29094
+       },
+       {
+        "bytes": 5199
+       },
+       {
+        "bytes": 5598
+       },
+       {
+        "bytes": 6753
+       },
+       {
+        "bytes": 4886
+       },
+       {
+        "bytes": 5701
+       },
+       {
+        "bytes": 6110
+       },
+       {
+        "bytes": 7966
+       },
+       {
+        "bytes": 9022
+       },
+       {
+        "bytes": 9641
+       },
+       {
+        "bytes": 9641
+       },
+       {
+        "bytes": 10857
+       },
+       {
+        "bytes": 13535
+       },
+       {
+        "bytes": 14040
+       },
+       {
+        "bytes": 4601
+       },
+       {
+        "bytes": 8662
+       },
+       {
+        "bytes": 9205
+       },
+       {
+        "bytes": 7226
+       },
+       {
+        "bytes": 8794
+       },
+       {
+        "bytes": 9242
+       },
+       {
+        "bytes": 9923
+       },
+       {
+        "bytes": 12625
+       },
+       {
+        "bytes": 15214
+       },
+       {
+        "bytes": 5455
+       },
+       {
+        "bytes": 9242
+       },
+       {
+        "bytes": 50814
+       },
+       {
+        "bytes": 5040
+       },
+       {
+        "bytes": 5817
+       },
+       {
+        "bytes": 6332
+       },
+       {
+        "bytes": 7245
+       },
+       {
+        "bytes": 7866
+       },
+       {
+        "bytes": 10332
+       },
+       {
+        "bytes": 14096
+       },
+       {
+        "bytes": 27191
+       },
+       {
+        "bytes": 3995
+       },
+       {
+        "bytes": 9329
+       },
+       {
+        "bytes": 11866
+       },
+       {
+        "bytes": 13835
+       },
+       {
+        "bytes": 14704
+       },
+       {
+        "bytes": 16901
+       },
+       {
+        "bytes": 19187
+       },
+       {
+        "bytes": 21605
+       },
+       {
+        "bytes": 24758
+       },
+       {
+        "bytes": 26870
+       },
+       {
+        "bytes": 29618
+       },
+       {
+        "bytes": 33066
+       },
+       {
+        "bytes": 35979
+       },
+       {
+        "bytes": 39471
+       },
+       {
+        "bytes": 41071
+       },
+       {
+        "bytes": 6949
+       },
+       {
+        "bytes": 8882
+       },
+       {
+        "bytes": 12478
+       },
+       {
+        "bytes": 1150
+       },
+       {
+        "bytes": 1679
+       },
+       {
+        "bytes": 3210
+       },
+       {
+        "bytes": 8518
+       },
+       {
+        "bytes": 8704
+       },
+       {
+        "bytes": 9826
+       },
+       {
+        "bytes": 11582
+       },
+       {
+        "bytes": 12445
+       },
+       {
+        "bytes": 16740
+       },
+       {
+        "bytes": 2706
+       },
+       {
+        "bytes": 80214
+       },
+       {
+        "bytes": 56132
+       },
+       {
+        "bytes": 4377
+       },
+       {
+        "bytes": 4383
+       },
+       {
+        "bytes": 4413
+       },
+       {
+        "bytes": 4394
+       },
+       {
+        "bytes": 4392
+       },
+       {
+        "bytes": 4367
+       },
+       {
+        "bytes": 441
+       },
+       {
+        "bytes": 43358
+       },
+       {
+        "bytes": 11907116
+       },
+       {
+        "bytes": 27999
+       },
+       {
+        "bytes": 367
+       },
+       {
+        "bytes": 407
+       },
+       {
+        "bytes": 1114784
+       },
+       {
+        "bytes": 1025
+       },
+       {
+        "bytes": 1501
+       },
+       {
+        "bytes": 1043
+       },
+       {
+        "bytes": 1519
+       },
+       {
+        "bytes": 1856
+       },
+       {
+        "bytes": 1790
+       },
+       {
+        "bytes": 1263
+       },
+       {
+        "bytes": 1757
+       },
+       {
+        "bytes": 15645
+       },
+       {
+        "bytes": 16084
+       },
+       {
+        "bytes": 1432
+       },
+       {
+        "bytes": 1367
+       },
+       {
+        "bytes": 18053
+       },
+       {
+        "bytes": 18408
+       },
+       {
+        "bytes": 2545
+       },
+       {
+        "bytes": 2421
+       },
+       {
+        "bytes": 10532
+       },
+       {
+        "bytes": 26290
+       },
+       {
+        "bytes": 6644
+       },
+       {
+        "bytes": 6481
+       },
+       {
+        "bytes": 6339
+       },
+       {
+        "bytes": 5621
+       },
+       {
+        "bytes": 6784
+       },
+       {
+        "bytes": 4049
+       },
+       {
+        "bytes": 4013
+       },
+       {
+        "bytes": 6746
+       },
+       {
+        "bytes": 19358
+       },
+       {
+        "bytes": 544222
+       },
+       {
+        "bytes": 2240
+       },
+       {
+        "bytes": 25117
+       },
+       {
+        "bytes": 25082
+       },
+       {
+        "bytes": 12738
+       },
+       {
+        "bytes": 14411
+       },
+       {
+        "bytes": 1243
+       },
+       {
+        "bytes": 1713
+       },
+       {
+        "bytes": 957
+       },
+       {
+        "bytes": 1270
+       },
+       {
+        "bytes": 1301
+       },
+       {
+        "bytes": 1549
+       },
+       {
+        "bytes": 1782
+       },
+       {
+        "bytes": 2437
+       },
+       {
+        "bytes": 1041
+       },
+       {
+        "bytes": 1522
+       },
+       {
+        "bytes": 1820
+       },
+       {
+        "bytes": 2188
+       },
+       {
+        "bytes": 7082
+       },
+       {
+        "bytes": 7072
+       },
+       {
+        "bytes": 12414
+       },
+       {
+        "bytes": 15994
+       },
+       {
+        "bytes": 12299
+       },
+       {
+        "bytes": 492807
+       },
+       {
+        "bytes": 3752
+       },
+       {
+        "bytes": 3608
+       },
+       {
+        "bytes": 3591
+       },
+       {
+        "bytes": 3425
+       },
+       {
+        "bytes": 4592
+       },
+       {
+        "bytes": 3916
+       },
+       {
+        "bytes": 3445
+       },
+       {
+        "bytes": 6656
+       },
+       {
+        "bytes": 463689
+       },
+       {
+        "bytes": 834
+       },
+       {
+        "bytes": 1534
+       },
+       {
+        "bytes": 777
+       },
+       {
+        "bytes": 1547
+       },
+       {
+        "bytes": 1744
+       },
+       {
+        "bytes": 30397
+       },
+       {
+        "bytes": 21829
+       },
+       {
+        "bytes": 1143
+       },
+       {
+        "bytes": 1925
+       },
+       {
+        "bytes": 1796
+       },
+       {
+        "bytes": 2791
+       },
+       {
+        "bytes": 1202
+       },
+       {
+        "bytes": 1953
+       },
+       {
+        "bytes": 1422
+       },
+       {
+        "bytes": 2444
+       },
+       {
+        "bytes": 8437
+       },
+       {
+        "bytes": 8961
+       },
+       {
+        "bytes": 11984
+       },
+       {
+        "bytes": 12244
+       },
+       {
+        "bytes": 9207
+       },
+       {
+        "bytes": 332
+       },
+       {
+        "bytes": 596
+       },
+       {
+        "bytes": 389
+       },
+       {
+        "bytes": 444
+       },
+       {
+        "bytes": 394
+       },
+       {
+        "bytes": 524
+       },
+       {
+        "bytes": 551
+       },
+       {
+        "bytes": 465
+       },
+       {
+        "bytes": 652
+       },
+       {
+        "bytes": 736
+       },
+       {
+        "bytes": 369
+       },
+       {
+        "bytes": 447
+       },
+       {
+        "bytes": 536
+       },
+       {
+        "bytes": 384
+       },
+       {
+        "bytes": 480
+       },
+       {
+        "bytes": 473
+       },
+       {
+        "bytes": 12243
+       },
+       {
+        "bytes": 793
+       },
+       {
+        "bytes": 18010
+       },
+       {
+        "bytes": 35141
+       },
+       {
+        "bytes": 16970
+       },
+       {
+        "bytes": 884
+       },
+       {
+        "bytes": 35068
+       },
+       {
+        "bytes": 1760
+       },
+       {
+        "bytes": 19890
+       },
+       {
+        "bytes": 6204
+       },
+       {
+        "bytes": 2227
+       },
+       {
+        "bytes": 2794
+       },
+       {
+        "bytes": 35147
+       },
+       {
+        "bytes": 24592
+       },
+       {
+        "bytes": 24592
+       },
+       {
+        "bytes": 1689
+       },
+       {
+        "bytes": 593444
+       },
+       {
+        "bytes": 557530
+       },
+       {
+        "bytes": 667632
+       },
+       {
+        "bytes": 480206
+       },
+       {
+        "bytes": 556584
+       },
+       {
+        "bytes": 1023
+       }
+      ]
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "package",
+      "label": "a prepared two-game console package (measured file lengths)",
+      "kind": "exact",
+      "logical_bytes": 23142274,
+      "allocated_bytes": 23699456,
+      "freed_bytes": 0,
+      "what": null
+     }
+    ],
+    "logical_bytes": 23142274,
+    "allocated_bytes": 23699456,
+    "freed_bytes": 0,
+    "removed_bytes": 0,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 9573580,
+    "steady_bytes": 33273036,
+    "peak_bytes": 33273036,
+    "remaining_bytes": 248933172,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false
+   }
+  },
+  {
+   "name": "sega-pictures-removed-each-file-once-nes",
+   "input": {
+    "profile": "nes-classic-edition",
+    "storage": null,
+    "items": [],
+    "removed_after": [
+     {
+      "label": "hakchi/games/nes-usa/.storage/CLV-H-AAAAA/CLV-H-AAAAA_mdmini.png",
+      "allocated_bytes": 86016,
+      "key": "inode:1201"
+     },
+     {
+      "label": "hakchi/games/nes-usa/.storage/CLV-H-BBBBB/CLV-H-BBBBB_mdmini.png",
+      "allocated_bytes": 81920,
+      "key": "inode:1202"
+     },
+     {
+      "label": "the first picture's stored data again (another name)",
+      "allocated_bytes": 86016,
+      "key": "inode:1201"
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [],
+    "logical_bytes": 0,
+    "allocated_bytes": 0,
+    "freed_bytes": 0,
+    "removed_bytes": 167936,
+    "saves_allowance_bytes": 0,
+    "margin_bytes": 0,
+    "steady_bytes": -167936,
+    "peak_bytes": 0,
+    "remaining_bytes": 374804480,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  },
+  {
+   "name": "sega-pictures-removed-each-file-once-snes",
+   "input": {
+    "profile": "snes-classic-edition",
+    "storage": null,
+    "items": [],
+    "removed_after": [
+     {
+      "label": "hakchi/games/snes-usa/.storage/CLV-H-AAAAA/CLV-H-AAAAA_mdmini.png",
+      "allocated_bytes": 86016,
+      "key": "inode:1201"
+     },
+     {
+      "label": "hakchi/games/snes-usa/.storage/CLV-H-BBBBB/CLV-H-BBBBB_mdmini.png",
+      "allocated_bytes": 81920,
+      "key": "inode:1202"
+     },
+     {
+      "label": "the first picture's stored data again (another name)",
+      "allocated_bytes": 86016,
+      "key": "inode:1201"
+     }
+    ]
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [],
+    "logical_bytes": 0,
+    "allocated_bytes": 0,
+    "freed_bytes": 0,
+    "removed_bytes": 167936,
+    "saves_allowance_bytes": 0,
+    "margin_bytes": 0,
+    "steady_bytes": -167936,
+    "peak_bytes": 0,
+    "remaining_bytes": 282206208,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
+   }
+  }
+ ],
+ "estimate": [
+  {
+   "name": "mod-home-estimated",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    }
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 99467962,
+    "allocated_bytes": 101154067,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 13446311,
+    "steady_bytes": 100106249,
+    "peak_bytes": 125086138,
+    "remaining_bytes": 249718342,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 24417854,
+    "used": 125086138,
+    "available": 374804480,
+    "remaining": 249718342,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "mod-absent-no-home",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 40976,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 2
+    },
+    "mod": false
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 303136,
+      "allocated_bytes": 311296,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "native-entries",
+      "label": "Original Menu entries",
+      "kind": "estimate",
+      "logical_bytes": 123470,
+      "allocated_bytes": 139264,
+      "freed_bytes": 0,
+      "what": "a game's Original Menu entry (its menu record, cover and small cover) before it is prepared: the highest per-game average of measured entries for 30, 100 and 300 catalog games. A game file stored again in the form Hakchi needs is counted when the installation plan is prepared"
+     },
+     {
+      "category": "notices",
+      "label": "License notices",
+      "kind": "estimate",
+      "logical_bytes": 187131,
+      "allocated_bytes": 212992,
+      "freed_bytes": 0,
+      "what": "the license notices that come with the game files when CCS HOME is not installed, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 490267,
+      "allocated_bytes": 524288,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 27318404,
+    "allocated_bytes": 27402240,
+    "freed_bytes": 0,
+    "removed_bytes": 524288,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 9758720,
+    "steady_bytes": 47122432,
+    "peak_bytes": 47646720,
+    "remaining_bytes": 327157760,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 303136,
+    "added": 2,
+    "unknown_games": 0,
+    "files": 123470,
+    "home": 0,
+    "home_measured": false,
+    "player": 0,
+    "hakchi": 26214400,
+    "earlier_versions": 0,
+    "copy_bytes": 490267,
+    "used": 47646720,
+    "available": 374804480,
+    "remaining": 327157760,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "mod-home-measured",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "measured": 23142274,
+     "allocated": 23748608,
+     "games": 1
+    }
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 262160,
+      "allocated_bytes": 266240,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 23142274,
+      "allocated_bytes": 23748608,
+      "freed_bytes": 0,
+      "what": "measured: the package prepared on this computer"
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 29418740,
+      "allocated_bytes": 30097408,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 29418740,
+      "allocated_bytes": 30097408,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 114470620,
+    "allocated_bytes": 116506624,
+    "freed_bytes": 0,
+    "removed_bytes": 30097408,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 14213939,
+    "steady_bytes": 111108915,
+    "peak_bytes": 141206323,
+    "remaining_bytes": 233598157,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 262160,
+    "added": 1,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 23142274,
+    "home_measured": true,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 29418740,
+    "used": 141206323,
+    "available": 374804480,
+    "remaining": 233598157,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "mod-home-measured-rounding-unknown",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "measured": 23142274,
+     "games": 1
+    }
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 262160,
+      "allocated_bytes": 266240,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 23142274,
+      "allocated_bytes": 23142274,
+      "freed_bytes": 0,
+      "what": "measured: the package prepared on this computer (its files' rounding to blocks is not known)"
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 29418740,
+      "allocated_bytes": 29491074,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 29418740,
+      "allocated_bytes": 29491074,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 114470620,
+    "allocated_bytes": 114687622,
+    "freed_bytes": 0,
+    "removed_bytes": 29491074,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 14122989,
+    "steady_bytes": 109805297,
+    "peak_bytes": 139296371,
+    "remaining_bytes": 235508109,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 262160,
+    "added": 1,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 23142274,
+    "home_measured": true,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 29418740,
+    "used": 139296371,
+    "available": 374804480,
+    "remaining": 235508109,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "hakchi-present",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 1
+    },
+    "hakchi_present": true
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 262160,
+      "allocated_bytes": 266240,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17554284,
+      "allocated_bytes": 18022483,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 23830750,
+      "allocated_bytes": 24371283,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 23830750,
+      "allocated_bytes": 24371283,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 71492250,
+    "allocated_bytes": 73113849,
+    "freed_bytes": 0,
+    "removed_bytes": 24371283,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 12044300,
+    "steady_bytes": 71272626,
+    "peak_bytes": 95643909,
+    "remaining_bytes": 279160571,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 262160,
+    "added": 1,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17554284,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 0,
+    "earlier_versions": 1,
+    "copy_bytes": 23830750,
+    "used": 95643909,
+    "available": 374804480,
+    "remaining": 279160571,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "game-size-unknown",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": null,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 2
+    }
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "unknown",
+      "logical_bytes": 262160,
+      "allocated_bytes": 266240,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17585676,
+      "allocated_bytes": 18060546,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 23862142,
+      "allocated_bytes": 24409346,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 23862142,
+      "allocated_bytes": 24409346,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 97800826,
+    "allocated_bytes": 99442438,
+    "freed_bytes": 0,
+    "removed_bytes": 24409346,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 13360729,
+    "steady_bytes": 98879581,
+    "peak_bytes": 123288927,
+    "remaining_bytes": 251515553,
+    "unknown": [
+     "Game files"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false,
+    "rom": 262160,
+    "added": 2,
+    "unknown_games": 1,
+    "files": 0,
+    "home": 17585676,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 23862142,
+    "used": 123288927,
+    "available": 374804480,
+    "remaining": 251515553,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "built-in-kept",
+   "input": {
+    "games": [
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "install": false
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 31
+    }
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 262160,
+      "allocated_bytes": 266240,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 18496044,
+      "allocated_bytes": 19164373,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 24772510,
+      "allocated_bytes": 25513173,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24772510,
+      "allocated_bytes": 25513173,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 100531930,
+    "allocated_bytes": 102753919,
+    "freed_bytes": 0,
+    "removed_bytes": 25513173,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 13526303,
+    "steady_bytes": 101252809,
+    "peak_bytes": 126765982,
+    "remaining_bytes": 248038498,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 262160,
+    "added": 1,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 18496044,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 24772510,
+    "used": 126765982,
+    "available": 374804480,
+    "remaining": 248038498,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "measured-free",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 5
+    },
+    "free": 20000000,
+    "hakchi_present": true
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 20000000,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 1310800,
+      "allocated_bytes": 1331200,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17679852,
+      "allocated_bytes": 18174735,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 25004958,
+      "allocated_bytes": 25588495,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 25004958,
+      "allocated_bytes": 25588495,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 75014874,
+    "allocated_bytes": 76765485,
+    "freed_bytes": 0,
+    "removed_bytes": 25588495,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 12226882,
+    "steady_bytes": 73889632,
+    "peak_bytes": 99478127,
+    "remaining_bytes": -79478127,
+    "unknown": [],
+    "status": "over",
+    "write_ok": false,
+    "rom": 1310800,
+    "added": 5,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17679852,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 0,
+    "earlier_versions": 1,
+    "copy_bytes": 25004958,
+    "used": 99478127,
+    "available": 20000000,
+    "remaining": -79478127,
+    "source": "device"
+   }
+  },
+  {
+   "name": "snes-profile",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 1
+    },
+    "profile": "snes-classic-edition"
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 262160,
+      "allocated_bytes": 266240,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17554284,
+      "allocated_bytes": 18022483,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 23830750,
+      "allocated_bytes": 24371283,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 23830750,
+      "allocated_bytes": 24371283,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 97706650,
+    "allocated_bytes": 99328249,
+    "freed_bytes": 0,
+    "removed_bytes": 24371283,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 13355020,
+    "steady_bytes": 88311986,
+    "peak_bytes": 112683269,
+    "remaining_bytes": 169522939,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false,
+    "rom": 262160,
+    "added": 1,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17554284,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 23830750,
+    "used": 112683269,
+    "available": 282206208,
+    "remaining": 169522939,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "mod-with-original-menu-entries",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 4
+    },
+    "mod": true,
+    "native_entries": true
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 1048640,
+      "allocated_bytes": 1064960,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "native-entries",
+      "label": "Original Menu entries",
+      "kind": "estimate",
+      "logical_bytes": 246940,
+      "allocated_bytes": 278528,
+      "freed_bytes": 0,
+      "what": "a game's Original Menu entry (its menu record, cover and small cover) before it is prepared: the highest per-game average of measured entries for 30, 100 and 300 catalog games. A game file stored again in the form Hakchi needs is counted when the installation plan is prepared"
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17648460,
+      "allocated_bytes": 18136672,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 24711406,
+      "allocated_bytes": 25284192,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24711406,
+      "allocated_bytes": 25284192,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 100595558,
+    "allocated_bytes": 102345504,
+    "freed_bytes": 0,
+    "removed_bytes": 25284192,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 13505883,
+    "steady_bytes": 101052955,
+    "peak_bytes": 126337147,
+    "remaining_bytes": 248467333,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 1048640,
+    "added": 4,
+    "unknown_games": 0,
+    "files": 246940,
+    "home": 17648460,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 24711406,
+    "used": 126337147,
+    "available": 374804480,
+    "remaining": 248467333,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "three-hundred-games-estimated",
+   "input": {
+    "games": [
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     },
+     {
+      "bytes": 131088,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 300
+    }
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 39326400,
+      "allocated_bytes": 40550400,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 26940492,
+      "allocated_bytes": 29403320,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 72281198,
+      "allocated_bytes": 76036280,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 72281198,
+      "allocated_bytes": 76036280,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 243057994,
+    "allocated_bytes": 254323240,
+    "freed_bytes": 0,
+    "removed_bytes": 76036280,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 21104770,
+    "steady_bytes": 209877490,
+    "peak_bytes": 285913770,
+    "remaining_bytes": 88890710,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 39326400,
+    "added": 300,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 26940492,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 72281198,
+    "used": 285913770,
+    "available": 374804480,
+    "remaining": 88890710,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "keep-no-earlier-version",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    },
+    "earlier": 0
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 75050108,
+    "allocated_bytes": 76174178,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 12197316,
+    "steady_bytes": 73877365,
+    "peak_bytes": 98857254,
+    "remaining_bytes": 275947226,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 0,
+    "copy_bytes": 24417854,
+    "used": 98857254,
+    "available": 374804480,
+    "remaining": 275947226,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "keep-three-earlier-versions",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    },
+    "earlier": 3
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (3)",
+      "kind": "estimate",
+      "logical_bytes": 73253562,
+      "allocated_bytes": 74939667,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 148303670,
+    "allocated_bytes": 151113845,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 15944300,
+    "steady_bytes": 152564016,
+    "peak_bytes": 177543905,
+    "remaining_bytes": 197260575,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 3,
+    "copy_bytes": 24417854,
+    "used": 177543905,
+    "available": 374804480,
+    "remaining": 197260575,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "earlier-setting-out-of-range-is-the-default",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    },
+    "earlier": 99
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 99467962,
+    "allocated_bytes": 101154067,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 13446311,
+    "steady_bytes": 100106249,
+    "peak_bytes": 125086138,
+    "remaining_bytes": 249718342,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 24417854,
+    "used": 125086138,
+    "available": 374804480,
+    "remaining": 249718342,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "snes-keep-one-earlier-by-default",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    },
+    "profile": "snes-classic-edition"
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 99467962,
+    "allocated_bytes": 101154067,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 13446311,
+    "steady_bytes": 89620489,
+    "peak_bytes": 114600378,
+    "remaining_bytes": 167605830,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 24417854,
+    "used": 114600378,
+    "available": 282206208,
+    "remaining": 167605830,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "snes-keep-two-earlier-versions",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    },
+    "profile": "snes-classic-edition",
+    "earlier": 2
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (2)",
+      "kind": "estimate",
+      "logical_bytes": 48835708,
+      "allocated_bytes": 49959778,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 123885816,
+    "allocated_bytes": 126133956,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 14695305,
+    "steady_bytes": 115849372,
+    "peak_bytes": 140829261,
+    "remaining_bytes": 141376947,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 2,
+    "copy_bytes": 24417854,
+    "used": 140829261,
+    "available": 282206208,
+    "remaining": 141376947,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "nes-earlier-versions-peak-over-final-fits",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    },
+    "profile": "nes-classic-edition",
+    "earlier": 2,
+    "free": 138825076
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": null,
+    "available_bytes": 138825076,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (2)",
+      "kind": "estimate",
+      "logical_bytes": 48835708,
+      "allocated_bytes": 49959778,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 123885816,
+    "allocated_bytes": 126133956,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 14695305,
+    "steady_bytes": 126335132,
+    "peak_bytes": 151315021,
+    "remaining_bytes": -12489945,
+    "unknown": [],
+    "status": "over-at-peak",
+    "write_ok": false,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 2,
+    "copy_bytes": 24417854,
+    "used": 151315021,
+    "available": 138825076,
+    "remaining": -12489945,
+    "source": "device"
+   }
+  },
+  {
+   "name": "snes-earlier-versions-peak-over-final-fits",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3
+    },
+    "profile": "snes-classic-edition",
+    "earlier": 2,
+    "free": 128339316
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": null,
+    "available_bytes": 128339316,
+    "available_source": "measured",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 17617068,
+      "allocated_bytes": 18098609,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (2)",
+      "kind": "estimate",
+      "logical_bytes": 48835708,
+      "allocated_bytes": 49959778,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 24417854,
+      "allocated_bytes": 24979889,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 123885816,
+    "allocated_bytes": 126133956,
+    "freed_bytes": 0,
+    "removed_bytes": 24979889,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 14695305,
+    "steady_bytes": 115849372,
+    "peak_bytes": 140829261,
+    "remaining_bytes": -12489945,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "over-at-peak",
+    "write_ok": false,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 17617068,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 2,
+    "copy_bytes": 24417854,
+    "used": 140829261,
+    "available": 128339316,
+    "remaining": -12489945,
+    "source": "device"
+   }
+  },
+  {
+   "name": "nes-home-estimated-music-left-out",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3,
+     "music": false
+    }
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 5709952,
+      "allocated_bytes": 6187441,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared. Include HOME music is left out: the song is not counted."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 12510738,
+      "allocated_bytes": 13068721,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 12510738,
+      "allocated_bytes": 13068721,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 63746614,
+    "allocated_bytes": 65420563,
+    "freed_bytes": 0,
+    "removed_bytes": 13068721,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 11659636,
+    "steady_bytes": 74497238,
+    "peak_bytes": 87565959,
+    "remaining_bytes": 287238521,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 5709952,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 12510738,
+    "used": 87565959,
+    "available": 374804480,
+    "remaining": 287238521,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "snes-home-estimated-music-left-out",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 3,
+     "music": false
+    },
+    "profile": "snes-classic-edition"
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 786480,
+      "allocated_bytes": 798720,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "home",
+      "label": "CCS HOME",
+      "kind": "estimate",
+      "logical_bytes": 5709952,
+      "allocated_bytes": 6187441,
+      "freed_bytes": 0,
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared. Include HOME music is left out: the song is not counted."
+     },
+     {
+      "category": "player",
+      "label": "Game player, startup pictures and notices",
+      "kind": "estimate",
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "freed_bytes": 0,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "earlier-home",
+      "label": "Earlier CCS HOME versions kept (1)",
+      "kind": "estimate",
+      "logical_bytes": 12510738,
+      "allocated_bytes": 13068721,
+      "freed_bytes": 0,
+      "what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 12510738,
+      "allocated_bytes": 13068721,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 63746614,
+    "allocated_bytes": 65420563,
+    "freed_bytes": 0,
+    "removed_bytes": 13068721,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 11659636,
+    "steady_bytes": 64011478,
+    "peak_bytes": 77080199,
+    "remaining_bytes": 205126009,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false,
+    "rom": 786480,
+    "added": 3,
+    "unknown_games": 0,
+    "files": 0,
+    "home": 5709952,
+    "home_measured": false,
+    "player": 6014306,
+    "hakchi": 26214400,
+    "earlier_versions": 1,
+    "copy_bytes": 12510738,
+    "used": 77080199,
+    "available": 282206208,
+    "remaining": 205126009,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "nes-original-menu-entries-standard-covers",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 20
+    },
+    "mod": false,
+    "native_entries": true
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 5243200,
+      "allocated_bytes": 5324800,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "native-entries",
+      "label": "Original Menu entries",
+      "kind": "estimate",
+      "logical_bytes": 1234700,
+      "allocated_bytes": 1392640,
+      "freed_bytes": 0,
+      "what": "a game's Original Menu entry (its menu record, cover and small cover) before it is prepared: the highest per-game average of measured entries for 30, 100 and 300 catalog games. A game file stored again in the form Hakchi needs is counted when the installation plan is prepared"
+     },
+     {
+      "category": "notices",
+      "label": "License notices",
+      "kind": "estimate",
+      "logical_bytes": 187131,
+      "allocated_bytes": 212992,
+      "freed_bytes": 0,
+      "what": "the license notices that come with the game files when CCS HOME is not installed, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 5430331,
+      "allocated_bytes": 5537792,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 38309762,
+    "allocated_bytes": 38682624,
+    "freed_bytes": 0,
+    "removed_bytes": 5537792,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 10322739,
+    "steady_bytes": 53953331,
+    "peak_bytes": 59491123,
+    "remaining_bytes": 315313357,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 5243200,
+    "added": 20,
+    "unknown_games": 0,
+    "files": 1234700,
+    "home": 0,
+    "home_measured": false,
+    "player": 0,
+    "hakchi": 26214400,
+    "earlier_versions": 0,
+    "copy_bytes": 5430331,
+    "used": 59491123,
+    "available": 374804480,
+    "remaining": 315313357,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "nes-original-menu-entries-held-palette-covers",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 20
+    },
+    "mod": false,
+    "native_entries": true,
+    "native_covers": "palette"
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "nes-classic-edition",
+    "reference": {
+     "date": "2026-10-09",
+     "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture"
+    },
+    "available_bytes": 374804480,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 5243200,
+      "allocated_bytes": 5324800,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "native-entries",
+      "label": "Original Menu entries",
+      "kind": "estimate",
+      "logical_bytes": 435840,
+      "allocated_bytes": 573440,
+      "freed_bytes": 0,
+      "what": "the same entry with the smaller Original Menu covers (an 8-bit palette, as Hakchi2 CE makes them by default), measured the same way: built and tested in this version but not used until they are compared on the console's own menu and approved; no capacity check, meter or report counts them"
+     },
+     {
+      "category": "notices",
+      "label": "License notices",
+      "kind": "estimate",
+      "logical_bytes": 187131,
+      "allocated_bytes": 212992,
+      "freed_bytes": 0,
+      "what": "the license notices that come with the game files when CCS HOME is not installed, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 5430331,
+      "allocated_bytes": 5537792,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 37510902,
+    "allocated_bytes": 37863424,
+    "freed_bytes": 0,
+    "removed_bytes": 5537792,
+    "saves_allowance_bytes": 10485760,
+    "margin_bytes": 10281779,
+    "steady_bytes": 53093171,
+    "peak_bytes": 58630963,
+    "remaining_bytes": 316173517,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
+    "rom": 5243200,
+    "added": 20,
+    "unknown_games": 0,
+    "files": 435840,
+    "home": 0,
+    "home_measured": false,
+    "player": 0,
+    "hakchi": 26214400,
+    "earlier_versions": 0,
+    "copy_bytes": 5430331,
+    "used": 58630963,
+    "available": 374804480,
+    "remaining": 316173517,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "snes-original-menu-entries-standard-covers",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 20
+    },
+    "mod": false,
+    "native_entries": true,
+    "profile": "snes-classic-edition"
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 5243200,
+      "allocated_bytes": 5324800,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "native-entries",
+      "label": "Original Menu entries",
+      "kind": "estimate",
+      "logical_bytes": 1234700,
+      "allocated_bytes": 1392640,
+      "freed_bytes": 0,
+      "what": "a game's Original Menu entry (its menu record, cover and small cover) before it is prepared: the highest per-game average of measured entries for 30, 100 and 300 catalog games. A game file stored again in the form Hakchi needs is counted when the installation plan is prepared"
+     },
+     {
+      "category": "notices",
+      "label": "License notices",
+      "kind": "estimate",
+      "logical_bytes": 187131,
+      "allocated_bytes": 212992,
+      "freed_bytes": 0,
+      "what": "the license notices that come with the game files when CCS HOME is not installed, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 5430331,
+      "allocated_bytes": 5537792,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 38309762,
+    "allocated_bytes": 38682624,
+    "freed_bytes": 0,
+    "removed_bytes": 5537792,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 10322739,
+    "steady_bytes": 43467571,
+    "peak_bytes": 49005363,
+    "remaining_bytes": 233200845,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false,
+    "rom": 5243200,
+    "added": 20,
+    "unknown_games": 0,
+    "files": 1234700,
+    "home": 0,
+    "home_measured": false,
+    "player": 0,
+    "hakchi": 26214400,
+    "earlier_versions": 0,
+    "copy_bytes": 5430331,
+    "used": 49005363,
+    "available": 282206208,
+    "remaining": 233200845,
+    "source": "reference"
+   }
+  },
+  {
+   "name": "snes-original-menu-entries-held-palette-covers",
+   "input": {
+    "games": [
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     },
+     {
+      "bytes": 262160,
+      "install": true
+     }
+    ],
+    "home": {
+     "games": 20
+    },
+    "mod": false,
+    "native_entries": true,
+    "native_covers": "palette",
+    "profile": "snes-classic-edition"
+   },
+   "result": {
+    "schema": "ccs-storage-account/1",
+    "profile": "snes-classic-edition",
+    "reference": {
+     "date": "2026-11-21",
+     "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted"
+    },
+    "available_bytes": 282206208,
+    "available_source": "reference",
+    "block_bytes": 4096,
+    "block_source": "reference",
+    "rows": [
+     {
+      "category": "game-files",
+      "label": "Game files",
+      "kind": "exact",
+      "logical_bytes": 5243200,
+      "allocated_bytes": 5324800,
+      "freed_bytes": 0,
+      "what": null
+     },
+     {
+      "category": "native-entries",
+      "label": "Original Menu entries",
+      "kind": "estimate",
+      "logical_bytes": 435840,
+      "allocated_bytes": 573440,
+      "freed_bytes": 0,
+      "what": "the same entry with the smaller Original Menu covers (an 8-bit palette, as Hakchi2 CE makes them by default), measured the same way: built and tested in this version but not used until they are compared on the console's own menu and approved; no capacity check, meter or report counts them"
+     },
+     {
+      "category": "notices",
+      "label": "License notices",
+      "kind": "estimate",
+      "logical_bytes": 187131,
+      "allocated_bytes": 212992,
+      "freed_bytes": 0,
+      "what": "the license notices that come with the game files when CCS HOME is not installed, from a measured console package"
+     },
+     {
+      "category": "hakchi",
+      "label": "Hakchi (needed once per console)",
+      "kind": "estimate",
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "freed_bytes": 0,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+     },
+     {
+      "category": "next-update",
+      "label": "Room to send the next update beside the one in use",
+      "kind": "estimate",
+      "logical_bytes": 5430331,
+      "allocated_bytes": 5537792,
+      "freed_bytes": 0,
+      "what": "the new copy is sent and checked before the switch; the oldest copy goes only afterwards"
+     }
+    ],
+    "logical_bytes": 37510902,
+    "allocated_bytes": 37863424,
+    "freed_bytes": 0,
+    "removed_bytes": 5537792,
+    "saves_allowance_bytes": null,
+    "margin_bytes": 10281779,
+    "steady_bytes": 42607411,
+    "peak_bytes": 48145203,
+    "remaining_bytes": 234061005,
+    "unknown": [
+     "room for saves and suspend points"
+    ],
+    "status": "unconfirmed",
+    "write_ok": false,
+    "rom": 5243200,
+    "added": 20,
+    "unknown_games": 0,
+    "files": 435840,
+    "home": 0,
+    "home_measured": false,
+    "player": 0,
+    "hakchi": 26214400,
+    "earlier_versions": 0,
+    "copy_bytes": 5430331,
+    "used": 48145203,
+    "available": 282206208,
+    "remaining": 234061005,
+    "source": "reference"
+   }
+  }
+ ],
+ "retention": [
+  {
+   "name": "default-one-earlier",
+   "input": {
+    "keep": null,
+    "current": "c3",
+    "prior": "c2",
+    "copies": [
+     {
+      "copy": "c3",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "c2"
+     },
+     {
+      "copy": "c2",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "c1"
+     },
+     {
+      "copy": "c1",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 1,
+    "kept": [
+     "c2",
+     "c3"
+    ],
+    "remove": [
+     "c1"
+    ],
+    "why": {
+     "c2": "an earlier version kept",
+     "c3": "in use"
+    }
+   }
+  },
+  {
+   "name": "keep-none",
+   "input": {
+    "keep": 0,
+    "current": "c3",
+    "prior": "c2",
+    "copies": [
+     {
+      "copy": "c3",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "c2"
+     },
+     {
+      "copy": "c2",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "c1"
+     },
+     {
+      "copy": "c1",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 0,
+    "kept": [
+     "c3"
+    ],
+    "remove": [
+     "c2",
+     "c1"
+    ],
+    "why": {
+     "c3": "in use"
+    }
+   }
+  },
+  {
+   "name": "keep-two-different-sizes",
+   "input": {
+    "keep": 2,
+    "current": "n",
+    "prior": "b",
+    "copies": [
+     {
+      "copy": "n",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "b"
+     },
+     {
+      "copy": "b",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "a"
+     },
+     {
+      "copy": "a",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "z"
+     },
+     {
+      "copy": "z",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 2,
+    "kept": [
+     "a",
+     "b",
+     "n"
+    ],
+    "remove": [
+     "z"
+    ],
+    "why": {
+     "a": "an earlier version kept",
+     "b": "an earlier version kept",
+     "n": "in use"
+    }
+   }
+  },
+  {
+   "name": "zero-eligible",
+   "input": {
+    "keep": 0,
+    "current": "c2",
+    "prior": null,
+    "copies": [
+     {
+      "copy": "c2",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 0,
+    "kept": [
+     "c2"
+    ],
+    "remove": [],
+    "why": {
+     "c2": "in use"
+    }
+   }
+  },
+  {
+   "name": "other-program-changed-referenced-kept",
+   "input": {
+    "keep": 0,
+    "current": "n",
+    "prior": "p",
+    "copies": [
+     {
+      "copy": "n",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "p"
+     },
+     {
+      "copy": "p",
+      "owned": false,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     },
+     {
+      "copy": "q",
+      "owned": true,
+      "unchanged": false,
+      "referenced": false,
+      "previous": null
+     },
+     {
+      "copy": "r",
+      "owned": true,
+      "unchanged": true,
+      "referenced": true,
+      "previous": null
+     },
+     {
+      "copy": "s",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 0,
+    "kept": [
+     "n",
+     "p",
+     "q",
+     "r"
+    ],
+    "remove": [
+     "s"
+    ],
+    "why": {
+     "n": "in use",
+     "p": "not recorded as this program's",
+     "q": "changed since it was installed",
+     "r": "something on the console still names it"
+    }
+   }
+  },
+  {
+   "name": "unfinished-installation-removes-nothing",
+   "input": {
+    "keep": 0,
+    "current": "n",
+    "prior": "p",
+    "unfinished": true,
+    "copies": [
+     {
+      "copy": "n",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     },
+     {
+      "copy": "p",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     },
+     {
+      "copy": "o",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 0,
+    "kept": [
+     "n",
+     "o",
+     "p"
+    ],
+    "remove": [],
+    "why": {
+     "n": "in use",
+     "o": "an installation did not finish",
+     "p": "an installation did not finish"
+    }
+   }
+  },
+  {
+   "name": "broken-chain-falls-back-to-names",
+   "input": {
+    "keep": 1,
+    "current": "n",
+    "prior": "x",
+    "copies": [
+     {
+      "copy": "n",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "x"
+     },
+     {
+      "copy": "b",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     },
+     {
+      "copy": "a",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 1,
+    "kept": [
+     "a",
+     "n"
+    ],
+    "remove": [
+     "b"
+    ],
+    "why": {
+     "a": "an earlier version kept",
+     "n": "in use"
+    }
+   }
+  },
+  {
+   "name": "prior-changed-keeps-the-next-verified",
+   "input": {
+    "keep": 1,
+    "current": "n",
+    "prior": "p",
+    "copies": [
+     {
+      "copy": "n",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": "p"
+     },
+     {
+      "copy": "p",
+      "owned": true,
+      "unchanged": false,
+      "referenced": false,
+      "previous": "o"
+     },
+     {
+      "copy": "o",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     },
+     {
+      "copy": "m",
+      "owned": true,
+      "unchanged": true,
+      "referenced": false,
+      "previous": null
+     }
+    ]
+   },
+   "result": {
+    "keep": 1,
+    "kept": [
+     "n",
+     "o",
+     "p"
+    ],
+    "remove": [
+     "m"
+    ],
+    "why": {
+     "n": "in use",
+     "o": "an earlier version kept",
+     "p": "changed since it was installed"
+    }
+   }
+  }
+ ]
+}

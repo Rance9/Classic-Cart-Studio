@@ -5,14 +5,19 @@ Replies:  {"v": 1, "id": ..., "event": "progress"|"stage"|"result"|"error", ...}
 
 Commands: capabilities, identify(profile), plan(manifest, profile?, keep_foreign?), preflight(plan_hash), simulate(plan_hash, profile),
 execute(plan_hash) [always refused, whatever the gate: the older game sync through hakchi (G2) is retired], cancel-if-safe, recover(stage), verify(plan_hash, profile).
-Classic Cart Studio's own HOME under hakchi (ccs_install.py, K3): home-plan(mod_start?) from the console package the app staged (the folder
-is given to the worker when it starts, never by its client; one plan for each install method's layout staged there, saved by hash, and the
-summary of the default one, CCS Mod's, with the others by method; mod_start "on" or "off" is CCS Mod's start at power-on), home-preflight
-(plan_hash, profile) and home-check(plan_hash, device) (the console's method is read there and the plan for that method's layout answers:
-the same collection, CCS Mod on a console that has neither; its summary comes with the answer), home-simulate(plan_hash, profile, scenario?,
-fault?, then?) against a fresh disposable stand-in that is removed afterwards (scenarios first-install, update, repeat, repair, interrupted;
-then "uninstall" or "export" rehearses removal or the data export on the same stand-in), home-records() (the last plan and the PC-side
-operation records). A plan whose package is no longer the staged one is refused as obsolete.
+Classic Cart Studio's own HOME under hakchi (ccs_install.py, K3): home-plan(mod?, nucleus?, start?, auto?, hakchi_games?) from the console package the app
+staged (the folder is given to the worker when it starts, never by its client) and the add-ons the console should have afterwards: mod
+(true or false: CCS Mod, the CCS HOME tile), nucleus ("none", "direct" or "chooser": CCS Nucleus, started directly or with its startup
+chooser), start ("native" or "ccs-home": what CCS Nucleus opens at power-on) and auto ("menu", "last" or "wait": what the startup chooser
+starts by itself); hakchi_games (true or false: the collection's games also added to Original Menu as ordinary Hakchi games, hakchi_publish.py);
+what is not given is Studio's default (CCS Mod added, CCS Nucleus only when asked for, Hakchi games when CCS Mod is not; without CCS Mod only
+the game files those Hakchi games need are installed, never CCS HOME, and a choice with neither is refused). The plan is saved by hash and its
+summary answers (a choice that cannot be made is refused with its reason). home-preflight(plan_hash, profile) and home-check(plan_hash,
+device) read the console's add-ons and CCS Nucleus's start there and answer with what the plan would add or change; a plan that would remove
+an add-on the console has is refused with the console's add-ons and the nearest choice that keeps them. home-simulate(plan_hash, profile,
+scenario?, fault?, then?) runs against a fresh disposable stand-in that is removed afterwards (scenarios first-install, update, repeat,
+repair, interrupted; then "uninstall" or "export" rehearses removal or the data export on the same stand-in), home-records() (the last plan
+and the PC-side operation records). A plan whose package is no longer the staged one is refused as obsolete.
 The physical operations on a console, each in its own console session opened here and closed at its end, bound to the console the client
 names by its identity as it was checked (device) and read again inside the operation: home-inspect() and home-check(plan_hash, device)
 (reads only), home-execute(plan_hash, device, operation install|update) (a failure stops all writes: no rollback by itself),
@@ -60,10 +65,9 @@ def _open_real(tier: str, package_dir: str | None):
 def _stamp() -> str:   # record names sort in the order they were written (to the millisecond)
     t = time.time(); return time.strftime("%Y%m%dT%H%M%S", time.gmtime(t)) + f"{int(t * 1000) % 1000:03d}Z"
 
-def read_home_records(records: str, staged) -> dict:
+def read_home_records(records: str, staged: str | None) -> dict:
     """the last plan and the latest operation records (PC side), read directly (the backend's status reads them without starting a worker).
-    staged: each staged layout's MANIFEST.json SHA-256 ({layout: sha}; a single one as a string)"""
-    if not isinstance(staged, dict): staged = {"": staged} if staged else {}
+    staged: the staged package's MANIFEST.json SHA-256 (None: nothing is staged)"""
     last = None
     try:
         with open(os.path.join(records, "last-plan.json"), encoding="utf-8") as f: last = json.load(f)
@@ -76,9 +80,7 @@ def read_home_records(records: str, staged) -> dict:
             with open(os.path.join(records, n), encoding="utf-8") as f: ops.append(json.load(f))
         except (OSError, ValueError): ops.append({"file": n, "outcome": "unknown", "why": "the record cannot be read"})
     plan = (last or {}).get("plan") or {}
-    cur = staged.get(plan.get("method")) or staged.get("")
-    return {"last_plan": last, "last_plan_current": bool(plan) and plan.get("manifest_sha256") == cur, "operations": ops,
-            "staged_manifest_sha256": staged.get(ccs_install.DEFAULT_METHOD) or staged.get("") or next(iter(staged.values()), None), "staged_manifests": {k: v for k, v in staged.items() if k}}
+    return {"last_plan": last, "last_plan_current": bool(plan) and bool(staged) and plan.get("manifest_sha256") == staged, "operations": ops, "staged_manifest_sha256": staged}
 HOME_FAULTS = ("before", "after", "corrupt", "no_space_after")
 HOME_SCENARIOS = ("first-install", "update", "repeat", "repair", "interrupted")
 HOME_THEN = ("uninstall", "export")
@@ -132,7 +134,7 @@ class Worker:
     # ---- commands ----
     def cmd_capabilities(self, rid, a):
         return {"engine": ENGINE_VERSION, "protocol": PROTOCOL_VERSION, "capability": CAPABILITY, "tiers": gate.state(), "transports": ["fake"], "profiles": [profiles.public(n) for n in profiles.names()], "commands": list(COMMANDS),
-                "home": {"profiles": list(ccs_install.HOME_PROFILES), "package_staged": bool(ccs_install.staged_packages(self.console_package)), "simulated_only": not gate.allowed("install")}}
+                "home": {"profiles": list(ccs_install.HOME_PROFILES), "package_staged": bool(ccs_install.staged_package(self.console_package)), "simulated_only": not gate.allowed("install")}}
 
     def _profile(self, a) -> str:
         name = str(a.get("profile") or "no-device")
@@ -184,11 +186,14 @@ class Worker:
         return {"match": not missing and not extra, "missing": missing[:20], "extra": extra[:20], "simulated": True, "text": "read-back of the simulated console compared with the plan (a verified physical read-back is a future gated state)"}
 
     # ---- Classic Cart Studio's HOME under hakchi (K3) ----
-    def _staged(self) -> dict:
-        """each staged layout's MANIFEST.json SHA-256, {layout: sha}"""
-        return {lay: ccs_install._sha(ccs_install._read(os.path.join(d, "MANIFEST.json"))) for lay, d in ccs_install.staged_packages(self.console_package).items()}
+    def _staged(self) -> str | None:
+        """the staged package's MANIFEST.json SHA-256 (None: nothing is staged)"""
+        d = ccs_install.staged_package(self.console_package)
+        return ccs_install._sha(ccs_install._read(os.path.join(d, "MANIFEST.json"))) if d else None
     @staticmethod
-    def _summary(p: dict) -> dict: return {k: v for k, v in p.items() if k != "files"} | {"file_count": len(p["files"])}
+    def _summary(p: dict) -> dict:
+        return {k: v for k, v in p.items() if k not in ("files", "package_files")} | {"file_count": len(p["files"]),
+                "packages": {a: {k: v for k, v in x.items() if k != "files"} for a, x in (p.get("packages") or {}).items()}}
 
     def _write_record(self, name: str, obj: dict):
         os.makedirs(self.records, exist_ok=True); p = os.path.join(self.records, name)
@@ -200,14 +205,12 @@ class Worker:
             except OSError: pass
 
     def cmd_home_plan(self, rid, a):
-        if set(a) - {"mod_start"} or a.get("mod_start", "off") not in ("on", "off"): raise ValueError("home-plan takes only mod_start (on or off): the package is the one the app staged")
-        st = ccs_install.staged_packages(self.console_package)
-        if not st: raise KeyError("no console package has been staged by the app")
-        plans = {lay: ccs_install.build_plan(d, mod_start=a.get("mod_start", "off") if lay == "mod" else None) for lay, d in sorted(st.items())}
-        for p in plans.values(): ccs_install.save_plan(p, self.home_plans)
-        main = plans.get(ccs_install.DEFAULT_METHOD) or next(iter(plans.values()))
-        if any(not ccs_install.same_collection(main, p) for p in plans.values()): raise PlanObsolete("the staged packages of the two methods are not the same collection: prepare the HOME menu again")
-        summary = self._summary(main) | {"plans": {lay: p["hash"] for lay, p in plans.items()}}
+        if set(a) - set(ccs_install.STUDIO_CHOICE) - {"hakchi_games"}: raise ValueError("home-plan takes only the add-on choice (mod, nucleus, start, auto) and hakchi_games: the package is the one the app staged")
+        choice = ccs_install.addon_choice({k: v for k, v in a.items() if k != "hakchi_games"})   # Refused (its reason in plain words) when the choice cannot be made
+        d = ccs_install.staged_package(self.console_package)
+        if not d: raise KeyError("no console package has been staged by the app")
+        p = ccs_install.build_plan(d, choice, a.get("hakchi_games")); ccs_install.save_plan(p, self.home_plans)
+        summary = self._summary(p)
         self._write_record("last-plan.json", {"schema": "ccs-console-last-plan/1", "saved": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "plan": summary})
         return summary
 
@@ -217,36 +220,23 @@ class Worker:
         f = os.path.join(self.home_plans, f"plan-{h}.json")
         if not os.path.isfile(f): raise KeyError("plan not found (plans are addressed by hash and must be built by this worker)")
         p = ccs_install.load_plan(f)
-        if p.get("manifest_sha256") != self._staged().get(p.get("method")): raise PlanObsolete("this plan is for a console package that is no longer the prepared one (the collection, loadout or HOME setup changed): prepare and review it again")
+        if p.get("manifest_sha256") != self._staged(): raise PlanObsolete("this plan is for a console package that is no longer the prepared one (the collection, loadout or HOME setup changed): prepare and review it again")
         return p
-
-    def _select(self, c, p: dict) -> tuple[dict, str]:
-        """the plan for the method the console uses, read now (ccs_install.console_method; Refused when it cannot be established): the reviewed
-        plan when it is for that method, else the same staged collection's plan in that method's layout (CCS Mod's, with the reviewed start
-        choice, on a console that has neither). Saved by hash, so the confirmation and the installation name exactly it"""
-        cm = ccs_install.console_method(c); want = ccs_install.DEFAULT_METHOD if cm == "none" else cm
-        if p["method"] == want: return p, cm
-        st = ccs_install.staged_packages(self.console_package)
-        if want not in st: raise ccs_install.Refused("preflight", f"this console uses {ccs_install.METHOD_LABELS[want]}, and the HOME menu was not prepared for it: prepare it again. Nothing was changed")
-        q = ccs_install.build_plan(st[want], mod_start=(p.get("mod_start") or "off") if want == "mod" else None)
-        if not ccs_install.same_collection(p, q): raise PlanObsolete("the staged packages of the two methods are not the same collection: prepare the HOME menu again")
-        ccs_install.save_plan(q, self.home_plans); return q, cm
 
     def _stand_in(self, a):
         name = str(a.get("profile") or "hakchi-ready")
         if name not in ccs_install.HOME_PROFILES: raise KeyError(f"unknown profile {name!r}")
         d = os.path.join(self.root, "stand-ins", new_run_id()); return d, ccs_install.make_stand_in(d, name)
 
-    def _package_of(self, p: dict) -> str: return ccs_install.staged_packages(self.console_package)[p["method"]]
+    def _package_of(self, p: dict) -> str: return ccs_install.staged_package(self.console_package)
 
     def _check(self, c, p: dict, dev: str | None, journal: str) -> dict:
-        """the plan for the console's method (_select), then the installer's preflight against the console (reads only)"""
+        """the installer's preflight of the plan against the console (reads only): what it would add or change, or why it is refused (a
+        choice that would remove an add-on: with the console's add-ons and the nearest choice that keeps them)"""
         try:
-            ccs_install.check_device(c.identity(fresh=True), "preflight")   # the supported console first: its method is read only then
-            q, cm = self._select(c, p)
-            pf = ccs_install.Installer(c, q, self._package_of(q), journal, device=dev, policy="stop" if dev else None).preflight()
-            return {"ok": True, **pf, "plan_hash": q["hash"], "plan": self._summary(q), "selected": q["hash"] != p["hash"]}
-        except ccs_install.Refused as e: return {"ok": False, "at": e.step, "why": e.why, "plan_hash": p["hash"]}
+            pf = ccs_install.Installer(c, p, self._package_of(p), journal, device=dev, policy="stop" if dev else None).preflight()
+            return {"ok": True, **pf, "plan_hash": p["hash"], "plan": self._summary(p)}
+        except ccs_install.Refused as e: return {"ok": False, "at": e.step, "why": e.why, "plan_hash": p["hash"], **e.detail}
 
     def cmd_home_preflight(self, rid, a):
         p = self._home_plan(a); d, c = self._stand_in(a)
@@ -254,9 +244,12 @@ class Worker:
         finally: shutil.rmtree(d, ignore_errors=True)
 
     def _earlier_package(self, d: str, layout: str) -> str:
-        """a small earlier HOME package in the plan's layout (the update scenario starts from an installed earlier version)"""
+        """a small earlier HOME package in CCS HOME's layout (the update scenario starts from an installed earlier version), with one stand-in
+        game (an empty cartridge image made here, not a game) so that an earlier collection without CCS Mod has a Hakchi game too"""
         import hashlib
-        files = {"bin/ccs-player-armv7": b"\x7fELF earlier player", "session.json": b'{"schema":"ccs-play-session/1","earlier":true}', "config/controller-map.txt": b"key 304 a\n"}
+        cart = b"NES\x1a\x01\x01" + bytes(10) + bytes(16384 + 8192); cs = hashlib.sha256(cart[16:]).hexdigest()
+        sess = {"schema": "ccs-play-session/1", "earlier": True, "games": [{"id": "earlier", "title": "An earlier game", "rom": f"/tmp/ccs/pkg/roms/{cs}.nes", "header_hex": "", "content_sha256": cs, "unavailable": ""}]}
+        files = {"bin/ccs-player-armv7": b"\x7fELF earlier player", "session.json": json.dumps(sess).encode(), "config/controller-map.txt": b"key 304 a\n", f"roms/{cs}.nes": cart}
         for rel, b in files.items():
             q = os.path.join(d, *rel.split("/")); os.makedirs(os.path.dirname(q), exist_ok=True)
             with open(q, "wb") as f: f.write(b)
@@ -271,22 +264,24 @@ class Worker:
         if not isinstance(then, list) or any(x not in HOME_THEN for x in then): raise ValueError(f"then: a list of {', '.join(HOME_THEN)}")
         fault = a.get("fault") or a.get("faults") or {}
         if not isinstance(fault, dict) or any(k not in HOME_FAULTS or not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 10**10 for k, v in fault.items()): raise ValueError(f"fault: only {', '.join(HOME_FAULTS)} with whole numbers")
-        if scenario == "interrupted" and not fault: fault = {"after": 12}
+        if scenario == "interrupted" and not fault: fault = {"after": 6 if p.get("delivery") == "games" else 12}   # a lost connection while the copy is written (a games copy is small)
         d, c = self._stand_in(a); started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         emit = lambda ev: self.send({"id": rid, **ev, "simulated": True})
         try:
             before = ccs_install.stock_digest(d); setup = []
             if scenario in ("update", "repair", "repeat"):
-                src = self._earlier_package(os.path.join(d, "..", os.path.basename(d) + "-earlier"), p["method"]) if scenario == "update" else self._package_of(p)
-                ep = ccs_install.build_plan(src, mod_start=p.get("mod_start")); r0 = ccs_install.Installer(c, ep, src, self.journals).run(); setup.append({"installed_first": r0.get("result"), "copy": r0.get("copy")})
-                if scenario == "repair" and r0.get("ok"):
-                    q = c.p(f"{ccs_install.PKG_DIR}/{r0['copy']}/session.json")
+                src = self._earlier_package(os.path.join(d, "..", os.path.basename(d) + "-earlier"), p["layout"]) if scenario == "update" else self._package_of(p)
+                ep = p if scenario != "update" else ccs_install.build_plan(src, p["addons"], (p.get("hakchi") or {}).get("publish", False))
+                r0 = ccs_install.Installer(c, ep, src, self.journals).run(); setup.append({"installed_first": r0.get("result"), "copy": r0.get("copy")})
+                rep = (f"{ccs_install.GAMES_DIR}/{r0.get('copy')}/" + ((p.get("files") or [{}])[0].get("path") or "") if p.get("delivery") == "games" else f"{ccs_install.PKG_DIR}/{r0.get('copy')}/session.json")
+                if scenario == "repair" and r0.get("ok") and c.stat(rep)["type"] == "file":
+                    q = c.p(rep)
                     with open(q, "ab") as f: f.write(b" ")
-                    setup.append({"changed_on_console": "session.json of the copy in use"})
+                    setup.append({"changed_on_console": f"{rep.rsplit('/', 1)[1]} of the copy in use"})
             c = ccs_install.FakeConsole(d, fault)
             inst = ccs_install.Installer(c, p, self._package_of(p), self.journals, emit=emit, cancel=self.cancel_flag.is_set)
             r = inst.run(); journal = os.path.basename(inst.journal)
-            out = {"simulated": True, "scenario": scenario, "profile": a.get("profile") or "hakchi-ready", "method": p["method"], "mod_start": p.get("mod_start"), "setup": setup, "install": {k: v for k, v in r.items() if k != "preflight"},
+            out = {"simulated": True, "scenario": scenario, "profile": a.get("profile") or "hakchi-ready", "addons": p["addons"], "start": p["start_line"], "start_text": p["start_text"], "setup": setup, "install": {k: v for k, v in r.items() if k != "preflight"},
                    "preflight": {k: v for k, v in (r.get("preflight") or {}).items() if k != "identity"}, "writes": len(c.writes), "stock_unchanged": ccs_install.stock_digest(d) == before, "journal": journal}
             if scenario == "interrupted" and not r.get("ok"):
                 emit({"event": "progress", "stage": "recover", "note": "the interrupted attempt is recovered from its own journal"})
@@ -388,7 +383,7 @@ class Worker:
     def _package_of_any(self, p: dict) -> str:
         """a recovery's package folder: its plan's staged layout when it is still staged (its files are only read to prove a transfer cut
         short); else the staged root, where its files are not found and nothing is assumed"""
-        return ccs_install.staged_packages(self.console_package).get(p.get("method")) or self.console_package or ""
+        return ccs_install.staged_package(self.console_package) or self.console_package or ""
 
     def _attempt_journal(self, attempt: str):
         j = os.path.join(self.journals, f"home-{attempt}.jsonl")

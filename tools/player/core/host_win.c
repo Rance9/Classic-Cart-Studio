@@ -477,7 +477,7 @@ host *host_open(const host_config *c, const gp_settings *s, char *err, size_t n)
     if (FAILED(DirectInput8Create(GetModuleHandleW(NULL), DIRECTINPUT_VERSION, &IID_IDirectInput8W, (void **)&H->di, NULL))) H->di = NULL;
     enum_devices(H); H->last_enum = gp_ms(); H->focused = H->embed ? 0 : GetForegroundWindow() == H->hwnd;
     if (H->embed) { char hi[64]; snprintf(hi, sizeof hi, "hello %lu", GetCurrentProcessId()); host_send(H, hi); }
-    host_trace(H, "{\"ev\":\"host\",\"kind\":\"windows\",\"client\":[%d,%d],\"xinput\":%d,\"directinput\":%d,\"focused\":%d,\"input\":\"%s\"}", H->cw, H->ch, H->xget != NULL, H->di != NULL, H->focused, H->posted_input ? "posted-window-messages (test)" : "keyboard and controllers");
+    host_trace(H, "{\"ev\":\"host\",\"kind\":\"windows\",\"core_build\":\"%s\",\"client\":[%d,%d],\"xinput\":%d,\"directinput\":%d,\"focused\":%d,\"input\":\"%s\"}", GP_CORE_BUILD, H->cw, H->ch, H->xget != NULL, H->di != NULL, H->focused, H->posted_input ? "posted-window-messages (test)" : "keyboard and controllers");
     return H; }
 void host_close(host *H) {
     if (!H) return; save_display(H); if (H->audio_on) { waveOutReset(H->wo); for (int i = 0; i < NBUF; i++) { waveOutUnprepareHeader(H->wo, &H->hdr[i], sizeof H->hdr[i]); free(H->pcm[i]); } waveOutClose(H->wo); }

@@ -36,6 +36,7 @@ namespace CcsBackup.Ui
             var wait = T("Checking the save...", 12.5, false, true); into.Children.Add(wait);
             Task.Run<(StockSaveInspection, SaveConversion, string)>(() =>
             {
+                if (!c.NesSaves) return (null, null, "This console's saves are kept and exported exactly as they are; this version converts none of them.");
                 var bytes = c.ReadVerified(e, 1_000_000, out var why);
                 if (bytes == null) return (null, null, why ?? "It could not be read against its checksum.");
                 var src = SaveSource.FromConsolePath(e.ConsolePath ?? e.DisplayPath, e.MtimeUtc, c.Live ? "console " + c.ConsoleTag + ", read live" : "console backup " + c.BackupId);
@@ -58,7 +59,7 @@ namespace CcsBackup.Ui
                 if (conv == null) { into.Children.Add(Note(why ?? "Not converted.", "warn")); return; }
                 if (!conv.Ok) { into.Children.Add(Note("Not converted: " + conv.Text, "warn")); return; }
                 // a comparison copy's limits stay on the page, not only in its file name
-                into.Children.Add(Note(conv.Trial ? "Converted as a comparison copy only: this game's entry is not yet confirmed on a real console, so the copy is for checking only. It is never imported or put on a console." : conv.Text, conv.Trial ? "warn" : "ok"));
+                into.Children.Add(Note(conv.Trial ? "Comparison copy only. This conversion is not available for import or console use in this version." : conv.Text, conv.Trial ? "warn" : "ok"));
                 var saved = new StackPanel();
                 into.Children.Add(Buttons(B(conv.Trial ? "Save the Comparison Copy…" : "Save the Game Save File…", "Btn", () =>
                 {

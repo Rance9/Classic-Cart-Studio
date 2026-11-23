@@ -37,7 +37,8 @@ def _prune():
 
 def _spawn() -> subprocess.Popen:
     env = dict(os.environ); env["PYTHONPATH"] = os.pathsep.join([os.path.dirname(os.path.abspath(__file__)), os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "rom-pipeline"), env.get("PYTHONPATH", "")])
-    return subprocess.Popen(worker_command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=env, cwd=os.path.dirname(os.path.abspath(__file__)))
+    return subprocess.Popen(worker_command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=env, cwd=os.path.dirname(os.path.abspath(__file__)),
+                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))   # a helper without a window: it speaks only through its pipes
 
 
 def call(cmd: str, args: dict, timeout: float = 120.0, spawn=None) -> dict:

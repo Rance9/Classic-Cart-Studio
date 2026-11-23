@@ -1,0 +1,7 @@
+{
+  "schema": "ccs-community-catalog/1",
+  "generation": 1,
+  "issued": "2026-11-20",
+  "sections": ["menus", "utilities", "themes", "emulators"],
+  "entries": []
+}

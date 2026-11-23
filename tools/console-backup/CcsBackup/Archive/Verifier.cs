@@ -33,6 +33,9 @@ namespace CcsBackup.Archive
         public bool RestoreReady, RecoveryBaseline, Simulated, RelationshipConfirmed;
         public bool RepairMap;   // the backup has repair information and all of it matches the file
         public string Hwid, ConsoleTag, StateKind, OriginalSource;
+        /// <summary>the console model the backup is of (its ccs_target, or an NES Classic for a backup made before the field existed), its
+        /// board and region as recorded; null model: not a supported console</summary>
+        public ConsoleModel Model; public string Board, Region;
         public List<string> RestoreTargets = new List<string>();
         /// <summary>startup stages a Console Rescue protective backup recorded as damaged ("invalid": kept as read) or "unreadable" (absent)</summary>
         public Dictionary<string, string> DamagedComponents = new Dictionary<string, string>();
@@ -151,13 +154,16 @@ namespace CcsBackup.Archive
         static void Facts(Verification v, Dictionary<string, object> m, ZipReader z, Dictionary<string, Dictionary<string, object>> listed, byte[] active, byte[] slot68, byte[] original)
         {
             var con = m.O("console"); var st = m.O("state"); var lay = m.O("layout");
-            v.Hwid = con?.S("hwid"); v.ConsoleTag = con?.S("tag");
+            v.Hwid = con?.S("hwid"); v.ConsoleTag = con?.S("tag"); v.Board = con?.S("board"); v.Region = con?.S("region");
             if (v.Hwid == null || ConsoleIdentity.HwidTag(v.Hwid) != v.ConsoleTag) v.Fail("The backup does not name its console consistently.");
-            if (Compose.Capabilities.ModelForBoard(con?.S("board")) == null) v.Fail("The backup is not of a supported NES Classic.");
-            // the identifiers the backup is for: none recorded is an NES Classic backup; any other model, console
-            // software or storage layout named in it is refused here, before anything in it is used
+            // the console model: its ccs_target (which must agree with the board and region it recorded); none recorded is an NES Classic
+            // backup; any other model, console software or storage layout is refused here, before anything in it is used
+            v.Model = ConsoleModels.OfManifest(m);
+            if (v.Model == null) v.Fail("The backup is not of a console this version supports (an NES Classic, or a North American or European Super NES Classic).");
             var target = Compose.Capabilities.ResolveTarget(m, "console-backup");
             if (!target.Ok) v.Fail("The backup names a console, console software or storage layout this version does not support.");
+            else if (v.Model != null && (target.Target.TryGetValue("physical_model", out var tpm) ? tpm : null) != v.Model.Id) v.Fail("The backup's console model does not match its console.");
+            var model = v.Model ?? ConsoleModels.Nes;
             var reasons = new List<string>();
             // startup software
             if (active == null) { v.Fail("The console's startup software is missing from the backup."); return; }
@@ -165,21 +171,21 @@ namespace CcsBackup.Archive
             if (asz < 0 || asz > active.Length) v.Fail("The captured startup software is not a valid boot image.");
             if (slot68 != null) { long ssz = BootImageSize(slot68); if (ssz < 0 || ssz > slot68.Length) v.Fail("The captured spare startup slot is not a valid boot image."); }
             string aMd5 = Md5(active), aSha = Sha(active);
-            bool activeStock = KnownKernels.IsStock(aMd5) && KnownKernels.ShaAgrees(aMd5, aSha) && (st?.L("active_hakchi_entries", -1) ?? -1) == 0;
-            string sMd5 = slot68 == null ? null : Md5(slot68); bool slotStock = slot68 != null && KnownKernels.IsStock(sMd5) && KnownKernels.ShaAgrees(sMd5, Sha(slot68));
+            bool activeStock = KnownKernels.IsStockFor(model, v.Region, aMd5) && KnownKernels.ShaAgrees(aMd5, aSha) && (st?.L("active_hakchi_entries", -1) ?? -1) == 0;
+            string sMd5 = slot68 == null ? null : Md5(slot68); bool slotStock = slot68 != null && KnownKernels.IsStockFor(model, v.Region, sMd5) && KnownKernels.ShaAgrees(sMd5, Sha(slot68));
             v.OriginalSource = activeStock ? "active" : slotStock ? "slot68" : null;
             v.StateKind = activeStock && slot68 == null ? "stock" : "modified";
             if (st?.S("kind") != v.StateKind) v.Fail("The backup's description of the console's software does not match its contents.");
             if (original != null)
             {
                 var src = v.OriginalSource == "active" ? active : v.OriginalSource == "slot68" ? slot68 : null;
-                if (src == null || !KnownKernels.IsStock(Md5(original)) || !original.SequenceEqual(src)) v.Fail("The standalone original kernel in the backup is not the genuine kernel it should be.");
+                if (src == null || !KnownKernels.IsStockFor(model, v.Region, Md5(original)) || !original.SequenceEqual(src)) v.Fail("The standalone original kernel in the backup is not the genuine kernel it should be.");
             }
             else if (v.OriginalSource != null) v.Fail("The original kernel was on the console but is missing from the backup.");
             if (v.OriginalSource == null) reasons.Add("the original Nintendo kernel was not on the console");
             // layout and restore members
             var parts = (lay?.A("partitions") ?? new List<object>()).OfType<Dictionary<string, object>>().ToList();
-            if (lay?.S("nandinfo") != Support.NandInfo || parts.Count < 3) v.Fail("The backup's storage layout is not one this version supports.");
+            if (lay?.S("nandinfo") != model.NandInfo || parts.Count < 3) v.Fail("The backup's storage layout is not one this version supports.");
             foreach (var p in parts)
             {
                 var dev = p.S("device"); long bytes = p.L("bytes");

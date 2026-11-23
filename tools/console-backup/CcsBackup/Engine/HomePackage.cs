@@ -1,8 +1,8 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
-// CCS HOME's own package on the console, placed by the CCS Console Workbench (both hosts) when it installs CCS Mod or CCS Nucleus, so the
-// method has a HOME to start without a full Studio or a Hakchi PC program. The package is a console package as Classic Cart Studio builds
-// it (tools/companion/native_home/console_package.py, layout "mod" or "nucleus": the same files, the HOME's leave item says where it goes
-// back to): the release-built one this engine carries (tools/console-nucleus/build_home_package.py: the Included Games, embedded beside the
+// CCS HOME's own package on the console, placed by the CCS Console Workbench (both hosts) when it adds CCS Mod, the only add-on that
+// provides CCS HOME (CCS Nucleus can start it, but never installs it), so CCS HOME is there without a full Studio or a Hakchi PC program.
+// The package is a console package as Classic Cart Studio builds it (tools/companion/native_home/console_package.py, layout "mod": its
+// leave item, Choose Another Menu, goes to the startup chooser when installed, otherwise Original Menu): the release-built one this engine carries (tools/console-nucleus/build_home_package.py: the Included Games, embedded beside the
 // console programs as ram/ccs-home/) or a package folder the caller names (Classic Cart Studio's own collection, tests).
 // It goes to the console AFTER the preparation image runs (ram/ccsprep hput, huse): the FEL image limit applies to that image only. The
 // layout on the console is Classic Cart Studio's installer's (tools/companion/console_engine/ccs_install.py), so the app and the Workbench
@@ -32,9 +32,8 @@ namespace CcsBackup.Engine
 
     public sealed class HomePackage
     {
-        public static readonly string[] Steps = { "hput", "huse" };
+        public static readonly string[] Steps = { "hput", "huse", "hdrop" };
         public const string Schema = "ccs-console-package/1";
-        public const long Reserve = 8000000;                  // room kept for saves and settings beyond the package (the installer's RESERVE)
         public const long RamMargin = 16000000;               // RAM kept free beside the received archive (ccsprep hput checks it again)
         public const long MaxArchive = 200000000, MaxTotal = 400000000, MaxFile = 64000000; public const int MaxFiles = 4000;
         static readonly Regex Rel = new Regex("^[A-Za-z0-9_-][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,119}){0,7}$");
@@ -46,9 +45,20 @@ namespace CcsBackup.Engine
         public List<Entry> Files = new List<Entry>();
         Func<string, byte[]> read;
 
-        public static string StepLabel(string s) => s == "hput" ? "CCS HOME's package sent to the console and checked there (the HOME in use stays until the switch)" : "CCS HOME switched to the new package";
+        /// <summary>the shared storage accounting's input for sending this package beside the copy in use: its files (each in whole blocks)
+        /// against the console's free space as its df reports it (the reserved blocks already left out)</summary>
+        public static Dictionary<string, object> SpaceInput(HomePackage p, long free) => new Dictionary<string, object>
+        {
+            ["profile"] = StorageSpec.NesModel, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = free },
+            ["items"] = new object[] { new Dictionary<string, object> { ["category"] = "home", ["label"] = "CCS HOME", ["files"] = p.Files.Select(f => (object)new Dictionary<string, object> { ["bytes"] = f.Size }).ToArray() } },
+        };
 
-        /// <summary>the package this build carries for a method's layout ("mod" or "nucleus"); null when this build does not carry one</summary>
+        public static string StepLabel(string s) => s == "hput" ? "CCS HOME's package sent to the console and checked there (the HOME in use stays until the switch)"
+            : s.StartsWith("hdrop:", StringComparison.Ordinal) ? "An earlier CCS HOME version removed (" + s.Substring(6) + "), after the new one is in use and read back" : "CCS HOME switched to the new package";
+
+        /// <summary>CCS HOME's layout: CCS Mod provides CCS HOME (its leave item, Choose Another Menu, goes to CCS Nucleus's chooser when it is installed, else to Original Menu)</summary>
+        public const string ModLayout = "mod";
+        /// <summary>the package this build carries for a layout; null when this build does not carry one</summary>
         public static HomePackage Embedded(string layout)
         {
             var m = RecoveryImages.HomeResource(layout + ".MANIFEST.json"); if (m == null) return null;
@@ -69,7 +79,7 @@ namespace CcsBackup.Engine
             Dictionary<string, object> m;
             try { m = Json.Parse(Encoding.UTF8.GetString(manifest)); } catch (FormatException) { throw new HomePackageException("The HOME package's MANIFEST.json cannot be read."); }
             if (m.S("schema") != Schema) throw new HomePackageException("This is not a Classic Cart Studio console package.");
-            if (m.S("layout") != layout) throw new HomePackageException("The HOME package was made for " + (m.S("layout") ?? "another place") + ", not for " + Methods.Label(layout) + ".");
+            if (m.S("layout") != layout) throw new HomePackageException("The HOME package was made for " + (m.S("layout") ?? "another place") + ", not for " + (layout == ModLayout ? "CCS Mod" : layout) + ".");
             if (m.O("console_paths")?.S("pkg") != "/tmp/ccs/pkg") throw new HomePackageException("The HOME package was made for another place on the console.");
             var fs = m.O("files"); if (fs == null || fs.Count == 0 || fs.Count > MaxFiles) throw new HomePackageException("The HOME package's file list is missing or too long.");
             var p = new HomePackage { Layout = layout, Origin = origin, Manifest = manifest, Label = m.S("label") ?? "HOME", Games = (int)m.L("games", 0), Playable = (int)m.L("playable", 0) };
@@ -111,15 +121,21 @@ namespace CcsBackup.Engine
         public JObj ToJson() => new JObj { { "copy", Copy }, { "layout", Layout }, { "manifest_sha256", ManifestSha256 }, { "archive_sha256", Sha256 }, { "archive_bytes", Size }, { "package_bytes", Total }, { "size", Compose.Units.Size(Total) } };
         public string DigestLine() => Copy + " " + Layout + " " + ManifestSha256 + " " + Sha256 + " " + Size.ToString(CultureInfo.InvariantCulture) + " " + Total.ToString(CultureInfo.InvariantCulture);
 
-        /// <summary>attempt: 8 hex (a new installation's own, or an unfinished one's to finish it); prior: the copy in use ("absent": none)</summary>
-        public static HomeArchive Build(HomePackage p, string attempt, string hwid, string prior)
+        /// <summary>attempt: 8 hex (a new installation's own, or an unfinished one's to finish it); prior: the copy in use ("absent": none);
+        /// installed: the copy record's installed_utc (this PC's time when the copy was first planned, yyyy-MM-ddTHH:mm:ssZ; the console has no
+        /// clock to trust), or null for a record without one. An unfinished attempt is finished with its record's own value, so the record is
+        /// the same bytes (ccsprep hput compares it)</summary>
+        public static HomeArchive Build(HomePackage p, string attempt, string hwid, string prior, string installed = null)
         {
+            if (installed != null && !InstalledRe.IsMatch(installed)) throw new ArgumentException("installed: yyyy-MM-ddTHH:mm:ssZ");
             if (!Hex.IsHex(attempt, 8)) throw new ArgumentException("attempt: 8 hex digits");
             var a = new HomeArchive { Attempt = attempt, Version = p.Version, Copy = p.Version + "." + attempt, ManifestSha256 = p.ManifestSha256, Layout = p.Layout, Total = p.TotalBytes };
             var files = new SortedDictionary<string, object>(StringComparer.Ordinal); foreach (var f in p.Files) files[f.Rel] = f.Sha256;
             var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
             // the records, exactly as ccs_install.py writes them; "plan" names the package (a re-review of the same attempt makes the same copy record)
-            var vrec = PyJson.Record(new SortedDictionary<string, object>(StringComparer.Ordinal) { { "schema", "ccs-owned-copy/1" }, { "copy", a.Copy }, { "plan", "home-" + p.ManifestSha256 }, { "version", p.Version }, { "attempt", attempt }, { "manifest_sha256", p.ManifestSha256 }, { "files", files } });
+            var vd = new SortedDictionary<string, object>(StringComparer.Ordinal) { { "schema", "ccs-owned-copy/1" }, { "copy", a.Copy }, { "plan", "home-" + p.ManifestSha256 }, { "version", p.Version }, { "attempt", attempt }, { "manifest_sha256", p.ManifestSha256 }, { "files", files }, { "previous", prior == "absent" ? null : prior } };
+            if (installed != null) vd["installed_utc"] = installed;
+            var vrec = PyJson.Record(vd);
             var arec = PyJson.Record(new SortedDictionary<string, object>(StringComparer.Ordinal) { { "schema", "ccs-install-attempt/1" }, { "attempt", attempt }, { "plan", "home-" + p.ManifestSha256 }, { "version", p.Version }, { "copy", a.Copy }, { "kind", "workbench" },
                 { "device", new SortedDictionary<string, object>(StringComparer.Ordinal) { { "hwid", ConsoleIdentity.NormalizeHwid(hwid) } } }, { "started", now },
                 { "prior", new SortedDictionary<string, object>(StringComparer.Ordinal) { { "pointer", prior == "absent" ? null : prior } } } });
@@ -139,6 +155,9 @@ namespace CcsBackup.Engine
         }
 
         public static string NewAttempt() { var b = new byte[4]; using (var r = RandomNumberGenerator.Create()) r.GetBytes(b); return Hex.Of(b); }
+        /// <summary>a copy record's installed_utc</summary>
+        public static readonly Regex InstalledRe = new Regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$");
+        public static string Now() => DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
     }
 
     /// <summary>the HOME steps of a plan (Preparation, MethodEngine): what the console holds now (ccsprep mstate) decides them; run and
@@ -167,6 +186,8 @@ namespace CcsBackup.Engine
                     return No("The saves on the console were made by another game player build (" + string.Join(" ", have.Select(kv => kv.Value as string)) + "); this HOME's player could not load them. Nothing is written.");
             }
             d.Prior = st.HomePointer;
+            // the date in the copy record of an attempt being finished: its own record's (none in it: none), or now when it has no record yet
+            string Installed(string copy) => st.HomeCopies.ContainsKey(copy) ? (st.HomeInfo.TryGetValue(copy, out var hi) ? hi.installed : null) : HomeArchive.Now();
             var mine = st.HomeAttempts.Where(a => a.Value == p.Version + "." + a.Key).Select(a => a.Key).ToList();
             var others = st.HomeAttempts.Keys.Except(mine).ToList();
             if (others.Count > 0 || mine.Count > 1) return No("An earlier installation of a HOME on this console did not finish (" + string.Join(", ", st.HomeAttempts.Select(a => a.Key + ": " + a.Value)) + "). It is kept as it is; finish it with the same HOME package, or collect diagnostics.");
@@ -175,11 +196,12 @@ namespace CcsBackup.Engine
                 var inUse = st.HomePointer.Substring(17);
                 if (mine.Count == 0) { d.Text = "CCS HOME is already this package on the console."; return d; }
                 if (mine[0] != inUse) return No("An earlier installation of this HOME did not finish beside the copy in use. It is kept; collect diagnostics.");
-                d.Archive = HomeArchive.Build(p, inUse, hwid, d.Prior); d.Steps.Add("huse"); d.Text = "The switch to CCS HOME's package was not finished; it is finished now (nothing is sent again)."; return d;
+                d.Archive = HomeArchive.Build(p, inUse, hwid, d.Prior, Installed(p.Version + "." + inUse)); d.Steps.Add("huse"); d.Text = "The switch to CCS HOME's package was not finished; it is finished now (nothing is sent again)."; return d;
             }
             if (st.Free < 0) return No("The console's free space could not be read. Nothing was changed.");
-            if (st.Free < p.TotalBytes + HomePackage.Reserve) return No("Not enough room on the console for CCS HOME: it needs " + Compose.Units.Size(p.TotalBytes) + " and " + Compose.Units.Size(HomePackage.Reserve) + " more is kept free for saves, but only " + Compose.Units.Size(st.Free) + " is free.");
-            d.Archive = HomeArchive.Build(p, mine.Count == 1 ? mine[0] : HomeArchive.NewAttempt(), hwid, d.Prior);
+            var room = StorageSpec.Account(HomePackage.SpaceInput(p, st.Free));
+            if (!(bool)room["write_ok"]) return No(Capacity.Why(room, out _, out _) + " Nothing was changed.");
+            d.Archive = mine.Count == 1 ? HomeArchive.Build(p, mine[0], hwid, d.Prior, Installed(p.Version + "." + mine[0])) : HomeArchive.Build(p, HomeArchive.NewAttempt(), hwid, d.Prior, HomeArchive.Now());
             if (st.Ram >= 0 && st.Ram < d.Archive.Size + HomePackage.RamMargin) return No("The console's memory cannot hold CCS HOME's package for the transfer (" + Compose.Units.Size(st.Ram) + " free, " + Compose.Units.Size(d.Archive.Size + HomePackage.RamMargin) + " needed).");
             d.Steps.Add("hput"); d.Steps.Add("huse");
             d.Text = "CCS HOME (" + p.Describe + ") is sent to the console in this session, checked file by file and then switched to; " + (d.Prior == "absent" ? "the console had no CCS HOME before." : "the HOME it replaces stays on the console.");
@@ -189,10 +211,18 @@ namespace CcsBackup.Engine
         /// <summary>one HOME step: hput streams the plan's archive (its size and SHA-256 are the arguments; the console checks both)</summary>
         public static WriteResult Run(RecoveryConsole con, WriteAuthority auth, string step, HomeArchive a, string prior) =>
             step == "hput" ? con.PrepStepStream("hput", auth, new[] { a.Copy, a.Size.ToString(CultureInfo.InvariantCulture), a.Sha256, a.Total.ToString(CultureInfo.InvariantCulture) }, new MemoryStream(a.Bytes, false), a.Size)
-                           : con.PrepStep("huse", auth, new[] { a.Copy, prior });
+            : step.StartsWith("hdrop:", StringComparison.Ordinal) ? con.PrepStep("hdrop", auth, new[] { step.Substring(6), a.Copy })   // an earlier copy, only while this one is in use
+            : con.PrepStep("huse", auth, new[] { a.Copy, prior });
+
+        /// <summary>a step of CCS HOME's: hput, huse, or hdrop:COPY (an earlier copy removed after the switch)</summary>
+        public static bool IsStep(string s) => HomePackage.Steps.Contains(s) || s.StartsWith("hdrop:", StringComparison.Ordinal) && HomePackage.CopyRe.IsMatch(s.Substring(6));
+        /// <summary>the write target a step needs (hdrop:COPY: hdrop)</summary>
+        public static string Target(string s) => s.StartsWith("hdrop:", StringComparison.Ordinal) ? "hdrop" : s;
 
         /// <summary>the step's answer is exactly this archive's ("ok COPY SHA", "ok COPY", or "ok already ..." when it was already done)</summary>
-        public static bool Answer(WriteResult r, string step, HomeArchive a) => r.Ok && Regex.IsMatch(r.Line ?? "", "^result " + step + " ok( already)? " + Regex.Escape(a.Copy) + (step == "hput" ? " " + a.Sha256 : "") + "$");
+        public static bool Answer(WriteResult r, string step, HomeArchive a) => step.StartsWith("hdrop:", StringComparison.Ordinal)
+            ? r.Ok && Regex.IsMatch(r.Line ?? "", "^result hdrop ok( already)? " + Regex.Escape(step.Substring(6)) + "$")
+            : r.Ok && Regex.IsMatch(r.Line ?? "", "^result " + step + " ok( already)? " + Regex.Escape(a.Copy) + (step == "hput" ? " " + a.Sha256 : "") + "$");
 
         /// <summary>the console read again after the steps: this copy in use, recorded with this package's MANIFEST.json, nothing unfinished</summary>
         public static bool InUse(MethodState after, HomeArchive a) => after.Ok && after.HomePointer == a.Copy && after.HomeInUse(a.ManifestSha256) && !after.HomeAttempts.ContainsKey(a.Attempt);

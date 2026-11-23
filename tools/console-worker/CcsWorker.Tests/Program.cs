@@ -4,10 +4,15 @@
 //   CcsWorker.Tests --serve-busybox [--package DIR]  test only: the worker protocol on stdin/stdout with a BusyBox fidelity shell
 //                                                    already attached (a disposable WSL folder, removed at the end); its "connect" goes
 //                                                    to TestOpeners.Never, whatever Gate G1 says, so nothing here can reach a device
+//                   [--seed CONSOLE-PATH FILE]...    places a file of this computer in that folder first (a test's set-up: a file another
+//                                                    program put on the console)
+//                   [--link CONSOLE-PATH TARGET]...  makes a link there, to a console path in that folder (after the files)
 // Exit code: 0 all passed, 1 a failure, 2 all ran passed but some were skipped (a skip is never a pass).
 using CcsWorker.Protocol;
 using CcsWorker.Shell;
 using System;
+using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace CcsWorker.Tests
@@ -38,14 +43,28 @@ namespace CcsWorker.Tests
 
         static int Serve(string[] args)
         {
-            string package = null;
+            string package = null; var seeds = new List<Tuple<string, string>>(); var links = new List<Tuple<string, string>>();
             for (int i = 1; i < args.Length; i++)
             {
                 if (args[i] == "--package" && i + 1 < args.Length) { package = args[++i]; continue; }
-                Console.Error.WriteLine("usage: CcsWorker.Tests --serve-busybox [--package DIR]"); return 2;
+                if (args[i] == "--seed" && i + 2 < args.Length && CcsWorker.Ops.ConsolePath.Plain(args[i + 1]) && File.Exists(args[i + 2])) { seeds.Add(Tuple.Create(args[i + 1], Path.GetFullPath(args[i + 2]))); i += 2; continue; }
+                if (args[i] == "--link" && i + 2 < args.Length && CcsWorker.Ops.ConsolePath.Plain(args[i + 1]) && CcsWorker.Ops.ConsolePath.Plain(args[i + 2])) { links.Add(Tuple.Create(args[i + 1], args[i + 2])); i += 2; continue; }
+                Console.Error.WriteLine("usage: CcsWorker.Tests --serve-busybox [--package DIR] [--seed CONSOLE-PATH FILE]... [--link CONSOLE-PATH TARGET]..."); return 2;
             }
             BusyboxShell sh;
             try { sh = BusyboxShell.Create(); } catch (SkipException e) { Console.Error.WriteLine("fidelity shell unavailable: " + e.Message); return 3; }
+            foreach (var s in seeds)   // a file another program put on the console (a test's set-up), placed in the disposable folder before the worker starts
+            {
+                var d = s.Item1.Substring(0, s.Item1.LastIndexOf('/'));
+                var r = sh.Raw("mkdir -p '$SIM" + d + "' && cp '" + BusyboxShell.Wsl(s.Item2) + "' '$SIM" + s.Item1 + "'");
+                if (r.Item1 != 0) { Console.Error.WriteLine("seed failed: " + s.Item1 + " " + r.Item3); sh.Dispose(); return 2; }
+            }
+            foreach (var l in links)
+            {
+                var d = l.Item1.Substring(0, l.Item1.LastIndexOf('/'));
+                var r = sh.Raw("mkdir -p '$SIM" + d + "' && ln -s '$SIM" + l.Item2 + "' '$SIM" + l.Item1 + "'");
+                if (r.Item1 != 0) { Console.Error.WriteLine("link failed: " + l.Item1 + " " + r.Item3); sh.Dispose(); return 2; }
+            }
             // the backend's integration tests drive the install engine through this disposable shell: it starts admitted (the admission itself is
             // tested in AdmissionTests and in the backend's dispatcher tests); the product worker never starts admitted
             try { return new WorkerServer(Console.OpenStandardInput(), Console.OpenStandardOutput(), package, TestOpeners.Never, sh, () => true, null, true).Run(); }

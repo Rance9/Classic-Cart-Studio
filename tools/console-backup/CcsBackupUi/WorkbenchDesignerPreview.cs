@@ -482,19 +482,26 @@ namespace CcsBackup.Ui
             var items = new List<GalleryPicture>(); int start = 0;
             const string note = "Drawn on this PC by the console HOME's own program. Nothing on a console changed.";
             var bigScreen = pvImageKey != null ? pvImageKey.Substring(pvImageKey.LastIndexOf('|') + 1) : null;
-            if (pvImage != null)
+            // the pictures shown together are the drawing of the picture chosen. A screen chosen opens itself among the screens drawn
+            // with it; the large picture joins them only when it was drawn from the same design and games. The large picture chosen opens
+            // with the screens of its own drawing. The pictures are taken now (each is a frozen picture), so a drawing that finishes while
+            // the viewer is open changes nothing in it, and another picture never stands in for the one chosen.
+            var gen = pvImageKey != null ? pvImageKey.Substring(0, pvImageKey.LastIndexOf('|')) : null;
+            bool fromShot = state != null;
+            if (fromShot && (pvShots == null || pvShotsKey == null || !pvShots.ContainsKey(state))) return;   // nothing drawn for it: nothing opens
+            bool bigInGroup = pvImage != null && (!fromShot || gen != null && gen == pvShotsKey);
+            bool shotsInGroup = pvShots != null && pvShotsKey != null && (fromShot || gen == null || pvShotsKey == gen);
+            if (bigInGroup)
             {
                 bool current = pvImageKey == PreviewKey();
                 items.Add(new GalleryPicture { Source = pvImage, Title = current ? "Your HOME: " + (bigScreen == "start" ? "first screen" : ScreenName(bigScreen)) : "Your HOME, before your latest change", Caption = current ? PreviewCaption(bigScreen) : "Your design before your latest change. The new picture is being drawn." });
             }
-            // the other screens only when they were drawn for the design and games the large picture shows
-            var gen = pvImageKey != null ? pvImageKey.Substring(0, pvImageKey.LastIndexOf('|')) : null;
-            if (pvShots != null && pvShotsKey != null && (gen == null || pvShotsKey == gen))
+            if (shotsInGroup)
             {
                 bool older = pvShotsKey != DesignSourceKey();
                 foreach (var kv in pvShots.OrderBy(x => StateOrder(x.Key)))
                 {
-                    if (kv.Key == bigScreen || bigScreen == "start" && kv.Key == "all-games") continue;   // the large picture already shows it
+                    if (bigInGroup && (kv.Key == bigScreen || bigScreen == "start" && kv.Key == "all-games")) continue;   // the large picture already shows it
                     var name = StateNames.TryGetValue(kv.Key, out var nm) ? nm : kv.Key;
                     if (kv.Key == state) start = items.Count;
                     items.Add(new GalleryPicture { Source = kv.Value, Title = name + (older ? ", before your latest change" : ""), Caption = "Your design on the HOME's " + name + " screen" + (older ? ", before your latest change." : ".") });

@@ -21,11 +21,13 @@ CCS HOME is separate from the console's original menu. Setting it up is your cho
 
 **Backup Browser** and **Backup Repair**, under **Backup Files** in the side column, work only with files on this PC. They never need a console, a USB cable or a USB driver, and they never change a console. You can open, look through, check, copy and repair backups at any time.
 
+**USB and SD Backup**, also under **Backup Files**, backs up the USB drives and SD cards you use with your console on this PC, and checks, browses, repairs and restores those backups. It needs no console either. See [USB and SD Backup](#storage-backup).
+
 ## Console tasks in this version
 
-! Each console task in this version has been built and checked on a PC for the NES Classic Mini, but stays turned off for a real console until it has passed testing on real NES Classic Mini hardware. This covers Back Up Console, the Console Browser check-up, Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, CCS Mod and CCS Nucleus changes, Your System Images, Expert Mode and Developer Mode. If you start one with a real console, Workbench shows **Not available in this version**, and nothing on the console or this PC changes. Setting up the USB driver on this PC is turned off the same way.
+! In this version, the console tasks are turned off for a real console. This covers Back Up Console, the Console Browser check-up, Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, add-on changes, Your System Images, Community Mods changes, Expert Mode and Developer Mode. If you start one with a real console, Workbench shows **Not available in this version**, and nothing on the console or this PC changes. Setting up the USB driver on this PC is turned off the same way.
 
-For the SNES Classic Mini, Workbench's console tasks are being built and are not in this version yet, and none has been tested on a real SNES Classic Mini. With the SNES Classic Mini chosen at the top of the window, a console task's page says so and starts nothing: no console connection, no USB driver check, nothing written. Backup Browser and Backup Repair work the same whichever console is chosen.
+For the SNES Classic Mini (North America and Europe), this version backs up the console, restores its own backups to it and checks it (Console Browser). Its other console tasks are not available for it in this version: with the SNES Classic Mini chosen at the top of the window, their pages say so and start nothing (no console connection, no USB driver check, nothing written). Backup Browser and Backup Repair work the same whichever console is chosen.
 
 You can still open every console page in this version and read what each task will do.
 
@@ -60,7 +62,7 @@ Some reviews can be confirmed only once, and only for a limited time. If the tim
 Workbench comes two ways, with the same pages and the same steps:
 
 | Where it runs | What is different |
-| The standalone CCS Console Workbench | One program file, with no installer. Your settings are kept only while it is open, unless you save them to a settings file of your own; when it closes with settings that are not saved, it asks first. When it closes, it may also offer to remove the USB driver it set up. |
+| The standalone CCS Console Workbench | One program file, with no installer. Your settings are kept in a settings file of your own when you save them. Workbench remembers which settings file you used and opens it next time; when it closes with settings that are not saved, it asks first. When it closes, it may also offer to remove the USB driver it set up. |
 | Opened from Classic Cart Studio for Windows | Classic Cart Studio installs the same program file and opens it in a window of its own. Only one opens at a time: opening it again brings that window forward. It keeps working when Classic Cart Studio closes. It saves its settings automatically, with Classic Cart Studio's own settings. HOME Designer can also preview a design with the HOME menu Classic Cart Studio prepared on this PC. When it closes, it may offer to remove the USB driver it set up, as the standalone does; Classic Cart Studio itself never asks. |
 
 For the parts of the window, see [The Workbench Window](#window). Words you may not know have a dotted underline where they appear: choose one to see what it means, or see the [Glossary](#glossary). For how Help works, see [Using Help](#using-help).
@@ -80,7 +82,7 @@ The Dashboard is the first page Workbench shows, and the first entry in the side
 
 **Start here** is the first thing to do: **Back Up Console**, with what a backup copies. Under it, a short line says that Workbench connects to a console only when you start a console task, and that backups already on this PC can be browsed, checked and repaired without a console or a USB driver.
 
-With the SNES Classic Mini chosen at the top of the window, a note above **Start here** says that Workbench's console tasks for it are being built and are not in this preview version yet. Backup files on this PC can still be browsed, checked and repaired under Backup Files.
+With the SNES Classic Mini chosen at the top of the window, the Dashboard's tasks are the same: a task that is not available for it in this version says so when you open it, before anything starts.
 
 ## The console line above the Dashboard
 
@@ -172,7 +174,7 @@ Choose **Dashboard** at the top of the side column whenever no console task is r
 
 Every console task (a backup, a check-up, a restore or a change) talks to the console over its USB cable while the console is in its recovery mode. In recovery mode, a small program runs from the console's memory. Connecting does not install anything on the console.
 
-! In this version, connecting to a real console and setting up the USB driver are turned off until they have passed testing on real hardware. Workbench then shows **Not available in this version**, and nothing on the console or this PC changes. See [Start Here](#start).
+! In this version, connecting to a real console and setting up the USB driver are turned off. Workbench then shows **Not available in this version**, and nothing on the console or this PC changes. See [Start Here](#start).
 
 ## What you need
 
@@ -183,7 +185,7 @@ Every console task (a backup, a check-up, a restore or a change) talks to the co
 
 ## Start the NES Classic Mini in recovery mode
 
-These steps are the NES Classic Mini's. Each of its console tasks shows them under **Connect the console**. Follow them before you choose the task's start button. Steps for the SNES Classic Mini come with its console tasks, which are not in this version yet: with it chosen, a task's page shows that note instead.
+These steps are the same for the NES Classic Mini and the SNES Classic Mini. Each console task shows them under **Connect the console**. Follow them before you choose the task's start button.
 
 1. Turn the NES Classic Mini off with its POWER switch.
 2. Connect the console to this PC with its USB cable.
@@ -420,7 +422,7 @@ When you close the window (with **Close**, its X or Escape) after choosing a dif
 
 Choosing the same console as before, or going back to it, closes the window without asking; so does **Use Selection** with the current console in **Use console**. While a console task or session is open, Workbench cannot change the console it works with: the window says so, and you can keep reading. If the page you are on has changes that are not saved, its own question comes first.
 
-This version knows two console families: the NES Classic Mini and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. Workbench's console tasks for the SNES Classic Mini are being built and are not in this version yet.
+This version knows two console families: the NES Classic Mini and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. For the SNES Classic Mini, this version backs it up, restores its own backups to it and checks it; its other console tasks are not available for it yet.
 
 [shot 59-about-console | The About This Console window, on the NES Classic Mini.]
 
@@ -435,9 +437,9 @@ A system image and startup software are different things:
 - **A system image** (a .hsqs file) is a console's system: its own software and built-in games. With CCS Nucleus, a system image you supply, for example one from your own 2016 NES Classic, can be added as one of Nucleus's choices. See [Your System Images](#firmware).
 - **Startup software** (the kernel) is what the console's circuit board loads first; a system image does not replace it. A restore puts a console's own backup back on that same console, and Console Rescue repairs a console only from its own backup. Some steps replace a console's startup software on purpose and say so before you confirm: preparing a console replaces its startup software and bootloader, and a change you review in Developer Mode can replace its startup software. Return to Original Software puts back Nintendo's startup software and the console's own bootloader.
 
-To add a 2016 system image with CCS Nucleus you need: a console prepared with CCS Nucleus (Prepare Console, or CCS Mod and CCS Nucleus), the system image file from your own console on this PC, and enough free room on the console. Workbench checks the file before anything is written. It never supplies, links to or downloads a system image.
+To add a 2016 system image with CCS Nucleus you need: a console with CCS Nucleus and its startup chooser (Prepare Console, or Add-ons and Startup in Console Restore), the system image file from your own console on this PC, and enough free room on the console. Workbench checks the file before anything is written. It never supplies, links to or downloads a system image.
 
-! A system image from another version of the console has not been tested on a real console, and no 2016 console has been tested with Workbench. Workbench reads each console's own storage layout before any task and refuses one it does not know.
+! Workbench reads each console's own storage layout before any task and refuses one it does not know.
 
 @end
 
@@ -450,7 +452,7 @@ To add a 2016 system image with CCS Nucleus you need: a console prepared with CC
 
 A console backup is one file on this PC that holds everything on the console's built-in storage, exactly as stored. Making a backup only reads the console. Nothing on it changes.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini (North America and Europe), this task is available too. Workbench reads the console's own board and region before anything else and works with the console it finds, whichever console is chosen at the top of the window; one kind of console's backup is never put on another kind.
 
 ## What is in a backup
 
@@ -542,6 +544,13 @@ In each case nothing on the console was changed. An unfinished file is kept and 
 - The backup is a ZIP file. restore/ holds the startup software and each part of the built-in storage as images. recovery/ holds the original Nintendo kernel when it is found. reference/ holds the raw NAND image, bootloaders and storage table, kept as evidence and never written to a console. inventory/ lists the files on the data storage. A manifest records every part's size and checksums.
 - While a backup is being made, its file has a temporary name. It gets its final name only after it has been read back in full and checked.
 
+## Technical details (SNES Classic Mini)
+
+- The backup file is the same kind of ZIP file. Its name begins **SNES Classic Backup**, and it names the console as a Super NES Classic Edition, with its board (dp-shvc), its region (USA or EUR) and its own storage table.
+- Its built-in storage is 537 MB, as on the NES Classic Mini, divided into five parts of other sizes; a North American console's backup is about 994 MB.
+- Its startup software is recognized as Nintendo's original only when it is one of Nintendo's releases for that console's own region (Hakchi2 CE 3.9.3's lists for North America and for Europe).
+- Its saves and suspend points are kept and exported exactly as they are; Workbench converts none of them.
+
 @end
 
 @topic check-file
@@ -596,7 +605,7 @@ Backup Repair can ask Windows to check your backups on a schedule. See [Repair a
 
 Restoring puts a console backup back on the console it came from. It changes the console, so Workbench first backs the console up as it is now, then shows exactly what would change. Nothing is written until you confirm.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini (North America and Europe), this task is available too. Workbench reads the console's own board and region before anything else and works with the console it finds, whichever console is chosen at the top of the window; one kind of console's backup is never put on another kind.
 
 ## The Console Restore page
 
@@ -604,7 +613,7 @@ Open **Console Restore** in the side column.
 
 | Card | What it does |
 | Restore a Backup | Puts a backup of this console back on it. This topic explains it. |
-| CCS Mod and CCS Nucleus | Its Change or Remove button switches between the two ways CCS HOME starts, or removes the one installed. See [CCS Mod and CCS Nucleus](#methods). |
+| Add-ons and Startup | Its Choose Add-ons button adds or removes CCS Mod (CCS HOME) and CCS Nucleus, and chooses what opens when the console is turned on. See [Add-ons and Startup](#methods). |
 | Return to Original Software | Undoes Classic Cart Studio's preparation. See [Return to Original Software](#return). |
 
 For a console that no longer starts because a startup stage is damaged, use Console Rescue instead. See [Console Rescue](#rescue).
@@ -707,11 +716,11 @@ The progress page says **Do not unplug the console.** **Stop After This Part** f
 @topic prepare
 @title Prepare Your Console for CCS HOME
 @pages prepare, prep-plan
-@summary Set your console up for CCS HOME, and choose how it starts: CCS Mod for Hakchi or CCS Nucleus.
+@summary Set your console up with Hakchi2 CE 3.9.3's foundation and the add-ons you choose: CCS Mod (CCS HOME) and CCS Nucleus.
 
-Prepare Console sets your console up for CCS HOME, the game menu Classic Cart Studio puts on the console; in this version CCS HOME is made for the NES Classic Mini. Workbench installs the software CCS HOME runs on; no other program is needed. Nintendo's HOME, its built-in games and their saves stay. A console that is already prepared this way is left as it is, and only CCS HOME and the way it starts are updated.
+Prepare Console sets your console up with the foundation Classic Cart Studio's add-ons run on, from Hakchi2 CE 3.9.3; no other program is needed. Then it adds the add-ons you choose: **CCS Mod**, which adds CCS HOME, the game menu Classic Cart Studio puts on the console, and **CCS Nucleus**, which chooses what opens when the console is turned on. In this version CCS HOME is made for the NES Classic Mini. Nintendo's HOME, its built-in games and their saves stay. A console that is already prepared this way keeps its foundation; only the add-ons you choose are added.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: preparing it with hakchi needs hakchi's kernel built with its own system key and a check of what preparation changes on it. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 Open it from **Console Composer**: choose **Start Fresh** on the **Start Fresh with Classic Cart Studio** card.
 
@@ -724,45 +733,36 @@ Open it from **Console Composer**: choose **Start Fresh** on the **Start Fresh w
 
 When you prepare, Workbench backs the console up once more in the same session, with every save. That backup is your way back with Return to Original Software. See [Return to Original Software](#return).
 
-## Choose how Classic Cart Studio starts
-
-| Choice | What it does |
-| CCS Mod for Hakchi | The default. CCS HOME is installed as a hakchi module and is an entry in the console's own menu. The console still starts in its own menu. |
-| Start CCS HOME when the console is turned on | Only with CCS Mod for Hakchi. Off (the default): the console starts in its own menu. On: CCS HOME opens first, and leaving it continues the console's own start. |
-| CCS Nucleus | Adds a chooser where you pick CCS HOME, the console's own menu, or a system image of your own that you add later. It uses Hakchi2 CE underneath. Other system software must come from you. See [Your System Images](#firmware). |
-| Hakchi only | Only hakchi's foundation, with no way to start CCS HOME yet. To add one later, prepare the console again and choose it. |
-
-CCS HOME, with the Included Games, is put on the console in the same session. The way it starts takes effect the next time the console starts normally. Classic Cart Studio for Windows can later put your own collection there.
-
-[shot 11-prepare | The Prepare Console page, with CCS Mod for Hakchi chosen and the connect steps.]
+[shot 11-prepare | The Prepare Console page: what it does, your add-ons and the connect steps.]
 
 ## Prepare the console
 
 1. Make and check a backup of the console, if you have not.
 2. Open **Console Composer**, then choose **Start Fresh**.
-3. Read **What this does** and **Before anything changes**.
-4. Choose how Classic Cart Studio starts.
-5. Start the console in recovery mode, as the **Connect the console** steps show. See [Connect Your Console](#connect).
-6. Choose **Check the Console**. Workbench reads the console and backs it up. Nothing is changed in this step.
-7. Read **Review the Preparation**, tick the **I understand** box, and choose **Prepare Now**.
-8. Keep the cable connected until the result shows.
+3. Read **What this does**, **Before anything changes** and **Your add-ons**.
+4. Start the console in recovery mode, as the **Connect the console** steps show. See [Connect Your Console](#connect).
+5. Choose **Check the Console**. Workbench reads which software and add-ons the console has. Nothing is changed in this step.
+6. Choose your add-ons, then what opens when the console is turned on, on two pages. See [Choose Your Add-ons and Startup](#addons).
+7. Choose **Review Changes**. Workbench backs the console up as it is now, then shows the review. Nothing is changed yet.
+8. Read **Review the Preparation**, tick the **I understand** box, and choose **Prepare Now**.
+9. Keep the cable connected until the result shows.
 
 **Back** returns to Console Composer without connecting.
 
 ## Review the Preparation
 
-The review names the console and the software it has now, then lists the steps that would be written, in order. Depending on the console, they can include:
+The review names the console and the software it has now, then lists the steps that would be written, in order. Depending on the console and your choices, they can include:
 
 - hakchi's files on the data storage
 - hakchi's bootloader (u-boot)
 - a copy of the original Nintendo startup software in the spare startup slot
-- CCS HOME at power-on, recorded as CCS Mod's own setting
-- the package for how CCS HOME starts (CCS Mod or CCS Nucleus), placed for hakchi to install at the next start
+- each add-on's package (CCS Mod, CCS Nucleus, the startup chooser), placed for hakchi to install at the next start
+- what opens at power-on, set in CCS Nucleus
 - CCS HOME's package, sent to the console and checked there; the HOME in use stays until the switch
 - CCS HOME switched to the new package
 - hakchi's kernel (the startup software)
 
-It also shows the size of CCS HOME's package and confirms that a complete backup of the console as it is now was made first. If Workbench cannot prepare this console, the review shows why and offers **Done**.
+It starts with the same plain summary as every add-on review (CCS HOME, Original Menu, Startup). It also shows the size of CCS HOME's package and confirms that a complete backup of the console as it is now was made first. Preparing only adds: an add-on already on the console stays, and removing one is in Console Restore. If Workbench cannot prepare this console, the review shows why and offers **Done**.
 
 | Button | What it does |
 | I understand box | Tick it to turn on Prepare Now. |
@@ -774,16 +774,14 @@ It also shows the size of CCS HOME's package and confirms that a complete backup
 
 [shot 12b-prep-plan-home | Review the Preparation including CCS HOME's package, for a sample console.]
 
-[shot 12c-prep-plan-already | Review the Preparation for a console that is already prepared: only CCS HOME and its start method change.]
-
-[shot 12d-prep-plan-modstart | Review the Preparation with CCS HOME set to start when the console is turned on.]
+[shot 12c-prep-plan-already | Review the Preparation for a console that is already prepared: only the chosen add-ons are added.]
 
 ## The result
 
 | Title | What it means |
-| Console prepared | Every step was written once and read back. Restart the console and check that it starts. If a start method was placed, hakchi installs it at that start and restarts the console once. |
-| Ready for the next start | CCS HOME is on the console, checked file by file. The start method waits in hakchi's package folder: hakchi installs it the next time the console starts normally, then restarts the console once. |
-| CCS HOME is on the console | CCS HOME's package was written once, checked file by file, and is now the one the console uses. How it starts, and the rest of the console, are unchanged. |
+| Console prepared | Every step was written once and read back. Restart the console and check that it starts. If add-ons were placed, hakchi installs them at that start and restarts the console once. |
+| Ready for the next start | Your add-ons wait in hakchi's package folder: hakchi installs them the next time the console starts normally, then restarts the console once. When CCS HOME was sent too, it is on the console, checked file by file. |
+| CCS HOME is on the console | CCS HOME's package was written once, checked file by file, and is now the one the console uses. What opens at power-on, and the rest of the console, are unchanged. |
 | Already prepared | Nothing needed to change. |
 | The preparation stopped partway | A step failed. The steps after it were not done, and nothing was retried. |
 | Canceled | The preparation was canceled. |
@@ -793,7 +791,7 @@ Choose **Restart the Console** to start it normally, or **Done** to return.
 
 [shot 13-prep-result | Console prepared: every step was written once and read back.]
 
-[shot 13b-prep-result-scheduled | Ready for the next start: the start method waits for hakchi to install it.]
+[shot 13b-prep-result-scheduled | Ready for the next start: the add-ons wait for hakchi to install them.]
 
 [shot 13c-prep-result-home-placed | CCS HOME is on the console: its new package is now the one in use.]
 
@@ -805,61 +803,126 @@ If preparing stops partway, do not run it again straight away. Back up the conso
 
 ## Technical details (NES Classic Mini)
 
-- What is installed: Hakchi2 CE 3.9.3's kernel and files, with CCS HOME's package and the start method you choose.
-- CCS Mod for Hakchi is the hakchi package ccs-mod (ccs-mod.hmod); CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod). The chosen package is placed in hakchi's transfer folder, and hakchi installs it at the console's next normal start, then restarts the console once.
-- CCS HOME at power-on is CCS Mod's own start setting, kept in hakchi's overlay.
+- What is installed: Hakchi2 CE 3.9.3's kernel and files, with the add-ons you choose: CCS Mod (with CCS HOME's package) and CCS Nucleus, with or without its startup chooser.
+- CCS Mod is the hakchi package ccs-mod (ccs-mod.hmod); CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod) and its startup chooser ccs-nucleus-chooser (ccs-nucleus-chooser.hmod). Each chosen package is placed in hakchi's transfer folder, and hakchi installs them at the console's next normal start (CCS Nucleus before its chooser), then restarts the console once.
+- What opens at power-on is CCS Nucleus's own setting on the data storage, set with this version's own copy of CCS Nucleus. CCS Mod adds nothing that runs at power-on.
 - As Hakchi2 CE's own installation does, hakchi's bootloader (u-boot) replaces the console's own and hakchi's kernel replaces the startup software; a copy of the original Nintendo kernel is kept in the spare startup slot, and the originals stay in your backups. Return to Original Software puts this console's own bootloader and Nintendo's kernel back.
 
 @end
 
-@topic methods
-@title CCS Mod and CCS Nucleus
-@pages methods, method-plan
-@summary Change how Classic Cart Studio starts on a prepared console, or remove the way it starts. Games and saves stay.
+@topic addons
+@title Choose Your Add-ons and Startup
+@pages addons, startup
+@summary The two pages where you choose CCS Mod (CCS HOME) and CCS Nucleus, and what opens when the console is turned on.
 
-A console Classic Cart Studio prepared starts CCS HOME in one of two ways. On this page you can switch to the other way, or remove the one installed.
+After Workbench has checked the console, two pages ask what you want. They open in **Prepare Console** and in Console Restore's **Add-ons and Startup**, and they start from what the console has now. A suggestion never removes anything: only your own choice does, and the review shows it before anything is written.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, these tasks are not available in this version: CCS Mod and CCS Nucleus need the console prepared with hakchi first, and preparing it is not available yet.
 
-| Way | What it is |
-| CCS Mod for Hakchi | CCS HOME is a hakchi module and an entry in the console's own menu. The console starts in its own menu, unless you choose to open CCS HOME when the console is turned on. |
-| CCS Nucleus | A chooser where you pick CCS HOME, the console's own menu, or one of your own system images. It uses Hakchi2 CE underneath, and additional system software must come from you. |
+## Choose your add-ons
 
-Open **Console Restore** in the side column and choose **Change or Remove** on the **CCS Mod and CCS Nucleus** card.
+| Add-on | What it is |
+| CCS Mod — CCS HOME | A menu for your game collections. Browse your games in four themes, arrange folders, and choose your own pictures and colors. It adds a CCS HOME tile to Original Menu (Nintendo's own menu). What opens at power-on stays unchanged unless you choose CCS Nucleus on the next page. |
 
-Removing one takes away that way of starting, and the console starts in its own menu again. Changing installs the other one in its place. Either way, games, saves, settings, other hakchi packages and your system images stay, and the change takes effect the next time the console starts normally.
+**See CCS HOME**, or the picture on its card, shows CCS HOME's four themes larger.
 
-This works only on a console Classic Cart Studio prepared; the review refuses any other. If neither way is installed, choose one by preparing the console again. See [Prepare Your Console for CCS HOME](#prepare).
+When Community Mods lists mods, their cards appear below CCS Mod's, in the sections Menus, Utilities, Themes and Emulators, under a note that they are designed for Original Menu. Choosing one selects what it needs and says why. They are installed from Community Mods afterwards, each with its own review. See [Community Mods](#community).
 
-[shot 17-methods | The CCS Mod and CCS Nucleus page with its four cards and the CCS Mod start choice.]
+When you prepare a console from Classic Cart Studio for Windows, CCS Mod is selected at first; from the standalone CCS Console Workbench it is not. Either way you can change it. An add-on already on the console is shown as installed. When preparing it stays; in Console Restore, clearing it removes it, and the page says what that changes.
+
+[shot 11b-addons | Choose your add-ons, with the CCS Mod card.]
+
+## What should open when you turn on the console?
+
+| Choice | What it does |
+| Choose what opens first with CCS Nucleus | Off: the console keeps its current startup; the page says what that is. On: CCS Nucleus decides what opens first. It works with or without CCS HOME. |
+| Open a menu straight away | **Open first** opens immediately at every start. The startup chooser is off. |
+| Show the startup chooser | A screen to choose a menu at every start. **Start automatically with** sets what starts if you do nothing for 10 seconds: a menu, **Last menu used** (until you have used one, the menu chosen before), or **Wait for me to choose**. Your own system images are choices there too. |
+
+CCS HOME is in these lists only when CCS Mod is chosen or installed. If CCS HOME was chosen to open first and you then clear CCS Mod, Original Menu takes its place, and the page says so.
+
+When you prepare an original console from Classic Cart Studio for Windows, CCS Nucleus is on at first, opening CCS HOME straight away. In every other case it starts as the console has it now.
+
+[shot 11c-startup | What should open when you turn on the console, with CCS Nucleus on.]
+
+## Games in Original Menu without CCS HOME
+
+Classic Cart Studio for Windows can also add a collection's games to Original Menu as ordinary Hakchi games, with or without CCS Mod. They are not an add-on: Classic Cart Studio adds, updates and removes them when it installs or removes the collection, and changes only the entries it added. Adding or removing CCS Mod or CCS Nucleus here keeps them.
 
 ## Buttons
 
-| Button or setting | What it does |
-| Remove CCS Nucleus… | The chooser goes, and the console starts in its own menu again. Your system images stay on the console as files. |
-| Remove CCS Mod… | CCS HOME's entry in the console's menu goes, and the console starts in its own menu. Games and saves stay. |
-| Change to CCS Nucleus… | CCS Nucleus takes over from CCS Mod. |
-| Change to CCS Mod… | CCS Mod takes over from CCS Nucleus. Your system images stay on the console as files. |
-| Start CCS HOME when the console is turned on | Used when changing to CCS Mod. Off: the console starts in its own menu. On: CCS HOME opens first, and leaving it continues the console's own start. |
+| Button | What it does |
+| Next: Startup | Goes to the second page. Your choices stay. |
+| Back: Add-ons | Returns to the first page. Your choices stay. |
+| Review Changes | Backs the console up as it is now, then shows exactly what would change. Nothing is written until you confirm. In Console Restore it turns on only when something differs from what the console has now. |
+| Back, on the first page | Ends the session without writing anything. |
+
+The console stays connected while you choose. If you take more than 10 minutes, the session ends without changing anything; check the console again to continue.
+
+## Technical details (NES Classic Mini)
+
+- CCS Mod is the hakchi package ccs-mod; CCS Nucleus is ccs-nucleus, and its startup chooser is ccs-nucleus-chooser. Each is added or removed on its own through hakchi's own package folder.
+- What opens first is CCS Nucleus's setting on the data storage: the menu, the chooser shown or not, CCS HOME offered or not, the menu used last or not, and the countdown (10 seconds, or 0 to wait).
+- The CCS HOME tile and CCS Nucleus's menu entry are entries in hakchi's game folder. Hakchi2 CE's own Windows program removes every file in that folder that it did not put there when it syncs games, including these entries. If the tile is gone after such a sync, remove CCS Mod and add it again in Add-ons and Startup: that puts the tile back. Games, saves and CCS HOME's files stay.
+
+@end
+
+@topic methods
+@title Add-ons and Startup
+@pages methods, method-plan
+@summary Add or remove CCS Mod (CCS HOME) and CCS Nucleus on a prepared console, and choose what opens when it is turned on. Games and saves stay.
+
+On a console prepared with Hakchi2 CE 3.9.3, CCS Mod and CCS Nucleus are separate add-ons: you can have either one, both or neither.
+
+! For the SNES Classic Mini, this task is not available in this version: CCS Mod and CCS Nucleus need the console prepared with hakchi first, and preparing it is not available yet. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+
+| Add-on | What it is |
+| CCS Mod — CCS HOME | A menu for your game collections, opened from its tile in Original Menu. It adds nothing that runs when the console is turned on. |
+| CCS Nucleus | What opens when the console is turned on: a menu straight away, or a startup chooser. It works with or without CCS HOME. |
+
+Open **Console Restore** in the side column and choose **Choose Add-ons** on the **Add-ons and Startup** card.
+
+Removing one takes away only its own files. Games, saves, settings, other hakchi packages and your system images stay, and the change takes effect the next time the console starts normally.
+
+The console must run Hakchi2 CE 3.9.3; any other setup is refused before anything is written. A console without hakchi is prepared first. See [Prepare Your Console for CCS HOME](#prepare).
+
+[shot 17-methods | The Add-ons and Startup page with its four actions and the connect steps.]
+
+## The page's actions
+
+Each action first reads which add-ons the console has. Nothing is written then.
+
+| Action | What it does |
+| Manage Add-ons… | Opens both pages: your add-ons, then what opens first. See [Choose Your Add-ons and Startup](#addons). |
+| Change Startup… | Opens the second page only: what opens when the console is turned on. |
+| Remove CCS Mod… | Goes straight to its review. If CCS Nucleus opens CCS HOME first, the startup page shows another menu in its place first. Games, saves and CCS HOME's files stay on the console. |
+| Remove CCS Nucleus… | Goes straight to its review. Original Menu then opens when the console is turned on; the CCS HOME tile and its data stay. |
 | Back | Returns to Console Restore. Escape does the same. |
+
+If the console does not have the add-on you chose to remove, Workbench says so and changes nothing.
 
 ## Make a change
 
 1. Start the console in recovery mode, as the **Connect the console** steps show. See [Connect Your Console](#connect).
-2. Choose the card's button, for example **Change to CCS Nucleus…**.
-3. Workbench identifies the connected console and backs it up first. Nothing is written yet.
-4. Read the review, then choose **Change Now** or **Remove Now**. **Cancel** ends the session without writing anything.
-5. Restart the console normally. At that start hakchi makes the change and restarts the console once.
+2. Choose an action, for example **Manage Add-ons…**. Workbench reads which add-ons the console has. Nothing is written in this step.
+3. Change your add-ons and what opens first on the pages it opens.
+4. Choose **Review Changes**. Workbench backs the console up first. Nothing is written yet.
+5. Read the review, then choose **Apply Changes**. **Cancel** ends the session without writing anything.
+6. Restart the console normally. At that start hakchi makes the change and restarts the console once.
 
 ## The review
 
-The review shows the console, when the change takes effect, the backup made first, and what is written, in order. Only files on the console's data storage are written: hakchi's transfer folder and CCS HOME's folder. No kernel, bootloader or system is changed.
+The review starts with a plain summary: **CCS HOME** (added with CCS Mod, kept, removed or not selected), **Original Menu** (kept, with or without the CCS HOME tile), **Startup** (CCS Nucleus opening a menu straight away or showing the startup chooser, or the current startup kept), and either **Startup chooser: Off** or **If you do nothing** (what starts after 10 seconds). Then it shows the console, the add-ons added and removed, when the change takes effect, the backup made first, and what is written, in order. Only files on the console's data storage are written: hakchi's transfer folder, CCS Nucleus's setting and CCS HOME's folder. No kernel, bootloader or system is changed.
 
 The backup made just now is checked again when you confirm and stays locked until the change ends. If it is missing or has changed, nothing is written. A review can be confirmed once, until the time shown under **Technical details**.
 
-[shot 18-method-plan | Review: Change to CCS Nucleus, for a sample console.]
+[shot 18-method-plan | Review: Add-ons and Startup, adding CCS Nucleus with its startup chooser, for a sample console.]
 
-[shot 18b-method-plan-remove | Review: Remove CCS Mod, for a sample console.]
+[shot 18b-method-plan-remove | Review: Add-ons and Startup, removing CCS Mod, for a sample console.]
+
+When the change places CCS HOME, the review also lists **Earlier HOME versions** in four groups: **In use now** (the copy in use before the change), **The update** (the new copy, sent first beside it and checked before the switch), **Kept on the console as earlier versions after the update** and **Removed after the new copy is in use and read back**. Each version shows its collection name, games, the date it was installed (**date not known** when its record has none), its size and the space it takes on the storage. How many stay comes from **Settings > CCS HOME > Earlier HOME versions**; **Change…** opens it, and a change applies when you review again. A version that was changed on the console is kept, and so is one that an entry of Original Menu names (or may name, when such entries are on a USB drive or SD card). Each one is checked on the console again just before it is removed; if removing one fails, the clean-up stops there and the new copy stays in use. The record of the change names each version removed, and the backup made first can put it back with Console Restore.
+
+[shot 18e-method-plan-earlier-home | Review: Add-ons and Startup, with the earlier HOME versions this sample console keeps and the one removed after the switch.]
 
 While it writes, **Stop After This Step** finishes the step in progress, then stops.
 
@@ -874,7 +937,7 @@ While it writes, **Stop After This Step** finishes the step in progress, then st
 
 The backup made just before is kept, and its location is shown. Choose **Restart the Console** or **Done**.
 
-In this version, with a real console, the result says that removing or changing CCS Mod or CCS Nucleus on a real console is not available in this version, and nothing is written.
+In this version, with a real console, the result says that changing add-ons on a real console is not available in this version, and nothing is written.
 
 [shot 19-method-result | Change scheduled for the next start, with the backup made just before.]
 
@@ -882,9 +945,12 @@ In this version, with a real console, the result says that removing or changing 
 
 ## Technical details (NES Classic Mini)
 
-- CCS Mod is the hakchi package ccs-mod (ccs-mod.hmod) and CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod).
-- Removing places the package's removal list in hakchi's transfer folder. Changing places the new package and the old one's removal list there, and CCS HOME's package in the new method's layout. Only the removed package's unchanged files are removed; its settings stay on the console as data.
+- CCS Mod is the hakchi package ccs-mod (ccs-mod.hmod); CCS Nucleus is ccs-nucleus (ccs-nucleus.hmod) and its startup chooser ccs-nucleus-chooser (ccs-nucleus-chooser.hmod).
+- Adding places a package in hakchi's transfer folder (the startup chooser in its hmod folder, installed after CCS Nucleus). Removing places one removal list there, naming each package in the order hakchi removes them (the startup chooser before CCS Nucleus). Only a removed package's unchanged files are removed; its settings stay on the console as data.
+- What opens first is set in CCS Nucleus's setting on the data storage with this version's own copy of CCS Nucleus.
+- CCS HOME's copies are under /var/lib/ccs/pkg, each with its record in /var/lib/ccs/install (with the time this PC installed it). An earlier copy is removed only when every file is exactly what its record names, nothing else is in its folder and no entry of Original Menu (a .desktop file in hakchi's folders) names it; the console reads it back as gone. If the console program recorded entries on a USB drive or SD card, which cannot be read in this session, no earlier copy is removed.
 - The console must run Hakchi2 CE 3.9.3's hakchi.
+- If a USB drive or SD card connected to the console has hakchi's own transfer folder (media/hakchi/transfer), hakchi handles that folder at the next start instead, then restarts; the change placed here follows at the start after that.
 
 @end
 
@@ -895,7 +961,7 @@ In this version, with a real console, the result says that removing or changing 
 
 Return to Original Software undoes Classic Cart Studio's preparation of your console. It is not a factory reset: it brings back the console as it was just before it was prepared.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: returning it to its original software needs its preparation and its own replacement-bootloader evidence. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 ! This changes the console's startup software, bootloader, storage table and data storage. You review every step first.
 
@@ -979,7 +1045,7 @@ If a return stops partway, do not run it again straight away. Back up the consol
 
 Console Rescue is for a console that no longer starts because one of its startup stages is damaged. It writes this console's own copy of that stage back from one of its backups. It changes the console only after you confirm.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: repairing its startup stages needs its own boot0 and boot1 references, read from a genuine console of this model. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 It is not the same as Backup Repair: Backup Repair fixes a backup file on this PC and never touches a console. See [Repair a Backup File](#backup-repair).
 
@@ -1064,7 +1130,7 @@ In this version, with a real console, the result says that repairing a real cons
 
 Console Composer sets up your console from your own backups and files. Each setup changes the console: you review it first, and the console is backed up before anything is written. Open **Console Composer** in the side column.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: moving data between consoles needs two consoles of this model and its own data plan. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 [shot 24-composer | The Console Composer page, with its setup cards and its designs, system images and packages cards.]
 
@@ -1076,6 +1142,7 @@ Console Composer sets up your console from your own backups and files. Each setu
 | Rebuild from My Backups | Puts chosen files from one or more backups of this console back on it. |
 | HOME Designer | Designs how CCS HOME looks. See [HOME Designer](#designer). |
 | Your System Images | Adds a system image of your own as a CCS Nucleus choice, or removes one. See [Your System Images](#firmware). |
+| Community Mods | Browse mods other authors make for your console, and install, update or remove them. See [Community Mods](#community). |
 | Apply a Private Restore Package | Puts the files of a package you built on the console it was built for. See [Packages and Shared Plans](#package). |
 | Open a Shared Plan | Shows what a shared plan asks for. A plan never changes a console by itself. See [Packages and Shared Plans](#package). |
 
@@ -1118,7 +1185,7 @@ Every backup you choose here must be of the console connected to this PC. To tak
 | File check boxes | Choose single files. Each shows its size. |
 | Add Another Backup | Rebuild only: adds another backup choice. |
 | Plan name (for a shared plan) | A name for a Shared Composition Plan made from these choices. Optional. |
-| How Classic Cart Studio starts | CCS Mod for Hakchi or CCS Nucleus, recorded in a package or shared plan made from these choices. |
+| Add-ons | CCS Mod (CCS HOME), CCS Nucleus, both or no add-ons, recorded in a package or shared plan made from these choices. |
 | Build a Private Restore Package… | Saves copies of the chosen files in one package for one console. See [Packages and Shared Plans](#package). |
 | Save a Shared Composition Plan… | Saves only your choices, to give to someone else. See [Packages and Shared Plans](#package). |
 | Review the Changes | Connects to the console, backs it up and shows what would change. |
@@ -1223,7 +1290,7 @@ If the file is not a Private Restore Package, **This file cannot be applied** sa
 
 ## Save a Shared Composition Plan
 
-1. In Set Up Like My Other Console or Rebuild from My Backups, make your choices. Type a **Plan name** and choose **How Classic Cart Studio starts**.
+1. In Set Up Like My Other Console or Rebuild from My Backups, make your choices. Type a **Plan name** and choose its **Add-ons**.
 2. Choose **Save a Shared Composition Plan…**.
 3. Read what the shared copy holds. **Included** lists your choices and public references. **Removed from the shared copy** lists what was left out: this console's identity, your own games that are not in the public catalog (the receiver sees "Your game 1" and so on, and chooses their own), references to your backups and file locations on this PC.
 4. Choose **Save the Shared Plan…**, and choose where to save it.
@@ -1236,7 +1303,7 @@ If the file is not a Private Restore Package, **This file cannot be applied** sa
 
 1. Open **Console Composer**, then choose **Open a Shared Plan** and choose the .ccsplan file.
 2. Read **What it asks for**. Opening a plan changes nothing.
-3. To use it, choose the button named after its starting point, such as **Set Up Like My Other Console**. That page opens with the plan's start method, and you choose your own backups and files.
+3. To use it, choose the button named after its starting point, such as **Set Up Like My Other Console**. That page opens with the plan's add-ons, and you choose your own backups and files.
 
 Each item the plan asks for has a label:
 
@@ -1258,6 +1325,52 @@ A plan is never a restore point: every change is reviewed on your console first,
 
 @end
 
+@topic sega-pictures
+@title Pictures for the Sega Mini Menu
+@pages sega-pictures, sega-plan
+@summary See the pictures Hakchi2 CE made for a Sega Mini menu on your console, and remove them or put them back.
+
+These pictures are only used if you start a Sega Mini menu on this console.
+
+Hakchi2 CE makes one beside the pictures of each game and folder it puts on a console, and copies it to the console with the game. The console's own menu does not use it. Classic Cart Studio and Workbench never make or copy one, and there is no setting to include them.
+
+Removing them is optional. A later sync by another program, such as Hakchi2 CE, may make them again.
+
+## How it works
+
+1. Open **Console Composer** and choose **Pictures for the Sega Mini menu**, or choose **Remove from the Console…** in a backup's Storage view.
+2. Choose **Review What Can Be Removed…** and connect the console (see [Connect Your Console](#connect)).
+3. Workbench backs up the console as it is now and checks that backup. That backup keeps every picture exactly as it was.
+4. It lists exactly the pictures it can remove, with their sizes and the space removing them would give back, from that backup. Nothing is removed yet.
+5. Choose **Remove These Pictures** to remove exactly that list, or **Cancel** to leave everything as it is. Each picture is checked to be the same file the backup holds, removed, and checked gone. The first problem stops every later one.
+
+[shot 64-sega-plan | The review of two pictures for the Sega Mini menu Workbench can remove, with their sizes and the space they give back.]
+
+## Which pictures it lists
+
+Only a picture Hakchi2 CE named for a game or folder, in that game's or folder's own folder among hakchi's games. A picture stays, and is listed with the reason, when:
+
+- a menu entry on the console names it, or shows it as its picture
+- it is a link, or its stored data has another name too
+- it is somewhere else, or its name is not the one Hakchi2 CE gives, so who it belongs to is not known
+- a menu entry or the picture itself cannot be read
+
+Your games, saves, the console's own pictures of each game and anything else stay as they are. The pictures and folders on this PC that another program keeps are not touched.
+
+## Putting them back
+
+**Put Them Back…** on the result page, or beside a removal under **Put back pictures removed earlier**, puts exactly the removed files back from the backup made before the removal. Workbench first backs up the console as it is now. A picture is put back only where the console has no file of that name and the game or folder is still there; anything else is listed, with the reason, and left alone.
+
+! For the SNES Classic Mini, this task is not available in this version: changing files on it needs its own file scopes, which this version does not define yet.
+
+## Technical details
+
+- Hakchi2 CE 3.9.3 names the picture after the game's picture file (for example CLV-H-ABCDE_mdmini.png) and, for a folder, after the folder's code.
+- Each file is listed with its SHA-256. A removed file's record keeps its path and SHA-256; putting it back reads it from the backup made before the removal and checks it against the record.
+- The space given back is counted the same way as everywhere in Classic Cart Studio: each stored file once, in whole blocks.
+
+@end
+
 @topic firmware
 @title Your System Images
 @pages firmware
@@ -1265,15 +1378,15 @@ A plan is never a restore point: every change is reviewed on your console first,
 
 A system image is the main software of a console system, in one file. You can add one of your own from this PC as a choice in CCS Nucleus's chooser. It starts only when you pick it, for that one start. When you don't pick it, your console starts its own system as before, and that stays your way back.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: adding system images to its startup chooser needs CCS Nucleus on it. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 Workbench does not supply or download system images. Adding one changes files on the console: you review it first, and the console is backed up before anything is written. Workbench does not promise that every system image works.
 
 ## What you need
 
-- A console with CCS Nucleus installed. Install it with Prepare Console or with CCS Mod and CCS Nucleus in Console Restore. See [Prepare Your Console for CCS HOME](#prepare) and [CCS Mod and CCS Nucleus](#methods).
+- A console with CCS Nucleus and its startup chooser installed. Add them with Prepare Console or with Add-ons and Startup in Console Restore. See [Prepare Your Console for CCS HOME](#prepare) and [Add-ons and Startup](#methods).
 - A system image file (.hsqs) of your own on this PC.
-- Enough free space: the image and 8 MB more must fit on the console's data storage.
+- Enough free space: the image, room kept for saves and a small safety margin must fit on the console's data storage.
 
 Open **Console Composer** and choose **Your System Images**.
 
@@ -1325,6 +1438,82 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 - A system image is a SquashFS file (.hsqs) holding a console system's root file system. It is checked with hakchi's own rules, and a kernel file is refused.
 - It goes to CCS Nucleus's own folder on the console's data storage, never to hakchi's firmware folder, because hakchi starts the first image there by itself, without a choice.
 - The console must run Hakchi2 CE 3.9.3's hakchi with CCS Nucleus installed. Its list of start choices is read before anything is written.
+
+@end
+
+@topic community
+@title Community Mods
+@pages community, community-details, community-files, community-plan, community-remove, community-rollback, community-result
+@summary Browse mods other authors make for your console, and install, update or remove them through Hakchi's own route. Each change is reviewed, and the console is backed up first.
+
+Community Mods lists mods other authors make for your console: extra controls, theme tools, emulators and other menus. Open **Console Composer**, then **Community Mods**. A mod is listed only after its author agrees to have it listed and its exact version has been reviewed.
+
+! No community mod is listed in this version yet, so Browse says so and there is nothing to install. Mods you added with other tools stay on your console as they are; Workbench does not change or remove them.
+
+! For the SNES Classic Mini, this task is not available in this version: community mods need CCS Nucleus on it and each mod's own approval for it.
+
+## Browse, Installed and Updates
+
+| View | What it shows |
+| Browse | The listed mods in four sections, always in this order: Menus, Utilities, Themes, Emulators. Each card gives the mod's version, author and license, what it does, where it applies, and how much it downloads and takes on the console. **Details** shows everything about it. |
+| Installed | The mods Workbench installed on each of your consoles, with what Workbench found when it last checked the console. Mods added with other tools are not listed here. |
+| Updates | A mod you installed whose newer version has been approved. Workbench never updates a mod by itself, whatever its author calls the latest version. |
+
+Community add-ons are designed for Original Menu, Nintendo's own menu. Their features and settings may not work in CCS HOME or other menus. Each card says where it applies.
+
+When the list has mods, their cards also appear under CCS Mod's on the first add-on page. Choosing one there selects what it needs; the chosen mods are then installed from Community Mods, each with its own review.
+
+[shot 60-community-empty | Community Mods with no mods listed yet: what it says and where Classic Cart Studio's own add-ons are.]
+
+## Details
+
+Details shows the mod's version, where it applies, its author and the others credited, its license, what it needs, what it cannot be used with, what its own install removes, whether it uses a USB drive or SD card, and what removing it does. **Project Page**, **Support**, **License** and **Source** open the author's own pages in your browser. **Show Pictures** shows the pictures its author allows, only when each one is exactly the approved picture.
+
+A mod marked **Alpha** is an early release. Its author's own warnings are shown with it.
+
+## Install a mod
+
+1. Choose **Install…** on the mod's card or its Details. Workbench connects to the console and reads which mods it has. Nothing is written.
+2. Workbench works out the whole change at once: a mod that needs another selects it too and says why, and two mods that cannot be used together are refused with the reason.
+3. For each mod, choose where its file comes from: **Download…** saves it from the author's own release into a folder you choose, or **Choose the File…** uses the approved file already on this PC. Either way, the file must be exactly the approved one. A different file is never accepted in its place.
+4. **Review the Change** backs the console up as it is now, then shows exactly what would change. Nothing has been written yet.
+5. **Make This Change** writes it. The mods are installed at the console's next normal start: switch the console off, disconnect the USB cable and switch it on. The console restarts once.
+6. Connect again later: Workbench checks each mod's files on the console and shows what it found in **Installed**.
+
+| Situation | What it means |
+| Connect to download this mod, or choose the approved file already on your PC. | Workbench has no copy of the mod's file yet. |
+| Two RetroArch packages | These two RetroArch packages use the same program files. Choose one for this system. Replacing one with the other is one reviewed change. |
+| Its install also removes … | The author's own install removes those packages if they are installed. They are listed before you confirm, and they are in the backup made first. |
+| Needs a mod that is not listed | The change is refused: Workbench installs only listed mods. |
+| Uses a USB drive or SD card | Workbench cannot back that storage up yet, so it does not install, update or remove that mod. |
+
+## Remove a mod
+
+In **Installed**, choose **Remove…**, then one of:
+
+| Choice | What it does |
+| Remove mod | Hakchi runs the mod's own removal at the next start. Its settings and favorites are kept first in Classic Cart Studio's own folder on the console, so they can be put back if you install it again. |
+| Also remove this mod's settings and favorites | Nothing is kept, and settings kept from an earlier removal are removed too. |
+
+A mod that another installed mod needs cannot be removed alone: remove both, or keep it. Games and saves are kept either way.
+
+**Put Back Kept Settings…** appears once the mod is installed again. It puts each kept file back where nothing is now. A file made since is never replaced.
+
+## Restore the pre-install backup
+
+**Restore the Pre-install Backup…** is not the same as Remove: it puts the whole console back to how it was when the mod was installed. Workbench first checks that backup, then says plainly the date and what returns: games, saves, settings and other mods changed after that are replaced by what the backup holds. **Continue to Restore…** opens Restore a Backup's own review, which backs up the console as it is now, so later progress can be kept from that backup.
+
+## If something goes wrong
+
+A change that stops says so in three parts: **The mod could not be installed.**, then what is true now, then the safe next step. Nothing is retried and nothing is undone by itself. Connect again and review the change to finish it: what was already done is not done twice. If the console does not start as before, Restore a Backup can put back the backup made just before the change. A problem inside a mod itself is for its author: its Details page links to their support page.
+
+## Technical details
+
+- A mod is a Hakchi package (a .hmod file). Workbench places it in hakchi's transfer folder; hakchi installs it, and runs its own removal, at the console's next normal start, as it does for any package. A mod that needs another one being installed in the same change waits in the folder hakchi installs second.
+- Each file is admitted only with its approved size and SHA-256 fingerprint, and its contents are checked before anything is written: no file outside the places its listing names, no path that leaves the package, no link that points outside it, no game or console system file.
+- A mod's own scripts run on the console with full control of it. The fingerprint check proves the file is the one that was reviewed; it does not make the author's code safe or limit what it does.
+- The PC keeps a record of the mods Workbench installed on each console, beside your backups. Hakchi listing a package is not taken as proof: its files are read back and compared.
+- The catalog is carried inside Workbench. A newer catalog would be used only when signed with the publisher's key; this version has none, so it uses the one it carries.
 
 @end
 
@@ -1482,7 +1671,7 @@ If something in the design cannot be shared, the problems are listed, and a shar
 
 Before a design can go on your console, it is checked: it is fitted to the games in a backup of your console and every screen is made by the console's own HOME program, here on this PC. Checking reads a backup and changes nothing. Applying changes the console, and the console is backed up first.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: applying a design needs CCS HOME on the console, and CCS Mod is not available for it yet. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 In HOME Designer's last step, **Review & Save**, choose **Check and Apply on My Console…**.
 
@@ -1552,7 +1741,7 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 
 Console Browser checks your console and lets you look through its files while it is connected. The check-up and browsing only read the console. The session runs in the console's memory, with nothing installed on your console, and Workbench does not write to the console's storage in this mode.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini (North America and Europe), this task is available too. Workbench reads the console's own board and region before anything else and works with the console it finds, whichever console is chosen at the top of the window; one kind of console's backup is never put on another kind.
 
 Open **Console Browser** in the side column, or choose **Check the Console** on the Dashboard.
 
@@ -1611,7 +1800,7 @@ To look through files, see [Look Through a Backup](#backup-browser). To copy fil
 
 Expert Mode changes your own files on your console: you can add, replace or remove game files, saves, artwork and settings. It writes to the console's storage, and you review each change before it is made. Nothing else on the console is written.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: changing files on it needs its own file scopes, which this version does not define yet. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 Open **Console Browser** and choose **Expert Mode…**.
 
@@ -1673,8 +1862,8 @@ In this version, with a real console, Expert Mode says that changing files on a 
 
 @topic backup-browser
 @title Look Through a Backup
-@pages backup-browser, browse, browse-damaged
-@summary See the backups on this PC, open one without a console, and look through it by game, by type or as it is stored.
+@pages backup-browser, browse, browse-damaged, browse-storage
+@summary See the backups on this PC, open one without a console, look through it by game, by type or as it is stored, and see how its storage was used.
 
 The Backup Browser shows the console backups in your backup locations and opens any of them on this PC, without a console. Reading a backup never changes it or any console, and it is not a restore.
 
@@ -1705,18 +1894,19 @@ If your backup locations hold no backups, the page says **No backups yet** and o
 
 1. Choose **Browse** on a backup, or **Open a Backup File…** and choose a file.
 2. Workbench checks the whole file first. The top of the page then says **passed its full check when it was opened**.
-3. Look through it by game, by type or as stored.
+3. Look through it by game, by type or as stored, or see how its storage was used.
 
 If the file does not pass that check, **This backup could not be opened** says why, and its contents are not shown. Nothing was written to it. Choose **Back to the Backup List**, or **Backup Repair** to make a repaired copy.
 
 [shot 40c-browse-open-failed | This backup could not be opened, because part of the file does not match its records.]
 
-## Three ways to look
+## Four ways to look
 
 | Button | What it shows |
 | By Game | Each game with its files: its game file, its saves and suspend points, and its copies in CCS HOME. Games whose name is not known show their code. This is the first view. |
 | By Type | The files sorted into kinds: Games, Saves, Suspend points, Artwork, Mods and emulators, Settings, System files and Everything else, each with its count. |
 | All Files | The backup exactly as it is stored, with its folders. Open a folder with the arrow beside it. |
+| Storage | How the console's data storage was used when the backup was made (see **How the storage was used** below). |
 
 Type in the search box and choose **Search** to find files by name, folder, kind or game title.
 
@@ -1727,6 +1917,26 @@ Type in the search box and choose **Search** to find files by name, folder, kind
 [shot 42-browse-all | A sample backup in All Files, with its folders closed.]
 
 [shot 42b-browse-folder-open | All Files with the CCS folder open, showing a file inside it.]
+
+## How the storage was used
+
+**Storage** shows the console's data storage as it was when the backup was made. Workbench works it out on this PC from the backup alone: it is not a reading of the console now, and nothing in the backup or on any console changes.
+
+| Part | What it shows |
+| The data storage | Its total, the space available outside the reserve, the space the system keeps in reserve and the space in use, as the storage's own header recorded them. The reserve is part of the free space; files never use it. |
+| Files | How many files there are and how much space they take. A file with several names is counted once. Each file's space is read from the backup; a small file still takes a whole block. |
+| By type and By who added them | The same files grouped two ways. Each file is counted once. |
+| CCS HOME on the console | The copy of CCS HOME in use and any earlier versions kept beside it, each with its collection name, games, the date it was installed, its length and the space it takes. |
+| The next update | For an update the size of the copy in use, with the number of earlier versions in **Settings > CCS HOME > Earlier HOME versions**: the space needed while the update is sent beside the copy in use (with room kept for saves and a safety margin), the space available when the backup was made, the space needed after the update, and whether it would fit. It can say an update would not fit while both copies are there although it would fit afterwards. |
+| Pictures for the Sega Mini menu | Shown when the backup has any. These pictures are only used if you start a Sega Mini menu on this console. The pictures Workbench can remove, their length, the space removing them would give back (each file once) and the space available afterwards; the files themselves, and any pictures of this kind that stay, each with the reason. **Remove from the Console…** opens [Pictures for the Sega Mini Menu](#sega-pictures). |
+| Largest files | The files that take the most space. |
+| The backup file's own parts | The parts of the backup file. Together they are larger than the console's storage, because one of them is a raw copy of the same chip. Files inside them are not counted again. |
+
+If the backup is damaged, the page says its figures are partial: the files it can list are shown, and a file's space that cannot be read is estimated from its length.
+
+**Export Report…** saves the figures as a text file in a new folder you choose. It is read back and checked before it gets its name.
+
+[shot 42s-browse-storage | A sample backup's Storage view, with its data storage, files and CCS HOME copy.]
 
 ## Files in the lists
 
@@ -1871,7 +2081,7 @@ Workbench converts a save only when it is sure. It does not guess:
 
 - A file that does not start with the check value of the console's battery-save format is not treated as save data.
 - A game without a battery-save entry in this version is not converted.
-- When a game's entry is not yet confirmed on a real console, the result is a comparison copy only, saved with **Save the Comparison Copy…** for checking. It is never imported or put on a console.
+- When a game's conversion is not available for import in this version, the result is a comparison copy only, saved with **Save the Comparison Copy…** for checking. It is never imported or put on a console.
 - A file with the same name is never overwritten.
 
 The same conversion works for a connected console's files in Console Browser.
@@ -2028,6 +2238,79 @@ If the page says recovery data cannot be made, checked or used in this copy of W
 
 @end
 
+@topic storage-backup
+@title USB and SD Backup
+@pages storage-home, storage-select, storage-result, storage-repair, storage-restore, storage-plan
+@summary Back up USB drives, SD cards, folders and drive image files on this PC, without a console, and check, browse, repair and restore those backups.
+
+**USB and SD Backup**, under **Backup Files** in the side column, makes backups of the USB drives and SD cards you use with your console, or of any folder or drive image file. It works on this PC only: no console, USB cable or USB driver is needed, and the drives are only read.
+
+A USB and SD backup is a separate file from a console backup. Your console's built-in storage is backed up with **Back Up Console**. The two are made one after the other, not at the same moment, and each says when it was made.
+
+## Two ways to back up a drive
+
+| Choice | What it keeps |
+| Files and Folders (recommended) | The files you choose, with their folders, sizes, dates and read-only, hidden, system and archive settings. The backup is about as large as those files. |
+| Whole Drive Image (advanced) | Every byte of the drive: its partitions, file systems and free space. It is as large as the whole drive, used or not, and its free space can hold deleted or private files. |
+
+! In this version, copying a connected USB drive or SD card as a whole drive image is not available. Its files and folders can be backed up. A drive image file made with another program can be added and backed up as a whole drive image.
+
+## Make a backup
+
+1. Choose **Back Up USB or SD Storage**.
+2. Tick each connected drive to back up. **Choose Folders…** limits it to some folders; **Everything on the Drive** goes back to all of it. Windows' own folders on the drive (System Volume Information and $RECYCLE.BIN) are left out, and the page says so.
+3. **Add a Folder…** adds any folder on this PC; **Add a Drive Image File…** adds a drive image file.
+4. Choose whether to add recovery data, then **Work Out the Space**. The page adds up the files you chose and shows the size of the backup, its additional copy, the recovery data and the room a repair would need later, with the free space in your backup location.
+5. Choose **Back Up**.
+
+While a file is copied, no other program can change it. A file that could not be read, or that another program changed while it was copied, is named in the result. The backup is still checked and kept, but it says that not everything was copied, and those files are never offered as good copies.
+
+Backups are saved in the **USB and SD Backups** folder of your backup location, and the additional copy in the same folder of your additional-copy location.
+
+[shot 61-storage-select | Back Up USB or SD Storage: your console's own storage, the drives connected now, and the space needed.]
+
+## Your USB and SD backups
+
+Each backup shows when it was made, what it holds, its size and its state.
+
+| Button | What it does |
+| Check the File | Checks the whole file again on this PC. |
+| Browse | Opens it in the Backup Browser, by game, by type or as stored, with search and checked copies. See [Look Through a Backup](#backup-browser). |
+| Repair… | Opens the ways to repair it. |
+| Restore… | Opens the ways to restore from it. |
+| Open Folder | Opens its folder in File Explorer. |
+
+In the Backup Browser, a drive image shows each partition. A partition with an exFAT or NTFS file system is kept exactly in the backup, but its files are not listed in this version; it says **raw only**.
+
+## Repair a USB and SD backup
+
+Each way reads the backup and makes something new, checked in full. The backup file itself is never changed.
+
+| Choice | What it does |
+| Make a Second Copy… | A checked copy of a good backup in another folder. A damaged backup is not copied. |
+| Make Recovery Data / Check or Rebuild | Recovery data beside the backup, a check against it, or a new file rebuilt from it. See [Recovery Data](#parity). |
+| Repair From Other Copies or Backups… | A new file, each damaged piece taken from another copy of this backup, or from another backup of the same drive where that piece is exactly the same. A piece that changed between the backups is never used. |
+| Save What Can Be Saved… | Every file that still matches its recorded checksum, copied into a new folder. That folder is not a backup. |
+
+## Restore
+
+1. Choose **Restore…** on a backup, or **Restore From a USB or SD Backup**.
+2. For files: choose whether files already there and different are kept (merge) or replaced, then **Choose Where and Review…**. Replaced files are moved into a folder named **Replaced by restore**, not deleted.
+3. Read the review: what is added, replaced, kept or not restored, and the space needed. Tick **I understand** and choose **Restore These Files**.
+
+Each file is checked against its recorded checksum while it is written, and read back. A name Windows cannot create is restored under a safe name, and the review lists it. A drive formatted FAT32 cannot hold a file over 4 GB; the review names such a file.
+
+A whole drive image can be written to a drive image file with **Write the Whole Drive Image to a File…**. That replaces what is in that file; an existing file is backed up first. Writing a whole drive image back onto a connected drive is not available in this version. The drive Windows runs from, the drive the backup was made from, and any drive holding the backup are never used as targets.
+
+## Technical details
+
+- The file is a ZIP with every part in the ZIP64 form: packs of small files, one part per large file (16,000,000 bytes or more), lists of at most 4,000 entries, and for a drive image, regions of 64 MiB plus an index of each file's place in it. Each file's SHA-256 is recorded when it is copied.
+- Records of every part, with a checksum of each 1,048,576-byte piece, are kept in maps through the file, and each map again near its end, so a file damaged at its start or its end can still be checked and repaired.
+- A drive is identified by what Windows reports about it (its serial numbers, size and file system), never as a console.
+- Not kept in a Files and Folders backup: permissions and owners, alternate data streams, extended attributes, short 8.3 names, and links (they are listed, not followed).
+
+@end
+
 @section Advanced
 
 @topic developer
@@ -2037,7 +2320,7 @@ If the page says recovery data cannot be made, checked or used in this copy of W
 
 Developer Mode changes your console's own software: its startup software, its system part and any file on its data storage. It is for experienced users who develop for the console.
 
-! For the SNES Classic Mini, this task is being built and is not in this version yet: with the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is not available in this version: test boots and startup or system changes need its system key and root settings established on its own startup software. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
 
 ! Code you put on the console runs with full control of it once it starts. It can write the console's storage, its startup stages or its keys, and a restore point cannot undo what it does to the startup stages or keys.
 
@@ -2098,7 +2381,7 @@ A test boot sends a startup image to the console's memory once and starts it the
 
 If there is no complete backup in your backup location, the page says so: choose **Browse…** or make one with Back Up Console first.
 
-To connect an NES Classic Mini for a test boot (the SNES Classic Mini's steps come with its console tasks):
+To connect an NES Classic Mini for a test boot (Developer Mode is not available for the SNES Classic Mini in this version):
 
 1. Turn your NES Classic Mini off and connect it to this PC with its USB cable.
 2. Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go. The TV stays dark: the console waits for this PC.
@@ -2166,7 +2449,7 @@ In this version, with a real console, Developer Mode's changes say that develope
 @topic settings
 @title Settings
 @pages settings
-@summary Where new backups are saved, the additional copy, and how your settings are kept in the standalone and when Workbench is opened from Classic Cart Studio.
+@summary Where new backups are saved, the additional copy, how many earlier CCS HOME versions stay on the console, and how your settings are kept in the standalone and when Workbench is opened from Classic Cart Studio.
 
 ## Backup locations
 
@@ -2185,14 +2468,37 @@ Opened with **Edit in Settings** on Back Up Console, this page starts with the b
 
 [shot 53b-settings-additional-copy | Settings with an additional copy turned on.]
 
+## CCS HOME: earlier HOME versions
+
+**Keep earlier HOME versions on this console** says how many earlier versions of CCS HOME stay on the console when CCS HOME is updated, so you can go back to one. It is under the **CCS HOME** heading on this page.
+
+| Choice | What it does |
+| Keep one earlier version (recommended) | The version in use before the update stays on the console. This is the setting until you change it. |
+| Keep none | No earlier version stays. The page says: There will be no earlier HOME version on the console to go back to. Your backups on this PC will not be removed. |
+| Choose a number | Type a whole number from 0 to 9 in the box. It is used when you leave the box or press Enter; a number outside that range is not used, and the page says so. |
+
+When CCS HOME is updated, the new version is sent first, beside the version in use, and checked before the console switches to it. Earlier versions beyond the number you chose are removed only after the new version is in use and read back, and only a version that is exactly what CCS HOME placed: a version that was changed on the console stays, and so does one that an entry of Original Menu still names. Your backups on this PC are never removed.
+
+Every review that places CCS HOME shows the earlier versions on the console, with each one's collection name, games, the date it was installed and its size, in four groups: the version in use now, the update, the versions kept and the ones removed after the switch. Its **Change…** opens this page. A change applies when you review again. See [Add-ons and Startup](#methods).
+
+Room counts all of it: the copy in use, the earlier versions kept and the update sent beside them. An update can be refused because they would not all fit at once, even when the console would have room after the switch; keep fewer earlier versions, or make room first.
+
+The number is kept with your other settings. Classic Cart Studio for Windows uses the same number when it installs a collection's CCS HOME.
+
+[shot 53g-settings-earlier-none | Settings with Keep none chosen under CCS HOME, with its warning.]
+
 ## In the standalone: your settings file
 
-The standalone Workbench writes no settings file of its own. Your settings are used while it is open, and they are kept for next time only when you save them to a settings file you choose. A settings file keeps the backup locations and the console chosen at the top of the window. It is separate from your console backups.
+Workbench remembers which settings file you used and opens it next time. Save your changes with Save Settings. Until you save to a settings file, your settings are used only while Workbench is open. A settings file keeps the backup locations, the earlier HOME versions to keep and the console chosen at the top of the window. It is separate from your console backups.
 
 | Button | What it does |
 | Save Settings… | Saves your settings to a file you choose. After that, the button is **Save Settings** and saves to the same file. |
 | Save Settings As… | Saves your settings to another file you choose. |
 | Load Settings from a File… | Opens a Workbench settings file. If your current settings have changes that are not saved, Workbench asks about them first. A file that is not a Workbench settings file changes nothing. |
+
+To remember your settings file, Workbench keeps one small note on this PC, with only that file's location: the file last-settings-file.json in the folder CCS Console Workbench in your user account's AppData\Local folder. It changes only when you save or load a settings file. Starting Workbench with --settings and a settings file opens that file instead.
+
+If the settings file you used last is not there when Workbench opens (it was moved or deleted, or its drive is not connected), or cannot be read, Workbench says so and offers two choices: **Locate the Settings File…**, to choose it where it is now, or **Use Usual Settings This Time**. Workbench never saves over your settings file by itself, and tries the same file again next time until you save or load another one.
 
 The page says whether your settings are saved, and what is not saved yet.
 
