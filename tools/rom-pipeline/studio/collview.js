@@ -93,8 +93,12 @@ function cvAdmitWeb(r){ const vid=r.content_sha256.slice(0,16); if(byId[vid]&&by
  const ib=typeof incBuild==='function'?incBuild(r.content_sha256):null; const keep=(COLL.missing||{})[pid];
  if(!keep&&ib){ COLL.missing=Object.assign({}, COLL.missing||{}); COLL.missing[pid]=incKept(ib); saveColl(); return {id:pid, title:ib.title, known:true}; }
  if(!keep){ COLL.missing=Object.assign({}, COLL.missing||{}); COLL.missing[pid]={title, version:'', description:'', year:'', publisher:'', source:'personal', content_sha256:r.content_sha256, file_sha256:r.sha256, size:r.size,
-  personal:{id:pid, title, version_label:'', content_sha256:r.content_sha256, file_sha256:r.sha256, content_size:Math.max(0, r.size-16), file_size:r.size, format:'ines', file_name:r.name, note:'Added from a game file', user:{title}}}; saveColl(); }
+  personal:{id:pid, title, version_label:'', content_sha256:r.content_sha256, file_sha256:r.sha256, content_size:Math.max(0, r.size-16), file_size:r.size, format:'ines', file_name:r.name, note:'Added from a game file', user:{title}, detected:cvDetected(r)}}; saveColl(); }
  return {id:pid, title:(keep&&keep.title)||title, known:false}; }
+// what the game file's header says (the same fields the Windows app records), kept with the collection for Technical Details; the header is
+// the file's own, or the recorded header of a known headerless build
+function cvDetected(r){ const u8=r&&r.u8; const hex=u8&&cvIsNes(u8)?[...u8.slice(0,16)].map(x=>x.toString(16).padStart(2,'0')).join(''):(r&&r.header_hex)||''; const h=nesHdr(hex); if(!h) return undefined;
+ return {header_hex:h.header_hex, mapper:h.mapper, submapper:h.submapper, prg:h.prg, chr:h.chr, mirroring:h.mirroring, battery:h.battery, trainer:h.trainer}; }
 // ---- Add ROM Files ----
 async function cvAddFiles(){ if(CS_STATE!=='ok'){ rdyStoreProblem(); return; }
  if(cvApp()||(typeof CO!=='undefined'&&CO.desktop)){ if(!csEnsureActive()) return; return importGames('files', true); }

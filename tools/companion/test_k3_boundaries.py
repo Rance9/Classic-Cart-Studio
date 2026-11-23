@@ -14,7 +14,7 @@ from test_ccs_install import make_package, tree, changes, rd, wr, sha   # noqa: 
 def boot_state(root: str) -> str:
     """what the console would start, as its start-up script decides it: "nintendo", or "ccs:<copy>" for a complete copy; "INCOMPLETE:<copy>"
     when the script would start a copy whose files do not all match its record (the state no interruption may ever leave)"""
-    c = CI.FakeConsole(root); mp = CI.method_package("mod"); mf = c.method_files(mp["name"])   # CCS Mod: CCS HOME's entry in the console's menu
+    c = CI.FakeConsole(root); mp = CI.addon_package("mod"); mf = c.method_files(mp["name"])   # CCS Mod: CCS HOME's tile in the console's menu
     if mf is None: return "nintendo" if c.overlay_sha256("/bin/ccs-mod") is None else "MODULE-PARTIAL"
     if mf.get("package") != mp["package_id"] or any((mf.get("files") or {}).get(p) != s for p, s in mp["files"].items()): return "MODULE-PARTIAL"
     b = c.read(CI.POINTER, 64); v = (b or b"").decode(errors="replace").strip()
@@ -156,7 +156,7 @@ class Ownership(Base):
 # ---------------------------------------------------------------- CS3-F2: the console answering now
 class Identity(Base):
     def test_20_another_system_an_older_hakchi_a_custom_firmware_or_no_identity_change_nothing(self):
-        for prof, words in (("snes-eur", "North American NES Classic"), ("old-hakchi", "pinned hakchi"), ("custom-firmware", "custom firmware"), ("no-identity", "identity could not be read"), ("stock", "hakchi must be installed first")):
+        for prof, words in (("snes-eur", "North American NES Classic"), ("old-hakchi", "Hakchi2 CE 3.9.3 is required"), ("custom-firmware", "custom firmware"), ("no-identity", "identity could not be read"), ("stock", "hakchi must be installed first")):
             with self.subTest(prof):
                 root = os.path.join(self.t, prof); CI.make_stand_in(root, prof); before = tree(root)
                 r = CI.Installer(CI.FakeConsole(root), self.plan, self.pkg, self.jnew()).run(); self.assertEqual(r["result"], "refused", r); self.assertIn(words, r["why"])
@@ -284,7 +284,8 @@ class Export(Base):
 class Inspect(Base):
     def test_50_inspect_and_verify_read_what_the_console_starts(self):
         i = CI.inspect_console(self.con()); self.assertTrue(i["ok"]); self.assertEqual(i["module"], "absent"); self.assertIsNone(i["in_use"])
-        a = CI.Installer(self.con(), self.plan, self.pkg, self.jnew()).run(); i = CI.inspect_console(self.con()); self.assertEqual(i["methods"], [{"name": "ccs-mod", "method": "mod", "package": CI.method_package("mod")["package_id"], "state": "current"}]); self.assertEqual(i["in_use"]["copy"], a["copy"])
+        a = CI.Installer(self.con(), self.plan, self.pkg, self.jnew()).run(); i = CI.inspect_console(self.con()); self.assertEqual(i["packages"], [{"name": "ccs-mod", "addon": "mod", "package": CI.addon_package("mod")["package_id"], "state": "current"}]); self.assertEqual(i["in_use"]["copy"], a["copy"])
+        self.assertEqual(i["addons"], CI.STUDIO_CHOICE); self.assertIsNone(i["addons_problem"]); self.assertIsNone(i["start"]); self.assertIn("This console has CCS Mod.", i["addons_text"])
         self.assertTrue(CI.verify_installed(self.con(), self.plan)["verified"])
         wr(os.path.join(self.root, "var/lib/ccs/pkg", a["copy"], "session.json"), b"x"); v = CI.verify_installed(self.con(), self.plan); self.assertFalse(v["verified"]); self.assertEqual(v["mismatches"], ["session.json"])
         self.assertFalse(CI.verify_installed(self.con(), self.plan, device="sim-OTHER")["ok"])

@@ -13,6 +13,7 @@
 //   nucleus-registry.json  CCS Nucleus's registry options (present while CCS Nucleus is installed); nucleus-staging/, nucleus-roots/ its
 //                       image folders; console.json "data_free_bytes" (default 300,000,000) less those images and ccs-data is the free space
 //   ccs-data/           Classic Cart Studio's folder on the data storage (/var/lib/ccs: CCS HOME's package copies, their pointer and records)
+//   hakchi-data/        optional: hakchi's folders on the data storage (/var/lib/hakchi), where Original Menu's entries (.desktop files) are
 using CcsWorker.Shell;
 using System;
 using System.Collections.Generic;
@@ -26,7 +27,7 @@ using System.Threading;
 
 namespace CcsBackup.Device
 {
-    public sealed class SimulatedConsole : IConsoleShell
+    public sealed partial class SimulatedConsole : IConsoleShell   // (Community Mods: SimulatedCommunity.cs)
     {
         public readonly string Folder;
         readonly Dictionary<string, string> last = new Dictionary<string, string>();
@@ -61,7 +62,8 @@ namespace CcsBackup.Device
             if (parts.Length == 4 && parts[0] == "/ccs/bin/ccsdev" && (parts[1] == "kstage" || parts[1] == "kburn")) { if (profile != "files") { Err(stderr, "ccsdev: this image cannot change the startup software"); return 13; } return DevVerb(parts[1], parts[2], parts[3], stdin, stdout); }
             if (parts.Length >= 2 && parts.Length <= 4 && parts[0] == "/ccs/bin/ccsdev") { if (profile != "files") { Err(stderr, "ccsdev: this image cannot change the startup software"); return 13; } return DevSystemVerb(parts[1], parts.Skip(2).ToArray(), stdin, stdout); }
             if (parts.Length >= 2 && parts.Length <= 4 && parts[0] == "/ccs/bin/ccsrescue") { if (profile != "rescue") { Err(stderr, "ccsrescue: this image cannot rescue a console"); return 13; } return RescueVerb(parts[1], parts.Skip(2).ToArray(), stdin, stdout); }
-            if (parts.Length >= 2 && parts.Length <= 6 && parts[0] == "/ccs/bin/ccsprep") { if (profile != "prepare") { Err(stderr, "ccsprep: this image cannot prepare a console"); return 13; } return PrepVerb(parts[1], parts.Skip(2).ToArray(), stdin, stdout); }
+            if (parts.Length >= 2 && parts.Length <= 40 && parts[0] == RecoveryConsole.CommunityHelper) { if (profile != "prepare") { Err(stderr, "ccscomm: this image cannot change community mods"); return 13; } return CommVerb(parts[1], parts.Skip(2).ToArray(), stdin, stdout); }
+            if (parts.Length >= 2 && parts.Length <= 7 && parts[0] == "/ccs/bin/ccsprep") { if (profile != "prepare") { Err(stderr, "ccsprep: this image cannot prepare a console"); return 13; } return PrepVerb(parts[1], parts.Skip(2).ToArray(), stdin, stdout); }
             if (parts.Length < 2 || parts[0] != RecoveryConsole.Helper) { Err(stderr, "not a ccsbr command"); return 127; }
             switch (parts[1])
             {
@@ -474,17 +476,16 @@ namespace CcsBackup.Device
             catch (Exception) { return "none"; }
         }
         static Dictionary<string, object> Packages(string folder) { var p = Path.Combine(folder, "hakchi-packages.json"); return File.Exists(p) ? Json.Parse(File.ReadAllText(p)) : new Dictionary<string, object>(); }
-        static void SavePackages(string folder, List<string> packages, string policy) => File.WriteAllText(Path.Combine(folder, "hakchi-packages.json"), Json.Write(new JObj { { "packages", packages.Cast<object>().ToList() }, { "policy", policy } }));
+        static void SavePackages(string folder, List<string> packages) => File.WriteAllText(Path.Combine(folder, "hakchi-packages.json"), Json.Write(new JObj { { "packages", packages.Cast<object>().ToList() } }));
         static string WaitingSha(string file)
         {
             var t = File.ReadAllBytes(file); var m = Regex.Match(Encoding.ASCII.GetString(t), "^simulated [a-z-]+\\.hmod ([0-9a-f]{64})\n$");
             if (m.Success) return m.Groups[1].Value; using (var h = SHA256.Create()) return Hex.Of(h.ComputeHash(t));
         }
-        static string PolicyOf(string package) => package == "ccs-mod" ? "mod" : package == "ccs-nucleus" ? "nucleus" : null;
-        // CCS Mod's start at power-on (simulated): its setting (ccs-mod-config.txt: on or off; none without the file) and its start script in
-        // hakchi's overlay (ccs-mod-s81.txt: ours or other; absent without the file)
-        static string ModSetting(string folder) { var f = Path.Combine(folder, "ccs-mod-config.txt"); return File.Exists(f) ? File.ReadAllText(f).Trim() : "none"; }
-        static string ModScript(string folder) { var f = Path.Combine(folder, "ccs-mod-s81.txt"); return File.Exists(f) ? File.ReadAllText(f).Trim() : "absent"; }
+        // CCS Nucleus's start setting (simulated; its registry on the console): nucleus-start.txt holds "DEFAULT CHOOSER HOME SELECTION
+        // TIMEOUT"; none without it
+        static string StartOf(string folder) { var f = Path.Combine(folder, "nucleus-start.txt"); return File.Exists(f) ? File.ReadAllText(f).Trim() : "none"; }
+        static void SetStart(string folder, string line) => File.WriteAllText(Path.Combine(folder, "nucleus-start.txt"), line + "\n");
         // CCS Nucleus's registry and image folders (simulated): its options while it is installed
         string RegistryPath => Path.Combine(Folder, "nucleus-registry.json");
         string NStage => Path.Combine(Folder, "nucleus-staging"); string NRoots => Path.Combine(Folder, "nucleus-roots");
@@ -597,8 +598,65 @@ namespace CcsBackup.Device
                 File.Delete(Path.Combine(I, "attempt-" + att + ".json")); Log("huse " + copy);
                 Res("ok " + copy); return 0;
             }
+            if (step == "hdrop")   // ccsprep hdrop: an earlier copy removed only while another is in use and it is exactly what its record names
+            {
+                if (a.Length != 2 || !CopyName.IsMatch(a[0]) || !CopyName.IsMatch(a[1]) || a[0] == a[1]) { Res("refused request"); return 17; }
+                string copy = a[0], keep = a[1], cur = HomeCur(), cdir = Path.Combine(P, copy), vpath = Path.Combine(I, "v-" + copy + ".json");
+                if (link) { Res("refused a link is on the way (ccs)"); return 17; }
+                if (cur != keep) { Res("refused the HOME in use is not " + keep + " (" + cur + ")"); return 17; }
+                var other = Directory.Exists(I) ? Directory.GetFiles(I, "attempt-*.json").Select(Path.GetFileName).ToList() : new List<string>();
+                if (other.Count > 0) { Res("refused an installation did not finish (" + string.Join(" ", other) + ")"); return 17; }
+                if (!Directory.Exists(cdir) && !File.Exists(vpath)) { Res("ok already " + copy); return 0; }
+                var named = Named(copy); if (named != "no") { Res("refused an entry of Original Menu may name the copy " + copy + " (" + named + "; it is kept)"); return 17; }
+                if (!File.Exists(vpath) || !CopyComplete(cdir, RecordFiles(vpath))) { Res("refused the copy " + copy + " is not exactly what its record names (it is kept)"); return 17; }
+                Out(stdout, "began hdrop\n");
+                if (fail) { var first = Directory.GetFiles(cdir, "*", SearchOption.AllDirectories).OrderBy(x => x, StringComparer.Ordinal).First(); File.Delete(first); Log("hdrop " + copy + " INTERRUPTED"); Res("failed removal (stopped; the backup made before keeps the copy)"); return 17; }
+                Directory.Delete(cdir, true); File.Delete(vpath); Log("hdrop " + copy);
+                if (Directory.Exists(cdir) || File.Exists(vpath) || HomeCur() != keep) { Res("failed readback"); return 17; }
+                Res("ok " + copy); return 0;
+            }
             Res("refused unknown step"); return 2;
         }
+        /// <summary>ccsprep mstate's home_copy_info fields after the copy's name: the copy in use before it (its record), exact | differs |
+        /// nodir, its files' bytes, the space it takes in KB (du: each file and folder in 4 KB blocks), its collection name (base64 of the
+        /// MANIFEST.json text between the quotes), games, its record's installed_utc and whether an entry of Original Menu names it</summary>
+        string CopyInfo(string c, string record)
+        {
+            string prev = "-", x = "nodir", b = "-", k = "-", l = "-", g = "-", t = "-"; var dir = Path.Combine(HomeDir, "pkg", c);
+            try
+            {
+                var rj = Json.Parse(File.ReadAllText(record)); var pv = rj.S("previous"); if (pv != null && CopyName.IsMatch(pv)) prev = pv;
+                var iu = rj.S("installed_utc"); if (iu != null && Regex.IsMatch(iu, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) t = iu;
+            }
+            catch (Exception) { }
+            if (Directory.Exists(dir))
+            {
+                x = CopyComplete(dir, RecordFiles(record)) ? "exact" : "differs";
+                var files = Directory.GetFiles(dir, "*", SearchOption.AllDirectories); var dirs = Directory.GetDirectories(dir, "*", SearchOption.AllDirectories).Length + 1;
+                b = files.Sum(f => new FileInfo(f).Length).ToString(CultureInfo.InvariantCulture);
+                k = (files.Sum(f => (new FileInfo(f).Length + 4095) / 4096 * 4) + dirs * 4).ToString(CultureInfo.InvariantCulture);
+                var mf = Path.Combine(dir, "MANIFEST.json");
+                if (File.Exists(mf))
+                {
+                    var mt = File.ReadAllText(mf);
+                    var lm = Regex.Match(mt, "^ \"label\": \"(.*)\",?$", RegexOptions.Multiline); if (lm.Success && lm.Groups[1].Value.Length > 0) l = Convert.ToBase64String(Encoding.UTF8.GetBytes(lm.Groups[1].Value.Length > 400 ? lm.Groups[1].Value.Substring(0, 400) : lm.Groups[1].Value));
+                    var gm = Regex.Match(mt, "^ \"games\": ([0-9]{1,6}),?$", RegexOptions.Multiline); if (gm.Success) g = gm.Groups[1].Value;
+                }
+            }
+            return prev + " " + x + " " + b + " " + k + " " + l + " " + g + " " + t + " " + Named(c);
+        }
+
+        /// <summary>ccsprep hnamed: whether an entry of Original Menu names the copy's files (yes), none here but the console program recorded
+        /// entries on a USB drive or SD card (unknown), or no</summary>
+        string Named(string c)
+        {
+            var hk = Path.Combine(Folder, "hakchi-data");
+            if (Directory.Exists(hk) && Directory.GetFiles(hk, "*.desktop", SearchOption.AllDirectories).Any(f => File.ReadAllText(f).Contains("ccs/pkg/" + c + "/"))) return "yes";
+            var own = Path.Combine(HomeDir, "owned", "published.own");
+            if (File.Exists(own) && File.ReadAllLines(own).Any(l => Regex.IsMatch(l, "^file=[0-9a-f]{64} [0-7]{4} /media/"))) return "unknown";
+            return "no";
+        }
+
         /// <summary>mstate's CCS HOME lines, as ccsprep prints them</summary>
         string HomeState()
         {
@@ -614,6 +672,7 @@ namespace CcsBackup.Device
                         var c = Path.GetFileName(f).Substring(2); c = c.Substring(0, c.Length - 5); if (!CopyName.IsMatch(c)) continue;
                         string m = null; try { m = Json.Parse(File.ReadAllText(f)).S("manifest_sha256"); } catch (Exception) { }
                         sb.Append("home_copy=" + c + " " + (m != null && Regex.IsMatch(m, "^[0-9a-f]{64}$") ? m : "-") + " " + (Directory.Exists(Path.Combine(HomeDir, "pkg", c)) ? "dir" : "nodir") + "\n");
+                        sb.Append("home_copy_info=" + c + " " + CopyInfo(c, f) + "\n");   // ccsprep mstate's details of the copy (the earlier-versions review)
                     }
                     foreach (var f in Directory.GetFiles(I, "attempt-*.json").OrderBy(x => x, StringComparer.Ordinal))
                     {
@@ -682,22 +741,27 @@ namespace CcsBackup.Device
             var done = new List<string>(); var t = Path.Combine(folder, "hakchi-transfer");
             var c = Json.Parse(File.ReadAllText(Path.Combine(folder, "console.json")));
             if (c.L("active_hakchi_entries", 0) == 0 || !Directory.Exists(t)) return done;   // the original kernel never runs hakchi's preinit
-            var pk = Packages(folder); var list = (pk.A("packages") ?? new List<object>()).OfType<string>().ToList(); var policy = pk.S("policy") ?? "none";
+            var pk = Packages(folder); var list = (pk.A("packages") ?? new List<object>()).OfType<string>().ToList();
             var un = Path.Combine(t, "uninstall");
-            var s81 = Path.Combine(folder, "ccs-mod-s81.txt");
             if (File.Exists(un)) foreach (var n in File.ReadAllText(un).Split(new[] { ' ', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries))
-                    if (list.Remove(n)) { done.Add("uninstall " + n); if (PolicyOf(n) == policy) policy = "none"; if (n == "ccs-mod" && ModScript(folder) == "ours") File.Delete(s81); }
-            foreach (var h in Directory.GetFiles(t, "*.hmod").OrderBy(x => x, StringComparer.Ordinal))
+                    if (list.Remove(n))
+                    {
+                        done.Add("uninstall " + n); CommunityUninstall(folder, n);
+                        // the chooser's own removal: the chooser off at start (CCS Nucleus's registry stays)
+                        if (n == "ccs-nucleus-chooser" && StartOf(folder).Split(' ').Length == 5) { var p5 = StartOf(folder).Split(' '); p5[1] = "never"; SetStart(folder, string.Join(" ", p5)); }
+                    }
+            // hakchi installs transfer/*.hmod in sorted order, then transfer/hmod/*.hmod
+            var hm = Path.Combine(t, "hmod");
+            foreach (var h in Directory.GetFiles(t, "*.hmod").OrderBy(x => x, StringComparer.Ordinal).Concat(Directory.Exists(hm) ? Directory.GetFiles(hm, "*.hmod").OrderBy(x => x, StringComparer.Ordinal) : Enumerable.Empty<string>()))
             {
-                var n = Path.GetFileNameWithoutExtension(h); if (!list.Contains(n)) list.Add(n); done.Add("install " + n);
-                if (policy == "none" && PolicyOf(n) != null) policy = PolicyOf(n);
-                if (n == "ccs-mod" && policy == "mod")   // its postinstall makes the start as its setting says (its own autostart command)
-                {
-                    if (ModSetting(folder) == "on" && ModScript(folder) != "other") { File.WriteAllText(s81, "ours\n"); done.Add("ccs-mod start on"); }
-                    else if (ModSetting(folder) != "on" && ModScript(folder) == "ours") { File.Delete(s81); done.Add("ccs-mod start off"); }
-                }
+                var n = Path.GetFileNameWithoutExtension(h);
+                if (n == "ccs-nucleus-chooser" && !list.Contains("ccs-nucleus")) { done.Add("install " + n + " refused (CCS Nucleus is not installed)"); continue; }
+                bool installs = true; CommunityInstall(folder, n, h, ref installs); if (!installs) { done.Add("install " + n + " not installed"); continue; }
+                if (!list.Contains(n)) list.Add(n); done.Add("install " + n);
+                // CCS Nucleus's install keeps a valid registry, or writes the first one (Original Menu directly; CCS HOME offered with CCS Mod)
+                if (n == "ccs-nucleus" && StartOf(folder) == "none") SetStart(folder, "native never " + (list.Contains("ccs-mod") ? "on" : "off") + " default 10");
             }
-            SavePackages(folder, list, policy); Directory.Delete(t, true); done.Add("transfer folder removed; restart");
+            SavePackages(folder, list); Directory.Delete(t, true); done.Add("transfer folder removed; restart");
             return done;
         }
 
@@ -715,44 +779,48 @@ namespace CcsBackup.Device
                         var sb = new StringBuilder(); sb.Append("hakchi=" + HakchiOnData() + "\n");
                         var pk = Packages(Folder);
                         foreach (var n in (pk.A("packages") ?? new List<object>()).OfType<string>().OrderBy(x => x, StringComparer.Ordinal)) sb.Append("package=" + n + "\n");
-                        sb.Append("policy=" + (pk.S("policy") ?? "none") + "\n");
-                        sb.Append("modstart=" + ModSetting(Folder) + " " + ModScript(Folder) + "\n");
+                        sb.Append("start=" + StartOf(Folder) + "\n");
                         sb.Append("free=" + FreeBytes().ToString(CultureInfo.InvariantCulture) + "\n");
-                        if (NucleusInstalled())
+                        if (NucleusInstalled() || StartOf(Folder) != "none")
                         {
                             sb.Append("registry=ok\n");
                             foreach (var kv in Registry().OrderBy(x => x.Key, StringComparer.Ordinal)) { var o = kv.Value as Dictionary<string, object>; sb.Append("option=" + kv.Key + " " + o.S("kind") + " " + (o.S("sha256") ?? "") + " " + (o.ContainsKey("bytes") ? o.L("bytes", 0).ToString(CultureInfo.InvariantCulture) : "") + "\n"); }
                         }
                         else sb.Append("registry=none\n");
                         if (Directory.Exists(TransferDir)) foreach (var w in Directory.GetFiles(TransferDir).OrderBy(x => x, StringComparer.Ordinal)) sb.Append("waiting=" + Path.GetFileName(w) + " " + WaitingSha(w) + "\n");
+                        var thm = Path.Combine(TransferDir, "hmod");
+                        if (Directory.Exists(thm)) foreach (var w in Directory.GetFiles(thm).OrderBy(x => x, StringComparer.Ordinal)) sb.Append("waiting=hmod/" + Path.GetFileName(w) + " " + WaitingSha(w) + "\n");
                         sb.Append(HomeState());
                         Out(stdout, sb.ToString()); Res("ok"); return 0;
                     }
                 case "rput": case "rimport": case "rdrop":
                     return RootVerb(step, args, stdin, stdout, fail);
-                case "mstart":
+                case "nstart":
                     {
-                        if (arg != "on" && arg != "off" || args.Length != 1) { Res("refused request"); return 17; }
+                        if (args.Length != 5 || args[0] != "native" && args[0] != "ccs-home" || args[1] != "always" && args[1] != "never" || args[2] != "on" && args[2] != "off"
+                            || args[3] != "default" && args[3] != "last" || !Regex.IsMatch(args[4], "^[0-9]{1,2}$")) { Res("refused request"); return 17; }
                         if (HakchiOnData() == "none") { Res("refused hakchi is not installed on the data storage"); return 17; }
-                        if (ModSetting(Folder) == arg) { Res("ok already " + arg); return 0; }
-                        Out(stdout, "began mstart\n"); if (fail) { Res("failed config (not written again)"); return 17; }
-                        File.WriteAllText(Path.Combine(Folder, "ccs-mod-config.txt"), arg + "\n"); Log("mstart " + arg);
-                        Res("ok " + arg); return 0;
+                        var line = string.Join(" ", args);
+                        if (StartOf(Folder) == line) { Res("ok already " + line); return 0; }
+                        Out(stdout, "began nstart\n"); if (fail) { Res("failed registry (not written again)"); return 17; }
+                        if (args[0] == "ccs-home" && args[2] == "off") { Res("failed CCS HOME is not offered (not written again)"); return 17; }
+                        SetStart(Folder, line); Log("nstart " + line);
+                        Res("ok " + line); return 0;
                     }
-                case "hput": case "huse":
+                case "hput": case "huse": case "hdrop":
                     return HomeVerb(step, args, stdin, stdout, fail);
                 case "method":
                 case "unlist":
                     {
                         string name = arg, want = step == "method" ? (args.Length > 1 ? args[1] : null) : null;
-                        if (!Engine.Methods.IsPackage(name) || step == "method" && (want == null || !Regex.IsMatch(want, "^[0-9a-f]{64}$"))) { Res("refused request"); return 17; }
+                        if (step == "unlist" ? !(args.Length >= 1 && args.Length <= 3 && args.All(Engine.Methods.IsPackage)) : !Engine.Methods.IsPackage(name) || want == null || !Regex.IsMatch(want, "^[0-9a-f]{64}$")) { Res("refused request"); return 17; }
                         if (step == "method" && RecoveryImages.MethodSha(name) != want) { Res("refused this image does not carry that package"); return 17; }
-                        if (step == "unlist") want = Engine.Methods.ListSha256(name);
+                        if (step == "unlist") { want = Engine.Methods.ListSha256(args); name = string.Join(" ", args); }
                         if (HakchiOnData() == "none") { Res("refused hakchi is not installed on the data storage"); return 17; }
-                        var t = Path.Combine(TransferDir, step == "method" ? name + ".hmod" : "uninstall");
+                        var t = Path.Combine(TransferDir, step == "method" ? Engine.Methods.Waiting(name).Replace('/', Path.DirectorySeparatorChar) : "uninstall");
                         if (File.Exists(t)) { if (WaitingSha(t) == want) { Res("ok already " + want); return 0; } Res("refused another " + (step == "method" ? name + ".hmod" : "removal list") + " already waits in the transfer folder"); return 17; }
                         Out(stdout, "began " + step + "\n"); if (fail) { Res("failed write (not written again)"); return 17; }
-                        Directory.CreateDirectory(TransferDir);
+                        Directory.CreateDirectory(Path.GetDirectoryName(t));
                         File.WriteAllText(t, step == "method" ? "simulated " + name + ".hmod " + want + "\n" : name + "\n");
                         Log(step + " " + name); var back = WaitingSha(t);
                         if (back != want) { Res("failed readback " + back); return 17; }
@@ -800,7 +868,7 @@ namespace CcsBackup.Device
                     Out(stdout, "began ret-files\n"); if (fail) { Res("failed mount"); return 17; }
                     File.Delete(Path.Combine(Folder, "prepared-files.txt"));   // hakchi's whole folder: its transfer folder and package lists too
                     if (Directory.Exists(TransferDir)) Directory.Delete(TransferDir, true);
-                    { var pk = Packages(Folder); if (pk.Count > 0) SavePackages(Folder, new List<string>(), pk.S("policy") ?? "none"); }
+                    { var pk = Packages(Folder); if (pk.Count > 0) SavePackages(Folder, new List<string>()); }
                     Log("ret files"); Res("ok"); return 0;
                 case "ret-table":
                     Out(stdout, "began ret-table\n"); if (fail) { Res("failed shrink"); return 17; }
@@ -833,12 +901,12 @@ namespace CcsBackup.Device
         // ---------------------------------------------------------------- building a simulated console (tests, demonstrations)
         /// <summary>Creates a simulated console in an empty folder. parts: device -> (label, bytes). files: target -> content producer
         /// (boot0, boot1, boot2, boot2-68, nand, phy and the partitions; a missing partition is filled with a deterministic pattern).</summary>
-        public static void Create(string folder, string hwid, IList<(string dev, string label, long bytes)> parts, IDictionary<string, Action<Stream>> files, int hakchiEntries = 0, string region = "EUR_USA", string oem = "release-v1.0.7-0-g4ea4041")
+        public static void Create(string folder, string hwid, IList<(string dev, string label, long bytes)> parts, IDictionary<string, Action<Stream>> files, int hakchiEntries = 0, string region = "EUR_USA", string oem = "release-v1.0.7-0-g4ea4041", string board = "dp-nes", string nandinfo = Support.NandInfo)
         {
             if (Directory.Exists(folder) && Directory.EnumerateFileSystemEntries(folder).Any()) throw new IOException("the simulated console folder must be new");
             Directory.CreateDirectory(Path.Combine(folder, "dev"));
             var table = "mbr:mbr:32 " + string.Join(" ", parts.Select(p => p.dev + ":" + p.label + ":" + (p.bytes / 512).ToString(CultureInfo.InvariantCulture)));
-            File.WriteAllText(Path.Combine(folder, "console.json"), Json.Write(new JObj { { "hwid", hwid }, { "board", "dp-nes" }, { "region", region }, { "oem_version", oem }, { "nandinfo", Support.NandInfo }, { "parttable", table }, { "active_hakchi_entries", hakchiEntries } }));
+            File.WriteAllText(Path.Combine(folder, "console.json"), Json.Write(new JObj { { "hwid", hwid }, { "board", board }, { "region", region }, { "oem_version", oem }, { "nandinfo", nandinfo }, { "parttable", table }, { "active_hakchi_entries", hakchiEntries } }));
             var all = new List<string> { "boot0", "boot1", "boot2", "nand", "phy" }; all.AddRange(parts.Select(p => p.dev));
             if (files.ContainsKey("boot2-68")) all.Add("boot2-68");
             foreach (var t in all)

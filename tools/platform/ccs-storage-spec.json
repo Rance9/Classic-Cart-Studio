@@ -1,0 +1,88 @@
+{
+  "schema": "ccs-storage-spec/1",
+  "about": "The one storage accounting specification. tools/companion/console_engine/storage_model.py carries this file byte for byte, the C# engine embeds it, the website's storage-model.js is built from it, and all of them decide tools/platform/storage-vectors.json the same way. Every figure is bytes. A reference is a dated reading of one console, never a live or universal value; a policy is a chosen allowance; an estimate is worked out from measured packages and says what it is missing.",
+  "references": [
+    {
+      "profile": "nes-classic-edition",
+      "date": "2026-10-09",
+      "what": "the data storage header (ext4 superblock) recorded in an original, unmodified North American NES Classic's storage capture",
+      "total_bytes": 413138944,
+      "free_bytes": 395460608,
+      "reserved_bytes": 20656128,
+      "block_bytes": 4096,
+      "available_bytes": 374804480
+    },
+    {
+      "profile": "snes-classic-edition",
+      "date": "2026-11-21",
+      "what": "the data storage header (ext4 superblock) of a North American Super NES Classic's data storage, copied read-only and not mounted",
+      "total_bytes": 314572800,
+      "free_bytes": 297934848,
+      "reserved_bytes": 15728640,
+      "allocated_bytes": 16637952,
+      "block_bytes": 4096,
+      "available_bytes": 282206208
+    }
+  ],
+  "policies": {
+    "default_block_bytes": 4096,
+    "saves_allowance_bytes": {
+      "nes-classic-edition": 10485760,
+      "snes-classic-edition": null
+    },
+    "saves_allowance_unknown": "No room for this console's saves and suspend points has been established, so whether new files fit cannot be confirmed.",
+    "margin_fixed_bytes": 8388608,
+    "margin_fraction_ppm": 50000,
+    "margin_what": "a safety margin for folders, extent records and the file system's own use: a fixed amount plus a share of the new files' allocated size",
+    "earlier_home_versions_default": 1,
+    "earlier_home_versions_max": 9,
+    "earlier_home_versions_what": "earlier CCS HOME versions kept on the console when CCS HOME is updated, so the console can go back to one; each is removed only after the new version is in use and read back"
+  },
+  "estimates": {
+    "home": {
+      "fixed_logical_bytes": 17522892,
+      "per_game_logical_bytes": 31392,
+      "fixed_allocated_bytes": 17984420,
+      "per_game_allocated_bytes": 38063,
+      "music_logical_bytes": 11907116,
+      "music_allocated_bytes": 11911168,
+      "music_held_logical_bytes": 993068,
+      "music_held_allocated_bytes": 995328,
+      "music_held_player_extra_logical_bytes": 42048,
+      "music_held_player_extra_allocated_bytes": 40960,
+      "music_held_notices_extra_logical_bytes": 6907,
+      "music_held_notices_extra_allocated_bytes": 8192,
+      "music_what": "the song CCS HOME plays (included unless Include HOME music is left out; the figures above count it): the 48,000 Hz stereo PCM file this version writes. The held MP3 of the same song is measured apart (its file, and what the game player built with it and its notices add); it is not used until it is approved, and nothing counts it",
+      "what": "CCS HOME's package when it has not been prepared on this computer yet: worked out from measured HOME packages of 30, 100 and 300 games, in the encodings this version writes, and never lower than any of them. This collection's own covers, texts and fonts are not measured until its HOME package is prepared."
+    },
+    "mod_envelope": {
+      "logical_bytes": 6014306,
+      "allocated_bytes": 6082560,
+      "files": 29,
+      "what": "the game player, its fonts, the startup pictures, settings and license notices that come with CCS HOME, from a measured console package"
+    },
+    "notices": {
+      "logical_bytes": 187131,
+      "allocated_bytes": 212992,
+      "files": 13,
+      "what": "the license notices that come with the game files when CCS HOME is not installed, from a measured console package"
+    },
+    "native_entry": {
+      "desktop_bytes": 592,
+      "cover_bytes": 58292,
+      "cover_small_bytes": 2851,
+      "what": "a game's Original Menu entry (its menu record, cover and small cover) before it is prepared: the highest per-game average of measured entries for 30, 100 and 300 catalog games. A game file stored again in the form Hakchi needs is counted when the installation plan is prepared"
+    },
+    "native_entry_held": {
+      "desktop_bytes": 592,
+      "cover_bytes": 19037,
+      "cover_small_bytes": 2163,
+      "what": "the same entry with the smaller Original Menu covers (an 8-bit palette, as Hakchi2 CE makes them by default), measured the same way: built and tested in this version but not used until they are compared on the console's own menu and approved; no capacity check, meter or report counts them"
+    },
+    "hakchi_base": {
+      "logical_bytes": 26214400,
+      "allocated_bytes": 26214400,
+      "what": "an allowance for the Hakchi base on a console that does not have it yet; its installed size is not measured"
+    }
+  }
+}

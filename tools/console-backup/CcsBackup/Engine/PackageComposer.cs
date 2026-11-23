@@ -105,6 +105,7 @@ namespace CcsBackup.Engine
                     if (role != "data-file" || place == null || !place.StartsWith("data:", StringComparison.Ordinal)) { p.Skipped.Add(PrivateRoles.All.TryGetValue(role ?? "", out var r0) ? Cap(r0.Text) + ": not written by Console Composer (it never writes startup software, bootloaders, the storage table or system images)" : "an unknown component"); continue; }
                     var target = place.Substring(5);
                     if (!FilesEngine.PathOk(target) || !FilesEngine.InScope("compose", target)) { p.Skipped.Add(target + ": not something Console Composer moves"); continue; }
+                    if (SegaCleanup.NeverWritten(target)) { p.Skipped.Add(target + ": " + SegaCleanup.NotWritten); continue; }
                     if (!targets.Add(target)) return (null, target + " is named twice in the package.");
                     byte[] data;
                     try { data = PrivatePackage.ReadMember(package, info.Members.First(x => x.Name == PrivateRoles.MemberName(role, csha))); }

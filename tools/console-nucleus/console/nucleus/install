@@ -3,8 +3,8 @@
 # 1. every file the package would copy into hakchi's overlay may be written (nothing there, CCS Nucleus's own unchanged file, or the
 #    same bytes); otherwise nothing is copied, nothing is recorded, and hakchi keeps no uninstall list for it ("no-uninstall")
 # 2. hakchi's own transfer_default copies the files, exactly as for any other package
-# 3. the copies are checked and recorded (CCS Nucleus's ownership journal); the first registry (the console's own system and CCS HOME)
-#    is written when there is none; the menu entry is added
+# 3. the copies are checked and recorded (CCS Nucleus's ownership journal); the first registry (the console's own menu, started
+#    directly) is written when there is none
 # Like other packages that copy their own files, this script then returns 1, so hakchi does not copy them a second time.
 ccsnucleus_install(){
   local out

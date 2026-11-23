@@ -24,7 +24,7 @@ namespace CcsBackup.Tests
             var c = SmallConsole("modified", true);
             var (p0, r0) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, "My Other System", img);
             Check(p0 == null && r0.Problem.Contains("CCS Nucleus is not installed") && Writes(c).Count == 0, "CCS Nucleus not installed: adding a system image is refused (" + r0?.Problem + ")");
-            SetInstalled(c, "nucleus", "ccs-nucleus");
+            SetInstalled(c, Methods.Nucleus);
             var (pj, rj) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, "Junk", junk);
             Check(pj == null && rj.Problem.Contains("SquashFS") && Writes(c).Count == 0, "a file that is not a system root (its real content checked): refused (" + rj?.Problem + ")");
             var (pl, rl) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, "Bad \"name\"", img);
@@ -32,7 +32,7 @@ namespace CcsBackup.Tests
             var cfg = Json.Parse(File.ReadAllText(Path.Combine(c, "console.json"))); var j0 = new JObj(); foreach (var kv in cfg) j0.Add(kv.Key, kv.Value); j0.Set("data_free_bytes", 8000000L + 4095);
             var cfgKeep = File.ReadAllText(Path.Combine(c, "console.json")); File.WriteAllText(Path.Combine(c, "console.json"), Json.Write(j0));
             var (pf, rf) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, "My Other System", img);
-            Check(pf == null && rf.Problem.Contains("Not enough room") && rf.Problem.Contains("4.1 KB") && rf.Problem.Contains("MB") && !rf.Problem.Contains("KiB"), "the image and the kept reserve do not fit the measured free space: refused, in decimal units (" + rf?.Problem + ")");
+            Check(pf == null && rf.Problem.Contains("Not enough room") && rf.Problem.Contains("these changes need about 19 MB") && rf.Problem.Contains("has 8 MB available") && rf.Problem.Contains("Nothing was changed") && !rf.Problem.Contains("KiB") && !rf.Problem.Contains("MiB") && Writes(c).Count == 0, "the image and the kept reserve do not fit the measured free space: refused with the shared storage wording, in decimal units, nothing written (" + rf?.Problem + ")");
             File.WriteAllText(Path.Combine(c, "console.json"), cfgKeep);
 
             var con = RecoverySessions.OpenSimulated(c, ImageKind.Firmware); var ctx = Ctx(s, ImageKind.Firmware);

@@ -25,14 +25,14 @@ namespace CcsBackup.Tests
         {
             var all = streams.ToList();
             foreach (var p in new[] { "app", "workbench" }) foreach (var c in new[] { "production", "preview" }) if (!all.Any(s => s.p == p && s.c == c)) all.Add((p, c, new string[0]));
-            return "{\"schema\":\"ccs-release-streams/1\",\"generated\":\"x\",\"complete\":" + (complete ? "true" : "false") + ",\"excluded\":[{\"tag\":\"workbench-v1.0.0\",\"reason\":\"superseded\"}],\"streams\":["
+            return "{\"schema\":\"ccs-release-streams/1\",\"generated\":\"x\",\"complete\":" + (complete ? "true" : "false") + ",\"excluded\":[{\"tag\":\"workbench-v9.0.0\",\"reason\":\"made-up\"}],\"streams\":["
                 + string.Join(",", all.Select(s => "{\"product\":\"" + s.p + "\",\"channel\":\"" + s.c + "\",\"releases\":[" + string.Join(",", s.e) + "]}")) + "]}";
         }
 
         internal static void Updates()
         {
             // the published releases as of 0.11.3: app and Workbench 0.11.0 to 0.11.3 previews, app production up to 0.10.1, no production Workbench;
-            // the superseded workbench-v1.0.0 is only in "excluded"
+            // a made-up workbench-v9.0.0 is only in "excluded"
             string[] V(string p, string c, params string[] vs) => vs.Select(v => UpdEntry(p, c, v)).ToArray();
             var published = UpdDoc(true, ("app", "preview", V("app", "preview", "0.11.3", "0.11.2", "0.11.1", "0.11.0")), ("app", "production", V("app", "production", "0.10.1", "0.10.0", "0.9.0")),
                 ("workbench", "preview", V("workbench", "preview", "0.11.3", "0.11.2", "0.11.1", "0.11.0")));
@@ -43,7 +43,7 @@ namespace CcsBackup.Tests
             Check(P(published, "workbench", "preview", "0.11.2").State == UpdateState.Available && P(published, "workbench", "preview", "0.11.2").Newest == "0.11.3", "newer: Workbench 0.11.2 is offered 0.11.3");
             a = P(published, "workbench", "preview", "0.11.5");
             Check(a.State == UpdateState.UpToDate && a.Ahead && a.Newest == "0.11.3", "running ahead of the feed: up to date, never a lower version, and marked ahead");
-            Check(P(published, "workbench", "preview", "0.9.0").Newest == "0.11.3", "the superseded workbench-v1.0.0 (only in \"excluded\") is never offered");
+            Check(P(published, "workbench", "preview", "0.9.0").Newest == "0.11.3", "a release only in \"excluded\" (made-up workbench-v9.0.0) is never offered");
             Check(P(published, "workbench", "production", "0.11.3").State == UpdateState.UpToDate && P(published, "workbench", "production", "0.11.3").Newest == null, "a production Workbench is never offered a preview (workbench/production lists nothing)");
             Check(P(published, "app", "preview", "0.11.3").State == UpdateState.UpToDate, "legacy app 0.11.3 is a preview and up to date in the preview stream");
             Check(P(published, "app", "preview", "0.9.0").Newest == "0.11.3", "a preview Studio is never offered production v0.10.1");

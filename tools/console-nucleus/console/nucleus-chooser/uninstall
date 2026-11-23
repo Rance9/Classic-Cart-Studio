@@ -1,0 +1,5 @@
+# CCS Nucleus chooser: removal through hakchi. Copyright (C) 2026 Rance9. GPL-3.0-or-later. CCS Nucleus's own command removes the
+# menu entry, turns the chooser off at start in the registry (a default that was one of the owner's system images becomes the console's
+# own menu) and removes the chooser's unchanged files; CCS Nucleus, its registry and the owner's system images are kept.
+[ -f "$rootfs/bin/ccs-nucleus" ] && CCS_ROOT="$mountpoint" sh "$rootfs/bin/ccs-nucleus" chooser-remove
+return 0

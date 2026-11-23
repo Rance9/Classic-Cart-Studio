@@ -1,4 +1,10 @@
 /* ---------- Classic Cart Studio: collection menus, status, versions, extended library, personal games, technical details, guide, install ---------- */
+/* every scroll bar of the page, in the Windows app and on the website: dark, in the theme (the page itself, panels, lists, dialogs, Help);
+   a select's list follows the dark scheme too. Firefox takes scrollbar-color; WebView2, Edge, Chrome and Safari the ::-webkit-scrollbar parts */
+select,textarea{color-scheme:dark}
+@media not (forced-colors:active){::-webkit-scrollbar{width:12px;height:12px}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:var(--bg1)}
+::-webkit-scrollbar-thumb{background:#4a4a58;border-radius:999px;border:3px solid var(--bg1)}::-webkit-scrollbar-thumb:hover{background:#6c6c80}::-webkit-scrollbar-thumb:active{background:#8a8aa0}}
+@supports not selector(::-webkit-scrollbar){html{scrollbar-color:#4a4a58 var(--bg1)}}
 .brand .nm small{letter-spacing:1.5px}
 .btn.ghosty{background:transparent;border-color:transparent;color:var(--ink2)}.btn.ghosty:hover{border-color:var(--line2);color:#fff}
 .btn.howbtn{gap:6px}.btn.howbtn .q{display:inline-grid;place-content:center;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-family:var(--pixel);font-size:9px}
@@ -980,6 +986,7 @@ img.px{image-rendering:pixelated}
 .dlbtn:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .dlbtn .dlic{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(0,0,0,.24);box-shadow:0 1px 0 rgba(255,255,255,.18)}
 .dlbtn .dlic svg{width:16px;height:16px}
+.dlbtn .dlic.emo{font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif;font-size:18px;line-height:1;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35)}   /* the toolbox: Windows draws it from Segoe UI Emoji, on a light tile so its red stands out on the red button */
 @media (prefers-reduced-motion:reduce){.dlbtn,.dlbtn::after{transition:none}}
 .barhidden{display:none!important}
 
@@ -993,6 +1000,10 @@ img.px{image-rendering:pixelated}
  #toolsFold{order:2}#loBand{order:3}
  .toolbar:not(.tb-two) .row.bar{position:absolute;top:var(--tbpt,7px);right:var(--tbpr,16px);z-index:2}
  .toolbar:not(.tb-two) .row.tools{padding-right:var(--barw,0px)}
+ .toolbar.tb-two .row.bar{flex-wrap:wrap!important;row-gap:8px}   /* buttons that do not fit on one line wrap rather than run off the edge */
+ .toolbar.tb-span .row.bar,.toolbar.tb-span #toolsFold{width:var(--tbspan);max-width:100%;box-sizing:border-box}
+ .toolbar.tb-span .row.bar>.actions{margin-left:auto!important}   /* when the search line needs the wider span, Studio still ends the first line at its right edge */
+ .toolbar.tb-span .row.tools>input[type=search]{flex:1 1 200px;width:auto;min-width:200px;max-width:none}
  .toolbar .tvbtn,.toolbar .row.bar .collbtn,.toolbar .row.bar .appbtn{height:36px!important;min-height:0!important;margin:0!important;box-sizing:border-box}
  .toolbar .tvbtn{padding:0 12px 0 5px!important;gap:8px}
  .toolbar .tvbtn img{width:auto!important;height:26px!important;max-height:26px}

@@ -25,7 +25,8 @@ function ccsPfName(v){ return typeof v==='string'&&v.length>0; }
 function ccsPfEntry(R, kind, id){ return typeof kind==='string'&&typeof id==='string'?R.entries.get(kind+'\u0000'+id)||null:null; }
 function ccsAllowed(kind, id){ const e=ccsPfEntry(ccsPlatformRegistry(), kind, id); return !!e&&e.status==='supported'; }
 function ccsInputActions(id){ const e=ccsPfEntry(ccsPlatformRegistry(), 'input', id); return e&&Array.isArray(e.actions)?e.actions.slice():[]; }
-function ccsModelForBoard(board){ if(!ccsPfName(board)) return null; const e=ccsPlatformRegistry().list.find(x=>x.kind==='physical-model'&&x.status==='supported'&&Array.isArray(x.boards)&&x.boards.indexOf(board)>=0); return e?e.id:null; }
+function ccsModelForBoard(board){ return ccsModelFor(board, null); }
+function ccsModelFor(board, region){ if(!ccsPfName(board)) return null; const e=ccsPlatformRegistry().list.find(x=>x.kind==='physical-model'&&x.status==='supported'&&Array.isArray(x.boards)&&x.boards.indexOf(board)>=0&&(!Array.isArray(x.regions)||!x.regions.length||(ccsPfName(region)&&x.regions.indexOf(region)>=0))); return e?e.id:null; }
 function ccsTargetResolve(doc, docKind, ...lists){
  const R=ccsPlatformRegistry(); const defs=R.defaults.get(docKind); if(!defs) throw new Error('No defaults for document kind '+docKind);
  const target={}; defs.forEach((v,k)=>{ target[k]=v; });

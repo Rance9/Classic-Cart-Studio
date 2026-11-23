@@ -1,16 +1,17 @@
 """The release-built minimal CCS HOME package that the CCS Console Workbench (the standalone and the one inside Classic Cart Studio) places
-on a console when it installs CCS Mod or CCS Nucleus, so either method has a HOME to show without a full Studio or a Hakchi PC program.
+on a console when it installs CCS Mod (the only provider of CCS HOME), so CCS HOME has something to show without a full Studio or a Hakchi
+PC program.
 Copyright (C) 2026 Rance9, GPL-3.0-or-later.
 
   python build_home_package.py --site SITE --player ccs-player-armv7 --runtime ccs-home-armv7 --out DIR
 
 SITE: the built website (build_site_ci.py output; its included/ folder holds the Included Games: each author's exact build, under the license
 its record quotes, with that game's source beside it). The package is built with the app's own builder (tools/companion/native_home/
-console_package.py, the same code Classic Cart Studio uses for a collection), offline, from the Included Games collection, once for each
-method's layout (mod, nucleus: they differ only in session.json's leave item and MANIFEST.json). Output (a new or empty folder; the console
-programs' folder gets it as ccs-home/, which the .NET build embeds next to the five images):
-  <layout>.MANIFEST.json   each layout's own MANIFEST.json, byte for byte as the builder wrote it (its SHA-256 names the package version)
-  <sha256>.blob            every file of either package once, named by its SHA-256 (the two layouts share all but session.json)
+console_package.py, the same code Classic Cart Studio uses for a collection), offline, from the Included Games collection, in CCS HOME's one
+layout (mod: its leave item, Choose Another Menu, is decided on the console). Output (a new or empty folder; the console programs' folder
+gets it as ccs-home/, which the .NET build embeds next to the five images):
+  <layout>.MANIFEST.json   the layout's own MANIFEST.json, byte for byte as the builder wrote it (its SHA-256 names the package version)
+  <sha256>.blob            every file of the package once, named by its SHA-256
   HOME.json                schema ccs-home-release/1: per layout its MANIFEST.json SHA-256, the files and the total bytes; the games and
                            their licenses (each game file is the author's own exact build; its source is in the website's included/source/)
   sample.json              schema ccs-home-preview-sample/1: HOME Designer's sample games, a preview-only HOME (see build_sample); its files
@@ -22,7 +23,7 @@ The sample is never part of a layout: no MANIFEST.json names its files, so it is
 from __future__ import annotations
 import argparse, hashlib, json, os, shutil, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__)); TOOLS = os.path.dirname(HERE)
-SCHEMA = "ccs-home-release/1"; LAYOUTS = ("mod", "nucleus")
+SCHEMA = "ccs-home-release/1"; LAYOUTS = ("mod",)   # CCS HOME's one layout (native_home/console_package.py LAYOUTS)
 
 def sha(b: bytes) -> str: return hashlib.sha256(b).hexdigest()
 

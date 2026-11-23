@@ -85,8 +85,8 @@ tools/console-nucleus/build_home_package.py with Classic Cart Studio's own packa
 Games. The package's own notice, licenses/NOTICE.txt, names each of its parts with its files, who made it, its terms and its exact source,
 and the license texts those parts require are beside it in licenses/; the package's build stops when a file has no notice or a text is
 missing. Credits shows them. The package holds:
-- the game player for the console (Classic Cart Studio's own, GPL-3.0-or-later, with FCEUmm at commit ac0d00a7, GNU GPL version 2 or
-  later, and in it libretro-common, pic16c5x and emu2413; SDL_GameControllerDB data; stb_image; musl libc and compiler-rt) and the HOME
+- the game player for the console (Classic Cart Studio's own, GPL-3.0-or-later, with FCEUmm at commit ac0d00a7 and its two recorded Mapper 30
+  patches, GNU GPL version 2 or later, and in it libretro-common, pic16c5x and emu2413; SDL_GameControllerDB data; stb_image; musl libc and compiler-rt) and the HOME
   program for the console (Classic Cart Studio's own, with stb_image, musl libc and compiler-rt), both compiled by zig 0.17.0.
 - the Included Games, Thwaite 0.03 and Concentration Room 0.02 by Damian Yerrick: the author's own builds, unchanged, under the GNU GPL
   version 3 or later, with their covers (the author's own screens). Their source, as the author published it, is in site-data/included/source

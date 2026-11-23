@@ -43,7 +43,11 @@ def parse_header(b: bytes) -> dict:
         mapper |= (f8 & 0x0F) << 8; sub = f8 >> 4
         if (f9 & 0x0F) != 0x0F: prg = ((f9 & 0x0F) << 8 | b[4]) * 16384
         if (f9 >> 4) != 0x0F: chr_ = ((f9 >> 4) << 8 | b[5]) * 8192
-    return {"format": "NES 2.0" if nes2 else "iNES", "mapper": mapper, "submapper": sub, "prg": prg, "chr": chr_, "mirroring": "four-screen" if f6 & 0x08 else ("vertical" if f6 & 0x01 else "horizontal"), "battery": bool(f6 & 0x02), "trainer": bool(f6 & 0x04), "header_hex": b[:16].hex()}
+    mirroring = "four-screen" if f6 & 0x08 else ("vertical" if f6 & 0x01 else "horizontal")
+    if mapper == 30:   # UNROM 512 reads its two layout bits its own way (boards/unrom512.c; nesdev.org/wiki/UNROM_512): bit 3 with bit 0 set is
+        #                four-screen, bit 3 alone is one-screen switched by the game, and submapper 3 switches horizontal/vertical itself
+        mirroring = "switchable" if sub == 3 else ("horizontal", "vertical", "one-screen", "four-screen")[(f6 & 0x01) | ((f6 & 0x08) >> 2)]
+    return {"format": "NES 2.0" if nes2 else "iNES", "mapper": mapper, "submapper": sub, "prg": prg, "chr": chr_, "mirroring": mirroring, "battery": bool(f6 & 0x02), "trainer": bool(f6 & 0x04), "header_hex": b[:16].hex()}
 
 def _rm(p: str):
     try: os.remove(p)
@@ -223,7 +227,8 @@ def keep_known_copy(version_id: str, tmp: str, ident: dict, fname: str, src: str
     """A known version imported by the user: keep ONE managed copy per version (deduplicated by content hash) so the collection can be prepared
     without the development payload store. The original file is never modified. Returns the store record."""
     st = load_store(); rec = st.get(version_id)
-    if rec and os.path.exists(rec["path"]) and rec.get("content_sha256") == ident["content_sha256"]: rec["seen"] = rec.get("seen", 1) + 1; st[version_id] = rec; save_store(st); return dict(rec, reused=True)
+    if rec and os.path.isfile(rec["path"]) and rec.get("content_sha256") == ident["content_sha256"] and rec.get("file_sha256") and _file_sha(rec["path"]) == rec["file_sha256"]:   # the kept copy is still the file it was (a changed one is replaced)
+        rec["seen"] = rec.get("seen", 1) + 1; st[version_id] = rec; save_store(st); return dict(rec, reused=True)
     os.makedirs(LIB_FILES_DIR, exist_ok=True); ext = ".nes" if ident["format"] != "headerless" else ".unh"; managed = os.path.join(LIB_FILES_DIR, version_id + ext)
     _place(tmp, managed, ident["file_sha256"], replace=True)
     rec = {"version_id": version_id, "path": managed, "format": ident["format"], "file_sha256": ident["file_sha256"], "content_sha256": ident["content_sha256"], "file_size": ident["file_size"], "source_name": fname, "source_archive": os.path.basename(src) if note else "", "added": time.strftime("%Y-%m-%dT%H:%M:%S"), "seen": 1}
@@ -437,6 +442,8 @@ def read_local_library(root: str) -> dict:
             try: ident = identify_bytes(data)
             except ValueError as e: rec.update(file_name=roms[0], format="unknown", file_sha256=sha256(data), content_sha256=sha256(data), content_size=len(data), match=None, unreadable=str(e)); entries.append(rec); continue
             rec.update(file_name=roms[0], format=ident["format"], file_sha256=ident["file_sha256"], content_sha256=ident["content_sha256"], content_size=ident["content_size"], header=ident["header"])
+            if (ident["header"] or {}).get("mapper") == 30 and rec["emulator"] == "kachikachi":   # set to Nintendo's emulator, which cannot run it
+                rec["notice"] = "This game needs CCS’s player. Nintendo’s built-in NES emulator does not support its cartridge type."
             k = lib["by_sha"].get(ident["content_sha256"]); rec["match"] = {"version_id": k["id"], "name": k["name"], "title": lib["titles"][k["title_id"]]["title"], "title_id": k["title_id"], "curated": k["curated"]} if k else None
             mk = os.path.join(d, "nes-classic-catalog.json")
             if os.path.exists(mk):

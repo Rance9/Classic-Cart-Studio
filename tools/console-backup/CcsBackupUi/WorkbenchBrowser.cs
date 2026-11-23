@@ -170,14 +170,14 @@ namespace CcsBackup.Ui
             Show(sp, "msg");
         }
 
-        void OpenLiveBrowse(long partBytes, string tag, string state)
+        void OpenLiveBrowse(long partBytes, string tag, string state, string physicalModel = null)
         {
             var w = worker; if (w == null || !w.Running) return;
             var cts = new CancellationTokenSource();
             var pv = new ProgressView(this, "Reading the Console's Files", "The console's data storage is read through the session in its memory. Nothing on the console is changed.", "Cancel", () => cts.Cancel());
             Show(pv.Panel, "progress");
             var stream = new WorkerRangeStream(w, partBytes);
-            Task.Run(() => BackupContents.OpenLive(stream, tag, state, () => cts.IsCancellationRequested)).ContinueWith(t =>
+            Task.Run(() => BackupContents.OpenLive(stream, tag, state, () => cts.IsCancellationRequested, physicalModel)).ContinueWith(t =>
             {
                 var r = t.Result;
                 if (!r.Ok) { stream.Dispose(); Show(Message("The console's files could not be read", r.Problem ?? "", "bad"), "msg"); return; }
@@ -237,7 +237,7 @@ namespace CcsBackup.Ui
             {
                 var who = new StackPanel();
                 DateTime made; var when = DateTime.TryParse(c.CompletedUtc, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out made) ? made.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm tt", En) : "at a time not known";
-                who.Children.Add(T("Backup of " + (c.Simulated ? "simulated console " : "console ") + (c.ConsoleTag ?? "not known") + ", made " + when + (c.Salvage ? "" : " · passed its full check when it was opened"), Ty.Body, true, false, new Thickness(0, 0, 0, 2)));
+                who.Children.Add(T((c.StorageLabel != null ? "USB and SD backup of " + c.StorageLabel : "Backup of " + (c.Simulated ? "simulated console " : "console ") + (c.ConsoleTag ?? "not known")) + ", made " + when + (c.Salvage ? "" : " · passed its full check when it was opened"), Ty.Body, true, false, new Thickness(0, 0, 0, 2)));   // a USB and SD backup: WorkbenchStorage.cs
                 who.Children.Add(PathText(c.Path));
                 if (hasKey) who.Children.Add(T("It holds the console's system key. Keep it private. Exporting a folder, a type, search results or a game skips the separate key file, but whole startup images, ramdisks and raw NAND images can still contain the key: keep those exports private too.", Ty.Small, false, true, new Thickness(0, 2, 0, 0)));
                 who.Children.Add(Details("Technical details",
@@ -252,7 +252,7 @@ namespace CcsBackup.Ui
                     c.Salvage && c.FoundBy != null ? "Its parts were found through " + c.FoundBy + "." : null,
                     c.DerivedIndexPath != null ? "Checksums worked out on this PC are kept beside the backup's records, never in the backup: " + c.DerivedIndexPath : null,
                     hasKey ? "The system key is read from the backup's own startup software (a startup image's ramdisk) each time a part of the encrypted system part is read; its bytes are never shown or kept by the window. Exporting a folder, a type, search results or a game skips the separate key file (it is listed in the export's list without its bytes); selecting the key file itself exports it. Whole startup images, ramdisks and raw NAND images are exported exactly as the backup holds them, so they can still contain the key." : null,
-                    BackupContents.ClockText));
+                    (c?.DatesText ?? BackupContents.ClockText)));
                 var wc = Card(who, 14); wc.Margin = new Thickness(0, -6, 0, 12); sp.Children.Add(wc);
             }
             foreach (var n in c.Notes) { if (c.Live && n.StartsWith("Read live", StringComparison.Ordinal)) continue; sp.Children.Add(Note(n, "info")); }
@@ -260,16 +260,28 @@ namespace CcsBackup.Ui
             var bar = new Grid { Margin = new Thickness(0, 0, 0, 12) };
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); bar.ColumnDefinitions.Add(new ColumnDefinition { MinWidth = 150 }); bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var views = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 12, 0) };
-            foreach (var (v, label) in new[] { ("game", "By Game"), ("type", "By Type"), ("all", "All Files") })
+            foreach (var (v, label) in c.Live || c.StorageLabel != null ? new[] { ("game", "By Game"), ("type", "By Type"), ("all", "All Files") } : new[] { ("game", "By Game"), ("type", "By Type"), ("all", "All Files"), ("storage", "Storage") })
             { var vv = v; var b = B(label, browseView == v ? "Btn.Primary" : "Btn.Ghost", () => { browseView = vv; ShowBrowse(); }); b.Margin = new Thickness(0, 0, 4, 0); b.MinWidth = 0; views.Children.Add(b); }
             bar.Children.Add(views);
             var search = new TextBox { Text = browseSearch }; System.Windows.Automation.AutomationProperties.SetName(search, "Search"); Grid.SetColumn(search, 1); bar.Children.Add(search);
             var go = B("Search", "Btn.Ghost", () => { browseSearch = search.Text.Trim(); ShowBrowse(); }); go.Margin = new Thickness(8, 0, 0, 0); Grid.SetColumn(go, 2); bar.Children.Add(go);
             search.KeyDown += (s, ev) => { if (ev.Key == System.Windows.Input.Key.Enter) { browseSearch = search.Text.Trim(); ShowBrowse(); } };
+            // the views and the search on one line when there is room for both, otherwise the search on its own line under the views
+            bar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); bar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            void LayBar()
+            {
+                var room = (bar.Parent as FrameworkElement)?.ActualWidth ?? 0; if (room <= 0) return;
+                bool one = room >= views.ActualWidth + views.Margin.Right + 150 + 8 + Math.Max(go.ActualWidth, 70);
+                bar.ColumnDefinitions[1].MinWidth = one ? 150 : 0;
+                Grid.SetRow(search, one ? 0 : 1); Grid.SetColumn(search, one ? 1 : 0); Grid.SetColumnSpan(search, one ? 1 : 2); search.Margin = new Thickness(0, one ? 0 : 8, 0, 0);
+                Grid.SetRow(go, one ? 0 : 1); go.Margin = new Thickness(8, one ? 0 : 8, 0, 0);
+            }
+            sp.SizeChanged += (s, ev) => LayBar(); views.SizeChanged += (s, ev) => LayBar();
+            if (browseView == "storage" && !c.Live && c.StorageLabel == null) { bar.Children.Remove(search); bar.Children.Remove(go); sp.Children.Add(bar); sp.Children.Add(StorageView(c)); Show(sp, "browse-storage"); return; }   // WorkbenchStorageReport.cs
             sp.Children.Add(bar);
 
             var preview = new StackPanel();
-            preview.Children.Add(T("Click a file's name to see what it is and where its checksum comes from, with a preview of a picture. " + BackupContents.ClockText, 12.5, false, true));
+            preview.Children.Add(T("Click a file's name to see what it is and where its checksum comes from, with a preview of a picture. " + (c?.DatesText ?? BackupContents.ClockText), 12.5, false, true));
             var listPanel = new StackPanel();
             IEnumerable<BrowseEntry> shown;
             if (browseView == "game")
@@ -510,7 +522,7 @@ namespace CcsBackup.Ui
             var acts = new List<UIElement>();
             if (e.Kind == EntryKind.File && browsing?.Live == false) { var ee = e; acts.Add(B(e.Private != null ? "Export the Key File…" : e.IsImage ? "Export This Image…" : "Export This File…", "Btn.Ghost", () => DoExport(OneEntry(browsing, ee, PickFolder())))); }
             var saveArea = new StackPanel();
-            if (e.Category == Category.Saves && e.Kind == EntryKind.File && e.Source == EntrySource.DataFile) acts.Add(B("Convert to a Game Save File", "Btn.Ghost", () => ConvertSave(e, saveArea)));
+            if (e.Category == Category.Saves && e.Kind == EntryKind.File && e.Source == EntrySource.DataFile && browsing.NesSaves) acts.Add(B("Convert to a Game Save File", "Btn.Ghost", () => ConvertSave(e, saveArea)));
             if (acts.Count > 0) into.Children.Add(Buttons(acts.ToArray()));
             into.Children.Add(saveArea);
             var pic = new StackPanel(); into.Children.Add(pic); into.Children.Add(tech);
@@ -581,7 +593,7 @@ namespace CcsBackup.Ui
             if (x.ManifestPath != null) tech.Add("The export's list (every file, its checksum and where that checksum comes from): " + x.ManifestPath);
             if (x.Described.Count > 0) tech.Add(x.Described.Count + " link(s) or special file(s) are described in the export's list; they are never followed or created on this PC.");
             foreach (var d in x.DateNotes.Take(5)) tech.Add(d.RelativePath + ": " + d.DateNote);
-            tech.Add(BackupContents.ClockText);
+            tech.Add((c?.DatesText ?? BackupContents.ClockText));
             sp.Children.Add(Details("Technical details", tech.ToArray()));
             var folder = x.Folder;
             sp.Children.Add(Buttons(folder != null && Directory.Exists(folder) ? B("Open the Folder", "Btn", () => { try { System.Diagnostics.Process.Start("explorer.exe", "\"" + folder + "\""); } catch { } }) : null,

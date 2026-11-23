@@ -123,7 +123,7 @@ async function gxImport(){ if(CS_STATE!=='ok'){ rdyStoreProblem(); return; }
 // empty slot for it or replaces the one here (said plainly); the cartridge save likewise (the one here is set aside when replaced)
 function gxChoose(fname){ const p=GX.plan, s=n=>n===1?'':'s'; const games=p.games||[], rej=p.rejected||[];
  if(!games.length){ cvSaid('Import Game Saves', `<div class="msgbox ${rej.length?'warn':''}">${rej.length?'None of the saves in this file can be used here.':'Every save in this file is already here. Nothing was changed.'}</div>${gxRejHtml(rej)}`); return; }
- const label=f=>f.kind==='cart'?'Cartridge save (battery)':`Slot ${f.slot}${f.slot_name?` "${esc(f.slot_name)}"`:''}`;
+ const label=(f,g)=>f.kind==='cart'?gxCartLabel(g&&g.sha):`Slot ${f.slot}${f.slot_name?` "${esc(f.slot_name)}"`:''}`;
  const when=f=>f.saved_at?`saved ${esc(gxWhen(f.saved_at))}`:f.kind==='cart'?`${(f.bytes/1000).toLocaleString('en-US',{maximumFractionDigits:1})} KB`:'';
  const row=(g,f)=>{ const id=`gx_${g.sha.slice(0,12)}_${f.name.replace(/\W/g,'')}`; const free=g.free_slots.filter(k=>k!==f.slot);
   let opts;
@@ -131,8 +131,8 @@ function gxChoose(fname){ const p=GX.plan, s=n=>n===1?'':'s'; const games=p.game
   else opts=f.status==='add'?`<option value="slot${f.slot}">Put it in Slot ${f.slot}</option>${free.map(k=>`<option value="slot${k}">Put it in Slot ${k}</option>`).join('')}<option value="keep">Don't import it</option>`
    :f.status==='same'?`<option value="keep">Already here</option>`
    :`<option value="keep" selected>Keep the save here, don't import this one</option>${free.map(k=>`<option value="slot${k}">Put it in empty Slot ${k}</option>`).join('')}<option value="replace">Replace the save in Slot ${f.slot}${f.current&&f.current.slot_name?` "${esc(f.current.slot_name)}"`:''} (it is kept, not deleted)</option>`;
-  return `<div class="gxrow"><div><b>${label(f)}</b> <span class="small">${when(f)}</span>${f.status==='conflict'?`<div class="small">Here now: ${f.kind==='cart'?'a different cartridge save':`a different save${f.current&&f.current.saved_at?`, saved ${esc(gxWhen(f.current.saved_at))}`:''}`}. The newer date does not always mean more progress.</div>`:''}</div>
-   <select id="${id}" data-gx-sha="${g.sha}" data-gx-file="${f.name}" aria-label="${label(f).replace(/"/g,'')}"${f.status==='same'?' disabled':''}>${opts}</select></div>`; };
+  return `<div class="gxrow"><div><b>${label(f,g)}</b> <span class="small">${when(f)}</span>${f.status==='conflict'?`<div class="small">Here now: ${f.kind==='cart'?'a different cartridge save':`a different save${f.current&&f.current.saved_at?`, saved ${esc(gxWhen(f.current.saved_at))}`:''}`}. The newer date does not always mean more progress.</div>`:''}</div>
+   <select id="${id}" data-gx-sha="${g.sha}" data-gx-file="${f.name}" aria-label="${label(f,g).replace(/"/g,'')}"${f.status==='same'?' disabled':''}>${opts}</select></div>`; };
  const romLine=g=>{ const ib=typeof incBuild==='function'?incBuild(g.sha):null;
   return g.rom==='here'?'':g.rom==='unknown'?'<div class="small">Classic Cart Studio could not check whether this game is here.</div>'
    :`<div class="small">The game file for this game is not ${gxApp()?'on this computer':'in this browser'}. Its saves are kept anyway and become playable when ${ib&&ib.hosted?`you get <b>${esc(ib.title)}</b> from the Included Games`:'you add that exact game file'}. It is not added to any collection.</div>`; };
@@ -187,7 +187,10 @@ function gxWrite(todo){ let why=''; const at=new Date().toISOString();
 async function gxKept(){ let all; try{ all=await cpTx(['files'],'readonly',t=>cpReq(t.objectStore('files').getAll(IDBKeyRange.bound('/data/saves/','/data/saves/\uffff')))); }catch(e){ throw cpReadError(e, 'the saves an import replaced'); }
  const by={}; for(const f of all||[]){ const m=GX_KEPT.exec(f.path); if(!m) continue; const x=by[m[2]]=by[m[2]]||{tx:m[2], games:{}}; (x.games[m[1]]=x.games[m[1]]||{})[m[3]]={u8:new Uint8Array(f.bytes), at:f.at||''}; }
  return Object.values(by).filter(x=>Object.values(x.games).some(fs=>fs['cart.sav']||GX_SLOTS.some(n=>fs[n]))).sort((a,b)=>a.tx<b.tx?1:-1); }
-function gxKeptLabel(name, d){ return name==='cart.sav'?'Cartridge save (battery)':`Slot ${d.slot}${d.slot_name?` "${esc(d.slot_name)}"`:''}`; }
+// a cartridge save is called a flash save when the game's header says its cartridge saves to flash (Mapper 30, UNROM 512), else a battery save
+function gxCartLabel(sha){ const k=String(sha||'').slice(0,16); const r=typeof byId!=='undefined'?(byId[k]||byId['p_'+k]):null; const m=(typeof COLL!=='undefined'&&COLL&&COLL.missing||{})['p_'+k];
+ const hex=(r&&r.header_hex)||(m&&m.personal&&m.personal.detected&&m.personal.detected.header_hex)||''; const M=m30Info(nesHdr(hex)); return M&&M.flash?'Cartridge save (flash)':'Cartridge save (battery)'; }
+function gxKeptLabel(name, d, sha){ return name==='cart.sav'?gxCartLabel(sha):`Slot ${d.slot}${d.slot_name?` "${esc(d.slot_name)}"`:''}`; }
 async function gxKeptOpen(){
  if(gxApp()){ cvSaid('Replaced Game Saves', '<div class="msgbox">In Classic Cart Studio for Windows, each save that an import or a restore replaced is kept in a folder named "replaced-…" beside it, among the app\'s saved games under %LOCALAPPDATA%\\ClassicCartStudio.</div>'); return; }
  if(typeof fbWebPlay!=='function'||!fbWebPlay()){ cvSaid('Replaced Game Saves', '<div class="msgbox bad">This browser cannot keep games or saved games here, so there are none.</div>'); return; }
@@ -196,7 +199,7 @@ async function gxKeptOpen(){
  if(!list.length){ cvSaid('Replaced Game Saves', '<div class="msgbox">No save has been replaced by Import Game Saves in this browser.</div>'); return; }
  const group=x=>{ const w=gxTxWhen(x.tx);
   return `<div class="gxgame"><h3>Replaced ${esc(w?gxWhen(w.toISOString()):x.tx)}</h3>${Object.entries(x.games).map(([sha, fs])=>{ const nm=gxNames(fs['slot-names.json']&&fs['slot-names.json'].u8);
-   const items=['cart.sav',...GX_SLOTS].filter(n=>fs[n]).map(n=>{ const d=gxDescribe(n, fs[n].u8, sha, nm, core); return `<div class="gxrow"><div>${gxKeptLabel(n, d)} <span class="small">${d.saved_at?'saved '+esc(gxWhen(d.saved_at)):''}</span></div></div>`; }).join('');
+   const items=['cart.sav',...GX_SLOTS].filter(n=>fs[n]).map(n=>{ const d=gxDescribe(n, fs[n].u8, sha, nm, core); return `<div class="gxrow"><div>${gxKeptLabel(n, d, sha)} <span class="small">${d.saved_at?'saved '+esc(gxWhen(d.saved_at)):''}</span></div></div>`; }).join('');
    return items?`<div class="small"><b>${esc(gxTitleFor(sha)||'Game '+sha.slice(0,12))}</b></div>${items}`:''; }).join('')}
    <div class="acts"><span class="sp"></span><button class="btn hk" data-gx-kept="${esc(x.tx)}">Export These Saves…</button></div></div>`; };
  openColl('Replaced Game Saves', '', `<p class="small">Saves that Import Game Saves replaced in this browser, kept exactly as they were. To put one back, export it here, then choose <b>Import Game Saves…</b> with that file and put it in an empty slot (or replace, which keeps that save here the same way). They are not part of a backup: export them to keep them somewhere else.</p>

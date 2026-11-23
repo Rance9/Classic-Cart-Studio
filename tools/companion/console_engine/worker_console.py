@@ -84,6 +84,11 @@ class WorkerConsole:
         if r.get("error"): _raise(r["error"], r.get("text", ""))
         return sorted(r.get("names") or [])
     def sha256(self, path: str) -> str | None: return (self.call("sha256", {"paths": [path]}).get("hashes") or {}).get(path)
+    def menu_refs(self, names: list[str]) -> dict:
+        """read only: the console's menu entries (.desktop files in hakchi's folders on the data storage and on a USB drive or SD card) that
+        name one of this program's copies ("pkg/COPY" or "games/COPY"): the worker's menu-refs, {"roots", "refs": [{"name", "sha256",
+        "path"}], "unreadable", "complete"}"""
+        return self.call("menu-refs", {"names": list(names)})
     def read(self, path: str, max_bytes: int = 1_000_000) -> bytes | None:
         r = self.call("read", {"path": path, "max_bytes": min(max_bytes, 1_000_000)}, raw=True)
         if r.get("error") in ("not-a-file", "too-large"): return None
@@ -121,9 +126,9 @@ class WorkerConsole:
         return ok
     def set_pointer(self, path: str, value: str, expect: str | None = None):
         self._write("pointer"); self.call("pointer", {"path": path, "value": value, **({"expect": expect} if expect else {})}); self.writes.append(path)
-    # hakchi's own package commands (pack_install / pack_uninstall through the worker). Only the CCS Mod / CCS Nucleus packages are installed,
-    # and only the exact builds the worker pins (the same bytes the CCS Console Workbench's preparation image carries); the earlier start-up
-    # module "ccs-home" is only read and removed
+    # hakchi's own package commands (pack_install / pack_uninstall through the worker). Only the add-on packages (CCS Mod, CCS Nucleus and
+    # its startup chooser) are installed, and only the exact builds the worker pins (the same bytes the CCS Console Workbench's preparation
+    # image carries); the earlier start-up module "ccs-home" is only read and removed
     def pack_install(self, name: str, hmod: bytes):
         self._write("module-install")
         self.call("module-install", {"name": name, "hmod": {"b64": base64.b64encode(hmod).decode(), "sha256": hashlib.sha256(hmod).hexdigest()}}); self.writes.append(f"hakchi:pack_install {name}")
@@ -131,14 +136,25 @@ class WorkerConsole:
         """the earlier start-up module's files as hakchi's uninstall list names them, with their SHA-256 now ({} when not listed)"""
         r = self.call("module-files", {"name": name}); return dict(r.get("files") or {}) if r.get("present") else {}
     def method_files(self, name: str) -> dict | None:
-        """a CCS method package as the console holds it: None when hakchi does not list it; else its VERSION's package id and the SHA-256 now of
+        """a CCS add-on package as the console holds it: None when hakchi does not list it; else its VERSION's package id and the SHA-256 now of
         every file its own FILES list names"""
         r = self.call("module-files", {"name": name})
         return {"package": r.get("package"), "files": dict(r.get("files") or {})} if r.get("present") else None
     def pack_uninstall(self, name: str): self._write("module-uninstall"); self.call("module-uninstall", {"name": name}); self.writes.append(f"hakchi:pack_uninstall {name}")
-    def mod_start(self, state: str) -> str:
-        """CCS Mod's start at power-on by its own command on the console (the worker's mod-start: "ccs-mod autostart on|off"); its result line"""
-        self._write("mod-start"); r = self.call("mod-start", {"state": state}); self.writes.append(f"ccs-mod:autostart {state}"); return str(r.get("result") or "")
+    def nucleus_start(self, default: str, chooser: str, home: str, selection: str = "default", timeout: str = "10") -> str:
+        """what opens at power-on, by CCS Nucleus's own command on the console (the worker's nucleus-start: "ccs-nucleus start DEFAULT CHOOSER
+        HOME SELECTION TIMEOUT", only while hakchi lists CCS Nucleus); its result line (the worker raises for anything but its success)"""
+        self._write("nucleus-start")
+        r = self.call("nucleus-start", {"default": default, "chooser": chooser, "home": home, "selection": selection, "timeout": str(timeout)})
+        self.writes.append("ccs-nucleus:start"); return str(r.get("result") or "")
+    def collections(self, command: str, stage: str | None = None) -> str:
+        """the console program for Hakchi games (the worker's collections: where, check STAGE, apply STAGE, remove, status), only the exact
+        program and library the worker pins, in the folder named by the program's pin; its output (its lines and its result line, success or
+        not: the caller reads the result line). apply and remove change the console"""
+        if command in ("apply", "remove"): self._write("collections")
+        r = self.call("collections", {"command": command, **({"stage": stage} if stage else {})})
+        if command in ("apply", "remove"): self.writes.append(f"ccs-collections:{command}")
+        return str(r.get("output") or "")
     def overlay_sha256(self, path: str) -> str | None: return self.sha256(HOOK_OVERLAY + path)
     def overlay_read(self, path: str) -> bytes | None: return self.read(HOOK_OVERLAY + path, 65536)
 
@@ -156,7 +172,8 @@ def open_worker_console(kind: str, package_dir: str | None = None, tier: str = "
     gate.require(tier, f"open a {kind} console")
     exe = worker_exe()
     if not exe: raise FileNotFoundError("the console worker is not installed with this app")
-    p = subprocess.Popen([exe] + (["--package", package_dir] if package_dir else []), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen([exe] + (["--package", package_dir] if package_dir else []), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))   # a helper without a window: it speaks only through its pipes
     c = WorkerConsole(p, simulated=False, kind=kind, package_root=package_dir, tier=tier)
     try:
         if tier == "inspect" and "write-tier" not in (c.call("capabilities").get("features") or []):   # before connect: a worker that cannot keep a session read-only is not used

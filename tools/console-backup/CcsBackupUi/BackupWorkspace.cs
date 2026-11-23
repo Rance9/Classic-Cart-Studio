@@ -32,8 +32,15 @@ namespace CcsBackup.Ui
         public string ProductName = "CCS Console Workbench", Version = EngineInfo.Version;
         public string WorkerExe; public List<string> WorkerArgs = new List<string> { WorkerHost.Flag };
         public string SettingsPath, SimulatedConsole;
-        /// <summary>the standalone: ordinary preferences in memory unless a settings file was chosen (--settings or Save to a File…)</summary>
+        /// <summary>the standalone: ordinary preferences in memory unless a settings file was chosen (--settings, the remembered file, or
+        /// Save Settings / Load Settings)</summary>
         public bool Portable;
+        /// <summary>the ordinary standalone window (set only by its program; never in installed mode or with a simulated console): a settings
+        /// file it saves or loads successfully is remembered for its next start (LastSettingsFile)</summary>
+        public bool RememberSettingsFile;
+        /// <summary>the remembered settings file that could not be opened at this start, and why (the window offers to locate a file or to use
+        /// the usual settings this time; the file and the record are left as they are)</summary>
+        public string RememberedSettingsFile, RememberedSettingsProblem;
         public string FullAppUrl = "https://classiccartstudio.com/app/";   // the official Windows download page (Get Full Classic Cart Studio)
         public ImageSource Wordmark, AppIcon; public string NoticeText;
         /// <summary>Classic Cart Studio for Windows: the HOME package it prepared last (its data folder's native-home\current), for HOME
@@ -181,8 +188,34 @@ namespace CcsBackup.Ui
         Border Card(UIElement child, double pad = 20) => new Border { Background = Res<Brush>("B.Surface"), BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(pad), Margin = new Thickness(0, 0, 0, 16), Child = child };
         Border Note(string text, string kind)
         {
+            if (CcsBackup.Engine.HakchiRequirement.Is(text)) return HakchiNote(text);
             var c = kind == "ok" ? "B.Ok" : kind == "bad" ? "B.Red3" : kind == "warn" ? "B.Warn" : "B.Line2";
             return new Border { BorderBrush = Res<Brush>(c), BorderThickness = new Thickness(3, 0, 0, 0), Background = Res<Brush>("B.Surface2"), CornerRadius = new CornerRadius(0, 6, 6, 0), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 8, 0, 10), Child = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 19 } };
+        }
+        /// <summary>the refusal of a console whose Hakchi setup is not Hakchi2 CE 3.9.3: the same words wherever a task stops for it, and the
+        /// official release page, opened in the default web browser (never inside Workbench, never run from here); what was found below</summary>
+        Border HakchiNote(string problem)
+        {
+            var sp = new StackPanel();
+            sp.Children.Add(T(CcsBackup.Engine.HakchiRequirement.Title, Ty.Body, true, true));
+            sp.Children.Add(T(CcsBackup.Engine.HakchiRequirement.Body, Ty.Body, false, true, new Thickness(0, 4, 0, 0)));
+            sp.Children.Add(T(CcsBackup.Engine.HakchiRequirement.Next, Ty.Body, false, true, new Thickness(0, 4, 0, 0)));
+            sp.Children.Add(Buttons(B(CcsBackup.Engine.HakchiRequirement.Button, "Btn.Primary", () => Launch(CcsBackup.Engine.HakchiRequirement.Url))));
+            sp.Children.Add(Details("Technical details", "What the console reports: " + CcsBackup.Engine.HakchiRequirement.DetectedOf(problem) + ".",
+                "Workbench needs Hakchi2 CE 3.9.3's console components: hakchi " + CcsBackup.Engine.HakchiRequirement.ConsoleVersion + " with kernel " + CcsBackup.Engine.HakchiRequirement.Kernel + ".",
+                "The button opens the official release page in your web browser: " + CcsBackup.Engine.HakchiRequirement.Url,
+                "After you update the console with Hakchi2 CE, start this task again: Workbench checks the console again before anything is written. Hakchi2 CE's own update is not covered by Workbench's backup and checks."));
+            return new Border { BorderBrush = Res<Brush>("B.Warn"), BorderThickness = new Thickness(3, 0, 0, 0), Background = Res<Brush>("B.Surface2"), CornerRadius = new CornerRadius(0, 6, 6, 0), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 8, 0, 0), Child = sp };
+        }
+        /// <summary>on a review of a change to a console: "Returning to Nintendo's original software is unavailable", when this console's
+        /// backups hold no original Nintendo material (the change itself can still go ahead with a complete current backup); null otherwise</summary>
+        UIElement OriginalUnavailableNote(string consoleTag)
+        {
+            try { if (consoleTag == null || CcsBackup.Engine.Admission.HasRecordedOriginal(settings, consoleTag)) return null; } catch (Exception) { return null; }
+            var sp = new StackPanel();
+            sp.Children.Add(T(CcsBackup.Engine.Admission.OriginalUnavailableTitle, Ty.Body, true, true));
+            sp.Children.Add(T(CcsBackup.Engine.Admission.OriginalUnavailableText, Ty.Body, false, true, new Thickness(0, 4, 0, 0)));
+            return new Border { BorderBrush = Res<Brush>("B.Warn"), BorderThickness = new Thickness(3, 0, 0, 0), Background = Res<Brush>("B.Surface2"), CornerRadius = new CornerRadius(0, 6, 6, 0), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 8, 0, 0), Child = sp };
         }
         WrapPanel Buttons(params UIElement[] b) { var p = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) }; foreach (var x in b) if (x != null) p.Children.Add(x); return p; }
         /// <summary>shows a page: its tag names it for Escape and the status strip; a page with unsaved changes sets leaveCheck after this</summary>
@@ -294,7 +327,7 @@ namespace CcsBackup.Ui
             what.Children.Add(T("Games and saves on a USB drive or SD card connected to the console are not included.", Ty.Text, false, true));
             what.Children.Add(T("Where it is saved", Ty.Heading, true, false, new Thickness(0, 10, 0, 6)));
             // 1.0 GB: the NES Classic Mini's backup
-            what.Children.Add(T(profile.ConsoleTasks ? "One file of about 1.0 GB in your backup location:" : "One file in your backup location:", Ty.Text));
+            what.Children.Add(T(!profile.ConsoleTasks ? "One file in your backup location:" : profile.ArchiveBytes > 0 ? "One file of about " + Size(profile.ArchiveBytes) + " in your backup location:" : "One file of about 1.0 GB in your backup location:", Ty.Text));
             // WB-UX-11: the location, with Edit in Settings beside it (Settings at Backup locations; its Back returns here with the location as it is then)
             var where = new Grid(); where.ColumnDefinitions.Add(new ColumnDefinition()); where.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var path = PathText(settings.PrimaryFolder); path.Margin = new Thickness(0, 0, 18, 4); path.VerticalAlignment = VerticalAlignment.Center; where.Children.Add(path);
@@ -331,7 +364,7 @@ namespace CcsBackup.Ui
 
         void StartBackup()
         {
-            if (!FamilyHasTasks()) return;
+            if (!FamilyHasTasks("backup")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartBackup()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console task is running", "The console is already in use by this window, another CCS Console Workbench window or Classic Cart Studio. Wait for that task to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Backing Up the Console", "Keep the USB cable connected. Cancel stops at once: nothing on the console changes, and the unfinished file is kept and marked Incomplete.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -351,7 +384,7 @@ namespace CcsBackup.Ui
                 case "plan": lastPlan = ev.O("plan"); ShowPlan(lastPlan); break;
                 case "prep-plan": ShowPrepPlan(ev.O("plan")); break;
                 case "return-plan": ShowReturnPlan(ev.O("plan")); break;
-                case "result": gotResult = true; writing = false; if (workerOp == "backup") BackupResult(ev); else if (workerOp == "prepare") PrepResult(ev); else if (workerOp == "return") ReturnResult(ev); else if (workerOp == "rescue") RescueResult(ev); else if (workerOp == "browse") { if (browsing?.Live == true) { browsing.Dispose(); browsing = null; } ShowCheckup(ev, ended: true); } else if (workerOp == "compose") ComposeResult(ev); else if (workerOp == "home-design") DesignResult(ev); else if (workerOp == "method" || workerOp == "firmware") MethodOrFirmwareResult(workerOp, ev); else if (workerOp == "test-boot") TestBootResult(ev); else if (workerOp == "files") { worker?.Send(new JObj { { "cmd", "quit" } }); Go(filesScope == "dev" ? "Developer Mode" : "Console Browser"); } else RestoreResult(ev); break;
+                case "result": gotResult = true; writing = false; if (workerOp == "backup") BackupResult(ev); else if (workerOp == "prepare") PrepResult(ev); else if (workerOp == "return") ReturnResult(ev); else if (workerOp == "rescue") RescueResult(ev); else if (workerOp == "browse") { if (browsing?.Live == true) { browsing.Dispose(); browsing = null; } ShowCheckup(ev, ended: true); } else if (workerOp == "compose") ComposeResult(ev); else if (workerOp == "home-design") DesignResult(ev); else if (workerOp == "method" || workerOp == "firmware") MethodOrFirmwareResult(workerOp, ev); else if (workerOp == "test-boot") TestBootResult(ev); else if (workerOp == "community") CommunityResult(ev); else if (workerOp == "sega-pictures") SegaResult(ev); else if (workerOp == "files") { worker?.Send(new JObj { { "cmd", "quit" } }); Go(filesScope == "dev" ? "Developer Mode" : "Console Browser"); } else RestoreResult(ev); break;
                 case "finished": Show(Message("The console is restarting", "It starts into its normal HOME in a moment. You can unplug the USB cable once the TV shows the HOME.", "ok"), "msg"); worker?.Send(new JObj { { "cmd", "quit" } }); break;
                 case "error": if (workerOp == "files") ShowFilesSession(ev.S("text"), "bad"); else Show(Message("The console task stopped with a problem", ev.S("text") ?? "", "bad", ev.S("code")), "msg"); break;
                 default: OnWorkbenchEvent(ev); break;
@@ -461,7 +494,7 @@ namespace CcsBackup.Ui
 
         void StartRestorePrepare(string file, List<string> only = null)
         {
-            if (!FamilyHasTasks()) return;
+            if (!FamilyHasTasks("restore")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartRestorePrepare(file, only)); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Preparing the Restore", "Checking the console and backing it up as it is now. Nothing is written to the console in this step. Cancel stops at once.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -541,9 +574,12 @@ namespace CcsBackup.Ui
             c.Children.Add(T("Workbench installs the software Classic Cart Studio's HOME runs on. No other program is needed. Nintendo's HOME, its built-in games and their saves stay. A console that is already prepared this way is left as it is.", Ty.Text));
             c.Children.Add(T("Before anything changes", Ty.Heading, true, false, new Thickness(0, 10, 0, 6)));
             c.Children.Add(T("You need a checked backup of this console as it is now, before it is prepared: make it with Back Up Console. When you prepare, Workbench backs the console up once more in the same session, with every save; that backup is your way back (Return to Original Software). You review the exact steps and confirm them. If a step fails, the steps after it are not done, and nothing is retried.", Ty.Text));
-            c.Children.Add(Details(TechNes, "What is installed: Hakchi2 CE 3.9.3's kernel and files, with CCS HOME's package and the start method you choose below (CCS Mod for Hakchi or CCS Nucleus).", "As Hakchi2 CE's own installation does, hakchi's bootloader (u-boot) replaces the console's own and the startup software (kernel) is replaced by hakchi's; a copy of the original Nintendo kernel is kept in the spare startup slot, and the originals stay in your backups. Return to Original Software puts this console's own bootloader and Nintendo's kernel back."));
+            c.Children.Add(Details(TechNes, "What is installed: Hakchi2 CE 3.9.3's kernel and files, with the add-ons you choose (CCS Mod with CCS HOME's package; CCS Nucleus, with or without its startup chooser).", "As Hakchi2 CE's own installation does, hakchi's bootloader (u-boot) replaces the console's own and the startup software (kernel) is replaced by hakchi's; a copy of the original Nintendo kernel is kept in the spare startup slot, and the originals stay in your backups. Return to Original Software puts this console's own bootloader and Nintendo's kernel back."));
             sp.Children.Add(Card(c));
-            sp.Children.Add(PolicyChoice());
+            var ad = new StackPanel();
+            ad.Children.Add(T("Your add-ons", Ty.Heading, true, false, new Thickness(0, 0, 0, 6)));
+            ad.Children.Add(T("After the console is checked, you choose your add-ons on two pages: CCS Mod, which adds CCS HOME, a menu for your game collections, and CCS Nucleus, which chooses what opens when you turn on the console. Add-ons already on the console stay.", Ty.Text));
+            sp.Children.Add(Card(ad));
             if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the steps."));
             sp.Children.Add(Buttons(B("Check the Console", "Btn.Primary", () => StartPrepare()), B("Back", "Btn.Ghost", BackToSection)));
             sp.Children.Add(Group("Already prepared?", 18));
@@ -568,7 +604,7 @@ namespace CcsBackup.Ui
 
         void StartReturn()
         {
-            if (!FamilyHasTasks()) return;
+            if (!FamilyHasTasks("return")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartReturn()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Checking the Console", "Nothing is changed in this step.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -614,24 +650,26 @@ namespace CcsBackup.Ui
 
         void StartPrepare()
         {
-            if (!FamilyHasTasks()) return;
+            if (!FamilyHasTasks("preparation")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartPrepare()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Checking the Console", "Nothing is changed in this step.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
             Show(progress.Panel, "progress");
             NewSession("prepare");
-            var req = ConsoleReq("prepare-plan"); req.Add("policy", preparePolicy); if (preparePolicy == "mod" && prepareModStart) req.Add("mod_start", true); worker.Send(req);
+            addons = null; var req = ConsoleReq("prepare-plan"); req.Add("choose", true); worker.Send(req);   // the add-on pages follow the console's check
         }
 
         void ShowPrepPlan(Dictionary<string, object> p)
         {
             var sp = PageHead("Review the Preparation", "What preparing would change on your " + Con + ". Nothing has been written yet.");
             var c = new StackPanel(); c.Children.Add(T("Console " + p.S("console_tag") + ": " + p.S("text"), 14, true));
+            if (p.S("refusal") == null) c.Children.Add(AddonSummary(ChoiceOf(p.O("addons")), ChoiceOf(p.O("console_state")?.O("addons"))));
             var steps = (p.A("steps") ?? new List<object>()).Cast<string>().ToList();
             foreach (var s in steps) c.Children.Add(T((steps.IndexOf(s) + 1) + ". " + Capital(Preparation.StepLabel(s)), 13));
             var hm = p.O("home");
             if (hm != null) c.Children.Add(T("CCS HOME's package: " + hm.S("size") + (hm.S("replaces") != null && hm.S("replaces") != "absent" ? ". The HOME the console uses now stays until the switch." : "."), 12.5, false, true, new Thickness(0, 4, 0, 0)));
             foreach (var n in (p.A("notes") ?? new List<object>())) c.Children.Add(Note(n as string, "info"));
+            if (EarlierHomeReview(p.O("earlier_home"), () => Leave(), "Back", p.O("home")?.S("size")) is UIElement eh) c.Children.Add(eh);
             if (p.S("refusal") != null) c.Children.Add(Note(p.S("refusal"), "bad"));
             sp.Children.Add(Card(c));
             if (p.S("refusal") != null) { sp.Children.Add(Buttons(B("Done", "Btn", () => Leave()))); Show(sp, "prep-plan"); return; }
@@ -656,8 +694,9 @@ namespace CcsBackup.Ui
             var title = st == "prepared" ? "Console prepared" : st == "method-scheduled" ? "Ready for the next start" : st == "home-placed" ? "CCS HOME is on the console" : st == "already-prepared" ? "Already prepared" : st == "unavailable" ? "Not available in this version" : st == "stopped" ? "The preparation stopped partway" : st == "canceled" ? "Canceled" : "The preparation could not continue";
             sp.Children.Add(PageTitle(title));
             var done = (r.A("done") ?? new List<object>()).OfType<string>().ToList();
-            var okText = st == "prepared" ? "Every step was written once and read back. Restart the console" + (done.Contains("method") ? ": at that start Hakchi installs the method and restarts the console once; then CCS HOME is ready on it." : " and check that Nintendo's HOME starts.")
-                : st == "method-scheduled" ? "CCS HOME is on the console now, checked file by file. The way it starts (CCS Mod or CCS Nucleus) is waiting in hakchi's package folder: hakchi installs it the next time the console starts normally, then restarts the console once."
+            bool added = done.Any(d => d.StartsWith("method:", StringComparison.Ordinal));
+            var okText = st == "prepared" ? "Every step was written once and read back. Restart the console" + (added ? ": at that start hakchi installs your add-ons and restarts the console once." : " and check that Nintendo's HOME starts.")
+                : st == "method-scheduled" ? (added ? "Your add-ons are waiting in hakchi's package folder: hakchi installs them the next time the console starts normally, then restarts the console once." : "What opens when the console is turned on is set, and read back.") + (done.Contains("huse") ? " CCS HOME is on the console now, checked file by file." : "")
                 : st == "home-placed" ? "CCS HOME's package was written once, checked file by file, and is now the one the console uses. How CCS HOME starts, and the rest of the console, are unchanged."
                 : st == "already-prepared" ? "Nothing needed to change." : null;
             sp.Children.Add(Note(okText ?? r.S("problem") ?? "", okText != null ? "ok" : st == "canceled" ? "warn" : "bad"));

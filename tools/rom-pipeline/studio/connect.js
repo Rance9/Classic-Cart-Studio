@@ -18,8 +18,8 @@ async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.
  if(r.status===426){ CO.ok=false; CO.state='old'; CO.version=j.version||CO.version; CO.protocol=j.protocol||CO.protocol; connPill(); }
  if(!r.ok&&!j.error) j.error='HTTP '+r.status; j.status=r.status; return j; }
 // these wait for a person in a Windows Open or Save dialog, or do work that grows with the collection (checking, staging or importing a
-// package, preparing an installation), so the usual 12 s answer time is far too short for them
-const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink|art)|library\/locate|package\/(save|export|open|import-roms|rom-check)|studio\/(backup|contents|restore|restore-recover|saves-export|saves-import)|overrides\/art|home\/(folder-art|native-package)|apply|console\/plan|console\/home\/(plan|preflight)|update\/install)$/;   // update/install reads the whole downloaded installer again before running it
+// package, preparing an installation), so the usual 12 s answer time is far too short for them (install-hakchi answers once its checks have run and the setup has started)
+const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink|art)|library\/locate|package\/(save|export|open|import-roms|rom-check)|studio\/(backup|contents|restore|restore-recover|saves-export|saves-import)|overrides\/art|home\/(folder-art|native-package)|apply|console\/plan|console\/home\/(plan|preflight)|update\/install|install-hakchi)$/;   // update/install reads the whole downloaded installer again before running it
 async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}, timeout:HK_WAITS.test(path)?30*60000:undefined}); }
 async function lnaDenied(){ try{ if(navigator.permissions&&navigator.permissions.query){ const p=await navigator.permissions.query({name:'local-network-access'}); return p.state==='denied'; } }catch(e){} return false; }
 let STATUS_P=null;

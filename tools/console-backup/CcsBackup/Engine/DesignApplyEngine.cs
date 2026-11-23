@@ -45,7 +45,7 @@ namespace CcsBackup.Engine
         public HashSet<string> Intact = new HashSet<string>(StringComparer.Ordinal);   // designs whose every listed file is there and unchanged
         public string PackManifestSha256;                  // the installed HOME package's manifest.json (ccs/pkg/current -> pkg/<copy>/home/)
         public string PackCopy;
-        public long FreeBytes;
+        public long FreeBytes, ReservedBytes, BlockBytes;   // the data storage's file system header: free blocks (the reserve included), the reserve, the block size
     }
 
     public sealed class DesignApplyPlan
@@ -77,6 +77,17 @@ namespace CcsBackup.Engine
         static string Sha(byte[] b) { using (var h = SHA256.Create()) return Hex.Of(h.ComputeHash(b)); }
 
         /// <summary>the console's designs, pointers, installed HOME package and free space, as a verified backup holds them (reads only)</summary>
+        /// <summary>the room a design apply needs (the shared storage accounting): the new design's files beside the ones in use, against the
+        /// data storage's free blocks outside the reserve as the session's backup recorded them; the older designs it removes are freed only
+        /// after the switch, so they lower the final figure, never the peak</summary>
+        public static JObj Room(DesignConsoleState st, IEnumerable<PlannedFileChange> changes)
+        {
+            var list = changes.ToList();
+            var room = Capacity.Input(new Dictionary<string, object> { ["source"] = "measured", ["free_bytes"] = st.FreeBytes, ["reserved_bytes"] = st.ReservedBytes, ["block_bytes"] = st.BlockBytes }, list);
+            room["removed_after"] = list.Where(c => c.Op == "del").Select(c => (object)new Dictionary<string, object> { ["label"] = c.Path, ["allocated_bytes"] = StorageSpec.Rounded(c.OldBytes, st.BlockBytes) }).ToArray();
+            return StorageSpec.Account(room);
+        }
+
         public static DesignConsoleState ReadState(string backup)
         {
             var st = new DesignConsoleState();
@@ -87,7 +98,7 @@ namespace CcsBackup.Engine
                 var e = dev == null ? null : z.Find("restore/" + dev + ".img");
                 if (e == null || e.Method != 0) throw new InvalidDataException("the backup has no data storage");
                 var fs = new Ext4Reader(z.StoredWindow(e));
-                st.FreeBytes = fs.FreeBlocks * fs.BlockSize;
+                st.FreeBytes = fs.FreeBlocks * fs.BlockSize; st.ReservedBytes = fs.ReservedBlocks * fs.BlockSize; st.BlockBytes = fs.BlockSize;
                 byte[] Read(string p, long max) { var ino = fs.Lookup("/" + p); return ino != null && fs.IsRegular(ino.Value) && fs.FileSize(fs.Inode(ino.Value)) <= max ? fs.ReadAll(ino.Value, max) : null; }
                 string Pointer(string p, out string raw) { var b = Read(p, 200); raw = b == null ? "absent" : Sha(b); if (b == null) return null; var t = Encoding.ASCII.GetString(b).Trim(); return t == "none" || Id.IsMatch(t) ? t : "unreadable"; }
                 st.Current = Pointer(Current, out st.CurrentRaw); st.KnownGood = Pointer(KnownGood, out st.KnownGoodRaw);
@@ -240,8 +251,8 @@ namespace CcsBackup.Engine
                 }
             }
             catch (InvalidDataException ex) { return (null, ex.Message + ". Nothing was changed."); }
-            if (st.FreeBytes - p.NewBytes < DesignProfile.StorageReserve)
-                return (null, "The console's data storage has " + CcsBackup.Compose.Units.Size(st.FreeBytes) + " free; the design needs " + CcsBackup.Compose.Units.Size(p.NewBytes) + " and " + CcsBackup.Compose.Units.Size(DesignProfile.StorageReserve) + " must stay free for saves and settings. Nothing was changed.");
+            var acct = Room(st, p.Changes);
+            if (!(bool)acct["write_ok"]) return (null, Capacity.Why(acct, out _, out _) + " Nothing was changed.");
             p.Notes.Add("Only the HOME's appearance changes: saves, Game Settings and the HOME's other choices are not touched.");
             if (known != "none") p.Notes.Add("If the new design cannot be shown at a start, the console shows the design it shows now."); else p.Notes.Add("If the new design cannot be shown at a start, the console shows the theme as it comes.");
             Finish(p); return (p, null);

@@ -15,7 +15,9 @@
 #include <stddef.h>
 
 #define GP_CORE_ID "fceumm"
-#define GP_CORE_VERSION "ac0d00a7"          /* the pinned upstream commit; a state from another core version is never loaded */
+#define GP_CORE_VERSION "ac0d00a7"          /* the save-state identity: the upstream base commit; a state from another core version is never loaded */
+#define GP_CORE_BUILD "ac0d00a7+patches.6dcff395"   /* the built core: the base commit with the recorded patch series (third_party/fceumm/VENDORED.md);
+                                                       the patches change no save-state data, so states keep GP_CORE_VERSION */
 #if defined(_WIN32)
 #define GP_PLATFORM "windows-x86_64"
 #elif defined(__wasm__)

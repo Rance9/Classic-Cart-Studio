@@ -117,6 +117,66 @@ def _start(mode: str, title: str, games: list, direct_id: str = "", pack: str = 
         RUN.proc = proc; RUN.mode = mode; RUN.title = title; RUN.dir = d; RUN.started = time.time(); RUN.embedded = bool(embed)
         threading.Thread(target=_watch, args=(proc, d), daemon=True).start()
         return {"ok": True, "mode": mode, "title": title, "session": os.path.basename(d)}
+# ---------------- one game file from the command line: ClassicCartStudio.exe --play FILE (ClassicCartStudio/PlayFile.cs) ----------------
+# The exit codes the command returns (the launcher passes them on): 0 the player closed normally, also when it was closed at its start
+# choice (not a report that the game ran correctly); 1 the player ended with an error; 2 the command was not used as documented (the
+# launcher's own check); 3 the file cannot be played (not there, not readable, or not an
+# NES game file the player can start: a file without a header whose content no record knows); 4 a game is already open in the player (it is
+# left as it is); 5 the player could not start (a missing or damaged installation).
+PLAY_OK, PLAY_ERROR, PLAY_USAGE, PLAY_FILE, PLAY_BUSY, PLAY_START = 0, 1, 2, 3, 4, 5
+PLAY_MAX = 64 * 1000 * 1000   # larger than any NES game file
+def player_busy() -> bool:
+    """a game is open in the player now (the player's own lock, the named mutex Local\\ClassicCartStudio.Player: only looked at, never held)"""
+    if os.name != "nt": return False
+    import ctypes
+    h = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, "Local\\ClassicCartStudio.Player")   # SYNCHRONIZE: only to ask whether it exists
+    if h: ctypes.windll.kernel32.CloseHandle(h); return True
+    return False
+def play_file(path: str) -> tuple[int, str]:
+    """(exit code, message): the game file at path, as it is now, in the game player by itself: no HOME, no library or collection, nothing
+    added anywhere. Its bytes are read once, now, and kept for the player in this run's own folder, so the file itself is never written, moved
+    or held open; its saves and its game and controller settings are the ones every way of playing that game uses (by its content, in this
+    app's data folder, NES_STUDIO_DATA when set). The run's folders are removed when the player has closed."""
+    import ccs_package as cp, personal as ps
+    p = os.path.abspath(path)
+    if not os.path.isfile(p): return PLAY_FILE, f"There is no game file at {p}."
+    try:
+        if os.path.getsize(p) > PLAY_MAX: return PLAY_FILE, f"{os.path.basename(p)} is too large to be an NES game file."
+        with open(p, "rb") as f: data = f.read()
+    except OSError as e: return PLAY_FILE, f"{os.path.basename(p)} could not be read ({e.strerror or e})."
+    ident = cp.identify_bytes(data); cs = ident["content_sha256"]
+    if ident["content_size"] < ps.MIN_CONTENT: return PLAY_FILE, f"{os.path.basename(p)} is too small to be an NES game file."
+    hdr = ""
+    if not ident["headered"]:   # a file without a header: the header a record holds for exactly this content, never a guessed one
+        hdr = _header_for(cs[:16], cs) or ps.known_header(cs)
+        if not hdr: return PLAY_FILE, f"{os.path.basename(p)} has no NES header, and its content is not a game Classic Cart Studio knows, so it cannot be played (nothing is guessed). Use the .nes file with its header."
+    if player_busy() or _running(): return PLAY_BUSY, "A game is already open in Classic Cart Studio's player. Close it first, then try again."
+    if not player_binary(): return PLAY_START, PROBLEM or "The game player is not available in this installation. Reinstall Classic Cart Studio; your collections are kept."
+    title = os.path.splitext(os.path.basename(p))[0][:120] or "Game"
+    try:
+        sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline")); import library_lookup as LL
+        known = LL._catalog().get(cs[:16]); vid = cs[:16] if known else "p_" + cs[:16]
+        if known: title = known.get("display_title") or title
+    except Exception: vid = "p_" + cs[:16]
+    own = os.path.join(data_path("play"), "file-" + time.strftime("%Y%m%d-%H%M%S-") + os.urandom(3).hex()); os.makedirs(own)
+    rom = os.path.join(own, "game.nes" if ident["headered"] else "game.unh")
+    with open(rom, "wb") as f: f.write(data)
+    g = {"id": vid, "title": title, "version_label": os.path.basename(p)[:200], "rom": rom, "header_hex": hdr, "content_sha256": cs, "unavailable": ""}
+    try:
+        r = _start("direct", title, [g], direct_id=vid)
+        if not r.get("ok"): return (PLAY_BUSY if r.get("busy") else PLAY_START), r.get("error") or "The game player could not start."
+        with RUN.lock: proc, d = RUN.proc, RUN.dir
+        proc.wait()
+        try: res = json.load(open(os.path.join(d, "result.json"), encoding="utf-8"))
+        except (OSError, ValueError): res = {"exit": "no_result", "error": "The game player closed without a result."}
+        if res.get("exit") == "normal": return PLAY_OK, ""
+        err = str(res.get("error") or "The game player ended with an error.")
+        return (PLAY_BUSY if "already open" in err else PLAY_ERROR), err
+    finally:
+        shutil.rmtree(own, ignore_errors=True)
+        with RUN.lock: d = RUN.dir
+        if d and os.path.basename(d).startswith("session-") and os.path.dirname(os.path.abspath(d)) == os.path.abspath(data_path("play")): shutil.rmtree(d, ignore_errors=True)
+
 def start_direct(vid: str, embed: str = "") -> dict:
     sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline")); import library_lookup as LL
     row = None

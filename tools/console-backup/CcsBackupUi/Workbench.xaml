@@ -214,6 +214,37 @@
       </Setter.Value>
     </Setter>
   </Style>
+  <!-- a number box's step arrows (Settings > Earlier HOME versions): the theme's button colors, its keyboard-only focus mark and dimmed
+       when not available; held down, they repeat -->
+  <Style x:Key="Wb.Spin" TargetType="RepeatButton">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource B.Line2}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Width" Value="28"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Delay" Value="400"/>
+    <Setter Property="Interval" Value="150"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RepeatButton">
+          <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" SnapsToDevicePixels="True">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="#80FFFFFF"/><Setter TargetName="bd" Property="Background" Value="#FF26262E"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Background" Value="#FF14141A"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Red3}"/>
+            </MultiTrigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
   <Style x:Key="Wb.Row" TargetType="Button">
     <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
     <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>

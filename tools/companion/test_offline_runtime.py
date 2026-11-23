@@ -96,7 +96,15 @@ def workbench_updates():
     download"""
     d = {}; root = os.path.join(TOOLS, "console-backup")
     hits = [os.path.relpath(p, root) for p in files(root, (".cs",)) if "CcsBackup.Tests" not in p for l in open(p, encoding="utf-8", errors="replace") if CS_NET.search(l)]
-    d["network_code_only_in_workbench_updates"] = bool(hits) and set(hits) == {os.path.join("CcsBackupUi", "WorkbenchUpdates.cs")}
+    # two places only: Workbench's own update check, and a person-started download of an approved community mod (CommunityDownload)
+    upd, comm = os.path.join("CcsBackupUi", "WorkbenchUpdates.cs"), os.path.join("CcsBackup", "Engine", "CommunityPackage.cs")
+    d["network_code_only_in_update_check_and_mod_download"] = upd in hits and set(hits) <= {upd, comm}
+    # the mod download: no address of its own (only an approved record's), https only, into a folder the person chose, kept only when its
+    # size and SHA-256 are the approved ones; the catalog has no remote address and no key in this version (nothing is fetched)
+    csrc = open(os.path.join(root, comm), encoding="utf-8").read(); cat = open(os.path.join(root, "CcsBackup", "Engine", "CommunityCatalog.cs"), encoding="utf-8").read()
+    d["mod_download_pinned_only"] = (csrc.count("WebRequest.Create(") <= 1 and not URL.findall(csrc) and "Open(v.Url)" in csrc and "Hex.Of(h.Hash) != v.Sha256" in csrc
+                                     and "n > v.Bytes" in csrc and "Path.IsPathRooted(folder)" in csrc and "rs.ResponseUri.Scheme != Uri.UriSchemeHttps" in csrc)
+    d["community_catalog_fetches_nothing"] = "public const string RemoteUrl = null;" in cat and "public const string PinnedKey = null;" in cat
     src = open(os.path.join(root, "CcsBackupUi", "WorkbenchUpdates.cs"), encoding="utf-8").read()
     d["workbench_fixed_addresses"] = sorted(set(URL.findall(src))) == sorted({WORKBENCH_FEED, WORKBENCH_PAGE, WORKBENCH_TEST_FEED}) and f'UpdateFeed = "{WORKBENCH_FEED}"' in src and f'DownloadPage = "{WORKBENCH_PAGE}"' in src
     d["workbench_request_into_memory_only"] = src.count("WebRequest.Create(") == 1 and "new MemoryStream()" in src and not re.search(r"File\.(Write|Create|Open(?!Read))|FileStream|DownloadFile", src)

@@ -60,8 +60,9 @@ is never used by a restore; it is opened with Restore a Backup like any `.ccs` f
             "not_included": ["USB or SD storage connected to the console (left untouched by backup and restore)", "…"]},
   "tool": {"name": "CCS Console Workbench", "version": "1.0.0", "engine": "CcsBackup 1.0.0.0", "entry": "workbench",   (earlier: "CCS Console Backup & Restore Utility", "utility")
            "recovery_image": {"id": "ccs-backup/1/0123456789abcdef", "sha256": "…"}, "transport": "clovershell"},
-  "console": {"model": "NES Classic Edition", "board": "dp-nes", "region": "EUR_USA", "oem_version": "release-v1.0.7-0-g4ea4041",
-              "hwid": "00000000 00000000 00000000 00000000", "tag": "12345678"},
+  "console": {"model": "NES Classic Edition", "physical_model": "nes-classic-edition", "board": "dp-nes", "region": "EUR_USA",
+              "oem_version": "release-v1.0.7-0-g4ea4041", "hwid": "00000000 00000000 00000000 00000000", "tag": "12345678"},
+  "ccs_target": {"schema": "ccs-target/1", "physical_model": "nes-classic-edition", "firmware": "nintendo-nes-classic", "layout": "nes-classic-nand-512m"},
   "layout": {"nandinfo": "2048 64 4096", "partition_table": "mbr:mbr:32 nanda:boot:6144 nandb:rootfs:38912 nandc:data:806912 nandd:private:2048 nande:UDISK:26624",
              "partitions": [{"device": "nanda", "label": "boot", "bytes": 3145728}, "…"], "kernel_view_kib": "nand:16384,nanda:3072,…"},
   "state": {"kind": "stock", "text": "Original Nintendo software (release v1.0.7).", "active_md5": "…", "active_size": 2820096, "active_hakchi_entries": 0,
@@ -87,9 +88,14 @@ This is a synthetic example: the identity, sizes and checksums are placeholders,
   console's original.
 - `simulated`: made from a simulated console (files on a PC standing in for one, for tests and demonstrations). Never accepted for a real
   console.
-- `ccs_target` (optional, `ccs-target/1`): the console model, console software and storage layout the backup is for.
-  Backups are written without it, which means the NES Classic Edition; a backup that names anything this version does not support (the
-  reserved SNES Classic entries included) fails verification.
+- `ccs_target` (`ccs-target/1`): the console model, console software and storage layout the backup is for. Every backup states it; a
+  backup made before the field existed has none, which means the NES Classic Edition. It must agree with `console.board` and
+  `console.region` (the console's own software's): an NES Classic backup is board dp-nes with `nintendo-nes-classic` and
+  `nes-classic-nand-512m`; a Super NES Classic backup is board dp-shvc with REGION USA or EUR, `snes-classic-edition`,
+  `nintendo-snes-classic` and `snes-classic-nand-512m` (536,870,912 bytes of NAND, nandinfo `2048 64 4096`, five parts whose table the console
+  reports). A Super NES Classic backup without it, one that names anything this version does not support, or one whose target disagrees
+  with its console fails verification. Stock kernels are recognized only for their own model and region. The file name begins
+  `NES Classic Backup` or `SNES Classic Backup`.
 
 ## Checks (every time the file is used)
 

@@ -17,10 +17,12 @@
 //                                                              file (8 MB unless N), written only inside FOLDER (new or empty); JSON lines
 // Its one network request: the release information on classiccartstudio.com, once shortly after the window opens and when the person
 // chooses Check for Updates (WorkbenchUpdates.cs); it names this program and its version only, and nothing is downloaded or installed.
-// No installer, service, startup entry, file association, shortcut or updater, and no AppData: ordinary preferences stay in memory unless
-// the person saves them to a settings file of their own (then --settings FILE); backups, their records and every operation journal live
-// in the backup folders the person chooses. Windows may keep its own records of programs it runs. (Installed mode, started by Classic Cart
-// Studio for Windows, keeps the preferences in the Workbench settings file in AppData, as the window inside Studio always did.)
+// No installer, service, startup entry, file association, shortcut or updater. Ordinary preferences stay in memory unless the person saves
+// them to a settings file of their own; the window then remembers which file that was and opens it at its next start (one small record,
+// %LOCALAPPDATA%\CCS Console Workbench\last-settings-file.json, holding only that file's path: CcsBackup.Library.LastSettingsFile).
+// --settings FILE opens that file instead. Backups, their records and every operation journal live in the backup folders the person
+// chooses. Windows may keep its own records of programs it runs. (Installed mode, started by Classic Cart Studio for Windows, keeps the
+// preferences in the Workbench settings file in AppData, as the window inside Studio always did, and never reads the remembered file.)
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -75,7 +77,7 @@ namespace CcsBackup.Utility
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         static int Run(string[] args)
         {
-            // a portable start writes nothing to AppData: its console lock is the named mutex alone (no note of who holds it), also when its
+            // a portable start's console lock writes nothing to AppData: it is the named mutex alone (no note of who holds it), also when its
             // worker is started directly without --portable. Only the installed window's workers (--installed, InstalledLaunch.cs) write the
             // lock's note beside the Workbench settings file, as the window inside Classic Cart Studio always did.
             CcsBackup.Engine.ConsoleLock.WriteInfo = args.Contains(CcsBackup.Engine.WorkerHost.Flag) && args.Contains(InstalledLaunch.WorkerFlag);
@@ -116,11 +118,17 @@ namespace CcsBackup.Utility
             var inUse = InstalledLaunch.MarkInUse(self);   // the file installed with Studio, in use while this window runs (Setup waits)
             string notice = null;
             using (var s = typeof(CcsBackup.Ui.BackupWorkspace).Assembly.GetManifestResourceStream("NOTICE")) if (s != null) using (var r = new StreamReader(s)) notice = r.ReadToEnd();
+            // the ordinary standalone window remembers its settings file (never installed mode, which has its own, nor a simulated console);
+            // --settings FILE comes first, then the remembered file when it can be opened; one that cannot is offered for locating, never replaced
+            bool ordinary = launch == null && string.IsNullOrEmpty(Arg(args, "--simulated-console"));
+            string remembered = ordinary && Arg(args, "--settings") == null ? CcsBackup.Library.LastSettingsFile.Read() : null;
+            string rememberedProblem = remembered != null ? CcsBackup.Library.LastSettingsFile.Problem(remembered) : null;
             var opt = new CcsBackup.Ui.WorkspaceOptions
             {
                 HostedInFullApp = false, Portable = true, ProductName = Name, Version = Version, Channel = Channel, WorkerExe = Process.GetCurrentProcess().MainModule.FileName,
                 CheckForUpdates = string.IsNullOrEmpty(Arg(args, "--simulated-console")),
-                SettingsPath = Arg(args, "--settings"), SimulatedConsole = Arg(args, "--simulated-console"), NoticeText = notice,
+                SettingsPath = Arg(args, "--settings") ?? (rememberedProblem == null ? remembered : null), SimulatedConsole = Arg(args, "--simulated-console"), NoticeText = notice,
+                RememberSettingsFile = ordinary, RememberedSettingsFile = rememberedProblem != null ? remembered : null, RememberedSettingsProblem = rememberedProblem,
                 Wordmark = Png("pack://application:,,,/CcsBackupUi;component/brand-wordmark.png"), AppIcon = Png("pack://application:,,,/CcsBackupUi;component/app.ico"),
             };
             launch?.Apply(opt);

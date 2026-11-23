@@ -67,7 +67,7 @@ namespace CcsBackup.Ui
         }
 
         // ------------------------------------------------------------------ the console family: its information
-        /// <summary>everything Workbench says about a console family: what it is, its regional names, the qualification so far and what
+        /// <summary>everything Workbench says about a console family: what it is, its regional names and what
         /// choosing it means. The same words in About This Console and in Help.</summary>
         internal StackPanel ConsoleInfo(ConsoleProfile p)
         {

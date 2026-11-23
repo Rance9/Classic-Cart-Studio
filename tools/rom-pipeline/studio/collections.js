@@ -448,7 +448,7 @@ function csInt(v, max){ const n=typeof v==='number'?v:(typeof v==='string'&&/^\s
 // what the app read from a personal game's iNES / NES 2.0 header and its compatibility rules (personal.py): header numbers within their
 // ranges, fixed vocabularies, bounded text; anything else becomes unknown (never shown as it came)
 function csCleanDetected(d){ if(!d||typeof d!=='object'||Array.isArray(d)) return null; const one=(v, list, dflt)=>list.includes(v)?v:dflt;
- const o={title:csCleanText(d.title, csLim().title), mapper:csInt(d.mapper, 4095), submapper:csInt(d.submapper, 15), prg:csInt(d.prg, 1e9), chr:csInt(d.chr, 1e9), mirroring:one(d.mirroring, ['horizontal','vertical','four-screen'], ''),
+ const o={title:csCleanText(d.title, csLim().title), mapper:csInt(d.mapper, 4095), submapper:csInt(d.submapper, 15), prg:csInt(d.prg, 1e9), chr:csInt(d.chr, 1e9), mirroring:one(d.mirroring, ['horizontal','vertical','four-screen','one-screen','switchable'], ''),
   header_hex:/^[0-9a-f]{32}$/.test(typeof d.header_hex==='string'?d.header_hex:'')?d.header_hex:'', emulator:one(d.emulator, ['kachikachi','RetroArch','unknown'], 'unknown'), core:csCleanText(d.core, 40), launch_command:csCleanText(d.launch_command, 400),
   compat_notes:csCleanText(d.compat_notes, 400), compat_confidence:one(d.compat_confidence, ['none','low','medium','high'], 'none')};
  if(typeof d.battery==='boolean') o.battery=d.battery; if(typeof d.trainer==='boolean') o.trainer=d.trainer; return o; }

@@ -54,10 +54,12 @@ namespace CcsBackup.Engine
     public sealed class ConsoleCheckup
     {
         public string ConsoleTag, KernelText, ActiveMd5, Condition, DataDevice, Problem; public bool KernelRecognized, HakchiPresent, CcsPresent;
+        /// <summary>the console model its board and region answer with (ConsoleModels), its name and the games it ships with</summary>
+        public string PhysicalModel, ModelName; public int StockGames;
         public long? PartBytes, TotalBytes, UsedBytes, FreeBytes, ReservedBytes, AvailableBytes; public JObj Installed;
         public JObj ToJson() => new JObj
         {
-            { "console_tag", ConsoleTag }, { "kernel_recognized", KernelRecognized }, { "kernel", KernelText }, { "active_md5", ActiveMd5 }, { "hakchi", HakchiPresent }, { "classic_cart_studio", CcsPresent },
+            { "console_tag", ConsoleTag }, { "physical_model", PhysicalModel }, { "model", ModelName }, { "stock_games", (long)StockGames }, { "kernel_recognized", KernelRecognized }, { "kernel", KernelText }, { "active_md5", ActiveMd5 }, { "hakchi", HakchiPresent }, { "classic_cart_studio", CcsPresent },
             { "data_device", DataDevice }, { "condition", Condition }, { "installed", Installed }, { "problem", Problem },
             { "storage", new JObj { { "part_bytes", PartBytes }, { "total_bytes", TotalBytes }, { "used_bytes", UsedBytes }, { "free_bytes", FreeBytes }, { "reserved_bytes", ReservedBytes }, { "available_bytes", AvailableBytes } } },
         };
@@ -69,11 +71,12 @@ namespace CcsBackup.Engine
         public static ConsoleCheckup Checkup(RecoveryConsole con, string expectedImage, Func<bool> cancelled = null)
         {
             var id = con.Identify(); var c = new ConsoleCheckup { ConsoleTag = id.ShortTag, ActiveMd5 = id.ActiveMd5 };
-            c.KernelRecognized = KnownKernels.IsStock(id.ActiveMd5);
-            c.KernelText = c.KernelRecognized ? "Nintendo's original startup software (" + KnownKernels.NesStockMd5[id.ActiveMd5] + ")"
+            c.PhysicalModel = id.Model?.Id; c.ModelName = id.Model?.Name; c.StockGames = id.Model?.StockGames ?? 0;
+            c.KernelRecognized = KnownKernels.IsStockFor(id.Model, id.Region, id.ActiveMd5);
+            c.KernelText = c.KernelRecognized ? "Nintendo's original startup software (" + KnownKernels.ReleaseFor(id.Model, id.Region, id.ActiveMd5) + ")"
                 : id.ActiveHakchiEntries > 0 ? "Modified startup software (hakchi), not on this version's list of recognized startup software" : "Startup software not on this version's list of recognized startup software";
             List<PartitionEntry> parts;
-            try { parts = Support.CheckForBackup(id, expectedImage); } catch (ConsoleRefusedException ex) { c.Problem = ex.Message; return c; }
+            try { parts = Support.CheckForBackup(id, expectedImage, "identify"); } catch (ConsoleRefusedException ex) { c.Problem = ex.Message; return c; }
             var data = parts.FirstOrDefault(p => p.Label == "data" || p.Label == "rootfs_data");
             if (data == null) { c.Problem = "The console's data storage was not found in its storage table."; return c; }
             c.DataDevice = data.Device; c.PartBytes = data.Bytes;

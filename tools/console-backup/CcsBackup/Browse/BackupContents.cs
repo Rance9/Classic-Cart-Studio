@@ -57,11 +57,19 @@ namespace CcsBackup.Browse
         public string Path { get; }
         public bool Salvage { get; private set; }
         public Verification Verification { get; private set; }
-        public string BackupId, ConsoleTag, StateText, CompletedUtc, ArchiveSha256, DataMember, DataMemberSha256, DataProblem, FileSystemCondition;
+        public string BackupId, ConsoleTag, StateText, CompletedUtc, ArchiveSha256, DataMember, DataMemberSha256, DataProblem, FileSystemCondition, ConsoleModel, ConsoleBoard, ConsoleRegion;
+        /// <summary>the console model this backup is of (null: not one this version supports); the NES save converter is offered only for an NES
+        /// Classic's saves, never another model's (their saves are kept and exported exactly as they are)</summary>
+        public Device.ConsoleModel Model;
+        public bool NesSaves => Model == null || Model.IsNes;
         /// <summary>a damaged backup opened for what can be saved: the check's first problem as it was found (for Technical details)</summary>
         public string DamageDetail;
         public bool Simulated;
         public readonly List<string> Notes = new List<string>();
+        /// <summary>the data storage's own file system header as the backup holds it (total, free blocks with the reserve included, the
+        /// reserve, the block size, in bytes); null when its header could not be read</summary>
+        public long? DataTotalBytes, DataFreeBytes, DataReservedBytes, DataBlockBytes;
+        void DataHeader(Ext4Reader fs) { long bs = fs.BlockSize; DataTotalBytes = fs.BlocksCount * bs; DataFreeBytes = fs.FreeBlocks * bs; DataReservedBytes = fs.ReservedBlocks * bs; DataBlockBytes = bs; }
         public IReadOnlyList<BrowseEntry> Entries { get; private set; }
         public IReadOnlyList<GameGroup> Games { get; private set; }
         public string DerivedIndexPath { get; private set; }
@@ -83,6 +91,7 @@ namespace CcsBackup.Browse
         /// shows in the backup list) and where a derived index is kept. Nothing in the backup file is ever changed.</summary>
         public static OpenResult Open(string path, Settings settings = null, Func<bool> cancelled = null, Action<long, long> progress = null)
         {
+            if (External.ExternalFormat.Is(path)) return OpenStorage(path, settings, cancelled, progress);   // a USB and SD backup (BackupContents.Storage.cs)
             var r = new OpenResult();
             var hold = Hold(path, r); if (hold == null) return r;
             try
@@ -114,6 +123,7 @@ namespace CcsBackup.Browse
         public static OpenResult OpenSalvage(string path, Settings settings = null, Func<bool> cancelled = null, Action<long, long> progress = null)
         {
             var r = new OpenResult();
+            if (External.ExternalFormat.Is(path)) { r.Problem = "This is a USB and SD backup: what can be saved from it is exported with Save What Can Be Saved under USB and SD Backup."; return r; }
             var hold = Hold(path, r); if (hold == null) return r;
             try
             {
@@ -150,6 +160,8 @@ namespace CcsBackup.Browse
         void Build(Dictionary<string, object> m, Dictionary<string, (string sha256, long size)> trusted, SalvageCheck.Assessment salvage, Func<bool> cancelled)
         {
             BackupId = m.S("backup_id"); ConsoleTag = m.O("console")?.S("tag"); StateText = m.O("state")?.S("text"); CompletedUtc = m.S("completed_utc"); Simulated = m.B("simulated");
+            ConsoleModel = m.O("console")?.S("model"); ConsoleBoard = m.O("console")?.S("board"); ConsoleRegion = m.O("console")?.S("region");
+            Model = Device.ConsoleModels.OfManifest(m);
             var all = new List<BrowseEntry>();
             using (var f = Read())
             {
@@ -203,7 +215,7 @@ namespace CcsBackup.Browse
                     try
                     {
                         var fs = new Ext4Reader(new SubStream(f, dz.DataOffset, dz.Size));
-                        FileSystemCondition = fs.Condition;
+                        FileSystemCondition = fs.Condition; DataHeader(fs);
                         var list = fs.List();
                         DateTime? made = ParseUtc(CompletedUtc);
                         foreach (var x in list)
@@ -294,7 +306,7 @@ namespace CcsBackup.Browse
             var e = new BrowseEntry
             {
                 Id = "d:" + x.Path, ParentId = parent.Length == 0 ? "m:" + DataMember : "d:" + parent, Name = x.Path.Substring(cut + 1), Source = EntrySource.DataFile, Member = DataMember,
-                ImagePath = x.Path, ConsolePath = "/var/lib" + x.Path, TypeCode = x.Type, Mode = x.Mode, Uid = x.Uid, Gid = x.Gid, Links = x.Links, Inode = x.Inode, LinkTarget = x.LinkTarget,
+                ImagePath = x.Path, ConsolePath = "/var/lib" + x.Path, TypeCode = x.Type, Mode = x.Mode, Uid = x.Uid, Gid = x.Gid, Links = x.Links, Inode = x.Inode, LinkTarget = x.LinkTarget, Allocated = x.Allocated,
                 Kind = x.Type == 'f' ? EntryKind.File : x.Type == 'd' ? EntryKind.Folder : x.Type == 'l' ? EntryKind.Link : EntryKind.Special, Owner = Inventory.OwnerOf(x.Path),
             };
             e.Size = e.Kind == EntryKind.File || e.Kind == EntryKind.Link ? x.Size : 0;
@@ -313,13 +325,14 @@ namespace CcsBackup.Browse
         /// <summary>Console Browser: the console's data storage, read live through a read-only session (data is the partition as a seekable
         /// stream; every read goes to the console). The same three views, search, preview and checked export as a backup. Checksums are worked
         /// out from the console when a file is previewed or exported; the exported copy is read back on the PC and compared.</summary>
-        public static OpenResult OpenLive(Stream data, string consoleTag, string stateText, Func<bool> cancelled = null)
+        /// <summary>physicalModel: the model the check-up identified (ConsoleModels.ById; null: an NES Classic's handling)</summary>
+        public static OpenResult OpenLive(Stream data, string consoleTag, string stateText, Func<bool> cancelled = null, string physicalModel = null)
         {
             var r = new OpenResult();
             try
             {
                 var c = new BackupContents("Console " + (consoleTag ?? "unknown"), null, null) { ConsoleTag = consoleTag, StateText = stateText, BackupId = "live", DataMember = "live-data" };
-                c.liveFs = new Ext4Reader(data); c.FileSystemCondition = c.liveFs.Condition;
+                c.liveFs = new Ext4Reader(data); c.FileSystemCondition = c.liveFs.Condition; c.DataHeader(c.liveFs);
                 var all = new List<BrowseEntry>();
                 c.Add(all, new BrowseEntry { Id = "m:" + c.DataMember, ParentId = "", Name = "Data storage (/var/lib)", Source = EntrySource.VirtualFolder, Kind = EntryKind.Folder, TypeCode = 'd', Category = Category.SystemFiles, CategoryReason = "The console's data storage: games, saves, settings and anything else on it." });
                 var data0 = new List<BrowseEntry>();
@@ -336,6 +349,7 @@ namespace CcsBackup.Browse
                     if (e.Source == EntrySource.DataFile && e.Kind == EntryKind.File) { if (!c.byInode.TryGetValue(e.Inode, out var li)) c.byInode[e.Inode] = li = new List<BrowseEntry>(); li.Add(e); }
                 }
                 c.Notes.Add("Read live from the console in a read-only session. Nothing on the console is changed.");
+                c.Model = Device.ConsoleModels.ById(physicalModel);
                 r.Contents = c; return r;
             }
             catch (OperationCanceledException) { r.Canceled = true; r.Problem = "Reading the console was canceled. Nothing was changed."; return r; }
@@ -504,6 +518,7 @@ namespace CcsBackup.Browse
         {
             if (e == null || e.Kind != EntryKind.File) throw new InvalidOperationException("only files have bytes to read");
             if (e.Unreadable != null) throw new IOException(e.Unreadable);
+            if (e.Source == EntrySource.StorageFile) { CopyStorage(e, sink, cancelled); return; }   // a USB and SD backup (BackupContents.Storage.cs)
             if (liveFs != null)
             {
                 if (e.Source != EntrySource.DataFile) throw new IOException("only the console's files can be read");
@@ -532,6 +547,7 @@ namespace CcsBackup.Browse
         public string ExpectedHash(BrowseEntry e, Func<bool> cancelled = null, Action<long> progress = null)
         {
             if (e == null || e.Kind != EntryKind.File || e.Unreadable != null) return null;
+            if (e.Source == EntrySource.StorageFile) return StorageHash(e, cancelled, progress);   // a USB and SD backup (BackupContents.Storage.cs)
             if (e.HashTrusted) return e.Sha256;
             if (e.Source == EntrySource.ImageFile || e.Source == EntrySource.PackageFile || e.Source == EntrySource.StartupPart || e.Source == EntrySource.RamdiskFile) return NestedHash(e, cancelled, progress);
             if (e.Source != EntrySource.DataFile) return null;   // a member without a trusted checksum is never given one here

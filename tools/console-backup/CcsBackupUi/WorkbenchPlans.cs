@@ -116,7 +116,7 @@ namespace CcsBackup.Ui
             var sp = SectionHead("Shared Plan: " + Display.Line(plan.Title, 80), "What this " + FileKinds.Plan + " asks for, and what you would supply yourself. Opening a plan changes nothing, and a plan never changes a console by itself.");
             var c = new StackPanel();
             c.Children.Add(KeyValues(("File", file), ("Starting point", StartingPointName(plan.StartingPoint) ?? Display.Line(plan.StartingPoint, 40)),
-                                     ("Start method", plan.InstallPolicy == "ccs-nucleus" ? "CCS Nucleus" : plan.InstallPolicy == "ccs-mod" ? "CCS Mod for Hakchi" : Display.Line(plan.InstallPolicy, 40))));
+                                     ("Add-ons", Composition.InstallPolicies.Contains(plan.InstallPolicy) ? Composition.PolicyName(plan.InstallPolicy) : Display.Line(plan.InstallPolicy, 40))));
             var items = plan.Checklist(PublicRegistry, id => false, (kind, name, version) => false, (id, sha) => false);
             string Label(string s) => s == "ready" ? "Ready" : s == "supply-your-own" ? "Your own" : s == "missing" ? "Missing" : s == "mismatched" ? "Does not match" : s == "unknown-build" ? "Not confirmed" : s == "unsupported" ? "Cannot be used" : s;
             c.Children.Add(T("What it asks for", Ty.Heading, true, false, new Thickness(0, 10, 0, 4)));
@@ -125,7 +125,7 @@ namespace CcsBackup.Ui
             if (items.Count == 0) c.Children.Add(T("This plan asks for nothing beyond its choices.", Ty.Text, false, true));
             c.Children.Add(T("A plan is never a restore point. To use it, choose your own backups and files in Console Composer; every change is reviewed on your console first, and the console is backed up before anything is written.", Ty.Small, false, true, new Thickness(0, 8, 0, 0)));
             if (!plan.CanApply) c.Children.Add(Note("This plan uses something this version does not know, so it can be read but not used: " + string.Join("; ", plan.Unsupported) + ".", "warn"));
-            c.Children.Add(Details("Technical details", Composition.Label, plan.Id != null ? "Plan ID: " + plan.Id : null, "Starting point: " + plan.StartingPoint + "; install policy: " + plan.InstallPolicy));
+            c.Children.Add(Details("Technical details", Composition.Label, plan.Id != null ? "Plan ID: " + plan.Id : null, "Starting point: " + plan.StartingPoint + "; add-ons: " + plan.InstallPolicy));
             sp.Children.Add(Card(c));
             var go = plan.CanApply ? StartingPointName(plan.StartingPoint) : null;
             sp.Children.Add(Buttons(go != null ? B(go, "Btn.Primary", () => { if (plan.StartingPoint == "fresh-ccs") ShowPrepare(); else ShowComposerPlan(plan.StartingPoint, null, null, plan.InstallPolicy); }) : null,

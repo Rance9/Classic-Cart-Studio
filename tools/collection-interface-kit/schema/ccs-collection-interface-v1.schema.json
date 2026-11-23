@@ -1,0 +1,82 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "urn:ccs:collection-interface:v1",
+ "title": "CCS Collection Interface v1 index",
+ "description": "The index a console menu reads to show Classic Cart Studio collections: games, ordered collections, folders and favorites, with references to the console's standard game entries and their pictures. Unknown fields are allowed and must be ignored by readers. Copyright (c) 2026 Rance9. MIT License.",
+ "type": "object",
+ "required": ["schema", "version", "generation", "bases", "collections", "games"],
+ "properties": {
+  "schema": {"const": "ccs-collection-interface"},
+  "version": {"const": 1},
+  "generation": {"type": "integer", "minimum": 1, "maximum": 999999999999},
+  "producer": {
+   "type": "object",
+   "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 100}, "version": {"type": "string", "maxLength": 40}}
+  },
+  "bases": {
+   "type": "object",
+   "propertyNames": {"$ref": "#/$defs/name"},
+   "additionalProperties": {"$ref": "#/$defs/consolePath"}
+  },
+  "capabilities": {"type": "array", "items": {"$ref": "#/$defs/name"}, "uniqueItems": true, "maxItems": 64},
+  "collections": {"type": "array", "items": {"$ref": "#/$defs/collection"}, "maxItems": 1000},
+  "games": {
+   "type": "object",
+   "propertyNames": {"$ref": "#/$defs/id"},
+   "additionalProperties": {"$ref": "#/$defs/game"}
+  },
+  "extensions": {"type": "object"}
+ },
+ "$defs": {
+  "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"},
+  "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"},
+  "text": {"type": "string", "minLength": 1, "maxLength": 200},
+  "consolePath": {"type": "string", "maxLength": 200, "pattern": "^(/[A-Za-z0-9_][A-Za-z0-9._-]*)+$"},
+  "relativePath": {"type": "string", "maxLength": 200, "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*){0,7}$"},
+  "reference": {
+   "type": "object",
+   "required": ["base", "path"],
+   "properties": {"base": {"$ref": "#/$defs/name"}, "path": {"$ref": "#/$defs/relativePath"}, "code": {"type": "string", "pattern": "^[A-Z0-9-]{1,32}$"}}
+  },
+  "game": {
+   "type": "object",
+   "required": ["title"],
+   "properties": {
+    "title": {"$ref": "#/$defs/text"},
+    "system": {"type": "string", "pattern": "^[a-z0-9-]{1,16}$"},
+    "kind": {"type": "string", "maxLength": 32},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["published", "not-published"]},
+    "reason": {"type": "string", "maxLength": 300},
+    "entry": {"$ref": "#/$defs/reference"},
+    "art": {
+     "type": "object",
+     "additionalProperties": {"$ref": "#/$defs/reference"}
+    }
+   }
+  },
+  "folder": {
+   "type": "object",
+   "required": ["id", "name", "parent", "games"],
+   "properties": {
+    "id": {"$ref": "#/$defs/id"},
+    "name": {"$ref": "#/$defs/text"},
+    "parent": {"type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"},
+    "games": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true, "maxItems": 10000},
+    "entry": {"$ref": "#/$defs/reference"}
+   }
+  },
+  "collection": {
+   "type": "object",
+   "required": ["id", "name", "games"],
+   "properties": {
+    "id": {"$ref": "#/$defs/id"},
+    "name": {"$ref": "#/$defs/text"},
+    "games": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true, "maxItems": 10000},
+    "folders": {"type": "array", "items": {"$ref": "#/$defs/folder"}, "maxItems": 1000},
+    "favorites": {"type": "array", "items": {"$ref": "#/$defs/id"}, "uniqueItems": true, "maxItems": 10000},
+    "entry": {"$ref": "#/$defs/reference"}
+   }
+  }
+ }
+}

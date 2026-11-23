@@ -29,6 +29,7 @@ jobs:
           python tools/rom-pipeline/test_manifest_v4_pure.py
           python tools/publish/test_scan_prohibited.py
           python tools/publish/test_release_streams.py
+          python tools/publish/test_community_showcase.py
       - name: The Installation Terms (the Help chapter, the installer's and the release's copies are the one maintained source's)
         run: python tools/publish/legal_terms.py --check
       - name: The browser game player (W1) from this commit, with the pinned zig (version, URL and SHA-256 from toolchain.lock.json; FCEUmm is vendored)

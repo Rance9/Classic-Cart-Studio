@@ -120,11 +120,12 @@ namespace CcsWorker.Tests
                 T.Eq(ConsolePath.MethodPackages["ccs-mod"], ConsoleOps.Sha(hm), "the package built from the sources is the build the worker pins");
                 T.Eq(false, (bool)o.ModuleFiles("ccs-mod")["present"], "not installed at first");
                 var r = o.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", ConsoleOps.Sha(hm))));
-                T.True(((string)r["postinstall"]).StartsWith("result postinstall ok in-charge"), "the package's own install answered: " + r["output"]);
+                T.True(((string)r["postinstall"]).StartsWith("result postinstall ok installed"), "the package's own install answered: " + r["output"]);
                 var mf = o.ModuleFiles("ccs-mod"); var files = (Dictionary<string, object>)mf["files"];
                 var listed = Raw("cat $SIM/var/lib/hakchi/rootfs/etc/ccs/mod/FILES").Split('\n').Where(l => l.Trim().Length > 0).Select(l => l.Trim().Split(' ')).ToDictionary(x => "/" + x[2], x => x[0]);
                 T.Eq(true, (bool)mf["present"], "present"); T.True(System.Text.RegularExpressions.Regex.IsMatch(mf["package"] as string ?? "", "^[0-9a-f]{64}$"), "its package id");
-                T.True(listed.Count >= 6 && listed.All(kv => files.ContainsKey(kv.Key) && files[kv.Key] as string == kv.Value), "every file its list names is in hakchi's overlay with that hash (" + listed.Count + ")");
+                T.True(listed.Count >= 5 && listed.All(kv => files.ContainsKey(kv.Key) && files[kv.Key] as string == kv.Value), "every file its list names is in hakchi's overlay with that hash (" + listed.Count + ")");
+                T.True(!listed.Keys.Any(k => k.StartsWith("/etc/init.d/", StringComparison.Ordinal) || k.StartsWith("/etc/preinit.d/", StringComparison.Ordinal)), "none of them runs at power-on: no start script, no preinit file");
                 T.True(Raw("cat $SIM/var/lib/ccs/owned/mod.own").StartsWith("schema=ccs-ownership/1"), "its own ownership journal");
                 T.True(!Raw("ls -A $SIM/tmp/ccs").Contains("hmod-"), "the transfer folder was removed");
                 T.Eq(stock, Raw("cat $SIM/etc/init.d/S81clover-mcp"), "the stock start script is never written");
@@ -135,29 +136,39 @@ namespace CcsWorker.Tests
                 T.Eq(stock, Raw("cat $SIM/etc/init.d/S81clover-mcp"), "stock script unchanged");
             });
 
-            T.Add("fidelity", "CCS Mod's start at power-on by its own command (mod-start): on writes its start script from the package's template and its setting, off removes it; a start script someone changed is kept and reported", () =>
+            T.Add("fidelity", "what opens at power-on by CCS Nucleus's own command (nucleus-start): its registry starts the chosen system directly or shows the chooser, CCS HOME offered or not; refused while hakchi does not list CCS Nucleus", () =>
             {
                 var dir = Environment.GetEnvironmentVariable("CCS_METHOD_PACKAGES");
-                if (string.IsNullOrEmpty(dir) || !File.Exists(Path.Combine(dir, "ccs-mod.hmod"))) throw new SkipException("CCS_METHOD_PACKAGES (build_packages.py's output) is not set");
-                var o = Ops(); var hm = File.ReadAllBytes(Path.Combine(dir, "ccs-mod.hmod"));
-                T.Eq("not-installed", T.Code(() => o.ModStart("on"), "before"), "refused while hakchi does not list CCS Mod");
+                if (string.IsNullOrEmpty(dir) || !File.Exists(Path.Combine(dir, "ccs-nucleus.hmod"))) throw new SkipException("CCS_METHOD_PACKAGES (build_packages.py's output) is not set");
+                var o = Ops(); var hm = File.ReadAllBytes(Path.Combine(dir, "ccs-nucleus.hmod"));
+                T.Eq("not-installed", T.Code(() => o.NucleusStart("native", "never", "off"), "before"), "refused while hakchi does not list CCS Nucleus");
                 Raw("mkdir -p $SIM/var/lib/hakchi/rootfs/etc/init.d");   // hakchi's own overlay carries this folder (its start scripts)
                 // a running hakchi console mounts hakchi's rootfs over the system (p7072_overlayfs), and hakchi's install put its BusyBox 1.29 and
                 // applets in that rootfs's bin (script/install): every shell there finds them, sed among them, which the stock 1.24.1 lacks and
-                // CCS Mod's scripts (like hakchi's own) use. Here they are added to the stock shell's place for this test, then taken away again
+                // CCS Nucleus's scripts (like hakchi's own) use. Here they are added to the stock shell's place for this test, then taken away again
                 Raw("for a in $(ls $SIM/.hkbin); do [ -e $SIM/.bin/$a ] || { ln -s $SIM/.hkbin/$a $SIM/.bin/$a && echo $a >> $SIM/.overlay-added; }; done");
-                o.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", ConsoleOps.Sha(hm))));
-                T.Eq("absent", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod ] && echo present || echo absent"), "installed without a setting: the start is unchanged");
-                var r = o.ModStart("on"); T.Eq("result autostart ok on", r["result"] as string, "on: " + r["output"]);
-                T.Eq(Raw("sha256sum $SIM/var/lib/hakchi/rootfs/etc/ccs/mod/S81ccs-mod | cut -d' ' -f1"), Raw("sha256sum $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod | cut -d' ' -f1"), "its start script is the package's own template");
-                T.True(Raw("cat $SIM/var/lib/ccs/mod/config").Contains("autostart=on"), "its setting says on");
-                r = o.ModStart("off"); T.Eq("result autostart ok off", r["result"] as string, "off: " + r["output"]);
-                T.Eq("absent", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod ] && echo present || echo absent"), "off removes it");
-                o.ModStart("on"); Raw("echo '# changed by someone' >> $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod");
-                T.Eq("module-failed", T.Code(() => o.ModStart("off"), "changed"), "a start script someone changed: reported, not removed");
-                T.Eq("present", Raw("[ -e $SIM/var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod ] && echo present || echo absent"), "and kept");
-                T.Eq("bad-args", T.Code(() => o.ModStart("always"), "bad"), "only on or off");
-                o.ModuleUninstall("ccs-mod");
+                o.ModuleInstall(A("name", "ccs-nucleus", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", ConsoleOps.Sha(hm))));
+                T.True(Raw("cat $SIM/var/lib/ccs/nucleus/registry").Contains("default=native\nselection=default\nchooser=never"), "installed: the console's own menu, directly");
+                var r = o.NucleusStart("ccs-home", "always", "on"); T.True((r["result"] as string ?? "").StartsWith("result start ok default=ccs-home chooser=always home=on"), "set: " + r["output"]);
+                var reg = Raw("cat $SIM/var/lib/ccs/nucleus/registry");
+                T.True(reg.Contains("default=ccs-home") && reg.Contains("chooser=always") && reg.Contains("options=native ccs-home") && reg.Contains("opt.ccs-home.kind=ccs-home"), "CCS HOME offered and chosen, the chooser shown at start");
+                r = o.NucleusStart("native", "never", "off"); reg = Raw("cat $SIM/var/lib/ccs/nucleus/registry");
+                T.True((r["result"] as string ?? "").StartsWith("result start ok") && reg.Contains("default=native") && reg.Contains("chooser=never") && !reg.Contains("ccs-home"), "back to the console's own menu directly; CCS HOME no longer offered");
+                T.Eq("module-failed", T.Code(() => o.NucleusStart("ccs-home", "never", "off"), "refused"), "CCS HOME cannot be the start while it is not offered: its own refusal is a failure");
+                T.Eq("bad-args", T.Code(() => o.NucleusStart("ccs-home; reboot", "never", "on"), "bad"), "only the listed words: never shell text");
+                // the startup chooser, a package of its own installed after CCS Nucleus: its own install answer, its files (in CCS Nucleus's
+                // chooser folder and beside it) all read back, then its own removal, which leaves CCS Nucleus and its registry
+                var ch = File.ReadAllBytes(Path.Combine(dir, "ccs-nucleus-chooser.hmod"));
+                T.Eq(ConsolePath.MethodPackages["ccs-nucleus-chooser"], ConsoleOps.Sha(ch), "the chooser package built from the sources is the build the worker pins");
+                var ci = o.ModuleInstall(A("name", "ccs-nucleus-chooser", "hmod", A("b64", Convert.ToBase64String(ch), "sha256", ConsoleOps.Sha(ch))));
+                T.True(((string)ci["postinstall"]).StartsWith("result chooser-postinstall ok installed"), "the chooser's own install answered: " + ci["output"]);
+                var cf = o.ModuleFiles("ccs-nucleus-chooser"); var cfiles = (Dictionary<string, object>)cf["files"];
+                var clisted = Raw("cat $SIM/var/lib/hakchi/rootfs/etc/ccs/nucleus-chooser/FILES").Split('\n').Where(l => l.Trim().Length > 0).Select(l => l.Trim().Split(' ')).ToDictionary(x => "/" + x[2], x => x[0]);
+                T.True((bool)cf["present"] && ((List<object>)cf["unreadable"]).Count == 0, "every file the chooser's list names is one the worker reads: " + string.Join(", ", (List<object>)cf["unreadable"]));
+                T.True(clisted.Count >= 6 && clisted.All(kv => cfiles.ContainsKey(kv.Key) && cfiles[kv.Key] as string == kv.Value), "each with the hash its list records (" + clisted.Count + ")");
+                var cu = o.ModuleUninstall("ccs-nucleus-chooser");
+                T.True(((string)cu["output"]).Contains("result chooser-remove ok") && !(bool)o.ModuleFiles("ccs-nucleus-chooser")["present"] && (bool)o.ModuleFiles("ccs-nucleus")["present"], "its own removal ran; CCS Nucleus stays: " + cu["output"]);
+                o.ModuleUninstall("ccs-nucleus");
                 Raw("for a in $(cat $SIM/.overlay-added); do rm -f $SIM/.bin/$a; done; rm -f $SIM/.overlay-added");
             });
 
@@ -226,6 +237,58 @@ namespace CcsWorker.Tests
                 T.Eq("f:" + ConsoleOps.Sha(Encoding.UTF8.GetBytes("later save")), o.Tree().Entries["/ccs/tt/save.bin"], "a save changed since is seen");
                 Raw("rm -rf $SIM/var/lib/ccs/tt");
             });
+            T.Add("fidelity", "menu-refs on BusyBox 1.24.1 (no find or grep): entries on the data storage and a USB drive's folder, a last line without its end; a folder link that hides entries, one that leads nowhere and an entry that cannot be read make it not complete; links into the roots or the read-only system image do not", () =>
+            {
+                var o = Ops(); const string N = "pkg/0123456789abcdef.00112233", G = "games/0123456789abcdef.44556677", Other = "pkg/fedcba9876543210.00112233";
+                const string Games = "$SIM/var/lib/hakchi/games/nes-usa";
+                List<string> Linked(Dictionary<string, object> x) => ((List<object>)x["linked"]).Cast<string>().ToList();
+                Raw("mkdir -p '" + Games + "/000/CLV-L-A' '" + Games + "/000/CLV-L-Z' '$SIM/media/hakchi/games/nes-usa/CLV-L-B' '$SIM/elsewhere' && " +
+                    "printf '[Desktop Entry]\\nName=A\\nExec=/bin/sh /var/lib/ccs/pkg/0123456789abcdef.00112233/bin/ccs-player-armv7 x\\nIcon=a.png\\n' > '" + Games + "/000/CLV-L-A/CLV-L-A.desktop' && " +
+                    "printf '[Desktop Entry]\\nExec=/var/lib/ccs/games/0123456789abcdef.44556677/roms/b.nes' > '$SIM/media/hakchi/games/nes-usa/CLV-L-B/CLV-L-B.desktop' && " +
+                    "printf '[Desktop Entry]\\nExec=/bin/other\\n' > '" + Games + "/000/CLV-L-Z/CLV-L-Z.desktop' && " +
+                    "printf 'Exec=/var/lib/ccs/pkg/fedcba9876543210.00112233/bin/p\\n' > '$SIM/elsewhere/hidden.desktop' && ln -s '$SIM/elsewhere' '$SIM/var/lib/hakchi/games/linked' && echo made");
+                var r = o.MenuRefs(new List<object> { N, G, Other });
+                var refs = ((List<object>)r["refs"]).Cast<Dictionary<string, object>>().Select(x => x["name"] + " " + x["path"]).OrderBy(x => x).ToList();
+                T.Eq("games/0123456789abcdef.44556677 /media/hakchi/games/nes-usa/CLV-L-B/CLV-L-B.desktop|pkg/0123456789abcdef.00112233 /var/lib/hakchi/games/nes-usa/000/CLV-L-A/CLV-L-A.desktop", string.Join("|", refs),
+                     "both entries found, the second by its last line without a line end; the folder behind a link is not walked");
+                T.Eq(false, (bool)r["complete"], "a link to a folder outside the roots hides entries this walk does not read: not complete");
+                T.Eq("/var/lib/hakchi/games/linked", string.Join(",", Linked(r)), "and that link is named");
+                var sha = ((List<object>)r["refs"]).Cast<Dictionary<string, object>>().First(x => (string)x["name"] == N)["sha256"] as string;
+                T.Eq(Raw("sha256sum '" + Games + "/000/CLV-L-A/CLV-L-A.desktop' | cut -d' ' -f1"), sha, "the entry's hash");
+                // links that hide nothing: a game's media folder in its .storage (inside the root), a link to a file
+                Raw("rm '$SIM/var/lib/hakchi/games/linked' && mkdir -p '" + Games + "/.storage/CLV-L-S/autoplay' '" + Games + "/000/CLV-L-S' && printf 'x' > '" + Games + "/.storage/CLV-L-S/s.nes' && " +
+                    "ln -s '" + Games + "/.storage/CLV-L-S/autoplay' '" + Games + "/000/CLV-L-S/autoplay' && ln -s ../../.storage/CLV-L-S/s.nes '" + Games + "/000/CLV-L-S/s.nes' && echo inside");
+                r = o.MenuRefs(new List<object> { Other });
+                T.True((bool)r["complete"] && Linked(r).Count == 0 && ((List<object>)r["refs"]).Count == 0, "links into the roots and to a file: complete, nothing named: " + string.Join(",", Linked(r)));
+                // hakchi's own links outside the menus' folders (its usr/game/save leads to the whole data storage) are not where menus list games;
+                // a link in its overlay of the console's own games folder is
+                Raw("mkdir -p '$SIM/var/lib/hakchi/rootfs/usr/game' '$SIM/var/lib/hakchi/rootfs/usr/share/games' && ln -s '$SIM/elsewhere' '$SIM/var/lib/hakchi/rootfs/usr/game/save' && echo save");
+                r = o.MenuRefs(new List<object> { Other }); T.True((bool)r["complete"] && Linked(r).Count == 0, "a link outside the menus' folders: complete");
+                Raw("ln -s '$SIM/elsewhere' '$SIM/var/lib/hakchi/rootfs/usr/share/games/nes-linked' && echo overlay");
+                r = o.MenuRefs(new List<object> { Other });
+                T.True(!(bool)r["complete"] && Linked(r).SequenceEqual(new[] { "/var/lib/hakchi/rootfs/usr/share/games/nes-linked" }), "a link in the overlay's games folder: not complete");
+                Raw("rm -rf '$SIM/var/lib/hakchi/rootfs' && echo removed");
+                // the console's system image: accepted only while /var/squashfs is mounted read-only
+                Raw("mkdir -p '$SIM/proc' '$SIM/var/squashfs/usr/share/games/nes/kachikachi/CLV-P-NAAAE/autoplay' '" + Games + "/000/CLV-P-NAAAE' && " +
+                    "ln -s '$SIM/var/squashfs/usr/share/games/nes/kachikachi/CLV-P-NAAAE/autoplay' '" + Games + "/000/CLV-P-NAAAE/autoplay' && " +
+                    "printf '/dev/mapper/root-crypt $SIM/var/squashfs squashfs ro,relatime 0 0\\n' > '$SIM/proc/mounts' && echo system");
+                r = o.MenuRefs(new List<object> { Other }); T.True((bool)r["complete"] && Linked(r).Count == 0, "a link into the read-only system image: complete");
+                Raw("printf '/dev/mapper/root-crypt $SIM/var/squashfs squashfs rw,relatime 0 0\\n' > '$SIM/proc/mounts' && echo rw");
+                r = o.MenuRefs(new List<object> { Other });
+                T.True(!(bool)r["complete"] && Linked(r).SequenceEqual(new[] { "/var/lib/hakchi/games/nes-usa/000/CLV-P-NAAAE/autoplay" }), "the same while it is not mounted read-only: not complete");
+                Raw("rm -f '$SIM/proc/mounts' '" + Games + "/000/CLV-P-NAAAE/autoplay' && ln -s '" + Games + "/.storage/CLV-L-GONE' '" + Games + "/000/CLV-L-S/gone' && echo gone");
+                r = o.MenuRefs(new List<object> { Other });
+                T.True(!(bool)r["complete"] && Linked(r).SequenceEqual(new[] { "/var/lib/hakchi/games/nes-usa/000/CLV-L-S/gone" }), "a link that leads nowhere: not complete");
+                Raw("rm -f '" + Games + "/000/CLV-L-S/gone' && ln -s '$SIM/elsewhere/hidden.desktop' '" + Games + "/000/CLV-L-Z/link.desktop' && echo linked");
+                r = o.MenuRefs(new List<object> { Other }); T.True(((List<object>)r["refs"]).Count == 1 && (bool)r["complete"], "an entry that is a link is read through");
+                Raw("printf 'Exec=/x\\n' > '" + Games + "/000/CLV-L-Z/locked.desktop' && chmod 000 '" + Games + "/000/CLV-L-Z/locked.desktop' && echo locked");
+                r = o.MenuRefs(new List<object> { N });
+                T.Eq(false, (bool)r["complete"], "an entry that cannot be read: not complete"); T.True(((List<object>)r["unreadable"]).Cast<string>().Any(x => x.EndsWith("/locked.desktop")), "named");
+                Raw("rm -rf '$SIM/var/lib/hakchi/games' '$SIM/media' '$SIM/elsewhere' '$SIM/var/squashfs' '$SIM/proc' && echo cleaned");
+                r = o.MenuRefs(new List<object> { N }); T.True((bool)r["complete"] && ((List<object>)r["refs"]).Count == 0, "no entries and no USB drive: complete, nothing named");
+                T.Eq("absent", ((Dictionary<string, object>)r["roots"])["/media/hakchi"] as string, "no USB drive's folder");
+            });
+
             T.Add("fidelity", "the disposable folder is removed at the end", () =>
             {
                 var sh = Sh(); var sim = sh.Sim; sh.Dispose(); shell = null; skip = "the fidelity folder was removed";

@@ -1,6 +1,7 @@
-"""Builds the two console packages of the CCS Console Workbench's install methods, as hakchi packages (.hmod: a gzip tar that hakchi's
-own pack_install unpacks): ccs-mod.hmod (CCS Mod for Hakchi) and ccs-nucleus.hmod (CCS Nucleus). Copyright (C) 2026 Rance9,
-GPL-3.0-or-later.
+"""Builds the console packages of the CCS Console Workbench's add-ons, as hakchi packages (.hmod: a gzip tar that hakchi's own
+pack_install unpacks): ccs-mod.hmod (CCS Mod for Hakchi: the CCS HOME tile), ccs-nucleus.hmod (CCS Nucleus: what opens at power-on,
+started directly) and ccs-nucleus-chooser.hmod (CCS Nucleus's chooser: the screen at start, the switch into the owner's own system
+images and the CCS Nucleus menu entry; it needs ccs-nucleus). Copyright (C) 2026 Rance9, GPL-3.0-or-later.
 
   python build_packages.py --out DIR [--home-package DIR]
   python build_packages.py --verify DIR
@@ -8,7 +9,8 @@ GPL-3.0-or-later.
 Reproducible: every member has a fixed time (MTIME), owner 0:0 and mode, the members are in name order, scripts are stored with LF line
 ends and the gzip header carries no name or time; the same sources always give the same bytes. Each package carries ONLY Classic Cart
 Studio's own files, listed one by one below (no Nintendo file, no hakchi file, no other package's file): the scripts in console/, the
-two menu pictures in console/assets/, and two generated records:
+menu pictures in console/assets/, for the chooser its own copy of the native HOME program (chooser mode), the player's menu fonts with
+their license files and the controller codes (CHOOSER_INPUTS, chooser_members), and two generated records:
   etc/ccs/<method>/VERSION   schema=ccs-method-package/1, the method, its package id (SHA-256 over the other members' names and
                              contents) and the hakchi files the scripts were checked against
   etc/ccs/<method>/FILES     "<sha256> <mode> <path>" for every file hakchi copies into its overlay (all but install, uninstall,
@@ -16,7 +18,7 @@ two menu pictures in console/assets/, and two generated records:
 CCS HOME's own package (tools/companion/native_home/console_package.py) is NOT inside: with --home-package its MANIFEST.json is
 referenced by SHA-256, layout and size in this build's MANIFEST.json (both methods run the CCS HOME package the shared engine installs at
 /var/lib/ccs/pkg).
-Output (a new or empty folder): ccs-mod.hmod, ccs-nucleus.hmod, MANIFEST.json (schema ccs-console-method-packages/1: each package's
+Output (a new or empty folder): ccs-mod.hmod, ccs-nucleus.hmod, ccs-nucleus-chooser.hmod, MANIFEST.json (schema ccs-console-method-packages/1: each package's
 SHA-256, size, members, the bytes it puts on the console's data storage) and SHA256SUMS."""
 from __future__ import annotations
 import argparse, gzip, hashlib, io, json, os, sys, tarfile
@@ -35,7 +37,6 @@ PACKAGES = {
         "install": ("mod/install", 0o644), "uninstall": ("mod/uninstall", 0o644), "readme.md": ("mod/readme.md", 0o644),
         "bin/ccs-mod": ("mod/bin/ccs-mod", 0o755),
         "etc/ccs/mod/lib.sh": ("lib.sh", 0o644),
-        "etc/ccs/mod/S81ccs-mod": ("mod/S81ccs-mod", 0o755),
         "etc/ccs/mod/entry.png": ("assets/ccs-mod-entry.png", 0o644),
         "etc/ccs/mod/entry-small.png": ("assets/ccs-mod-entry-small.png", 0o644),
     },
@@ -43,11 +44,15 @@ PACKAGES = {
         "install": ("nucleus/install", 0o644), "uninstall": ("nucleus/uninstall", 0o644), "readme.md": ("nucleus/readme.md", 0o644),
         "bin/ccs-nucleus": ("nucleus/bin/ccs-nucleus", 0o755),
         "etc/ccs/nucleus/lib.sh": ("lib.sh", 0o644),
+        "etc/init.d/S81ccs-nucleus": ("nucleus/S81ccs-nucleus", 0o755),
+    },
+    "nucleus-chooser": {
+        "install": ("nucleus-chooser/install", 0o644), "uninstall": ("nucleus-chooser/uninstall", 0o644),
+        "readme.md": ("nucleus-chooser/readme.md", 0o644),
         "etc/ccs/nucleus/entry.png": ("assets/ccs-nucleus-entry.png", 0o644),
         "etc/ccs/nucleus/entry-small.png": ("assets/ccs-nucleus-entry-small.png", 0o644),
         "etc/preinit.d/p7060_ccsnucleus": ("nucleus/p7060_ccsnucleus", 0o644),
         "etc/preinit.d/p7071_ccsnucleus": ("nucleus/p7071_ccsnucleus", 0o644),
-        "etc/init.d/S81ccs-nucleus": ("nucleus/S81ccs-nucleus", 0o755),
     },
 }
 NOT_COPIED = ("install", "uninstall", "readme.md")   # hakchi's transfer_default never copies the first two; readme files are deleted first
@@ -58,8 +63,37 @@ def source_bytes(rel: str) -> bytes:
     b = open(os.path.join(SRC, *rel.split("/")), "rb").read()
     return b if rel.endswith(".png") else b.replace(b"\r\n", b"\n")
 
+# The chooser's own copy of what it draws with (it needs no CCS HOME package, so it works with or without CCS Mod). A caller may set
+# CHOOSER_INPUTS = {"program": <ccs-home-armv7>, "fonts": <folder>}; otherwise CCS_CHOOSER_PROGRAM / CCS_CHOOSER_FONTS, then the paths the
+# app itself uses (CCS_NATIVE_HOME_RUNTIME, CCS_PLAYER_FONTS). The controller codes are the CCS HOME package's own (one definition).
+CHOOSER_INPUTS: dict | None = None
+CHOOSER_DIR = "etc/ccs/nucleus/chooser"
+
+class MissingInput(Exception): pass
+
+def controller_map() -> bytes:
+    comp = os.path.normpath(os.path.join(HERE, "..", "companion"))
+    if os.path.isdir(comp) and comp not in sys.path: sys.path.insert(0, comp)
+    from native_home.console_package import CONTROLLER_MAP
+    return CONTROLLER_MAP.encode()
+
+def chooser_members() -> dict[str, tuple[bytes, int]]:
+    ci = CHOOSER_INPUTS or {}
+    prog = ci.get("program") or os.environ.get("CCS_CHOOSER_PROGRAM") or os.environ.get("CCS_NATIVE_HOME_RUNTIME")
+    fonts = ci.get("fonts") or os.environ.get("CCS_CHOOSER_FONTS") or os.environ.get("CCS_PLAYER_FONTS")
+    if not prog or not os.path.isfile(prog): raise MissingInput("the chooser package needs the native HOME program (ccs-home-armv7): CHOOSER_INPUTS or CCS_CHOOSER_PROGRAM")
+    if not fonts or not os.path.isdir(fonts): raise MissingInput("the chooser package needs the player's menu fonts: CHOOSER_INPUTS or CCS_CHOOSER_FONTS")
+    m = {f"{CHOOSER_DIR}/bin/ccs-home-armv7": (open(prog, "rb").read(), 0o755),
+         f"{CHOOSER_DIR}/config/controller-map.txt": (controller_map(), 0o644)}
+    for f in sorted(os.listdir(fonts)):   # the same selection the CCS HOME package makes: the 1x fonts and their license files
+        if f.endswith(".ccsf") and "-2x" not in f or f.startswith("OFL-"):
+            m[f"{CHOOSER_DIR}/fonts/{f}"] = (open(os.path.join(fonts, f), "rb").read(), 0o644)
+    if not any(n.endswith(".ccsf") for n in m): raise MissingInput(f"no menu fonts in {fonts}")
+    return m
+
 def members(method: str) -> dict[str, tuple[bytes, int]]:
     m = {name: (source_bytes(src), mode) for name, (src, mode) in PACKAGES[method].items()}
+    if method == "nucleus-chooser": m.update(chooser_members())
     pid = hashlib.sha256()
     for name in sorted(m): pid.update(name.encode() + b"\0" + m[name][0] + b"\0")
     version = (f"schema=ccs-method-package/1\nmethod={method}\nversion={VERSION}\npackage={pid.hexdigest()}\n"
@@ -104,7 +138,8 @@ def build(out: str, home: str | None = None) -> dict:
             "members": {n: {"sha256": sha(b), "bytes": len(b), "mode": f"{mode:04o}"} for n, (b, mode) in sorted(mem.items())},
             "overlay_bytes": sum(len(b) for b in copied.values()), "overlay_files": len(copied),
             # the menu entry: its desktop file (at most this size: the longest console path and name) and its two pictures
-            "menu_entry_bytes": 640 + len(mem[f"etc/ccs/{method}/entry.png"][0]) + len(mem[f"etc/ccs/{method}/entry-small.png"][0]),
+            "menu_entry_bytes": sum(640 + len(mem[f"etc/ccs/{d}/entry.png"][0]) + len(mem[f"etc/ccs/{d}/entry-small.png"][0])
+                                    for d in ("mod", "nucleus") if f"etc/ccs/{d}/entry.png" in mem),
         }
         sums.append(f"{sha(hb)}  {name}")
     mb = (json.dumps(man, indent=1) + "\n").encode()

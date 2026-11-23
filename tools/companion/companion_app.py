@@ -95,8 +95,26 @@ def run_headless(port: int) -> int:
         LOG.info("headless backend stopped")
     return 0
 
+def play_file_main(argv: list[str]) -> int:
+    """ClassicCartStudio.exe --play FILE starts this (PlayFile.cs): one game file in the game player, no server, no window of its own, nothing
+    added to the library. The exit code and one line {"exit": N, "message": "..."} on the pipe the launcher gave it (play.play_file)."""
+    import io, play
+    try: out = io.TextIOWrapper(os.fdopen(1, "wb", closefd=False), encoding="utf-8", line_buffering=True)
+    except OSError: out = None
+    i = argv.index("--play-file")
+    if i + 1 >= len(argv): code, msg = play.PLAY_USAGE, "--play needs one game file."
+    else:
+        try: code, msg = play.play_file(argv[i + 1])
+        except Exception as e: LOG.exception("play file"); code, msg = play.PLAY_START, f"The game player could not start ({e})."
+    LOG.info("play file: exit %s %s", code, msg[:200])
+    if out:
+        try: out.write(json.dumps({"exit": code, "message": msg}) + "\n"); out.flush()
+        except (OSError, ValueError): pass
+    return code
+
 def main():
     os.makedirs(DATA_ROOT, exist_ok=True); setup_logging()
+    if "--play-file" in sys.argv[1:]: sys.exit(play_file_main(sys.argv[1:]))   # before anything else: no server, no window
     port = int(nc.CFG.get("port", DEFAULT_PORT)); link = handle_protocol_arg(sys.argv[1:])
     if "--console-worker" in sys.argv[1:]:   # the console engine worker (simulation tier): line protocol on stdin/stdout, no window, no network
         import io

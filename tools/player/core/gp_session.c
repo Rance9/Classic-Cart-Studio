@@ -21,6 +21,9 @@
 #include "gp.h"
 #include <errno.h>
 #include "gp_emu.h"
+#ifdef GP_HOME_MP3
+#include "gp_mp3.h"
+#endif
 #include "host.h"
 #include "../../console-simulator/core/ccs_sim.h"
 #include "../../console-simulator/core/home.h"
@@ -434,8 +437,15 @@ static void apply_prefs(void) {   /* the running game: resolve again and show th
  * The selected song plays while the HOME is in front: the whole song, then again from its beginning. It pauses at once while
  * a game starts or runs (the start choices included), while the window is not in front and when the HOME closes, and goes on from
  * where it was. The choice is this computer's (home-music.json beside the Studio's data; absent: On; unreadable: Off until chosen
- * again). The file is PCM, 16-bit stereo at 48,000 Hz, read in pieces into the same sound device the games use, never both at once. */
-static struct { FILE *f; long off; uint32_t frames, pos, loops; int avail, on, playing, focused, source, session, seq, noout, threaded; } MU = { .focused = 1 };   /* threaded: the host's thread reads the song (K3D1-F2) */   /* noout: no sound output opened (said once) */
+ * again). The file is PCM, 16-bit stereo at 48,000 Hz, read in pieces into the same sound device the games use, never both at once.
+ * A build made with GP_HOME_MP3 also plays the song as MP3 (gp_mp3.c): held in memory and decoded a piece at a time by the same reader
+ * (the host's sound thread on the console), from its first real sample to its last, then from its beginning again with nothing added
+ * or left out at the join; going on from where it paused is a seek to that frame. */
+static struct { FILE *f; long off; uint32_t frames, pos, loops; int avail, on, playing, focused, source, session, seq, noout, threaded;
+#ifdef GP_HOME_MP3
+    struct gp_mp3 *mp3; uint8_t *mp3buf;
+#endif
+} MU = { .focused = 1 };   /* threaded: the host's thread reads the song (K3D1-F2) */   /* noout: no sound output opened (said once) */
 static const char *MU_SRC[3] = { "default", "saved", "unreadable" };
 static void mu_trace(const char *ev) { host_trace(P.H, "{\"ev\":\"%s\",\"on\":%s,\"pos\":%u,\"frames\":%u,\"loops\":%u,\"source\":\"%s\"}", ev, MU.on ? "true" : "false", MU.pos, MU.frames, MU.loops, MU_SRC[MU.source]);
     if (P.H && host_embedded(P.H)) { char l[96]; snprintf(l, sizeof l, "music %s %s %s %s", ev, MU.on ? "on" : "off", MU_SRC[MU.source], MU.focused ? "front" : "away"); host_send(P.H, l); } }   /* the Preview says what really plays (F12) */
@@ -445,8 +455,21 @@ static void mu_pref_load(void) {
     char err[80]; jval *j = json_parse((const char *)b, len, err, sizeof err); free(b); const char *v = j && j->t == J_OBJ && !strcmp(js(j, "schema"), "ccs-home-music/1") ? js(j, "music") : "";
     if (!strcmp(v, "on") || !strcmp(v, "off")) { MU.on = !strcmp(v, "on"); MU.source = 1; } else { MU.on = 0; MU.source = 2; } json_free(j); }
 static int mu_pref_save(void) { char b[80]; int n = snprintf(b, sizeof b, "{\"schema\":\"ccs-home-music/1\",\"music\":\"%s\"}", MU.on ? "on" : "off"); return P.c.music_pref[0] ? gp_write_atomic(P.c.music_pref, b, (size_t)n) : -1; }
+#ifdef GP_HOME_MP3
+static void mu_open_mp3(void) {   /* the whole MP3 file into memory (at most 16 MB), then its decoder (gp_mp3_open refuses a file whose length it cannot trust) */
+    size_t len = 0; char why[200];
+    if (gp_read_file(P.c.music, &MU.mp3buf, &len, 16u * 1000u * 1000u)) { MU.mp3buf = NULL; host_trace(P.H, "{\"ev\":\"music_unavailable\",\"why\":\"the HOME Music file cannot be read\"}"); return; }
+    MU.mp3 = gp_mp3_open(MU.mp3buf, len, &MU.frames, why, sizeof why);
+    if (!MU.mp3) { char e[400]; json_escape(why, e, sizeof e); free(MU.mp3buf); MU.mp3buf = NULL; host_trace(P.H, "{\"ev\":\"music_unavailable\",\"why\":%s}", e); return; }
+    MU.avail = 1; host_trace(P.H, "{\"ev\":\"music_format\",\"format\":\"mp3\",\"frames\":%u,\"file_bytes\":%llu,\"decoder_heap\":%llu}", MU.frames, (unsigned long long)len, (unsigned long long)gp_mp3_heap(MU.mp3));
+    mu_trace("music_ready"); }
+#endif
 static void mu_open(void) {   /* the WAV header: PCM, 2 channels, 48,000 Hz, 16 bits; then where its samples start */
     if (!home_mode() || !P.c.music[0]) return; mu_pref_load(); FILE *f = fopen(P.c.music, "rb"); uint8_t h[12], c[8], fm[16]; int fmt = 0;
+#ifdef GP_HOME_MP3
+    if (f && fread(h, 1, 12, f) == 12 && (!memcmp(h, "ID3", 3) || (h[0] == 0xff && (h[1] & 0xe0) == 0xe0))) { fclose(f); mu_open_mp3(); return; }   /* an MP3 file */
+    if (f) fseek(f, 0, SEEK_SET);
+#endif
     if (!f || fread(h, 1, 12, f) != 12 || memcmp(h, "RIFF", 4) || memcmp(h + 8, "WAVE", 4)) { if (f) fclose(f); host_trace(P.H, "{\"ev\":\"music_unavailable\",\"why\":\"the HOME Music file cannot be read\"}"); return; }
     for (;;) { if (fread(c, 1, 8, f) != 8) break; uint32_t sz = (uint32_t)c[4] | (uint32_t)c[5] << 8 | (uint32_t)c[6] << 16 | (uint32_t)c[7] << 24;
         if (!memcmp(c, "fmt ", 4) && sz >= 16 && fread(fm, 1, 16, f) == 16) { fmt = (fm[0] | fm[1] << 8) == 1 && (fm[2] | fm[3] << 8) == 2 && ((uint32_t)fm[4] | (uint32_t)fm[5] << 8 | (uint32_t)fm[6] << 16) == 48000 && (fm[14] | fm[15] << 8) == 16; if (sz > 16) fseek(f, (long)(sz - 16 + (sz & 1)), SEEK_CUR); }
@@ -465,14 +488,27 @@ static int home_covers(void) { int cb, ahead; host_home_pace(&cb, &ahead); retur
    position again only after taking it back (gp_host_audio_source(NULL) returns once no fill runs) */
 static uint32_t mu_fill(void *ctx, int16_t *b, uint32_t frames) { (void)ctx;
     uint32_t k = MU.frames - MU.pos; if (k > frames) k = frames;
+#ifdef GP_HOME_MP3
+    if (MU.mp3) {   /* decoded here, a piece at a time; at its last frame the decoder goes back to its first (gp_mp3_seek: its state rebuilt) */
+        if (!MU.avail || gp_mp3_read(MU.mp3, b, k) != k) { MU.avail = 0; host_trace(P.H, "{\"ev\":\"music_unavailable\",\"why\":\"the HOME Music file could not be decoded\"}"); return 0; }
+        MU.pos += k; if (MU.pos >= MU.frames) { MU.pos = 0; MU.loops++; if (gp_mp3_seek(MU.mp3, 0)) MU.avail = 0; mu_trace("music_loop"); }
+        return k; }
+#endif
     if (!MU.avail || fread(b, 4, k, MU.f) != k) { MU.avail = 0; host_trace(P.H, "{\"ev\":\"music_unavailable\",\"why\":\"the HOME Music file could not be read\"}"); return 0; }
     MU.pos += k; if (MU.pos >= MU.frames) { MU.pos = 0; MU.loops++; fseek(MU.f, MU.off, SEEK_SET); mu_trace("music_loop"); }   /* the whole song played: from its beginning */
     return k; }
+#ifdef GP_HOME_MP3
+static void mu_seek(void) { if (gp_mp3_seek(MU.mp3, MU.pos)) MU.avail = 0; }   /* the MP3 reader to MU.pos (going on from where it paused) */
+#endif
 static void mu_take_back(void) { if (MU.threaded) { gp_host_audio_source(P.H, NULL, NULL, 0); MU.threaded = 0; } }
 static void mu_tick(void) {
     if (!mu_wanted()) { if (MU.playing) { mu_take_back(); size_t q = host_audio_queued(P.H); host_audio_pause(P.H, 1); MU.pos = (uint32_t)((MU.pos + MU.frames - q % MU.frames) % MU.frames); MU.playing = 0; mu_trace("music_pause"); } return; }   /* silent at once; it goes on from what was heard */
     int cb, ahead; host_home_pace(&cb, &ahead); (void)cb;
-    if (!MU.playing) { if (!audio_at(48000)) { if (!MU.noout) { MU.noout = 1; mu_trace("music_no_output"); } return; } MU.noout = 0; fseek(MU.f, MU.off + (long)MU.pos * 4, SEEK_SET); host_audio_pause(P.H, 0); MU.playing = 1; mu_trace("music_play");
+    if (!MU.playing) { if (!audio_at(48000)) { if (!MU.noout) { MU.noout = 1; mu_trace("music_no_output"); } return; } MU.noout = 0;
+#ifdef GP_HOME_MP3
+        if (MU.mp3) mu_seek(); else
+#endif
+        fseek(MU.f, MU.off + (long)MU.pos * 4, SEEK_SET); host_audio_pause(P.H, 0); MU.playing = 1; mu_trace("music_play");
         if (gp_host_audio_source && !gp_host_audio_source(P.H, mu_fill, NULL, (size_t)ahead)) MU.threaded = 1; }   /* K3D1-F2: the host's thread reads the song from here on */
     if (MU.threaded) { if (!MU.avail) { mu_take_back(); host_audio_pause(P.H, 1); MU.playing = 0; } return; }   /* (a read failure there: silent, as below) */
     for (int guard = 0; guard < 32 && host_audio_queued(P.H) < (size_t)ahead; guard++) {   /* the host's lead: about 130 ms on the PC, 600 ms on the console */
@@ -1099,6 +1135,9 @@ int gp_close(void) {
     write_result(P.err[0] && !P.rg ? "error" : "normal");
     if (host_embedded(P.H)) { char l[600], e2[500]; json_escape(P.result_games, e2, sizeof e2); snprintf(l, sizeof l, "bye %s", e2); host_send(P.H, l); }
     if (MU.playing) { mu_take_back(); host_audio_pause(P.H, 1); MU.playing = 0; mu_trace("music_pause"); } if (MU.f) { fclose(MU.f); MU.f = NULL; }   /* HOME Music ends with the window */
+#ifdef GP_HOME_MP3
+    if (MU.mp3) { gp_mp3_close(MU.mp3); MU.mp3 = NULL; } free(MU.mp3buf); MU.mp3buf = NULL;
+#endif
     host_return_focus(P.H); if (P.hm) home_free(P.hm); host_close(P.H); fb_free(&P.fb); (void)quit_kind;
     return 0; }
 /* for a host that paces the steps itself: what the session shows now (GPV_*: a game playing, SELECT + START held, a menu or message, the HOME) */

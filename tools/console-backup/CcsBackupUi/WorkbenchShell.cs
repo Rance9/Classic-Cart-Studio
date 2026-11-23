@@ -41,9 +41,16 @@ namespace CcsBackup.Ui
         public (string region, string name)[] RegionalNames;
         /// <summary>what About This Console and Help say about it, heading and text (paragraphs split by a blank line)</summary>
         public (string head, string text)[] Sections;
-        /// <summary>whether this version has console tasks for the family; false: none starts (TasksNotYet says why)</summary>
+        /// <summary>whether this version has console tasks for the family; false: none starts (TasksNotYet says why). Which of them are
+        /// available is the console model's (PhysicalModel: ConsoleModel.Refusal, from the registry's capabilities)</summary>
         public bool ConsoleTasks = true;
         public string TasksNotYet;
+        /// <summary>the registry's physical model of this family (the names and availability Workbench shows; never what a console is: a
+        /// task reads that from the console itself)</summary>
+        public string PhysicalModel;
+        /// <summary>a backup file's expected size from the family's own storage (its physical reference plus its storage parts and startup
+        /// software), 0: the general description</summary>
+        public long ArchiveBytes;
         /// <summary>the console's whole built-in storage in bytes, used and free space together (0: not given, for a family without tasks)</summary>
         public long StorageBytes;
         /// <summary>the family's own way into recovery mode, as the second of the connection steps (a task's and the test boot's)</summary>
@@ -52,19 +59,19 @@ namespace CcsBackup.Ui
 
         public static readonly ConsoleProfile NesClassicMini = new ConsoleProfile
         {
-            Id = "nes-classic-na", Name = "NES Classic Mini — North America / Europe", Short = "NES Classic",
+            Id = "nes-classic-na", Name = "NES Classic Mini — North America / Europe", Short = "NES Classic", PhysicalModel = "nes-classic-edition",
             StorageBytes = 536870912L,   // its NAND: 4,096 blocks of 64 pages of 2,048 bytes (ConsoleFacts.PhysicalBytes)
-            About = "Nintendo's small NES console with 30 built-in games, first sold in 2016 and again in 2018, in North America and in Europe. Workbench's tests on a real console will use a North American console from the 2018 release.",
+            About = "Nintendo's small NES console with 30 built-in games, first sold in 2016 and again in 2018, in North America and in Europe.",
             RegionalNames = new[] { ("North America", "NES Classic Edition"), ("Europe", "Nintendo Classic Mini: Nintendo Entertainment System") },
             Sections = new[]
             {
                 ("2016 and 2018", "The console first came out in 2016 and was released again in 2018. Both are small modern consoles, not the original NES from the 1980s.\n\n"
-                    + "They are the same product, but not identical inside: there are different versions of its circuit board. Workbench's tests on a real console will use a genuine North American console from the 2018 release. Those tests have not been done yet, and no 2016 console and no console sold in Europe has been tested with Workbench."),
+                    + "They are the same product, but not identical inside: there are different versions of its circuit board."),
                 ("What choosing it does", "Choosing this console sets the names and steps Workbench uses. It does not connect to, identify or check a console, and it never makes Workbench accept a console, a backup or a system file it would otherwise refuse.\n\n"
                     + "The year a console was sold does not tell which software it runs. When you start a console task, Workbench reads that console's own startup software and says what it found."),
                 ("Startup software and system images", "A restore puts a console's own backup back on that same console; Workbench refuses a backup from another console. Some steps replace a console's startup software on purpose and say so before you confirm: preparing a console replaces its startup software and bootloader, and a change you review in Developer Mode can replace its startup software. Return to Original Software puts back Nintendo's startup software and the console's own bootloader.\n\n"
-                    + "With CCS Nucleus, a Nintendo system image you supply, such as one from your own 2016 console, can be added as one of its choices. A system image is not startup software for another circuit board. Workbench checks every system image before it adds one; a system image from another version of the console has not been tested."),
-                ("Other consoles", "The SNES Classic Mini is a different console, with its own choice at the top of the window. Workbench's support for it is being built and is not in this preview version yet. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
+                    + "With CCS Nucleus, a Nintendo system image you supply, such as one from your own 2016 console, can be added as one of its choices. A system image is not startup software for another circuit board. Workbench checks every system image before it adds one and says why when it cannot use one."),
+                ("Other consoles", "The SNES Classic Mini is a different console, with its own choice at the top of the window. Workbench backs it up, restores it and checks it; its other console tasks are not available for it in this version. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
                     + "The Famicom Mini and the Super Famicom Mini, sold in Japan, are different consoles too: Workbench does not work with their hardware."),
             },
             RecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go: the console starts in recovery mode.",
@@ -73,21 +80,24 @@ namespace CcsBackup.Ui
 
         public static readonly ConsoleProfile SnesClassicMini = new ConsoleProfile
         {
-            Id = "snes-classic", Name = "SNES Classic Mini — North America / Europe", Short = "SNES Classic",
-            About = "Nintendo's small Super NES console with 21 built-in games, sold in North America and in Europe since 2017. Workbench's support for it is being built: its console tasks are not in this preview version yet.",
+            Id = "snes-classic", Name = "SNES Classic Mini — North America / Europe", Short = "SNES Classic", PhysicalModel = "snes-classic-edition",
+            StorageBytes = 536870912L,   // its NAND reads 2048 64 4096 like the NES Classic's: 536,870,912 bytes
+            ArchiveBytes = 536870912L + 3145728L + 67108864L + 314572800L + 1048576L + 65536000L + 2 * 2736128L,   // the physical reference, its five storage parts and its startup software twice, as a North American console reported them
+            About = "Nintendo's small Super NES console with 21 built-in games, sold in North America and in Europe since 2017. Workbench backs it up, restores it and checks it; its other console tasks are not available for it in this version.",
             RegionalNames = new[] { ("North America", "Super NES Classic Edition"), ("Europe", "Nintendo Classic Mini: Super Nintendo Entertainment System") },
             Sections = new[]
             {
                 ("2017", "The console came out in 2017, in North America and in Europe. It is a small modern console, not the original Super NES from the 1990s.\n\n"
                     + "The North American and the European console share this one choice, but their software is not the same. Hakchi2 CE, which Workbench builds on, tells them apart by their startup software, and Workbench keeps them apart the same way: a console's software is always read from the console itself, never assumed from this choice or from its box."),
-                ("In this preview version", "Backing up, restoring and Workbench's other console tasks for the SNES Classic Mini are being built and are not in this preview version yet, and Workbench has not been tested on a real SNES Classic Mini. You can choose it to read about it and to see Workbench's pages in its words; a console task says it is not available yet and starts nothing.\n\n"
+                ("In this version", "Workbench backs up a North American or European SNES Classic Mini, restores its own backup to it and checks it (Console Browser). Preparing it with hakchi, CCS Mod and CCS Nucleus, Console Rescue, Console Composer, Expert Mode and Developer Mode are not available for it in this version: each says why when you open it, before anything starts. You can choose it to read about it and to see Workbench's pages in its words; a console task says it is not available yet and starts nothing.\n\n"
                     + "Backup files already on this PC can still be browsed, checked and repaired under Backup Files, whichever console is chosen."),
                 ("What choosing it does", "Choosing this console sets the names Workbench uses. It does not connect to, identify or check a console, it does not change a console an earlier task identified, and it never makes Workbench accept a console, a backup or a system file it would otherwise refuse."),
                 ("Other consoles", "The NES Classic Mini is a different console, with its own choice at the top of the window. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
                     + "The Super Famicom Mini, sold in Japan, is a different console too: Workbench does not work with its hardware."),
             },
-            ConsoleTasks = false,
-            TasksNotYet = "Workbench's console tasks for the SNES Classic Mini are being built and are not in this preview version yet, so nothing was started: no console connection, no USB driver check, nothing written. Backup files on this PC can still be browsed, checked and repaired under Backup Files.",
+            RecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go: the console starts in recovery mode.",
+            TestBootRecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go. The TV stays dark: the console waits for this PC.",
+            TasksNotYet = null,
         };
         /// <summary>the families this version offers: the NES Classic Mini (the first: a settings file naming none gets it) and the SNES Classic
         /// Mini. A test may add made-up ones (Probe).</summary>
@@ -110,7 +120,7 @@ namespace CcsBackup.Ui
         {
             (null, new[] { "Dashboard" }),
             ("Console Operations", new[] { "Console Backup", "Console Restore", "Console Rescue", "Console Composer", "Console Browser" }),
-            ("Backup Files", new[] { "Backup Browser", "Backup Repair" }),
+            ("Backup Files", new[] { "Backup Browser", "Backup Repair", "USB and SD Backup" }),
             ("Advanced", new[] { "Developer Mode" }),
         };
         readonly Dictionary<string, Button> navButtons = new Dictionary<string, Button>();
@@ -125,12 +135,16 @@ namespace CcsBackup.Ui
 
         /// <summary>every console task asks this first: true when this version has console tasks for the chosen family; otherwise the task's
         /// page says so and nothing starts (no console session, no USB driver check, no worker)</summary>
-        bool FamilyHasTasks()
+        bool FamilyHasTasks(string operation)
         {
-            if (profile.ConsoleTasks) return true;
-            Show(Message("Not in this preview version yet", profile.TasksNotYet, "info"), "msg");
+            if (!profile.ConsoleTasks) { Show(Message("Not in this preview version yet", profile.TasksNotYet, "info"), "msg"); return false; }
+            var why = CcsBackup.Device.ConsoleModels.ById(profile.PhysicalModel)?.Refusal(operation);
+            if (why == null) return true;
+            Show(Message("Not available for the " + profile.Short + " Mini", why + " Nothing was started: no console connection, no USB driver check, nothing written.", "info"), "msg");
             return false;
         }
+        /// <summary>the console model operation a worker task is (ConsoleModel.Refusal)</summary>
+        static string OperationOf(string op) => op == "browse" ? "identify" : op == "sega-pictures" ? "files" : op == "compose" ? "composition" : op == "method" || op == "home-design" ? "addons" : op == "test-boot" ? "developer" : op;
 
         /// <summary>on a console task's page, for a family without console tasks in this version: what the page cannot do yet</summary>
         UIElement FamilyNotYetNote(bool dashboard = false) => Note("Workbench's console tasks for the " + profile.Short + " Mini are being built and are not in this preview version yet"
@@ -158,7 +172,7 @@ namespace CcsBackup.Ui
             {
                 if (g != null)
                 {
-                    var h = new TextBlock { Text = g, FontSize = Ty.NavHeading, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Ink"), Margin = new Thickness(12, 10, 0, 3) };
+                    var h = new TextBlock { Text = g, FontSize = Ty.NavHeading, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Ink"), Margin = new Thickness(12, 8, 0, 3) };
                     list.Children.Add(h);
                 }
                 // an entry without a group (Dashboard) stands at the same level as the group headings, in their size and weight
@@ -172,7 +186,7 @@ namespace CcsBackup.Ui
         Button NavItem(string name, bool indented)
         {
             var b = new Button { Content = name, Style = Res<Style>(indented ? "Wb.Nav" : "Wb.NavTop") };
-            if (indented) { b.FontSize = Ty.NavItem; b.Padding = new Thickness(26, 7, 10, 7); }
+            if (indented) { b.FontSize = Ty.NavItem; b.Padding = new Thickness(26, 6, 10, 6); }
             AutomationProperties.SetName(b, name);
             b.Click += (s, e) => Go(name); navButtons[name] = b; return b;
         }
@@ -242,6 +256,7 @@ namespace CcsBackup.Ui
                 case "Console Browser": ShowConsoleBrowser(); break;
                 case "Backup Browser": ShowBackupBrowser(); break;
                 case "Backup Repair": ShowBackupRepair(); break;
+                case "USB and SD Backup": ShowStorageHome(); break;   // WorkbenchStorage.cs
                 case "Developer Mode": ShowDeveloper(); break;
                 case "Settings": ShowSettings(); break;
                 case "Help and About": ShowHelp(); break;
@@ -260,15 +275,19 @@ namespace CcsBackup.Ui
             { "restore-hub", "Console Restore" }, { "restore-pick", "Console Restore" }, { "restore-review", "Console Restore" }, { "plan", "Console Restore" },
             { "methods", "Console Restore" }, { "return", "Console Restore" }, { "return-plan", "Console Restore" },
             { "rescue", "Console Rescue" }, { "rescue-choose", "Console Rescue" }, { "rescue-plan", "Console Rescue" },
-            { "composer", "Console Composer" }, { "composer-plan", "Console Composer" }, { "compose-plan", "Console Composer" }, { "build-package", "Console Composer" },
+            { "composer", "Console Composer" }, { "composer-plan", "Console Composer" }, { "sega-pictures", "Console Composer" }, { "sega-plan", "Console Composer" }, { "compose-plan", "Console Composer" }, { "build-package", "Console Composer" },
             { "package-built", "Console Composer" }, { "apply-package", "Console Composer" }, { "plan-share", "Console Composer" }, { "plan-saved", "Console Composer" },
             { "plan-checklist", "Console Composer" }, { "firmware", "Console Composer" }, { "designer", "Console Composer" }, { "design-editor", "Console Composer" },
             { "design-share", "Console Composer" }, { "design-console", "Console Composer" }, { "design-check", "Console Composer" }, { "design-plan", "Console Composer" },
             { "prepare", "Console Composer" }, { "prep-plan", "Console Composer" },
+            { "community", "Console Composer" }, { "community-details", "Console Composer" }, { "community-files", "Console Composer" }, { "community-plan", "Console Composer" },
+            { "community-remove", "Console Composer" }, { "community-rollback", "Console Composer" }, { "community-result", "Console Composer" },
             { "console-browser", "Console Browser" }, { "checkup", "Console Browser" },
             { "backup-browser", "Backup Browser" }, { "browse", "Backup Browser" }, { "browse-damaged", "Backup Browser" }, { "export-result", "Backup Browser" },
             { "backup-repair", "Backup Repair" }, { "repair-routes", "Backup Repair" }, { "repair-result", "Backup Repair" }, { "supply", "Backup Repair" },
             { "parity", "Backup Repair" }, { "parity-result", "Backup Repair" },
+            { "storage-home", "USB and SD Backup" }, { "storage-select", "USB and SD Backup" }, { "storage-result", "USB and SD Backup" }, { "storage-repair", "USB and SD Backup" },
+            { "storage-restore", "USB and SD Backup" }, { "storage-plan", "USB and SD Backup" },
             { "developer", "Developer Mode" }, { "developer-return", "Developer Mode" }, { "test-boot", "Developer Mode" }, { "test-boot-plan", "Developer Mode" },
             { "kernel-plan", "Developer Mode" }, { "system-plan", "Developer Mode" },
             { "settings", "Settings" }, { "about", "Help and About" }, { "help", "Help and About" }, { "credits", "Credits" }, { "ccs-intro", FullAppEntry },
@@ -278,7 +297,7 @@ namespace CcsBackup.Ui
         void BackToSection() => Go(section);
 
         // pages Escape may leave for their section's first page: nothing is being typed, chosen or run on them
-        static readonly HashSet<string> EscapePages = new HashSet<string> { "backup", "restore-pick", "restore-review", "result", "msg", "verify", "prepare", "return", "files-intro", "methods", "firmware", "designer", "repair-routes", "supply", "developer-return", "driver", "driver-setup", "plan-checklist", "package-built", "plan-saved", "apply-package", "design-check", "design-console", "browse-damaged", "repair-result", "parity-result" };
+        static readonly HashSet<string> EscapePages = new HashSet<string> { "backup", "restore-pick", "restore-review", "result", "msg", "verify", "prepare", "return", "files-intro", "methods", "firmware", "designer", "repair-routes", "supply", "developer-return", "driver", "driver-setup", "plan-checklist", "package-built", "plan-saved", "apply-package", "design-check", "design-console", "browse-damaged", "repair-result", "parity-result", "community", "community-details", "community-remove", "community-rollback" };
         void OnEscape(System.Windows.Input.KeyEventArgs e)
         {
             var tag = (page.Content as FrameworkElement)?.Tag as string;
@@ -698,7 +717,7 @@ namespace CcsBackup.Ui
             InfoCard("Organize your collection", "Bring in the NES game files you own, see them with their artwork and details, and arrange them in collections."),
             InfoCard("Play", "Play NES games in the app on Windows, or on " + HomepageName + " in a web browser or on a phone where the browser supports it."),
             InfoCard("Included Games", "Free games and demos whose developers gave permission, ready to play. No commercial Nintendo games are included."),
-            InfoCard("Your NES Classic's HOME", "Plan collections for your NES Classic and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are still being tested on real consoles."));
+            InfoCard("Your NES Classic's HOME", "Plan collections for your NES Classic and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are not available in this version."));
 
         // ------------------------------------------------------------------ About Classic Cart Studio (the wordmark's window, both hosts)
         /// <summary>the address the window's button opens, exactly (the site's front page)</summary>

@@ -120,8 +120,8 @@ static int state_write(gp_library *L, const char *name, const void *data, size_t
     if (!data || !len || len > MAX_STATE) { snprintf(why, whylen, "The game could not be saved (the emulator gave no state)."); return -1; }
     char hdr[1200], t[400], now[32], og[64] = ""; if (created && created[0]) snprintf(now, sizeof now, "%s", created); else gp_now_iso(now); jstr_into(L->title, t, sizeof t);
     if (origin) snprintf(og, sizeof og, ",\"origin\":\"%s\"", origin);
-    int hl = snprintf(hdr, sizeof hdr, "{\"schema\":\"ccs-save-state/1\",\"kind\":\"manual\",\"rom_content_sha256\":\"%s\",\"title\":%s,\"core\":\"%s\",\"core_version\":\"%s\",\"platform\":\"%s\",\"size\":%zu,\"crc32\":\"%08x\",\"frames\":%llu,\"created\":\"%s\"%s}",
-                      L->rom_sha, t, GP_CORE_ID, GP_CORE_VERSION, GP_PLATFORM, len, gp_crc32(data, len), (unsigned long long)frames, now, og);
+    int hl = snprintf(hdr, sizeof hdr, "{\"schema\":\"ccs-save-state/1\",\"kind\":\"manual\",\"rom_content_sha256\":\"%s\",\"title\":%s,\"core\":\"%s\",\"core_version\":\"%s\",\"core_build\":\"%s\",\"platform\":\"%s\",\"size\":%zu,\"crc32\":\"%08x\",\"frames\":%llu,\"created\":\"%s\"%s}",
+                      L->rom_sha, t, GP_CORE_ID, GP_CORE_VERSION, GP_CORE_BUILD, GP_PLATFORM, len, gp_crc32(data, len), (unsigned long long)frames, now, og);
     size_t tot = 12 + (size_t)hl + len; uint8_t *b = malloc(tot); if (!b) { snprintf(why, whylen, "Out of memory."); return -1; }
     memcpy(b, MAGIC, 8); b[8] = (uint8_t)hl; b[9] = (uint8_t)(hl >> 8); b[10] = (uint8_t)(hl >> 16); b[11] = (uint8_t)(hl >> 24);
     memcpy(b + 12, hdr, (size_t)hl); memcpy(b + 12 + hl, data, len);

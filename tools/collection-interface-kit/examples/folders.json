@@ -1,0 +1,53 @@
+{
+ "schema": "ccs-collection-interface",
+ "version": 1,
+ "generation": 7,
+ "producer": {"name": "Example Producer", "version": "1.0.0"},
+ "bases": {
+  "entries": "/var/lib/hakchi/games/nes-usa",
+  "system": "/var/squashfs/usr/share/games/nes/kachikachi"
+ },
+ "capabilities": ["hakchi-entries", "folders", "favorites"],
+ "collections": [
+  {
+   "id": "installed",
+   "name": "Weekend Picks",
+   "games": ["nes-0f1e2d3c4b5a69788796a5b4c3d2e1f0", "nes-1a2b3c4d5e6f708192a3b4c5d6e7f809", "nes-builtin-clv-p-zzzze", "nes-2b3c4d5e6f708192a3b4c5d6e7f8091a"],
+   "folders": [
+    {"id": "f-0011223344556677", "name": "Action", "parent": null, "games": ["nes-0f1e2d3c4b5a69788796a5b4c3d2e1f0", "nes-1a2b3c4d5e6f708192a3b4c5d6e7f809"],
+     "entry": {"base": "entries", "path": "ccs-0123456789/CLV-S-QWERT/CLV-S-QWERT.desktop", "code": "CLV-S-QWERT"}},
+    {"id": "f-8899aabbccddeeff", "name": "Racing", "parent": "f-0011223344556677", "games": ["nes-1a2b3c4d5e6f708192a3b4c5d6e7f809"],
+     "entry": {"base": "entries", "path": "ccs-2222222222/CLV-S-ASDFG/CLV-S-ASDFG.desktop", "code": "CLV-S-ASDFG"}},
+    {"id": "f-1234567890abcdef", "name": "Classics", "parent": null, "games": ["nes-builtin-clv-p-zzzze", "nes-0f1e2d3c4b5a69788796a5b4c3d2e1f0"],
+     "entry": {"base": "entries", "path": "ccs-0123456789/CLV-S-ZXCVB/CLV-S-ZXCVB.desktop", "code": "CLV-S-ZXCVB"}}
+   ],
+   "favorites": ["nes-1a2b3c4d5e6f708192a3b4c5d6e7f809"],
+   "entry": {"base": "entries", "path": "000/CLV-S-POIUY/CLV-S-POIUY.desktop", "code": "CLV-S-POIUY"}
+  }
+ ],
+ "games": {
+  "nes-0f1e2d3c4b5a69788796a5b4c3d2e1f0": {
+   "title": "Example Quest", "system": "nes", "kind": "file", "status": "published",
+   "content_sha256": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+   "entry": {"base": "entries", "path": "ccs-2222222222/CLV-H-ABCDE/CLV-H-ABCDE.desktop", "code": "CLV-H-ABCDE"},
+   "art": {"cover": {"base": "entries", "path": "ccs-2222222222/CLV-H-ABCDE/CLV-H-ABCDE.png"}, "thumbnail": {"base": "entries", "path": "ccs-2222222222/CLV-H-ABCDE/CLV-H-ABCDE_small.png"}}
+  },
+  "nes-1a2b3c4d5e6f708192a3b4c5d6e7f809": {
+   "title": "Sample Racer", "system": "nes", "kind": "file", "status": "published",
+   "entry": {"base": "entries", "path": "ccs-1111111111/CLV-H-FGHIJ/CLV-H-FGHIJ.desktop", "code": "CLV-H-FGHIJ"},
+   "art": {"cover": {"base": "entries", "path": "ccs-1111111111/CLV-H-FGHIJ/CLV-H-FGHIJ.png"}}
+  },
+  "nes-builtin-clv-p-zzzze": {
+   "title": "A Built-in Game", "system": "nes", "kind": "builtin", "status": "published",
+   "entry": {"base": "entries", "path": "ccs-3333333333/CLV-P-ZZZZE/CLV-P-ZZZZE.desktop", "code": "CLV-P-ZZZZE"},
+   "art": {"cover": {"base": "system", "path": "CLV-P-ZZZZE/CLV-P-ZZZZE.png"}}
+  },
+  "nes-2b3c4d5e6f708192a3b4c5d6e7f8091a": {
+   "title": "Puzzle \"Box\" édition", "system": "nes", "kind": "file", "status": "not-published",
+   "reason": "Nintendo's built-in NES emulator, which Hakchi games use, does not run its cartridge type"
+  }
+ },
+ "extensions": {
+  "example.note": "Readers ignore fields they do not know, like this one."
+ }
+}

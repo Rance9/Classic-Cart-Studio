@@ -170,7 +170,7 @@ def package_checks(rep: dict, factory_ids: list[str], root: str) -> dict:
     for gid in ids:
         g = games.get(gid) or {}; want = page_rule(gid, cat, lib)
         if want:
-            exp_tmp = os.path.join(root, "expect.jpg"); DV.cover(CF._art_path(want), exp_tmp)
+            exp_tmp = os.path.join(root, "expect.jpg"); DV.cover(CF._art_path(want), exp_tmp, reduced=True)   # a console's cover (preview packages show the console)
             same = g.get("cover") and DV.sha256_file(os.path.join(pkg, g["cover"])) == DV.sha256_file(exp_tmp)
             if g.get("cover_kind") != "authentic" or g.get("cover_source") != want or not same: wrong.append((gid, g.get("cover_kind"), g.get("cover_source"), want, bool(same)))
         elif g.get("cover_kind") != "mock": wrong.append((gid, g.get("cover_kind"), "expected the generated cover"))

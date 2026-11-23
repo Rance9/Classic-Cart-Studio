@@ -8,7 +8,8 @@
 //                   The document's own entries may each carry game_system: it must be supported too.
 //   CheckRequest    a worker request: any identifier it names (directly, in ccs_target or as a provider) must be supported. A request
 //                   that names none is the NES default, as every request was before.
-//   ModelForBoard   the console model a board answers with, only when that model is supported.
+//   ModelFor        the supported console model a board and region answer with (a model that lists regions needs one of them;
+//                   ModelForBoard is the same without a region, so it never names such a model).
 // The registry is read once from the assembly. No file, request, URL, setting or environment variable can add an entry or change a
 // status: there is no API to do it, and every list handed out is a copy.
 using System;
@@ -84,11 +85,17 @@ namespace CcsBackup.Compose
         /// <summary>a controller definition's actions, in order (nes-pad: up, down, left, right, a, b, select, start)</summary>
         public static IReadOnlyList<string> InputActions(string id) => Entry("input", id)?.List("actions") ?? new List<string>();
 
-        /// <summary>the supported console model whose boards include this one; null for any other board (unknown or reserved)</summary>
-        public static string ModelForBoard(string board)
+        /// <summary>the supported console model whose boards include this one; null for any other board (unknown or reserved) and for a
+        /// model that is told apart by its region (ModelFor)</summary>
+        public static string ModelForBoard(string board) => ModelFor(board, null);
+
+        /// <summary>the supported console model a board and region answer with: its boards include the board and, when it lists regions,
+        /// they include the region (the console's own REGION file); null otherwise</summary>
+        public static string ModelFor(string board, string region)
         {
             if (string.IsNullOrEmpty(board)) return null;
-            return entries.FirstOrDefault(e => e.Kind == "physical-model" && e.Supported && e.List("boards").Contains(board))?.Id;
+            return entries.FirstOrDefault(e => e.Kind == "physical-model" && e.Supported && e.List("boards").Contains(board)
+                && (e.List("regions").Count == 0 || (!string.IsNullOrEmpty(region) && e.List("regions").Contains(region))))?.Id;
         }
 
         public static IReadOnlyDictionary<string, string> Defaults(string documentKind)

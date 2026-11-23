@@ -54,7 +54,7 @@ namespace CcsBackup.Device
         }
     }
 
-    public sealed class RecoveryConsole
+    public sealed partial class RecoveryConsole   // (Community Mods' steps: CommunityConsole.cs)
     {
         public const string Helper = "/ccs/bin/ccsbr";
         public static readonly string[] Targets = { "boot0", "boot1", "boot2", "boot2-68", "nand", "nanda", "nandb", "nandc", "nandd", "nande", "phy", "parttable" };
@@ -174,12 +174,13 @@ namespace CcsBackup.Device
         static string Md5Hex(byte[] b) { using (var h = System.Security.Cryptography.MD5.Create()) return Hex.Of(h.ComputeHash(b)); }
 
         /// <summary>the arguments each ccsprep step takes: MD5s the PC reviewed (m), byte counts (n), a CCS install-method package name (p)
-        /// and its SHA-256 (s), a CCS HOME copy name (c) and the copy it replaces (q: a copy name or "absent"), on or off (o: CCS Mod's start at
-        /// power-on, mstart); ret-stage also sends exactly
-        /// that many bytes of input (the console's own bootloader from its snapshot)</summary>
+        /// and its SHA-256 (s), a CCS HOME copy name (c) and the copy it replaces (q: a copy name or "absent"); unlist names one to three
+        /// packages in order; nstart takes DEFAULT (native|ccs-home), CHOOSER (always|never), HOME (on|off), SELECTION (default|last) and
+        /// TIMEOUT (0-99 seconds); ret-stage also sends
+        /// exactly that many bytes of input (the console's own bootloader from its snapshot)</summary>
         static readonly System.Collections.Generic.Dictionary<string, string> StepArgs = new System.Collections.Generic.Dictionary<string, string>
         { { "files", "" }, { "uboot", "" }, { "slot68", "" }, { "kernel", "" }, { "ret-stage", "nm" }, { "ret-kernel", "m" }, { "ret-uboot", "mm" }, { "ret-files", "" }, { "ret-table", "" }, { "method", "ps" }, { "unlist", "p" }, { "rput", "ins" }, { "rimport", "isnb" }, { "rdrop", "is" },
-          { "hput", "cnsn" }, { "huse", "cq" }, { "mstart", "o" } };
+          { "hput", "cnsn" }, { "huse", "cq" }, { "hdrop", "cc" }, { "nstart", "dholt" } };
 
         /// <summary>One step of ram/ccsprep (preparation sessions only): a first-time preparation step, or a Return to Original Software
         /// step with the MD5s the PC reviewed (ret-kernel: what it replaces; ret-uboot: what it replaces and what it writes; ret-stage: the
@@ -189,7 +190,7 @@ namespace CcsBackup.Device
             if (Profile != SessionProfile.Prepare) throw new InvalidOperationException("Only a preparation session prepares a console.");
             if (!Engine.Preparation.Order.Contains(step) && !Engine.ReturnEngine.Order.Contains(step) && !Engine.Methods.Steps.Contains(step) && !Engine.FirmwareEngine.Steps.Contains(step) && !Engine.HomePackage.Steps.Contains(step) || !StepArgs.TryGetValue(step, out var shape)) throw new ArgumentException("not a preparation step: " + step);
             args = args ?? new string[0];
-            if (!ArgsOk(shape, args)) throw new ArgumentException("bad step request");
+            if (step == "unlist" ? !(args.Length >= 1 && args.Length <= 3 && Array.TrueForAll(args, Engine.Methods.IsPackage)) : !ArgsOk(shape, args)) throw new ArgumentException("bad step request");
             if ((step == "ret-stage") != (input != null) || input != null && (input.LongLength.ToString(CultureInfo.InvariantCulture) != args[0] || Md5Hex(input) != args[1])) throw new ArgumentException("bad step input");
             if (step == "rput" || step == "hput") throw new ArgumentException(step + " takes its bytes from a stream (PrepStepStream)");
             return PrepRun(step, authority, args, input != null ? new MemoryStream(input, false) : null);
@@ -201,7 +202,10 @@ namespace CcsBackup.Device
             for (int i = 0; i < args.Length; i++)
                 if (shape[i] == 'm' ? !Hex.IsHex(args[i], 32) : shape[i] == 's' ? !Hex.IsHex(args[i], 64) : shape[i] == 'p' ? !Engine.Methods.IsPackage(args[i])
                     : shape[i] == 'i' ? !Engine.FirmwareEngine.IdOk(args[i]) : shape[i] == 'b' ? !Regex.IsMatch(args[i] ?? "", "^[A-Za-z0-9+/]{4,120}={0,2}$")
-                    : shape[i] == 'c' ? !Engine.HomePackage.CopyRe.IsMatch(args[i] ?? "") : shape[i] == 'q' ? !(args[i] == "absent" || Engine.HomePackage.CopyRe.IsMatch(args[i] ?? "")) : shape[i] == 'o' ? !(args[i] == "on" || args[i] == "off")
+                    : shape[i] == 'd' ? !(args[i] == "native" || args[i] == "ccs-home") : shape[i] == 'h' ? !(args[i] == "always" || args[i] == "never")
+                    : shape[i] == 'o' ? !(args[i] == "on" || args[i] == "off") : shape[i] == 'l' ? !(args[i] == "default" || args[i] == "last")
+                    : shape[i] == 't' ? !Regex.IsMatch(args[i] ?? "", "^([0-9]|[1-9][0-9])$")
+                    : shape[i] == 'c' ? !Engine.HomePackage.CopyRe.IsMatch(args[i] ?? "") : shape[i] == 'q' ? !(args[i] == "absent" || Engine.HomePackage.CopyRe.IsMatch(args[i] ?? ""))
                     : !Regex.IsMatch(args[i] ?? "", "^[1-9][0-9]{0,8}$")) return false;
             return true;
         }

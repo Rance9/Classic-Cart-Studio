@@ -86,6 +86,16 @@ def main() -> int:
         ok("the build stops at a scene without a credit record", not built)
         p = fault("nonotice", lambda f: os.remove(os.path.join(f, "licenses", "NOTICE.txt")) or _drop(f, "licenses/NOTICE.txt"))
         ok("a package without NOTICE.txt is refused", p == ["the package has no licenses/NOTICE.txt"], p)
+        # HOME Music as MP3 (a player built with it, held in this version): its notice names minimp3 and carries its license text; the
+        # shipped player's notices never mention it, and a package whose texts disagree with its player is refused
+        mfiles = dict(files); mfiles["bin/ccs-player-armv7"] = b"\x7fELF player " + NT.MP3_MARK; mfiles.pop("home/music/ccs-home-theme.wav"); mfiles["home/music/ccs-home-theme.mp3"] = b"ID3"
+        dm, _ = make("mp3", mfiles); mn = open(os.path.join(dm, "licenses", "NOTICE.txt"), encoding="utf-8").read()
+        ok("a player built with MP3: minimp3 named in the notice, its license text carried, the package checks out",
+           not NT.check_dir(dm) and sorted(os.listdir(os.path.join(dm, "licenses"))) == sorted(want + ["minimp3-LICENSE.txt"]) and "minimp3 at commit 142823796ab8efa55e1bf11406028f3be77ecceb" in mn
+           and open(os.path.join(dm, "licenses", "minimp3-LICENSE.txt"), "rb").read() == NT.texts(["minimp3-LICENSE.txt"])["minimp3-LICENSE.txt"], NT.check_dir(dm))
+        ok("the shipped player's notice does not mention minimp3", "minimp3" not in open(os.path.join(d, "licenses", "NOTICE.txt"), encoding="utf-8").read() and not NT.player_has_mp3(lambda r: files[r]))
+        dx, _ = make("mp3x", mfiles); os.remove(os.path.join(dx, "licenses", "minimp3-LICENSE.txt")); _drop(dx, "licenses/minimp3-LICENSE.txt")
+        ok("an MP3 player's package without minimp3's license text is refused", any("minimp3-LICENSE.txt is missing" in x for x in NT.check_dir(dx)), NT.check_dir(dx))
         for pk in a.package:
             p = NT.check_dir(pk); ok(f"built package {os.path.basename(os.path.normpath(pk))} checks out", not p, p)
     finally:

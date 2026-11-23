@@ -63,8 +63,9 @@ namespace CcsBackup.Archive
 
         public const long MaxTotal = 3L * 1000 * 1000 * 1000;
 
-        public static string FileStem(DateTime local, string consoleTag, bool simulated) =>
-            (simulated ? "SIMULATED " : "") + "NES Classic Backup " + local.ToString("yyyy-MM-dd HHmm", System.Globalization.CultureInfo.InvariantCulture) + " (console " + consoleTag + ")";
+        /// <summary>the backup file's name without its extension; model: the console's (null: the NES Classic)</summary>
+        public static string FileStem(DateTime local, string consoleTag, bool simulated, Device.ConsoleModel model = null) =>
+            (simulated ? "SIMULATED " : "") + (model ?? Device.ConsoleModels.Nes).BackupFilePrefix + local.ToString("yyyy-MM-dd HHmm", System.Globalization.CultureInfo.InvariantCulture) + " (console " + consoleTag + ")";
 
         public static string Readme(Dictionary<string, object> m, bool repairMap = false)
         {
@@ -76,7 +77,7 @@ namespace CcsBackup.Archive
                 ScopeText,
                 "",
                 "Made:      " + m.S("completed_utc") + " (UTC)",
-                "Console:   NES Classic Edition, console " + c.S("tag") + ", region " + c.S("region") + ", system " + c.S("oem_version"),
+                "Console:   " + (c.S("model") ?? "NES Classic Edition") + ", console " + c.S("tag") + ", region " + c.S("region") + ", system " + c.S("oem_version"),
                 "State:     " + st.S("text"),
                 "Made with: " + m.O("tool").S("name") + " " + m.O("tool").S("version"),
                 "",

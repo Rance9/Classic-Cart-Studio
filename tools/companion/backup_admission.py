@@ -31,4 +31,21 @@ def admit(hwid: str, operation: str, subject: str, exe: str | None = None, setti
     except (ValueError, UnicodeDecodeError): return {"ok": False, "code": "backup-required", "text": "The backup check gave no answer; nothing was changed."}
     if p.returncode != 0 or r.get("ok") is not True or not re.fullmatch(r"[0-9a-f]{32}", str(r.get("ticket") or "")):
         return {"ok": False, "code": str(r.get("code") or "backup-required"), "text": str(r.get("text") or "Back up this console first.")}
-    return {"ok": True, "ticket": r["ticket"], "baseline": r.get("baseline"), "current": r.get("current"), "baseline_utc": r.get("baseline_utc"), "current_utc": r.get("current_utc"), "text": r.get("text")}
+    return {"ok": True, "ticket": r["ticket"], "baseline": r.get("baseline"), "current": r.get("current"), "baseline_utc": r.get("baseline_utc"), "current_utc": r.get("current_utc"), "text": r.get("text"),
+            "data_only": r.get("data_only") is True}
+
+def preview(hwid: str, operation: str, subject: str = "review", exe: str | None = None, settings: str | None = None, timeout: int = 1800) -> dict:
+    """the admission's answer for a review, without a ticket: {"ok", "data_only", "code", "text"} (data_only: no original Nintendo
+    material in this console's backups, so returning it to Nintendo's original software is unavailable; the review says so)"""
+    if operation not in OPERATIONS: return {"ok": False, "code": "bad-operation", "text": "Unknown maintenance operation."}
+    if not re.fullmatch(r"[0-9a-fA-F ]{8,64}", str(hwid or "")): return {"ok": False, "code": "no-console", "text": "Check the console first."}
+    if exe is None:
+        from console_engine.worker_console import worker_exe
+        exe = worker_exe()
+    if not exe: return {"ok": False, "code": "backup-required", "text": "The backup check is not available in this installation."}
+    args = [exe, "--admit-backup", "--hwid", str(hwid), "--operation", operation, "--subject", str(subject or "review"), "--preview"] + (["--settings", settings] if settings else [])
+    try: p = subprocess.run(args, capture_output=True, timeout=timeout, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.TimeoutExpired) as e: return {"ok": False, "code": "backup-required", "text": f"The backup check could not run ({type(e).__name__})."}
+    try: r = json.loads(p.stdout.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError): return {"ok": False, "code": "backup-required", "text": "The backup check gave no answer."}
+    return {"ok": r.get("ok") is True, "data_only": r.get("data_only") is True, "code": str(r.get("code") or ""), "text": str(r.get("text") or "")}

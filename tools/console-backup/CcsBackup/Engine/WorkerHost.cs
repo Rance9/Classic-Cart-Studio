@@ -10,12 +10,14 @@
 // It is not a service and leaves nothing running: it exits when its operation has ended. It takes the console lock for the operation.
 //   requests  {"cmd":"backup","console":"real"|"simulated","folder":…}      {"cmd":"restore-prepare","backup":…,"console":…,"folder":…}
 //             {"cmd":"restore-confirm","digest":…,"nonce":…}   {"cmd":"cancel"}   {"cmd":"finish"} (restart the console)   {"cmd":"quit"}
-//             {"cmd":"prepare-plan","policy":"mod"|"nucleus"|"none",…} then "prepare-confirm"; {"cmd":"return-plan",…} then "return-confirm"
+//             {"cmd":"prepare-plan","mod":true|false,"nucleus":"none"|"direct"|"chooser","start":"native"|"ccs-home",…} then "prepare-confirm";
+//             with "choose":true instead of the add-ons, the worker first reports the console's own ({"event":"addon-state",…}: what it has and
+//             starts now) and waits for {"cmd":"prepare-target"|"method-target","mod":…,"nucleus":…,"start":…,"auto":…} (the add-on pages)
+//             {"cmd":"return-plan",…} then "return-confirm"
 //             (CCS Console Workbench: the same functions in the standalone and in Classic Cart Studio, from the same engine and console programs)
-//             {"cmd":"method-plan","op":"remove"|"change","method":"mod"|"nucleus",…} then {"cmd":"method-confirm","digest":…,"nonce":…}
-//             (prepare-plan with a method and method-plan change also take "home": a CCS HOME package folder; default: the one this build carries;
-//             with CCS Mod, "mod_start": true is the owner's choice of CCS HOME at power-on, off when absent)
-//             (Console Restore: remove CCS Mod or CCS Nucleus, or change to the named one, through hakchi's transfer folder; MethodEngine)
+//             {"cmd":"method-plan","mod":…,"nucleus":…,"start":…} then {"cmd":"method-confirm","digest":…,"nonce":…}: the add-ons the console
+//             should have (Console Restore: added and removed through hakchi's transfer folder, the start set in CCS Nucleus; MethodEngine)
+//             (both also take "home": CCS Mod's CCS HOME package folder; default: the one this build carries)
 //             {"cmd":"firmware-plan","op":"add","file":LOCAL .hsqs,"label":…,"id":… (optional)} or {"cmd":"firmware-plan","op":"remove","id":…}
 //             then {"cmd":"firmware-confirm","digest":…,"nonce":…} (Console Composer's Browse for Firmware: a CCS Nucleus choice; FirmwareEngine)
 //             {"cmd":"rescue",…} then {"cmd":"rescue-choose","backup":…,"stages":[…],"ack":…} then "rescue-confirm" (Console Rescue)
@@ -30,7 +32,10 @@
 //              "renderer":ccs-sim-core.exe (optional: the native host's own renderer when hosted)} or {"cmd":"home-design","action":"revert",
 //              "to":"previous"|"defaults"} (+ "console","folder"), then {"cmd":"home-design-confirm","digest":…,"nonce":…} (HOME Designer,
 //              strict policy; DesignApplyEngine)
-//   events    {"event":"progress",…} {"event":"plan","plan":{…}} {"event":"prep-plan","plan":{…}} {"event":"method-plan","plan":{…}} {"event":"firmware-plan","plan":{…}} {"event":"home-design-plan","plan":{…}}
+//             {"cmd":"community",…} then "community-change" and "community-confirm" (Community Mods: WorkerHostCommunity.cs)
+//             {"cmd":"sega-pictures","op":"remove"} or {"cmd":"sega-pictures","op":"put-back","record":REMOVAL RECORD} then
+//             {"cmd":"sega-pictures-confirm","digest":…,"nonce":…} (the Sega Mini menu pictures clean-up, strict policy; SegaCleanup)
+//   events    {"event":"progress",…} {"event":"plan","plan":{…}} {"event":"prep-plan","plan":{…}} {"event":"addon-state",…} {"event":"method-plan","plan":{…}} {"event":"firmware-plan","plan":{…}} {"event":"home-design-plan","plan":{…}}
 //             {"event":"kernel-plan",…} {"event":"system-plan",…} {"event":"test-boot-plan","plan":{…}}
 //             {"event":"result",…} {"event":"error","text":…}
 using CcsBackup.Device;
@@ -45,7 +50,7 @@ using System.Threading;
 
 namespace CcsBackup.Engine
 {
-    public static class WorkerHost
+    public static partial class WorkerHost   // (Community Mods' request: WorkerHostCommunity.cs)
     {
         public const string Flag = "--backup-worker";
 
@@ -69,7 +74,7 @@ namespace CcsBackup.Engine
 
         static string Arg(string[] a, string k) { int i = Array.IndexOf(a, k); return i >= 0 && i + 1 < a.Length ? a[i + 1] : null; }
 
-        sealed class Session
+        sealed partial class Session
         {
             readonly Stream inS, outS; readonly string entry, toolName, toolVersion; readonly Func<Settings> loadSettings;
             readonly BlockingCollection<Dictionary<string, object>> queue = new BlockingCollection<Dictionary<string, object>>();
@@ -138,14 +143,21 @@ namespace CcsBackup.Engine
                 return RecoverySessions.OpenReal(kind, t => Send(new JObj { { "event", "progress" }, { "phase", "connect" }, { "text", t } }), () => cancel);
             }
 
+            // the add-ons a request names: mod (true/false), nucleus (none, direct, chooser), start (native, ccs-home), auto (with the chooser:
+            // menu, last or wait); null: none named
+            static AddonChoice AddonsOf(Dictionary<string, object> req) => req.S("nucleus") == null && !req.B("mod") ? null
+                : new AddonChoice { Mod = req.B("mod"), Nucleus = req.S("nucleus") ?? "none", Start = req.S("start") ?? "native", Auto = req.S("auto") ?? "menu" };
+
             int Dispatch(Dictionary<string, object> req)
             {
                 var cmd = req.S("cmd");
-                if (cmd != "backup" && cmd != "restore-prepare" && cmd != "prepare-plan" && cmd != "return-plan" && cmd != "method-plan" && cmd != "firmware-plan" && cmd != "rescue" && cmd != "files" && cmd != "browse" && cmd != "compose" && cmd != "home-design" && cmd != "test-boot") { Send(new JObj { { "event", "error" }, { "text", "unknown request" } }); return 2; }
-                if (cmd == "prepare-plan" && req.S("policy") != null && req.S("policy") != "none" && !Methods.IsPolicy(req.S("policy"))) { Send(new JObj { { "event", "error" }, { "text", "unknown install method" } }); return 2; }
-                if (cmd == "method-plan" && (req.S("op") != "remove" && req.S("op") != "change" || !Methods.IsPolicy(req.S("method")))) { Send(new JObj { { "event", "error" }, { "text", "unknown method request" } }); return 2; }
+                if (cmd != "backup" && cmd != "restore-prepare" && cmd != "prepare-plan" && cmd != "return-plan" && cmd != "method-plan" && cmd != "firmware-plan" && cmd != "rescue" && cmd != "files" && cmd != "browse" && cmd != "compose" && cmd != "home-design" && cmd != "test-boot" && cmd != "community" && cmd != "sega-pictures") { Send(new JObj { { "event", "error" }, { "text", "unknown request" } }); return 2; }
+                var addons = AddonsOf(req);
+                if ((cmd == "prepare-plan" || cmd == "method-plan") && (cmd == "method-plan" && addons == null && !req.B("choose") || addons != null && (addons.Problem() != null || req.B("choose")) || req.ContainsKey("policy") || req.ContainsKey("mod_start") || req.ContainsKey("op") || req.ContainsKey("method")))
+                { Send(new JObj { { "event", "error" }, { "text", "unknown add-on request" } }); return 2; }   // the add-ons only as mod/nucleus/start/auto or "choose"
                 if (cmd == "firmware-plan" && req.S("op") != "add" && req.S("op") != "remove") { Send(new JObj { { "event", "error" }, { "text", "unknown system image request" } }); return 2; }
                 if (cmd == "files" && req.S("scope") != "user" && req.S("scope") != "dev") { Send(new JObj { { "event", "error" }, { "text", "unknown file mode" } }); return 2; }
+                if (cmd == "sega-pictures" && !(req.S("op") == "remove" && req.S("record") == null || req.S("op") == "put-back" && !string.IsNullOrEmpty(req.S("record")))) { Send(new JObj { { "event", "error" }, { "text", "unknown picture request" } }); return 2; }
                 // a request that names a game system, console model, provider or capability this version does not support stops here,
                 // before the console lock or any console session; one that names none is the NES Classic, as always
                 var target = CcsBackup.Compose.Capabilities.CheckRequest(req);
@@ -154,7 +166,7 @@ namespace CcsBackup.Engine
                 {
                     if (lk == null) { Send(new JObj { { "event", "result" }, { "state", "busy" }, { "problem", "Another console operation is running in " + busy + ". Wait for it to finish." } }); return 3; }
                     if (cmd == "test-boot") return TestBootOp(req);   // no console program runs: the console stays in its boot ROM's USB mode
-                    var kind = cmd == "backup" || cmd == "browse" ? ImageKind.Backup : cmd == "prepare-plan" ? ImageKind.Prepare : cmd == "return-plan" ? ImageKind.Return : cmd == "method-plan" ? ImageKind.Method : cmd == "firmware-plan" ? ImageKind.Firmware : cmd == "rescue" ? ImageKind.Rescue : cmd == "files" || cmd == "compose" || cmd == "home-design" ? ImageKind.Files : ImageKind.Restore;
+                    var kind = cmd == "backup" || cmd == "browse" ? ImageKind.Backup : cmd == "prepare-plan" ? ImageKind.Prepare : cmd == "return-plan" ? ImageKind.Return : cmd == "method-plan" ? ImageKind.Method : cmd == "firmware-plan" ? ImageKind.Firmware : cmd == "community" ? ImageKind.Community : cmd == "rescue" ? ImageKind.Rescue : cmd == "files" || cmd == "compose" || cmd == "home-design" || cmd == "sega-pictures" ? ImageKind.Files : ImageKind.Restore;
                     RecoveryConsole con;
                     try { con = Open(req, kind, out var folder0); }
                     catch (GateClosedException ex) { Send(new JObj { { "event", "result" }, { "state", "unavailable" }, { "problem", ex.Message } }); return 4; }
@@ -163,20 +175,15 @@ namespace CcsBackup.Engine
                     var folder = req.S("console") == "simulated" ? req.S("folder") : null;
                     var ctx = Ctx(con, kind, folder);
                     if (cmd == "backup") return Backup(con, ctx);
-                    // CCS HOME's package for a method: the one this build carries, unless the window names a package folder ("home")
-                    HomePackage home = null; var hl = cmd == "prepare-plan" ? req.S("policy") : cmd == "method-plan" && req.S("op") == "change" ? req.S("method") : null;
-                    if (req.S("home") != null && Methods.IsPolicy(hl))
-                    {
-                        try { home = HomePackage.Folder(req.S("home"), hl); }
-                        catch (Exception ex) when (ex is HomePackageException || ex is IOException || ex is UnauthorizedAccessException) { Send(new JObj { { "event", "result" }, { "operation", cmd == "prepare-plan" ? "prepare" : "method" }, { "state", "refused" }, { "problem", "The HOME package cannot be used: " + ex.Message } }); AfterOperation(con); return 1; }
-                    }
-                    if (cmd == "prepare-plan") return Prepare(con, ctx, req.S("policy"), home, req.B("mod_start"));
+                    if (cmd == "prepare-plan") return Prepare(con, ctx, req, addons);
                     if (cmd == "return-plan") return Return(con, ctx);
-                    if (cmd == "method-plan") return Method(con, ctx, req.S("op"), req.S("method"), home, req.B("mod_start"));
+                    if (cmd == "method-plan") return Method(con, ctx, req, addons);
                     if (cmd == "firmware-plan") return Firmware(con, ctx, req.S("op"), req.S("id"), req.S("label"), req.S("file"));
                     if (cmd == "rescue") return Rescue(con, ctx);
                     if (cmd == "compose") return Compose(con, ctx, req);
+                    if (cmd == "sega-pictures") return SegaPicturesOp(con, ctx, req.S("op"), req.S("record"));
                     if (cmd == "home-design") return HomeDesignOp(con, ctx, req);
+                    if (cmd == "community") return Community(con, ctx, req);
                     if (cmd == "browse") return Browse(con, ctx);
                     if (cmd == "files") return Files(con, ctx, req.S("scope"));
                     return Restore(con, ctx, req.S("backup"), req.A("only")?.OfType<string>().ToList());
@@ -245,13 +252,44 @@ namespace CcsBackup.Engine
                 return o.Ok ? 0 : 1;
             }
 
-            int Prepare(RecoveryConsole con, EngineContext ctx, string policy, HomePackage home, bool modStart)
+            /// <summary>CCS HOME's package for CCS Mod: the one this build carries, unless the window names a package folder ("home"); null
+            /// home and a problem when the named one cannot be used</summary>
+            static (HomePackage home, string problem) HomeOf(Dictionary<string, object> req, AddonChoice addons)
+            {
+                if (req.S("home") == null || addons == null || !addons.Mod) return (null, null);
+                try { return (HomePackage.Folder(req.S("home"), HomePackage.ModLayout), null); }
+                catch (Exception ex) when (ex is HomePackageException || ex is IOException || ex is UnauthorizedAccessException) { return (null, "The HOME package cannot be used: " + ex.Message); }
+            }
+
+            /// <summary>the add-on pages ("choose"): the console's own add-ons reported, then the person's choice, which must be a valid one
+            /// (null: canceled, the window gone or ten minutes without an answer)</summary>
+            AddonChoice Choose(string operation, string situation, ConsoleIdentity id, MethodState st, out string problem)
+            {
+                problem = null;
+                Send(MethodEngine.StateEvent(operation, situation, id, st));
+                var c = Next(DateTime.UtcNow + RestoreEngine.ConfirmWindow, operation + "-target");
+                if (c == null || c.S("cmd") != operation + "-target") return null;
+                var a = new AddonChoice { Mod = c.B("mod"), Nucleus = c.S("nucleus") ?? "none", Start = c.S("start") ?? "native", Auto = c.S("auto") ?? "menu" };
+                problem = a.Problem(); return a;
+            }
+
+            int Prepare(RecoveryConsole con, EngineContext ctx, Dictionary<string, object> req, AddonChoice addons)
             {
                 const string subject = "ccs-prepare/hakchi-" + Preparation.PinnedHakchiVersion;
                 var id = con.Identify();
                 var adm = Admission.Admit(ctx.Settings, id.Hwid, "prepare", subject, ctx.Cancelled, con.Simulated, con.SessionId);
                 if (!adm.Ok) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", "refused" }, { "code", adm.Code }, { "problem", adm.Text } }); AfterOperation(con); return 1; }
-                var (plan, refused) = Preparation.Prepare(con, ctx, adm, policy, home, modStart);
+                if (req.B("choose"))
+                {   // read only: hakchi's version and packages on the data storage, and whether the startup software is the original
+                    var ms = con.PrepState(); var cls = Support.Classify(id);
+                    var situation = ms.Ok && ms.Hakchi == Preparation.PinnedHakchiVersion ? "hakchi" : ms.Ok && ms.Hakchi == "none" && cls.ActiveIsStock && !id.Slot68Valid ? "original" : "other";
+                    addons = Choose("prepare", situation, id, ms.Ok ? ms : null, out var why);
+                    if (addons == null) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", "canceled" }, { "problem", "Nothing was changed." } }); AfterOperation(con); return 0; }
+                    if (why != null) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", "refused" }, { "problem", why } }); AfterOperation(con); return 1; }
+                }
+                var (home, hp) = HomeOf(req, addons);
+                if (hp != null) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", "refused" }, { "problem", hp } }); AfterOperation(con); return 1; }
+                var (plan, refused) = Preparation.Prepare(con, ctx, adm, addons, home);
                 if (refused != null) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", refused.State }, { "problem", refused.Problem } }); AfterOperation(con); return 1; }
                 Send(new JObj { { "event", "prep-plan" }, { "plan", plan.ToJson() } });
                 if (plan.Refusal != null) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", "refused" }, { "problem", plan.Refusal } }); AfterOperation(con); return 1; }
@@ -266,10 +304,20 @@ namespace CcsBackup.Engine
                 AfterOperation(con); return o.Ok ? 0 : 1;
             }
 
-            // Console Restore: remove CCS Mod or CCS Nucleus, or change from one to the other (MethodEngine; hakchi applies it at the next start)
-            int Method(RecoveryConsole con, EngineContext ctx, string op, string method, HomePackage home, bool modStart)
+            // Console Restore: the add-ons changed (MethodEngine; hakchi applies them at the next start)
+            int Method(RecoveryConsole con, EngineContext ctx, Dictionary<string, object> req, AddonChoice addons)
             {
-                var (plan, refused) = MethodEngine.Prepare(con, ctx, op, method, home, modStart);
+                if (req.B("choose"))
+                {
+                    var (st, id, why0) = MethodEngine.Current(con, ctx);
+                    if (why0 != null) { Send(new JObj { { "event", "result" }, { "operation", "method" }, { "state", "refused" }, { "problem", why0 } }); AfterOperation(con); return 1; }
+                    addons = Choose("method", "hakchi", id, st, out var why);
+                    if (addons == null) { Send(new JObj { { "event", "result" }, { "operation", "method" }, { "state", "canceled" }, { "problem", "Nothing was changed." } }); AfterOperation(con); return 0; }
+                    if (why != null) { Send(new JObj { { "event", "result" }, { "operation", "method" }, { "state", "refused" }, { "problem", why } }); AfterOperation(con); return 1; }
+                }
+                var (home, hp) = HomeOf(req, addons);
+                if (hp != null) { Send(new JObj { { "event", "result" }, { "operation", "method" }, { "state", "refused" }, { "problem", hp } }); AfterOperation(con); return 1; }
+                var (plan, refused) = MethodEngine.Prepare(con, ctx, addons, home);
                 if (refused != null) { Send(new JObj { { "event", "result" }, { "operation", "method" }, { "state", refused.State }, { "problem", refused.Problem } }); AfterOperation(con); return 1; }
                 Send(new JObj { { "event", "method-plan" }, { "plan", plan.ToJson() } });
                 Dictionary<string, object> c = null;
@@ -349,6 +397,20 @@ namespace CcsBackup.Engine
                 if (c == null || c.S("cmd") != "compose-confirm") { Send(new JObj { { "event", "result" }, { "operation", "compose" }, { "state", "canceled" }, { "problem", "Nothing was changed." } }); AfterOperation(con); return 0; }
                 var o = ComposerEngine.Execute(con, plan, c.S("digest"), c.S("nonce"), ctx);
                 Send(new JObj { { "event", "result" }, { "operation", "compose" }, { "state", o.State }, { "problem", o.Problem }, { "done", o.Done }, { "record", o.RecordFile }, { "ui_gone", uiGone } });
+                AfterOperation(con); return o.Ok ? 0 : 1;
+            }
+
+            /// <summary>the Sega Mini menu pictures clean-up: one reviewed removal or put back (strict policy: a backup in this session first)</summary>
+            int SegaPicturesOp(RecoveryConsole con, EngineContext ctx, string op, string record)
+            {
+                var (plan, why) = op == "remove" ? SegaCleanup.PlanRemove(con, ctx) : SegaCleanup.PlanPutBack(con, ctx, record);
+                if (plan == null) { Send(new JObj { { "event", "result" }, { "operation", "sega-pictures" }, { "op", op }, { "state", "refused" }, { "problem", why } }); AfterOperation(con); return 1; }
+                Send(new JObj { { "event", "sega-pictures-plan" }, { "plan", plan.ToJson() } });
+                if (plan.Refusal != null) { Send(new JObj { { "event", "result" }, { "operation", "sega-pictures" }, { "op", op }, { "state", "nothing-to-do" }, { "problem", plan.Refusal } }); AfterOperation(con); return 0; }
+                var c = Next(plan.ExpiresUtc, "sega-pictures-confirm");
+                if (c == null || c.S("cmd") != "sega-pictures-confirm") { Send(new JObj { { "event", "result" }, { "operation", "sega-pictures" }, { "op", op }, { "state", "canceled" }, { "problem", "Nothing was changed." } }); AfterOperation(con); return 0; }
+                var o = SegaCleanup.Execute(con, plan, c.S("digest"), c.S("nonce"), ctx);
+                Send(new JObj { { "event", "result" }, { "operation", "sega-pictures" }, { "op", op }, { "state", o.State }, { "problem", o.Problem }, { "done", o.Done }, { "record", o.RecordFile }, { "ui_gone", uiGone } });
                 AfterOperation(con); return o.Ok ? 0 : 1;
             }
 

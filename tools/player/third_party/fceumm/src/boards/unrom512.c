@@ -139,7 +139,7 @@ static DECLFW(UNROM512LLatchWrite) {
 
 static DECLFW(UNROM512HLatchWrite) {
 	if (bus_conflict)
-		latche = (V == CartBR(A)) ? V : 0;
+		latche = V & CartBR(A);
 	else
 		latche = V;
 	latcha = A;
@@ -174,7 +174,7 @@ static void UNROM512LatchPower(void) {
 		SetWriteHandler(0x8000, 0xFFFF, UNROM512HLatchWrite);
 	else
 	{
-		if (submapper != 4) SetWriteHandler(0x8000, 0xBFFF, UNROM512LLatchWrite);
+		if (submapper != 4 || flash_save) SetWriteHandler(0x8000, 0xBFFF, UNROM512LLatchWrite);
 		SetWriteHandler(0xC000, 0xFFFF, UNROM512HLatchWrite);
 	}
 }

@@ -25,7 +25,8 @@ namespace CcsWorker.App
             return new WorkerServer(Console.OpenStandardInput(), Console.OpenStandardOutput(), package).Run();
         }
 
-        // --admit-backup --hwid H --operation OP --subject S [--settings FILE]: the backend's backup prerequisite before it starts a maintenance
+        // --admit-backup --hwid H --operation OP --subject S [--settings FILE] [--preview] (preview: the answer without a ticket, for a review)
+        //   the backend's backup prerequisite before it starts a maintenance
         // run (console_home.Dispatcher). Prints one JSON object (CcsBackup.Engine.Admission.Admit: this console's backups verified from
         // scratch); exit 0 admitted, 1 refused, 2 usage. The run's own worker checks the admission again before its first write ("admit").
         static int AdmitBackup(string[] a)
@@ -33,7 +34,7 @@ namespace CcsWorker.App
             string Arg(string k) { int i = Array.IndexOf(a, k); return i >= 0 && i + 1 < a.Length ? a[i + 1] : null; }
             var hwid = Arg("--hwid"); var op = Arg("--operation");
             if (string.IsNullOrEmpty(hwid) || string.IsNullOrEmpty(op)) { Console.Error.WriteLine("usage: ccs-console-worker --admit-backup --hwid H --operation OP --subject S [--settings FILE]"); return 2; }
-            var r = CcsBackup.Engine.Admission.Admit(CcsBackup.Library.Settings.Load(Arg("--settings")), hwid, op, Arg("--subject") ?? "");
+            var r = CcsBackup.Engine.Admission.Admit(CcsBackup.Library.Settings.Load(Arg("--settings")), hwid, op, Arg("--subject") ?? "", preview: Array.IndexOf(a, "--preview") >= 0);
             Console.Out.Write(CcsBackup.Json.Write(r.ToJson())); Console.Out.Flush();
             return r.Ok ? 0 : 1;
         }

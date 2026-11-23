@@ -1,0 +1,211 @@
+#!/bin/sh
+# ccscomm: Classic Cart Studio's Community Mods steps. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+# It runs in the console's RAM, in the Classic Cart Studio preparation image only (profile "prepare"), one step at a time as the PC asks
+# (tools/console-backup/CcsBackup Engine/CommunityEngine.cs, its own boundary). A listed author's package goes through hakchi's own route:
+# at the console's next normal start hakchi's p7080_hmods first runs packs_uninstall on the names in $installpath/transfer/uninstall (each
+# package's own uninstall), then pack_install on every transfer/*.hmod (sorted), then transfer/hmod/*.hmod, then removes the folder and
+# restarts. These steps only place files there, and keep or put back a mod's settings in Classic Cart Studio's own folder
+# (/var/lib/ccs/community/kept); nothing here runs a package's scripts. The data storage is mounted only inside a step, read-only without
+# journal replay to read, read-write to write, and always unmounted again; every refusal is decided on a read-only mount first.
+#   cstate NAME...          read-only: for each package (at most 32), "cpkg=NAME listed SHA LINES" (hakchi's uninstall list for it:
+#                           its SHA-256 and lines) or "cpkg=NAME absent", then " kept=COUNT SHA" (the kept settings' list) or " kept=none"
+#   cverify NAME            read-only: every file hakchi's generated uninstall lines name for the package (after "# auto-generated"),
+#                           "cfile=STATE PATH" with STATE its SHA-256 now, absent, link or other; "result cverify ok COUNT"
+#   cput NAME TIER SIZE SHA BYTES   exactly SIZE bytes from the PC written to transfer/NAME.hmod (TIER 1: transfer/hmod/NAME.hmod,
+#                           which hakchi installs after transfer/) through a new name and a rename, refused unless they are SIZE bytes
+#                           with that SHA-256 and a gzip file, and unless SIZE + BYTES (the unpacked size) + 8,000,000 bytes are free;
+#                           read back. The same bytes already waiting are "ok already"
+#   cunlist NAME...         hakchi's removal list naming these packages (one to eight, never one of Classic Cart Studio's own ccs-...
+#                           packages: ccsprep's unlist does those), written the same way; the same list already waiting is "ok already"
+#   ckeep NAME PLACE...     the mod's settings and favorites (PLACE: hakchi/rootfs/... or clover/profiles/..., at most 16) that exist as plain
+#                           files copied to kept/NAME/PLACE with the list kept/NAME.list ("SHA  PLACE"), read back; nothing there is
+#                           "ok none 0"; an earlier kept copy is never replaced
+#   cforget NAME            that kept copy removed (only kept/NAME and kept/NAME.list)
+#   crestore NAME           the kept copy put back while the package is installed, file by file only where nothing is at that place now
+#                           (an existing file is never replaced; one already exactly as kept counts as back); "ok PUT SKIPPED"; the kept
+#                           copy removed when every file is back
+# Every step prints "result <step> ok ..." or "result <step> refused|failed <why>"; nothing is retried.
+CCS=$(cd "$(dirname "$0")/.." && pwd)
+. "$CCS/env" || exit 90
+[ "$(cat "$CCS/profile" 2>/dev/null)" = prepare ] || { echo "ccscomm: this image cannot change community mods" >&2; exit 13; }
+r(){ echo "result $1 $2"; [ "$2" = ok ] || [ "${2#ok}" != "$2" ] && exit 0; exit 17; }
+D="$NEWROOT/var/lib"
+K="$D/ccs/community/kept"
+dmount(){ mountpoint -q "$D" && return 1; mkdir -p "$D"; mount -o "$1,noatime" "$DEV/nandc" "$D"; }
+dumount(){ sync; umount "$D"; }
+mkdir -p "$ST"
+# a listed author's package name: plain characters, never Classic Cart Studio's own (ccs-...), hakchi itself or a name ending in .hmod
+cname(){ echo "$1" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$' && ! echo "$1" | grep -qiE '^ccs-|^hakchi$|\.hmod$'; }
+# a setting's place on the data storage: under hakchi's root overlay or the console's profiles, plain parts, no "." or ".."
+place(){ echo "$1" | grep -qE '^(hakchi/rootfs|clover/profiles)/[A-Za-z0-9_][A-Za-z0-9._+-]*(/[A-Za-z0-9_][A-Za-z0-9._+-]*)*$' && ! echo "/$1/" | grep -qE '/\.\.?/'; }
+# no link on the way to a place
+lfree(){ local p="" s; for s in $(echo "$1" | tr '/' ' '); do p="${p:+$p/}$s"; [ -L "$D/$p" ] && return 1; done; return 0; }
+# the transfer folder may be written: hakchi's files are there, nothing on the way is a link, and each folder is a real folder or absent
+tfree(){ [ -f "$D/hakchi/rootfs/etc/preinit" ] || { echo "hakchi is not installed on the data storage"; return 1; }
+  [ ! -L "$D/hakchi" ] && [ ! -L "$D/hakchi/transfer" ] && [ ! -L "$D/hakchi/transfer/hmod" ] || { echo "a link is on the way"; return 1; }
+  [ ! -e "$D/hakchi/transfer" ] || [ -d "$D/hakchi/transfer" ] || { echo "the transfer folder is not a folder"; return 1; }
+  [ ! -e "$D/hakchi/transfer/hmod" ] || [ -d "$D/hakchi/transfer/hmod" ] || { echo "the transfer folder's hmod folder is not a folder"; return 1; }; }
+# Classic Cart Studio's kept settings: nothing on the way to them is a link
+kfree(){ for x in ccs ccs/community ccs/community/kept "ccs/community/kept/$1" "ccs/community/kept/$1.list"; do [ -L "$D/$x" ] && { echo "a link is on the way ($x)"; return 1; }; done; return 0; }
+# the one removal of a folder: only inside Classic Cart Studio's kept settings
+kgone(){ case "$1" in "$K"/?*) rm -rf "$1" ;; esac; }
+sha(){ sha256sum < "$1" | cut -d' ' -f1; }
+
+case "$1" in
+  cstate)
+    shift
+    [ $# -ge 1 ] && [ $# -le 32 ] || r cstate "refused request"
+    for n in "$@"; do cname "$n" || r cstate "refused request"; done
+    dmount ro,noload || r cstate "failed mount"
+    for n in "$@"; do
+      u="$D/hakchi/hmod/uninstall-$n"
+      if [ -f "$u" ] && [ ! -L "$u" ]; then s="listed $(sha "$u") $(wc -l < "$u" | tr -d ' ')"; else s=absent; fi
+      l="$K/$n.list"
+      if [ -f "$l" ] && [ ! -L "$l" ]; then k="$(grep -c . "$l") $(sha "$l")"; else k=none; fi
+      echo "cpkg=$n $s kept=$k"
+    done
+    dumount || r cstate "failed unmount"
+    r cstate ok ;;
+  cverify)
+    n=$2
+    [ $# -eq 2 ] && cname "$n" || r cverify "refused request"
+    dmount ro,noload || r cverify "failed mount"
+    u="$D/hakchi/hmod/uninstall-$n"
+    [ -f "$u" ] && [ ! -L "$u" ] || { dumount; r cverify "failed not-installed"; }
+    awk 'f && /^rm -f "\$rootfs\/\.\// { s = substr($0, 7); m = split(s, a, "\" \""); for (i = 1; i <= m; i++) { p = a[i]; gsub(/^"|"$/, "", p); sub(/^\$rootfs\/\.\//, "", p); print p } } $0 == "# auto-generated" { f = 1 }' "$u" > "$ST/cverify.list"
+    c=0
+    while IFS= read -r p; do
+      case "/$p/" in */../*|*/./*) continue ;; esac
+      f="$D/hakchi/rootfs/$p"
+      if [ -L "$f" ]; then st=link; elif [ -f "$f" ]; then st=$(sha "$f"); elif [ -e "$f" ]; then st=other; else st=absent; fi
+      echo "cfile=$st $p"; c=$((c + 1))
+    done < "$ST/cverify.list"
+    rm -f "$ST/cverify.list"
+    dumount || r cverify "failed unmount"
+    r cverify "ok $c" ;;
+  cput)
+    n=$2; tier=$3; size=$4; want=$5; bytes=$6
+    [ $# -eq 6 ] && cname "$n" && { [ "$tier" = 0 ] || [ "$tier" = 1 ]; } && echo "$size" | grep -qE '^[1-9][0-9]{0,8}$' && echo "$want" | grep -qE '^[0-9a-f]{64}$' && echo "$bytes" | grep -qE '^[1-9][0-9]{0,9}$' || r cput "refused request"
+    t="$D/hakchi/transfer/$n.hmod"; [ "$tier" = 1 ] && t="$D/hakchi/transfer/hmod/$n.hmod"
+    dmount ro,noload || r cput "failed mount"
+    why=$(tfree) || { dumount; r cput "refused $why"; }
+    if [ -e "$t" ] || [ -L "$t" ]; then
+      if [ -f "$t" ] && [ ! -L "$t" ] && [ "$(sha "$t")" = "$want" ]; then dumount; head -c "$size" > /dev/null; r cput "ok already $want"; fi
+      dumount; r cput "refused another $n.hmod already waits in the transfer folder"
+    fi
+    avail=$(df -k "$D" | tail -n 1 | awk '{print $4}')
+    [ $((avail * 1024)) -ge $((size + bytes + 8000000)) ] || { dumount; r cput "refused not enough free space ($((avail * 1024)) bytes free)"; }
+    dumount || r cput "failed unmount"
+    dmount rw || r cput "failed mount"
+    why=$(tfree) && [ ! -e "$t" ] && [ ! -L "$t" ] || { dumount; r cput "refused the transfer folder changed while it was read"; }
+    echo "began cput"
+    mkdir -p "${t%/*}" && rm -f "$t.ccs-new" && head -c "$size" > "$t.ccs-new" || { rm -f "$t.ccs-new"; dumount; r cput "failed write (not written again)"; }
+    got=$(sha "$t.ccs-new"); c=$(wc -c < "$t.ccs-new" | tr -d ' '); magic=$(head -c 2 "$t.ccs-new" | od -An -tx1 | tr -d ' \n')
+    [ "$c" = "$size" ] && [ "$got" = "$want" ] && [ "$magic" = 1f8b ] || { rm -f "$t.ccs-new"; sync; dumount; r cput "refused received-mismatch $got $c"; }
+    sync && mv -f "$t.ccs-new" "$t" && sync || { rm -f "$t.ccs-new"; dumount; r cput "failed write (not written again)"; }
+    dumount || r cput "failed unmount"
+    dmount ro,noload || r cput "failed readback mount"
+    back=$(sha "$t"); dumount
+    [ "$back" = "$want" ] || r cput "failed readback $back"
+    r cput "ok $want" ;;
+  cunlist)
+    shift; name="$*"
+    [ $# -ge 1 ] && [ $# -le 8 ] || r cunlist "refused request"
+    for n in "$@"; do cname "$n" || r cunlist "refused request"; done
+    [ -z "$(printf '%s\n' "$@" | sort | uniq -d)" ] || r cunlist "refused request"
+    want=$(echo "$name" | sha256sum | cut -d' ' -f1); t="$D/hakchi/transfer/uninstall"
+    dmount ro,noload || r cunlist "failed mount"
+    why=$(tfree) || { dumount; r cunlist "refused $why"; }
+    if [ -e "$t" ] || [ -L "$t" ]; then
+      [ -f "$t" ] && [ ! -L "$t" ] && [ "$(sha "$t")" = "$want" ] && { dumount; r cunlist "ok already $want"; }
+      dumount; r cunlist "refused another removal list already waits in the transfer folder"
+    fi
+    dumount || r cunlist "failed unmount"
+    dmount rw || r cunlist "failed mount"
+    why=$(tfree) && [ ! -e "$t" ] && [ ! -L "$t" ] || { dumount; r cunlist "refused the transfer folder changed while it was read"; }
+    echo "began cunlist"
+    mkdir -p "$D/hakchi/transfer" && echo "$name" > "$t.ccs-new" && sync && mv -f "$t.ccs-new" "$t" && sync || { rm -f "$t.ccs-new"; dumount; r cunlist "failed write (not written again)"; }
+    dumount || r cunlist "failed unmount"
+    dmount ro,noload || r cunlist "failed readback mount"
+    back=$(sha "$t"); dumount
+    [ "$back" = "$want" ] || r cunlist "failed readback $back"
+    r cunlist "ok $want" ;;
+  ckeep)
+    n=$2; [ $# -ge 3 ] && [ $# -le 18 ] && cname "$n" || r ckeep "refused request"
+    shift 2
+    for p in "$@"; do place "$p" || r ckeep "refused request"; done
+    L="$ST/ckeep.list"; rm -f "$L"
+    dmount ro,noload || r ckeep "failed mount"
+    why=$(kfree "$n") || { dumount; r ckeep "refused $why"; }
+    for p in $(printf '%s\n' "$@" | sort -u); do
+      lfree "$p" || { dumount; rm -f "$L"; r ckeep "refused a link is on the way to $p"; }
+      f="$D/$p"
+      [ -e "$f" ] || [ -L "$f" ] || continue
+      [ -f "$f" ] && [ ! -L "$f" ] || { dumount; rm -f "$L"; r ckeep "refused $p is not a plain file"; }
+      echo "$(sha "$f")  $p" >> "$L"
+    done
+    [ -s "$L" ] || { dumount; rm -f "$L"; r ckeep "ok none 0"; }
+    want=$(sha "$L"); cnt=$(grep -c . "$L")
+    if [ -e "$K/$n.list" ] || [ -e "$K/$n" ]; then
+      [ -f "$K/$n.list" ] && [ "$(sha "$K/$n.list")" = "$want" ] && { dumount; rm -f "$L"; r ckeep "ok already $want $cnt"; }
+      dumount; rm -f "$L"; r ckeep "refused settings kept earlier for $n are still there (nothing was changed)"
+    fi
+    dumount || { rm -f "$L"; r ckeep "failed unmount"; }
+    dmount rw || { rm -f "$L"; r ckeep "failed mount"; }
+    why=$(kfree "$n") && [ ! -e "$K/$n.list" ] && [ ! -e "$K/$n" ] || { dumount; rm -f "$L"; r ckeep "refused the console changed while it was read"; }
+    echo "began ckeep"
+    S="$K/$n.ccs-new"; kgone "$S"
+    while read -r sum p; do
+      mkdir -p "$S/${p%/*}" && cp "$D/$p" "$S/$p" || { kgone "$S"; dumount; rm -f "$L"; r ckeep "failed write (not written again)"; }
+    done < "$L"
+    sync && mv "$S" "$K/$n" && cp "$L" "$K/$n.list.ccs-new" && sync && mv -f "$K/$n.list.ccs-new" "$K/$n.list" && sync || { dumount; rm -f "$L"; r ckeep "failed write (not written again)"; }
+    dumount || { rm -f "$L"; r ckeep "failed unmount"; }
+    dmount ro,noload || { rm -f "$L"; r ckeep "failed readback mount"; }
+    ok=no; ( cd "$K/$n" && sha256sum -c -s "$L" ) && cmp -s "$L" "$K/$n.list" && ok=yes; dumount; rm -f "$L"
+    [ "$ok" = yes ] || r ckeep "failed readback"
+    r ckeep "ok $want $cnt" ;;
+  cforget)
+    n=$2; [ $# -eq 2 ] && cname "$n" || r cforget "refused request"
+    dmount ro,noload || r cforget "failed mount"
+    why=$(kfree "$n") || { dumount; r cforget "refused $why"; }
+    [ -e "$K/$n.list" ] || [ -e "$K/$n" ] || { dumount; r cforget "ok already"; }
+    dumount || r cforget "failed unmount"
+    dmount rw || r cforget "failed mount"
+    echo "began cforget"
+    rm -f "$K/$n.list" && kgone "$K/$n" && sync || { dumount; r cforget "failed remove (not tried again)"; }
+    dumount || r cforget "failed unmount"
+    dmount ro,noload || r cforget "failed readback mount"
+    left=no; { [ -e "$K/$n.list" ] || [ -e "$K/$n" ]; } && left=yes; dumount
+    [ "$left" = no ] || r cforget "failed readback"
+    r cforget ok ;;
+  crestore)
+    n=$2; [ $# -eq 2 ] && cname "$n" || r crestore "refused request"
+    L="$ST/crestore.list"; rm -f "$L"
+    dmount ro,noload || r crestore "failed mount"
+    why=$(kfree "$n") || { dumount; r crestore "refused $why"; }
+    [ -f "$D/hakchi/hmod/uninstall-$n" ] || { dumount; r crestore "refused $n is not installed"; }
+    [ -f "$K/$n.list" ] && [ -d "$K/$n" ] || { dumount; r crestore "refused nothing is kept for $n"; }
+    cp "$K/$n.list" "$L" && ( cd "$K/$n" && sha256sum -c -s "$L" ) || { dumount; rm -f "$L"; r crestore "refused the kept copy changed (nothing was put back)"; }
+    dumount || { rm -f "$L"; r crestore "failed unmount"; }
+    dmount rw || { rm -f "$L"; r crestore "failed mount"; }
+    echo "began crestore"
+    put=0; skip=0
+    while read -r sum p; do
+      place "$p" && lfree "$p" || { skip=$((skip + 1)); continue; }
+      # already back exactly as kept: counted as put back (nothing written); anything else there is never replaced
+      if [ -f "$D/$p" ] && [ ! -L "$D/$p" ] && [ "$(sha "$D/$p")" = "$sum" ]; then echo "$p" >> "$L.put"; put=$((put + 1)); continue; fi
+      if [ -e "$D/$p" ] || [ -L "$D/$p" ]; then skip=$((skip + 1)); continue; fi
+      mkdir -p "$D/${p%/*}" && cp "$K/$n/$p" "$D/$p.ccs-new" && sync && mv -f "$D/$p.ccs-new" "$D/$p" || { rm -f "$D/$p.ccs-new"; dumount; rm -f "$L"; r crestore "failed write $p (not written again)"; }
+      echo "$p" >> "$L.put"; put=$((put + 1))
+    done < "$L"
+    if [ "$skip" = 0 ]; then rm -f "$K/$n.list"; kgone "$K/$n"; fi
+    sync; dumount || { rm -f "$L" "$L.put"; r crestore "failed unmount"; }
+    dmount ro,noload || { rm -f "$L" "$L.put"; r crestore "failed readback mount"; }
+    ok=yes
+    while read -r sum p; do grep -qxF "$p" "$L.put" 2>/dev/null || continue; [ "$(sha "$D/$p")" = "$sum" ] || ok=no; done < "$L"
+    [ "$skip" != 0 ] || { [ ! -e "$K/$n.list" ] && [ ! -e "$K/$n" ]; } || ok=no
+    dumount; rm -f "$L" "$L.put"
+    [ "$ok" = yes ] || r crestore "failed readback"
+    r crestore "ok $put $skip" ;;
+  *) echo "ccscomm: unknown step" >&2; exit 2 ;;
+esac

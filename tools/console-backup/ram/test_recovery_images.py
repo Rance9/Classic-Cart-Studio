@@ -105,10 +105,9 @@ def prep_static(by: dict):
                "ret-table": 'sunxi-part shrink >/dev/null || r ret-table "failed shrink"',
                # CCS Mod / CCS Nucleus: the data storage mounted by one helper (read-only without journal replay, or read-write), unmounted by one
                "dmount": 'dmount(){ mountpoint -q "$D" && return 1; mkdir -p "$D"; mount -o "$1,noatime" "$DEV/nandc" "$D"; }', "dumount": 'dumount(){ sync; umount "$D"; }',
-               # an owner's system image as a CCS Nucleus choice: the image's own pinned CCS Nucleus program unpacked in RAM (a fresh folder)
+               # CCS Nucleus's start setting and an owner's system image as a CCS Nucleus choice: the image's own pinned CCS Nucleus program
+               # unpacked in RAM (a fresh folder)
                "npkg": 'X="$ST/nucleus-pkg"; rm -rf "$X"; mkdir -p "$X" && ( cd "$X" && tar -xzf "$CCS/prep/methods/ccs-nucleus.hmod" )',
-               # CCS Mod's start setting: the image's own pinned CCS Mod program unpacked in RAM the same way (a fresh folder)
-               "mpkg": 'Y="$ST/mod-pkg"; rm -rf "$Y"; mkdir -p "$Y" && ( cd "$Y" && tar -xzf "$CCS/prep/methods/ccs-mod.hmod" )',
                # CCS HOME's package: the received archive in RAM, and the attempt's own staging folder (replaced when an earlier try of the
                # same attempt left it), each removed by one helper
                "hram": 'hram(){ rm -rf "$ST/home"; }', "hstage": 'hstage(){ rm -rf "$HC/staging/$copy"; }'}
@@ -129,7 +128,7 @@ def prep_static(by: dict):
     body = c[c.index('case "$1" in'):]
     steps = {}
     for m in re.finditer(r"^  ([\w-]+)\)\n(.*?);;", body, re.M | re.S): steps[m.group(1)] = m.group(2)
-    check(list(steps) == ["files", "uboot", "slot68", "kernel", "ret-stage", "ret-kernel", "ret-uboot", "ret-files", "ret-table", "mstate", "method", "unlist", "mstart", "rput", "rimport", "rdrop", "hput", "huse"], f"ccs-prepare: exactly the four preparation steps in hakchi's order, then the staging of this console's bootloader and the four return steps in mod_uninstall's order, then the four CCS Mod / CCS Nucleus steps, the three for an owner's system image and the two for CCS HOME's package ({', '.join(steps)})")
+    check(list(steps) == ["files", "uboot", "slot68", "kernel", "ret-stage", "ret-kernel", "ret-uboot", "ret-files", "ret-table", "mstate", "method", "unlist", "nstart", "rput", "rimport", "rdrop", "hput", "huse", "hdrop"], f"ccs-prepare: exactly the four preparation steps in hakchi's order, then the staging of this console's bootloader and the four return steps in mod_uninstall's order, then the four CCS Mod / CCS Nucleus steps, the three for an owner's system image and the three for CCS HOME's package ({', '.join(steps)})")
     hp, hu = steps.get("hput", ""), steps.get("huse", "")
     check(hp.count("dmount rw") == 1 and hu.count("dmount rw") == 1 and 'head -c "$size" > "$A/in.tar"' in hp and hp.find('[ "$n" = "$size" ] && [ "$got" = "$want" ] ||') < hp.find("dmount rw") and hp.find("$((total + 8000000))") < hp.find('echo "began hput"')
           and hp.find("ramfree") < hp.find('head -c "$size"') and 'mv "$S/pkg" "$P/$copy"' in hp and hp.count("hstage") == 1 and hp.find('echo "began hput"') < hp.find("hstage;") and "hcheck \"$P/$copy\" \"$A/sums\"" in hp and "dmount ro,noload || { hram; r hput" in hp
@@ -143,16 +142,22 @@ def prep_static(by: dict):
           "ccs-prepare: an owner's system image goes only to CCS Nucleus's own folders (never hakchi's firmware folder): received straight to the data storage under a new name and kept only when its size, SHA-256 and SquashFS magic match and it fits beside 8,000,000 bytes; imported and removed only by this image's own pinned CCS Nucleus program, and removed only when it is Nucleus's own unchanged file")
     ms, mt, ul = steps.get("mstate", ""), steps.get("method", ""), steps.get("unlist", "")
     check("dmount ro,noload" in ms and "dmount rw" not in ms and not re.search(r"\bcp\b|\bmv\b|\brm\b|>", ms.replace("2>/dev/null", "")) and all(x.count("dmount rw") == 1 for x in (mt, ul)) and "dmount rw" not in head_of(c)
-          and all(k in ("method", "unlist", "mstart", "rput", "rimport", "rdrop", "hput", "huse") for k, v in steps.items() if "dmount rw" in v),
-          "ccs-prepare: mstate only reads (the data storage mounted read-only without journal replay); only method, unlist, mstart, rput, rimport, rdrop, hput and huse mount it read-write, once each")
-    sm = steps.get("mstart", "")
-    check(sm.rstrip().endswith('r mstart "ok $v"') and sm.count("dmount rw") == 1 and 'sh "$Y/bin/ccs-mod" start-setting "$v"' in sm and "mpkg ||" in sm and sm.find("why=$(tfree) || { dumount; r mstart") < sm.find("dmount rw") and sm.find('[ "$now" = "$v" ] && r mstart "ok already') < sm.find("dmount rw")
-          and '[ "$back" = "$v" ] || r mstart "failed readback' in sm and "/hakchi/" not in sm and "transfer" not in sm and 'mpkg(){ Y="$ST/mod-pkg";' in head_of(c) and 'tar -xzf "$CCS/prep/methods/ccs-mod.hmod"' in head_of(c),
-          "ccs-prepare: mstart records CCS Mod's start setting only with this image's own pinned CCS Mod program (its start-setting command, Classic Cart Studio's own folder; never hakchi's overlay), refuses before the read-write mount when hakchi is absent or a link is on the way, writes nothing when the setting is already the one asked for, and reads it back")
-    check(all('t="$D/hakchi/transfer/' in x and 'mv -f "$t.ccs-new" "$t"' in x and 'why=$(tfree) || { dumount; r ' in x and "dmount ro,noload || r" in x and "ok already $want" in x for x in (mt, ul))
+          and all(k in ("method", "unlist", "nstart", "rput", "rimport", "rdrop", "hput", "huse", "hdrop") for k, v in steps.items() if "dmount rw" in v),
+          "ccs-prepare: mstate only reads (the data storage mounted read-only without journal replay); only method, unlist, nstart, rput, rimport, rdrop, hput, huse and hdrop mount it read-write, once each")
+    hd = steps.get("hdrop", "")
+    check(hd.count("dmount rw") == 1 and hd.find("hnamed") < hd.find("dmount rw") and hd.find('hcheck "$P/$copy" "$T"') < hd.find("dmount rw") and hd.find('[ "$cur" = "$keep" ]') < hd.find("dmount rw")
+          and hd.find("hother") < hd.find("dmount rw") and "pkg/current" not in hd and "> \"$P/current" not in hd and "mv " not in hd and "/hakchi/" not in hd and 'rm -f "$f"' in hd and hd.rfind("dmount ro,noload || r hdrop") > hd.find('echo "began hdrop"'),
+          "ccs-prepare: hdrop decides with the data storage read-only (the copy in use is the reviewed one, no installation unfinished, no entry of Original Menu names the copy, every file is its record's) before it mounts it read-write once, checks all of it again then, removes only the files its record lists, never touches the pointer or hakchi's folders, and reads back read-only")
+    sn = steps.get("nstart", "")
+    check(sn.rstrip().endswith('r nstart "ok $d $c $h $s $t"') and sn.count("dmount rw") == 1 and "grep -qE '^(native|ccs-home) (always|never) (on|off) (default|last) [0-9]{1,2}$' || r nstart \"refused request\"" in sn and 'sh "$X/bin/ccs-nucleus" start "$d" "$c" "$h" "$s" "$t"' in sn and "npkg ||" in sn
+          and sn.find("why=$(tfree) || { dumount; r nstart") < sn.find("dmount rw") and sn.find('[ "$now" = "$d $c $h $s $t" ] && r nstart "ok already') < sn.find("dmount rw")
+          and '[ "$back" = "$d $c $h $s $t" ] || r nstart "failed readback' in sn and "/hakchi/" not in sn and "transfer" not in sn and 'npkg(){ X="$ST/nucleus-pkg";' in head_of(c) and 'tar -xzf "$CCS/prep/methods/ccs-nucleus.hmod"' in head_of(c),
+          "ccs-prepare: nstart sets what opens at power-on only with this image's own pinned CCS Nucleus program (its start command, CCS Nucleus's own folder on the data storage; never hakchi's overlay or transfer folder), refuses before the read-write mount when hakchi is absent or a link is on the way, writes nothing when the setting is already the one asked for, and reads it back")
+    check(all('mv -f "$t.ccs-new" "$t"' in x and 'why=$(tfree) || { dumount; r ' in x and "dmount ro,noload || r" in x and "ok already $want" in x for x in (mt, ul))
+          and 't=$(tpath "$name")' in mt and 't="$D/hakchi/transfer/uninstall"' in ul and 'tpath(){ [ "$1" = ccs-nucleus-chooser ] && echo "$D/hakchi/transfer/hmod/$1.hmod" || echo "$D/hakchi/transfer/$1.hmod"; }' in head_of(c)
           and mt.find('= "$want" ] || r method "refused this image does not carry that package"') < mt.find("dmount rw") and '[ "$back" = "$want" ] || r method "failed readback' in mt and '[ "$back" = "$want" ] || r unlist "failed readback' in ul
-          and 'pkgname(){ [ "$1" = ccs-mod ] || [ "$1" = ccs-nucleus ]; }' in head_of(c),
-          "ccs-prepare: method and unlist write only into hakchi's transfer folder (a new name, then a rename), only CCS Mod's or CCS Nucleus's own package (the image's copy, checked by SHA-256) or a removal list naming one, refuse when hakchi is absent, a link is on the way or something else waits there, and read back from the storage mounted again read-only")
+          and 'pkgname(){ [ "$1" = ccs-mod ] || [ "$1" = ccs-nucleus ] || [ "$1" = ccs-nucleus-chooser ]; }' in head_of(c) and '[ $# -le 3 ]' in ul,
+          "ccs-prepare: method and unlist write only into hakchi's transfer folder (a new name, then a rename; the startup chooser in its hmod/ folder, which hakchi installs after CCS Nucleus), only CCS Mod's, CCS Nucleus's or its chooser's own package (the image's copy, checked by SHA-256) or a removal list naming up to three of them, refuse when hakchi is absent, a link is on the way or something else waits there, and read back from the storage mounted again read-only")
     rs = steps.get("ret-stage", "")
     check('head -c "$size" > "$stage"' in rs and '[ "$n" = "$size" ] && [ "$got" = "$want" ] ||' in rs and '"$CCS/bin/ccsboot" check "$stage"' in rs and not re.search(r"burn|flash|sunxi|mount|dd ", rs),
           "ccs-prepare: ret-stage only receives the bootloader into RAM and checks its size, MD5 and image (ccsboot check); it writes nothing")
@@ -169,7 +174,7 @@ def prep_static(by: dict):
           and 'mountpoint -q "$mountpoint/var/lib" || { umount_base; r files "failed mount"; }' in steps.get("files", "") and 'mountpoint -q "$mountpoint/var/lib" || { umount_base; r ret-files "failed mount"; }' in steps.get("ret-files", ""),
           "ccs-prepare: only the files and ret-files steps mount the data storage, and each stops when that mount did not happen")
     check(burns == {"files": [], "uboot": ['flashBoot1 "$HMOD/boot/uboot.bin" && r uboot "ok $(readBoot1 '], "slot68": ['flashBoot2 "$temppath/boot.img" 68 '],
-                    "kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-stage": [], "ret-kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-uboot": [], "ret-files": [], "ret-table": [], "mstate": [], "method": [], "unlist": [], "mstart": [], "rput": [], "rimport": [], "rdrop": [], "hput": [], "huse": []},
+                    "kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-stage": [], "ret-kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-uboot": [], "ret-files": [], "ret-table": [], "mstate": [], "method": [], "unlist": [], "nstart": [], "rput": [], "rimport": [], "rdrop": [], "hput": [], "huse": [], "hdrop": []},
           f"ccs-prepare: one burn per step: hakchi's u-boot, the original kernel to slot 68, hakchi's kernel to its place; on the way back the original kernel to its place ({burns})")
     check(steps.get("slot68", "").find("isOriginalBoot2 ||") < steps.get("slot68", "").find("flashBoot2") and steps.get("kernel", "").lstrip().startswith("haveBackup2 ||"),
           "ccs-prepare: the spare slot receives only the original kernel, and hakchi's kernel is refused while the original is not in the spare slot")
@@ -180,8 +185,8 @@ def prep_static(by: dict):
     same = set(mine) == set(want) and all((mine[n]["mode"] & 0o170000 == 0o040000) if k == "dir" else mine[n]["data"] == b for n, (k, b) in want.items())
     check(same, f"ccs-prepare: the image's hakchi files are exactly the pinned hakchi.hmod's, without its install and uninstall scripts ({len(mine)} entries)")
     pk = {n[len("ccs/prep/methods/"):]: e["data"] for n, e in by.items() if n.startswith("ccs/prep/methods/") and e["mode"] & 0o170000 == 0o100000}
-    check(sorted(pk) == ["ccs-mod.hmod", "ccs-nucleus.hmod"] and all(hashlib.sha256(b).hexdigest() == B.METHOD_SHAS[n[:-5]] for n, b in pk.items()) and pk == {n + ".hmod": b for n, b in B.method_packages().items()},
-          "ccs-prepare: the image carries exactly CCS Mod's and CCS Nucleus's packages, the pinned builds of tools/console-nucleus (" + ", ".join(f"{n} {hashlib.sha256(b).hexdigest()[:12]}" for n, b in sorted(pk.items())) + ")")
+    check(sorted(pk) == ["ccs-mod.hmod", "ccs-nucleus-chooser.hmod", "ccs-nucleus.hmod"] and all(hashlib.sha256(b).hexdigest() == B.METHOD_SHAS[n[:-5]] for n, b in pk.items()),
+          "ccs-prepare: the image carries exactly CCS Mod's, CCS Nucleus's and its startup chooser's packages, each the pinned build of tools/console-nucleus (build_images.py rebuilt and checked each against its pin) (" + ", ".join(f"{n} {hashlib.sha256(b).hexdigest()[:12]}" for n, b in sorted(pk.items())) + ")")
     fn = [n for n in want if n.startswith("etc/preinit.d/") and want[n][0] == "file"]
     check(bool(fn) and all(by["hakchi/rootfs/" + n]["data"] == want[n][1] for n in fn),
           f"ccs-prepare: hakchi.hmod's own functions ({', '.join(x.split('/')[-1] for x in fn)}) are byte-identical to the image's, which ccsprep sources")
@@ -553,14 +558,14 @@ def kernel_words(img: bytes, key: bytes) -> list[str]:
 def method_runs(R: str, step, A: str):
     """ccsprep's CCS Mod / CCS Nucleus steps on the stand-in console just prepared (hakchi's files on its data storage, a folder here)"""
     T = "@R@/newroot/var/lib/hakchi/transfer"
-    mod, nuc = B.METHOD_SHAS["ccs-mod"], B.METHOD_SHAS["ccs-nucleus"]
+    mod, nuc, cho = B.METHOD_SHAS["ccs-mod"], B.METHOD_SHAS["ccs-nucleus"], B.METHOD_SHAS["ccs-nucleus-chooser"]
     lmod = hashlib.sha256(b"ccs-mod\n").hexdigest()
     def last(r):
         lines = r.stdout.strip().splitlines(); return next((l for l in reversed(lines) if l.startswith("result ")), lines[-1] if lines else "(nothing)")
     def mounted(): return sh_out(R, "cat '@R@/mounted'").split()
     r, w, t = step("mstate")
-    check("hakchi=v1.0.4-126" in r.stdout and "policy=none" in r.stdout and "waiting=" not in r.stdout and "result mstate ok" in r.stdout and not w and not t and mounted() == [R + "/newroot"],
-          f"ccs-prepare: mstate reads hakchi's version, its packages, the method in charge and the transfer folder with the storage mounted read-only, then unmounts it ({last(r)})")
+    check("hakchi=v1.0.4-126" in r.stdout and "registry=none" in r.stdout and "start=none" in r.stdout and "waiting=" not in r.stdout and "result mstate ok" in r.stdout and not w and not t and mounted() == [R + "/newroot"],
+          f"ccs-prepare: mstate reads hakchi's version, its packages, CCS Nucleus's start (none yet, reported all the same) and the transfer folder with the storage mounted read-only, then unmounts it ({last(r)})")
     r, w, t = step("method ccs-nucleus " + mod, A)
     check("result method refused this image does not carry that package" in r.stdout and not w and not t, f"ccs-prepare: a package whose SHA-256 is not the image's own copy is refused before anything ({last(r)})")
     r, w, t = step("method ccs-other " + nuc, A)
@@ -573,12 +578,21 @@ def method_runs(R: str, step, A: str):
           f"ccs-prepare: method places the image's CCS Nucleus package in hakchi's transfer folder (a new name, a rename), reads it back and unmounts ({last(r)}; {w})")
     r, w, t = step("method ccs-nucleus " + nuc, A)
     check(f"result method ok already {nuc}" in r.stdout and "began method" not in r.stdout, f"ccs-prepare: the same package already waiting is not written again ({last(r)})")
+    r, w, t = step("method ccs-nucleus-chooser " + cho, A)
+    same = sh_out(R, f"cmp -s '{T}/hmod/ccs-nucleus-chooser.hmod' '@R@/root/ccs/prep/methods/ccs-nucleus-chooser.hmod' && echo SAME; test -e '{T}/ccs-nucleus-chooser.hmod' && echo TOP").strip()
+    check(f"result method ok {cho}" in r.stdout and same == "SAME" and not t, f"ccs-prepare: the startup chooser's package waits in the transfer folder's hmod/ folder, which hakchi installs after CCS Nucleus ({last(r)})")
     r, w, t = step("unlist ccs-mod", A)
     check(f"result unlist ok {lmod}" in r.stdout and sh_out(R, f"cat '{T}/uninstall'") == "ccs-mod\n" and not t, f"ccs-prepare: unlist writes hakchi's removal list naming ccs-mod ({last(r)})")
     r, w, t = step("unlist ccs-nucleus", A)
     check("result unlist refused another removal list already waits" in r.stdout and sh_out(R, f"cat '{T}/uninstall'") == "ccs-mod\n", f"ccs-prepare: a different removal list already waiting is never overwritten ({last(r)})")
     r, w, t = step("mstate")
-    check(f"waiting=ccs-nucleus.hmod {nuc}" in r.stdout and f"waiting=uninstall {lmod}" in r.stdout and not w, f"ccs-prepare: mstate shows exactly what waits for the next start ({last(r)})")
+    check(f"waiting=ccs-nucleus.hmod {nuc}" in r.stdout and f"waiting=hmod/ccs-nucleus-chooser.hmod {cho}" in r.stdout and f"waiting=uninstall {lmod}" in r.stdout and not w, f"ccs-prepare: mstate shows exactly what waits for the next start ({last(r)})")
+    sh_out(R, f"rm -rf '{T}'")
+    r, w, t = step("unlist ccs-nucleus-chooser ccs-nucleus ccs-mod", A)
+    lall = hashlib.sha256(b"ccs-nucleus-chooser ccs-nucleus ccs-mod\n").hexdigest()
+    check(f"result unlist ok {lall}" in r.stdout and sh_out(R, f"cat '{T}/uninstall'") == "ccs-nucleus-chooser ccs-nucleus ccs-mod\n" and not t, f"ccs-prepare: one removal list names up to three packages, in the order hakchi removes them ({last(r)})")
+    r, w, t = step("unlist ccs-mod ccs-nucleus ccs-nucleus-chooser ccs-mod", A)
+    check("result unlist refused request" in r.stdout and not w, f"ccs-prepare: never more than three names ({last(r)})")
     sh_out(R, f"rm -rf '{T}' && mkdir -p '@R@/elsewhere' && ln -s '@R@/elsewhere' '{T}'")
     r, w, t = step("method ccs-mod " + mod, A)
     check("result method refused a link is on the way" in r.stdout and sh_out(R, "ls '@R@/elsewhere'").strip() == "", f"ccs-prepare: a transfer folder that is a link is refused (nothing written through it) ({last(r)})")
@@ -588,26 +602,29 @@ def method_runs(R: str, step, A: str):
     check("result method refused hakchi is not installed on the data storage" in r.stdout and sh_out(R, f"test -e '{T}' && echo THERE").strip() == "", f"ccs-prepare: without hakchi's files on the data storage nothing is placed ({last(r)})")
     sh_out(R, "mv '@R@/preinit.aside' '@R@/newroot/var/lib/hakchi/rootfs/etc/preinit'")
     sh_out(R, f"rm -rf '{T}'")
-    # ---- CCS Mod's start at power-on, the owner's choice recorded as CCS Mod's own setting (this image's own program)
-    cfg = "@R@/newroot/var/lib/ccs/mod/config"
+    # ---- what opens at power-on: CCS Nucleus's start setting, set by this image's own CCS Nucleus program (before hakchi installs it)
+    reg = "@R@/newroot/var/lib/ccs/nucleus/registry"
+    r, w, t = step("nstart other never off default 10", A)
+    check("result nstart refused request" in r.stdout and not w and not t, f"ccs-prepare: nstart takes only the listed words ({last(r)})")
+    r, w, t = step("nstart native never off default 100", A)
+    check("result nstart refused request" in r.stdout and not w, f"ccs-prepare: a countdown of at most two digits ({last(r)})")
+    r, w, t = step("nstart native never off default 10")
+    check("failed mount" in last(r) and any("nandc" in x for x in t) and sh_out(R, f"test -e '{reg}' && echo THERE").strip() == "", f"ccs-prepare: without write permission nstart writes nothing ({last(r)})")
+    r, w, t = step("nstart ccs-home always on default 10", A)
+    got = sh_out(R, f"head -n 1 '{reg}'; grep -c '^options=native ccs-home$' '{reg}'; ls '@R@/newroot/var/lib/hakchi/rootfs/etc/init.d/' 2>/dev/null | grep -c ccs")
+    check("result nstart ok ccs-home always on default 10" in r.stdout and w == ["WRITE mount nandc rw"] and not t and got.split() == ["schema=ccs-boot-registry/1", "1", "0"],
+          f"ccs-prepare: nstart writes CCS Nucleus's first start setting (CCS HOME offered and opened first, the chooser at start) in its own folder; nothing in hakchi's overlay ({last(r)}; {got.split()})")
+    r, w, t = step("nstart ccs-home always on default 10", A)
+    check("result nstart ok already ccs-home always on default 10" in r.stdout and "began nstart" not in r.stdout and not w, f"ccs-prepare: the same setting already there is not written again ({last(r)})")
+    r, w, t = step("nstart native never off last 0", A)
+    got = sh_out(R, f"grep -c 'ccs-home' '{reg}'")
+    check("result nstart ok native never off last 0" in r.stdout and got.strip() == "0", f"ccs-prepare: a changed setting is written and read back; CCS HOME no longer offered leaves no trace in the registry ({last(r)})")
     r, w, t = step("mstate")
-    check("modstart=none absent" in r.stdout and not w, f"ccs-prepare: mstate reports CCS Mod's start at power-on: no setting, no start script ({last(r)})")
-    r, w, t = step("mstart always", A)
-    check("result mstart refused request" in r.stdout and not w and not t, f"ccs-prepare: mstart takes only on or off ({last(r)})")
-    r, w, t = step("mstart on")
-    check("failed mount" in last(r) and any("nandc" in x for x in t) and sh_out(R, f"test -e '{cfg}' && echo THERE").strip() == "", f"ccs-prepare: without write permission mstart writes nothing ({last(r)})")
-    r, w, t = step("mstart on", A)
-    got = sh_out(R, f"cat '{cfg}'; ls '@R@/newroot/var/lib/hakchi/rootfs/etc/init.d/' 2>/dev/null | grep -c S81ccs-mod")
-    check("result mstart ok on" in r.stdout and w == ["WRITE mount nandc rw"] and not t and got.startswith("schema=ccs-mod-config/1\nautostart=on\nend=") and got.strip().endswith("0"),
-          f"ccs-prepare: mstart records CCS Mod's setting on (sealed, in Classic Cart Studio's folder); no start script is written in hakchi's overlay: CCS Mod's install applies it ({last(r)})")
-    r, w, t = step("mstart on", A)
-    check("result mstart ok already on" in r.stdout and "began mstart" not in r.stdout and not w, f"ccs-prepare: the same setting already there is not written again ({last(r)})")
-    r, w, t = step("mstate")
-    check("modstart=on absent" in r.stdout, f"ccs-prepare: mstate reads the setting back ({last(r)})")
-    sh_out(R, "mkdir -p '@R@/elsewhere' && rm -rf '@R@/newroot/var/lib/ccs/mod' && ln -s '@R@/elsewhere' '@R@/newroot/var/lib/ccs/mod'")
-    r, w, t = step("mstart off", A)
-    check("result mstart refused a link is on the way (ccs/mod)" in r.stdout and sh_out(R, "ls '@R@/elsewhere'").strip() == "" and not w, f"ccs-prepare: a link on the way to CCS Mod's folder is refused (nothing written through it) ({last(r)})")
-    sh_out(R, "rm -f '@R@/newroot/var/lib/ccs/mod'; rm -rf '@R@/elsewhere' '@R@/newroot/var/lib/ccs'")
+    check("registry=ok" in r.stdout and "start=native never off last 0" in r.stdout and not w, f"ccs-prepare: mstate reads the setting back ({last(r)})")
+    sh_out(R, "mkdir -p '@R@/elsewhere' && rm -rf '@R@/newroot/var/lib/ccs/nucleus' && ln -s '@R@/elsewhere' '@R@/newroot/var/lib/ccs/nucleus'")
+    r, w, t = step("nstart native never off default 10", A)
+    check("result nstart refused a link is on the way (ccs/nucleus)" in r.stdout and sh_out(R, "ls '@R@/elsewhere'").strip() == "" and not w, f"ccs-prepare: a link on the way to CCS Nucleus's folder is refused (nothing written through it) ({last(r)})")
+    sh_out(R, "rm -f '@R@/newroot/var/lib/ccs/nucleus'; rm -rf '@R@/elsewhere' '@R@/newroot/var/lib/ccs'")
     # ---- an owner's system image as a CCS Nucleus choice: CCS Nucleus installed on the stand-in data storage first (the image's own package,
     # as hakchi's transfer_default copies it and its install script records it)
     H = "@R@/newroot/var/lib/hakchi/rootfs"
@@ -615,7 +632,7 @@ def method_runs(R: str, step, A: str):
     check("result rput refused CCS Nucleus is not installed" in r.stdout and not t, f"ccs-prepare: rput without CCS Nucleus installed is refused ({last(r)})")
     sh_out(R, f"cd '{H}' && tar -xzf '@R@/root/ccs/prep/methods/ccs-nucleus.hmod' && rm -f install uninstall readme.md && mkdir -p '@R@/newroot/var/lib/hakchi/hmod' && echo 'return 0' > '@R@/newroot/var/lib/hakchi/hmod/uninstall-ccs-nucleus'")
     pi = run(R, f"CCS_ROOT='@R@/newroot' sh {H}/bin/ccs-nucleus postinstall {H}/etc/ccs/nucleus/FILES".replace("@R@", R))
-    check("result postinstall ok in-charge" in pi.stdout, f"ccs-prepare: (set-up) CCS Nucleus installed on the stand-in data storage ({last(pi)})")
+    check("result postinstall ok installed" in pi.stdout, f"ccs-prepare: (set-up) CCS Nucleus installed on the stand-in data storage ({last(pi)})")
     img = bytearray(4096); img[0:4] = b"hsqs"
     for i in range(96, 4096): img[i] = (i * 7) & 255
     ip = os.path.join(WORKDIR[0], "owner-root.hsqs"); open(ip, "wb").write(bytes(img)); ish = hashlib.sha256(bytes(img)).hexdigest()
@@ -713,6 +730,77 @@ def home_runs(R: str, step, A: str):
     check(f"result hput ok {c2} {s2}" in r.stdout and "STAGING" not in got and "HALF" not in got and c1 in got, f"ccs-prepare: an earlier try of the same attempt is finished: its staging folder replaced, the copy complete; the HOME in use still the earlier one ({last(r)})")
     r, w, t = step(f"huse {c2} {c1}", A)
     check(f"result huse ok {c2}" in r.stdout and sh_out(R, f"cat '{C}/pkg/current'") == c2 + "\n" and sh_out(R, f"test -d '{C}/pkg/{c1}' && echo KEPT").strip() == "KEPT", f"ccs-prepare: the update switched to; the earlier copy kept ({last(r)})")
+    # the earlier versions: mstate's details of each copy, then hdrop's refusals and the removal of an earlier copy
+    r, w, t = step("mstate")
+    info = {m.group(1): m.group(0) for m in re.finditer(r"^home_copy_info=(\S+) .*$", r.stdout, re.M)}
+    rx = r"^home_copy_info={c} (-|[0-9a-f]{{16}}\.[0-9a-f]{{8}}) exact [1-9][0-9]* [1-9][0-9]* \S+ \S+ (-|[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}:[0-9]{{2}}:[0-9]{{2}}Z) no$"
+    check(set(info) == {c1, c2} and all(re.match(rx.format(c=re.escape(c)), info[c]) for c in (c1, c2)) and not w,
+          f"ccs-prepare: mstate gives each recorded copy's details: the copy before it, exactly its record's files, their bytes and the space they take, its name, games, date, and that no entry of Original Menu names it ({'; '.join(info.values())})")
+    r, w, t = step(f"hdrop {c2} {c1}", A)
+    check(f"result hdrop refused the HOME in use is not {c1} ({c2})" in r.stdout and not w, f"ccs-prepare: hdrop never removes the copy in use ({last(r)})")
+    r, w, t = step(f"hdrop {c1} {c1}", A)
+    check("result hdrop refused request" in r.stdout and not w, f"ccs-prepare: a copy and the copy in use the same: refused ({last(r)})")
+    D = f"@R@/newroot/var/lib/hakchi/games/nes-usa/000/CLV-Z-00001"
+    sh_out(R, f"mkdir -p '{D}' && printf '[Desktop Entry]\\nExec=/bin/clover-kachikachi-wr /var/lib/ccs/pkg/{c1}/roms/x.nes\\n' > '{D}/CLV-Z-00001.desktop'")
+    rm, _, _ = step("mstate")
+    r, w, t = step(f"hdrop {c1} {c2}", A)
+    check(f"result hdrop refused an entry of Original Menu may name the copy {c1} (yes; it is kept)" in r.stdout and not w and re.search(rf"^home_copy_info={re.escape(c1)} .* yes$", rm.stdout, re.M)
+          and sh_out(R, f"test -d '{C}/pkg/{c1}' && echo KEPT").strip() == "KEPT", f"ccs-prepare: an earlier copy that an entry of Original Menu names is reported and kept ({last(r)})")
+    sh_out(R, f"rm -rf '@R@/newroot/var/lib/hakchi/games'; mkdir -p '{C}/owned' && printf 'schema=ccs-ownership/1\\nmethod=published\\nfile={'a' * 64} 0644 /media/hakchi/games/nes-usa/000/CLV-Z-00001/CLV-Z-00001.desktop\\n' > '{C}/owned/published.own'")
+    r, w, t = step(f"hdrop {c1} {c2}", A)
+    check(f"result hdrop refused an entry of Original Menu may name the copy {c1} (unknown; it is kept)" in r.stdout and not w, f"ccs-prepare: with entries recorded on a USB drive or SD card (not readable now), no earlier copy is removed ({last(r)})")
+    sh_out(R, f"rm -rf '{C}/owned'")
+    # links in hakchi's folders are never walked. An entry behind a link to a folder this step does not read, a folder or entry that cannot
+    # be read, and a link that leads nowhere keep the earlier copy (unknown: the listing is not complete); an entry that is a link is read
+    # where it leads. Hakchi2 CE's own links (a game's media folder in its .storage, or in the console's read-only system) and a link to a
+    # file hide nothing, and the removal below runs with them in place
+    G = "@R@/newroot/var/lib/hakchi/games/nes-usa"
+    named = f"[Desktop Entry]\\nExec=/bin/clover-kachikachi-wr /var/lib/ccs/pkg/{c1}/roms/x.nes\\n"
+    def kept(label, setup, want, cleanup):
+        sh_out(R, setup); rm, _, _ = step("mstate"); r, w, t = step(f"hdrop {c1} {c2}", A); sh_out(R, cleanup)
+        check(f"result hdrop refused an entry of Original Menu may name the copy {c1} ({want}; it is kept)" in r.stdout and not w
+              and re.search(rf"^home_copy_info={re.escape(c1)} .* {want}$", rm.stdout, re.M) and sh_out(R, f"test -d '{C}/pkg/{c1}' && echo KEPT").strip() == "KEPT",
+              f"ccs-prepare: {label}: the earlier copy is kept ({want}) ({last(r)})")
+    kept("an entry behind a link to a folder outside hakchi's folders, on the data storage",
+         f"mkdir -p '@R@/newroot/var/lib/elsewhere' '{G}/000' && printf '{named}' > '@R@/newroot/var/lib/elsewhere/CLV-Z-00002.desktop' && ln -s /var/lib/elsewhere '{G}/000/CLV-Z-00002'",
+         "unknown", f"rm -rf '{G}' '@R@/newroot/var/lib/elsewhere'")
+    kept("an entry behind a link to a folder on a USB drive",
+         f"mkdir -p '{G}/000' && ln -s /media/hakchi/games/nes-usa/000 '{G}/000/usb'", "unknown", f"rm -rf '{G}'")
+    kept("a folder that cannot be read",
+         f"mkdir -p '{G}/000/CLV-Z-00003' && printf '{named}' > '{G}/000/CLV-Z-00003/CLV-Z-00003.desktop' && chmod 000 '{G}/000/CLV-Z-00003'",
+         "unknown", f"chmod 755 '{G}/000/CLV-Z-00003'; rm -rf '{G}'")
+    kept("an entry that cannot be read",
+         f"mkdir -p '{G}/000/CLV-Z-00004' && printf '[Desktop Entry]\\n' > '{G}/000/CLV-Z-00004/CLV-Z-00004.desktop' && chmod 000 '{G}/000/CLV-Z-00004/CLV-Z-00004.desktop'",
+         "unknown", f"chmod 644 '{G}/000/CLV-Z-00004/CLV-Z-00004.desktop'; rm -rf '{G}'")
+    kept("a link that leads nowhere",
+         f"mkdir -p '{G}/000/CLV-Z-00005' && ln -s /var/lib/hakchi/games/nes-usa/.storage/CLV-Z-00005/autoplay '{G}/000/CLV-Z-00005/autoplay'", "unknown", f"rm -rf '{G}'")
+    kept("a link in hakchi's overlay of the console's own games folder, to a folder this step does not read",
+         "mkdir -p '@R@/newroot/var/lib/hakchi/rootfs/usr/share/games' && ln -s /media/hakchi/overlay '@R@/newroot/var/lib/hakchi/rootfs/usr/share/games/nes-linked'",
+         "unknown", "rm -f '@R@/newroot/var/lib/hakchi/rootfs/usr/share/games/nes-linked'")
+    kept("an entry that is a link, read where it leads",
+         f"mkdir -p '@R@/newroot/var/lib/elsewhere' '{G}/000/CLV-Z-00006' && printf '{named}' > '@R@/newroot/var/lib/elsewhere/entry.desktop' && ln -s /var/lib/elsewhere/entry.desktop '{G}/000/CLV-Z-00006/CLV-Z-00006.desktop'",
+         "yes", f"rm -rf '{G}' '@R@/newroot/var/lib/elsewhere'")
+    sh_out(R, f"mkdir -p '{G}/.storage/CLV-Z-00007/autoplay' '{G}/000/CLV-Z-00007' '{G}/000/CLV-P-NAAAE' '@R@/newroot/usr/share/games/nes/kachikachi/CLV-P-NAAAE/autoplay'"
+              f" && printf '[Desktop Entry]\\nExec=/bin/clover-kachikachi-wr /var/lib/hakchi/games/nes-usa/.storage/CLV-Z-00007/x.nes\\n' > '{G}/000/CLV-Z-00007/CLV-Z-00007.desktop'"
+              f" && ln -s /var/lib/hakchi/games/nes-usa/.storage/CLV-Z-00007/autoplay '{G}/000/CLV-Z-00007/autoplay'"
+              f" && ln -s /var/squashfs/usr/share/games/nes/kachikachi/CLV-P-NAAAE/autoplay '{G}/000/CLV-P-NAAAE/autoplay'"
+              f" && printf 'x' > '{G}/.storage/CLV-Z-00007/x.nes' && ln -s ../../.storage/CLV-Z-00007/x.nes '{G}/000/CLV-Z-00007/x.nes'")
+    rm, _, _ = step("mstate")
+    check(re.search(rf"^home_copy_info={re.escape(c1)} .* no$", rm.stdout, re.M) and sh_out(R, "readlink '@R@/newroot/var/lib/hakchi/rootfs/usr/game/save'").strip() == "/var/lib",
+          f"ccs-prepare: Hakchi2 CE's own links (a game's media folder in its .storage or in the console's read-only system), a link to a file and hakchi's links outside the menus' folders (its usr/game/save to the whole data storage) leave the scan complete: nothing names the copy")
+    sh_out(R, f"cp '{C}/pkg/{c1}/session.json' '@R@/session.keep' && echo ' ' >> '{C}/pkg/{c1}/session.json'")
+    r, w, t = step(f"hdrop {c1} {c2}", A)
+    check(f"result hdrop refused the copy {c1} is not exactly what its record names (it is kept)" in r.stdout and not w and sh_out(R, f"test -f '{C}/install/v-{c1}.json' && echo REC").strip() == "REC",
+          f"ccs-prepare: a copy that differs from its record is kept whole ({last(r)})")
+    sh_out(R, f"cp '@R@/session.keep' '{C}/pkg/{c1}/session.json'")
+    r, w, t = step(f"hdrop {c1} {c2}")
+    check("result hdrop failed mount" in last(r) and any("nandc" in x for x in t) and sh_out(R, f"test -d '{C}/pkg/{c1}' && echo KEPT").strip() == "KEPT", f"ccs-prepare: without write permission the read-write mount is a tripwire and nothing is removed ({last(r)})")
+    r, w, t = step(f"hdrop {c1} {c2}", A)
+    got = sh_out(R, f"test -e '{C}/pkg/{c1}' && echo DIR; test -e '{C}/install/v-{c1}.json' && echo REC; cat '{C}/pkg/current'; cd '{C}/pkg/{c2}' && find . -type f | wc -l")
+    check(f"result hdrop ok {c1}" in r.stdout and w == ["WRITE mount nandc rw"] and not t and "DIR" not in got and "REC" not in got and got.split()[:2] == [c2, "5"],
+          f"ccs-prepare: hdrop removes the earlier copy's files, folders and record, reads back; the copy in use and its pointer untouched ({last(r)}; {w})")
+    r, w, t = step(f"hdrop {c1} {c2}", A)
+    check(f"result hdrop ok already {c1}" in r.stdout and not w, f"ccs-prepare: a copy already removed is not removed again ({last(r)})")
     # a copy that does not read back as its record: nothing switched; then another package is refused while that attempt is unfinished
     a3, s3, n3, c3 = home_archive("three", "2b3c4d5e", wrong_record=True); put("h3.tar", a3)
     r, w, t = step(f"hput {c3} {len(a3)} {s3} {n3} < '{R}/h3.tar'", A)
@@ -722,19 +810,26 @@ def home_runs(R: str, step, A: str):
     check("result hput refused an earlier installation of a HOME did not finish (attempt-2b3c4d5e.json)" in r.stdout and not w, f"ccs-prepare: with another installation unfinished, nothing is written ({last(r)})")
     r, w, t = step(f"huse {c3} {c2}", A)
     check(f"result huse refused the copy {c3} is not complete on the console" in r.stdout and not w, f"ccs-prepare: huse never switches to a copy that does not read back complete ({last(r)})")
+    r, w, t = step(f"hdrop {c3} {c2}", A)
+    check("result hdrop refused an installation did not finish (attempt-2b3c4d5e.json)" in r.stdout and not w, f"ccs-prepare: with an installation unfinished, no earlier copy is removed ({last(r)})")
     # the shared engine's own archive (the C# HomeArchive, sent through the engine's preparation step), for the chain test
     if HOME_ARCHIVE[0]:
         sh_out(R, f"rm -rf '{C}'")
         args = json.load(open(os.path.join(HOME_ARCHIVE[0], "home-archive.json"))); put("chain.tar", open(os.path.join(HOME_ARCHIVE[0], "home-archive.tar"), "rb").read())
-        mod = B.METHOD_SHAS["ccs-mod"]
-        ms_ = args.get("mod_start") or "off"   # the owner's choice of CCS HOME at power-on in the Workbench's plan, recorded before hakchi installs CCS Mod
-        rs_, _, _ = step(f"mstart {ms_}", A)
-        rm_, _, _ = step("method ccs-mod " + mod, A)
+        # the add-ons the engine's plan chose (its home-archive.json: addons, start), in the engine's own order: each package, CCS Nucleus's
+        # start, then CCS HOME's archive
+        ad = args.get("addons") or {"mod": True, "nucleus": "none"}; start = args.get("start")
+        pk = [("ccs-mod", B.METHOD_SHAS["ccs-mod"])] if ad.get("mod") else []
+        if ad.get("nucleus", "none") != "none": pk.append(("ccs-nucleus", B.METHOD_SHAS["ccs-nucleus"]))
+        if ad.get("nucleus") == "chooser": pk.append(("ccs-nucleus-chooser", B.METHOD_SHAS["ccs-nucleus-chooser"]))
+        placed = [(n, h, step(f"method {n} {h}", A)[0]) for n, h in pk]
+        rs_ = step(f"nstart {start}", A)[0] if start else None
         r, w, t = step(f"hput {args['copy']} {args['size']} {args['sha256']} {args['total']} < '{R}/chain.tar'", A)
         r2, w2, t2 = step(f"huse {args['copy']} absent", A)
         files = sh_out(R, f"cd '{C}/pkg/{args['copy']}' && find . -type f | wc -l").strip()
-        check(re.search(rf"result mstart ok( already)? {ms_}", rs_.stdout) and f"result method ok {mod}" in rm_.stdout and f"result hput ok {args['copy']} {args['sha256']}" in r.stdout and f"result huse ok {args['copy']}" in r2.stdout and not t and not t2 and files == str(args["files"]),
-              f"ccs-prepare: the engine's own archive ({args['layout']} layout, {args['size']} bytes), CCS Mod's package and CCS HOME at power-on {ms_} as the Workbench's plan chose it, placed by the image's own steps: {files} files checked, in use ({last(r)}; {last(r2)})")
+        check(all(f"result method ok {h}" in x.stdout for n, h, x in placed) and (rs_ is None or f"result nstart ok {start}" in rs_.stdout)
+              and f"result hput ok {args['copy']} {args['sha256']}" in r.stdout and f"result huse ok {args['copy']}" in r2.stdout and not t and not t2 and files == str(args["files"]),
+              f"ccs-prepare: the engine's own archive ({args['layout']} layout, {args['size']} bytes), the add-ons its plan chose ({', '.join(n for n, h in pk)}) and CCS Nucleus's start ({start or 'none'}), placed by the image's own steps: {files} files checked, in use ({last(r)}; {last(r2)})")
         if EXPORT[0]:
             sh_out(R, f"cd '@R@/newroot/var/lib' && tar -cf '@R@/export.tar' ccs hakchi/transfer")
             out = sh_out(R, f"cp '@R@/export.tar' '{wpath(EXPORT[0])}' && echo COPIED")

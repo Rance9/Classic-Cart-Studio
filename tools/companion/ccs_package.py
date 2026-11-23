@@ -221,7 +221,7 @@ def write(out_path: str, *, collection: dict, roms: list | None = None, art: dic
                 if cancel(): raise PackageError("Export canceled. No file was saved.")
                 if not safe_name(name, kind) or name in FIXED_STUDIO: raise PackageError(f"An unexpected file name ({str(name)[:60]}) was not added. Nothing was saved.")
                 data = src if isinstance(src, (bytes, bytearray)) else open(src, "rb").read()
-                z.writestr(_zi(name, now, zipfile.ZIP_DEFLATED), bytes(data)); files.append({"path": name, "sha256": _sha(data), "size": len(data), "kind": fkind})
+                z.writestr(_zi(name, now, _bytes_method(data)), bytes(data)); files.append({"path": name, "sha256": _sha(data), "size": len(data), "kind": fkind})
             for name, data in sorted((art or {}).items()):
                 n = "art/" + str(name)
                 if not ART_RE.match(n) or not isinstance(data, (bytes, bytearray)): continue
@@ -295,6 +295,14 @@ def _deflate_ok(path: str, cancel=lambda: False) -> bool:
             size += len(b); out += len(c.compress(b))
     out += len(c.flush())
     return not size or size / max(1, out) <= MAX_RATIO / 2
+
+def _bytes_method(data: bytes) -> int:
+    """Saved progress and custom content are compressed, unless they compress past half the readers' bomb ratio (a Mapper 30 flash save is
+    524,800 bytes, nearly all erased): those are stored, so every package this writer makes is one every reader accepts."""
+    import zlib
+    if not data: return zipfile.ZIP_STORED
+    c = zlib.compressobj(6, zlib.DEFLATED, -15); out = len(c.compress(bytes(data))) + len(c.flush())
+    return zipfile.ZIP_DEFLATED if len(data) / max(1, out) <= MAX_RATIO / 2 else zipfile.ZIP_STORED
 
 def _zi(name: str, now, method: int) -> zipfile.ZipInfo:
     zi = zipfile.ZipInfo(name, date_time=now); zi.compress_type = method; zi.external_attr = 0o644 << 16

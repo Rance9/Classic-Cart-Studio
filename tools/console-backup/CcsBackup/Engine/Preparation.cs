@@ -9,17 +9,15 @@
 //               it and to this session (a reconnection is a new session and needs a new plan)
 //   3 plan      already prepared with the pinned hakchi (its files and kernel are there, the original kernel in the spare slot): nothing to
 //               do; the original Nintendo software: the four steps; anything else (another modification, an unknown kernel): refused.
-//               With an install method chosen (policy "mod" or "nucleus", tools/console-nucleus): its package (carried by the preparation
-//               image, pinned) is placed in hakchi's transfer folder by the step "method", before the kernel (so the kernel stays last);
-//               hakchi itself installs it at the console's next normal start. On a console already prepared with the pinned hakchi that is
-//               the only step (no kernel, bootloader or system write); the console's hakchi packages and transfer folder are read first
-//               (ccsprep mstate) and must be read the same at the confirmation. The method's CCS HOME package (Engine/HomePackage: the
-//               one this build carries for the method's layout, or the caller's) follows in the same session, hput then huse (sent after
+//               With add-ons chosen (Engine/MethodEngine.cs AddonChoice: CCS Mod; CCS Nucleus direct or with its chooser; what opens
+//               at power-on): each missing package (carried by the preparation image, pinned) is placed in hakchi's transfer folder by a
+//               "method" step, and CCS Nucleus's start is set by "nstart", both after hakchi's files and before the kernel (so the kernel
+//               stays last); hakchi itself installs the packages at the console's next normal start. On a console already prepared with
+//               the pinned hakchi those are the only steps (no kernel, bootloader or system write); the console's hakchi packages and
+//               transfer folder are read first (ccsprep mstate) and must be read the same at the confirmation. CCS Mod's CCS HOME package
+//               (Engine/HomePackage: the one this build carries, or the caller's) follows in the same session, hput then huse (sent after
 //               the image started, checked file by file on the console, then switched to), unless that exact package is already in use.
-//               With CCS Mod, CCS HOME at power-on is the owner's explicit choice (off by default): recorded as CCS Mod's own setting
-//               (mstart, before the method step), which CCS Mod's install applies at that next start with its own autostart command (its
-//               start script delegates to the console's own start); on a console where CCS Mod is already installed, a changed choice
-//               places its package again so that its install applies the new setting. CCS Nucleus is not offered it
+//               Preparation only adds; changing or removing add-ons is in Console Restore (MethodEngine)
 //   4 confirm   a one-time confirmation for exactly this plan
 //   5 steps     files, uboot, slot68, kernel, in hakchi's own order (the kernel last: until it is written the console starts its original
 //               system); the first failure stops every later step; nothing is burned twice
@@ -45,21 +43,19 @@ namespace CcsBackup.Engine
     public sealed class PrepPlan
     {
         public string Hwid, ConsoleTag, State, Text, Digest, Nonce, Session; public DateTime ExpiresUtc;
-        /// <summary>the install method chosen (mod, nucleus or null: hakchi only), its package as the preparation image carries it, and the
-        /// console's hakchi packages and transfer folder as the review read them</summary>
-        public string Policy, Package, PackageSha256; public MethodState MethodBefore;
-        /// <summary>CCS Mod only: CCS HOME at power-on, the owner's choice ("on" or "off"); null otherwise</summary>
-        public string ModStart;
+        /// <summary>the add-ons chosen (null: hakchi only), the packages this preparation places (in the order hakchi installs them), CCS
+        /// Nucleus's start ("DEFAULT CHOOSER HOME") when it is set, and the console's hakchi packages and transfer folder as the review read them</summary>
+        public AddonChoice Addons; public List<string> Add = new List<string>(); public string StartLine; public MethodState MethodBefore;
         /// <summary>CCS HOME's package for the method (Engine/HomePackage): the archive the plan sends (its size and SHA-256 bound in the
         /// digest) and the copy in use it replaces ("absent": none); null when no HOME step is needed</summary>
-        public HomeArchive Home; public string HomePrior;
+        public HomeArchive Home; public string HomePrior; public EarlierPlan Earlier;
         /// <summary>the console's baseline (admitted) and the backup made in this session just before the plan, as the review saw them</summary>
         public BoundArchive BaselineArchive, CurrentArchive;
         public string CurrentBackup => CurrentArchive?.Path; public string CurrentSha256 => CurrentArchive?.Sha256; public string BaselineBackup => BaselineArchive?.Path; public string BaselineSha256 => BaselineArchive?.Sha256;
         public List<string> Steps = new List<string>(); public List<string> Notes = new List<string>(); public string Refusal;
         public JObj ToJson() => new JObj { { "console_tag", ConsoleTag }, { "state", State }, { "text", Text }, { "steps", Steps }, { "notes", Notes }, { "refusal", Refusal }, { "digest", Digest }, { "nonce", Nonce }, { "current_backup", CurrentBackup }, { "current_sha256", CurrentSha256 }, { "baseline_backup", BaselineBackup },
-            { "policy", Policy }, { "package", Package == null ? null : new JObj { { "name", Package }, { "sha256", PackageSha256 } } }, { "mod_start", ModStart }, { "console_state", MethodBefore?.ToJson() },
-            { "home", Home == null ? null : Home.ToJson().Set("replaces", HomePrior) },
+            { "addons", Addons?.ToJson() }, { "add", Add.Select(a => (object)new JObj { { "name", a }, { "sha256", Methods.Sha256(a) } }).ToList() }, { "start", StartLine }, { "console_state", MethodBefore?.ToJson() },
+            { "home", Home == null ? null : Home.ToJson().Set("replaces", HomePrior) }, { "earlier_home", Earlier?.ToJson() },
             { "evidence", new List<object> { BaselineArchive?.ToJson(), CurrentArchive?.ToJson() } } };
     }
 
@@ -69,25 +65,28 @@ namespace CcsBackup.Engine
     {
         public static readonly string[] Order = { "files", "uboot", "slot68", "kernel" };
         public const string PinnedHakchiVersion = "v1.0.4-126";
-        public static string StepLabel(string s) => s == "files" ? "hakchi's files on the data storage" : s == "uboot" ? "hakchi's bootloader (u-boot)" : s == "slot68" ? "a copy of the original Nintendo startup software in the spare startup slot" : s == "method" ? "the package for how CCS HOME starts (CCS Mod or CCS Nucleus), placed for hakchi to install at the next start"
-            : s == "mstart" ? "CCS HOME at power-on, recorded as CCS Mod's own setting for its installation at the next start"
-            : s == "hput" || s == "huse" ? HomePackage.StepLabel(s) : "hakchi's kernel (the startup software)";
+        /// <summary>the change record's list of the earlier CCS HOME versions removed (null: none placed), and how to put them back</summary>
+        static List<object> EarlierRemoved(PrepPlan plan) => plan.Earlier == null ? null : plan.Earlier.Remove.Cast<object>().ToList();
+        static string EarlierRestore(PrepPlan plan) => plan.Earlier == null || plan.Earlier.Remove.Count == 0 ? null : EarlierHome.RestoreText;
+
+        public static string StepLabel(string s) => s == "files" ? "hakchi's files on the data storage" : s == "uboot" ? "hakchi's bootloader (u-boot)" : s == "slot68" ? "a copy of the original Nintendo startup software in the spare startup slot" : s.StartsWith("method:", StringComparison.Ordinal) || s == "nstart" ? MethodEngine.StepLabel(s)
+            : HomeSteps.IsStep(s) ? HomePackage.StepLabel(s) : "hakchi's kernel (the startup software)";
 
         /// <summary>Phases 1 to 3 (no write but the protective backup on the PC). admission: this console's baseline, for this session. home: the
-        /// CCS HOME package a method gets (null: the one this build carries for the method's layout). modStart: with CCS Mod, CCS HOME at
-        /// power-on (the owner's explicit choice; off by default).</summary>
-        public static (PrepPlan plan, PrepOutcome refused) Prepare(RecoveryConsole con, EngineContext ctx, AdmissionResult admission, string policy = null, HomePackage home = null, bool modStart = false)
+        /// CCS HOME package CCS Mod gets (null: the one this build carries). addons: the add-ons to add (null or none: hakchi only); adding
+        /// is done here, changing or removing add-ons is in Console Restore.</summary>
+        public static (PrepPlan plan, PrepOutcome refused) Prepare(RecoveryConsole con, EngineContext ctx, AdmissionResult admission, AddonChoice addons = null, HomePackage home = null)
         {
             var o = new PrepOutcome();
             if (con.Profile != SessionProfile.Prepare) { o.State = "refused"; o.Problem = "The console is not in a preparation session."; return (null, o); }
-            if (policy == "" || policy == "none") policy = null;
-            if (policy != null && !Methods.IsPolicy(policy)) { o.State = "refused"; o.Problem = "Choose CCS Mod or CCS Nucleus (or neither)."; return (null, o); }
-            if (modStart && policy != "mod") { o.State = "refused"; o.Problem = "CCS HOME at power-on is chosen with CCS Mod only (CCS Nucleus's start chooser decides what starts)."; return (null, o); }
-            string package = Methods.Package(policy), packageSha = package == null ? null : Methods.Sha256(package);
-            if (package != null && !Hex.IsHex(packageSha, 64)) { o.State = "refused"; o.Problem = "This build does not carry " + Methods.Label(policy) + "'s package, so it cannot be installed."; return (null, o); }
+            if (addons != null && !addons.Mod && addons.Nucleus == "none") addons = null;
+            if (addons != null && addons.Problem() != null) { o.State = "refused"; o.Problem = addons.Problem(); return (null, o); }
+            foreach (var pk in new[] { Methods.Mod, Methods.Nucleus, Methods.Chooser })
+                if (addons != null && (pk == Methods.Mod ? addons.Mod : pk == Methods.Nucleus ? addons.Nucleus != "none" : addons.Nucleus == "chooser") && !Hex.IsHex(Methods.Sha256(pk), 64))
+                { o.State = "refused"; o.Problem = "This build does not carry " + Methods.Label(pk) + "'s package, so it cannot be installed."; return (null, o); }
             if (admission == null || !admission.Ok || admission.BaselinePath == null) { o.State = "refused"; o.Problem = "Back up the console first: preparation needs a verified backup of its original state."; return (null, o); }
             ConsoleIdentity id;
-            try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId); }
+            try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId, "preparation"); }
             catch (ConsoleRefusedException ex) { o.State = "refused"; o.Problem = ex.Message; return (null, o); }
             // 2b protect: the console as it is now, in this session (the same capture a backup makes; a new file, never over another)
             ctx.Say("protect", "Backing up the console as it is now, before anything changes...");
@@ -112,50 +111,52 @@ namespace CcsBackup.Engine
                     : "This console's startup software was modified by other software (" + (inv ?? "an unknown version") + "). Preparing over it is not something this version does; Workbench can still back it up and restore it.";
             }
             if (p.State == "original") p.Notes.Add("This changes the console's startup software and bootloader and adds hakchi's files to its data storage, exactly as Hakchi2 CE 3.9.3 does (including its adjustment of the data storage's table). Nintendo's HOME, its 30 games and their saves stay.");
-            if (package != null && p.Refusal == null)
+            if (addons != null && p.Refusal == null)
             {
-                // the install method: the console's hakchi packages and transfer folder as they are now (read only), then the method step
-                p.Policy = policy; p.Package = package; p.PackageSha256 = packageSha;
+                // the add-ons: the console's hakchi packages and transfer folder as they are now (read only), then each missing package placed
+                // (before the kernel, after hakchi's files, so the kernel stays last), CCS Nucleus's start, and CCS HOME's package for CCS Mod
+                p.Addons = addons;
                 var ms = con.PrepState();
                 if (!ms.Ok) { o.State = "refused"; o.Problem = "The console's hakchi packages could not be read (" + ms.Problem + "), so nothing was prepared and nothing was written."; return (null, o); }
                 p.MethodBefore = ms;
-                var other = Methods.Package(Methods.Other(policy));
-                var wp = MethodEngine.WaitingProblem(ms, new Dictionary<string, string> { { Methods.Waiting(package), packageSha } });
-                if (policy == "mod") p.ModStart = modStart ? "on" : "off";
-                // CCS Mod already installed whose start at power-on is to change: its package is placed again, so its install applies the setting
-                bool restart = policy == "mod" && ms.Installed(package) && ms.ModStartOn != modStart;
-                if (policy == "mod" && modStart && ms.ModStartScript == "other") p.Refusal = "A start script named S81ccs-mod that CCS Mod did not write is on the console; it is kept, so CCS HOME at power-on cannot be turned on.";
-                else if (ms.Installed(package) && !restart) { if (p.State == "already") p.Text += " " + Methods.Label(policy) + " is installed too."; }
-                else if (ms.Installed(other)) p.Refusal = Methods.Label(Methods.Other(policy)) + " is installed on this console. Changing between CCS Mod and CCS Nucleus is in Console Restore.";
-                else if (wp != null) p.Refusal = (restart ? "Changing CCS HOME at power-on is refused: " : "Installing " + Methods.Label(policy) + " is refused: ") + wp + ". Start the console normally once so hakchi applies it, then prepare again.";
-                else if (restart)
-                {
-                    p.Steps.Add("method"); p.Text = "Already prepared with Hakchi2 CE 3.9.3 (hakchi " + inv + ") with CCS Mod: only CCS HOME at power-on changes, without changing the kernel, bootloader, system or method.";
-                    p.Notes.Add("CCS Mod's own package is placed again in hakchi's transfer folder; hakchi installs it at the console's next normal start, which applies the new setting, and then restarts the console once. CCS Mod's files are the same; its CCS HOME entry stays.");
-                }
+                var have = AddonChoice.FromState(ms);
+                if (have.Mod && !addons.Mod || have.Nucleus == "chooser" && addons.Nucleus != "chooser" || have.Nucleus == "direct" && addons.Nucleus == "none")
+                    p.Refusal = "This console already has add-ons this choice would remove. Changing or removing add-ons is in Console Restore.";
                 else
                 {
-                    if (p.State == "original") p.Steps.Insert(p.Steps.IndexOf("kernel"), "method");
-                    else { p.Steps.Add("method"); p.Text = "Already prepared with Hakchi2 CE 3.9.3 (hakchi " + inv + "): only " + Methods.Label(policy) + " is added, without changing the kernel, bootloader or system."; }
-                    p.Notes.Add(Methods.Label(policy) + "'s package is placed in hakchi's transfer folder on the data storage; hakchi installs it at the console's next normal start and then restarts the console once. That writes files on the data storage only.");
+                    if (addons.Mod && !have.Mod) p.Add.Add(Methods.Mod);
+                    if (addons.Nucleus != "none" && have.Nucleus == "none") p.Add.Add(Methods.Nucleus);
+                    if (addons.Nucleus == "chooser" && have.Nucleus != "chooser") p.Add.Add(Methods.Chooser);
+                    var mine = p.Add.ToDictionary(Methods.Waiting, Methods.Sha256, StringComparer.Ordinal);
+                    var wp = MethodEngine.WaitingProblem(ms, mine);
+                    if (wp != null) p.Refusal = "Adding the add-ons is refused: " + wp + ". Start the console normally once so hakchi applies it, then prepare again.";
+                    else
+                    {
+                        var steps = p.Add.Select(a2 => "method:" + a2).ToList();
+                        if (addons.Nucleus != "none" && ms.Start != addons.StartLine) { p.StartLine = addons.StartLine; steps.Add("nstart"); }
+                        if (p.State == "original") p.Steps.InsertRange(p.Steps.IndexOf("kernel"), steps); else p.Steps.AddRange(steps);
+                        if (p.State == "already" && steps.Count > 0)
+                            p.Text = "Already prepared with Hakchi2 CE 3.9.3 (hakchi " + inv + "): " + (p.Add.Count > 0 ? string.Join(" and ", p.Add.Select(Methods.Label)) + " added" : "the start changes") + ", without changing the kernel, bootloader or system.";
+                        if (p.Add.Count > 0) p.Notes.Add(string.Join(" and ", p.Add.Select(Methods.Label)) + (p.Add.Count == 1 ? "'s package is" : "'s packages are") + " placed in hakchi's transfer folder on the data storage; hakchi installs " + (p.Add.Count == 1 ? "it" : "them") + " at the console's next normal start and then restarts the console once. That writes files on the data storage only.");
+                        p.Notes.Add(addons.StartText);
+                    }
                 }
-                if (p.Refusal == null && policy == "mod")
-                {   // the owner's choice, recorded as CCS Mod's own setting before its package (the step only when that setting differs)
-                    if (p.Steps.Contains("method") && Methods.NeedsStartSetting(ms, p.ModStart)) p.Steps.Insert(p.Steps.IndexOf("method"), "mstart");
-                    p.Notes.Add(Methods.StartText(p.ModStart));
-                }
-                // CCS HOME's package, which the method starts: sent in this same session (after the method's package, the kernel still last)
-                if (p.Refusal == null)
+                // CCS HOME's package, which CCS Mod provides: sent in this same session (after the add-ons' packages, the kernel still last)
+                if (p.Refusal == null && addons.Mod)
                 {
                     HomeSteps.Decision hd;
-                    try { hd = HomeSteps.Plan(home ?? HomePackage.Embedded(policy), ms, id.Hwid); }
+                    try { hd = HomeSteps.Plan(home ?? HomePackage.Embedded(HomePackage.ModLayout), ms, id.Hwid); }
                     catch (HomePackageException ex) { hd = new HomeSteps.Decision { Refusal = "CCS HOME's package cannot be used: " + ex.Message }; }
                     if (hd.Refusal != null) p.Refusal = hd.Refusal;
                     else if (hd.Steps.Count > 0)
                     {
                         p.Home = hd.Archive; p.HomePrior = hd.Prior;
-                        if (p.State == "original") p.Steps.InsertRange(p.Steps.IndexOf("kernel"), hd.Steps); else p.Steps.AddRange(hd.Steps);
-                        if (p.State == "already" && !p.Steps.Contains("method")) p.Text = "Already prepared with Hakchi2 CE 3.9.3 (hakchi " + inv + ") and " + Methods.Label(policy) + " is installed: only CCS HOME's package is placed, without changing the kernel, bootloader, system or method.";
+                        // the earlier versions the setting keeps stay; the others go right after the switch, each checked again on the console
+                        var hsteps = hd.Steps.ToList();
+                        p.Earlier = EarlierHome.Decide(EarlierHome.FromState(ms), hd.Archive.Copy, hd.Prior == "absent" ? null : hd.Prior, ctx.Settings?.EarlierHomeKeep ?? StorageSpec.EarlierKeep(null));
+                        if (p.Earlier != null) { hsteps.AddRange(p.Earlier.Remove.Select(c => "hdrop:" + c)); p.Notes.Add(MethodEngine.EarlierNote(p.Earlier)); }
+                        if (p.State == "original") p.Steps.InsertRange(p.Steps.IndexOf("kernel"), hsteps); else p.Steps.AddRange(hsteps);
+                        if (p.State == "already" && p.Add.Count == 0 && p.StartLine == null) p.Text = "Already prepared with Hakchi2 CE 3.9.3 (hakchi " + inv + ") with CCS Mod: only CCS HOME's package is placed, without changing the kernel, bootloader or system.";
                         p.Notes.Add(hd.Text + " It writes files on the data storage only, in Classic Cart Studio's own folder.");
                     }
                     else if (hd.Text != null) p.Notes.Add(hd.Text);
@@ -169,8 +170,8 @@ namespace CcsBackup.Engine
 
         static string DigestOf(PrepPlan p)
         {
-            using (var h = SHA256.Create()) return Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes("ccs-prepare-plan/6\n" + ConsoleIdentity.NormalizeHwid(p.Hwid) + "\n" + p.State + "\n" + string.Join(",", p.Steps) + "\n" + p.CurrentArchive?.DigestLine() + "\n" + p.Session + "\n" + p.BaselineArchive?.DigestLine() + "\n" +
-                    (p.Policy ?? "-") + " " + (p.Package ?? "-") + " " + (p.PackageSha256 ?? "-") + " " + (p.MethodBefore?.Digest() ?? "-") + "\n" + (p.Home?.DigestLine() ?? "-") + " " + (p.HomePrior ?? "-") + "\nmodstart=" + (p.ModStart ?? "-") + "\n" + p.Nonce)));
+            using (var h = SHA256.Create()) return Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes("ccs-prepare-plan/7\n" + ConsoleIdentity.NormalizeHwid(p.Hwid) + "\n" + p.State + "\n" + string.Join(",", p.Steps) + "\n" + p.CurrentArchive?.DigestLine() + "\n" + p.Session + "\n" + p.BaselineArchive?.DigestLine() + "\n" +
+                    (p.Addons == null ? "-" : Json.Write(p.Addons.ToJson())) + string.Join(",", p.Add.Select(a => a + " " + Methods.Sha256(a))) + " " + (p.MethodBefore?.Digest() ?? "-") + "\n" + (p.Home?.DigestLine() ?? "-") + " " + (p.HomePrior ?? "-") + "\nstart=" + (p.StartLine ?? "-") + "\n" + p.Nonce)));
         }
 
         /// <summary>hakchi's version from a backup's captured data storage (null when hakchi's files are not there)</summary>
@@ -211,10 +212,10 @@ namespace CcsBackup.Engine
                 ctx.Say("validate", "Checking the backups again...");
                 var why = Evidence.Recheck(plan.BaselineArchive, plan.Hwid, con.Simulated, null, ctx.Cancelled) ?? Evidence.Recheck(plan.CurrentArchive, plan.Hwid, con.Simulated, con.SessionId, ctx.Cancelled);
                 if (why != null) return Refuse(why + " Nothing was changed; review the preparation again.");
-                if (plan.Package != null && (plan.Steps.Contains("method") || plan.Home != null || plan.Steps.Contains("mstart")))
+                if (plan.Addons != null && (plan.Add.Count > 0 || plan.Home != null || plan.StartLine != null))
                 {
                     var ms = con.PrepState();
-                    if (!ms.Ok || ms.Digest() != plan.MethodBefore?.Digest()) return Refuse("The console's hakchi packages or its transfer folder changed since the review" + (ms.Ok ? "" : " (" + ms.Problem + ")") + ". Nothing was changed; review the preparation again.");
+                    if (!ms.Ok || ms.Digest() != plan.MethodBefore?.Digest()) return Refuse("The console's hakchi packages, CCS HOME's copies or its transfer folder changed since the review" + (ms.Ok ? "" : " (" + ms.Problem + ")") + ". Nothing was changed; review the preparation again.");
                 }
                 if (use == null) return Refuse("The preparation's backup admission was not checked, so nothing was changed.");
                 var adm = use();
@@ -237,7 +238,7 @@ namespace CcsBackup.Engine
         static PrepOutcome ExecuteHeld(RecoveryConsole con, PrepPlan plan, EngineContext ctx, PrepOutcome o, Record rec)
         {
             o.RecordFile = rec.File; var phases = new List<object>();
-            var auth = new WriteAuthority(plan.Digest, plan.Hwid, plan.Steps.ToArray(), () => con.Simulated || CcsBackup.Gate.PreparationWrites, CcsBackup.Gate.PreparationText); string ubootMd5 = null;
+            var auth = new WriteAuthority(plan.Digest, plan.Hwid, plan.Steps.Select(x => x.StartsWith("method:", StringComparison.Ordinal) ? "method" : HomeSteps.Target(x)).Distinct().ToArray(), () => con.Simulated || CcsBackup.Gate.PreparationWrites, CcsBackup.Gate.PreparationText); string ubootMd5 = null;
             rec.State("writing"); con.Card("writing");
             foreach (var s in plan.Steps)
             {
@@ -245,7 +246,7 @@ namespace CcsBackup.Engine
                 ctx.Say("prepare", "Preparing: " + StepLabel(s) + "... (do not unplug the console)");
                 phases.Add(new JObj { { "step", s }, { "state", "began" }, { "at", Record.Now() } }); rec.Set("phases", phases).Save();
                 WriteResult r;
-                try { r = s == "method" ? con.PrepStep(s, auth, new[] { plan.Package, plan.PackageSha256 }) : s == "mstart" ? con.PrepStep(s, auth, new[] { plan.ModStart }) : HomePackage.Steps.Contains(s) ? HomeSteps.Run(con, auth, s, plan.Home, plan.HomePrior) : con.PrepStep(s, auth); }
+                try { r = s.StartsWith("method:", StringComparison.Ordinal) ? con.PrepStep("method", auth, new[] { s.Substring(7), Methods.Sha256(s.Substring(7)) }) : s == "nstart" ? con.PrepStep("nstart", auth, plan.StartLine.Split(' ')) : HomeSteps.IsStep(s) ? HomeSteps.Run(con, auth, s, plan.Home, plan.HomePrior) : con.PrepStep(s, auth); }
                 catch (GateClosedException ex) { rec.State("refused", ex.Message); o.State = "refused"; o.Problem = ex.Message; return o; }
                 phases.Add(new JObj { { "step", s }, { "state", r.Ok ? (r.Line != null && r.Line.Contains(" ok already ") ? "already-there" : "done-and-read-back") : "failed" }, { "detail", r.Line ?? r.Problem }, { "at", Record.Now() } }); rec.Set("phases", phases).Save();
                 ctx.At("prepare-" + s);
@@ -256,7 +257,7 @@ namespace CcsBackup.Engine
                         + (s == "hput" || s == "huse" ? " The HOME the console used before stays in use; preparing again with the same package finishes this installation without sending what is already there again." : "");
                     return o;
                 }
-                if (s == "method" && !MethodEngine.Answer(r, "method", plan.PackageSha256) || s == "mstart" && !Methods.StartAnswer(r, plan.ModStart) || HomePackage.Steps.Contains(s) && !HomeSteps.Answer(r, s, plan.Home))
+                if (s.StartsWith("method:", StringComparison.Ordinal) && !MethodEngine.Answer(r, "method", Methods.Sha256(s.Substring(7))) || s == "nstart" && !MethodEngine.StartAnswer(r, plan.StartLine) || HomeSteps.IsStep(s) && !HomeSteps.Answer(r, s, plan.Home))
                 {
                     rec.State("stopped", "the step reads back as " + r.Line); con.Card("stopped"); o.State = "stopped";
                     o.Problem = "Preparing stopped at " + StepLabel(s) + ": the console reports '" + r.Line + "', not the reviewed package. Nothing more was changed and nothing was retried.";
@@ -265,25 +266,26 @@ namespace CcsBackup.Engine
                 o.Done.Add(s); if (s == "uboot") { var mm = Regex.Match(r.Line ?? "", "^result uboot ok ([0-9a-f]{32})"); ubootMd5 = mm.Success ? mm.Groups[1].Value : null; }
             }
             JObj method = null, home = null;
-            if (plan.Steps.Contains("method") || plan.Home != null)
+            if (plan.Add.Count > 0 || plan.Home != null || plan.StartLine != null)
             {
                 var ms = con.PrepState();
-                if (plan.Steps.Contains("method") && (!ms.Ok || !ms.Waiting.TryGetValue(Methods.Waiting(plan.Package), out var ws) || ws != plan.PackageSha256)) { rec.State("stopped", "the package does not read back in the transfer folder"); o.State = "stopped"; o.Problem = "Every step reported success, but " + Methods.Label(plan.Policy) + "'s package does not read back in hakchi's transfer folder. Its state is not verified; nothing more was changed."; return o; }
+                if (plan.Add.Count > 0 && (!ms.Ok || !plan.Add.All(a => ms.Waiting.TryGetValue(Methods.Waiting(a), out var ws) && ws == Methods.Sha256(a)))) { rec.State("stopped", "the package does not read back in the transfer folder"); o.State = "stopped"; o.Problem = "Every step reported success, but " + string.Join(" and ", plan.Add.Select(Methods.Label)) + " does not read back in hakchi's transfer folder. Its state is not verified; nothing more was changed."; return o; }
+                if (plan.Earlier != null && plan.Earlier.Remove.Any(c => ms.HomeCopies.ContainsKey(c))) { rec.State("stopped", "an earlier CCS HOME copy still reads back"); o.State = "stopped"; o.Problem = "Every step reported success, but an earlier CCS HOME version that was removed still reads back on the console. Nothing more was changed."; return o; }
                 if (plan.Home != null && !HomeSteps.InUse(ms, plan.Home)) { rec.State("stopped", "CCS HOME's package does not read back in use"); o.State = "stopped"; o.Problem = "Every step reported success, but the console does not read back CCS HOME's new package as the one in use. Its state is not verified; nothing more was changed."; return o; }
-                if (plan.Steps.Contains("mstart") && ms.ModStartSetting != plan.ModStart) { rec.State("stopped", "CCS Mod's start setting does not read back"); o.State = "stopped"; o.Problem = "Every step reported success, but CCS Mod's start setting does not read back as chosen. Its state is not verified; nothing more was changed."; return o; }
-                if (plan.Steps.Contains("method")) method = new JObj { { "policy", plan.Policy }, { "package", plan.Package }, { "sha256", plan.PackageSha256 }, { "mod_start", plan.ModStart }, { "state", "waiting for the next start (hakchi's p7080_hmods installs it)" } };
+                if (plan.StartLine != null && ms.Start != plan.StartLine) { rec.State("stopped", "CCS Nucleus's start does not read back"); o.State = "stopped"; o.Problem = "Every step reported success, but CCS Nucleus's start setting does not read back as chosen. Its state is not verified; nothing more was changed."; return o; }
+                if (plan.Add.Count > 0 || plan.StartLine != null) method = new JObj { { "addons", plan.Addons.ToJson() }, { "add", plan.Add.Select(a => (object)new JObj { { "name", a }, { "sha256", Methods.Sha256(a) } }).ToList() }, { "start", plan.StartLine }, { "state", plan.Add.Count > 0 ? "waiting for the next start (hakchi's p7080_hmods installs them)" : "set" } };
                 if (plan.Home != null) home = plan.Home.ToJson().Set("replaced", plan.HomePrior).Set("state", "in use");
                 if (plan.State == "already")
                 {   // only the method and/or the HOME were added: this console's preparation record (the way back) stays the earlier one
                     var st = method != null ? "method-scheduled" : "home-placed";
-                    rec.Set("after", new JObj { { "method", method }, { "home", home } }); rec.State(st); con.Card("done"); o.State = st; return o;
+                    rec.Set("after", new JObj { { "method", method }, { "home", home }, { "earlier_home_removed", EarlierRemoved(plan) }, { "earlier_home_restore", EarlierRestore(plan) } }); rec.State(st); con.Card("done"); o.State = st; return o;
                 }
             }
             var after = con.Identify();
-            bool ok = ConsoleIdentity.SameConsole(after.Hwid, plan.Hwid) && after.Slot68Valid && KnownKernels.IsStock(after.Slot68Md5) && after.ActiveHakchiEntries > 0;
+            bool ok = ConsoleIdentity.SameConsole(after.Hwid, plan.Hwid) && after.Slot68Valid && KnownKernels.IsStockFor(after.Model, after.Region, after.Slot68Md5) && after.ActiveHakchiEntries > 0;
             if (!ok) { rec.State("stopped", "the console does not read back as prepared"); o.State = "stopped"; o.Problem = "Every step reported success, but the console does not read back as prepared. Its state is not verified; nothing more was changed."; return o; }
             // the exact state this preparation left: what the way back (ReturnEngine) must find before it changes anything
-            rec.Set("after", new JObj { { "parttable", after.Get("parttable") }, { "active_md5", after.ActiveMd5 }, { "slot68_md5", after.Slot68Md5 }, { "boot1_md5", ubootMd5 ?? con.Digest("boot1").md5 }, { "active_hakchi_entries", (long)after.ActiveHakchiEntries }, { "method", method }, { "home", home } });
+            rec.Set("after", new JObj { { "parttable", after.Get("parttable") }, { "active_md5", after.ActiveMd5 }, { "slot68_md5", after.Slot68Md5 }, { "boot1_md5", ubootMd5 ?? con.Digest("boot1").md5 }, { "active_hakchi_entries", (long)after.ActiveHakchiEntries }, { "method", method }, { "home", home }, { "earlier_home_removed", EarlierRemoved(plan) }, { "earlier_home_restore", EarlierRestore(plan) } });
             rec.State("prepared"); con.Card("done"); o.State = "prepared"; return o;
         }
     }

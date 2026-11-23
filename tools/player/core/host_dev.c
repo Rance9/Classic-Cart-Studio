@@ -417,7 +417,7 @@ host *host_open(const host_config *c, const gp_settings *s, char *err, size_t n)
     if (c->trace_path && c->trace_path[0]) { int fd = gp_open_file(c->trace_path, 1); H->trace = fd >= 0 ? fdopen(fd, "w") : NULL; if (!H->trace && fd >= 0) close(fd);
         if (H->trace) g_trace_fd = fileno(H->trace);
         else if (H->ram_only) { snprintf(err, n, "RAM-only session refused: the trace %s cannot be created as a file of its own in RAM", c->trace_path); fprintf(stderr, "{\"ev\":\"refused\",\"stage\":\"trace\"}\n"); unconfine(); free(H); g_h = NULL; return NULL; } }
-    host_trace(H, "{\"ev\":\"host\",\"kind\":\"console\",\"platform\":\"%s\",\"ram_only\":%d,\"input\":\"%s\",\"framebuffer\":\"%s\"}", GP_PLATFORM, H->ram_only, strcmp(input, "auto") ? "test-stream" : "evdev", fbfile ? "test-file" : "fbdev");
+    host_trace(H, "{\"ev\":\"host\",\"kind\":\"console\",\"platform\":\"%s\",\"core_build\":\"%s\",\"ram_only\":%d,\"input\":\"%s\",\"framebuffer\":\"%s\"}", GP_PLATFORM, GP_CORE_BUILD, H->ram_only, strcmp(input, "auto") ? "test-stream" : "evdev", fbfile ? "test-file" : "fbdev");
     for (int k = 0; k < H->nroot; k++) { char e[1300]; json_escape(H->root[k], e, sizeof e); host_trace(H, "{\"ev\":\"ram_dir\",\"path\":%s}", e); }
     /* 2. the controller mapping */
     { char e[300]; if (mapf) { if (dio_map_load(&H->map, mapf, e, sizeof e)) { snprintf(err, n, "controller mapping: %s", e); host_trace(H, "{\"ev\":\"refused\",\"stage\":\"map\"}"); if (H->trace) fclose(H->trace); unconfine(); free(H); g_h = NULL; return NULL; } }

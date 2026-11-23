@@ -82,7 +82,7 @@ namespace CcsBackup.Engine
             var o = new ReturnOutcome();
             if (con.Profile != SessionProfile.Prepare) { o.State = "refused"; o.Problem = "The console is not in a preparation session."; return (null, o); }
             ConsoleIdentity id;
-            try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId); }
+            try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId, "return"); }
             catch (ConsoleRefusedException ex) { o.State = "refused"; o.Problem = ex.Message; return (null, o); }
             var (file, rec) = LastPreparation(ctx.Settings, id.ShortTag, con.Simulated);
             if (rec == null) { o.State = "refused"; o.Problem = "No preparation by Classic Cart Studio is recorded for this console (or it was made by an earlier version, which did not keep what the way back needs). Returning it is not something this version does; Workbench can still back it up."; return (null, o); }
@@ -102,7 +102,8 @@ namespace CcsBackup.Engine
             p.KernelMd5 = sk.md5; p.UbootWantMd5 = sb.md5; p.UbootWantSha256 = sb.sha256; p.UbootWantSize = sb.size; p.TableWant = v.Manifest.O("layout")?.S("partition_table"); p.SnapshotWhen = v.Manifest.S("completed_utc");
             // this console's own bootloader, as the snapshot holds it: the exact bytes the way back writes, known now, before anything
             if (Boot1Of(snapPath, p, out var bWhy) == null) return (null, Refuse("The backup made before preparing does not hold a complete copy of this console's own bootloader (" + bWhy + "). The way back writes only that copy, so it is refused before anything changes; Workbench can still back the console up."));
-            if (!KnownKernels.IsStock(p.KernelMd5) || before.S("active_md5") != p.KernelMd5) return (null, Refuse("The backup made before preparing does not show the original Nintendo kernel running. The way back returns only to that."));
+            if (!KnownKernels.IsStock(p.KernelMd5) ||   // an NES Classic's: a Super NES Classic's return is not available yet (snes-classic-return)
+                before.S("active_md5") != p.KernelMd5) return (null, Refuse("The backup made before preparing does not show the original Nintendo kernel running. The way back returns only to that."));
             if (string.IsNullOrEmpty(p.TableWant)) return (null, Refuse("The backup made before preparing does not record the storage table."));
             // the console now: exactly as the preparation left it
             p.UbootNowMd5 = after.S("boot1_md5"); p.TableNow = after.S("parttable");

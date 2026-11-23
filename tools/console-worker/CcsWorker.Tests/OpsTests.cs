@@ -71,6 +71,48 @@ namespace CcsWorker.Tests
                 T.Eq(58304L * 1024, (long)ops.Df("/var/lib")["free_bytes"], "one-line df");
             });
 
+            T.Add("ops", "menu-refs: the copies' names checked before any command; the walk's answer read line by line; anything not told apart is not complete", () =>
+            {
+                var s = new ScriptedShell(); var o = new ConsoleOps(s, null);
+                const string N = "pkg/0123456789abcdef.00112233", G = "games/0123456789abcdef.44556677";
+                foreach (var bad in new[] { new object[0], new object[] { "pkg/x" }, new object[] { "../pkg/0123456789abcdef.00112233" }, new object[] { N, N }, new object[] { "other/0123456789abcdef.00112233" },
+                                            new object[] { N + "'" }, new object[] { "pkg/0123456789abcdef.00112233/x" }, Enumerable.Range(0, 65).Select(i => (object)("pkg/0123456789abcdef." + i.ToString("x8"))).ToArray() })
+                    T.Eq("bad-args", T.Code(() => o.MenuRefs(bad.ToList()), "bad names"), "bad names: " + string.Join(",", bad));
+                T.Eq(0, s.Commands.Count, "nothing ran for bad names");
+                string entry = "/var/lib/hakchi/games/nes-usa/000/CLV-L-A B/CLV-L-A B.desktop", usb = "/media/hakchi/games/nes-usa/CLV-L-C/CLV-L-C.desktop";
+                string good = "root\t/var/lib/hakchi\tlisted\nref\t" + N + "\t" + H1 + "\t" + entry + "\nend\t/var/lib/hakchi\nroot\t/media/hakchi\tlisted\nref\t" + G + "\t" + H2 + "\t" + usb + "\nend\t/media/hakchi\ndone\n";
+                s.Answer = (c, i) => R(0, good);
+                var r = o.MenuRefs(new List<object> { N, G });
+                T.True((bool)r["complete"], "complete"); var refs = ((List<object>)r["refs"]).Cast<Dictionary<string, object>>().ToList();
+                T.Eq(2, refs.Count, "two entries"); T.Eq(entry, refs[0]["path"] as string, "a path with a space kept whole"); T.Eq(N, refs[0]["name"] as string, "its name"); T.Eq(H2, refs[1]["sha256"] as string, "its hash");
+                T.Eq("listed", ((Dictionary<string, object>)r["roots"])["/media/hakchi"] as string, "the USB drive's folder was read");
+                var cmd = s.Commands[0];
+                T.True(cmd.Contains("'ccs/" + N + "' 'ccs/" + G + "'") && cmd.Contains("for R in '/var/lib/hakchi' '/media/hakchi'; do"), "the names and both roots, quoted, in the command");
+                T.True(!Regex.IsMatch(cmd, "\\b(find|grep|awk|sed)\\b"), "only the shell and the stock BusyBox's applets (it has no find or grep)");
+                T.True(cmd.Contains("if [ -L \"$n\" ]; then case \"$n\" in *.desktop)") && cmd.Contains("*) k \"$n\";;") && cmd.Contains("elif [ -d \"$n\" ]; then w \"$n\";"), "links are read only as entries, never walked into; any other link is checked");
+                T.True(cmd.Contains("done < '/proc/mounts'") && cmd.Contains("SQ='/var/squashfs'") && cmd.Contains("*,ro,*)") && cmd.Contains("realpath"), "a folder link counts as read only inside a root walked here or the system image mounted read-only");
+                T.Eq(0, ((List<object>)r["linked"]).Count, "no link reported");
+                var incomplete = new Dictionary<string, Tuple<int, string>>
+                {
+                    { "an unreadable entry", Tuple.Create(0, good.Replace("end\t/var/lib/hakchi\n", "unreadable\t/var/lib/hakchi/games/x.desktop\nend\t/var/lib/hakchi\n")) },
+                    { "a folder link whose entries are not read", Tuple.Create(0, good.Replace("end\t/var/lib/hakchi\n", "linked\t/var/lib/hakchi/games/linked\nend\t/var/lib/hakchi\n")) },
+                    { "no done line", Tuple.Create(0, good.Replace("done\n", "")) },
+                    { "a root that is a link", Tuple.Create(0, good.Replace("root\t/media/hakchi\tlisted", "root\t/media/hakchi\tlink").Replace("end\t/media/hakchi\n", "")) },
+                    { "a root that is not a folder", Tuple.Create(0, good.Replace("root\t/media/hakchi\tlisted", "root\t/media/hakchi\tother").Replace("end\t/media/hakchi\n", "")) },
+                    { "a listed root that did not end", Tuple.Create(0, good.Replace("end\t/media/hakchi\n", "")) },
+                    { "a root missing", Tuple.Create(0, "root\t/var/lib/hakchi\tlisted\nend\t/var/lib/hakchi\ndone\n") },
+                    { "a line that cannot be told apart", Tuple.Create(0, good.Replace("done\n", "ref\tpkg/zz\t" + H1 + "\t/x\ndone\n")) },
+                    { "a hash that is not one", Tuple.Create(0, good.Replace(H1, "-")) },
+                    { "a line after done", Tuple.Create(0, good + "ref\t" + N + "\t" + H1 + "\t/late\n") },
+                    { "a failed command", Tuple.Create(1, good) },
+                };
+                foreach (var kv in incomplete) { s.Answer = (c, i) => R(kv.Value.Item1, kv.Value.Item2); T.Eq(false, (bool)o.MenuRefs(new List<object> { N, G })["complete"], kv.Key); }
+                s.Answer = (c, i) => R(0, good.Replace("end\t/var/lib/hakchi\n", "linked\t/var/lib/hakchi/games/linked\nend\t/var/lib/hakchi\n"));
+                T.Eq("/var/lib/hakchi/games/linked", string.Join(",", ((List<object>)o.MenuRefs(new List<object> { N })["linked"]).Cast<string>()), "the link is named");
+                s.Answer = (c, i) => R(0, "root\t/var/lib/hakchi\tlisted\nend\t/var/lib/hakchi\nroot\t/media/hakchi\tabsent\ndone\n");
+                r = o.MenuRefs(new List<object> { N }); T.True((bool)r["complete"] && ((List<object>)r["refs"]).Count == 0, "no USB drive and no entry naming it: complete, nothing named");
+            });
+
             T.Add("ops", "sha256: long lists are split so every command stays well inside one clovershell frame", () =>
             {
                 var s = new ScriptedShell(); s.Answer = (c, i) => R(0, string.Concat(Regex.Matches(c, "'([^']+)'").Cast<Match>().Select(m => H2 + "  " + m.Groups[1].Value + "\n")));
@@ -183,7 +225,7 @@ namespace CcsWorker.Tests
             T.Add("ops", "method package install/uninstall/files: only the pinned CCS Mod / CCS Nucleus builds, sent, checked, hakchi's pack_install, its own answer and list", () =>
             {
                 var hm = TestHmod; var sha = ConsoleOps.Sha(hm);
-                T.True(ConsolePath.MethodPackages.Count == 2 && ConsolePath.MethodPackages.Values.All(v => Regex.IsMatch(v, "^[0-9a-f]{64}$")), "the shipped worker pins exactly two packages");
+                T.True(ConsolePath.MethodPackages.Count == 3 && ConsolePath.MethodPackages.Values.All(v => Regex.IsMatch(v, "^[0-9a-f]{64}$")), "the shipped worker pins exactly three packages");
                 const string list = "# CCS Mod for Hakchi: removal\nreturn 0\n\n# auto-generated\nrm -f \"$rootfs/./uninstall\" \"$rootfs/./bin/ccs-mod\"\n";
                 var s = new ScriptedShell(); var installed = true;
                 s.Answer = (c, i) => c.Contains("cat > \"$d/ccs-mod.hmod\"") ? R(0, ConsoleOps.Sha(i) + "  /tmp/ccs/hmod-x/ccs-mod.hmod\n") : c.StartsWith("hakchi pack_install") ? R(0, "installing ccs-mod...\nresult preinstall ok\nresult postinstall ok in-charge; entry ok /var/lib/hakchi/games/000/CLV-H-CCSMD\npackage ccs-mod installed\n")
@@ -209,21 +251,44 @@ namespace CcsWorker.Tests
                 T.Eq("module-failed", T.Code(() => ops.ModuleInstall(A("name", "ccs-mod", "hmod", A("b64", Convert.ToBase64String(hm), "sha256", sha))), "refused by its own script"), "the package's own refusal is a failure, not an installation");
             });
 
-            T.Add("ops", "mod-start: CCS Mod's own autostart command, exact text, only while hakchi lists CCS Mod; anything but its plain success is a failure", () =>
+            T.Add("ops", "nucleus-start: CCS Nucleus's own start command, exact text, only while hakchi lists CCS Nucleus; anything but its success is a failure", () =>
             {
-                var s = new ScriptedShell(); string answer = "result autostart ok on\n"; bool listed = true;
-                s.Answer = (c, i) => c.StartsWith("u=") ? R(0, listed ? "present\n# CCS Mod\n" : "absent\n") : c.StartsWith("p='/var/lib/hakchi/rootfs/bin/ccs-mod'") ? R(answer.Contains(" ok ") ? 0 : 17, answer) : R(0);
+                var s = new ScriptedShell(); string answer = "result start ok default=ccs-home chooser=always home=on\n"; bool listed = true;
+                s.Answer = (c, i) => c.StartsWith("u=") ? R(0, listed ? "present\n# CCS Nucleus\n" : "absent\n") : c.StartsWith("p='/var/lib/hakchi/rootfs/bin/ccs-nucleus'") ? R(answer.Contains(" ok ") ? 0 : 17, answer) : R(0);
                 var ops = new ConsoleOps(s, null);
-                var r = ops.ModStart("on"); T.Eq("result autostart ok on", r["result"] as string, "on");
-                Golden(s, 1, "p='/var/lib/hakchi/rootfs/bin/ccs-mod'; if [ -L \"$p\" ] || [ ! -f \"$p\" ]; then exit 4; fi; CCS_ROOT=\"${p%/var/lib/hakchi/rootfs/bin/ccs-mod}\" sh \"$p\" autostart on");
-                answer = "result autostart ok off kept-changed /var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod (it is no longer the file CCS Mod wrote, so it was left as it is)\n";
-                T.Eq("module-failed", T.Code(() => ops.ModStart("off"), "kept"), "a start script someone changed is kept: not a success");
-                answer = "result autostart refused belongs-to-someone-else /var/lib/hakchi/rootfs/etc/init.d/S81ccs-mod\n";
-                T.Eq("module-failed", T.Code(() => ops.ModStart("on"), "refused"), "its own refusal is a failure");
+                var r = ops.NucleusStart("ccs-home", "always", "on"); T.Eq("result start ok default=ccs-home chooser=always home=on", r["result"] as string, "set");
+                Golden(s, 1, "p='/var/lib/hakchi/rootfs/bin/ccs-nucleus'; if [ -L \"$p\" ] || [ ! -f \"$p\" ]; then exit 4; fi; CCS_ROOT=\"${p%/var/lib/hakchi/rootfs/bin/ccs-nucleus}\" sh \"$p\" start ccs-home always on default 10");
+                answer = "result start refused CCS HOME is not offered\n";
+                T.Eq("module-failed", T.Code(() => ops.NucleusStart("ccs-home", "never", "off"), "refused"), "its own refusal is a failure");
                 var n = s.Commands.Count; listed = false;
-                T.Eq("not-installed", T.Code(() => ops.ModStart("on"), "not listed"), "refused while hakchi does not list CCS Mod");
-                T.True(!s.Commands.Skip(n).Any(c => c.Contains("autostart")), "and its command is never run then");
-                T.Eq("bad-args", T.Code(() => ops.ModStart("on; reboot"), "text"), "only on or off: never shell text");
+                T.Eq("not-installed", T.Code(() => ops.NucleusStart("native", "never", "off"), "not listed"), "refused while hakchi does not list CCS Nucleus");
+                T.True(!s.Commands.Skip(n).Any(c => c.Contains(" start ")), "and its command is never run then");
+                T.Eq("bad-args", T.Code(() => ops.NucleusStart("native; reboot", "never", "off"), "text"), "only the listed words: never shell text");
+            });
+
+            T.Add("ops", "collections: the console program for Hakchi games, only the pinned program and library from the folder named by the pin; its output and result line", () =>
+            {
+                var s = new ScriptedShell(); string answer = "ok /var/lib/hakchi/games/nes-usa/ccs-0123456789/CLV-H-ABCDE/CLV-H-ABCDE.desktop\nresult status ok journal=valid files=1 changed=0 missing=0 index=none\n"; int code = 0;
+                var dir = ConsolePath.CollectionsDir;
+                s.Answer = (c, i) => c.StartsWith("p='" + dir + "/ccs-collections'") ? R(code, answer) : R(0);
+                var ops = new ConsoleOps(s, null);
+                var r = ops.Collections("status", null); T.Eq("result status ok journal=valid files=1 changed=0 missing=0 index=none", r["result"] as string, "its result line");
+                T.True(((string)r["output"]).Contains("CLV-H-ABCDE.desktop"), "its whole output");
+                T.True(dir == "/var/lib/ccs/integration/program-" + ConsolePath.CollectionsProgram["ccs-collections"].Substring(0, 16), "the folder is named by the program's pin");
+                Golden(s, 0, "p='" + dir + "/ccs-collections'; l='" + dir + "/lib.sh'; for f in \"$p\" \"$l\"; do if [ -L \"$f\" ] || [ ! -f \"$f\" ]; then exit 4; fi; done; set -- $(sha256sum \"$p\"); [ \"$1\" = '"
+                    + ConsolePath.CollectionsProgram["ccs-collections"] + "' ] || exit 5; set -- $(sha256sum \"$l\"); [ \"$1\" = '" + ConsolePath.CollectionsProgram["lib.sh"] + "' ] || exit 5; CCS_ROOT=\"${p%" + dir + "/ccs-collections}\" sh \"$p\" status");
+                answer = "result apply ok entries=3 wrote=9 removed=0 generation=1\n";
+                r = ops.Collections("apply", "/var/lib/ccs/integration/stage/0a1b2c3d"); T.True(s.Commands[s.Commands.Count - 1].EndsWith(" apply '/var/lib/ccs/integration/stage/0a1b2c3d'"), "the stage, quoted");
+                answer = "result apply refused the index changed since it was read (nothing was changed)\n"; code = 17;
+                r = ops.Collections("apply", "/var/lib/ccs/integration/stage/0a1b2c3d"); T.True(((string)r["result"]).StartsWith("result apply refused"), "a refusal is its result line (the caller decides)");
+                code = 5; T.Eq("not-installed", T.Code(() => ops.Collections("status", null), "not the pinned files"), "a program that is not the pinned one is never run");
+                code = 0; answer = "no result\n"; T.Eq("module-failed", T.Code(() => ops.Collections("where", null), "no result line"), "an answer without its result line is a failure");
+                var n = s.Commands.Count;
+                T.Eq("bad-args", T.Code(() => ops.Collections("apply", "/var/lib/ccs/data"), "stage"), "a stage only under integration/stage");
+                T.Eq("bad-args", T.Code(() => ops.Collections("apply", "/var/lib/ccs/integration/stage/0a1b2c3d; reboot"), "text"), "never shell text");
+                T.Eq("bad-args", T.Code(() => ops.Collections("status", "/var/lib/ccs/integration/stage/0a1b2c3d"), "extra"), "a stage only for check and apply");
+                T.Eq("bad-args", T.Code(() => ops.Collections("rm", null), "command"), "only its five commands");
+                T.Eq(n, s.Commands.Count, "nothing was run for a refused request");
             });
 
             T.Add("ops", "method package files: hakchi's list, the package's VERSION and FILES, every listed file's hash in hakchi's overlay; the earlier module's list", () =>

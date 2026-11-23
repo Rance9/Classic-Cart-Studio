@@ -18,7 +18,7 @@ sys.path.insert(0, PIPE)
 from common import PROJECT, REPORTS, DB_PATH, fmt_size, SITE_ROOT, DATA_ROOT, DEV_MODE, FROZEN, site_path, data_path, art_alias  # noqa: E402
 from import_selected import builtin_class, factory_reference, SCHEMAS, V3_POLICIES  # noqa: E402
 from manifest_v4 import SCHEMA4, normalize as normalize_manifest, validate_v4  # noqa: E402
-from library_lookup import resolve as resolve_version  # noqa: E402
+from library_lookup import resolve as resolve_version, evidence_header  # noqa: E402
 try:
     from PIL import Image
 except ImportError:  # art is optional
@@ -40,6 +40,12 @@ LEDGER_NAME = "ledger.json"
 MARKER = "nes-classic-catalog.json"
 COLLECTION = "NES"   # gamesCollectionSettings key for the 2018 NA NES Classic (verified in config.json)
 KACHI_EXEC = "/bin/clover-kachikachi-wr {rom} --guest-overscan-dimensions 0,0,9,3 --initial-fadein-durations 3,2 --volume 75 --enable-armet"   # NesGame.Patch (NesGame.cs:51-52)
+# Mapper 30 (UNROM 512): Nintendo's built-in NES emulator cannot run it (CE 3.9.3 NesGame.cs supportedMappers has no 30); CCS HOME, the
+# console menu that runs Classic Cart Studio's own player, can. Said wherever a game would otherwise go to Nintendo's emulator.
+M30_NOTICE = "This game needs CCS’s player. Nintendo’s built-in NES emulator does not support its cartridge type."
+M30_ROUTE = ("It plays in CCS HOME, Classic Cart Studio's own menu on the console. Installing on a console needs steps this version does not "
+             "include: its own approval, and the console's first-time setup (Prepare Console in the CCS Console Workbench). Until then it "
+             "plays in Classic Cart Studio for Windows and on the website.")
 SYSTEM_NAME = "Nintendo - Nintendo Entertainment System"   # CoreCollection.Systems entry for NES (metadata.json "System")
 
 def load_cfg() -> dict:
@@ -82,9 +88,10 @@ def sha256_file_cached(path: str) -> str:
     if key not in _hash_cache: _hash_cache[key] = sha256_file(path)
     return _hash_cache[key]
 _ver_cache: dict = {}
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)   # the queries below are console programs run without a person: no console window of their own (output is captured)
 def hakchi_running() -> list[dict]:
     try:
-        out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", "Get-Process hakchi -ErrorAction SilentlyContinue | Select-Object Id, Path | ConvertTo-Json"], capture_output=True, text=True, timeout=10).stdout.strip()
+        out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", "Get-Process hakchi -ErrorAction SilentlyContinue | Select-Object Id, Path | ConvertTo-Json"], capture_output=True, text=True, creationflags=NO_WINDOW, timeout=10).stdout.strip()
         if not out: return []
         j = json.loads(out); return j if isinstance(j, list) else [j]
     except Exception: return []
@@ -101,7 +108,7 @@ def console_usb() -> list[dict]:
     """present USB devices that may be the NES Classic: [{"id", "kind": "fel" | "hakchi-network" | "ambiguous", "product"}]"""
     ps = ("Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -match '" + FEL_ID + "|" + HAKCHI_RNDIS_ID + "' -and $_.InstanceId -notmatch '&MI_|&RNDIS' } | "
           "ForEach-Object { $d = (Get-PnpDeviceProperty -InstanceId $_.InstanceId -KeyName DEVPKEY_Device_BusReportedDeviceDesc -ErrorAction SilentlyContinue).Data; \"$($_.InstanceId)`t$d\" }")
-    try: out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=15).stdout
+    try: out = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=15, creationflags=NO_WINDOW).stdout
     except Exception: return []
     res = []
     for line in out.splitlines():
@@ -130,7 +137,7 @@ def file_version(path: str) -> str:
     try: key = (os.path.normcase(path), os.path.getsize(path), int(os.path.getmtime(path)))
     except OSError: return ""
     if key in _ver_cache: return _ver_cache[key]
-    try: v = subprocess.run(["powershell.exe", "-NoProfile", "-Command", f"(Get-Item -LiteralPath '{path}').VersionInfo.FileVersion"], capture_output=True, text=True, timeout=15).stdout.strip()
+    try: v = subprocess.run(["powershell.exe", "-NoProfile", "-Command", f"(Get-Item -LiteralPath '{path}').VersionInfo.FileVersion"], capture_output=True, text=True, timeout=15, creationflags=NO_WINDOW).stdout.strip()
     except Exception: v = ""
     if v: _ver_cache[key] = v
     return v
@@ -191,7 +198,7 @@ def driver_status(cfg: dict | None = None, pnputil_text: str | None = None) -> d
     st = {"hwid": DRIVER_HWID, "installed": False, "inf": None, "original_name": None, "provider": None, "version": None, "installer": inst, "installer_present": os.path.isfile(inst), "installer_verified": None, "simulated": False}
     if st["installer_present"]: st["installer_verified"] = sha256_file(inst) == DRIVER_EXE_SHA256
     if pnputil_text is None:
-        try: pnputil_text = subprocess.run(["pnputil.exe", "/enum-drivers"], capture_output=True, text=True, timeout=25, errors="replace").stdout
+        try: pnputil_text = subprocess.run(["pnputil.exe", "/enum-drivers"], capture_output=True, text=True, timeout=25, errors="replace", creationflags=NO_WINDOW).stdout
         except Exception as e: st["error"] = f"pnputil unavailable: {e}"; pnputil_text = ""
     for b in parse_pnputil(pnputil_text):
         blob = " ".join(b.values()).lower()
@@ -223,13 +230,17 @@ def obtain_package(cfg: dict) -> dict:
         except bi.ComponentError as e: raise PackageUnavailable(str(e)) from e
     return {"path": pk, "source": "installed with Classic Cart Studio" if FROZEN else "development checkout", "sha256": HAKCHI_PACKAGE["sha256"]}
 
-def install_hakchi(cfg: dict, dry_run: bool = False) -> dict:
+def install_hakchi(cfg: dict, dry_run: bool = False, progress=None) -> dict:
     """Set up the pinned Hakchi2 CE 3.9.3 portable build at the configured path from the verified package — only when nothing is there.
     An existing or different build is never replaced. Portable = extraction only: no installer, no registry, no configuration written
-    (hakchi creates config\\config.json itself; ConfigIni.Load falls back to defaults when the file is absent)."""
+    (hakchi creates config\\config.json itself; ConfigIni.Load falls back to defaults when the file is absent). progress(stage, done, total):
+    where the setup is ("checking", "extracting", "verifying", "placing"). The result's "changed" says whether anything is different on this
+    computer afterwards: False only when nothing was written, or what was written was removed again ("removed": the partly extracted files)."""
     import zipfile
-    st = hakchi_install_status(cfg); res = {"ok": False, "state_before": st["state"], "root": st["root"], "dry_run": dry_run}
-    if st["state"] == "ok": res["message"] = f"Hakchi2 CE {HAKCHI_VERSION} is already present and verified at {st['path']}; nothing to do"; return res
+    say = progress or (lambda stage, done=0, total=0: None)
+    say("checking")
+    st = hakchi_install_status(cfg); res = {"ok": False, "changed": False, "state_before": st["state"], "root": st["root"], "dry_run": dry_run}
+    if st["state"] == "ok": res.update(ok=True, already=True, message=f"Hakchi2 CE {HAKCHI_VERSION} is already set up and verified at {st['path']}; nothing to do"); return res
     if st["state"] == "different-version": res["message"] = f"a different Hakchi build is present at {st['path']} (file version {st['version'] or 'unknown'}, SHA-256 {st['sha256'][:16]}…); the project pins {HAKCHI_VERSION} and never replaces an existing installation automatically"; return res
     if st["root_nonempty"]: res["message"] = f"{st['root']} exists and is not empty but has no hakchi.exe; move it aside first (nothing is deleted automatically)"; return res
     if st["package_state"] != "ok": res.update(message=st["package_problem"], repair_required=FROZEN, package_state=st["package_state"]); return res
@@ -237,29 +248,39 @@ def install_hakchi(cfg: dict, dry_run: bool = False) -> dict:
     try: pk = obtain_package(cfg)
     except PackageUnavailable as e: res.update(message=str(e), repair_required=FROZEN, package_state="damaged"); return res
     res["package"] = pk
-    tmp = st["root"].rstrip("\\/") + ".installing"; shutil.rmtree(tmp, ignore_errors=True); os.makedirs(tmp)
+    tmp = st["root"].rstrip("\\/") + ".installing"; placed = False
     try:
+        shutil.rmtree(tmp, ignore_errors=True); os.makedirs(tmp); res["changed"] = True   # from here on something is written (this setup's own staging folder)
         with zipfile.ZipFile(pk["path"]) as z:
             names = z.namelist()
             for n in names:
                 if n.startswith(("/", "\\")) or ".." in re.split(r"[\\/]", n) or (len(n) > 1 and n[1] == ":"): raise RuntimeError(f"unsafe path in package: {n}")
-            z.extractall(tmp)
+            for i, n in enumerate(names, 1):
+                z.extract(n, tmp)
+                if i % 25 == 0 or i == len(names): say("extracting", i, len(names))
+        say("verifying")
         if sha256_file(os.path.join(tmp, "hakchi.exe")) != HAKCHI_SHA256: raise RuntimeError("extracted hakchi.exe does not match the recorded hash")
         if sha256_file(os.path.join(tmp, "driver", "classic_driver.exe")) != DRIVER_EXE_SHA256: raise RuntimeError("extracted driver installer does not match the recorded hash")
         missing = [r for r in HAKCHI_REQUIRED if not os.path.isfile(os.path.join(tmp, *r.split("/")))]
         if missing: raise RuntimeError(f"the package lacks required components: {', '.join(missing)}")
+        say("placing")
         if os.path.isdir(st["root"]) and not os.listdir(st["root"]): os.rmdir(st["root"])
         os.makedirs(os.path.dirname(st["root"]), exist_ok=True)
         for attempt in range(6):   # a virus scanner or indexer may hold the freshly extracted folder for a moment
-            try: os.replace(tmp, st["root"]); break
+            try: os.replace(tmp, st["root"]); placed = True; break
             except PermissionError:
                 if attempt == 5: raise
                 time.sleep(1.0)
-    except Exception:
-        shutil.rmtree(tmp, ignore_errors=True); raise
+    except Exception as e:
+        shutil.rmtree(tmp, ignore_errors=True); left = os.path.exists(tmp)
+        res.update(changed=left, removed=not left, error=str(e)[:300],
+                   message=(f"Hakchi2 CE was not set up: {str(e)[:300]}. " + (f"Its partly extracted files are still in {tmp}; they can be deleted." if left else "The partly extracted files were removed, so nothing was left behind.")))
+        return res
+    say("checking")
     after = hakchi_install_status(cfg)
-    res.update(ok=after["state"] == "ok", state_after=after["state"], entries=len(names), version=after["version"],
-               message=f"Hakchi2 CE {HAKCHI_VERSION} extracted to {st['root']} ({len(names)} entries; the package, hakchi.exe and the driver installer verified by SHA-256, {len(HAKCHI_REQUIRED)} required components present; package {pk['source']}). No configuration was written: Hakchi creates config\\config.json itself, and the first Open-in-Hakchi run writes only the fields it manages.")
+    res.update(ok=after["state"] == "ok", changed=True, state_after=after["state"], entries=len(names), version=after["version"],
+               message=(f"Hakchi2 CE {HAKCHI_VERSION} extracted to {st['root']} ({len(names)} entries; the package, hakchi.exe and the driver installer verified by SHA-256, {len(HAKCHI_REQUIRED)} required components present; package {pk['source']}). No configuration was written: Hakchi creates config\\config.json itself, and the first Open-in-Hakchi run writes only the fields it manages."
+                        if after["state"] == "ok" else f"Hakchi2 CE's files were placed in {st['root']}, but the check afterwards found it {after['state']}. Nothing was deleted; move that folder aside and set it up again."))
     return res
 
 def install_driver(cfg: dict, dry_run: bool = False) -> dict:
@@ -272,7 +293,7 @@ def install_driver(cfg: dict, dry_run: bool = False) -> dict:
     ps = f"$p = Start-Process -FilePath '{st['installer']}' -WorkingDirectory '{os.path.dirname(st['installer'])}' -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
     res["command"] = ps
     if dry_run or st["simulated"]: res.update(ok=True, message="dry run: would start the installer elevated (Windows UAC prompt) and wait for it; nothing was run"); return res
-    try: p = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=600); res["exit_code"] = p.returncode; res["stderr"] = p.stderr.strip()[-300:]
+    try: p = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=600, creationflags=NO_WINDOW); res["exit_code"] = p.returncode; res["stderr"] = p.stderr.strip()[-300:]   # only the waiting PowerShell is windowless: the installer and the Windows administrator prompt show as before
     except subprocess.TimeoutExpired: res["message"] = "the installer did not finish within 10 minutes (UAC prompt not answered?)"; return res
     after = driver_status(cfg); res.update(state_after=after["state"], inf=after.get("inf"), ok=bool(after["installed"]) and res["exit_code"] == 0)
     res["message"] = f"console driver installed: {after.get('inf')} ({after.get('provider')} {after.get('version')})" if after["installed"] else f"installer exit code {res['exit_code']}; the driver is not in the driver store afterwards" + (" (UAC prompt declined?)" if res["exit_code"] != 0 else "")
@@ -314,7 +335,6 @@ def plan(man: dict, approve_alternates: bool = False) -> dict:
         if "install_required" in g and bool(g.get("install_required")) != want_install: problems.append(f"{c['display_title']}: install_required={g.get('install_required')!r} is inconsistent with its kind ({'factory' if not want_install else 'additional/alternate'})")
         inp = {k[6:]: c.get(k) for k in c if k.startswith("input_")}
         row = {"game_id": c["game_id"], "title": c["display_title"], "nointro_name": c["nointro_name"], "emulator": c.get("recommended_emulator"), "core": c.get("core"), "statuses": [], "detail": "", "kind": "", "code": c.get("builtin_code") or "", "source": c.get("source", "catalog")}
-        if c.get("source") == "personal" and c.get("file_missing"): problems.append(f"{c['display_title']}: game file missing — use Locate File in the Studio"); row["statuses"].append("missing ROM payload"); row["detail"] = "the game file for this personal entry is no longer where the Studio stored it"
         if c.get("recommended_emulator") == "unknown" and not c.get("header_hex"): problems.append(f"{c['display_title']}: no header information for this game file, so it cannot be prepared (identity unknown)"); row["statuses"].append("missing ROM payload"); row["detail"] = "no evidence-based iNES header; the Studio never guesses one" 
         hw = inp.get("standard_controller_playable") != "true" and inp.get("nes_classic_support") in ("unverified", "unsupported", "unknown")
         if hw: row["statuses"].append("controller warning"); row["detail"] = f"{inp.get('special_accessory') or 'input'} — NES Classic support {inp.get('nes_classic_support')}"
@@ -338,17 +358,34 @@ def plan(man: dict, approve_alternates: bool = False) -> dict:
                     problems.append(f"{c['display_title']}: identity-only match needs review — select the factory title instead, or choose the catalog release and approve it")
         else:
             row["kind"] = {"personal": "personal game", "extended": "additional (Extended Library)"}.get(c.get("source"), "additional"); custom.append((c, row))
+        if c.get("mapper") == 30: row["statuses"].append("needs CCS’s player"); row["detail"] = (row["detail"] + "; " if row["detail"] else "") + M30_NOTICE + " " + M30_ROUTE
         if c.get("recommended_emulator") == "RetroArch": row["statuses"].append("emulator prerequisite"); row["detail"] = (row["detail"] + "; " if row["detail"] else "") + f"needs the RetroArch module ({c.get('core')}) on the console — not installed; deployment prerequisite"
         rows.append(row)
-    # custom games: payload + header availability, code + hash
-    plan_custom = []
+    # custom games: the game file found the way every other part of the app finds it (package_api.classify: the Game Library's managed
+    # copy, a personal game's own copy or file, the development payload store; each candidate checked by its content, read now, never
+    # cached past this plan), then the header the prepared copy gets: the catalog's evidence-based header for a Game Library version (a
+    # headered file's own header is taken off first, so there is never a second one), a personal game's own header as it is
+    plan_custom = []; ctx = {}
+    import package_api as PA
     for c, row in custom:
-        sha = c["payload_sha256"]; path = c.get("stored") or stored.get(sha); hdr = c.get("header_hex") or ident.get(sha) or ""
-        if c.get("file_missing") or "missing ROM payload" in row["statuses"]: continue   # already reported above
-        if not path or not os.path.exists(path): row["statuses"].append("missing ROM payload"); row["detail"] = (row["detail"] + "; " if row["detail"] else "") + ("the game file is missing" if c.get("source") == "personal" else "payload not in the work store (C:/NES/work) — re-run inventory.py"); problems.append(f"{c['display_title']}: game file missing"); continue
+        if "missing ROM payload" in row["statuses"]: continue   # already reported above (no header information)
+        status, rec, path, fid = PA.classify(c["game_id"], c["display_title"], ctx)
+        if status != "available":
+            why = {"mismatched": "the game file on this computer is a different version of this game, so it is not used",
+                   "unreadable": f"the game file on this computer cannot be read ({rec.get('error') or 'read error'})"}.get(status if status == "mismatched" else rec.get("reason"), "its game file is not on this computer")
+            row["statuses"].append("missing ROM payload"); row["detail"] = (row["detail"] + "; " if row["detail"] else "") + why + ". Choose it with Locate Game File in the collection (it is matched by its content)"
+            problems.append(f"{c['display_title']}: {why}"); continue
+        off = 0
+        if fid.get("headered"): off = 16 + (512 if fid["head"][6] & 0x04 else 0)
+        evidence = c.get("header_hex") or ident.get(c["payload_sha256"]) or evidence_header(c["payload_sha256"])
+        own = bool(fid.get("headered")) and (c.get("source") == "personal" or not evidence)   # the file's own header is the one it keeps
+        if own and off != 16: row["statuses"].append("missing ROM payload"); problems.append(f"{c['display_title']}: its game file carries a trainer, which is not kept in place"); continue
+        hdr = fid["head"].hex() if own else evidence
         if not hdr: row["statuses"].append("missing ROM payload"); problems.append(f"{c['display_title']}: no evidence-based header"); continue
+        if not own and off > 16: row["statuses"].append("missing ROM payload"); problems.append(f"{c['display_title']}: its game file carries a trainer, which is not kept in place"); continue
         if "ready to prepare" not in row["statuses"]: row["statuses"].insert(0, "ready to prepare")
-        plan_custom.append({"game": c, "row": row, "payload_path": path, "header_hex": hdr, "converted_sha256": c.get("converted_sha256"), "headered_file": bool(c.get("headered_file"))})
+        plan_custom.append({"game": c, "row": row, "payload_path": path, "header_hex": hdr, "content_offset": off, "own_header": own, "content_size": fid["content_size"],
+                            "converted_sha256": fid["sha256"] if own else c.get("converted_sha256"), "headered_file": bool(fid.get("headered"))})
     hidden = [cd for cd in factory_ref["codes"] if cd not in visible]
     declared = sorted(h.get("code") for h in man.get("hidden_factory_games", []))
     if man.get("schema") == SCHEMAS[2] and declared != sorted(hidden): problems.append(f"manifest hidden_factory_games ({len(declared)}) disagrees with the derived list ({len(hidden)})")
@@ -356,10 +393,12 @@ def plan(man: dict, approve_alternates: bool = False) -> dict:
     for cd in hidden: rows.append({"game_id": "", "title": factory[cd]["factory_title"], "code": cd, "kind": "factory", "statuses": ["factory game hidden"], "emulator": "kachikachi (factory)", "detail": "not selected — original game preserved on the console, hidden from the intended TV collection"})
     S = {"collection": len(man.get("games", [])), "factory_visible": len(visible), "factory_hidden": len(hidden), "to_prepare_total": len(plan_custom), "to_prepare": len(plan_custom), "reused": 0,
          "retroarch": sum(1 for r in rows if "emulator prerequisite" in r["statuses"]), "controller_warnings": sum(1 for r in rows if "controller warning" in r["statuses"]), "revision_pending": sum(1 for r in rows if "revision approval required" in r["statuses"] or "needs review" in r["statuses"]),
-         "install_bytes": sum(os.path.getsize(p["payload_path"]) + 16 for p in plan_custom)}
+         "install_bytes": sum(p["content_size"] + 16 for p in plan_custom)}
     S["install_size"] = fmt_size(S["install_bytes"])
+    m30 = sum(1 for r in rows if "needs CCS’s player" in r["statuses"])
+    if m30: warnings.append(f"{m30} selected game(s) are Mapper 30 (UNROM 512) cartridges. " + M30_NOTICE + " " + M30_ROUTE)
     if S["retroarch"]: warnings.append(f"{S['retroarch']} selected game(s) are routed to RetroArch, which is not installed on the console; they can be staged in Hakchi but the deployment stays incomplete until the module is approved and installed (post-G1).")
-    if S["controller_warnings"]: warnings.append(f"{S['controller_warnings']} selected game(s) need special input hardware (see the controller notes).")
+    if S["controller_warnings"]: warnings.append(f"{S['controller_warnings']} selected game(s) have a controller note: special input hardware, or support with standard controllers not known (see each game's note).")
     return {"can_apply": not problems, "problems": problems, "warnings": warnings, "summary": S, "games": rows, "visible_codes": sorted(visible), "hidden_codes": hidden, "custom": plan_custom, "factory_ref": factory_ref, "factory": factory}
 
 # ------------------------------------------------------------------ hakchi tree access
@@ -385,8 +424,13 @@ class HakchiTree:
         for code in os.listdir(self.games_dir):
             d = os.path.join(self.games_dir, code)
             if not os.path.isdir(d): continue
-            desk = os.path.join(d, code + ".desktop"); mk = os.path.join(d, MARKER)
-            e = {"folder": d, "desktop": desk if os.path.exists(desk) else None, "marker": json.load(open(mk, encoding="utf-8")) if os.path.exists(mk) else None, "rom_sha256": None}
+            desk = os.path.join(d, code + ".desktop"); mk = os.path.join(d, MARKER); mk_obj = mk_err = None
+            if os.path.exists(mk):
+                try:
+                    with open(mk, encoding="utf-8") as f: mk_obj = json.load(f)
+                    if not isinstance(mk_obj, dict): mk_obj, mk_err = None, "not an ownership record"
+                except (OSError, ValueError) as ex: mk_err = str(ex)
+            e = {"folder": d, "desktop": desk if os.path.exists(desk) else None, "marker": mk_obj, "marker_error": mk_err, "rom_sha256": None}
             roms = [f for f in os.listdir(d) if f.lower().endswith(".nes")]
             if roms: e["rom_sha256"] = sha256_file(os.path.join(d, roms[0]))
             out[code] = e
@@ -421,11 +465,92 @@ def make_art(src_jpg: str, dest_dir: str, code: str):
     return True
 
 # ------------------------------------------------------------------ apply (transactional)
+def prepared_rom(item: dict) -> tuple[bytes, bytes]:
+    """(content, file) of a planned game as the preparation writes it (plan()'s custom items): the content from where it starts in its
+    file, and the file the console gets: the file as it is when it keeps its own header, else the evidence header and the content (never a
+    second header). The file is read now, every time."""
+    with open(item["payload_path"], "rb") as f: raw = f.read()
+    data = raw[item.get("content_offset", 16 if item.get("headered_file") else 0):]
+    return data, (raw if item.get("own_header") else bytes.fromhex(item["header_hex"]) + data)
+
+def _tree_files(d: str) -> dict:
+    """relative path -> size, SHA-256 and modification time (ns) of every file under d"""
+    out = {}
+    for base, _dirs, files in os.walk(d):
+        for n in files:
+            q = os.path.join(base, n); st = os.stat(q)
+            out[os.path.relpath(q, d).replace("\\", "/")] = {"size": st.st_size, "sha256": sha256_file(q), "mtime_ns": st.st_mtime_ns}
+    return out
+
+def _same_bytes(a: dict, b: dict) -> bool:
+    return {k: (v["size"], v["sha256"]) for k, v in a.items()} == {k: (v["size"], v["sha256"]) for k, v in b.items()}
+
+def _write_json_atomic(path: str, obj) -> None:
+    with open(path + ".new", "w", encoding="utf-8") as f: json.dump(obj, f, indent=1); f.flush(); os.fsync(f.fileno())
+    os.replace(path + ".new", path)
+
+def owned_names(code: str) -> set:
+    """the files the Studio writes into a game folder it prepares"""
+    return {code + ".nes", code + ".desktop", "metadata.json", code + ".png", code + "_small.png", MARKER}
+
+def owned_replacement(code: str, existing: dict, ledger: dict, game: dict) -> tuple[dict | None, str]:
+    """(the folder's files, "") when Hakchi2 CE's folder games/<code> is provably the entry this Studio prepared for this game, so a new file
+    for the same game may replace it; (None, why) otherwise. All of it must agree: the ownership file names this Studio, this code, this game
+    and its content; this Studio's preparation record (ledger) names the same game and the same game file; the game file there now is byte
+    for byte that file; and the folder holds only files the Studio writes. Anything missing, unreadable or different refuses."""
+    mk = existing.get("marker"); led = (ledger.get("managed") or {}).get(code)
+    if existing.get("marker_error"): return None, "its Classic Cart Studio record cannot be read"
+    if not isinstance(mk, dict) or mk.get("managed_by") != "nes-classic-catalog": return None, "Classic Cart Studio did not prepare it"
+    if mk.get("code") != code: return None, "its Classic Cart Studio record names another folder"
+    if mk.get("game_id") != game["game_id"] or mk.get("payload_sha256") != game["payload_sha256"]: return None, "it holds another game with the same code"
+    if not isinstance(led, dict): return None, "this Studio's preparation record does not list it"
+    if led.get("game_id") != game["game_id"]: return None, "this Studio's preparation record names another game for it"
+    try: files = _tree_files(existing["folder"])
+    except OSError as ex: return None, f"it cannot be read ({ex.strerror or ex})"
+    rom = files.get(code + ".nes")
+    if not rom: return None, "its game file is missing"
+    if not (rom["sha256"] == mk.get("converted_sha256") == led.get("converted_sha256")): return None, "its game file is not the one this Studio put there"
+    extra = sorted(r for r in files if r not in owned_names(code))
+    if extra: return None, "it holds files this Studio did not put there (" + ", ".join(extra[:3]) + ("…" if len(extra) > 3 else "") + ")"
+    return files, ""
+
+# Hakchi2 CE 3.9.3 decides what to send to the console by path, size and modification time, and treats two files of the same size whose
+# times are less than three seconds apart as the same file (ApplicationFileInfo.Equals; SyncTask.CalculateRemoteDiff). A replaced file of
+# the same size prepared soon after the old one would not be sent, so every changed file gets a time at least this far after the old one's.
+SYNC_STEP_NS = 5 * 10**9
+
+def sync_times(folder: str, old: dict) -> dict:
+    """Set the modification time of every file in a staged game folder for Hakchi2 CE's comparison and return them (relative path -> ns):
+    a file with the old file's exact bytes keeps the old time (CE sends nothing for it); a changed or new file gets the current time, or
+    SYNC_STEP_NS after the old file's time when that is later. Times only make CE notice a change: they are no check of the bytes."""
+    now = time.time_ns(); out = {}
+    for rel, new in _tree_files(folder).items():
+        o = old.get(rel)
+        t = o["mtime_ns"] if o and o["sha256"] == new["sha256"] and o["size"] == new["size"] else max(now, o["mtime_ns"] + SYNC_STEP_NS if o else 0)
+        t -= t % 100   # NTFS keeps 100 ns steps
+        os.utime(os.path.join(folder, rel), ns=(t, t)); out[rel] = t
+    return out
+
+def already_prepared(pv: dict, tree: "HakchiTree") -> int:
+    """how many of a plan's games Hakchi2 CE already has byte for byte (what apply() reuses); a game whose file changed is prepared again"""
+    ex = tree.custom_entries(); n = 0
+    for it in pv["custom"]:
+        try: data, out = prepared_rom(it)
+        except OSError: continue
+        e = ex.get(code_for(zlib.crc32(data) & 0xffffffff))
+        n += bool(e and e["desktop"] and e["rom_sha256"] == hashlib.sha256(out).hexdigest())
+    return n
+
+# test hook: the name of a step at which apply() stops with an error, to check the undo (never set outside tests)
+FAULT_AT: str | None = None
+def _checkpoint(name: str) -> None:
+    if FAULT_AT == name: raise RuntimeError(f"stopped on purpose at {name}")
+
 def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_alternates: bool = False, launch: bool = True, tree_root: str | None = None, dry_run: bool = False) -> dict:
     cfg = cfg or load_cfg(); root = tree_root or os.path.dirname(cfg["hakchi_exe"]); tree = HakchiTree(root)
     if cfg.get("rehearsal_tree") and os.path.normcase(os.path.abspath(root)) == os.path.normcase(os.path.abspath(os.path.join(PROJECT, "hakchi", "hakchi2-ce-3.9.3"))): raise RuntimeError("rehearsal_tree config must not point at the real hakchi tree")
     man = normalize_manifest(man)
-    run_id = time.strftime("%Y%m%d-%H%M%S"); res = {"run_id": run_id, "tree_root": root, "ok": False, "launched": False, "prepared": 0, "reused": 0, "unchecked": 0, "backup_dir": None, "rolled_back": False, "verification": {"match": None}, "message": ""}
+    run_id = time.strftime("%Y%m%d-%H%M%S"); res = {"run_id": run_id, "tree_root": root, "ok": False, "launched": False, "prepared": 0, "reused": 0, "replaced": 0, "unchecked": 0, "backup_dir": None, "rolled_back": False, "verification": {"match": None}, "message": ""}
     pv = plan(man, approve_alternates); res["preview"] = {k: pv[k] for k in ("can_apply", "problems", "warnings", "summary", "games")}
     if not pv["can_apply"]: res["message"] = "manifest failed validation; nothing changed"; return res
     if cfg.get("rehearsal_tree"):   # test configuration pointing at a disposable copy: the live-hakchi / console checks are about the real tree
@@ -435,23 +560,28 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
         if console_connected(): res["message"] = "the console is connected over USB; disconnect it first"; return res
     fresh = not os.path.exists(tree.cfg_path)   # freshly set-up tree: hakchi has not written its configuration yet
     if fresh and not os.path.isfile(os.path.join(root, "hakchi.exe")): res["message"] = f"hakchi config not found: {tree.cfg_path}"; return res
-    staging = os.path.join(cfg["staging_dir"], run_id); os.makedirs(staging, exist_ok=True); backup = os.path.join(staging, "backup"); os.makedirs(backup, exist_ok=True)
+    staging = os.path.join(cfg["staging_dir"], run_id); n = 1
+    while os.path.exists(staging): n += 1; staging = os.path.join(cfg["staging_dir"], f"{run_id}-{n}")   # two runs in one second keep separate undo records
+    os.makedirs(staging); backup = os.path.join(staging, "backup"); os.makedirs(backup, exist_ok=True)
     ledger_path = os.path.join(cfg["staging_dir"], LEDGER_NAME); ledger = json.load(open(ledger_path, encoding="utf-8")) if os.path.exists(ledger_path) else {"managed": {}, "runs": []}
     # ---- backup config + inventory of games folders (hashes) ----
     if fresh: open(os.path.join(backup, "config-absent.txt"), "w", encoding="utf-8").write("config.json did not exist before this run (fresh Hakchi tree); rollback removes the file this run wrote\n"); hashes = {"config.json": None}
     else: shutil.copy2(tree.cfg_path, os.path.join(backup, "config.json")); hashes = {"config.json": sha256_file(tree.cfg_path)}
     before = tree.custom_entries(); json.dump({k: {"marker": v["marker"], "rom_sha256": v["rom_sha256"], "has_desktop": bool(v["desktop"])} for k, v in before.items()}, open(os.path.join(backup, "games-before.json"), "w", encoding="utf-8"), indent=1)
+    if os.path.exists(ledger_path): shutil.copy2(ledger_path, os.path.join(backup, LEDGER_NAME)); hashes[LEDGER_NAME] = sha256_file(ledger_path)
+    else: hashes[LEDGER_NAME] = None
     json.dump(hashes, open(os.path.join(backup, "SHA256SUMS.json"), "w", encoding="utf-8"), indent=1); res["backup_dir"] = staging
-    journal = {"run_id": run_id, "manifest_file": manifest_file, "created_folders": [], "config_before": hashes["config.json"], "tree_root": root}
+    journal = {"run_id": run_id, "manifest_file": manifest_file, "created_folders": [], "created_files": {}, "replaced_folders": [], "times": {}, "ledger_written": False,
+               "config_before": hashes["config.json"], "ledger_path": ledger_path, "tree_root": root}
+    def save_journal(): _write_json_atomic(os.path.join(staging, "journal.json"), journal)
+    replace = {}   # code -> the files of an earlier prepared folder this run replaces (owned_replacement)
     # ---- desired state ----
     cfg_json = tree.read_cfg(); coll = cfg_json["gamesCollectionSettings"][COLLECTION]
     desired_originals = sorted(pv["visible_codes"]); desired_selected = []
     stage_dir = os.path.join(staging, "games"); os.makedirs(stage_dir, exist_ok=True)
     try:
         for item in pv["custom"]:
-            g = item["game"]; raw = open(item["payload_path"], "rb").read()
-            if item.get("headered_file"): data = raw[16:]; out = raw   # personal headered .nes used as-is (its own header, verified by the content hash)
-            else: data = raw; out = bytes.fromhex(item["header_hex"]) + data
+            g = item["game"]; data, out = prepared_rom(item)
             if hashlib.sha256(data).hexdigest() != g["payload_sha256"]: raise RuntimeError(f"{g['display_title']}: stored payload hash mismatch")
             csha = hashlib.sha256(out).hexdigest()
             if item["converted_sha256"] and csha != item["converted_sha256"]: raise RuntimeError(f"{g['display_title']}: converted hash differs from catalog")
@@ -459,9 +589,11 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
             existing = before.get(code)
             if existing and existing["rom_sha256"] == csha and existing["desktop"]:
                 res["reused"] += 1; item["row"]["statuses"] = [s for s in item["row"]["statuses"] if s != "ready to prepare"] + ["reused existing ROM"]
-            elif existing and existing["rom_sha256"] and existing["rom_sha256"] != csha:
-                raise RuntimeError(f"{g['display_title']}: Hakchi already has a different game file under code {code} (not managed by this integration); refusing to overwrite")
             else:
+                if existing:
+                    old, why = owned_replacement(code, existing, ledger, g)
+                    if old is None: raise RuntimeError(f"{g['display_title']}: Hakchi2 CE already has a game folder with code {code} that Classic Cart Studio cannot replace: {why}")
+                    replace[code] = old
                 d = os.path.join(stage_dir, code); os.makedirs(d, exist_ok=True); rom_name = code + ".nes"
                 with open(os.path.join(d, rom_name), "wb") as f: f.write(out)
                 if sha256_file(os.path.join(d, rom_name)) != csha: raise RuntimeError(f"{g['display_title']}: staged file verification failed")
@@ -470,7 +602,9 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
                 with open(os.path.join(d, "metadata.json"), "w", encoding="utf-8", newline="\n") as f: f.write(metadata_json(core, g["nointro_name"] + ".nes", crc))
                 make_art(site_path(art_alias(g["art"])) if g.get("art") and os.path.exists(site_path(art_alias(g["art"]))) else "", d, code)
                 json.dump({"managed_by": "nes-classic-catalog", "game_id": g["game_id"], "nointro_name": g["nointro_name"], "payload_sha256": g["payload_sha256"], "converted_sha256": csha, "headerless_crc32": crc, "code": code, "emulator": g.get("recommended_emulator"), "core": core, "created_run": run_id}, open(os.path.join(d, MARKER), "w", encoding="utf-8"), indent=1)
-                item["row"]["statuses"] = [s for s in item["row"]["statuses"] if s != "ready to prepare"] + ["prepared for Hakchi"]; res["prepared"] += 1
+                journal["times"][code] = sync_times(d, replace.get(code) or {})
+                item["row"]["statuses"] = [s for s in item["row"]["statuses"] if s != "ready to prepare"] + ["replaced the earlier prepared file" if code in replace else "prepared for Hakchi"]
+                res["prepared"] += 1; res["replaced"] += code in replace
             desired_selected.append(code); ledger["managed"][code] = {"game_id": g["game_id"], "converted_sha256": csha, "last_run": run_id}
         desired_selected = sorted(set(desired_selected))
         # entries previously checked but no longer selected (managed or unrelated): unchecked, never deleted
@@ -488,13 +622,24 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
                 and cfg_json.get("EnableHakchiUpdate") is False and cfg_json.get("EnableCeUpdate") is False and not os.listdir(stage_dir) and not fresh)
         res["noop"] = bool(same)
         # ---- commit: move staged folders, then write config ----
-        for code in os.listdir(stage_dir):
-            dest = os.path.join(tree.games_dir, code); os.makedirs(tree.games_dir, exist_ok=True)
-            if os.path.exists(dest):
-                if before.get(code, {}).get("marker"): shutil.rmtree(dest)   # re-prepare a managed folder whose ROM changed (revision decision)
-                else: raise RuntimeError(f"folder {code} exists and is not managed by this integration")
-            shutil.move(os.path.join(stage_dir, code), dest); journal["created_folders"].append(code)
+        os.makedirs(tree.games_dir, exist_ok=True)
+        for code in sorted(os.listdir(stage_dir)):
+            dest = os.path.join(tree.games_dir, code); staged = _tree_files(os.path.join(stage_dir, code))
+            if code in replace:
+                old = replace[code]
+                try: now_files = _tree_files(dest)
+                except OSError: now_files = None
+                if now_files is None or not _same_bytes(now_files, old): raise RuntimeError(f"Hakchi2 CE's folder {code} changed while it was being prepared")
+                keep = os.path.join(backup, "games", code); shutil.copytree(dest, keep)
+                if not _same_bytes(_tree_files(keep), old): raise RuntimeError(f"the copy of Hakchi2 CE's folder {code} could not be checked")
+                journal["replaced_folders"].append({"code": code, "backup": keep, "files": old, "new_files": staged}); save_journal()
+                _checkpoint("before-remove-old")
+                shutil.rmtree(dest); _checkpoint("after-remove-old")
+            elif os.path.exists(dest): raise RuntimeError(f"a folder {code} appeared in Hakchi2 CE while this collection was being prepared")
+            else: journal["created_folders"].append(code); journal["created_files"][code] = sorted(staged); save_journal()
+            shutil.move(os.path.join(stage_dir, code), dest); _checkpoint("after-place-new")
         if not same: tree.write_cfg_atomic(new_cfg)
+        _checkpoint("after-config")
         # ---- verify ----
         after_cfg = tree.read_cfg()["gamesCollectionSettings"][COLLECTION]; after_entries = tree.custom_entries()
         mism = []
@@ -506,42 +651,85 @@ def apply(man: dict, manifest_file: str, cfg: dict | None = None, approve_altern
             e = after_entries.get(code)
             if not e or not e["desktop"]: mism.append(f"{code}: folder/desktop missing")
             elif e["rom_sha256"] != ledger["managed"][code]["converted_sha256"]: mism.append(f"{code}: game file hash differs")
+            for rel, t in journal["times"].get(code, {}).items():
+                q = os.path.join(tree.games_dir, code, rel)
+                if not os.path.exists(q) or os.stat(q).st_mtime_ns != t: mism.append(f"{code}: {rel} does not have its prepared time")
         res["verification"] = {"match": not mism, "mismatches": mism, "factory_enabled_count": len(after_cfg.get("OriginalGames", [])), "factory_expected_count": len(desired_originals), "custom_checked_count": len(after_cfg.get("SelectedGames", [])), "custom_expected_count": len(desired_selected), "factory_enabled": sorted(after_cfg.get("OriginalGames", [])), "custom_checked": sorted(after_cfg.get("SelectedGames", [])), "unrelated_unchecked": unrelated_checked}
         if mism: raise RuntimeError("post-apply verification failed: " + "; ".join(mism))
-        journal["config_after"] = sha256_file(tree.cfg_path); json.dump(journal, open(os.path.join(staging, "journal.json"), "w", encoding="utf-8"), indent=1)
-        ledger["runs"].append({"run_id": run_id, "manifest_file": manifest_file, "originals": desired_originals, "selected": desired_selected, "prepared": res["prepared"], "reused": res["reused"], "unchecked": res["unchecked"]})
-        json.dump(ledger, open(ledger_path, "w", encoding="utf-8"), indent=1)
+        journal["config_after"] = sha256_file(tree.cfg_path); journal["ledger_written"] = True; save_journal()
+        ledger["runs"].append({"run_id": run_id, "manifest_file": manifest_file, "originals": desired_originals, "selected": desired_selected, "prepared": res["prepared"], "reused": res["reused"], "replaced": res["replaced"], "unchecked": res["unchecked"]})
+        os.makedirs(os.path.dirname(ledger_path), exist_ok=True); _write_json_atomic(ledger_path, ledger); _checkpoint("after-ledger")
         res["ok"] = True; res["message"] = "collection already applied in Hakchi; configuration left untouched (no-op)" if same else "PC-side Hakchi collection reconciled with the manifest"
         if launch and cfg.get("no_launch"): res["message"] += "; launch disabled by configuration"; launch = False
         if launch:
-            ok, why = hakchi_exe_ok(cfg["hakchi_exe"] if not tree_root else os.path.join(root, "hakchi.exe"))
+            # the included Hakchi2 CE of this data folder, in portable mode, started in its own folder (its settings are that folder's)
+            exe = cfg["hakchi_exe"] if not tree_root else os.path.join(root, "hakchi.exe"); ok, why = hakchi_exe_ok(exe)
             if ok:
-                exe = cfg["hakchi_exe"] if not tree_root else os.path.join(root, "hakchi.exe")
                 try: p = subprocess.Popen([exe] + list(cfg.get("hakchi_args", ["/portable"])), cwd=root); res["launched"] = True; res["hakchi_pid"] = p.pid
-                except Exception as e:   # the collection IS applied and verified; only the launch failed — never roll back a verified state for that
-                    res["launch_error"] = str(e); res["message"] += f"; Hakchi could not be started ({e})"
-                    res["recovery"] = f"The collection is applied on the PC side. Start Hakchi manually ({exe} /portable) and review it, or undo this run with hakchi_bridge.rollback(r'{staging}')."
-            else: res["message"] += f"; Hakchi not launched ({why})"
+                except Exception as e: why = str(e)   # the collection IS applied and verified; only the launch failed: never roll back a verified state for that
+            if not res["launched"]:
+                res["launch_error"] = why; res["message"] += f"; Hakchi2 CE could not be opened ({why})"
+                res["recovery"] = f"The games are prepared and checked on this computer; only opening Hakchi2 CE failed. Open hakchi.exe in {root} yourself, or choose Continue in Hakchi2 CE again."
         return res
     except Exception as e:
         res["message"] = f"failed: {e}"; res["error"] = str(e)
-        json.dump(journal, open(os.path.join(staging, "journal.json"), "w", encoding="utf-8"), indent=1)   # the journal must be on disk BEFORE rollback reads it (folders moved so far)
-        try: rollback(staging, tree); res["rolled_back"] = True; res["recovery"] = f"Nothing to do: the previous configuration was restored from {backup} and the folders this run created were removed; Hakchi's library is as it was before the click. Fix the reported cause and click Open in Hakchi again."
-        except Exception as e2: res["message"] += f"; ROLLBACK FAILED: {e2}"; res["recovery"] = f"Manual recovery: copy {os.path.join(backup, 'config.json')} over config\\config.json (or delete config.json if backup\\config-absent.txt exists) and delete the folders listed under created_folders in {os.path.join(staging, 'journal.json')}; then verify with hakchi_inspect.py."
-        json.dump(journal, open(os.path.join(staging, "journal.json"), "w", encoding="utf-8"), indent=1); return res
+        save_journal()   # the journal must be on disk BEFORE rollback reads it (folders moved so far)
+        try:
+            rb = rollback(staging, tree, cfg); res["rolled_back"] = True; res["undo"] = rb
+            res["recovery"] = ("Nothing was changed in Hakchi2 CE." if not (rb["removed_folders"] or rb["restored_folders"] or rb["restored_ledger"] or rb["config_written"]) else
+                               "Everything this attempt changed was put back and checked: Hakchi2 CE's games and settings are as they were before.") + " Fix the reported cause, then try again."
+        except Exception as e2:
+            res["message"] += f"; UNDO NOT FINISHED: {e2}"
+            res["recovery"] = (f"Some changes could not be put back. The undo record is {os.path.join(staging, 'journal.json')}: the earlier settings are in {backup} "
+                               f"(config.json, {LEDGER_NAME}) and every replaced game folder is in {os.path.join(backup, 'games')}. Do not sync with the console until "
+                               f"this is resolved; running the undo again (hakchi_bridge.rollback) retries it.")
+        save_journal(); return res
 
 def rollback(staging: str, tree: HakchiTree | None = None, cfg: dict | None = None) -> dict:
-    """Restore config.json from the run's backup and remove the folders that run created. Unrelated content is never touched."""
-    cfg = cfg or load_cfg(); j = json.load(open(os.path.join(staging, "journal.json"), encoding="utf-8")) if os.path.exists(os.path.join(staging, "journal.json")) else {"created_folders": []}
+    """Undo one preparation run from its journal and backup, and check it: config.json as it was (or absent again), every folder the run
+    created removed, every folder it replaced back byte for byte with its earlier times, and this Studio's preparation record as it was.
+    Unrelated content is never touched. Raises when any of that cannot be done or checked; running it again retries."""
+    cfg = cfg or load_cfg(); jp = os.path.join(staging, "journal.json")
+    j = json.load(open(jp, encoding="utf-8")) if os.path.exists(jp) else {"created_folders": []}
     tree = tree or HakchiTree(j.get("tree_root") or os.path.dirname(cfg["hakchi_exe"]))
-    bk = os.path.join(staging, "backup", "config.json"); want = json.load(open(os.path.join(staging, "backup", "SHA256SUMS.json"), encoding="utf-8"))["config.json"]
+    sums = json.load(open(os.path.join(staging, "backup", "SHA256SUMS.json"), encoding="utf-8"))
+    bk = os.path.join(staging, "backup", "config.json"); want = sums["config.json"]; config_written = False
     if want is None:   # fresh tree before the run: the run created config.json, so restoring means removing it
-        if os.path.exists(tree.cfg_path): os.remove(tree.cfg_path)
-    else:
-        if sha256_file(bk) != want: raise RuntimeError("backup config.json hash mismatch; not restoring")
-        shutil.copy2(bk, tree.cfg_path)
+        if os.path.exists(tree.cfg_path): os.remove(tree.cfg_path); config_written = True
+    elif not os.path.exists(tree.cfg_path) or sha256_file(tree.cfg_path) != want or os.stat(tree.cfg_path).st_mtime_ns != os.stat(bk).st_mtime_ns:   # same bytes written again: its time too
+        if sha256_file(bk) != want: raise RuntimeError("the saved copy of Hakchi2 CE's settings does not match its record; not restoring it")
+        shutil.copy2(bk, tree.cfg_path); config_written = True
+    if (os.path.exists(tree.cfg_path) if want is None else sha256_file(tree.cfg_path) != want): raise RuntimeError("Hakchi2 CE's settings could not be put back")
     removed = []
     for code in j.get("created_folders", []):
         d = os.path.join(tree.games_dir, code)
-        if os.path.isdir(d) and os.path.exists(os.path.join(d, MARKER)): shutil.rmtree(d); removed.append(code)
-    return {"restored_config": (not os.path.exists(tree.cfg_path)) if want is None else sha256_file(tree.cfg_path) == want, "removed_folders": removed}
+        if not os.path.isdir(d): continue
+        mine = set(j.get("created_files", {}).get(code, [])) or None
+        if os.path.exists(os.path.join(d, MARKER)) and (mine is None or set(_tree_files(d)) <= mine): shutil.rmtree(d); removed.append(code)
+        elif mine is not None and set(_tree_files(d)) <= mine: shutil.rmtree(d); removed.append(code)   # placed only in part
+        else: raise RuntimeError(f"the new folder {code} holds files this Studio did not put there; it was left as it is")
+    restored = []
+    for r in j.get("replaced_folders", []):
+        code = r["code"]; d = os.path.join(tree.games_dir, code)
+        if os.path.isdir(d):
+            cur = _tree_files(d)
+            if _same_bytes(cur, r["files"]) and all(cur[k]["mtime_ns"] == v["mtime_ns"] for k, v in r["files"].items()): continue   # never removed
+            if set(cur) - set(r["files"]) - set(r.get("new_files", {})): raise RuntimeError(f"the folder {code} holds files neither its earlier nor its new entry had; it was left as it is")
+        if not _same_bytes(_tree_files(r["backup"]), r["files"]): raise RuntimeError(f"the saved copy of the folder {code} does not match its record; not restoring it")
+        if os.path.isdir(d): shutil.rmtree(d)
+        shutil.copytree(r["backup"], d)
+        for k, v in r["files"].items(): os.utime(os.path.join(d, k), ns=(v["mtime_ns"], v["mtime_ns"]))   # the earlier times: Hakchi2 CE's sync sees it unchanged
+        back = _tree_files(d)
+        if not _same_bytes(back, r["files"]) or any(back[k]["mtime_ns"] != v["mtime_ns"] for k, v in r["files"].items()): raise RuntimeError(f"the folder {code} could not be put back exactly")
+        restored.append(code)
+    restored_ledger = False
+    if j.get("ledger_written"):
+        lp = j.get("ledger_path") or os.path.join(cfg["staging_dir"], LEDGER_NAME); lw = sums.get(LEDGER_NAME)
+        if lw is None:
+            if os.path.exists(lp): os.remove(lp); restored_ledger = True
+        elif not os.path.exists(lp) or sha256_file(lp) != lw or os.stat(lp).st_mtime_ns != os.stat(os.path.join(staging, "backup", LEDGER_NAME)).st_mtime_ns:
+            lb = os.path.join(staging, "backup", LEDGER_NAME)
+            if sha256_file(lb) != lw: raise RuntimeError("the saved copy of the preparation record does not match its record; not restoring it")
+            shutil.copy2(lb, lp); restored_ledger = True
+        if (os.path.exists(lp) if lw is None else sha256_file(lp) != lw): raise RuntimeError("the preparation record could not be put back")
+    return {"restored_config": True, "config_written": config_written, "removed_folders": removed, "restored_folders": restored, "restored_ledger": restored_ledger}

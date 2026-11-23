@@ -61,14 +61,13 @@ namespace CcsBackup.Tests
         public static void Home()
         {
             // ---- the release-built package this build carries (tools/console-nucleus/build_home_package.py)
-            var em = HomePackage.Embedded("mod"); var en = HomePackage.Embedded("nucleus");
-            Check(em != null && en != null, "this build carries the release-built CCS HOME package for both methods' layouts" + (em == null ? " (NOT CARRIED: build with ccs-home/ in the console programs' folder)" : " (" + em.Describe + ")"));
-            if (em != null && en != null)
+            var em = HomePackage.Embedded("mod");
+            Check(em != null && HomePackage.Embedded("nucleus") == null, "this build carries the release-built CCS HOME package in its one layout, CCS Mod's (CCS Nucleus never installs a HOME)" + (em == null ? " (NOT CARRIED: build with ccs-home/ in the console programs' folder)" : " (" + em.Describe + ")"));
+            if (em != null)
             {
-                var bad = em.Files.Concat(en.Files).Where(f => { try { (f.Rel == "MANIFEST.json" ? null : em.Files.Contains(f) ? em : en)?.Read(f.Rel); return false; } catch (HomePackageException) { return true; } }).Select(f => f.Rel).ToList();
-                var diff = em.Files.Select(f => f.Rel + " " + f.Sha256).Except(en.Files.Select(f => f.Rel + " " + f.Sha256)).Select(x => x.Split(' ')[0]).OrderBy(x => x, StringComparer.Ordinal).ToList();
-                Check(bad.Count == 0 && diff.SequenceEqual(new[] { "MANIFEST.json", "session.json" }) && em.Playable == em.Games && em.Games > 0 && em.Files.Any(f => f.Rel == "bin/ccs-player-armv7" && f.Mode == "0755") && em.Files.Any(f => f.Rel.StartsWith("home/")),
-                    "every file of both layouts reads back with its manifest's size and SHA-256; the layouts differ only in session.json (its leave item) and MANIFEST.json; every game playable, the console player and the HOME inside (" + string.Join(", ", diff) + "; " + em.Files.Count + " files)");
+                var bad = em.Files.Where(f => { try { if (f.Rel != "MANIFEST.json") em.Read(f.Rel); return false; } catch (HomePackageException) { return true; } }).Select(f => f.Rel).ToList();
+                Check(bad.Count == 0 && em.Playable == em.Games && em.Games > 0 && em.Files.Any(f => f.Rel == "bin/ccs-player-armv7" && f.Mode == "0755") && em.Files.Any(f => f.Rel.StartsWith("home/")) && em.Files.Any(f => f.Rel == "session.json"),
+                    "every file reads back with its manifest's size and SHA-256; every game playable, the console player and the HOME inside (" + em.Files.Count + " files" + (bad.Count > 0 ? "; not readable: " + string.Join(", ", bad.Take(5)) : "") + ")");
             }
             // the records are the installer's own format (Python's json.dumps sort_keys indent 1), read back by Python's json the same way
             var h1 = HomePackage.Folder(MakeHome("mod", "one"), "mod");
@@ -171,9 +170,9 @@ namespace CcsBackup.Tests
         }
 
         /// <summary>with CCS_HOME_CHAIN_OUT and --utility: the built Workbench's own worker prepares a console (already prepared with hakchi)
-        /// with CCS Mod and CCS HOME at power-on chosen; the archive it sends for CCS HOME is kept in that folder (home-archive.tar and its
-        /// arguments, the choice among them) for the image's own steps under qemu (test_recovery_images.py --home-archive) and hakchi's start
-        /// with the package's own player (test_nucleus.py --only chain)</summary>
+        /// with CCS Mod and CCS Nucleus opening CCS HOME at power-on; the archive it sends for CCS HOME is kept in that folder (home-archive.tar
+        /// and its arguments, the add-ons and CCS Nucleus's start among them) for the image's own steps under qemu (test_recovery_images.py
+        /// --home-archive) and hakchi's start with the package's own player (test_nucleus.py --only chain)</summary>
         public static void HomeChain()
         {
             var outDir = Environment.GetEnvironmentVariable("CCS_HOME_CHAIN_OUT");
@@ -183,7 +182,8 @@ namespace CcsBackup.Tests
             var p = Process.Start(new ProcessStartInfo(Utility, "--backup-worker --settings \"" + s.Path + "\"") { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true });
             p.ErrorDataReceived += (o, e) => { }; p.BeginErrorReadLine();
             var w = WorkerHost.RequestWriter(p.StandardInput.BaseStream);
-            w.WriteLine(WorkerHost.RequestLine(new JObj { { "cmd", "prepare-plan" }, { "console", "simulated" }, { "folder", c }, { "policy", "mod" }, { "mod_start", true } }));
+            var addons = new AddonChoice { Mod = true, Nucleus = "direct", Start = "ccs-home" };
+            w.WriteLine(WorkerHost.RequestLine(new JObj { { "cmd", "prepare-plan" }, { "console", "simulated" }, { "folder", c }, { "mod", addons.Mod }, { "nucleus", addons.Nucleus }, { "start", addons.Start } }));
             Dictionary<string, object> plan = null, result = null; string line;
             while ((line = p.StandardOutput.ReadLine()) != null)
             {
@@ -193,15 +193,16 @@ namespace CcsBackup.Tests
             }
             w.Close(); p.WaitForExit(60000);
             var steps = (plan?.A("steps") ?? new List<object>()).OfType<string>().ToList();
-            Check(plan != null && steps.SequenceEqual(new[] { "mstart", "method", "hput", "huse" }) && plan.S("mod_start") == "on" && result?.S("state") == "method-scheduled" && File.Exists(Path.Combine(c, "home-archive.tar")) && Pointer(c) == plan.O("home")?.S("copy") + "\n"
-                  && File.ReadAllText(Path.Combine(c, "ccs-mod-config.txt")).Trim() == "on",
-                "the built Workbench's worker (" + Path.GetFileName(Utility) + ") prepares the console with CCS Mod, CCS HOME at power-on chosen, and the release-built CCS HOME package: mstart, method, hput, huse; CCS Mod's setting recorded on, CCS HOME in use (" + (result?.S("state") ?? "no result") + " " + result?.S("problem") + ")");
+            var startFile = Path.Combine(c, "nucleus-start.txt");
+            Check(plan != null && steps.SequenceEqual(new[] { "method:ccs-mod", "method:ccs-nucleus", "nstart", "hput", "huse" }) && plan.S("start") == addons.StartLine && result?.S("state") == "method-scheduled" && File.Exists(Path.Combine(c, "home-archive.tar")) && Pointer(c) == plan.O("home")?.S("copy") + "\n"
+                  && File.Exists(startFile) && File.ReadAllText(startFile).Trim() == addons.StartLine,
+                "the built Workbench's worker (" + Path.GetFileName(Utility) + ") prepares the console with CCS Mod, CCS Nucleus opening CCS HOME at power-on, and the release-built CCS HOME package: both packages, CCS Nucleus's start, hput, huse; the start recorded (" + addons.StartLine + "), CCS HOME in use (" + (result?.S("state") ?? "no result") + " " + result?.S("problem") + ")");
             if (plan == null || !File.Exists(Path.Combine(c, "home-archive.tar"))) { GoneConsole(c); GoneBackups(s); return; }
             Directory.CreateDirectory(outDir);
             File.Copy(Path.Combine(c, "home-archive.tar"), Path.Combine(outDir, "home-archive.tar"), true);
             var args = Json.Parse(File.ReadAllText(Path.Combine(c, "home-archive.json"))); var em = HomePackage.Embedded("mod");
             File.WriteAllText(Path.Combine(outDir, "home-archive.json"), Json.Write(new JObj { { "copy", args.S("copy") }, { "size", args.L("size") }, { "sha256", args.S("sha256") }, { "total", args.L("total") }, { "files", (long)em.Files.Count },
-                { "layout", plan.O("home")?.S("layout") }, { "manifest_sha256", em.ManifestSha256 }, { "mod_start", plan.S("mod_start") }, { "worker", Path.GetFileName(Utility) }, { "worker_sha256", Sha(Utility) } }));
+                { "layout", plan.O("home")?.S("layout") }, { "manifest_sha256", em.ManifestSha256 }, { "addons", addons.ToJson() }, { "start", plan.S("start") }, { "worker", Path.GetFileName(Utility) }, { "worker_sha256", Sha(Utility) } }));
             Check(Sha(Path.Combine(outDir, "home-archive.tar")) == plan.O("home")?.S("archive_sha256"), "the archive kept for the chain is the one the reviewed plan bound by its SHA-256 (" + outDir + ")");
             GoneConsole(c); GoneBackups(s);
         }

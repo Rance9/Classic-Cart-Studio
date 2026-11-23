@@ -3,7 +3,7 @@
 Inputs: <WORK>\\inventory.sqlite (archives, payloads, ident); <WORK>\\db\\libretro_*.dat (genre, year);
 reports\\builtin.json (factory-game comparison); reports\\art\\index.json (thumbnail cache). Outputs in reports\\.
 Confidence is reported in three separate dimensions: identity verification, header validation, compatibility evidence.
-No title is console-tested; compatibility is documentation/community based only.
+Compatibility recommendations come from documentation and community reports.
 """
 from __future__ import annotations
 import re
@@ -73,6 +73,9 @@ def compat(row: dict) -> dict:
         if m == 4 and row.get("mesen_mapper") in (118, 119) or row.get("cart_board", "").endswith(("TKSROM", "TLSROM", "TQROM")): notes.append(f"board {row.get('cart_board')} (MMC3 variant, iNES {row.get('mesen_mapper') or m}); the factory Kirby's Adventure uses TKSROM, so kachikachi handles that variant, but other variants may differ"); conf = "low" if conf != "low" else conf
     elif m == 71:
         emu, conf = "kachikachi", "low"; notes.append("mapper 71 (Camerica): hakchi auto-patches to mapper 2 on import (changelog 2.08); verify on console")
+    elif m == 30:   # UNROM 512: its header's layout bits are its own (one-screen or four-screen), not the generic four-screen flag
+        emu, conf = "RetroArch", "medium"
+        notes.append("Mapper 30 (UNROM 512): Nintendo's built-in NES emulator (kachikachi) does not support it; Classic Cart Studio's own player plays it")
     else:
         emu, conf = "RetroArch", "medium"
         notes.append("four-screen mirroring: kachikachi unsupported" if four else f"mapper {m} not supported by kachikachi")
@@ -285,7 +288,7 @@ def main():
     for r in cat_sorted: md.append(f"| {r['display_title']} | {r['nointro_name']} | {r['publisher']} | {r['year']} | {r['licensed']} | {r['genre']} | {r['players']} {r['simultaneous']} | {r['builtin_status'].replace('BUILT-IN: ','').replace('NOT BUILT-IN','')} | {'verified' if r['nointro_match'] else 'cart-DB'} | {r['header_validation_short']} | {r['mapper']} | {r['recommended_emulator']} | {r['compat_confidence']} | {r['selection_status']} | {(r['compat_notes'] + ('; ' + r['ambiguity'] if r.get('ambiguity') else '')).strip('; ')} |")
     open(os.path.join(REPORTS, "nes-us-retail-catalog.md"), "w", encoding="utf-8").write("\n".join(md))
     k = [r for r in catalog if r["recommended_emulator"] == "kachikachi"]; ra = [r for r in catalog if r["recommended_emulator"] == "RetroArch"]
-    cm = ["# Compatibility report (planning only — no title has been tested on the console)", "", f"- kachikachi (Nintendo's emulator): {len(k)}", f"- RetroArch / FCEUmm: {len(ra)}", "",
+    cm = ["# Compatibility report (recommendations from documentation and community reports)", "", f"- kachikachi (Nintendo's emulator): {len(k)}", f"- RetroArch / FCEUmm: {len(ra)}", "",
           "Evidence basis: hakchi FAQ mapper list (0,1,2,3,4,5,7,9,10,86,87,184 + FDS; four-screen unsupported), hakchi changelog (mapper 71 auto-patch, IPS auto-patches), hakchi issue tracker and community reports. Routing is explicit. Confidence levels: medium = mapper on the documented list and no known reports; low = rare mapper, unlicensed hardware, MMC3 board variants or auto-patch dependence; none = no mapper evidence.", "",
           "## Mapper distribution", ""] + [f"- mapper {m}: {c} ({'kachikachi' if m in KACHIKACHI_MAPPERS else 'RetroArch'})" for m, c in sorted(Counter(r["mapper"] for r in catalog).items(), key=lambda x: (-x[1], str(x[0])))]
     cm += ["", "## Exceptions: kachikachi-mapper titles routed to RetroArch", ""] + [f"- {r['display_title']} (mapper {r['mapper']}): {r['compat_notes']}" for r in sorted(ra, key=lambda r: norm_title(r['display_title'])) if r["mapper"] in KACHIKACHI_MAPPERS]

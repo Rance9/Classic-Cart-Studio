@@ -1,8 +1,9 @@
 """Classic Cart Studio's HOME on the console (K3) through the worker and the backend, PC only: the worker's HOME commands on fresh stand-ins
-(every rehearsal scenario, removal and the saves copy, real progress, a cancel at a safe point, obsolete plans, the PC-side records, every
-physical step refused), the backend's /api/console/home/ routes (desktop principal only; the page names no path, shell text, transport or
-fault; physical operations and confirmations refused by the gate in code), and the backend-owned confirmation (bound to one operation,
-plan and console, single use, expiring; made only when the gate allows the tier, so never today). No device, socket to a console or shell.
+(the add-on choice in the plan, the check on each simulated console, every rehearsal scenario, removal and the saves copy, real progress, a
+cancel at a safe point, obsolete plans, the PC-side records, every physical step refused), the backend's /api/console/home/ routes (desktop
+principal only; the page names no path, shell text, transport or fault, and only the add-on choice reaches a new plan; physical operations
+and confirmations refused by the gate in code), and the backend-owned confirmation (bound to one operation, plan and console, single use,
+expiring; made only when the gate allows the tier, so never today). No device, socket to a console or shell.
   python tools/companion/test_console_home.py"""
 from __future__ import annotations
 import hashlib, io, json, os, secrets, shutil, subprocess, sys, tempfile, time, unittest, urllib.error, urllib.request
@@ -11,7 +12,7 @@ import console_test_guard   # noqa: E402,F401  (first: the controlled console bo
 from console_engine import gate, ccs_install as CI   # noqa: E402
 from console_engine.worker import Worker   # noqa: E402
 import console_confirm as CC   # noqa: E402
-from test_ccs_install import make_package, rd, wr   # noqa: E402
+from test_ccs_install import make_package, rd, wr, chooser_env   # noqa: E402  (also sets the chooser's stand-in inputs and keeps this PC's own Workbench settings out)
 
 def ask(w: Worker, cmd: str, args: dict | None = None) -> tuple[dict, list]:
     out = io.StringIO(); w.out = out; w.handle(json.dumps({"v": 1, "id": "t", "cmd": cmd, "args": args or {}}))
@@ -27,23 +28,32 @@ class WorkerHome(unittest.TestCase):
     def test_01_the_plan_is_the_staged_package_and_takes_no_argument(self):
         r, _ = ask(self.w, "home-plan", {"folder": "C:/elsewhere"}); self.assertEqual(r["event"], "error")
         self.assertEqual(self.plan["schema"], CI.PLAN_SCHEMA); self.assertNotIn("files", self.plan); self.assertGreater(self.plan["file_count"], 3)
+        self.assertEqual((self.plan["addons"], self.plan["start_line"]), (CI.STUDIO_CHOICE, None), "Studio's default: CCS Mod, no CCS Nucleus")
+        self.assertEqual(self.plan["start_text"], "When the console is turned on, Original Menu opens, as it does now. CCS HOME opens from its tile there.")
+        r, _ = ask(self.w, "home-plan", {"mod_start": "on"}); self.assertEqual(r["event"], "error", "the retired start at power-on of CCS Mod is not a choice")
         rec, _ = ask(self.w, "home-records"); self.assertTrue(rec["result"]["last_plan_current"]); self.assertEqual(rec["result"]["last_plan"]["plan"]["hash"], self.plan["hash"])
     def test_02_preflight_on_each_simulated_console(self):
-        # a console with CCS Nucleus is checked against the plan for CCS Nucleus (test_install_methods.py stages both layouts); with only the
-        # CCS Mod layout staged here, the check says so and nothing is planned for it
-        exp = {"hakchi-ready": (True, ""), "stock": (False, "hakchi must be installed first"), "nearly-full": (False, "not enough room"), "other-module": (False, "the HOME menu was not prepared for it"),
-               "mod-module": (True, ""), "both-methods": (False, "both CCS Mod and CCS Nucleus")}
+        # Studio's default plan (CCS Mod) against each simulated console: where it would take an add-on away, the check refuses and names the
+        # choice that keeps the console's add-ons (test_install_methods.py installs those choices)
+        exp = {"hakchi-ready": (True, ""), "stock": (False, "hakchi must be installed first"), "nearly-full": (False, "not enough room"), "with-mod": (True, ""),
+               "with-nucleus": (False, CI.REMOVES_TEXT), "with-mod-nucleus": (False, CI.REMOVES_TEXT), "with-chooser": (False, CI.REMOVES_TEXT), "with-all": (False, CI.REMOVES_TEXT)}
+        self.assertEqual(set(exp), set(CI.HOME_PROFILES))
         for prof, (ok, words) in exp.items():
             r, _ = ask(self.w, "home-preflight", {"plan_hash": self.plan["hash"], "profile": prof}); res = r["result"]
             self.assertEqual(res["ok"], ok, (prof, res)); self.assertTrue(res["simulated"])
             if words: self.assertIn(words, res["why"])
+            if words == CI.REMOVES_TEXT:
+                self.assertTrue(res["keep_choice"]["mod"] and res["addons_now"]["nucleus"] != "none" and res["addons_now_text"].startswith("This console has CCS"), (prof, res))
+            if ok: self.assertTrue(res["addons_now_text"].startswith("This console has")); self.assertIn(res["changes_text"], ("Adds CCS Mod.", "The add-ons and what opens at power-on stay as they are."))
         r, _ = ask(self.w, "home-preflight", {"plan_hash": self.plan["hash"], "profile": "../real"}); self.assertEqual(r["code"], "not-found")
     def test_03_every_rehearsal_scenario(self):
         r, ev = self.sim(scenario="first-install"); i = r["result"]["install"]; self.assertEqual(i["result"], "installed", i); self.assertTrue(r["result"]["stock_unchanged"])
         st = [e for e in ev if e.get("event") == "progress" and e.get("stage") == "stage"]; self.assertGreater(len(st), 3); self.assertEqual(st[-1]["done"], st[-1]["total"])
         self.assertTrue(all(e.get("simulated") for e in ev)); self.assertIn("readback", [e.get("stage") for e in ev])
         r, _ = self.sim(scenario="repeat"); self.assertEqual(r["result"]["install"]["result"], "no-change")
-        r, _ = self.sim(scenario="update"); i = r["result"]["install"]; self.assertEqual(i["result"], "installed"); self.assertTrue(i["tidy"] and i["tidy"][0]["removed"], i["tidy"])
+        r, _ = self.sim(scenario="update"); i = r["result"]["install"]; self.assertEqual(i["result"], "installed")
+        ear = next(t["earlier"] for t in i["tidy"] if "earlier" in t)
+        self.assertEqual((ear["keep"], ear["remove"], len(ear["kept"])), (1, [], 2), ("one earlier version by default: the copy in use before the update stays", i["tidy"]))
         r, _ = self.sim(scenario="repair"); i = r["result"]["install"]; self.assertEqual(i["result"], "installed"); self.assertTrue(any(k.endswith("/session.json") for k in i["kept_changed_or_unknown"]))
         r, _ = self.sim(scenario="interrupted"); x = r["result"]; self.assertFalse(x["install"]["ok"]); self.assertTrue(x["install"]["rolled_back"]["ok"]); self.assertEqual(x["after_recovery"], "installed")
         r, _ = self.sim(scenario="first-install", then=["uninstall", "export"]); x = r["result"]
@@ -134,8 +144,9 @@ class Routes(unittest.TestCase):
     def setUpClass(cls):
         cls.t = tempfile.mkdtemp(prefix="ccs-home-api-"); cls.nh = os.path.join(cls.t, "native-home"); cls.pkg = make_package(os.path.join(cls.nh, "console", "current"))
         cfgp = os.path.join(cls.t, "companion.json"); wr(cfgp, json.dumps({"hakchi_exe": os.path.join(cls.t, "no-hakchi", "hakchi.exe"), "port": PORT, "no_launch": True, "exports_dir": os.path.join(cls.t, "exports"), "staging_dir": os.path.join(cls.t, "staging")}))
-        cls.token = secrets.token_hex(32); env = dict(os.environ, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=os.path.join(cls.t, "personal"), NES_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
-                                                       CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8", CCS_PHYSICAL_WRITE="1", CCS_GATE="open")
+        wb = os.path.join(cls.t, "workbench-settings.json"); wr(wb, json.dumps({"schema": "ccs-console-backup-settings/1", "earlier_home_versions": 2}).encode())   # Workbench's setting: two
+        cls.token = secrets.token_hex(32); env = dict(os.environ, CCS_WORKBENCH_SETTINGS=wb, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=os.path.join(cls.t, "personal"), NES_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
+                                                       CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8", CCS_PHYSICAL_WRITE="1", CCS_GATE="open", **chooser_env())
         cls.log = open(os.path.join(cls.t, "companion.log"), "w", encoding="utf-8")
         cls.proc = subprocess.Popen([sys.executable, "-u", "-B", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT)], env=env, stdout=cls.log, stderr=subprocess.STDOUT)
         for _ in range(200):
@@ -153,6 +164,9 @@ class Routes(unittest.TestCase):
         for hdr in ({"Origin": SITE}, {}, {"Origin": "https://evil.example", "Authorization": "Bearer " + self.token}):
             self.assertIn(req("GET", "/api/console/home/status", headers=hdr)[0], (401, 403), hdr)
             for op in ("plan", "rehearse", "confirm", "install"): self.assertIn(req("POST", f"/api/console/home/{op}", {}, headers=hdr)[0], (401, 403), (op, hdr))
+    def test_25_the_earlier_versions_setting_reaches_the_meter_and_the_plan(self):
+        s, j = req("GET", "/api/status", headers=self.desk); self.assertEqual((s, j.get("earlier_home_versions")), (200, 2), "the app's status carries Workbench's setting (the loadout meter uses it)")
+        s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); self.assertEqual((s, j["result"]["earlier_home_versions"]), (200, 2), "and so does the installation plan")
     def test_21_status_plan_preflight_rehearsal_and_records(self):
         s, j = req("GET", "/api/console/home/status", headers=self.desk); self.assertEqual(s, 200, j); self.assertEqual(j["staged"]["layout"], "mod")
         ops = {o["id"]: o for o in j["operations"]}; self.assertTrue(ops["rehearse"]["available"]); self.assertTrue(all(not ops[k]["available"] for k in ("inspect", "install", "recover", "export", "ram-test", "first-setup")))
@@ -170,6 +184,22 @@ class Routes(unittest.TestCase):
         r = res["result"]; self.assertEqual(r["install"]["result"], "installed", r); self.assertTrue(r["uninstall"]["ok"]); self.assertEqual(r["scenario"], "update")
         self.assertTrue(any(e.get("stage") == "readback" for e in evs)); self.assertNotIn("export", r, "only the listed follow-ups run")
         s, j = req("GET", "/api/console/home/status", headers=self.desk); self.assertEqual(j["records"]["operations"][0]["outcome"], "installed"); self.assertTrue(j["records"]["last_plan_current"])
+    def test_24_the_addon_choice_through_the_routes(self):
+        s, j = req("POST", "/api/console/home/plan", {"nucleus": "chooser", "start": "ccs-home", "auto": "wait", "folder": "C:/elsewhere", "mod_start": "on"}, headers=self.desk); self.assertEqual(s, 200, j)
+        p = j["result"]; self.assertEqual((p["addons"], p["start_line"]), ({"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "wait"}, "ccs-home always on default 0"))
+        self.assertEqual(p["start_text"], "When the console is turned on, the startup chooser appears first. Nothing starts until you choose."); self.assertEqual(list(p["packages"]), ["mod", "nucleus", "nucleus-chooser"])
+        for bad in ({"mod": "true"}, {"nucleus": ["chooser"]}, {"auto": "wait now"}):
+            s, j = req("POST", "/api/console/home/plan", bad, headers=self.desk); self.assertEqual((s, j.get("code")), (400, "bad-choice"), bad)
+        s, j = req("POST", "/api/console/home/plan", {"mod": False, "nucleus": "direct", "start": "ccs-home"}, headers=self.desk); self.assertEqual((s, j.get("code"), j.get("error")), (409, "refused", CI.HOME_NEEDS_MOD))
+        # without CCS Mod the collection reaches the console only as Hakchi games: neither is refused, and so is a collection none of whose
+        # games can be one (this staged package's only game file is not a complete game)
+        s, j = req("POST", "/api/console/home/plan", {"mod": False, "hakchi_games": False}, headers=self.desk); self.assertEqual((s, j.get("code"), j.get("error")), (409, "refused", CI.NOTHING_TEXT))
+        s, j = req("POST", "/api/console/home/plan", {"mod": False}, headers=self.desk); self.assertEqual((s, j.get("code"), j.get("error")), (409, "refused", CI.NO_HAKCHI_GAMES_TEXT))
+        s, j = req("POST", "/api/console/home/preflight", {"plan_hash": p["hash"], "profile": "with-nucleus"}, headers=self.desk); pf = j["result"]; self.assertTrue(pf["ok"], pf)
+        self.assertEqual((pf["add"], pf["start"]["now"], pf["start"]["want"]), (["ccs-mod", "ccs-nucleus-chooser"], "native never off default 10", "ccs-home always on default 0"))
+        self.assertEqual(pf["changes_text"], "Adds CCS Mod and CCS Nucleus's startup chooser. Updates CCS Nucleus's start setting: When the console is turned on, the startup chooser appears first. Nothing starts until you choose.")
+        s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); s, j = req("POST", "/api/console/home/preflight", {"plan_hash": j["result"]["hash"], "profile": "with-all"}, headers=self.desk)
+        pf = j["result"]; self.assertFalse(pf["ok"]); self.assertEqual((pf["why"], pf["keep_choice"]), (CI.REMOVES_TEXT, {"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "last"}))
     def test_22_physical_operations_and_confirmations_are_refused_end_to_end(self):
         s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); h = j["result"]["hash"]
         for op in ("confirm", "install", "update", "uninstall", "recover", "inspect", "export"):

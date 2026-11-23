@@ -13,11 +13,12 @@ The project's license does **not** cover the third-party material below, which r
 | Code | Where | License | Source |
 |---|---|---|---|
 | stb_image v2.30 | image decoding in the native HOME renderer (`tools/console-simulator/core/third_party/stb_image.h`) | public domain (Unlicense) or MIT, at the user's choice | https://github.com/nothings/stb |
-| FCEUmm (libretro-fceumm), commit `ac0d00a7fc01166f84c7bac01d1084ebfd2b865e` | the NES emulator inside the game player for Play on PC (`tools/player/third_party/fceumm`, linked into `ccs-player.exe`; `VENDORED.md` lists what is compiled) | GNU GPL version 2 or (at your option) any later version; the combined player is distributed under GPL version 3 | https://github.com/libretro/libretro-fceumm |
+| FCEUmm (libretro-fceumm), commit `ac0d00a7fc01166f84c7bac01d1084ebfd2b865e` with two Mapper 30 fixes prepared for upstream submission (`tools/player/third_party/fceumm/patches`, core build `ac0d00a7+patches.6dcff395`) | the NES emulator inside the game player: Play on PC (`ccs-player.exe`), the website's player (`ccs-player.wasm`) and the console's player (`ccs-player-armv7`), all built from `tools/player/third_party/fceumm` with the same patches (`VENDORED.md` lists what is compiled and what the patches change) | GNU GPL version 2 or (at your option) any later version; the combined player is distributed under GPL version 3 | https://github.com/libretro/libretro-fceumm |
 | libretro-common (the parts FCEUmm compiles) | inside the FCEUmm sources (`src/drivers/libretro/libretro-common`) | MIT-style permission notice in each file | https://github.com/libretro/libretro-common |
 | pic16c5x | inside the FCEUmm sources (`src/boards/pic16c5x.c`) | BSD-3-Clause (Tony La Porta, from MAME) | https://github.com/mamedev/mame |
 | emu2413 0.60, as modified for FCE Ultra and FCEUmm | inside the FCEUmm sources (`src/boards/emu2413.c`, `emu2413.h`), the YM2413 (VRC7) sound of a few cartridges | MIT License, Copyright (c) 2001-2019 Mitsutaka Okazaki: the license of the author's emu2413 project (full text below and in `tools/player/third_party/fceumm/LICENSE.emu2413.txt`); the FCE Ultra/FCEUmm changes come with FCEUmm (GPL v2 or later) | https://github.com/digital-sound-antiques/emu2413 (LICENSE) |
 | SDL_GameControllerDB, commit `07af1d50187e94c861c9f9f5d8a55b148f11306b` | the layouts of known game controllers, as data: `tools/player/core/gp_pad_db.h` in the game player and `play/pad-db.json` on the website (`tools/player/third_party/sdl_gamecontrollerdb`, `VENDORED.md`); no SDL code | zlib License (`tools/player/third_party/sdl_gamecontrollerdb/LICENSE`) | https://github.com/mdqinc/SDL_GameControllerDB |
+| minimp3, commit `142823796ab8efa55e1bf11406028f3be77ecceb` | HOME Music as MP3 in the console's game player (`tools/player/core/gp_mp3.c` with `tools/player/third_party/minimp3`, `VENDORED.md`), compiled only into the player built with it (`ccs-player-armv7-mp3`), which this version builds and checks but does not ship: the console's HOME Music stays the PCM file until the MP3 is approved | CC0 1.0 Universal (`tools/player/third_party/minimp3/LICENSE`) | https://github.com/lieff/minimp3 |
 | wasi-libc, with its musl, cloudlibc and dlmalloc parts (as carried by zig 0.17.0) | the C library inside the website's game player (`play/ccs-player.wasm`) | Apache-2.0 with LLVM Exceptions, or Apache-2.0, or MIT, at your choice; musl parts MIT; cloudlibc parts BSD-2-Clause; dlmalloc CC0 (texts in `tools/player/third_party/zig-runtime`) | https://github.com/WebAssembly/wasi-libc |
 | mingw-w64 runtime (as carried by zig 0.17.0) | the C runtime inside the Windows game player (`ccs-player.exe`) and the CCS Console Workbench's native host (`tools/console-backup/native-host`) | Zope Public License 2.1, except parts marked public domain, BSD or LGPL; Copyright (c) 2009 - 2013 by the mingw-w64 project (text in `tools/player/third_party/zig-runtime/mingw-w64-COPYING`) | https://www.mingw-w64.org |
 | musl libc (as carried by zig 0.17.0) | the C library inside the console's game player and HOME program (`ccs-player-armv7`, `ccs-home-armv7`, in every console HOME package) and the CCS Console Workbench's ccsboot (`tools/console-backup/ram/ccsboot`), each linked statically | MIT (text in `tools/player/third_party/zig-runtime/musl-COPYRIGHT`) | https://musl.libc.org |
@@ -28,6 +29,7 @@ The project's license does **not** cover the third-party material below, which r
 | SSH.NET, Team Shinkansen's fork at commit `32181aeb4ce69e8f07e5e1d585fd592a44017bc1` (the Hakchi2 CE 3.9.3 submodule) | compiled unmodified from that source into `Renci.SshNet.dll` beside the console transport worker | MIT License (text in `tools/console-worker/licenses`) | https://github.com/TeamShinkansen/SSH.NET |
 | LibUsbDotNet 2.2.29 | `LibUsbDotNet.LibUsbDotNet.dll` beside the console transport worker, and inside CCS Console Workbench (the standalone program, which the Windows installer also installs) (the NuGet package's file, unmodified; Hakchi2 CE 3.9.3 uses the same package) | the repository's `LICENSE` is the GNU LGPL v3; its source files state the GNU GPL v2 or (at your option) any later version. Copyright (C) 2006-2010 Travis Robinson (texts in `tools/console-backup/NOTICE`) | https://github.com/LibUsbDotNet/LibUsbDotNet at commit `5dd91a2fda393cf11db2072f2b45c3aee2750388`, the commit the package names; an archive of that commit is attached to each release |
 | FelLib, commit `e28ddfed0e2dea29279fb37fa379329329fa6cca` (the Hakchi2 CE 3.9.3 submodule) | adapted into CCS Console Workbench's console loader (`tools/console-loader/CcsConsole/FelLib`, inside `CcsConsole.dll`); each changed file carries a dated notice | GNU GPL v3 | https://github.com/TeamShinkansen/FelLib |
+| nQuant 1.0.3 by Matt Wrock (its WuQuantizer: Xiaolin Wu's color quantizer with transparency; the same library Hakchi2 CE 3.9.3 uses for its Original Menu covers) | adapted into Python in `tools/companion/console_engine/wu_quantize.py` (the file lists the changes), for the smaller Original Menu covers that are built and tested in this version but not used | Apache License 2.0 (full text below) | the NuGet package nQuant 1.0.3 (https://www.nuget.org/packages/nQuant/1.0.3); its project page was http://nquant.codeplex.com/ |
 
 Classic Cart Studio offers its own code under GPL-3.0-or-later. The console transport worker and CCS Console Workbench also contain code adapted from Hakchi2 CE, FelLib and hakchi's `sntool`, which those projects publish with the GNU GPL version 3 text and without an "or any later version" statement; Classic Cart Studio does not change the terms of those files. The Hakchi2 CE package carried by the Windows installer is a separate, unmodified program under its own license (see below).
 
@@ -55,6 +57,80 @@ since then in FCEUmm). The author's emu2413 project grants:
 > MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
 > ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
 > THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## nQuant license (Apache License 2.0)
+
+`tools/companion/console_engine/wu_quantize.py` is adapted from nQuant 1.0.3 by Matt Wrock (WuQuantizerBase and WuQuantizer), which is published under the Apache License, Version 2.0:
+
+```
+Apache License
+Version 2.0, January 2004
+http://www.apache.org/licenses/
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. Definitions.
+
+"License" shall mean the terms and conditions for use, reproduction, and distribution as defined by Sections 1 through 9 of this document.
+
+"Licensor" shall mean the copyright owner or entity authorized by the copyright owner that is granting the License.
+
+"Legal Entity" shall mean the union of the acting entity and all other entities that control, are controlled by, or are under common control with that entity. For the purposes of this definition, "control" means (i) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (ii) ownership of fifty percent (50%) or more of the outstanding shares, or (iii) beneficial ownership of such entity.
+
+"You" (or "Your") shall mean an individual or Legal Entity exercising permissions granted by this License.
+
+"Source" form shall mean the preferred form for making modifications, including but not limited to software source code, documentation source, and configuration files.
+
+"Object" form shall mean any form resulting from mechanical transformation or translation of a Source form, including but not limited to compiled object code, generated documentation, and conversions to other media types.
+
+"Work" shall mean the work of authorship, whether in Source or Object form, made available under the License, as indicated by a copyright notice that is included in or attached to the work (an example is provided in the Appendix below).
+
+"Derivative Works" shall mean any work, whether in Source or Object form, that is based on (or derived from) the Work and for which the editorial revisions, annotations, elaborations, or other modifications represent, as a whole, an original work of authorship. For the purposes of this License, Derivative Works shall not include works that remain separable from, or merely link (or bind by name) to the interfaces of, the Work and Derivative Works thereof.
+
+"Contribution" shall mean any work of authorship, including the original version of the Work and any modifications or additions to that Work or Derivative Works thereof, that is intentionally submitted to Licensor for inclusion in the Work by the copyright owner or by an individual or Legal Entity authorized to submit on behalf of the copyright owner. For the purposes of this definition, "submitted" means any form of electronic, verbal, or written communication sent to the Licensor or its representatives, including but not limited to communication on electronic mailing lists, source code control systems, and issue tracking systems that are managed by, or on behalf of, the Licensor for the purpose of discussing and improving the Work, but excluding communication that is conspicuously marked or otherwise designated in writing by the copyright owner as "Not a Contribution."
+
+"Contributor" shall mean Licensor and any individual or Legal Entity on behalf of whom a Contribution has been received by Licensor and subsequently incorporated within the Work.
+
+2. Grant of Copyright License.
+
+Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare Derivative Works of, publicly display, publicly perform, sublicense, and distribute the Work and such Derivative Works in Source or Object form.
+
+3. Grant of Patent License.
+
+Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated in this section) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the Work, where such license applies only to those patent claims licensable by such Contributor that are necessarily infringed by their Contribution(s) alone or by combination of their Contribution(s) with the Work to which such Contribution(s) was submitted. If You institute patent litigation against any entity (including a cross-claim or counterclaim in a lawsuit) alleging that the Work or a Contribution incorporated within the Work constitutes direct or contributory patent infringement, then any patent licenses granted to You under this License for that Work shall terminate as of the date such litigation is filed.
+
+4. Redistribution.
+
+You may reproduce and distribute copies of the Work or Derivative Works thereof in any medium, with or without modifications, and in Source or Object form, provided that You meet the following conditions:
+
+You must give any other recipients of the Work or Derivative Works a copy of this License; and
+You must cause any modified files to carry prominent notices stating that You changed the files; and
+You must retain, in the Source form of any Derivative Works that You distribute, all copyright, patent, trademark, and attribution notices from the Source form of the Work, excluding those notices that do not pertain to any part of the Derivative Works; and
+If the Work includes a "NOTICE" text file as part of its distribution, then any Derivative Works that You distribute must include a readable copy of the attribution notices contained within such NOTICE file, excluding those notices that do not pertain to any part of the Derivative Works, in at least one of the following places: within a NOTICE text file distributed as part of the Derivative Works; within the Source form or documentation, if provided along with the Derivative Works; or, within a display generated by the Derivative Works, if and wherever such third-party notices normally appear. The contents of the NOTICE file are for informational purposes only and do not modify the License. You may add Your own attribution notices within Derivative Works that You distribute, alongside or as an addendum to the NOTICE text from the Work, provided that such additional attribution notices cannot be construed as modifying the License.
+You may add Your own copyright statement to Your modifications and may provide additional or different license terms and conditions for use, reproduction, or distribution of Your modifications, or for any such Derivative Works as a whole, provided Your use, reproduction, and distribution of the Work otherwise complies with the conditions stated in this License.
+
+5. Submission of Contributions.
+
+Unless You explicitly state otherwise, any Contribution intentionally submitted for inclusion in the Work by You to the Licensor shall be under the terms and conditions of this License, without any additional terms or conditions. Notwithstanding the above, nothing herein shall supersede or modify the terms of any separate license agreement you may have executed with Licensor regarding such Contributions.
+
+6. Trademarks.
+
+This License does not grant permission to use the trade names, trademarks, service marks, or product names of the Licensor, except as required for reasonable and customary use in describing the origin of the Work and reproducing the content of the NOTICE file.
+
+7. Disclaimer of Warranty.
+
+Unless required by applicable law or agreed to in writing, Licensor provides the Work (and each Contributor provides its Contributions) on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. You are solely responsible for determining the appropriateness of using or redistributing the Work and assume any risks associated with Your exercise of permissions under this License.
+
+8. Limitation of Liability.
+
+In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall any Contributor be liable to You for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising as a result of this License or out of the use or inability to use the Work (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if such Contributor has been advised of the possibility of such damages.
+
+9. Accepting Warranty or Additional Liability.
+
+While redistributing the Work or Derivative Works thereof, You may choose to offer, and charge a fee for, acceptance of support, warranty, indemnity, or other liability obligations and/or rights consistent with this License. However, in accepting such obligations, You may act only on Your own behalf and on Your sole responsibility, not on behalf of any other Contributor, and only if You agree to indemnify, defend, and hold each Contributor harmless for any liability incurred by, or claims asserted against, such Contributor by reason of your accepting any such warranty or additional liability.
+
+END OF TERMS AND CONDITIONS
+```
 
 ## Bundled and referenced material
 

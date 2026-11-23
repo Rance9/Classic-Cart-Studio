@@ -8,7 +8,8 @@ every gate and approval still applies) or "reserved" (named, and denied everywhe
                      be known and supported. Items of the document's entry lists may each carry game_system: it must be supported too.
   check_request(req) a worker request: any identifier it names (directly, in ccs_target, or as a provider {kind, id}) must be supported;
                      a request that names none is the NES default, as every request was before.
-  model_for_board(board)  the supported console model a board answers with, else None.
+  model_for(board, region)  the supported console model a board and region answer with (a model that lists regions needs one of them),
+                     else None; model_for_board(board) is the same without a region.
 The registry text below is tools/platform/ccs-platform-registry.json byte for byte (test_platform_ids.py checks it); the C# engine embeds
 the same file and the website's platform-ids.js is built from it, and all three decide tools/platform/target-vectors.json the same way.
 Nothing read from a file, a request, a URL, a setting or the environment can add an entry or change a status: the registry is read once,
@@ -46,27 +47,30 @@ REGISTRY_TEXT = r'''{
     {"kind": "game-system", "id": "snes", "status": "reserved", "input": "snes-pad", "cores": [], "reason": "No core is selected, licensed, built or qualified for this system."},
 
     {"kind": "core", "id": "fceumm", "status": "supported", "game_system": "nes", "bundled": true, "license": "GPL-2.0-or-later",
-     "upstream": "https://github.com/libretro/libretro-fceumm", "pin": "ac0d00a7fc01166f84c7bac01d1084ebfd2b865e",
+     "upstream": "https://github.com/libretro/libretro-fceumm", "pin": "ac0d00a7fc01166f84c7bac01d1084ebfd2b865e", "build": "ac0d00a7+patches.6dcff395",
      "source": "tools/player/third_party/fceumm", "notices": ["tools/player/third_party/fceumm/VENDORED.md", "THIRD_PARTY_NOTICES.md"]},
     {"kind": "core", "id": "snes-unselected", "status": "reserved", "game_system": "snes", "bundled": false, "license": null, "upstream": null, "pin": null,
      "source": null, "notices": [], "reason": "A placeholder for a core that has not been chosen. Nothing is bundled for it."},
 
     {"kind": "physical-model", "id": "nes-classic-edition", "status": "supported", "boards": ["dp-nes"], "layouts": ["nes-classic-nand-512m"]},
-    {"kind": "physical-model", "id": "snes-classic-edition", "status": "reserved", "boards": [], "layouts": [],
-     "reason": "Backing up or restoring this console needs its own hardware and storage-layout proof; it is separate from playing its games."},
+    {"kind": "physical-model", "id": "snes-classic-edition", "status": "supported", "boards": ["dp-shvc"], "regions": ["USA", "EUR"], "layouts": ["snes-classic-nand-512m"],
+     "note": "The Super NES Classic Edition of North America and Europe (board dp-shvc with REGION USA or EUR; the Super Famicom Classic Mini, REGION JPN, is not this model). The console hardware only: its games still need a core this version does not have. Each operation it allows is listed as its own capability."},
 
     {"kind": "firmware", "id": "nintendo-nes-classic", "status": "supported", "physical_model": "nes-classic-edition",
      "note": "The console's own software, as Nintendo shipped it or with hakchi added."},
-    {"kind": "firmware", "id": "nintendo-snes-classic", "status": "reserved", "physical_model": "snes-classic-edition",
-     "reason": "A copy of this software supplied by the owner is a console software environment, never a Classic Cart Studio core, on any hardware."},
+    {"kind": "firmware", "id": "nintendo-snes-classic", "status": "supported", "physical_model": "snes-classic-edition",
+     "note": "The console's own software on Super NES Classic hardware, as Nintendo shipped it or with hakchi added. A copy of it is a console software environment, never a Classic Cart Studio core, on any hardware."},
 
     {"kind": "method", "id": "ccs-home-autostart", "status": "supported", "physical_model": "nes-classic-edition",
      "note": "Classic Cart Studio HOME started by the console's startup under the pinned hakchi (the current installation)."},
 
     {"kind": "layout", "id": "nes-classic-nand-512m", "status": "supported", "physical_model": "nes-classic-edition", "nandinfo": "2048 64 4096",
      "labels": ["boot", "rootfs", "data", "private", "UDISK", "rootfs_data"]},
+    {"kind": "layout", "id": "snes-classic-nand-512m", "status": "supported", "physical_model": "snes-classic-edition", "nandinfo": "2048 64 4096",
+     "labels": ["boot", "rootfs", "data", "private", "UDISK", "rootfs_data"],
+     "note": "536,870,912 bytes of NAND (the console's own nandinfo reads 2048 64 4096); five parts, its data storage an ext4 file system named data. The table each console reports is checked against its running system before anything is read."},
     {"kind": "layout", "id": "snes-classic-unproven", "status": "reserved", "physical_model": "snes-classic-edition",
-     "reason": "No storage layout of this console has been read or proved."},
+     "reason": "A name kept for files that referred to it; the supported layout is snes-classic-nand-512m."},
 
     {"kind": "input", "id": "nes-pad", "status": "supported", "game_system": "nes", "players": 2,
      "actions": ["up", "down", "left", "right", "a", "b", "select", "start"]},
@@ -85,7 +89,7 @@ REGISTRY_TEXT = r'''{
     {"kind": "save-adapter", "id": "snes-classic-stock-battery", "status": "reserved", "game_system": "snes", "firmware": "nintendo-snes-classic",
      "reason": "Its files are kept and exported as they are; nothing converts them."},
 
-    {"kind": "driver", "id": "clovershell-usb", "status": "supported", "physical_model": "nes-classic-edition", "gate": "ConsoleSessions"},
+    {"kind": "driver", "id": "clovershell-usb", "status": "supported", "physical_models": ["nes-classic-edition", "snes-classic-edition"], "gate": "ConsoleSessions"},
 
     {"kind": "capability", "id": "nes-gameplay", "status": "supported", "game_system": "nes", "core": "fceumm"},
     {"kind": "capability", "id": "snes-gameplay", "status": "reserved", "game_system": "snes"},
@@ -93,8 +97,30 @@ REGISTRY_TEXT = r'''{
     {"kind": "capability", "id": "nes-classic-restore", "status": "supported", "physical_model": "nes-classic-edition", "gate": "RestoreWrites"},
     {"kind": "capability", "id": "nes-classic-preparation", "status": "supported", "physical_model": "nes-classic-edition", "gate": "PreparationWrites"},
     {"kind": "capability", "id": "nes-classic-return", "status": "supported", "physical_model": "nes-classic-edition", "gate": "ReturnWrites"},
-    {"kind": "capability", "id": "snes-classic-backup", "status": "reserved", "physical_model": "snes-classic-edition"},
-    {"kind": "capability", "id": "snes-classic-restore", "status": "reserved", "physical_model": "snes-classic-edition"},
+    {"kind": "capability", "id": "snes-classic-identify", "status": "supported", "physical_model": "snes-classic-edition", "gate": "ConsoleSessions",
+     "note": "Reading the console's identity, startup software and storage table, and the check-up (Console Browser), read only."},
+    {"kind": "capability", "id": "snes-classic-backup", "status": "supported", "physical_model": "snes-classic-edition", "gate": "ConsoleSessions"},
+    {"kind": "capability", "id": "snes-classic-browse", "status": "supported", "physical_model": "snes-classic-edition",
+     "note": "Opening, checking, exporting from and repairing a backup file of this console on the PC; no console is needed."},
+    {"kind": "capability", "id": "snes-classic-restore", "status": "supported", "physical_model": "snes-classic-edition", "gate": "RestoreWrites"},
+    {"kind": "capability", "id": "snes-classic-preparation", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Preparing this console with hakchi needs hakchi's kernel built with this model's own system key and an audit of its startup and storage-table changes on this model."},
+    {"kind": "capability", "id": "snes-classic-return", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Returning this console to its original software needs its preparation (above) and this model's own replacement-bootloader evidence."},
+    {"kind": "capability", "id": "snes-classic-rescue", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Repairing this console's startup stages needs its own boot0 and boot1 references read from a genuine console of this model."},
+    {"kind": "capability", "id": "snes-classic-files", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Changing files on this console (Expert Mode) needs this model's file scopes, which this version does not define yet."},
+    {"kind": "capability", "id": "snes-classic-developer", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Test boots and startup or system changes need this model's system key and root settings established on its own startup software."},
+    {"kind": "capability", "id": "snes-classic-composition", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Moving data between consoles needs two consoles of this model and its own data plan."},
+    {"kind": "capability", "id": "snes-classic-addons", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "CCS Mod and CCS Nucleus on this console need its preparation (above) and its own menu and game paths."},
+    {"kind": "capability", "id": "snes-classic-firmware", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Adding system images to this console's startup chooser needs CCS Nucleus on it (above)."},
+    {"kind": "capability", "id": "snes-classic-community", "status": "reserved", "physical_model": "snes-classic-edition",
+     "reason": "Community mods on this console need CCS Nucleus on it and each mod's own approval for this model."},
     {"kind": "capability", "id": "nes-stock-save-conversion", "status": "supported", "game_system": "nes"},
     {"kind": "capability", "id": "snes-stock-save-conversion", "status": "reserved", "game_system": "snes"}
   ]
@@ -123,8 +149,13 @@ def allowed(kind: str, id_) -> bool:
 def supported_ids(kind: str) -> list: return [e["id"] for e in _REG["entries"] if e["kind"] == kind and e.get("status") == "supported"]
 def input_actions(id_: str) -> list: return list((_ENTRIES.get(("input", id_)) or {}).get("actions") or [])
 def model_for_board(board) -> str | None:
+    """the supported model a board answers with; never a model told apart by its region (model_for)"""
+    return model_for(board, None)
+def model_for(board, region) -> str | None:
+    """the supported model a board and region answer with: its boards include the board and, when it lists regions, they include the region"""
     if not isinstance(board, str) or not board: return None
-    return next((e["id"] for e in _REG["entries"] if e["kind"] == "physical-model" and e.get("status") == "supported" and board in (e.get("boards") or [])), None)
+    return next((e["id"] for e in _REG["entries"] if e["kind"] == "physical-model" and e.get("status") == "supported" and board in (e.get("boards") or [])
+                 and (not e.get("regions") or (isinstance(region, str) and region in e["regions"]))), None)
 def defaults(doc_kind: str) -> dict:
     if doc_kind not in _DEFAULTS: raise ValueError(f"no defaults for document kind {doc_kind!r}")
     return dict(_DEFAULTS[doc_kind])

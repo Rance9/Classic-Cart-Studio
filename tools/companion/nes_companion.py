@@ -6,7 +6,9 @@ with the API, and exposes three JSON endpoints that only the served page can cal
   GET  /api/status            environment (hakchi path/hash check, running, console attached) — no secrets
   POST /api/preview           body {manifest} -> validates, saves reports/exports/<ts>-selection.json, returns the plan
   POST /api/apply             body {manifest, manifest_file} -> transactional PC-side staging into hakchi, verify, launch
-  POST /api/install-hakchi    body {dry_run?} -> set up the pinned Hakchi2 CE 3.9.3 portable build from the verified package (only when absent)
+  POST /api/install-hakchi    body {dry_run?} -> set up the pinned Hakchi2 CE 3.9.3 portable build from the verified package (only when absent):
+                              starts the one setup at a time and answers at once {started, job}; a second request while it runs is refused
+  GET  /api/install-hakchi/status  that setup's stage and outcome ({job}: running / done / failed, "changed") and what is on this computer now
   POST /api/install-driver    body {dry_run?} -> run hakchi's bundled console driver installer elevated (UAC; only when the driver is absent)
   GET  /api/library/local     read-only view of the console-management library on this computer (factory + custom games, checked state, content matches)
   GET  /api/personal          the personal game entries (Add Your Own Game / adopted local games)
@@ -48,6 +50,7 @@ from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path, art_alias
 CFG = hb.load_cfg(); TOKEN = secrets.token_urlsafe(24); ROOT = SITE_ROOT
 mimetypes.add_type("application/json", ".json"); mimetypes.add_type("audio/mp4", ".m4a")   # HOME Music
 LOCK = threading.Lock()
+SETUP = {"job": None}; SETUP_LOCK = threading.Lock()   # Set Up Hakchi2 CE: one at a time; its last stage and outcome kept for the page to read again
 ORIGIN_RE = re.compile(r"^https://[a-z0-9.-]+$|^http://(127\.0\.0\.1|localhost)(:\d+)?$")
 def allowed_origins(port: int) -> set:
     own = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
@@ -120,11 +123,10 @@ def home_state_path(): return data_path("home-state.json")
 NATIVE_JOBS: dict[str, dict] = {}
 
 def console_package_stage(manifest, home, pack_dir) -> dict:
-    """the console package of this configuration, staged under <native HOME root>/console/current in both install methods' layouts (mod/:
-    CCS Mod, the app's install policy for a console that has neither; nucleus/: CCS Nucleus, for a console the CCS Console Workbench prepared
-    with it; the same files but session.json, whose leave item says where leaving CCS HOME goes). The installation's check reads which method
-    the console uses and takes that layout's plan. Built into a new folder, checked, then put in place of the previous one as a whole (which
-    is removed only after that). Nothing is sent anywhere"""
+    """the console package of this configuration, staged under <native HOME root>/console/current/mod in CCS HOME's one layout (CCS Mod
+    provides CCS HOME; its leave item, Choose Another Menu, is decided on the console: CCS Nucleus's startup chooser when that is installed,
+    otherwise Original Menu). Built into a new folder, checked, then put in place of the previous one as a whole (which is removed only after
+    that). Nothing is sent anywhere"""
     from native_home import package as nhp, console_package as cpk; import shutil
     root = os.path.join(nhp.package_root(), "console"); os.makedirs(root, exist_ok=True); stage = os.path.join(root, "staging-" + secrets.token_hex(4)); os.makedirs(stage)
     r = cpk.build_console(manifest, home, os.path.join(stage, "mod"), layout="mod", pack_dir=pack_dir, label=str(manifest.get("name") or "HOME")[:80])
@@ -133,16 +135,13 @@ def console_package_stage(manifest, home, pack_dir) -> dict:
     if un:   # the whole collection or nothing: a console package never leaves out a game whose ROM file is not usable here
         shutil.rmtree(stage, ignore_errors=True); import play as _pl
         return {"ok": False, "code": "incomplete", "error": _pl._incomplete_text(un), "unavailable": un[:50]}
-    n = cpk.derive_layout(os.path.join(stage, "mod"), os.path.join(stage, "nucleus"), "nucleus")
-    if not n.get("ok"): shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": n.get("error")}
-    for lay in ("mod", "nucleus"):
-        v = cpk.verify(os.path.join(stage, lay), notices=True)
-        if not v["ok"]: shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": "the console package did not check out: " + "; ".join(v["problems"][:3])}
+    v = cpk.verify(os.path.join(stage, "mod"), notices=True)
+    if not v["ok"]: shutil.rmtree(stage, ignore_errors=True); return {"ok": False, "error": "the console package did not check out: " + "; ".join(v["problems"][:3])}
     cur = os.path.join(root, "current"); old = os.path.join(root, "previous-" + secrets.token_hex(4))
     if os.path.isdir(cur): os.replace(cur, old)
     os.replace(stage, cur); shutil.rmtree(old, ignore_errors=True)
     m = r["manifest"]; return {"ok": True, "games": m["games"], "playable": m["playable"], "unavailable": m["unavailable"][:50], "startup": m["startup"], "sizes": m["sizes"], "total_bytes": m["total_bytes"], "files": len(m["files"]),
-                               "layouts": ["mod", "nucleus"]}
+                               "layout": "mod"}
 
 def native_package_start(manifest, home) -> dict:
     """starts building the console's native HOME package from the user's collection and HOME configuration (staged on this PC
@@ -224,8 +223,12 @@ HOME_OPS = [   # the distinct operations, in the order the app shows them; avail
     {"id": "export", "label": "Copy the console's saves", "tier": "inspect", "text": "Copies the console's saves, slots and settings to this computer and checks every file. Not available in this version."},
 ]
 HOME_PROFILES_UI = [{"name": "hakchi-ready", "label": "NES Classic with hakchi, room to spare"}, {"name": "nearly-full", "label": "NES Classic with hakchi, nearly full"},
-                    {"name": "mod-module", "label": "NES Classic with CCS Mod already installed"}, {"name": "other-module", "label": "NES Classic with CCS Nucleus already installed"},
-                    {"name": "both-methods", "label": "NES Classic with both CCS Mod and CCS Nucleus (a change that did not finish)"}, {"name": "stock", "label": "NES Classic without hakchi (first-time setup needed)"}]
+                    {"name": "with-mod", "label": "NES Classic with CCS Mod already installed"},
+                    {"name": "with-nucleus", "label": "NES Classic with CCS Nucleus already installed (Original Menu opens at power-on)"},
+                    {"name": "with-mod-nucleus", "label": "NES Classic with CCS Mod and CCS Nucleus (CCS HOME opens at power-on)"},
+                    {"name": "with-chooser", "label": "NES Classic with CCS Nucleus and its startup chooser"},
+                    {"name": "with-all", "label": "NES Classic with CCS Mod, CCS Nucleus and its startup chooser"},
+                    {"name": "stock", "label": "NES Classic without hakchi (first-time setup needed)"}]
 HOME_SCENARIOS_UI = {"first-install": "First installation", "update": "Update from an earlier HOME", "repeat": "The same HOME again", "repair": "Repair a changed file", "interrupted": "Connection lost during the installation"}
 def _transport_worker() -> dict:
     """the console transport worker shipped beside the app (tools/console-worker): identified, never started for a connection here"""
@@ -247,16 +250,15 @@ def console_home_status() -> dict:
     from console_engine.worker import read_home_records
     from console_engine import ccs_install as CI
     import console_home
-    man = None; staged = {}   # each staged layout's MANIFEST.json SHA-256; the summary is CCS Mod's (the default), the other layouts by version
-    for lay, d in CI.staged_packages(os.path.join(nhp.package_root(), "console", "current")).items():
+    man = None; staged = None   # the staged package's MANIFEST.json SHA-256
+    d = CI.staged_package(os.path.join(nhp.package_root(), "console", "current"))
+    if d:
         try:
             with open(os.path.join(d, "MANIFEST.json"), "rb") as fh: mb = fh.read()
-            m = json.loads(mb); staged[lay] = hashlib.sha256(mb).hexdigest()
-            if man is None or lay == CI.DEFAULT_METHOD:
-                man = {"label": m.get("label"), "games": m.get("games"), "playable": m.get("playable"), "total_bytes": m.get("total_bytes"), "startup": m.get("startup"),
-                       "layout": m.get("layout"), "version": staged[lay][:16], "unavailable": (m.get("unavailable") or [])[:50]}
-        except (OSError, ValueError): pass
-    if man: man["layouts"] = {lay: sha[:16] for lay, sha in sorted(staged.items())}
+            m = json.loads(mb); staged = hashlib.sha256(mb).hexdigest()
+            man = {"label": m.get("label"), "games": m.get("games"), "playable": m.get("playable"), "total_bytes": m.get("total_bytes"), "startup": m.get("startup"),
+                   "layout": m.get("layout"), "version": staged[:16], "unavailable": (m.get("unavailable") or [])[:50]}
+        except (OSError, ValueError): man = None; staged = None
     recs = read_home_records(os.path.join(cr.ROOT, "records"), staged)
     allowed = console_home.DISPATCH.allowed   # the dispatcher's gate: the code constants in the app (a test's own dispatcher answers for itself)
     st = cg.state(); ops = [dict(o, available=(o["tier"] is None or o["tier"] == "simulate" or (o["tier"] in ("inspect", "install") and allowed(o["tier"])))) for o in HOME_OPS]
@@ -363,9 +365,16 @@ class H(http.server.BaseHTTPRequestHandler):
         if path.startswith(("/api/overrides", "/overrides/")): import overrides as ov; return ov.handle_get(self, path, qs)   # N3 content customization (desktop principal; images like personal art)
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_get(self, path, qs)   # N3: TV Preview drawn by the native HOME renderer (desktop principal)
         if path.startswith("/api/play/"): import play as pl; return pl.handle_get(self, path, qs)   # M3: Play on PC, the game player (desktop principal)
+        if path == "/api/install-hakchi/status":   # the setup's stage and outcome, and the installation as it is now (a lost answer is checked here, never guessed)
+            with SETUP_LOCK: j = dict(SETUP["job"]) if SETUP["job"] else None
+            try: inst = hb.hakchi_install_status(CFG); now = {"state": inst["state"], "version": inst.get("version"), "root": inst.get("root")}
+            except Exception as e: now = {"state": "unknown", "error": str(e)[:200]}
+            return self._json(200, {"ok": True, "job": j, "install": now})
         if path == "/api/status":
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p); wait = min(float(q.get("wait", "0") or 0), 30.0)
-            return self._json(200, {"ok": True, **status_payload(wait), "bundle": bundle_integrity.check(), "version": VERSION, "protocol": PROTOCOL, "dev_store": os.path.exists(hb.DB_PATH)})
+            from console_engine import storage_model as SM   # the loadout meter counts the earlier CCS HOME versions the console keeps (Workbench's setting)
+            return self._json(200, {"ok": True, **status_payload(wait), "bundle": bundle_integrity.check(), "version": VERSION, "protocol": PROTOCOL, "dev_store": os.path.exists(hb.DB_PATH),
+                                    "earlier_home_versions": SM.earlier_keep(SM.earlier_setting())})
         if path == "/api/bundle":   # the installation's integrity: every installed file present with its size; ?full=1 also checks every SHA-256
             q = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
             return self._json(200, {"ok": True, "bundle": bundle_integrity.check(full=q.get("full") == "1")})
@@ -603,9 +612,18 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(404, {"ok": False, "error": "unknown endpoint"})
         if path in ("/api/install-hakchi", "/api/install-driver"):
             # explicit click in the catalog; same live guards as staging (never while hakchi runs or the console is attached)
+            if path == "/api/install-hakchi":
+                with SETUP_LOCK: j = SETUP["job"]
+                if j and j["state"] == "running": return self._json(409, {"ok": False, "running": True, "job": dict(j), "error": "Hakchi2 CE is already being set up. Wait for it to finish."})
             if not CFG.get("rehearsal_tree"):
-                if hb.hakchi_running(): return self._json(409, {"ok": False, "error": "Hakchi2 CE is open. Close it, then try again."})
-                if hb.console_connected(): return self._json(409, {"ok": False, "error": "The console is connected over USB. Disconnect it, then try again."})
+                if hb.hakchi_running(): return self._json(409, {"ok": False, "changed": False, "error": "Hakchi2 CE is open. Close it, then try again."})
+                if hb.console_connected(): return self._json(409, {"ok": False, "changed": False, "error": "The console is connected over USB. Disconnect it, then try again."})
+            if path == "/api/install-hakchi" and not body.get("dry_run"):
+                job = start_setup()
+                if job is None:
+                    with SETUP_LOCK: j = dict(SETUP["job"])
+                    return self._json(409, {"ok": False, "running": True, "job": j, "error": "Hakchi2 CE is already being set up. Wait for it to finish."})
+                return self._json(202, {"ok": True, "started": True, "job": job})
             try:
                 fn = hb.install_hakchi if path == "/api/install-hakchi" else hb.install_driver
                 res = fn(CFG, dry_run=bool(body.get("dry_run"))); diag_refresh(force=True); res["env"] = status_payload(wait=20)
@@ -689,8 +707,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 pv_out = {k: pv[k] for k in ("can_apply", "problems", "warnings", "summary", "games")}
                 # reuse count for the preview
                 try:
-                    tree = hb.HakchiTree(os.path.dirname(CFG["hakchi_exe"])); ex = tree.custom_entries()
-                    pv_out["summary"]["reused"] = sum(1 for it in pv["custom"] if any(e["marker"] and e["marker"].get("game_id") == it["game"]["game_id"] for e in ex.values()))
+                    pv_out["summary"]["reused"] = hb.already_prepared(pv, hb.HakchiTree(os.path.dirname(CFG["hakchi_exe"])))
                     pv_out["summary"]["to_prepare"] = pv_out["summary"]["to_prepare_total"] - pv_out["summary"]["reused"]
                 except Exception: pass
                 env = status_payload(wait=20)
@@ -714,7 +731,7 @@ def ui_verify(res: dict) -> str:
     """Read Hakchi's game list through UI Automation (read-only) and compare the checked set with the applied selection."""
     import subprocess
     script = os.path.join(HERE, "Read-HakchiSelection.ps1")
-    out = subprocess.run([hb.pwsh(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-ProcessId", str(res.get("hakchi_pid", 0)), "-WaitSeconds", "180"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300).stdout.strip()
+    out = subprocess.run([hb.pwsh(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-ProcessId", str(res.get("hakchi_pid", 0)), "-WaitSeconds", "180"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, creationflags=hb.NO_WINDOW).stdout.strip()
     j = json.loads(out.splitlines()[-1]) if out else {}
     if not j.get("ok"): return f"unverified ({j.get('error','no window')})"
     ver = res["verification"]; want = set(ver["factory_enabled"]) | set(ver["custom_checked"]); n_want = len(want)
@@ -750,6 +767,26 @@ def diag_refresh(force: bool = False):
         finally:
             with LOCK: DIAG["running"] = False
     threading.Thread(target=run, daemon=True).start()
+def start_setup() -> dict | None:
+    """Set Up Hakchi2 CE in the background (hakchi_bridge.install_hakchi): the job's stage while it runs, then its outcome with the
+    environment as it is afterwards. None when a setup is already running (never two at once: they would share one staging folder)"""
+    with SETUP_LOCK:
+        j = SETUP["job"]
+        if j and j["state"] == "running": return None
+        j = {"id": secrets.token_hex(6), "state": "running", "stage": "checking", "done": 0, "total": 0, "started": time.time(), "ended": None, "result": None, "error": None, "changed": None}
+        SETUP["job"] = j
+    def stage(name, done=0, total=0):
+        with SETUP_LOCK: j.update(stage=name, done=done, total=total)
+    def run():
+        try:
+            res = hb.install_hakchi(CFG, progress=stage); stage("reading")
+            diag_refresh(force=True); res["env"] = status_payload(wait=20)
+            with SETUP_LOCK: j.update(state="done" if res.get("ok") else "failed", result=res, changed=bool(res.get("changed")), ended=time.time())
+        except Exception as e:   # an unexpected stop: what is on this computer is read again by the page, never assumed unchanged
+            with SETUP_LOCK: j.update(state="failed", error=f"Could not complete the setup ({str(e)[:200]})", changed=None, ended=time.time())
+    threading.Thread(target=run, name="hakchi-setup", daemon=True).start()
+    with SETUP_LOCK: return dict(j)
+
 def status_payload(wait: float = 0.0) -> dict:
     """Cheap status now; the diagnostics snapshot when one exists (or after waiting up to `wait` seconds for a fresh one)."""
     st = hb.env_status(CFG, quick=True); diag_refresh()

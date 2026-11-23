@@ -227,30 +227,76 @@
     <Setter Property="Margin" Value="14,8,14,6"/>
   </Style>
 
-  <!-- dark scroll bars for the diagnostics text -->
+  <!-- dark scroll bars everywhere in Classic Cart Studio's own windows and in CCS Console Workbench (which uses this theme): a rounded
+       thumb on the window's own background, vertical and horizontal (each moving the right way), a click beside the thumb pages, no
+       arrow buttons; the square where two bars meet is dark too (the ScrollViewer style below) -->
+  <Style x:Key="ScrollThumb" TargetType="Thumb">
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Thumb">
+          <Border x:Name="t" Background="#FF4A4A58" CornerRadius="4" Margin="2"/>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="t" Property="Background" Value="#FF6C6C80"/></Trigger>
+            <Trigger Property="IsDragging" Value="True"><Setter TargetName="t" Property="Background" Value="#FF8A8AA0"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="ScrollPage" TargetType="RepeatButton">
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="IsTabStop" Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
   <Style TargetType="ScrollBar">
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Width" Value="10"/>
+    <Setter Property="Width" Value="12"/>
+    <Setter Property="MinWidth" Value="12"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ScrollBar">
-          <Grid Background="Transparent">
+          <Grid Background="{TemplateBinding Background}">
             <Track x:Name="PART_Track" IsDirectionReversed="True">
-              <Track.Thumb>
-                <Thumb>
-                  <Thumb.Template>
-                    <ControlTemplate TargetType="Thumb"><Border Background="#40FFFFFF" CornerRadius="5" Margin="2"/></ControlTemplate>
-                  </Thumb.Template>
-                </Thumb>
-              </Track.Thumb>
+              <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource ScrollPage}" Command="ScrollBar.PageUpCommand"/></Track.DecreaseRepeatButton>
+              <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource ScrollPage}" Command="ScrollBar.PageDownCommand"/></Track.IncreaseRepeatButton>
+              <Track.Thumb><Thumb Style="{StaticResource ScrollThumb}"/></Track.Thumb>
             </Track>
           </Grid>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
     <Style.Triggers>
-      <Trigger Property="Orientation" Value="Horizontal"><Setter Property="Height" Value="10"/><Setter Property="Width" Value="Auto"/></Trigger>
+      <Trigger Property="Orientation" Value="Horizontal">
+        <Setter Property="Width" Value="Auto"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Height" Value="12"/>
+        <Setter Property="MinHeight" Value="12"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="ScrollBar">
+              <Grid Background="{TemplateBinding Background}">
+                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                  <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource ScrollPage}" Command="ScrollBar.PageLeftCommand"/></Track.DecreaseRepeatButton>
+                  <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource ScrollPage}" Command="ScrollBar.PageRightCommand"/></Track.IncreaseRepeatButton>
+                  <Track.Thumb><Thumb Style="{StaticResource ScrollThumb}"/></Track.Thumb>
+                </Track>
+              </Grid>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Trigger>
     </Style.Triggers>
+  </Style>
+  <!-- the square where a vertical and a horizontal scroll bar meet takes Windows' control color in WPF's own ScrollViewer: transparent here -->
+  <Style TargetType="ScrollViewer">
+    <Style.Resources>
+      <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="Transparent"/>
+    </Style.Resources>
   </Style>
   <Style TargetType="TextBox">
     <Setter Property="Background" Value="#FF0B0B0E"/>

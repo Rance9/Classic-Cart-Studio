@@ -13,6 +13,18 @@ from common import FROZEN, APP_ROOT, PROJECT, data_path
 
 SCHEMA = "ccs-home-music/1"
 FILE = "ccs-home-theme.wav"
+# The same song as MP3 for the console (128 kbit/s, 48,000 Hz stereo, an Info tag with its encoder delay 576 and padding 576), made from
+# FILE by FFmpeg's libmp3lame: built and proven with the game player's MP3 build (tools/player/core/gp_mp3.c) but not used. The console's
+# HOME Music stays FILE until this exact file passes its console recording and smoothness checks and is approved after a final listen.
+# Only this file is accepted (by its SHA-256); it is not part of this version's sources or installation.
+MP3_FILE = "ccs-home-theme.mp3"; MP3_SHA256 = "fd6d49336bf7e68f541d323a7cf5b2b0ad61d69ee169f40a619e34af033907ab"; MP3_BYTES = 993068; MP3_FRAMES = 2976768
+
+def mp3_asset() -> str | None:
+    """the held MP3 for a private build that proves it (CCS_HOME_MUSIC_MP3 names it); None unless it is exactly the file above"""
+    p = os.environ.get("CCS_HOME_MUSIC_MP3") or ""
+    if not os.path.isfile(p) or os.path.getsize(p) != MP3_BYTES: return None
+    import hashlib
+    with open(p, "rb") as f: return p if hashlib.sha256(f.read()).hexdigest() == MP3_SHA256 else None
 
 def asset_dir() -> str:
     if FROZEN: return os.path.join(APP_ROOT, "_internal", "home-music")

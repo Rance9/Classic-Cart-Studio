@@ -1,5 +1,5 @@
 """The release streams and both update checks' selection, offline (made-up release lists shaped like this repository's own, plus the
-published releases as of 0.11.3). Checks release_streams.py (what the website publishes, release-streams.json, and the two earlier feeds
+published releases up to 0.11.3). Checks release_streams.py (what the website publishes, release-streams.json, and the two earlier feeds
 built from it) and companion/app_update.py (Classic Cart Studio's own decision, including what it installs and what it sends to the download
 page). CCS Console Workbench's decision (CcsBackup.Library.ReleaseStreams) is checked by the engine tests' "updates" group with the same cases.
   python test_release_streams.py      Exit 0 = every check passed. Needs no network: nothing here opens a connection."""
@@ -21,10 +21,10 @@ def rel(tag, pre, when, *names, draft=False):
 def app(v, pre, when, *extra, draft=False): return rel("v" + v, pre, when, f"ClassicCartStudio-Setup-{v}.exe", "SHA256SUMS.txt", "build-info.json", "ClassicCartStudio-Installation-Terms-1.3.txt", *extra, draft=draft)
 def wb(v, pre, when, *extra): return rel("workbench-v" + v, pre, when, f"CCS-Console-Workbench-{v}.exe", f"CCS-Console-Workbench-{v}-arm64.exe", "SHA256SUMS.txt", "build-record.json", *extra)
 
-# the published releases as of 0.11.3 (tags, prerelease marks and main files as GitHub lists them; build information without a channel)
+# the published releases up to 0.11.3 (tags, prerelease marks and main files as GitHub lists them; build information without a channel)
 PUBLISHED = [app("0.11.3", True, "2026-11-19T11:12:52Z"), app("0.11.2", True, "2026-11-19T05:14:16Z"), wb("0.11.3", True, "2026-11-19T11:12:54Z"),
              wb("0.11.2", True, "2026-11-19T05:14:18Z"), app("0.11.1", True, "2026-11-19T00:07:51Z"), app("0.11.0", True, "2026-11-18T13:44:46Z"),
-             wb("1.0.0", True, "2026-11-18T13:44:48Z"), wb("0.11.1", True, "2026-11-19T00:07:53Z"), wb("0.11.0", True, "2026-11-18T14:04:16Z", "version-correction.json"),
+             wb("0.11.1", True, "2026-11-19T00:07:53Z"), wb("0.11.0", True, "2026-11-18T14:04:16Z"),
              app("0.10.1", False, "2026-11-11T23:36:25Z"), app("0.10.0", False, "2026-11-11T17:07:28Z"), app("0.9.0", False, "2026-11-11T11:58:08Z"),
              app("0.8.0", False, "2026-11-11T00:26:38Z"), app("0.7.7", False, "2026-11-02T09:10:05Z"), app("0.6.0", False, "2026-10-19T01:31:52Z")]
 META = {}   # tag -> build information (absent: the release's file exists and holds no channel, as every release up to 0.11.3)
@@ -43,8 +43,11 @@ check(doc["schema"] == "ccs-release-streams/1" and doc["complete"] is True and l
 check(h[("app", "preview")][:4] == ["0.11.3", "0.11.2", "0.11.1", "0.11.0"], "legacy 0.11.0 to 0.11.3 of the app are previews (GitHub prerelease, no channel in their metadata)")
 check(h[("app", "production")][0] == "0.10.1" and "0.11.3" not in h[("app", "production")], "v0.10.1 heads app/production; no preview is a production release")
 check(h[("workbench", "preview")] == ["0.11.3", "0.11.2", "0.11.1", "0.11.0"], "workbench/preview is 0.11.0 to 0.11.3 newest first")
-check("1.0.0" not in h[("workbench", "preview")] and "1.0.0" not in h[("workbench", "production")], "the superseded workbench-v1.0.0 is in no stream, although its number is larger")
-check(any(x["tag"] == "workbench-v1.0.0" for x in doc["excluded"]), "workbench-v1.0.0 is listed as excluded, with its reason")
+check(doc["excluded"] == [], "nothing is excluded: every published release is in its own product's stream")
+RS.EXCLUDED["workbench-v9.0.0"] = "made-up: kept available, never offered"
+dx = RS.build(PUBLISHED + [wb("9.0.0", True, "2026-11-19T13:00:00Z")], meta, sums, "x"); del RS.EXCLUDED["workbench-v9.0.0"]
+check("9.0.0" not in heads(dx)[("workbench", "preview")] and "9.0.0" not in heads(dx)[("workbench", "production")], "a tag in EXCLUDED is in no stream, although its number is larger")
+check(any(x["tag"] == "workbench-v9.0.0" and x["reason"] for x in dx["excluded"]), "a tag in EXCLUDED is listed as excluded, with its reason")
 check(h[("workbench", "production")] == [], "workbench/production lists nothing (no production Workbench was published)")
 e = next(s for s in doc["streams"] if s["product"] == "app" and s["channel"] == "preview")["releases"][0]
 check(e["channel_from"] == "github-prerelease" and e["asset"]["sha256"] == "%064x" % 1 and e["asset"]["url"] == DL + "v0.11.3/ClassicCartStudio-Setup-0.11.3.exe", "the newest entry carries its file, its checksum and the source of its channel")
@@ -79,12 +82,12 @@ LIVE_KEYS = ["product", "version", "tag", "prerelease", "published", "url", "ass
 META.clear(); doc = RS.build(PUBLISHED, meta, sums, "x")
 j = RN.latest_release_json("app", True, doc); w = RN.latest_release_json("workbench", True, doc)
 check(list(j) == LIVE_KEYS and j["version"] == "0.11.3" and j["tag"] == "v0.11.3" and j["prerelease"] is True and j["asset"] == {"name": "ClassicCartStudio-Setup-0.11.3.exe", "size": 1000 + len("ClassicCartStudio-Setup-0.11.3.exe"), "url": DL + "v0.11.3/ClassicCartStudio-Setup-0.11.3.exe"} and j["sums_url"] == DL + "v0.11.3/SHA256SUMS.txt" and j["utility"] is None and j["source"] == "github-release", "release.json keeps its shape and names the app's current preview")
-check(list(w) == LIVE_KEYS and w["version"] == "0.11.3" and w["tag"] == "workbench-v0.11.3" and w["asset"]["name"] == "CCS-Console-Workbench-0.11.3.exe", "workbench-release.json keeps its shape and names the Workbench's current preview (never 1.0.0)")
+check(list(w) == LIVE_KEYS and w["version"] == "0.11.3" and w["tag"] == "workbench-v0.11.3" and w["asset"]["name"] == "CCS-Console-Workbench-0.11.3.exe", "workbench-release.json keeps its shape and names the Workbench's current preview")
 check(RN.latest_release_json("app", False, doc)["version"] == "0.10.1", "without previews, release.json names the newest production release")
 check(RN.latest_release_json("app", True, {"schema": RS.SCHEMA, "complete": False, "streams": []})["version"] is None, "an incomplete lookup names no release")
 live = os.environ.get("CCS_LIVE_RELEASE_JSON")   # optional: compare the key order with a saved copy of the live file
 if live and os.path.exists(live): check(list(json.load(open(live, encoding="utf-8"))) == LIVE_KEYS, "the saved live release.json has the same keys in the same order")
-check(RN.select_release([r for r in PUBLISHED if r["tagName"].startswith("workbench")], "workbench", True)[0]["tagName"] == "workbench-v0.11.3", "select_release takes the highest Workbench version and never the superseded 1.0.0")
+check(RN.select_release([r for r in PUBLISHED if r["tagName"].startswith("workbench")], "workbench", True)[0]["tagName"] == "workbench-v0.11.3", "select_release takes the highest Workbench version")
 
 # ---- Classic Cart Studio's decision (app_update.plan): the app stream of its own channel only
 P = lambda d, cur, ch="preview", wbv=None: AU.plan(d, cur, ch, {"version": wbv} if wbv else None)

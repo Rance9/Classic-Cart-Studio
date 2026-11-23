@@ -26,6 +26,7 @@ def main(site: str):
     if mode == "windows":
         page = open(os.path.join(site, "nes-catalog.html"), encoding="utf-8").read(); ok("index_is_the_page", page == idx)
         ok("no_splash_sound_in_the_windows_copy", not os.path.exists(os.path.join(site, "brand", "splash")) and 'id="snd"' not in idx)
+        ok("no_community_page_in_the_windows_copy (browse-only showcase is the website's)", not os.path.exists(os.path.join(site, "community")))
     else:
         page = open(os.path.join(site, "preview", "index.html"), encoding="utf-8").read() if mode == "prelaunch" else idx
         public_layout_checks(site, mode, idx, page, ok)
@@ -96,7 +97,7 @@ def main(site: str):
     ok("footer_links_branded_source", 'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>' in page and "download: <a href=\"https://github.com/Rance9/Classic-Cart-Studio\"" not in page)
     ok("footer_cast_pauses_on_hover", "footer .castwrap:hover .cast,footer .castwrap:focus-within .cast{animation-play-state:paused}" in page)
     ok("app_download_page_is_first_party", 'http-equiv="refresh"' not in app and "location.replace(" not in app and "<title>Classic Cart Studio | Windows Downloads</title>" in app and 'href="https://classiccartstudio.com/app/"' in app and 'name="robots" content="noindex,follow"' in app)
-    ok("app_download_page_separates_preview_products", "/releases/download/v0.11.7/ClassicCartStudio-Setup-0.11.7.exe" in app and "/releases/download/workbench-v0.11.7/CCS-Console-Workbench-0.11.7.exe" in app and "Development previews" in app and "unsigned" in app and "Console connections, console writes and USB driver actions are disabled" in app and "/releases/latest" not in app and 'href="https://github.com/Rance9/Classic-Cart-Studio"' not in app)
+    ok("app_download_page_separates_preview_products", "/releases/download/v0.11.8/ClassicCartStudio-Setup-0.11.8.exe" in app and "/releases/download/workbench-v0.11.8/CCS-Console-Workbench-0.11.8.exe" in app and "Development previews" in app and "unsigned" in app and "Console connections, console writes and USB driver actions are disabled" in app and "/releases/latest" not in app and 'href="https://github.com/Rance9/Classic-Cart-Studio"' not in app)
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
 
 SITE_URL = "https://classiccartstudio.com"
@@ -174,7 +175,16 @@ def public_layout_checks(site, mode, idx, page, ok):
         ok("no_splash_sound_at_the_launch (no splash, no MP3)", not os.path.exists(os.path.join(site, *PE.SOUND_DIR.split("/"))) and 'id="snd"' not in idx)
     rb = open(os.path.join(site, "robots.txt"), encoding="utf-8").read(); ok("robots_allows_crawling (noindex is read, not blocked)", "Disallow" not in rb)
     sm = os.path.join(site, "sitemap.xml"); ok("no_sitemap_or_only_indexable_pages", not os.path.exists(sm) or "/preview" not in open(sm, encoding="utf-8").read())
-    for n in ("app", "source", "store"):
+    # Community Mods (browse only, tools/publish/community_showcase.py): only on the public website; what the catalog lists, nothing else
+    cp = os.path.join(site, "community", "index.html"); ch = open(cp, encoding="utf-8").read() if os.path.exists(cp) else None
+    listed = json.load(open(os.path.join(HERE, "..", "community", "ccs-community-catalog.json"), encoding="utf-8"))["entries"]
+    ok("community_page_present", ch is not None)
+    ch = ch or ""
+    ok("community_page_browse_only (no form, button, script or install control)", "<form" not in ch and "<button" not in ch and "<script" not in ch.lower() and not re.search(r">\s*Install\b", ch) and "Installation happens in CCS Console Workbench on Windows" in ch)
+    ok("community_page_lists_what_the_catalog_lists", ch.count("<article") == len(listed) and ("No community mods are listed yet" in ch) == (len(listed) == 0))
+    ok("community_page_loads_nothing_from_another_site (author pictures stay links)", not re.search(r'\ssrc="(https?:)?//', ch))
+    ok("community_page_back_link_follows_the_entry", ('href="/preview/"' in ch) == (mode == "prelaunch") and ('href="/"' in ch) == (mode == "launch"))
+    for n in ("app", "source", "store", "community"):
         p = os.path.join(site, n, "index.html")
         if os.path.exists(p): ok(f"{n}_page_keeps_noindex", bool(re.search(r'<meta name="robots" content="noindex(?:,[^"]*)?">', open(p, encoding="utf-8").read())))
 

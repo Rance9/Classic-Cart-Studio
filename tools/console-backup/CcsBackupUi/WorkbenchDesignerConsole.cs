@@ -151,6 +151,7 @@ namespace CcsBackup.Ui
         {
             designPlanKind = p.S("kind"); designTag = p.S("console_tag"); bool revert = (designPlanKind ?? "").EndsWith("revert", StringComparison.Ordinal);   // the engine names it "design-revert"
             var sp = SectionHead(revert ? "Review: Revert Design" : "Review: Apply the Design", "What would change on your " + Con + ", console " + designTag + ", the console connected to this PC now. Nothing has been written yet.");
+            var originalNote = OriginalUnavailableNote(designTag); if (originalNote != null) sp.Children.Add(originalNote);
             var ev = (p.A("evidence") ?? new List<object>()).OfType<Dictionary<string, object>>().FirstOrDefault();
             var d = new StackPanel();
             d.Children.Add(KeyValues(("Console", "Console " + designTag + ", connected to this PC now"),

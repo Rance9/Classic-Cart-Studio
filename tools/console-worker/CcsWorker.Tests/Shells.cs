@@ -59,7 +59,7 @@ namespace CcsWorker.Tests
 
     sealed class BusyboxShell : IConsoleShell
     {
-        static readonly Regex ConsolePath = new Regex("'(/var/lib|/tmp/ccs|/etc/init\\.d/S81clover-mcp|/var/version)");
+        static readonly Regex ConsolePath = new Regex("'(/var/lib|/tmp/ccs|/etc/init\\.d/S81clover-mcp|/var/version|/media/hakchi|/var/squashfs|/proc/mounts)");
         readonly string scripts, work; int n; volatile bool disposed;
         public readonly string Sim;
         public readonly List<string> Commands = new List<string>();

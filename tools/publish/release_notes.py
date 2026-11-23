@@ -21,7 +21,7 @@ UTILITY_PREFIX = "CCS-Console-Backup-Restore-Utility-"   # earlier app releases 
 # ClassicCartStudio-Setup-<version>.exe) and CCS Console Workbench (tags workbench-v<version>, file CCS-Console-Workbench-<version>.exe,
 # published with "latest" turned off). GitHub's "latest release" is never trusted to be the right product: each feed lists releases and
 # takes the published, non-draft one (prereleases require explicit opt-in) with the highest version number whose tag AND installer file
-# both belong to that product; a tag in release_streams.EXCLUDED (the superseded workbench-v1.0.0) is never taken.
+# both belong to that product; a tag in release_streams.EXCLUDED is never taken.
 PRODUCTS = {
     "app": {"tag": re.compile(r"^v(\d+\.\d+\.\d+)$"), "asset": re.compile(r"^ClassicCartStudio-Setup-(\d+\.\d+\.\d+)\.exe$", re.I)},
     "workbench": {"tag": re.compile(r"^workbench-v(\d+\.\d+\.\d+)$"), "asset": re.compile(r"^CCS-Console-Workbench-(\d+\.\d+\.\d+)\.exe$", re.I)},
@@ -53,8 +53,10 @@ def utility_note(bi: dict) -> str:
             "needs no installation (the Windows app has the same feature built in).\n\n")
 
 def notes(version: str, bi: dict, preview: bool = False) -> str:
-    warning = ("**Development preview — unsigned.** All console connections, console writes and driver actions are disabled in this build. "
-               "Real-console and Windows on Arm qualification are not complete. Offline backup-file tools and the PC interface are available.\n\n") if preview else ""
+    warning = ("**Development preview — unsigned.** Classic Cart Studio's own console connections, console writes and driver actions are "
+               "disabled in this build. Offline backup-file tools and the PC interface are available. Games prepared on this computer are "
+               "transferred by you in the included Hakchi2 CE 3.9.3 (Continue in Hakchi2 CE), which writes to the console under your "
+               "control.\n\n") if preview else ""
     return f"""# Classic Cart Studio for Windows {version}
 
 {warning}

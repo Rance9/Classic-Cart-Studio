@@ -1,19 +1,24 @@
 #!/bin/sh
-# ccs-nucleus: CCS Nucleus on the console. Classic Cart Studio's start chooser and boot registry around the normal Hakchi platform: the
-# console's own environment stays an intact normal choice ("native"), beside CCS HOME and the owner's own system images.
+# ccs-nucleus: CCS Nucleus on the console: what opens when the console is switched on, around the normal Hakchi platform. The console's
+# own environment stays an intact normal choice ("native", Original Menu), beside CCS HOME (while CCS Mod is installed) and the owner's
+# own system images. Two packages: ccs-nucleus starts the registry's choice directly (this script, its library and the start script);
+# ccs-nucleus-chooser adds the chooser on the TV, the switch into the owner's own system images (the start-stage hooks) and the menu
+# entry "CCS Nucleus". The chooser can be added or removed without touching anything else.
 # Copyright (C) 2026 Rance9. GPL-3.0-or-later. BusyBox ash (hakchi 3.9.3's BusyBox 1.29).
 #
 # Where it runs (nothing of hakchi's or anyone else's is replaced):
-#   early CFG            hakchi's preinit, from p7060_ccsnucleus (after p7020_usb, before p7070_firmware loads a system image),
+#   early CFG            hakchi's preinit, from p7060_ccsnucleus (the chooser package) (after p7020_usb, before p7070_firmware loads a system image),
 #                        CCS_ROOT=/newroot. Decides which system this start uses; prints one line
 #                        "ccsn-decision KIND ID IMAGE RESTORE WHY" (IMAGE: the system image for hakchi's cfg_firmware for THIS start
 #                        only, or "-"; RESTORE: the owner's own cfg_firmware value to put back after a failed attempt, or "-")
 #   loaded IMAGE         hakchi's preinit, from p7071_ccsnucleus (right after p7070_firmware): whether hakchi mounted that image
 #   ui-start | ui-stop   the console's start scripts, S81ccs-nucleus (after the S80 scripts, before the console's own menu start
 #                        S81clover-mcp, which it never replaces): the chooser, CCS HOME, or straight on to the console's own start
-#   choose               the menu entry "CCS Nucleus" in the console's own menu: the chooser from there
-# The chooser on the TV is the native HOME program's chooser mode (home/bin/ccs-home-armv7 --choose in the CCS HOME package in force;
-# tools/console-simulator/core/chooser.c): this script decides what is offered and acts on its one answer; the program writes nothing.
+#   choose               the menu entry "CCS Nucleus" in the console's own menu, and CCS HOME's leave item: the chooser from there
+#                        (only while the chooser package is installed)
+# The chooser on the TV is the native HOME program's chooser mode (the chooser package's own copy, etc/ccs/nucleus/chooser/bin/
+# ccs-home-armv7 --choose; tools/console-simulator/core/chooser.c): this script decides what is offered and acts on its one answer; the
+# program writes nothing.
 # Management (the PC, over hakchi's shell):
 #   import STAGED ID SHA256 BYTES LABEL [KERNEL]   an owner's system image, already uploaded to /var/lib/ccs/nucleus/staging/, moved
 #                        into Nucleus's own folder (roots/ID.hsqs) and added as an option. Nothing in hakchi's firmware folders is ever
@@ -24,7 +29,9 @@
 #   forget ID            an option removed from the registry (its image file is kept)
 #   registry-install FILE   a sealed registry made by the PC (ccs-boot-registry/1), checked, then put in force with one rename
 #   set default|selection|chooser|timeout VALUE
-#   preinstall FILES | postinstall FILES | activate | take-over | remove [keep|remove-data] | entry add|remove | status
+#   preinstall FILES | postinstall FILES | remove [keep|remove-data]          the ccs-nucleus package
+#   chooser-preinstall FILES | chooser-postinstall FILES | chooser-remove     the ccs-nucleus-chooser package
+#   entry add|remove | status
 # Every management command ends with one line "result <command> ok ..." or "result <command> failed|refused <why>".
 ME="$0"
 L="${ME%/bin/ccs-nucleus}/etc/ccs/nucleus/lib.sh"
@@ -91,12 +98,19 @@ reg_edit(){
   g="$(reg generation)"; g=$((g + 1))
   reg_body | awk -v gen="$g" "$1"' { if (index($0, "generation=") == 1) { print "generation=" gen; next } print }' | reg_write
 }
-reg_first(){   # the first registry: the console's own system and CCS HOME
-  printf 'schema=ccs-boot-registry/1\ngeneration=1\ndefault=%s\nselection=%s\nchooser=%s\ntimeout=10\noptions=native ccs-home\n' "$1" "$2" "$3"
-  printf 'opt.native.kind=native\nopt.native.label=Your Console'"'"'s Own Menu\nopt.native.overlay=hakchi\nopt.native.saves=/var/lib/clover/profiles/0\nopt.native.fallback=-\n'
+home_lines(){   # CCS HOME's option (CCS Mod's HOME, which CCS Nucleus can start)
   printf 'opt.ccs-home.kind=ccs-home\nopt.ccs-home.label=CCS HOME\nopt.ccs-home.package=current\nopt.ccs-home.kernel=3.4.113.29-madmonkey\n'
   printf 'opt.ccs-home.drivers=\nopt.ccs-home.requires=/var/lib/ccs/pkg/current\nopt.ccs-home.overlay=hakchi\nopt.ccs-home.saves=/var/lib/ccs/data\n'
   printf 'opt.ccs-home.compat=nes-usa\nopt.ccs-home.fallback=native\nopt.ccs-home.auto=yes\n'
+}
+# reg_first DEFAULT SELECTION CHOOSER [on]: the first registry: the console's own system (Original Menu), and CCS HOME when it is offered
+# (on: the PC's reviewed change says so, as CCS Mod is installed at the same start; or CCS Mod is installed already)
+reg_first(){
+  local o=native
+  { [ "$4" = on ] || ccs_own_valid mod; } && o="native ccs-home"
+  printf 'schema=ccs-boot-registry/1\ngeneration=1\ndefault=%s\nselection=%s\nchooser=%s\ntimeout=10\noptions=%s\n' "$1" "$2" "$3" "$o"
+  printf 'opt.native.kind=native\nopt.native.label=Original Menu\nopt.native.overlay=hakchi\nopt.native.saves=/var/lib/clover/profiles/0\nopt.native.fallback=-\n'
+  [ "$o" = native ] || home_lines
 }
 
 # ---------------------------------------------------------------- state (sealed, on the data storage) and this power-on's record (RAM)
@@ -167,7 +181,7 @@ check_root(){
 early(){
   local orig="$1" restore="-" id="" kind src a_id a_stage a_orig
   mkdir -p "$RUN" 2>/dev/null
-  [ "$(ccs_policy)" = nucleus ] || { out native native - - not-in-charge; return; }
+  ccs_own_valid "$M" || { out native native - - not-installed; return; }
   # 1. an earlier start into an owner's system image that did not reach its start scripts: judged once, here, and never repeated
   if state_ok attempt; then
     a_id="$(st attempt id)"; a_stage="$(st attempt stage)"; a_orig="$(st attempt original)"
@@ -216,17 +230,13 @@ loaded(){
 }
 
 # ---------------------------------------------------------------- the chooser (on the TV)
-# The program: CCS HOME's native HOME program in its chooser mode, from the CCS HOME package pkg/current names (the same pointer checks as
-# lib.sh's ccs_home_dir; only the program itself is needed, so a CCS HOME package whose player is missing still shows the chooser, with
-# CCS HOME as a choice that cannot start). Sets CH (the program) and CHD (its package folder: the player's menu fonts, the controller codes).
+# The program: the native HOME program in its chooser mode, the chooser package's own copy with its menu fonts and controller codes (it
+# needs no CCS HOME package: the chooser works with or without CCS Mod). Sets CH (the program) and CHD (its folder: fonts/, config/).
 chooser_prog(){
-  local P="$CCSD/pkg" V=""
+  local D="$HKR/etc/ccs/nucleus/chooser"
   CH=""; CHD=""
-  if [ -f "$P/current" ] && [ ! -L "$P/current" ]; then read -r V < "$P/current"; fi
-  case "$V" in ????????????????.????????) ;; *) return 1 ;; esac
-  case "$V" in *[!0-9a-f.]*) return 1 ;; esac
-  [ -d "$P/$V" ] && [ ! -L "$P/$V" ] && [ -f "$P/$V/home/bin/ccs-home-armv7" ] && [ -x "$P/$V/home/bin/ccs-home-armv7" ] || return 1
-  CH="$P/$V/home/bin/ccs-home-armv7"; CHD="$P/$V"
+  ccs_chooser_installed && [ -x "$D/bin/ccs-home-armv7" ] || return 1
+  CH="$D/bin/ccs-home-armv7"; CHD="$D"
 }
 # the system running now: "native" (the console's own root, where CCS HOME runs too) or the id of the owner's image this start is in
 current_root(){ if [ "$(ccs_get "$RUN/boot" kind)" = owner-root ]; then ccs_get "$RUN/boot" id; else echo native; fi; }
@@ -252,7 +262,7 @@ okdefault(){ [ "$(opt "$1" kind)" != owner-root ] || [ "$2" = always ]; }   # ID
 # the rows of Recovery and Settings (each an action this script carries out: act)
 settings_rows(){
   local t
-  echo "setting=native|Start Your Console's Own Menu"
+  echo "setting=native|Start Original Menu"
   echo "setting=clear|Clear Start Problems"
   if [ "$(reg chooser)" = always ]; then echo "setting=show|Show This Screen at Start: On"; else echo "setting=show|Show This Screen at Start: Off"; fi
   if [ "$(reg selection)" = last ]; then echo "setting=start-with|Start With: Last Used"; else echo "setting=start-with|Start With: $(opt "$(reg default)" label)"; fi
@@ -382,6 +392,8 @@ chooser(){
         fallback=""
         # what the countdown would start must be able to start now; otherwise the console's own system, and the TV says why
         if [ -n "$au" ] && [ "$(opt "$au" kind)" = owner-root ] && ! check_root "$au"; then notice="$(opt "$au" label) cannot start now. $(why_text "$WHY" "$(opt "$au" image)")"; au=native; hl=native; fi
+        # (CCS HOME without its package, for example after CCS Mod was removed: the same)
+        if [ -n "$au" ] && [ "$(opt "$au" kind)" = ccs-home ] && ! ccs_home_dir; then notice="$(opt "$au" label) cannot start now. $(why_text not-installed)"; au=native; hl=native; fi
         [ "$panel" = settings ] && hl="$SETKEY"
         show_chooser "$mode" "$hl" "$au" "$t" "$notice" "$panel"; rc=$?
         notice=""; panel=main; [ -n "$ANS" ] && shown=1   # once it has been on the TV it stays the way back, whatever its setting
@@ -429,7 +441,7 @@ chooser(){
 # confirmed) and nothing else is done here. Otherwise the chooser, in the console's own system.
 ui_start(){
   local id kind
-  [ "$(ccs_policy)" = nucleus ] || return 0
+  ccs_own_valid "$M" || return 0
   id="$(ccs_get "$RUN/boot" id)"; kind="$(ccs_get "$RUN/boot" kind)"
   if [ "$kind" = owner-root ]; then
     if state_ok attempt && [ "$(st attempt id)" = "$id" ] && [ "$(st attempt stage)" = mounted ]; then
@@ -525,8 +537,8 @@ set_value(){
 remove(){
   local how="${1:-keep}"
   case "$how" in keep|remove-data) ;; *) r remove "refused keep-or-remove-data" ;; esac
-  # one rename takes Nucleus out of charge: from then on its start stage and start script do nothing, whatever is left
-  [ "$(ccs_policy)" = nucleus ] && ccs_policy_set none
+  # the chooser package goes first when it is still there (its hooks and menu entry), so nothing of Nucleus runs at the next start
+  if ccs_own_valid nucleus-chooser; then sh "$ME" chooser-remove >/dev/null 2>&1; fi
   # with remove-data, its own settings go first (the registry and its state: never anyone else's), then its recorded files and data
   [ "$how" = remove-data ] && rm -f "$REG" "$N"/registry.candidate.* "$N"/registry.new.* "$ST"/attempt "$ST"/next "$ST"/last "$ST"/log "$ST"/failed-* "$ST"/verified-* "$ST"/*.new.*
   ccs_own_remove "$M" "$how"
@@ -538,7 +550,7 @@ case "$1" in
   loaded) loaded "$2" ;;
   ui-start) ui_start; exit 0 ;;
   ui-stop) chooser_stop; ccs_home_stop; exit 0 ;;
-  choose) [ "$(ccs_policy)" = nucleus ] && reg_ok && chooser menu; exit 0 ;;
+  choose) ccs_own_valid "$M" && ccs_chooser_installed && reg_ok && chooser menu; exit 0 ;;
   import) import "$2" "$3" "$4" "$5" "$6" "$7" ;;
   register-foreign) register_foreign "$2" "$3" "$4" ;;
   forget) forget "$2" ;;
@@ -561,30 +573,69 @@ case "$1" in
     ccs_pkg_record "$M" "$2" "${pkg:-unknown}" || r postinstall "failed the copied files are not the package's"
     ccs_own_add "$M" file /var/lib/hakchi/rootfs/etc/ccs/nucleus/FILES || r postinstall "failed journal"
     mkdir -p "$ST" "$STAGE" && ccs_own_add "$M" dir /var/lib/ccs/nucleus && ccs_own_add "$M" dir /var/lib/ccs/nucleus/state && ccs_own_add "$M" dir /var/lib/ccs/nucleus/staging
-    reg_ok || reg_first ccs-home last always | reg_write || r postinstall "failed registry"
-    out="$(sh "$HKR/bin/ccs-nucleus" entry add 2>&1 | tail -n 1)"
-    case "$(ccs_policy)" in "") ccs_policy_set nucleus; now="in-charge" ;; nucleus) now="in-charge" ;; *) now="installed-not-in-charge (CCS Mod is; use take-over)" ;; esac
-    r postinstall "ok $now; ${out#result }" ;;
-  activate)
-    case "$(ccs_policy)" in
-      nucleus) r activate "ok already" ;;
-      "") reg_ok || r activate "refused the registry is not valid"; ccs_policy_set nucleus || r activate "failed write"; r activate ok ;;
-      *) r activate "refused CCS Mod is in charge (use take-over)" ;;
-    esac ;;
-  take-over)
-    # from CCS Mod: games, saves, settings, other packages and system images are not touched. CCS Nucleus's files are already installed
-    # (its package). The registry starts as CCS Mod behaved: no chooser on the TV; CCS HOME first when CCS Mod's optional start was on,
-    # else straight to the console's own start. One rename puts Nucleus in charge; CCS Mod's own files then go by its own remove.
-    ccs_own_valid "$M" || r take-over "refused CCS Nucleus is not installed"
-    [ "$(ccs_policy)" = mod ] || r take-over "refused CCS Mod is not in charge"
-    first=native
-    ccs_sealed "$CCSD/mod/config" ccs-mod-config/1 && [ "$(ccs_get "$CCSD/mod/config" autostart)" = on ] && first=ccs-home
-    if reg_ok; then sh "$HKR/bin/ccs-nucleus" set default "$first" >/dev/null 2>&1; sh "$HKR/bin/ccs-nucleus" set chooser never >/dev/null 2>&1
-    else reg_first "$first" default never | reg_write || r take-over "failed registry"; fi
-    ccs_policy_set nucleus || r take-over "failed write"
-    sh "$HKR/bin/ccs-nucleus" entry add >/dev/null 2>&1
-    if [ -f "$HKR/bin/ccs-mod" ]; then out="$(sh "$HKR/bin/ccs-mod" remove keep 2>&1 | tail -n 1)"; else out="mod-files-already-gone"; fi
-    r take-over "ok in-charge default=$first; ${out#result }" ;;
+    # the first registry when there is none: the console starts its own menu directly (the PC writes the owner's choice with
+    # its "start" command, in the same reviewed change)
+    reg_ok || reg_first native default never | reg_write || r postinstall "failed registry"
+    r postinstall "ok installed" ;;
+  chooser-preinstall)
+    [ -f "$2" ] || r chooser-preinstall "failed no file list"
+    ccs_own_valid "$M" || r chooser-preinstall "refused CCS Nucleus is not installed (its chooser needs it)"
+    out="$(ccs_pkg_preflight nucleus-chooser "$2")" || { echo "$out"; r chooser-preinstall "refused nothing was copied"; }
+    r chooser-preinstall ok ;;
+  chooser-postinstall)
+    [ -f "$2" ] || r chooser-postinstall "failed no file list"
+    pkg="$(ccs_get "$HKR/etc/ccs/nucleus-chooser/VERSION" package)"
+    ccs_pkg_record nucleus-chooser "$2" "${pkg:-unknown}" || r chooser-postinstall "failed the copied files are not the package's"
+    ccs_own_add nucleus-chooser file /var/lib/hakchi/rootfs/etc/ccs/nucleus-chooser/FILES || r chooser-postinstall "failed journal"
+    out="$(sh "$ME" entry add 2>&1 | tail -n 1)"
+    r chooser-postinstall "ok installed; ${out#result }" ;;
+  chooser-remove)
+    # without the chooser an owner's own system image cannot start (only a choice on the TV starts one): the registry in force
+    # starts the console's own menu directly when its default was such an image, and the chooser is off at start
+    ccs_entry_remove "$M" "$CODE"
+    if reg_ok; then
+      [ "$(opt "$(reg default)" kind)" = owner-root ] && sh "$ME" set default native >/dev/null 2>&1
+      sh "$ME" set chooser never >/dev/null 2>&1
+    fi
+    ccs_own_remove nucleus-chooser keep
+    for d in chooser/bin chooser/config chooser/fonts chooser; do rmdir "$HKR/etc/ccs/nucleus/$d" 2>/dev/null; done   # its folders, when empty
+    rmdir "$HKR/etc/ccs/nucleus-chooser" 2>/dev/null
+    r chooser-remove "ok (the registry, the owner's system images and CCS Nucleus itself are kept)" ;;
+  start)
+    # what opens at power-on, as the PC's reviewed change says: DEFAULT (native: Original Menu, or ccs-home), CHOOSER (always: the chooser
+    # at every start; never: the default directly), HOME (on: CCS HOME is offered, as CCS Mod is or will be installed; off: it is not),
+    # SELECTION (default: the countdown starts DEFAULT; last: the menu used last) and TIMEOUT (the countdown's seconds; 0: wait for a
+    # choice). No registry yet: the first one. Otherwise the registry in force changed in place: CCS HOME's option added or removed, then
+    # the rest; the owner's own system images stay listed.
+    d="$2"; c="$3"; h="$4"; s="${5:-default}"; t="${6:-10}"
+    case "$d" in native|ccs-home) ;; *) r start "refused default" ;; esac
+    case "$c" in always|never) ;; *) r start "refused chooser" ;; esac
+    case "$h" in on|off) ;; *) r start "refused home" ;; esac
+    case "$s" in default|last) ;; *) r start "refused selection" ;; esac
+    ccs_num_ok "$t" && [ "$t" -le 99 ] || r start "refused timeout"
+    [ "$d" = ccs-home ] && [ "$h" = off ] && r start "refused CCS HOME is not offered"
+    if ! reg_ok; then
+      [ ! -e "$REG" ] || r start "refused the registry on the console is not valid (it is kept as it is)"
+      reg_first "$d" "$s" "$c" "$h" | reg_write || r start "failed registry"
+      [ "$(reg timeout)" = "$t" ] || sh "$ME" set timeout "$t" >/dev/null 2>&1 || r start "failed timeout"
+      r start "ok first default=$d chooser=$c home=$h selection=$s timeout=$t"
+    fi
+    if [ "$h" = on ] && ! listed ccs-home; then
+      reg_edit 'index($0, "options=") == 1 { sub(/^options=native( |$)/, "options=native ccs-home "); sub(/ $/, ""); print; next }
+        END { print "opt.ccs-home.kind=ccs-home"; print "opt.ccs-home.label=CCS HOME"; print "opt.ccs-home.package=current"
+              print "opt.ccs-home.kernel=3.4.113.29-madmonkey"; print "opt.ccs-home.drivers="; print "opt.ccs-home.requires=/var/lib/ccs/pkg/current"
+              print "opt.ccs-home.overlay=hakchi"; print "opt.ccs-home.saves=/var/lib/ccs/data"; print "opt.ccs-home.compat=nes-usa"
+              print "opt.ccs-home.fallback=native"; print "opt.ccs-home.auto=yes" }' || r start "failed adding CCS HOME"
+    fi
+    if [ "$h" = off ] && listed ccs-home; then
+      if [ "$(reg default)" = ccs-home ]; then sh "$ME" set default native >/dev/null 2>&1 || r start "failed default"; fi
+      reg_edit 'index($0, "options=") == 1 { sub(/ ccs-home( |$)/, " "); sub(/ $/, ""); print; next } index($0, "opt.ccs-home.") == 1 { next }' || r start "failed removing CCS HOME"
+    fi
+    [ "$(reg default)" = "$d" ] || sh "$ME" set default "$d" >/dev/null 2>&1 || r start "failed default"
+    [ "$(reg selection)" = "$s" ] || sh "$ME" set selection "$s" >/dev/null 2>&1 || r start "failed selection"
+    [ "$(reg timeout)" = "$t" ] || sh "$ME" set timeout "$t" >/dev/null 2>&1 || r start "failed timeout"
+    [ "$(reg chooser)" = "$c" ] || sh "$ME" set chooser "$c" >/dev/null 2>&1 || r start "failed chooser"
+    r start "ok default=$d chooser=$c home=$h selection=$s timeout=$t" ;;
   remove) remove "$2" ;;
   entry)
     case "$2" in
@@ -594,7 +645,7 @@ case "$1" in
       *) r entry "refused add-or-remove" ;;
     esac ;;
   status)
-    echo "policy=$(ccs_policy)"
+    ccs_chooser_installed && echo "chooser=installed" || echo "chooser=none"
     if reg_ok; then
       echo "registry generation=$(reg generation) default=$(reg default) selection=$(reg selection) chooser=$(reg chooser) timeout=$(reg timeout)"
       for id in $(reg options); do

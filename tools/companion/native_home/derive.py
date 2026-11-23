@@ -18,10 +18,16 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS_DIR = os.path.join(HERE, "fonts")
-DERIVE_VERSION = "n3-2"
+DERIVE_VERSION = "n3-3"   # n3-3: each JPEG with Huffman tables made for it, each PNG in its smallest exact encoding (the same decoded pixels)
 COVER_BOX_HI = (680, 932)       # the computer's full-resolution HOME ("play" packages): twice the box, never enlarged past the source art
 COVER_BOX = (340, 466)          # the Details cover box: the largest box a cover is drawn in by any theme (the Box Art Showcase focus box
                                 # face is 281 x 369, Arcade card 274 x 291, Featured cells 106 x 145, Map panel 185 x 142): one cover serves all
+# A console's covers (every package except the computer's full-resolution "play" HOME): the cover fitted in COVER_BOX as above, then both
+# fitted dimensions multiplied by 256/340 (Lanczos; a portrait cover is at most 256 x 351), as a baseline 4:2:0 JPEG of quality 75 with
+# Huffman tables made for it. Always made from the cover's source (the art, the person's own picture or the generated cover), never from
+# another JPEG; never enlarged. The computer's own HOME keeps its full-resolution covers.
+CONSOLE_COVER_SCALE = (256, 340); CONSOLE_COVER_QUALITY = 75
+REDUCED_CONSOLE_COVERS = True   # the console covers above; False only in a private build that reproduces the covers made before them
 DETAILS_ART = (1272, 712)       # the Details art area inside the Arcade Grid 4 px frame
 FONT_MAGIC = b"CCSF2\0"
 # the smooth stand-ins for the pixel typefaces (every package since F19: the console's too): (family, weight, size factor for the same capital height,
@@ -96,14 +102,52 @@ class Cache:
         self.misses += 1; os.makedirs(os.path.dirname(p), exist_ok=True); tmp = p[:-len(ext)] + ".tmp" + ext; make(tmp); os.replace(tmp, p); return p
 
 # ---------- images ----------
-def save_jpeg(im: Image.Image, out: str, q: int = 85):   # baseline 4:2:0: compact, decoded by the native runtime's stb_image (scalar paths)
-    im.convert("RGB").save(out, "JPEG", quality=q, optimize=False, progressive=False, subsampling=2)
+def decoded(b: bytes) -> tuple:
+    """a picture's size and every pixel as RGBA bytes (alpha included), the way two encodings are compared"""
+    im = Image.open(io.BytesIO(b)); im.load(); return im.size, im.convert("RGBA").tobytes()
 
-def cover(src: str, out: str, box: tuple = COVER_BOX):
-    """the whole cover, fitted (contain) into the Details box and never enlarged; the grid cell and the card draw it smaller"""
+def save_jpeg(im: Image.Image, out: str, q: int = 85):
+    """baseline 4:2:0 JPEG, decoded by the native runtime's stb_image (scalar paths). The same quality and subsampling as always; the
+    Huffman tables are made for the picture, which changes only how its coefficients are coded: that version is kept when it is smaller
+    and decodes to exactly the same pixels as the standard-table encoding, which is used otherwise."""
+    rgb = im.convert("RGB")
+    def enc(opt: bool) -> bytes:
+        b = io.BytesIO(); rgb.save(b, "JPEG", quality=q, optimize=opt, progressive=False, subsampling=2); return b.getvalue()
+    best = enc(False); opt = enc(True)
+    if len(opt) < len(best) and decoded(opt) == decoded(best): best = opt
+    with open(out, "wb") as f: f.write(best)
+
+EXACT_PNG_MODES = ("RGB", "RGBA", "P", "L", "LA")
+def png_exact(src: str, out: str):
+    """a PNG in its smallest exact encoding: the original file, the same picture compressed again in its own mode, or (an RGB picture of
+    at most 256 colors) an indexed PNG of exactly its colors. A candidate is used only when it is smaller and decodes to every RGBA pixel
+    of the original, at the same size; a picture of another mode or depth stays as it is."""
+    b = open(src, "rb").read(); im = Image.open(io.BytesIO(b)); im.load(); best = b
+    if im.format == "PNG" and im.mode in EXACT_PNG_MODES:
+        ref = decoded(b); cands = []
+        x = io.BytesIO(); im.save(x, "PNG", optimize=True, compress_level=9); cands.append(x.getvalue())
+        if im.mode == "RGB" and im.getcolors(256) is not None:
+            pal = im.quantize(colors=256, method=Image.Quantize.MAXCOVERAGE); x = io.BytesIO(); pal.save(x, "PNG", optimize=True, compress_level=9); cands.append(x.getvalue())
+        for c in cands:
+            if len(c) < len(best) and decoded(c) == ref: best = c
+    with open(out, "wb") as f: f.write(best)
+
+def console_cover(im: Image.Image) -> Image.Image:
+    """a fitted cover at a console's size: both dimensions multiplied by 256/340 (never enlarged: the factor is below one)"""
+    n, d = CONSOLE_COVER_SCALE; w, h = im.size
+    return im.resize((max(1, round(w * n / d)), max(1, round(h * n / d))), Image.LANCZOS)
+
+def _save_cover(im: Image.Image, out: str, q: int, reduced: bool):
+    """a fitted cover as the package's JPEG: a console's (reduced) at its own size and quality, the computer's as it is"""
+    if reduced: im = console_cover(im); q = CONSOLE_COVER_QUALITY
+    save_jpeg(im, out, q=q)
+
+def cover(src: str, out: str, box: tuple = COVER_BOX, reduced: bool = False):
+    """the whole cover, fitted (contain) into the Details box and never enlarged; the grid cell and the card draw it smaller.
+    reduced: a console's cover (CONSOLE_COVER_SCALE, CONSOLE_COVER_QUALITY)"""
     im = Image.open(src).convert("RGB"); w, h = im.size; s = min(box[0] / w, box[1] / h)
     if s < 1: im = im.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
-    save_jpeg(im, out)
+    _save_cover(im, out, 85, reduced)
 
 def hero(src: str, kind: str, out: str):
     """home.css .details .dbg img (object-fit: cover): the fallback fills the art area; a game's own hero is enlarged and shifted
@@ -276,9 +320,9 @@ def thumb(src: str, out: str):
     """theme picker thumbnails: the approved 320 x 180 thumbs, re-encoded as baseline JPEG for the runtime decoder"""
     save_jpeg(Image.open(src).convert("RGB"), out, q=88)
 
-def user_cover(src: str, crop: dict | None, out: str, box: tuple = COVER_BOX):
+def user_cover(src: str, crop: dict | None, out: str, box: tuple = COVER_BOX, reduced: bool = False):
     """a user's replacement artwork: EXIF orientation applied, the nondestructive crop (normalized rectangle) applied, then fitted
-    whole into the cover box like every cover (never enlarged, never cut)"""
+    whole into the cover box like every cover (never enlarged, never cut); reduced: a console's cover, as cover()"""
     from PIL import ImageOps
     im = ImageOps.exif_transpose(Image.open(src)); im = im.convert("RGBA") if im.mode in ("P", "LA", "RGBA") else im.convert("RGB")
     if im.mode == "RGBA":   # transparency becomes the box's dark ground: the console's covers are opaque JPEG
@@ -288,10 +332,12 @@ def user_cover(src: str, crop: dict | None, out: str, box: tuple = COVER_BOX):
         x1 = max(x0 + 1, min(w, round((crop["x"] + crop["w"]) * w))); y1 = max(y0 + 1, min(h, round((crop["y"] + crop["h"]) * h))); im = im.crop((x0, y0, x1, y1))
     w, h = im.size; s = min(box[0] / w, box[1] / h)
     if s < 1: im = im.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
-    save_jpeg(im, out)
+    _save_cover(im, out, 85, reduced)
 
-def mock(title: str, publisher: str | None, year: str | None, game_id: str, out: str, theme_root: str | None = None, box: tuple = COVER_BOX):
-    """the NES-style mock cover (tools/rom-pipeline/mock_cover.py, the approved generated-cover design) for one game"""
+def mock(title: str, publisher: str | None, year: str | None, game_id: str, out: str, theme_root: str | None = None, box: tuple = COVER_BOX,
+         reduced: bool = False):
+    """the NES-style mock cover (tools/rom-pipeline/mock_cover.py, the approved generated-cover design) for one game, drawn here from
+    the generator (never from an earlier JPEG); reduced: a console's cover, as cover()"""
     import sys
     rp = os.path.normpath(os.path.join(HERE, "..", "..", "rom-pipeline"))
     if rp not in sys.path: sys.path.insert(0, rp)
@@ -300,6 +346,6 @@ def mock(title: str, publisher: str | None, year: str | None, game_id: str, out:
     if not (mock_cover.FONT_UI and os.path.isfile(mock_cover.FONT_UI)): mock_cover.FONT_UI = os.path.join(FONTS_DIR, "Barlow-Regular.ttf")
     im = mock_cover.cover(title, publisher, year, game_id); w, h = im.size; s = min(box[0] / w, box[1] / h)
     if s < 1: im = im.resize((round(w * s), round(h * s)), Image.LANCZOS)
-    save_jpeg(im, out, q=90)
+    _save_cover(im, out, 90, reduced)
 
 def copy(src: str, out: str): shutil.copyfile(src, out)

@@ -28,9 +28,20 @@ namespace CcsWorker.Ops
         /// keeps the two lists equal)</summary>
         public static readonly System.Collections.Generic.Dictionary<string, string> MethodPackages = new System.Collections.Generic.Dictionary<string, string>
         {
-            { "ccs-mod", "0274a29108416151a7673aac147ae4dc870f725dea66cd1dd6127fcdc9fda662" },
-            { "ccs-nucleus", "c41bca718b04dcf60e9a6217c6f93276cb42db05949d10690c847473af5220d1" },
+            { "ccs-mod", "5c5318b62efc712a4fb5b36f123ecd8b17953d770233a2674dbe6cb41668530c" },
+            { "ccs-nucleus", "65bc716ee6b7386bea45344be10ae0da5421378bb7a9da0f5928200c6ade5d7b" },
+            { "ccs-nucleus-chooser", "9f35f7b0e3d30ab846466365c7823a5fd7c1cd44a7b4d78468d423afc19d1801" },
         };
+        /// <summary>the console program that adds a Classic Cart Studio collection to the console's menu as ordinary Hakchi games, and its
+        /// library (tools/console-nucleus/console/collections/ccs-collections, lib.sh): run only as these exact files, from the folder named
+        /// by the program's pin (tools/companion/console_engine/hakchi_publish.py PROGRAM_PINS; tools/companion/test_hakchi_publish.py keeps
+        /// the two equal)</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, string> CollectionsProgram = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "ccs-collections", "9f17bc6420635f0055ddb431f617e6cf613fbbe0b7ed9cdf6766fcc07f62f047" },
+            { "lib.sh", "760ef83cb696ab8c5c98884ceaabfc83284ab4671506693576752956fb3bae1c" },
+        };
+        public static string CollectionsDir => "/var/lib/ccs/integration/program-" + CollectionsProgram["ccs-collections"].Substring(0, 16);
         public const string HakchiRootfs = "/var/lib/hakchi/rootfs";
         public const string UninstallDir = "/var/lib/hakchi/hmod";
 

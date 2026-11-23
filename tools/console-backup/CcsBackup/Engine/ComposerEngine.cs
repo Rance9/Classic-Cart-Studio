@@ -78,7 +78,7 @@ namespace CcsBackup.Engine
             if (con.Profile != SessionProfile.Files) return (null, "The console is not in a file session.");
             if (kind != "rebuild" && kind != "migrate") return (null, "Unknown composition.");
             if (items == null || items.Count == 0) return (null, "Nothing was chosen.");
-            var id = con.Identify();
+            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "composition"); if (mw != null) return (null, mw + " Nothing was changed.");
             var p = new ComposePlan { Kind = kind, Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated };
             var verified = new Dictionary<string, Verification>(StringComparer.OrdinalIgnoreCase);
             foreach (var src in items.Select(i => i.SourceBackup).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -87,6 +87,7 @@ namespace CcsBackup.Engine
                 var v = Verifier.VerifyFile(src, null, ctx.Cancelled);
                 if (!v.Ok) return (null, Path.GetFileName(src) + " did not pass its check: " + v.Problems[0]);
                 if (v.Simulated != con.Simulated) return (null, "A simulated console's backup and a real console are never mixed.");
+                if (v.Model == null || v.Model != (id.Model ?? ConsoleModels.Nes)) return (null, Path.GetFileName(src) + " is a backup of " + (v.Model?.Name ?? "a console this version does not support") + ", not of this console's model (" + (id.Model ?? ConsoleModels.Nes).Name + "): one kind of console's data is never put on another kind.");
                 bool same = ConsoleIdentity.SameConsole(v.Hwid, id.Hwid);
                 if (kind == "rebuild" && !same) return (null, Path.GetFileName(src) + " is a backup of another console. Use \"Set Up Like My Other Console\" for that.");
                 if (kind == "migrate" && same) return (null, Path.GetFileName(src) + " is a backup of this console. Use \"Rebuild from My Backups\" for that.");
@@ -99,6 +100,7 @@ namespace CcsBackup.Engine
                 var target = it.TargetPath ?? it.SourcePath;
                 if (!FilesEngine.PathOk(it.SourcePath ?? "") || !FilesEngine.PathOk(target)) { p.Skipped.Add((it.SourcePath ?? "?") + ": not a file name this accepts"); continue; }
                 if (!FilesEngine.InScope("compose", target)) { p.Skipped.Add(target + ": not something Console Composer moves (only saves and settings, games added with hakchi, and Classic Cart Studio's data)"); continue; }
+                if (SegaCleanup.NeverWritten(target)) { p.Skipped.Add(target + ": " + SegaCleanup.NotWritten); continue; }
                 if (!targets.Add(target)) return (null, target + " is chosen twice.");
                 var bytes = FileOf(it.SourceBackup, it.SourcePath, out var why);
                 if (bytes == null) { p.Skipped.Add(it.SourcePath + ": " + why); continue; }

@@ -79,7 +79,8 @@ namespace CcsBackup.Engine
             var keys = TestBootEngine.KeyDependencies(f);
             if (f.Words.Contains("decrypt") && f.KeyInRamdisk == false && !f.HakchiKeyFallback && !f.Words.Any(w => w.StartsWith("hakchi-key-file=", StringComparison.Ordinal)))
                 return (null, "This file cannot be the startup software: " + keys[0]);
-            var id = con.Identify(); var p = new KernelPlan { Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated, Point = point, Image = image, NowMd5 = id.ActiveMd5, WantMd5 = Md5(image), WantSha256 = Sha(image), Size = image.Length, RamdiskFormat = f.RamdiskFormat };
+            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "developer"); if (mw != null) return (null, mw + " Nothing was changed.");
+            var p = new KernelPlan { Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated, Point = point, Image = image, NowMd5 = id.ActiveMd5, WantMd5 = Md5(image), WantSha256 = Sha(image), Size = image.Length, RamdiskFormat = f.RamdiskFormat };
             if (p.NowMd5 == p.WantMd5) return (null, "This image is already the console's startup software.");
             // the current startup is only compared here (the plan replaces it whole, bound by its MD5), but a failed read is a connection or
             // reader problem, never a note to write past; a current startup that reads back but is not a valid image is only described

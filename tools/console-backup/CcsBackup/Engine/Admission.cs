@@ -22,6 +22,13 @@
 // The change history (NoteChange) is kept as a record and an early hint only: a recorded change newer than every backup refuses early;
 // no history, or one that cannot be read, proves nothing either way.
 // Ages are reported as they are: a sound original baseline does not expire, and it is never said to include saves made after it.
+// DATA-ONLY admission, a separate type: a console already running a Hakchi setup whose backups hold no
+// original Nintendo material (no recovery baseline) can still have Classic Cart Studio's DATA added, updated, repaired or removed with
+// its NEWEST backup alone when that backup verifies from scratch as complete (restore-ready) for this exact console in its modified
+// state, AND the console's data area still equals that backup at the moment of writing (LiveTree, read by the worker on the same
+// connection). It never admits preparation; the firmware, bootloader, Console Rescue and return-to-original policies are other engines
+// and never read these tickets. The ticket says which type it is (policy); its text names what is not possible without the original
+// material: returning the console to Nintendo's original software.
 using CcsBackup.Archive;
 using CcsBackup.Device;
 using CcsBackup.Library;
@@ -36,8 +43,8 @@ namespace CcsBackup.Engine
 {
     public sealed class AdmissionResult
     {
-        public bool Ok; public string Code, Text, TicketId, TicketFile; public string BaselinePath, CurrentPath; public DateTime? BaselineUtc, CurrentUtc;
-        public JObj ToJson() => new JObj { { "ok", Ok }, { "code", Code }, { "text", Text }, { "ticket", TicketId }, { "baseline", BaselinePath }, { "baseline_utc", BaselineUtc?.ToString("o", CultureInfo.InvariantCulture) }, { "current", CurrentPath }, { "current_utc", CurrentUtc?.ToString("o", CultureInfo.InvariantCulture) } };
+        public bool Ok, DataOnly; public string Code, Text, TicketId, TicketFile; public string BaselinePath, CurrentPath; public DateTime? BaselineUtc, CurrentUtc;
+        public JObj ToJson() => new JObj { { "ok", Ok }, { "code", Code }, { "text", Text }, { "data_only", DataOnly }, { "ticket", TicketId }, { "baseline", BaselinePath }, { "baseline_utc", BaselineUtc?.ToString("o", CultureInfo.InvariantCulture) }, { "current", CurrentPath }, { "current_utc", CurrentUtc?.ToString("o", CultureInfo.InvariantCulture) } };
     }
 
     /// <summary>What the console worker read on the console just now for Classic Cart Studio's data area, in the backup inventory's
@@ -66,6 +73,17 @@ namespace CcsBackup.Engine
         public static bool NeedsCurrent(string op) => op == "prepare" || op == "uninstall-data" || op == "recover";
         /// <summary>the operations whose current state the console worker proves on the console (LiveTree); preparation's is a capture</summary>
         public static bool NeedsLiveTree(string op) => op == "uninstall-data" || op == "recover";
+        /// <summary>the operations a data-only admission can admit: Classic Cart Studio's data only (never "prepare")</summary>
+        public static readonly string[] DataOnlyOperations = { "install", "update", "repair", "uninstall", "uninstall-data", "recover" };
+        /// <summary>whether the worker reads the console's data list before its first write: every data operation (a data-only ticket needs
+        /// it; Use decides which tickets compare it)</summary>
+        public static bool MayNeedLiveTree(string op) => DataOnlyOperations.Contains(op);
+        /// <summary>whether this console's backup history records a verified backup holding its original Nintendo material (a recovery
+        /// baseline). A review uses it to say, before anything proceeds, that returning to Nintendo's original software is unavailable; the
+        /// operations themselves check their evidence from scratch, never from this record.</summary>
+        public static bool HasRecordedOriginal(Settings s, string consoleTag) => !string.IsNullOrEmpty(consoleTag) && History.List(s).Any(e => e.ConsoleTag == consoleTag && e.RecoveryBaseline && e.Status == BackupStatus.Verified);
+        public const string OriginalUnavailableTitle = "Returning to Nintendo's original software is unavailable";
+        public const string OriginalUnavailableText = "Workbench can back up your current Hakchi setup and add the changes you choose. It cannot return this console to Nintendo's original software without the original material from your own backup.";
 
         static string ChangesFile(Settings s, string tag) => Path.Combine(s.RecordsFolder, "console-" + tag + "-changes.json");
         static readonly Regex TicketRe = new Regex("^[0-9a-f]{32}$"), ShaRe = new Regex("^[0-9a-f]{64}$");
@@ -94,7 +112,9 @@ namespace CcsBackup.Engine
         static JObj Ref(string path, Verification v, DateTime? when) => new JObj { { "path", path }, { "sha256", v.ArchiveSha256 }, { "backup_id", v.Manifest?.S("backup_id") }, { "completed_utc", when?.ToString("o", CultureInfo.InvariantCulture) } };
 
         /// <summary>session: the recovery session preparation runs in (its current state is captured there; null for the HOME worker's operations)</summary>
-        public static AdmissionResult Admit(Settings s, string hwid, string op, string subject, Func<bool> cancelled = null, bool simulatedConsole = false, string session = null)
+        /// <summary>preview: the same checks and the same answer (which type, its text), but no ticket is written (a review shows it before
+        /// anything proceeds; the change itself always asks again)</summary>
+        public static AdmissionResult Admit(Settings s, string hwid, string op, string subject, Func<bool> cancelled = null, bool simulatedConsole = false, string session = null, bool preview = false)
         {
             var r = new AdmissionResult();
             if (!Operations.Contains(op)) return Refuse(r, "bad-operation", "Unknown maintenance operation.");
@@ -122,10 +142,22 @@ namespace CcsBackup.Engine
                 var v = Check(e, out var p, out var w);
                 if (v != null && v.RecoveryBaseline) { baseline = v; bPath = p; bWhen = w; break; }
             }
-            if (baseline == null) return Refuse(r, "backup-required", "None of this console's backups passed its check as a complete recovery baseline (with the original Nintendo kernel). Make a new backup, then try again.");
+            bool dataOnly = false;
+            if (baseline == null)
+            {
+                if (!DataOnlyOperations.Contains(op)) return Refuse(r, "backup-required", "None of this console's backups passed its check as a complete recovery baseline (with the original Nintendo kernel). Make a new backup, then try again.");
+                // data-only: only the NEWEST backup can stand for the console now (an older one says nothing about later changes)
+                var newest = candidates.OrderByDescending(x => x.CreatedUtc ?? DateTime.MinValue).First();
+                var v = Check(newest, out var p, out var w);
+                if (v == null || !v.RestoreReady || v.StateKind != "modified")
+                    return Refuse(r, "current-backup-required", "This console's backups hold no original Nintendo material, so Classic Cart Studio's data can be added only with a complete backup of the console as it is now. Back up the console now, then try again.");
+                current = v; cPath = p; cWhen = w; dataOnly = true;
+                var last0 = LastChange(s, tag);   // an early hint only
+                if (last0 != null && cWhen != null && last0.Value > cWhen.Value) return Refuse(r, "current-backup-required", "Classic Cart Studio changed this console after your newest backup. Back up the console again now, then try again.");
+            }
             // the current state's backup for the HOME worker's removal and recovery: the NEWEST verified backup; whether it still matches
             // the console is checked on the console when the worker is about to write (Use, LiveTree)
-            if (NeedsLiveTree(op))
+            if (NeedsLiveTree(op) && !dataOnly)
             {
                 foreach (var e in candidates.OrderByDescending(x => x.CreatedUtc ?? DateTime.MinValue))
                 {
@@ -136,19 +168,26 @@ namespace CcsBackup.Engine
                 var last = LastChange(s, tag);   // an early hint only (no history proves nothing)
                 if (last != null && cWhen != null && last.Value > cWhen.Value) return Refuse(r, "current-backup-required", "Classic Cart Studio changed this console after your newest backup. Back up the console again now, then try again.");
             }
-            r.Ok = true; r.Code = "admitted"; r.BaselinePath = bPath; r.BaselineUtc = bWhen; r.CurrentPath = cPath; r.CurrentUtc = cWhen;
+            r.Ok = true; r.Code = dataOnly ? "admitted-data-only" : "admitted"; r.DataOnly = dataOnly; r.BaselinePath = bPath; r.BaselineUtc = bWhen; r.CurrentPath = cPath; r.CurrentUtc = cWhen;
+            if (preview)
+            {
+                r.Text = dataOnly ? OriginalUnavailableTitle + ": " + OriginalUnavailableText : "Your backups include this console's original Nintendo material.";
+                return r;
+            }
             r.TicketId = Guid.NewGuid().ToString("N");
             r.TicketFile = Path.Combine(s.RecordsFolder, "admission-" + r.TicketId + ".json");
             var ticket = new JObj
             {
                 { "schema", Schema }, { "ticket", r.TicketId }, { "operation", op }, { "subject", subject ?? "" }, { "hwid", hwid }, { "simulated", simulatedConsole },
                 { "issued_utc", Record.Now() }, { "expires_utc", (DateTime.UtcNow + Ttl).ToString("o", CultureInfo.InvariantCulture) },
-                { "baseline", Ref(bPath, baseline, bWhen) },
-                { "current", NeedsLiveTree(op) ? (object)Ref(cPath, current, cWhen) : null },
-                { "current_proof", op == "prepare" ? "session-capture" : NeedsLiveTree(op) ? "console-data-list" : "not-needed" },
+                { "policy", dataOnly ? "data-only-current" : "recovery-baseline" },
+                { "baseline", dataOnly ? null : (object)Ref(bPath, baseline, bWhen) },
+                { "current", NeedsLiveTree(op) || dataOnly ? (object)Ref(cPath, current, cWhen) : null },
+                { "current_proof", op == "prepare" ? "session-capture" : NeedsLiveTree(op) || dataOnly ? "console-data-list" : "not-needed" },
                 { "session", op == "prepare" ? session : null },
             };
             Durable.WriteAtomic(r.TicketFile, Json.Write(ticket));
+            if (dataOnly) { r.Text = "Admitted with your complete backup of " + When(cWhen) + " of the console as it is now, checked against the console again before anything is written. " + OriginalUnavailableTitle + ": " + OriginalUnavailableText; return r; }
             r.Text = "Admitted with the verified backup of " + When(bWhen) + (cPath != null ? " and the backup of " + When(cWhen) + ", checked against the console again before anything is written" : op == "prepare" ? "; the console's current state is backed up in this session before anything is written" : "") + ".";
             return r;
         }
@@ -175,16 +214,26 @@ namespace CcsBackup.Engine
             var used = Path.Combine(s.RecordsFolder, "admission-" + ticketId + ".used");
             if (File.Exists(used)) return Refuse(r, "admission-used", "This backup admission was already used.");
             if (!(d.TryGetValue("simulated", out var sim) && sim is bool sb && sb == simulatedConsole)) return Refuse(r, "backup-changed", "The backup admission does not say whether it is for a simulated console.");
-            // the baseline: required for every change, complete, and verified again from scratch
-            var (bv, bPath, bWhen, bWhy) = Reverify(d, "baseline", freshHwid, simulatedConsole, cancelled);
-            if (bWhy != null) return Refuse(r, bv == null && bPath == null ? "backup-required" : "backup-changed", bWhy);
-            if (!bv.RecoveryBaseline) return Refuse(r, "backup-changed", "The backup this change relies on is not a complete recovery baseline. Nothing was changed.");
+            // the ticket's type: a recovery baseline (required for every change, complete, verified again from scratch) or data-only
+            var policy = d.S("policy") ?? "recovery-baseline";
+            if (policy != "recovery-baseline" && policy != "data-only-current") return Refuse(r, "backup-required", "The backup admission is of an unknown type. Nothing was changed.");
+            bool dataOnly = policy == "data-only-current";
+            if (dataOnly && !DataOnlyOperations.Contains(op)) return Refuse(r, "backup-required", "A data-only admission cannot admit this change. Nothing was changed.");
+            Verification bv = null; string bPath = null; DateTime? bWhen = null;
+            if (!dataOnly)
+            {
+                string bWhy; (bv, bPath, bWhen, bWhy) = Reverify(d, "baseline", freshHwid, simulatedConsole, cancelled);
+                if (bWhy != null) return Refuse(r, bv == null && bPath == null ? "backup-required" : "backup-changed", bWhy);
+                if (!bv.RecoveryBaseline) return Refuse(r, "backup-changed", "The backup this change relies on is not a complete recovery baseline. Nothing was changed.");
+            }
+            else if (d.TryGetValue("baseline", out var bo) && bo != null) return Refuse(r, "backup-changed", "A data-only admission names a baseline. Nothing was changed.");
             string cPath = null; DateTime? cWhen = null;
-            if (NeedsLiveTree(op))
+            if (NeedsLiveTree(op) || dataOnly)
             {
                 if (d.S("current_proof") != "console-data-list") return Refuse(r, "current-backup-required", "The backup admission does not say how the console's current state is checked. Check the console again.");
                 var (cv, cp, cw, cWhy) = Reverify(d, "current", freshHwid, simulatedConsole, cancelled);
                 if (cWhy != null) return Refuse(r, cv == null && cp == null ? "current-backup-required" : "backup-changed", cWhy.Replace("baseline", "current-state"));
+                if (dataOnly && (!cv.RestoreReady || cv.StateKind != "modified")) return Refuse(r, "backup-changed", "The backup this data-only change relies on is not a complete backup of the console as it is now. Nothing was changed.");
                 if (live == null) return Refuse(r, "current-unchecked", "The console's Classic Cart Studio data could not be compared with your newest backup, so nothing was changed.");
                 if (live.Problem != null) return Refuse(r, "current-unchecked", "The console's Classic Cart Studio data could not be read completely (" + live.Problem + "), so it could not be compared with your newest backup. Nothing was changed.");
                 var why = SameCcsData(cp, live);
@@ -204,7 +253,7 @@ namespace CcsBackup.Engine
             try { using (new FileStream(used, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16, FileOptions.WriteThrough)) { } }
             catch (IOException) { return Refuse(r, "admission-used", "This backup admission was already used."); }
             NoteChange(s, freshHwid, op);
-            r.Ok = true; r.Code = "admitted"; r.TicketId = ticketId; r.BaselinePath = bPath; r.BaselineUtc = bWhen; r.CurrentPath = cPath; r.CurrentUtc = cWhen;
+            r.Ok = true; r.Code = dataOnly ? "admitted-data-only" : "admitted"; r.DataOnly = dataOnly; r.TicketId = ticketId; r.BaselinePath = bPath; r.BaselineUtc = bWhen; r.CurrentPath = cPath; r.CurrentUtc = cWhen;
             r.Text = "The backup prerequisite was checked again by the console worker.";
             return r;
         }

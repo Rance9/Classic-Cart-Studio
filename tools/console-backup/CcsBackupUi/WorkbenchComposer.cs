@@ -152,9 +152,11 @@ namespace CcsBackup.Ui
             var share = new StackPanel(); share.Children.Add(T("Keep or share these choices (optional)", Ty.Heading, true));
             share.Children.Add(T("A " + FileKinds.Package + " holds copies of the chosen files for one console: keep it private, and apply it to that console later. A " + FileKinds.Plan + " holds only your choices, never your games, saves or console details: whoever uses it chooses their own files. Neither changes a console by itself.", Ty.Small, false, true, new Thickness(0, 0, 0, 12)));
             var planName = new TextBox { Text = keepName ?? "" }; System.Windows.Automation.AutomationProperties.SetName(planName, "Plan name");
-            var policy = new ComboBox(); policy.Items.Add(new ComboBoxItem { Content = "CCS Mod for Hakchi", Tag = "ccs-mod", IsSelected = keepPolicy != "ccs-nucleus" }); policy.Items.Add(new ComboBoxItem { Content = "CCS Nucleus", Tag = "ccs-nucleus", IsSelected = keepPolicy == "ccs-nucleus" });
-            System.Windows.Automation.AutomationProperties.SetName(policy, "How Classic Cart Studio starts");
-            share.Children.Add(FieldRow(("Plan name (for a shared plan)", planName, 300), ("How Classic Cart Studio starts", policy, 260)));
+            var policy = new ComboBox();
+            foreach (var code in CcsBackup.Compose.Composition.InstallPolicies) policy.Items.Add(new ComboBoxItem { Content = CcsBackup.Compose.Composition.PolicyName(code), Tag = code, IsSelected = code == (keepPolicy ?? "ccs-mod") });
+            if (policy.SelectedIndex < 0) policy.SelectedIndex = 0;
+            System.Windows.Automation.AutomationProperties.SetName(policy, "Add-ons");
+            share.Children.Add(FieldRow(("Plan name (for a shared plan)", planName, 300), ("Add-ons", policy, 300)));
             string PolicyTag() => (string)((ComboBoxItem)policy.SelectedItem).Tag;
             share.Children.Add(Buttons(B("Build a Private Restore Package…", "Btn", () =>
             {
@@ -190,7 +192,9 @@ namespace CcsBackup.Ui
             var srcs = ev.Where(x => x != prot).ToList();
             var changes = (p.A("changes") ?? new List<object>()).OfType<Dictionary<string, object>>().ToList();
             var title = kind == "migrate" ? "Review: Set Up Like My Other Console" : kind == "package" ? "Review: Apply a Private Restore Package" : "Review: Rebuild from My Backups";
+            var originalNote = OriginalUnavailableNote(composeTag);
             var sp = SectionHead(title, "What would change on your " + Con + ", console " + composeTag + ", the console connected to this PC now. Nothing has been written yet.");
+            if (originalNote != null) sp.Children.Add(originalNote);
 
             // the destination and what stays: always visible
             var d = new StackPanel();

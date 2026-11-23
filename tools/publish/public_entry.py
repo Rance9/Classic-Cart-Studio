@@ -162,6 +162,7 @@ if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration)navigator.se
 :root{{--u:max(12px,min(calc((100vw - 48px) / 12.5),8.4vh,56px))}}
 *{{box-sizing:border-box}}
 html{{height:100%;background:#03040a}}
+html{{color-scheme:dark;scrollbar-color:#26304f #03040a}}@supports selector(::-webkit-scrollbar){{html{{scrollbar-color:auto}}::-webkit-scrollbar{{width:12px;height:12px}}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{{background:#03040a}}::-webkit-scrollbar-thumb{{background:#26304f;border-radius:999px;border:3px solid #03040a}}::-webkit-scrollbar-thumb:hover{{background:#3a4670}}}}   /* dark scroll bars on a small screen */
 body{{margin:0;min-height:100%;min-height:100svh;min-height:100dvh;display:flex;flex-direction:column;color:#fff;overflow-x:hidden;
  background:radial-gradient(120% 90% at 50% 42%,#101a3e 0%,#0a1028 34%,#05070f 72%,#020308 100%)}}
 body::before{{content:"";position:fixed;left:0;top:0;width:2px;height:2px;box-shadow:{_stars()};pointer-events:none}}

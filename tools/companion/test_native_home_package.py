@@ -203,7 +203,7 @@ class C_NonDefault(Base):
                 self.assertTrue(any(body["overview"] == (CF._descriptions().get(c) or {}).get("overview") for c in cur) or body["overview"] == lib_ov, f"{k}: the overview belongs to this game")
             want = v.get("art") or t.get("art")
             if want:
-                exp = DV.Cache(os.path.join(self.root, "cache")).path("cover", DV.sha256_bytes(f"{DV.DERIVE_VERSION}|cover|contain{DV.COVER_BOX}|{DV.sha256_file(CF._art_path(want))}".encode())[:40], ".jpg")
+                exp = DV.Cache(os.path.join(self.root, "cache")).path("cover", DV.sha256_bytes(f"{DV.DERIVE_VERSION}|cover|contain{DV.COVER_BOX}|console{DV.CONSOLE_COVER_SCALE[0]}q{DV.CONSOLE_COVER_QUALITY}|{DV.sha256_file(CF._art_path(want))}".encode())[:40], ".jpg")
                 self.assertEqual(x["cover"], f"cover/{DV.sha256_file(exp)[:16]}.jpg", f"{k}: its own version art, else its title's art")
             else: self.assertEqual(x["cover_kind"], "mock", f"{k}: no authentic art -> the NES-style mock cover with its own title, nothing borrowed")
         p = g["p_n2test"]; self.assertEqual((p["title"], p["version_label"], p["source"]), ("My Homebrew Quest", "v1.2", "personal")); self.assertTrue(p["cover"])

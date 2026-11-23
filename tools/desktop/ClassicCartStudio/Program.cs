@@ -1,6 +1,9 @@
-// Classic Cart Studio for Windows — entry point: single instance, command line (classiccartstudio:// links, .ccs files, --version, --selftest,
+// Classic Cart Studio for Windows — entry point: single instance, command line (classiccartstudio:// links, .ccs files, --version, --selftest, --play FILE (PlayFile.cs),
 // --runtime-check <file>: Setup's WebView2 Runtime check, Runtime.cs), then the
 // WPF application with the one main window. The window shows the live website; the Python backend is started and supervised by Backend.cs.
+// One window per data folder (NES_STUDIO_DATA when set, else the default folder): a second start for the same folder hands its link or file
+// to that window; a start for another folder never reaches it (it has its own lock and handover pipe), and if the first window's backend
+// holds the port, its own backend says so instead of using that one.
 using System;
 using System.IO;
 using System.IO.Pipes;
@@ -13,8 +16,22 @@ namespace ClassicCartStudio
     internal static class Program
     {
         public const string ProductName = "Classic Cart Studio";
+        /// <summary>held by every window, whatever its data folder: Setup waits until no window holds it (installer.iss)</summary>
         public const string MutexName = @"Local\ClassicCartStudio.Main";
-        public const string PipeName = "ClassicCartStudio.ipc";
+        /// <summary>the data folder's identity: its full path, case and trailing separators set aside, as a short SHA-256 (no path in the name)</summary>
+        internal static string DataRootId
+        {
+            get
+            {
+                string p; try { p = Path.GetFullPath(App.DataRoot); } catch (Exception) { p = App.DataRoot ?? ""; }
+                p = p.TrimEnd('\\', '/').ToUpperInvariant();
+                using (var h = System.Security.Cryptography.SHA256.Create())
+                    return BitConverter.ToString(h.ComputeHash(Encoding.UTF8.GetBytes(p)), 0, 8).Replace("-", "").ToLowerInvariant();
+            }
+        }
+        /// <summary>the one window of this data folder, and the pipe it takes handed-over links and files on</summary>
+        internal static string DataRootMutexName => MutexName + "." + DataRootId;
+        internal static string PipeName => "ClassicCartStudio.ipc." + DataRootId;
 
         [STAThread]
         static int Main(string[] args)
@@ -28,13 +45,17 @@ namespace ClassicCartStudio
             // driver step and HOME Designer's compiler (the backend runs its --design-compile, Backend.cs) all run there, never in this process
             var rc = Array.IndexOf(args, "--runtime-check");   // before anything else: no window, no data folder, no single-instance lock
             if (rc >= 0) return Runtime.CheckMain(rc + 1 < args.Length ? args[rc + 1] : null);
+            // one game file in the game player (PlayFile.cs): before the single-instance lock, so an open Classic Cart Studio window is neither
+            // used nor brought forward, and no window of this program opens
+            if (PlayFile.Wanted(args)) return PlayFile.Run(args);
 
             bool created;
-            using (var mutex = new Mutex(true, MutexName, out created))
+            using (var mutex = new Mutex(true, DataRootMutexName, out created))
+            using (var any = new Mutex(false, MutexName))   // Setup's wait (any data folder)
             {
                 if (!created)
                 {
-                    // another instance owns the window: hand the link over and leave (no second backend, no port conflict)
+                    // this data folder's window is open: hand the link over and leave (no second backend, no port conflict)
                     ForwardToRunningInstance(string.Join("\n", args));
                     return 0;
                 }
@@ -45,7 +66,7 @@ namespace ClassicCartStudio
                 StartPipeServer(window);
                 window.Show();
                 app.Run();
-                GC.KeepAlive(mutex);
+                GC.KeepAlive(mutex); GC.KeepAlive(any);
             }
             return 0;
         }

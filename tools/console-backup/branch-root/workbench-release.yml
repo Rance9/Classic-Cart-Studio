@@ -86,7 +86,7 @@ jobs:
       - name: Build the console programs (the verified package path is available in this step)
         shell: pwsh
         run: |
-          python tools/console-backup/ram/build_images.py --hakchi-release $env:CCS_HAKCHI_PACKAGE --ccsboot build/ccsboot/ccsboot --out build/ram-images
+          python tools/console-backup/ram/build_images.py --hakchi-release $env:CCS_HAKCHI_PACKAGE --ccsboot build/ccsboot/ccsboot --chooser-program build/native/arm-musl-device/ccs-home-armv7 --out build/ram-images
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Embed the release HOME package and its notices
         shell: pwsh
@@ -178,7 +178,7 @@ jobs:
           {
             echo "# CCS Console Workbench ${{ needs.pin.outputs.version }}"; echo
             echo "Back up, restore, repair and compose your NES Classic. One program for Windows (x64 or Arm64) that runs without installation."; echo
-            echo "**Unsigned development preview. All console connections, writes and driver actions are disabled. No real-console or Arm64 qualification is claimed.**"; echo
+            echo "**Unsigned development preview. All console connections, writes and driver actions are disabled.**"; echo
             echo "Pinned prebuilt upstream components have unresolved corresponding-source and redistribution questions. They remain included; available source archives do not resolve those gaps. See tools/console-backup/SOURCE-AUDIT.md at the pinned source commit."; echo
             echo "## Files"; echo; echo '```'; cat out/SHA256SUMS.txt; echo '```'; echo
             echo "## Build information"; echo; echo "- Engine source: main at ${{ needs.pin.outputs.commit }} (ENGINE-PIN.txt); built by GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; echo

@@ -64,7 +64,7 @@ namespace CcsWorker.Tests
                 using (var h = new Harness(Shell(), writes: false, admitted: true))
                     T.Eq("physical-disabled", Harness.Err(h.Call("mkdir", new Dictionary<string, object> { ["path"] = "/var/lib/ccs/x" })), "closed write tier");
             });
-            T.Add("admission", "a removal with data reads Classic Cart Studio's data area on THIS connection for the admitter; an install never reads it", () =>
+            T.Add("admission", "a removal with data, and an install, read Classic Cart Studio's data area on THIS connection for the admitter (read only)", () =>
             {
                 const string sha = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
                 var sh = new ScriptedShell
@@ -80,7 +80,8 @@ namespace CcsWorker.Tests
                     T.True(got.Entries["/ccs/data/save.bin"] == "f:" + sha && got.Entries["/ccs/pkg/current"] == "l:abc" && got.Entries["/ccs"] == "d", "in the backup inventory's terms (/var/lib/ccs is /ccs)");
                     var reads = sh.Commands.Count(c => c.Contains("R='/var/lib/ccs'"));
                     got = null; h.Call("admit", new Dictionary<string, object> { ["ticket"] = "0124", ["operation"] = "install", ["subject"] = "plan" });
-                    T.True(got == null && sh.Commands.Count(c => c.Contains("R='/var/lib/ccs'")) == reads, "an install (Classic Cart Studio's own files only) is admitted without reading the data area");
+                    // an install reads the data area's list too (read only, once): a data-only admission compares it (Admission.MayNeedLiveTree)
+                    T.True(got != null && got.Problem == null && sh.Commands.Count(c => c.Contains("R='/var/lib/ccs'")) == reads + 1, "an install reads the data area's list once, read only, for the admitter (a data-only admission needs it)");
                 }
             });
             T.Add("admission", "the data area's list that cannot be read or told apart reaches the admitter as a problem (never as an empty console)", () =>

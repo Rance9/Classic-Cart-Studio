@@ -260,6 +260,8 @@ def resolve(manifest: dict, home: dict) -> dict:
            "games": games, "folders": folders, "favorites": favorites, "hidden_factory_codes": hidden, "map_shortcuts": shortcuts, "map_shortcut_ids": shortcut_ids, "settings": {k: v for k, v in (home.get("settings") or {}).items() if k in ("reduced_motion", "hints")}}
     cfg["fingerprint"] = fingerprint({k: cfg[k] for k in ("theme", "theme_apply", "themes_enabled", "games", "folders", "favorites", "hidden_factory_codes", "map_shortcuts", "settings")})
     cfg["content_fingerprint"] = fingerprint({k: cfg[k] for k in ("theme", "games", "folders", "favorites", "hidden_factory_codes", "map_shortcuts", "settings")})   # what the HOME shows (the one-time apply request excluded)
+    if home.get("include_music") is False:   # Include HOME music, left out: the console's HOME package carries no song (a package with it is another package)
+        cfg["include_music"] = False; cfg["fingerprint"] = fingerprint({"package": cfg["fingerprint"], "include_music": False})
     return cfg
 
 def development_full_catalog(theme: str = "featured-shelf") -> dict:

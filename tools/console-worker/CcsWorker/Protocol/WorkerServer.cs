@@ -23,14 +23,16 @@ namespace CcsWorker.Protocol
         public const int ProtocolVersion = 1;
         public const int MaxLine = 1000000;
         public static readonly string[] Commands = { "capabilities", "connect", "admit", "identify", "df", "stat", "list", "sha256", "read", "put", "mkdir", "rmdir", "rename", "remove", "pointer",
-            "module-install", "module-uninstall", "module-files", "mod-start", "sync", "cancel", "disconnect", "shutdown" };
+            "module-install", "module-uninstall", "module-files", "nucleus-start", "collections", "menu-refs", "sync", "cancel", "disconnect", "shutdown" };
         // additions inside protocol 1 (a client checks for them in capabilities): read with offset/length in pieces, sync (with the page
-        // cache dropped for a readback from storage), pointer with the state it expects to replace, mod-start (CCS Mod's own autostart command)
-        public static readonly string[] Features = { "read-chunks", "sync", "pointer-expect", "write-tier", "backup-admission", "mod-start" };
+        // cache dropped for a readback from storage), pointer with the state it expects to replace, nucleus-start (CCS Nucleus's own start command: what opens at power-on),
+        // collections (the console program that adds a collection to the console's menu as ordinary Hakchi games), menu-refs (read only:
+        // the menu entries that name one of this program's copies, before an earlier copy is removed)
+        public static readonly string[] Features = { "read-chunks", "sync", "pointer-expect", "write-tier", "backup-admission", "nucleus-start", "collections", "menu-refs" };
         // the commands that change the console: each asks the write tier, whatever the session was opened for ("write-tier" above), so an
         // inspect session never writes. sync is not one: it writes no file (it makes earlier writes persistent and, for a read-back, may
         // drop the clean page cache), and the verification after an installation, a read, asks for it
-        public static readonly string[] WriteCommands = { "put", "mkdir", "rmdir", "rename", "remove", "pointer", "module-install", "module-uninstall", "mod-start" };
+        public static readonly string[] WriteCommands = { "put", "mkdir", "rmdir", "rename", "remove", "pointer", "module-install", "module-uninstall", "nucleus-start", "collections" };
         public static readonly string[] Upstream = { "hakchi:25bfcfd04b8ed12f7d513dc87c2a0f7096d38ebc", "sshnet:32181aeb4ce69e8f07e5e1d585fd592a44017bc1", "libusbdotnet:2.2.29" };
 
         sealed class Line { public Dictionary<string, object> Req; public object Id; public string Error, Text; public bool Eof; }
@@ -185,7 +187,7 @@ namespace CcsWorker.Protocol
                         var hw = ops.Identify().TryGetValue("hwid", out var hv) ? hv as string : null;   // the identity read now, never one from the request
                         var opName = Str(a, "operation");
                         CcsBackup.Engine.LiveTree live = null;
-                        if (CcsBackup.Engine.Admission.NeedsLiveTree(opName)) { try { live = ops.Tree(); } catch (Exception ex) when (!(ex is OperationCanceledException)) { live = CcsBackup.Engine.LiveTree.Unreadable(ex.Message); } }
+                        if (CcsBackup.Engine.Admission.MayNeedLiveTree(opName)) { try { live = ops.Tree(); } catch (Exception ex) when (!(ex is OperationCanceledException)) { live = CcsBackup.Engine.LiveTree.Unreadable(ex.Message); } }
                         var ar = admitter(Str(a, "ticket"), opName, Str(a, "subject"), hw, live);
                         if (ar == null || !ar.Ok) { admitted = null; throw new OpException(ar?.Code ?? "backup-required", ar?.Text ?? "The backup admission was refused."); }
                         admitted = ar; r = new Dictionary<string, object> { ["admitted"] = true, ["baseline"] = ar.BaselinePath, ["current"] = ar.CurrentPath };
@@ -211,7 +213,9 @@ namespace CcsWorker.Protocol
                     case "module-install": r = ops.ModuleInstall(a); break;
                     case "module-uninstall": r = ops.ModuleUninstall(Str(a, "name")); break;
                     case "module-files": r = ops.ModuleFiles(Str(a, "name")); break;
-                    case "mod-start": r = ops.ModStart(Str(a, "state")); break;
+                    case "collections": r = ops.Collections(Str(a, "command"), Str(a, "stage")); break;
+                    case "menu-refs": r = ops.MenuRefs(a.TryGetValue("names", out var mn) && mn is object[] marr ? marr.ToList() : (mn as System.Collections.ArrayList)?.Cast<object>().ToList()); break;
+                    case "nucleus-start": r = ops.NucleusStart(Str(a, "default"), Str(a, "chooser"), Str(a, "home"), Str(a, "selection") ?? "default", Str(a, "timeout") ?? "10"); break;
                     default: throw new OpException("bad-command", "unknown command");
                 }
                 Result(id, r);
