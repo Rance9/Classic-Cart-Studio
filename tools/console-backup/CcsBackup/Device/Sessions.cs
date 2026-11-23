@@ -2,7 +2,11 @@
 // Opening a recovery session.
 //   Images     the Classic Cart Studio recovery images (tools/console-backup/ram/build_images.py: ccs-backup, ccs-restore, ccs-prepare),
 //              embedded in this assembly and loaded from memory (RamImage.FromSource): nothing is extracted to disk to use them.
-//   OpenReal   Gate.ConsoleSessions first (closed in this version: everything after it is compiled out). Then: exactly one console in
+//   Refusal    the boundaries a real console's session of a kind needs (Gate): ConsoleSessions, and for every kind but the backup image
+//              (Back Up Console, the Console Browser check-up) its own write boundary as well. In this version ConsoleSessions is open and
+//              every write boundary is closed, so only backup-image sessions open; the window asks the same function before it starts a
+//              task (KindOf: the worker request's kind).
+//   OpenReal   Refusal first, before any USB device is listed or opened. Then: exactly one console in
 //              FEL mode, the image loaded into its RAM by the first-party FEL loader (CcsConsole.RamBoot, Hakchi2 CE's memboot sequence),
 //              the clovershell link the image starts (the same USB identity and Windows driver as FEL), and the image's own id checked.
 //              The physical step (USB in with POWER off, hold RESET, POWER on, hold about 5 s) is the owner's; nothing here can do it.
@@ -82,18 +86,35 @@ namespace CcsBackup.Device
             return new RecoveryConsole(new SimulatedConsole(folder), RecoveryImages.ProfileOf(kind), true);
         }
 
+        /// <summary>the kind of console session a worker request opens (WorkerHost's dispatch; the window asks it too)</summary>
+        public static ImageKind KindOf(string cmd) => cmd == "backup" || cmd == "browse" ? ImageKind.Backup : cmd == "prepare-plan" ? ImageKind.Prepare : cmd == "return-plan" ? ImageKind.Return
+            : cmd == "method-plan" ? ImageKind.Method : cmd == "firmware-plan" ? ImageKind.Firmware : cmd == "community" ? ImageKind.Community : cmd == "rescue" ? ImageKind.Rescue
+            : cmd == "files" || cmd == "compose" || cmd == "home-design" || cmd == "sega-pictures" ? ImageKind.Files : ImageKind.Restore;
+
+        /// <summary>why a session of this kind cannot be opened on a real console in this version (the closed boundary's own sentence), or
+        /// null when it can: ConsoleSessions, then the kind's own write boundary (a backup-image session needs none: its image has no write
+        /// code). Reads nothing and touches no device.</summary>
+        public static GateClosedException Refusal(ImageKind kind)
+        {
+            if (!CcsBackup.Gate.ConsoleSessions) return new GateClosedException(CcsBackup.Gate.SessionsText, "open a console session (" + RecoveryImages.Variant(kind) + ")");
+            if (kind == ImageKind.Restore && !CcsBackup.Gate.RestoreWrites) return new GateClosedException(CcsBackup.Gate.RestoreText, "open a restore session");
+            if (kind == ImageKind.Prepare && !CcsBackup.Gate.PreparationWrites) return new GateClosedException(CcsBackup.Gate.PreparationText, "open a preparation session");
+            if (kind == ImageKind.Return && !CcsBackup.Gate.ReturnWrites) return new GateClosedException(CcsBackup.Gate.ReturnText, "open a return session");
+            if (kind == ImageKind.Method && !CcsBackup.Gate.MethodWrites) return new GateClosedException(CcsBackup.Gate.MethodText, "open a method session");
+            if (kind == ImageKind.Firmware && !CcsBackup.Gate.FirmwareWrites) return new GateClosedException(CcsBackup.Gate.FirmwareText, "open a session to add a system image");
+            if (kind == ImageKind.Community && !CcsBackup.Gate.CommunityWrites) return new GateClosedException(CcsBackup.Gate.CommunityText, "open a community mods session");
+            if (kind == ImageKind.Rescue && !CcsBackup.Gate.RescueWrites) return new GateClosedException(CcsBackup.Gate.RescueText, "open a rescue session");
+            if (kind == ImageKind.Files && !CcsBackup.Gate.ExpertWrites && !CcsBackup.Gate.DeveloperWrites && !CcsBackup.Gate.ComposerWrites && !CcsBackup.Gate.CleanupWrites) return new GateClosedException(CcsBackup.Gate.ExpertText, "open a file session");
+            if (kind != ImageKind.Backup && kind != ImageKind.Restore && kind != ImageKind.Prepare && kind != ImageKind.Return && kind != ImageKind.Method && kind != ImageKind.Firmware
+                && kind != ImageKind.Community && kind != ImageKind.Rescue && kind != ImageKind.Files) return new GateClosedException(CcsBackup.Gate.SessionsText, "an unknown session kind");
+            return null;
+        }
+
         /// <summary>FEL RAM boot of the embedded image, then the clovershell link. say: progress text; cancelled: stop waiting.</summary>
         public static RecoveryConsole OpenReal(ImageKind kind, Action<string> say, Func<bool> cancelled)
         {
-            if (!CcsBackup.Gate.ConsoleSessions) throw new GateClosedException(CcsBackup.Gate.SessionsText, "open a console session (" + RecoveryImages.Variant(kind) + ")");
-            if (kind == ImageKind.Restore && !CcsBackup.Gate.RestoreWrites) throw new GateClosedException(CcsBackup.Gate.RestoreText, "open a restore session");
-            if (kind == ImageKind.Prepare && !CcsBackup.Gate.PreparationWrites) throw new GateClosedException(CcsBackup.Gate.PreparationText, "open a preparation session");
-            if (kind == ImageKind.Return && !CcsBackup.Gate.ReturnWrites) throw new GateClosedException(CcsBackup.Gate.ReturnText, "open a return session");
-            if (kind == ImageKind.Method && !CcsBackup.Gate.MethodWrites) throw new GateClosedException(CcsBackup.Gate.MethodText, "open a method session");
-            if (kind == ImageKind.Firmware && !CcsBackup.Gate.FirmwareWrites) throw new GateClosedException(CcsBackup.Gate.FirmwareText, "open a session to add a system image");
-            if (kind == ImageKind.Community && !CcsBackup.Gate.CommunityWrites) throw new GateClosedException(CcsBackup.Gate.CommunityText, "open a community mods session");
-            if (kind == ImageKind.Rescue && !CcsBackup.Gate.RescueWrites) throw new GateClosedException(CcsBackup.Gate.RescueText, "open a rescue session");
-            if (kind == ImageKind.Files && !CcsBackup.Gate.ExpertWrites && !CcsBackup.Gate.DeveloperWrites && !CcsBackup.Gate.ComposerWrites && !CcsBackup.Gate.CleanupWrites) throw new GateClosedException(CcsBackup.Gate.ExpertText, "open a file session");
+            var closed = Refusal(kind);
+            if (closed != null) throw closed;   // before any USB device is listed or opened
             var img = RecoveryImages.Load(kind); var want = RecoveryImages.IdOf(kind).id;
             var loader = new RamBootLoader(new LibUsbDeviceList(), () => new LibUsbFelUsb());
             loader.Progress += p => { if (p.Message != null) say?.Invoke(p.Message); };

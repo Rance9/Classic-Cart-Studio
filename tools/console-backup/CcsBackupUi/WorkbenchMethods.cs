@@ -292,7 +292,7 @@ namespace CcsBackup.Ui
                 "Adding places a package in hakchi's transfer folder; removing places a removal list there (the startup chooser before CCS Nucleus). hakchi applies them at the console's next normal start and restarts the console once. Only a removed package's unchanged files are removed; its settings stay on the console as data. What opens first is set in CCS Nucleus's own setting on the data storage.",
                 "Only files on the console's data storage are written (hakchi's transfer folder, CCS Nucleus's setting and CCS HOME's folder); no kernel, bootloader or system is changed."));
             sp.Children.Add(Card(what));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing changes until you confirm; the change takes effect at the console's next normal start."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing changes until you confirm; the change takes effect at the console's next normal start.", "method-plan"));
             // each action first reads the console's add-ons (nothing is written then), then opens its page or its review
             void Check(string intent)
             {
@@ -348,7 +348,7 @@ namespace CcsBackup.Ui
             id.TextChanged += (s, e) => { remove.IsEnabled = !string.IsNullOrWhiteSpace(id.Text); need.Visibility = remove.IsEnabled ? Visibility.Collapsed : Visibility.Visible; };
             c.Children.Add(Buttons(remove)); c.Children.Add(need);
             sp.Children.Add(Card(c));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing changes until you confirm."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing changes until you confirm.", "firmware-plan"));
             sp.Children.Add(Buttons(B("Back", "Btn.Ghost", () => { if (LeaveOk()) BackToSection(); })));
             Show(sp, "firmware");
             LeaveGuard(() => label.Text.Trim().Length == 0 && id.Text.Trim().Length == 0 ? null : "What you typed on Your System Images",

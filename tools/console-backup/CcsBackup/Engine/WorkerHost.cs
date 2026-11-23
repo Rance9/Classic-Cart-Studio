@@ -166,7 +166,7 @@ namespace CcsBackup.Engine
                 {
                     if (lk == null) { Send(new JObj { { "event", "result" }, { "state", "busy" }, { "problem", "Another console operation is running in " + busy + ". Wait for it to finish." } }); return 3; }
                     if (cmd == "test-boot") return TestBootOp(req);   // no console program runs: the console stays in its boot ROM's USB mode
-                    var kind = cmd == "backup" || cmd == "browse" ? ImageKind.Backup : cmd == "prepare-plan" ? ImageKind.Prepare : cmd == "return-plan" ? ImageKind.Return : cmd == "method-plan" ? ImageKind.Method : cmd == "firmware-plan" ? ImageKind.Firmware : cmd == "community" ? ImageKind.Community : cmd == "rescue" ? ImageKind.Rescue : cmd == "files" || cmd == "compose" || cmd == "home-design" || cmd == "sega-pictures" ? ImageKind.Files : ImageKind.Restore;
+                    var kind = RecoverySessions.KindOf(cmd);
                     RecoveryConsole con;
                     try { con = Open(req, kind, out var folder0); }
                     catch (GateClosedException ex) { Send(new JObj { { "event", "result" }, { "state", "unavailable" }, { "problem", ex.Message } }); return 4; }
@@ -196,11 +196,12 @@ namespace CcsBackup.Engine
                 var c0 = ConsoleBrowser.Checkup(con, ctx.RecoveryImageId, ctx.Cancelled);
                 Send(new JObj { { "event", "checkup" }, { "state", c0.Problem == null ? "checked" : "partial" }, { "checkup", c0.ToJson() } });
                 if (c0.Problem != null || c0.DataDevice == null || c0.PartBytes == null) { Send(new JObj { { "event", "result" }, { "operation", "browse" }, { "state", "partial" }, { "checkup", c0.ToJson() } }); AfterOperation(con); return 0; }
-                long size = c0.PartBytes.Value; DateTime idle = DateTime.UtcNow.AddHours(2);
+                long size = c0.PartBytes.Value; DateTime idle = DateTime.UtcNow.AddHours(2); bool restart = false;
                 while (!cancel && DateTime.UtcNow < idle)
                 {
                     if (!queue.TryTake(out var c, 500)) continue;
                     if (c == null || c.S("cmd") == "quit" || c.S("cmd") == "end") break;
+                    if (c.S("cmd") == "finish") { restart = true; break; }   // the check-up page's Restart the Console: the session ends, then the console restarts normally (nothing written)
                     if (c.S("cmd") != "range") { Send(new JObj { { "event", "error" }, { "text", "Console Browser only reads." } }); continue; }
                     idle = DateTime.UtcNow.AddHours(2);
                     long off = c.L("offset"); long len = c.L("length");
@@ -211,6 +212,7 @@ namespace CcsBackup.Engine
                                : new JObj { { "event", "range-data" }, { "id", c.S("id") }, { "ok", false }, { "problem", rr.Problem } });
                 }
                 Send(new JObj { { "event", "result" }, { "operation", "browse" }, { "state", "checked" }, { "checkup", c0.ToJson() } });
+                if (restart) { var ok = con.Finish(); Send(new JObj { { "event", "finished" }, { "restarting", ok } }); con.Disconnect(); return 0; }
                 AfterOperation(con); return 0;
             }
 

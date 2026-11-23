@@ -47,8 +47,17 @@ namespace CcsBackup.Engine
 
     public static class DeveloperTestBoot
     {
-        /// <summary>a real console: Gate.ConsoleSessions and Gate.DeveloperTestBoot first (both closed in this version: everything after them
-        /// is compiled out). Then exactly one NES Classic in FEL mode, its SID read.</summary>
+        /// <summary>why a real console's test boot cannot start in this version (the closed boundary's own sentence), or null: Gate.ConsoleSessions
+        /// and Gate.DeveloperTestBoot. Reads nothing and touches no device; the window asks it before it starts the task.</summary>
+        public static GateClosedException Refusal()
+        {
+            if (!Gate.ConsoleSessions) return new GateClosedException(Gate.SessionsText, "open a test-boot connection");
+            if (!Gate.DeveloperTestBoot) return new GateClosedException(Gate.DeveloperTestBootText, "test boot");
+            return null;
+        }
+
+        /// <summary>a real console: Gate.ConsoleSessions and Gate.DeveloperTestBoot first, as constants (DeveloperTestBoot is closed in this
+        /// version: everything after it is compiled out). Then exactly one NES Classic in FEL mode, its SID read.</summary>
         public static ITestBootTarget OpenReal()
         {
             if (!Gate.ConsoleSessions) throw new GateClosedException(Gate.SessionsText, "open a test-boot connection");

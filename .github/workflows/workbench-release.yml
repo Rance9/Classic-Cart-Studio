@@ -178,7 +178,7 @@ jobs:
           {
             echo "# CCS Console Workbench ${{ needs.pin.outputs.version }}"; echo
             echo "Back up, restore, repair and compose your NES Classic. One program for Windows (x64 or Arm64) that runs without installation."; echo
-            echo "**Unsigned development preview. All console connections, writes and driver actions are disabled.**"; echo
+            echo "**Unsigned development preview. Reading a real console (Back Up Console and the Console Browser check-up) is available; console writes and driver actions are disabled.**"; echo
             echo "Pinned prebuilt upstream components have unresolved corresponding-source and redistribution questions. They remain included; available source archives do not resolve those gaps. See tools/console-backup/SOURCE-AUDIT.md at the pinned source commit."; echo
             echo "## Files"; echo; echo '```'; cat out/SHA256SUMS.txt; echo '```'; echo
             echo "## Build information"; echo; echo "- Engine source: main at ${{ needs.pin.outputs.commit }} (ENGINE-PIN.txt); built by GitHub Actions: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; echo

@@ -172,9 +172,12 @@ namespace CcsBackup.Ui
             if (!profile.ConsoleTasks || profile.TestBootRecoveryStep == null) sp.Children.Add(FamilyNotYetNote());
             else if (string.IsNullOrEmpty(opt.SimulatedConsole))
             {
-                var s = new StackPanel(); s.Children.Add(T("Connect the console", Ty.Heading, true, false, new Thickness(0, 0, 0, 10)));
+                var s = new StackPanel();
+                var closed = ClosedOnRealConsole("test-boot");   // the test boot's own boundary (Gate.DeveloperTestBoot)
+                if (closed != null) s.Children.Add(Note(closed + " " + ReadsAvailable, "warn"));
+                s.Children.Add(T("Connect the console", Ty.Heading, true, false, new Thickness(0, 0, 0, 10)));
                 s.Children.Add(Numbered("Turn your " + Con + " off and connect it to this PC with its USB cable.", profile.TestBootRecoveryStep, "Workbench reads only the console's hardware id until you confirm the test boot."));
-                s.Children.Add(T("This PC needs the console's USB driver. If Windows does not have it, Workbench asks before setting it up; it never installs a driver by itself.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
+                s.Children.Add(T(DriverStepNote, Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
                 sp.Children.Add(Card(s));
             }
             var problem = new ContentControl { Focusable = false };

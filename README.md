@@ -1,13 +1,13 @@
 # CCS Console Workbench
 
-Current preview: **0.11.9**, aligned with Classic Cart Studio and the shared engine; Classic Cart Studio 0.11.9 installs this same program. Earlier previews (0.11.8, 0.11.7, 0.11.6, 0.11.5, 0.11.4, 0.11.3, 0.11.2, 0.11.1 and 0.11.0) are superseded and stay available.
+Current preview: **0.11.10**, aligned with Classic Cart Studio and the shared engine; Classic Cart Studio 0.11.10 installs this same program. Earlier previews (0.11.9, 0.11.8, 0.11.7, 0.11.6, 0.11.5, 0.11.4, 0.11.3, 0.11.2, 0.11.1 and 0.11.0) are superseded and stay available.
 
-> **Unsigned development preview:** console connections, console writes and driver actions are disabled. PC/offline features are available.
+> **Unsigned development preview:** reading a real console (Back Up Console and the Console Browser check-up) is available; console writes and driver actions are disabled. PC/offline features are available.
 
 **Back up, restore, repair and compose your NES Classic.**
 
 CCS Console Workbench is a Windows program for Nintendo's Classic Mini consoles: the NES Classic Edition, and the Super NES Classic Edition (North
-America and Europe), which it backs up, restores its own backups to and checks; its other console tasks are not available for it yet. It runs from one file without installing the application. It is part
+America and Europe), which it backs up and checks; its other console tasks are not available for it yet. It runs from one file without installing the application. It is part
 of the Classic Cart Studio project, and Classic Cart Studio for Windows includes the same program. This branch holds its developer-facing
 information and release files. Its source lives in `tools/console-backup/` on `main`; a release builds the commit named in `ENGINE-PIN.txt`.
 
@@ -24,7 +24,7 @@ information and release files. Its source lives in `tools/console-backup/` on `m
 | Developer Mode | changing files anywhere on the console's data storage, under a restore point |
 
 Console sessions use the console's own recovery mode (USB, RESET held at power-on). Each write has its own boundary in
-`tools/console-backup/CcsBackup/Gate.cs`. Writes to a real console are turned off in this version.
+`tools/console-backup/CcsBackup/Gate.cs`. In this version a real console is only read (Back Up Console and the Console Browser check-up); every write boundary is closed.
 
 ## Downloads and source
 

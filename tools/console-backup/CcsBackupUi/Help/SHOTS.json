@@ -115,9 +115,9 @@
    "file": "02-backup-start.png",
    "width": 1160,
    "height": 760,
-   "bytes": 53724,
-   "sha256": "98772bdd936046485bf835263ed58c41e84db6b78a3860d5db7a54eea7f0a88b",
-   "palette_error": 0.03
+   "bytes": 52930,
+   "sha256": "e7a83216ec8622ce4fd93151b9d6f0162f4386542d598d3a33fa75900d32b6dd",
+   "palette_error": 0.034
   },
   {
    "name": "03-backup-result-ok",
@@ -160,9 +160,9 @@
    "file": "07-restore-review.png",
    "width": 1160,
    "height": 760,
-   "bytes": 26573,
-   "sha256": "b585e895d67d88d87f8f17fe5468a1ccf03a50fa3c9ccb4418ca6e2b05767502",
-   "palette_error": 0.012
+   "bytes": 50190,
+   "sha256": "1beddd1a20e7d340c57af731853f5b19c95bdf534de2f6a0eb90653e6f7a8c05",
+   "palette_error": 0.034
   },
   {
    "name": "08-restore-plan",
@@ -196,9 +196,9 @@
    "file": "11-prepare.png",
    "width": 1160,
    "height": 760,
-   "bytes": 56180,
-   "sha256": "552451f0aa749cb5477d6383ae58d60139def9e733cd7218a6abd578aadee362",
-   "palette_error": 0.028
+   "bytes": 55297,
+   "sha256": "f604114b2ee911742b466da51dba2cbe262caeca52957dd6bc8a4891743eb6d2",
+   "palette_error": 0.039
   },
   {
    "name": "11b-addons",
@@ -277,9 +277,9 @@
    "file": "14-return.png",
    "width": 1160,
    "height": 760,
-   "bytes": 56801,
-   "sha256": "06db7afc9051e0fc018aef6d91064bc966a1c788682fc0794fb600588636c4fb",
-   "palette_error": 0.043
+   "bytes": 60558,
+   "sha256": "64d32b5d088d493fd5f9252b9686cdf60d35b4e748395ca2622f3f14f1b8579a",
+   "palette_error": 0.045
   },
   {
    "name": "15-return-plan",
@@ -304,9 +304,9 @@
    "file": "17-methods.png",
    "width": 1160,
    "height": 760,
-   "bytes": 58196,
-   "sha256": "b01ff1b8299ffc738deb1af1a91ce25733e3411ff607833bbd1d64dad51ae196",
-   "palette_error": 0.034
+   "bytes": 59633,
+   "sha256": "d9a61097f3e37c6caf92b184af0d252eb957782e49a3eff95684a87f1960e436",
+   "palette_error": 0.04
   },
   {
    "name": "18-method-plan",
@@ -358,9 +358,9 @@
    "file": "20-rescue.png",
    "width": 1160,
    "height": 760,
-   "bytes": 52844,
-   "sha256": "9f0dc999edf9da06e27d552ab18cfd7cd1c383215987b604976dceb1ef57c634",
-   "palette_error": 0.035
+   "bytes": 50902,
+   "sha256": "b52344dc9e8437912074f19541ffcbb4c93ab97028f2fd0e20d21b820f0415e7",
+   "palette_error": 0.029
   },
   {
    "name": "21-rescue-choice",
@@ -403,8 +403,8 @@
    "file": "25-composer-like.png",
    "width": 1160,
    "height": 760,
-   "bytes": 53193,
-   "sha256": "8a6c16abcdf885da27caccbca1c38169bb8a38fee28f50ee4305a1cc947a3ee9",
+   "bytes": 53162,
+   "sha256": "16de99f3c0944c3ca3deba2406f84b726a0bbcb7da2796f42bebb68e13bcd2f7",
    "palette_error": 0.031
   },
   {
@@ -412,8 +412,8 @@
    "file": "25b-composer-like-files.png",
    "width": 1160,
    "height": 760,
-   "bytes": 57587,
-   "sha256": "5624a08d51149c841da9412ead5d32222bff36a53d86da9f2a6e422208bcbccf",
+   "bytes": 57631,
+   "sha256": "5c39029a6a41bb72eedda86a21bfc42ffc8b1d7f86f2e4cc3df414691539cfcb",
    "palette_error": 0.032
   },
   {
@@ -421,17 +421,17 @@
    "file": "26-composer-rebuild.png",
    "width": 1160,
    "height": 760,
-   "bytes": 47284,
-   "sha256": "fe4de906dfe0aef8c31d1898619cac2fab0cfa2c2c04611a793848b39cdb46d5",
-   "palette_error": 0.026
+   "bytes": 47257,
+   "sha256": "8fb37e463ce798cc3fd921fcf48af24a77011accc20b719768f3f8ca9a07e283",
+   "palette_error": 0.028
   },
   {
    "name": "26b-composer-rebuild-again",
    "file": "26b-composer-rebuild-again.png",
    "width": 1160,
    "height": 760,
-   "bytes": 58048,
-   "sha256": "a0458f9418a79d2bb0f9660223f874b98caf731cd9ebf4b49388ac8a7adb49ca",
+   "bytes": 58063,
+   "sha256": "198f5749135126f821d39b40b2d8e0005219e5dc98f57c0bfe605ff4234e2c36",
    "palette_error": 0.034
   },
   {
@@ -475,8 +475,8 @@
    "file": "29-firmware.png",
    "width": 1160,
    "height": 760,
-   "bytes": 48339,
-   "sha256": "96f326047e5415a4d3f4d85edccdfd005af51df910fb28e77fa913478fcb1874",
+   "bytes": 48324,
+   "sha256": "1764c9d0fe4b7fae38be6d598468f2584209c87e0aca9437795d5d7117405a13",
    "palette_error": 0.041
   },
   {
@@ -529,9 +529,9 @@
    "file": "30d-apply-package.png",
    "width": 1160,
    "height": 760,
-   "bytes": 46799,
-   "sha256": "8506b0981cb8e6000e4cb20a4fac28ddbf9d0e123da83c02ee20c6af4ca01b1d",
-   "palette_error": 0.028
+   "bytes": 46821,
+   "sha256": "9d11d12391278cb5d0601d1aff6e4c26f0c1dc863e3192d50d71b35e5a349ab9",
+   "palette_error": 0.027
   },
   {
    "name": "30e-plan-share",
@@ -556,9 +556,9 @@
    "file": "31-console-browser.png",
    "width": 1160,
    "height": 760,
-   "bytes": 47190,
-   "sha256": "3cdd6615f73efdde8ada9e6b7e8997cf6739170f669c4087409dc937f32b1828",
-   "palette_error": 0.037
+   "bytes": 51312,
+   "sha256": "3a5f65052df08d109ee32aadd1decab52af66d62f7278a083fba900eb0518f2b",
+   "palette_error": 0.042
   },
   {
    "name": "32-checkup",
@@ -574,9 +574,9 @@
    "file": "33-expert-intro.png",
    "width": 1160,
    "height": 760,
-   "bytes": 47268,
-   "sha256": "89025e32c3b10d9bfeef6e8a639d301063ce6e35b22d764fe4e3c5f0b7995094",
-   "palette_error": 0.034
+   "bytes": 52323,
+   "sha256": "0c9455f376910d740885f10eb15cecddf95109a280c63649f57ad1918d3554c4",
+   "palette_error": 0.03
   },
   {
    "name": "34-files-point",
@@ -619,18 +619,18 @@
    "file": "38b-test-boot-intro.png",
    "width": 1160,
    "height": 760,
-   "bytes": 48790,
-   "sha256": "27f43610b4e97abb909cf21fd71cd5f96f732dadfb20b493ded76d7dd6cbf6ca",
-   "palette_error": 0.038
+   "bytes": 48802,
+   "sha256": "f5b50d929ef11a11da918d813b704403a2d5e257a1ca0e234d253992e150fc61",
+   "palette_error": 0.037
   },
   {
    "name": "38b2-test-boot-intro-empty",
    "file": "38b2-test-boot-intro-empty.png",
    "width": 1160,
    "height": 760,
-   "bytes": 49135,
-   "sha256": "2c35f06481dbb1746306d3c1d80fe20ca8f16e48e8685e9339c3e2f06225ca02",
-   "palette_error": 0.038
+   "bytes": 49167,
+   "sha256": "d1ccfa931d6257f58e08078eb604bb4b352aadd6c521ad81c17d204c0dda1747",
+   "palette_error": 0.037
   },
   {
    "name": "38c-test-boot-plan-image",
@@ -997,9 +997,9 @@
    "file": "49-designer-console.png",
    "width": 1160,
    "height": 760,
-   "bytes": 48777,
-   "sha256": "820ca88babbaeceeb4a8cd5009949cf2fa1bbcdd1f7cd29c1f4ed73041af039d",
-   "palette_error": 0.029
+   "bytes": 48773,
+   "sha256": "5ee4822e7a02b282f314fedf5e0e575282ba24086b12a4ad343b35bf1c600306",
+   "palette_error": 0.028
   },
   {
    "name": "49b-design-check",
@@ -1051,9 +1051,9 @@
    "file": "52d-help-search.png",
    "width": 1160,
    "height": 760,
-   "bytes": 70901,
-   "sha256": "0b44926042be74bfc84ee11f404235cf65656a8a6a2cf2f11edf7396933b9642",
-   "palette_error": 0.039
+   "bytes": 70890,
+   "sha256": "8cca42e93e46d76a517ad15ef58108f416514d0b6ac6d82c7f9d7eefaff289c9",
+   "palette_error": 0.038
   },
   {
    "name": "52g-help-about-app",

@@ -344,7 +344,7 @@ namespace CcsBackup.Ui
             what.Children.Add(Details(TechNes, "The file is a ZIP: the startup software and each part of the built-in storage as images (restore/), the original Nintendo kernel when it is found (recovery/), the raw NAND image, bootloaders and storage table kept as evidence and never written to a console (reference/), the list of files on the data storage (inventory/), and a manifest with every part's size and checksums.",
                 "While it is made, the file is written under a temporary name; it is read back in full and checked against what the console sent before it gets its final name. An unfinished file is kept as Incomplete and is never used as a backup."));
             sp.Children.Add(Card(what));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("A backup only reads the console's storage."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("A backup only reads the console's storage.", "backup"));
             sp.Children.Add(Buttons(B(string.IsNullOrEmpty(opt.SimulatedConsole) ? "Start Backup" : "Start Backup (Simulated Console)", "Btn.Primary", () => StartBackup()), B("Back", "Btn.Ghost", BackToSection)));
             Show(sp, "backup");
         }
@@ -364,7 +364,7 @@ namespace CcsBackup.Ui
 
         void StartBackup()
         {
-            if (!FamilyHasTasks("backup")) return;
+            if (!FamilyHasTasks("backup") || !BoundaryOpen("backup")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartBackup()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console task is running", "The console is already in use by this window, another CCS Console Workbench window or Classic Cart Studio. Wait for that task to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Backing Up the Console", "Keep the USB cable connected. Cancel stops at once: nothing on the console changes, and the unfinished file is kept and marked Incomplete.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -477,7 +477,7 @@ namespace CcsBackup.Ui
                 w.Children.Add(T("What happens next", 15, true, false, new Thickness(0, 0, 0, 10)));
                 w.Children.Add(Numbered("You connect the console in its recovery mode (as for a backup).", "Classic Cart Studio checks it is the same console with the same storage layout.", "It makes a complete backup of the console as it is now, so nothing is lost if you change your mind.", "It shows exactly what would change. Nothing is written until you confirm."));
                 sp.Children.Add(Card(w));
-                if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm what changes."));
+                if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm what changes.", "restore-prepare"));
                 // a partial restore (Backup Repair, D6): only the chosen storage parts; the startup software and the system part go together
                 var parts = new StackPanel(); var picks = new List<(CheckBox b, string t)>();
                 parts.Children.Add(T("Restore only these parts (the others stay as they are now):", 13.5, true));
@@ -494,7 +494,7 @@ namespace CcsBackup.Ui
 
         void StartRestorePrepare(string file, List<string> only = null)
         {
-            if (!FamilyHasTasks("restore")) return;
+            if (!FamilyHasTasks("restore") || !BoundaryOpen("restore-prepare")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartRestorePrepare(file, only)); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Preparing the Restore", "Checking the console and backing it up as it is now. Nothing is written to the console in this step. Cancel stops at once.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -580,7 +580,7 @@ namespace CcsBackup.Ui
             ad.Children.Add(T("Your add-ons", Ty.Heading, true, false, new Thickness(0, 0, 0, 6)));
             ad.Children.Add(T("After the console is checked, you choose your add-ons on two pages: CCS Mod, which adds CCS HOME, a menu for your game collections, and CCS Nucleus, which chooses what opens when you turn on the console. Add-ons already on the console stay.", Ty.Text));
             sp.Children.Add(Card(ad));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the steps."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the steps.", "prepare-plan"));
             sp.Children.Add(Buttons(B("Check the Console", "Btn.Primary", () => StartPrepare()), B("Back", "Btn.Ghost", BackToSection)));
             sp.Children.Add(Group("Already prepared?", 18));
             sp.Children.Add(Card(Inline("Return to Original Software undoes the preparation: it puts back Nintendo's startup software and this console's own bootloader, removes hakchi's files and restores the original storage layout (as Hakchi2 CE's own uninstall does), then restores the backup made before preparing, with its games and saves exactly as they were.", B("Return to Original Software…", "Btn.Ghost", () => ShowReturn())), 16));
@@ -597,14 +597,14 @@ namespace CcsBackup.Ui
             c.Children.Add(T("Before anything changes", 15, true, false, new Thickness(0, 10, 0, 6)));
             c.Children.Add(T("This works only on a console exactly as Classic Cart Studio's preparation left it; anything else is refused. Workbench first backs the console up as it is now, so saves made since preparing are kept. You review the steps and confirm them. If a step fails, the steps after it are not done, and nothing is retried.", 13));
             sp.Children.Add(Card(c));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the steps."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the steps.", "return-plan"));
             sp.Children.Add(Buttons(B("Check the Console", "Btn.Primary", () => StartReturn()), B("Back", "Btn.Ghost", BackToSection)));
             Show(sp, "return");
         }
 
         void StartReturn()
         {
-            if (!FamilyHasTasks("return")) return;
+            if (!FamilyHasTasks("return") || !BoundaryOpen("return-plan")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartReturn()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Checking the Console", "Nothing is changed in this step.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -650,7 +650,7 @@ namespace CcsBackup.Ui
 
         void StartPrepare()
         {
-            if (!FamilyHasTasks("preparation")) return;
+            if (!FamilyHasTasks("preparation") || !BoundaryOpen("prepare-plan")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartPrepare()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Checking the Console", "Nothing is changed in this step.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });

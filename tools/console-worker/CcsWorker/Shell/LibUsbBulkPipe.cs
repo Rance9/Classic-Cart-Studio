@@ -2,7 +2,8 @@
 // Derived from Hakchi2 CE 3.9.3 Clovershell/ClovershellConnection.cs (commit 25bfcfd; GPL-3.0): the device search by VID 0x1F3A /
 // PID 0xEFE8, configuration 1 and interface 0, the endpoint check (in 0x81, out 0x01), the 64 KiB reader, the write with up to ten
 // retries 100 ms apart. LibUsbDotNet 2.2.29 (LGPL-3.0), the copy Hakchi2 CE 3.9.3 embeds.
-// Modified by Rance9, 2026: constructed only by RealTransports.Open (Gate G1 closed in code: nothing here runs in this version);
+// Modified by Rance9, 2026: constructed by the console worker's RealTransports.Open (Gate G1 closed in code: never in this version) and by
+// CCS Console Workbench's read session (CcsBackup RecoverySessions.OpenReal, behind CcsBackup.Gate.ConsoleSessions, for its backup image);
 // reads and writes through IBulkPipe; a missing or unexpected device is an exception, never a silent retry loop.
 using LibUsbDotNet;
 using LibUsbDotNet.Main;

@@ -25,9 +25,9 @@ CCS HOME is separate from the console's original menu. Setting it up is your cho
 
 ## Console tasks in this version
 
-! In this version, the console tasks are turned off for a real console. This covers Back Up Console, the Console Browser check-up, Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, add-on changes, Your System Images, Community Mods changes, Expert Mode and Developer Mode. If you start one with a real console, Workbench shows **Not available in this version**, and nothing on the console or this PC changes. Setting up the USB driver on this PC is turned off the same way.
+! In this version, Workbench only reads a real console. **Back Up Console** and the **Console Browser** check-up are available: they run a small program in the console's memory and read the console; nothing on it changes. The tasks that change a console are turned off for a real console: Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, add-on changes, Your System Images, Community Mods changes, Expert Mode and Developer Mode. Their pages say so, and if you start one, Workbench shows **Not available in this version** and starts nothing: no console connection, no USB driver check, nothing written. Setting up the USB driver on this PC is turned off too: a console task uses a driver this PC already has for the console, such as the one Hakchi2 CE set up.
 
-For the SNES Classic Mini (North America and Europe), this version backs up the console, restores its own backups to it and checks it (Console Browser). Its other console tasks are not available for it in this version: with the SNES Classic Mini chosen at the top of the window, their pages say so and start nothing (no console connection, no USB driver check, nothing written). Backup Browser and Backup Repair work the same whichever console is chosen.
+For the SNES Classic Mini (North America and Europe), this version backs up the console and checks it (Console Browser): the same reads as for the NES Classic Mini. Restoring its own backups to it is turned off, like every change to a real console, and its other console tasks are not available for it in this version: with the SNES Classic Mini chosen at the top of the window, their pages say so and start nothing (no console connection, no USB driver check, nothing written). Backup Browser and Backup Repair work the same whichever console is chosen.
 
 You can still open every console page in this version and read what each task will do.
 
@@ -174,14 +174,14 @@ Choose **Dashboard** at the top of the side column whenever no console task is r
 
 Every console task (a backup, a check-up, a restore or a change) talks to the console over its USB cable while the console is in its recovery mode. In recovery mode, a small program runs from the console's memory. Connecting does not install anything on the console.
 
-! In this version, connecting to a real console and setting up the USB driver are turned off. Workbench then shows **Not available in this version**, and nothing on the console or this PC changes. See [Start Here](#start).
+! In this version, only Back Up Console and the Console Browser check-up connect to a real console, and they only read it. A task that changes a console shows **Not available in this version** and starts nothing. Setting up the USB driver on this PC is turned off: a console task uses a driver this PC already has for the console; if it has none, Workbench says so and changes nothing. See [Start Here](#start).
 
 ## What you need
 
 - The console and its USB cable.
 - A free USB port on this PC.
 - The TV connected to the console, so you can see its screen.
-- The console's USB driver on this PC. If Windows does not have it, Workbench asks before setting it up. It never installs a driver by itself.
+- A USB driver for the console on this PC. In this version Workbench uses one this PC already has, such as the one Hakchi2 CE set up; setting one up is turned off, and if there is none Workbench says so and changes nothing.
 
 ## Start the NES Classic Mini in recovery mode
 
@@ -191,10 +191,10 @@ These steps are the same for the NES Classic Mini and the SNES Classic Mini. Eac
 2. Connect the console to this PC with its USB cable.
 3. Hold the console's RESET button.
 4. Switch POWER on, and keep holding RESET for about 5 seconds. Then let go.
-5. Look at the TV: it shows a Classic Cart Studio screen while the small program runs from the console's memory.
-6. In Workbench, choose the task's start button, for example **Start Backup** or **Check the Console**.
+5. The TV stays dark: the console waits for this PC.
+6. In Workbench, choose the task's start button, for example **Start Backup** or **Start the Check-Up**. Workbench sends the small program to the console's memory, and the TV shows a Classic Cart Studio screen while it runs.
 
-Test Boot in Developer Mode is different: the TV stays dark while the console waits for this PC. See [Developer Mode](#developer).
+Test Boot in Developer Mode is different: no Classic Cart Studio screen appears, and the console waits for this PC until you confirm the test boot. See [Developer Mode](#developer).
 
 Keep the USB cable connected and this PC on until the task finishes. While a console task runs, the other pages in the side column are locked; they open again when it finishes or is canceled. Only one console task can run at a time. If another one is already running, in this window, another Workbench window or Classic Cart Studio, Workbench asks you to wait for it to finish.
 
@@ -422,7 +422,7 @@ When you close the window (with **Close**, its X or Escape) after choosing a dif
 
 Choosing the same console as before, or going back to it, closes the window without asking; so does **Use Selection** with the current console in **Use console**. While a console task or session is open, Workbench cannot change the console it works with: the window says so, and you can keep reading. If the page you are on has changes that are not saved, its own question comes first.
 
-This version knows two console families: the NES Classic Mini and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. For the SNES Classic Mini, this version backs it up, restores its own backups to it and checks it; its other console tasks are not available for it yet.
+This version knows two console families: the NES Classic Mini and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. For the SNES Classic Mini, this version backs it up and checks it; restoring its own backups to it is turned off, like every change to a real console, and its other console tasks are not available for it yet.
 
 [shot 59-about-console | The About This Console window, on the NES Classic Mini.]
 
@@ -499,7 +499,7 @@ The states in the list are **Complete · checked**, **Complete · checked, with 
 | Button | What it does |
 | Edit in Settings | Beside the folder under **Where it is saved**: opens Settings at **Backup locations**, where you choose where new backups are saved. A new folder is used for new backups only; backups already saved stay where they are. |
 | Technical details | Shows what the backup file holds. Copy Details copies that text. |
-| Start Backup | Starts the backup. If this PC has no USB driver for the console, Workbench asks first. |
+| Start Backup | Starts the backup. If this PC has no USB driver for the console, Workbench says so and changes nothing (setting one up is turned off in this version). |
 | Back | Returns to the Console Backup page. Escape does the same. |
 | Cancel, while backing up | Stops at once. Nothing on the console changes. The unfinished file is kept and marked Incomplete. |
 
@@ -533,7 +533,7 @@ Checked means the file is intact. Restoring it to the console is a separate step
 | The backup could not start | Workbench could not start it. The page says why. |
 | The backup ended unexpectedly | The program doing the backup stopped before it finished. |
 | Another console operation is running | Wait for the other task to finish, then try again. |
-| Not available in this version | Connecting to a real console is turned off in this version. |
+| Not available in this version | This version cannot back up that console. The page says why. |
 
 In each case nothing on the console was changed. An unfinished file is kept and listed as Incomplete; it is never used as a backup. Choose **Done** to return.
 
@@ -1755,7 +1755,7 @@ Open **Console Browser** in the side column, or choose **Check the Console** on 
 
 **Expert Mode…** opens Expert Mode instead, for changing your own files on the console. See [Expert Mode](#expert).
 
-In this version, with a real console, the check-up says that connecting to a real console is not available in this version.
+In this version the check-up and browsing are available with a real console; they only read it. Expert Mode is not available for a real console in this version.
 
 ## What the check-up shows
 
