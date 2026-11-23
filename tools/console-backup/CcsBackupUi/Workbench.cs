@@ -23,19 +23,26 @@ namespace CcsBackup.Ui
     {
         StackPanel SectionHead(string title, string text) => PageHead(title, text);
 
-        UIElement ConnectSteps(string what)
+        /// <summary>a console task's connection steps, after one line on whether this version does the task with a real console of the chosen
+        /// family (cmd: the task's worker request): available (reads only), not available for this console model, or behind a closed boundary</summary>
+        UIElement ConnectSteps(string what, string cmd)
         {
             if (!profile.ConsoleTasks || profile.RecoveryStep == null) return FamilyNotYetNote();
             var steps = new StackPanel();
+            var modelWhy = CcsBackup.Device.ConsoleModels.ById(profile.PhysicalModel)?.Refusal(OperationOfRequest(cmd));
+            var closed = ClosedOnRealConsole(cmd);
+            steps.Children.Add(modelWhy != null ? Note(modelWhy + " This page starts nothing.", "info")
+                : closed != null ? Note(closed + " " + ReadsAvailable, "warn")
+                : Note("Available in this version with a real " + Con + ": this task only reads the console. Nothing on it changes.", "ok"));
             steps.Children.Add(T("Connect the console", 15, true, false, new Thickness(0, 0, 0, 10)));
-            steps.Children.Add(Numbered("Turn the " + Con + " off and connect it to this PC with its USB cable.", profile.RecoveryStep, "The TV shows a Classic Cart Studio screen while a small program runs from the console's memory. " + what));
-            steps.Children.Add(T("This PC needs the console's USB driver. If Windows does not have it, Workbench asks before setting it up; it never installs a driver by itself.", 12.5, false, true, new Thickness(0, 6, 0, 0)));
+            steps.Children.Add(Numbered("Turn the " + Con + " off and connect it to this PC with its USB cable.", profile.RecoveryStep, "The TV stays dark until you start the task below; then it shows a Classic Cart Studio screen while a small program runs from the console's memory. " + what));
+            steps.Children.Add(T(DriverStepNote, 12.5, false, true, new Thickness(0, 6, 0, 0)));
             return Card(steps);
         }
 
         void StartOp(string op, string title, string note, JObj req)
         {
-            if (!FamilyHasTasks(OperationOf(op))) return;
+            if (!FamilyHasTasks(OperationOf(op)) || !BoundaryOpen(req["cmd"] as string)) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartOp(op, title, note, req)); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console task is running", "The console is already in use by this window, another CCS Console Workbench window or Classic Cart Studio. Wait for that task to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, title, note, "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -68,7 +75,7 @@ namespace CcsBackup.Ui
             c.Children.Add(T("Not the same as Backup Repair: Backup Repair fixes a backup file on this PC and never touches a console.", Ty.Small, false, true));
             c.Children.Add(Details(TechNes, "The startup stages are boot0 (the first stage) and boot1 (u-boot, the bootloader), read from the console's storage and checked against the copies in the backup.", "Each chosen stage is written once and read back; if a write or its read-back fails, nothing is retried."));
             sp.Children.Add(Card(c));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the plan."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the plan.", "rescue"));
             sp.Children.Add(Buttons(B(string.IsNullOrEmpty(opt.SimulatedConsole) ? "Check the Console" : "Check the Console (Simulated)", "Btn.Primary", () => StartOp("rescue", "Checking the Startup Stages", "Keep the USB cable connected.", ConsoleReq("rescue")))));
             Show(sp, "rescue");
         }
@@ -162,7 +169,7 @@ namespace CcsBackup.Ui
             c.Children.Add(T("The check-up shows whether the startup software is one this version recognizes, what is installed, and how much of the storage is used and free. Then browse the files by game, by type or as they are stored, and copy any of them to this PC.", 13));
             c.Children.Add(Note("This console session runs in memory, with nothing installed on your console. Workbench does not write to the console's storage in this mode.", "info"));
             sp.Children.Add(Card(c));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("This session only reads."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("This session only reads.", "browse"));
             sp.Children.Add(Buttons(B(string.IsNullOrEmpty(opt.SimulatedConsole) ? "Start the Check-Up" : "Start the Check-Up (Simulated)", "Btn.Primary", () => StartOp("browse", "Checking the Console", "This session only reads. Keep the USB cable connected.", ConsoleReq("browse"))),
                                     B("Expert Mode…", "Btn.Ghost", () => ShowFilesIntro("user"))));
             Show(sp, "console-browser");
@@ -227,7 +234,7 @@ namespace CcsBackup.Ui
             c.Children.Add(Details("Technical details", "Before a change, the file on the console must still be exactly what you reviewed. It is written under a temporary name, renamed into place, then read back and compared."));
             if (scope == "dev") c.Children.Add(Note("Developer Mode can change the console's own software. Code you add runs with full control of the console once it starts; a restore point cannot undo what that code does to the startup stages or the console's keys.", "warn"));
             sp.Children.Add(Card(c));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Files change only as you confirm."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Files change only as you confirm.", "files"));
             sp.Children.Add(Buttons(B("Start the Session", "Btn.Primary", () => { var r = ConsoleReq("files"); r.Add("scope", scope); StartOp("files", scope == "dev" ? "Developer Mode Session" : "Expert Mode Session", "Keep the USB cable connected.", r); }), B("Back", "Btn.Ghost", () => Go(scope == "dev" ? "Developer Mode" : "Console Browser"))));
             Show(sp, "files-intro");
         }

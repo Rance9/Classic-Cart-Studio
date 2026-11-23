@@ -47,9 +47,11 @@ Maximize/Restore and Close; maximized, the window's content stays inside its mon
 
 ## The physical boundaries
 
-`CcsBackup/Gate.cs`: `ConsoleSessions` (any connection to a real console), `RestoreWrites` (G3) and `PreparationWrites` (G1) are `false`
-compile-time constants. With them false the code that opens a FEL device or a clovershell link is compiled out. Opening one is a reviewed
-code change released as its own milestone. A simulated console (`SimulatedConsole`: a folder of files standing in for a
+`CcsBackup/Gate.cs`: compile-time constants. `ConsoleSessions` (any connection to a real console) is `true` in this version, for the
+backup image only (Back Up Console and the Console Browser check-up, which read the console and write nothing; `RecoverySessions.Refusal`).
+Every write boundary (`RestoreWrites` (G3), `PreparationWrites` (G1) and the others), `DeveloperTestBoot`, `DriverChanges`,
+`StorageRawReads` and `StorageDiskWrites` are `false`: a session of any other kind is refused before any USB device is listed or opened,
+and the window says so before it starts anything. Opening one is a reviewed code change released as its own milestone. A simulated console (`SimulatedConsole`: a folder of files standing in for a
 console, for tests and demonstrations; `--simulated-console FOLDER`) is not behind them: it can only change files on the PC, and every
 backup made from it is marked simulated and refused for a real console.
 

@@ -54,7 +54,8 @@ def utility_note(bi: dict) -> str:
 
 def notes(version: str, bi: dict, preview: bool = False) -> str:
     warning = ("**Development preview — unsigned.** Classic Cart Studio's own console connections, console writes and driver actions are "
-               "disabled in this build. Offline backup-file tools and the PC interface are available. Games prepared on this computer are "
+               "disabled in this build. The included CCS Console Workbench reads a real console (Back Up Console and the Console Browser check-up) "
+               "and writes nothing to it. Offline backup-file tools and the PC interface are available. Games prepared on this computer are "
                "transferred by you in the included Hakchi2 CE 3.9.3 (Continue in Hakchi2 CE), which writes to the console under your "
                "control.\n\n") if preview else ""
     return f"""# Classic Cart Studio for Windows {version}

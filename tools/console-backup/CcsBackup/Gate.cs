@@ -1,8 +1,10 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The physical boundaries, in code: not a setting, not an environment variable, not an argument, not a request field. Each is opened by
-// a reviewed code change released as its own milestone (G1 and G3 stay closed here).
+// a reviewed code change released as its own milestone (G1 and G3 stay closed here). This version opens ConsoleSessions alone: a real
+// console can be read (identified, backed up and checked) and nothing can be written to it.
 //   ConsoleSessions      connecting to a real console at all: the FEL RAM boot of a Classic Cart Studio recovery image and the
-//                        clovershell link to it (reads only). Backup needs this one alone.
+//                        clovershell link to it (reads only). Backup needs this one alone. With every write boundary below closed, only
+//                        the backup image's sessions open (Back Up Console and the Console Browser check-up; RecoverySessions.Refusal).
 //   RestoreWrites        writing a console's storage to put back a captured state (G3).
 //   PreparationWrites    the first-time preparation of a console (G1).
 //   ReturnWrites         returning a console Classic Cart Studio prepared to its original software (Return to Original Software:
@@ -38,7 +40,7 @@
 //                        mod's settings kept or put back in Classic Cart Studio's own folder (CommunityEngine, ram/ccscomm). Its own boundary;
 //                        MethodWrites never opens it.
 // A restore, a preparation or a return needs ConsoleSessions AND its own write boundary; RecoveryConsole asks the write boundary again before
-// every write command. With a constant false, the compiler leaves the code behind it out (CS0162): no path in this version reaches
+// every write command. With a constant false, the compiler leaves the code behind it out (CS0162): no write path in this version reaches
 // the hardware. A simulated console (a folder of files on the PC, SimulatedConsole) is not behind these boundaries: it can only ever
 // change files on the PC, and every backup it makes is marked simulated and refused for a real console.
 using System;
@@ -47,7 +49,7 @@ namespace CcsBackup
 {
     public static class Gate
     {
-        public const bool ConsoleSessions = false;      // reading a real console (recovery image in RAM): NOT approved in this version
+        public const bool ConsoleSessions = true;       // reading a real console (recovery image in RAM): approved in this version, reads only
         public const bool RestoreWrites = false;        // G3: writes that put back a captured state: NOT approved
         public const bool PreparationWrites = false;    // G1: first-time console preparation writes: NOT approved
         public const bool ReturnWrites = false;         // returning a CCS-prepared console to its original software: NOT approved
@@ -83,6 +85,8 @@ namespace CcsBackup
 
     public sealed class GateClosedException : Exception
     {
-        public GateClosedException(string text, string what) : base(text + " (" + what + ": closed in code)") { }
+        /// <summary>the boundary's own sentence, as a window shows it</summary>
+        public readonly string Text;
+        public GateClosedException(string text, string what) : base(text + " (" + what + ": closed in code)") { Text = text; }
     }
 }

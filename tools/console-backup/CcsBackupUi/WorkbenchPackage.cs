@@ -138,7 +138,7 @@ namespace CcsBackup.Ui
             if (info.Members.Count > 30) w.Children.Add(T("…and " + (info.Members.Count - 30) + " more.", 12.5, false, true));
             w.Children.Add(Details("Technical details", new object[] { "Package ID: " + info.PackageId }.Concat(info.Members.Take(30).Select(m => (object)(string.Join(", ", m.Places) + ": SHA-256 " + m.Sha256))).ToArray()));
             sp.Children.Add(Card(w));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the changes; the console is backed up first."));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Nothing is written until you confirm the changes; the console is backed up first.", "compose"));
             sp.Children.Add(Buttons(B(string.IsNullOrEmpty(opt.SimulatedConsole) ? "Connect and Review" : "Connect and Review (Simulated)", "Btn.Primary", () =>
             {
                 composePlanKind = composeTag = composeProtective = null;

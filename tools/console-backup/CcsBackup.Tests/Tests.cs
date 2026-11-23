@@ -21,13 +21,52 @@ namespace CcsBackup.Tests
         // ------------------------------------------------------------------ the physical boundaries
         public static void Gate()
         {
-            Check(!CcsBackup.Gate.ConsoleSessions && !CcsBackup.Gate.RestoreWrites && !CcsBackup.Gate.PreparationWrites, "every physical boundary is closed in code (sessions, restore writes, preparation writes)");
+            // this version: ConsoleSessions alone is open (a real console is read: Back Up Console, the Console Browser check-up); every other
+            // boundary constant is closed. Nothing here lists or opens a USB device: a real session is only ever asked of a kind whose refusal
+            // is established first (RecoverySessions.Refusal / DeveloperTestBoot.Refusal touch no device).
+            Check(CcsBackup.Gate.ConsoleSessions && !CcsBackup.Gate.RestoreWrites && !CcsBackup.Gate.PreparationWrites, "reading a real console is open in code (ConsoleSessions); restore and preparation writes are closed");
             var gates = typeof(CcsBackup.Gate).GetFields().Where(f => f.IsLiteral && f.FieldType == typeof(bool)).ToList();
-            Check(gates.Count >= 10 && gates.All(f => !(bool)f.GetRawConstantValue()), "every boundary constant in Gate.cs is false (" + string.Join(", ", gates.Select(f => f.Name)) + ")");
+            var openGates = gates.Where(f => (bool)f.GetRawConstantValue()).Select(f => f.Name).ToList();
+            var named = new[] { "ConsoleSessions", "RestoreWrites", "PreparationWrites", "ReturnWrites", "RescueWrites", "ExpertWrites", "DeveloperWrites", "DeveloperTestBoot", "ComposerWrites", "CleanupWrites", "MethodWrites", "FirmwareWrites", "DriverChanges", "StorageRawReads", "StorageDiskWrites", "CommunityWrites" };
+            Check(gates.Count == named.Length && named.All(n => gates.Any(f => f.Name == n)) && openGates.SequenceEqual(new[] { "ConsoleSessions" }),
+                  "Gate.cs has exactly the 16 named boundary constants and ConsoleSessions is the only open one (closed: " + string.Join(", ", gates.Where(f => !(bool)f.GetRawConstantValue()).Select(f => f.Name)) + ")");
             foreach (var k in (ImageKind[])Enum.GetValues(typeof(ImageKind)))
             {
+                var no = RecoverySessions.Refusal(k);
+                if (k == ImageKind.Backup) { Check(no == null, "a real backup-image session (Back Up Console, the check-up) passes the boundaries: it needs ConsoleSessions alone"); continue; }
+                Check(no != null && no.Text != CcsBackup.Gate.SessionsText && no.Text.Contains("not available"), "a real " + k + " session is refused by its own closed write boundary: " + no?.Message);
+                if (no == null) continue;   // never ask OpenReal for a kind that would reach the USB step
                 try { RecoverySessions.OpenReal(k, null, null); Check(false, "OpenReal(" + k + ") must refuse"); }
-                catch (GateClosedException ex) { Check(ex.Message.Contains("not available"), "a real " + k + " session is refused before any USB activity: " + ex.Message); }
+                catch (GateClosedException ex) { Check(ex.Message == no.Message, "OpenReal(" + k + ") refuses with that same boundary before any USB device is listed or opened"); }
+            }
+            Check(RecoverySessions.KindOf("backup") == ImageKind.Backup && RecoverySessions.KindOf("browse") == ImageKind.Backup
+                  && new[] { "restore-prepare", "prepare-plan", "return-plan", "method-plan", "firmware-plan", "community", "rescue", "files", "compose", "home-design", "sega-pictures", "no-such-request" }.All(x => RecoverySessions.KindOf(x) != ImageKind.Backup),
+                  "only Back Up Console and the Console Browser check-up use the backup image; every other request opens another kind");
+            var tb = DeveloperTestBoot.Refusal();
+            Check(tb != null && tb.Text == CcsBackup.Gate.DeveloperTestBootText, "a real test boot is refused by its own boundary (DeveloperTestBoot)");
+            if (tb != null) { try { DeveloperTestBoot.OpenReal(); Check(false, "a real test boot must be refused"); } catch (GateClosedException ex) { Check(ex.Text == tb.Text, "DeveloperTestBoot.OpenReal refuses with that same boundary before any USB device is listed or opened"); } }
+
+            // every write request through the worker's own entry point, with a REAL console: refused before any console session (no connect
+            // progress, no record, no backup file), with the boundary's own sentence; a request is sent only after its refusal is established
+            foreach (var (cmd, extra) in new[] { ("restore-prepare", new JObj { { "backup", Path.Combine(Work, "no-such-backup.zip") } }), ("prepare-plan", new JObj()), ("return-plan", new JObj()), ("method-plan", new JObj { { "choose", true } }),
+                                                   ("firmware-plan", new JObj { { "op", "remove" }, { "id", "test-image" } }), ("community", new JObj()), ("rescue", new JObj()), ("files", new JObj { { "scope", "user" } }), ("files", new JObj { { "scope", "dev" } }),
+                                                   ("compose", new JObj()), ("home-design", new JObj { { "action", "revert" }, { "to", "defaults" } }), ("sega-pictures", new JObj { { "op", "remove" } }), ("test-boot", new JObj { { "class", "own-startup" } }) })
+            {
+                var no = cmd == "test-boot" ? DeveloperTestBoot.Refusal() : RecoverySessions.Refusal(RecoverySessions.KindOf(cmd));
+                if (no == null) { Check(false, "worker " + cmd + ": its boundary must be closed in this version (not sent)"); continue; }
+                var wdir = NewDir("gate-worker"); var settingsFile = Path.Combine(wdir, "settings.json");
+                File.WriteAllText(settingsFile, Json.Write(new JObj { { "schema", "ccs-console-backup-settings/1" }, { "primary_folder", Path.Combine(wdir, "backups") }, { "archive_folder", Path.Combine(wdir, "copies") } }));
+                var req = new JObj { { "cmd", cmd }, { "console", "real" } }; foreach (var kv in extra) req.Add(kv.Key, kv.Value);
+                List<Dictionary<string, object>> evs;
+                using (var wi = new MemoryStream(new UTF8Encoding(false).GetBytes(WorkerHost.RequestLine(req) + "\n"))) using (var wo = new MemoryStream())
+                {
+                    WorkerHost.RunOn(wi, wo, "tests", "CcsBackup.Tests", "test", settingsFile);
+                    evs = new UTF8Encoding(false).GetString(wo.ToArray()).Split('\n').Where(l => l.Trim().Length > 0).Select(l => Json.Parse(l)).ToList();
+                }
+                var res = evs.LastOrDefault(e => e.S("event") == "result");
+                Check(res != null && res.S("state") == "unavailable" && (res.S("problem") ?? "").StartsWith(no.Text, StringComparison.Ordinal) && !evs.Any(e => e.S("event") == "progress")
+                      && !Directory.Exists(Path.Combine(wdir, "backups")) && !Directory.Exists(Path.Combine(wdir, "copies")),
+                      "worker " + cmd + (extra.Has("scope") ? " (" + extra["scope"] + ")" : "") + " with a real console: refused before any session, nothing connected or written (" + res?.S("problem") + ")");
             }
             // a restore session of a REAL console (not simulated) cannot write, even with a confirmed plan: the boundary is asked per write
             var dir = NewDir("gate"); var c = Console_("modified-noorig");

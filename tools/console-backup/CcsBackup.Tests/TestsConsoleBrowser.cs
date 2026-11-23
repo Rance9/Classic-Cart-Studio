@@ -60,6 +60,34 @@ namespace CcsBackup.Tests
                 lc.Dispose();
             }
             Check(before3.All(kv => Sha(kv.Key) == kv.Value) && !File.Exists(Path.Combine(c3, "writes.log")), "live: browsing and exporting wrote nothing to the console");
+
+            // the check-up page's Restart the Console, through the worker as both hosts drive it: the live session ends (its result), then the
+            // console restarts normally; no error, nothing written
+            var c4 = Console_("stock"); var before4 = Directory.GetFiles(Path.Combine(c4, "dev")).ToDictionary(f => f, f => Sha(f));
+            var events = new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>();
+            for (int attempt = 0; attempt < 90; attempt++)
+            {
+                var input = new QueueStream(); var output = new QueueStream(); var enc = new System.Text.UTF8Encoding(false);
+                var th = new System.Threading.Thread(() => { try { WorkerHost.RunOn(input, output, "tests", "CcsBackup.Tests", "test", s.Path); } finally { output.End(); } }) { IsBackground = true }; th.Start();
+                void Line(JObj j) { var bl = enc.GetBytes(WorkerHost.RequestLine(j) + "\n"); input.Write(bl, 0, bl.Length); }
+                Line(new JObj { { "cmd", "browse" }, { "console", "simulated" }, { "folder", c4 } });
+                events.Clear(); string line; var rd = new StreamReader(output, enc);
+                while ((line = rd.ReadLine()) != null)
+                {
+                    System.Collections.Generic.Dictionary<string, object> ev; try { ev = Json.Parse(line); } catch (FormatException) { continue; }
+                    events.Add(ev);
+                    if (ev.S("event") == "checkup") Line(new JObj { { "cmd", "finish" } });
+                    if (ev.S("event") == "finished" || ev.S("event") == "error" || ev.S("state") == "busy") break;
+                }
+                input.End(); th.Join(60000);
+                if (events.LastOrDefault()?.S("state") != "busy") break;
+                System.Threading.Thread.Sleep(2000);
+            }
+            var fin = events.LastOrDefault(); var log4 = Path.Combine(c4, "writes.log");   // the simulated console notes the restart there, and nothing else
+            var logLines = File.Exists(log4) ? File.ReadAllLines(log4).Where(l => l.Trim().Length > 0).ToList() : new System.Collections.Generic.List<string>();
+            Check(events.Any(e => e.S("event") == "result" && e.S("operation") == "browse") && fin?.S("event") == "finished" && fin.B("restarting") && !events.Any(e => e.S("event") == "error")
+                  && before4.All(kv => Sha(kv.Key) == kv.Value) && logLines.Count == 1 && logLines[0].EndsWith(" finish (restart)", StringComparison.Ordinal),
+                  "check-up: Restart the Console ends the live session and restarts the console normally; no error, nothing written (" + string.Join(", ", events.Select(e => e.S("event"))) + ")");
         }
     }
 }

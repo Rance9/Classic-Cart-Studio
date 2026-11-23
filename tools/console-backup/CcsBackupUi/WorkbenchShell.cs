@@ -69,9 +69,11 @@ namespace CcsBackup.Ui
                     + "They are the same product, but not identical inside: there are different versions of its circuit board."),
                 ("What choosing it does", "Choosing this console sets the names and steps Workbench uses. It does not connect to, identify or check a console, and it never makes Workbench accept a console, a backup or a system file it would otherwise refuse.\n\n"
                     + "The year a console was sold does not tell which software it runs. When you start a console task, Workbench reads that console's own startup software and says what it found."),
+                ("In this version", "With a real console, this version only reads it: Back Up Console makes a complete, checked backup on this PC, and the Console Browser check-up shows the console's state. Nothing on the console changes.\n\n"
+                    + "The tasks that change a console (restoring a backup, Prepare Console, Return to Original Software, Console Rescue, Console Composer, add-ons, system images, community mods, Expert Mode and Developer Mode) are not available for a real console in this version: each says so and starts nothing."),
                 ("Startup software and system images", "A restore puts a console's own backup back on that same console; Workbench refuses a backup from another console. Some steps replace a console's startup software on purpose and say so before you confirm: preparing a console replaces its startup software and bootloader, and a change you review in Developer Mode can replace its startup software. Return to Original Software puts back Nintendo's startup software and the console's own bootloader.\n\n"
                     + "With CCS Nucleus, a Nintendo system image you supply, such as one from your own 2016 console, can be added as one of its choices. A system image is not startup software for another circuit board. Workbench checks every system image before it adds one and says why when it cannot use one."),
-                ("Other consoles", "The SNES Classic Mini is a different console, with its own choice at the top of the window. Workbench backs it up, restores it and checks it; its other console tasks are not available for it in this version. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
+                ("Other consoles", "The SNES Classic Mini is a different console, with its own choice at the top of the window. In this version Workbench backs it up and checks it; its other console tasks are not available for it. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
                     + "The Famicom Mini and the Super Famicom Mini, sold in Japan, are different consoles too: Workbench does not work with their hardware."),
             },
             RecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go: the console starts in recovery mode.",
@@ -83,13 +85,13 @@ namespace CcsBackup.Ui
             Id = "snes-classic", Name = "SNES Classic Mini — North America / Europe", Short = "SNES Classic", PhysicalModel = "snes-classic-edition",
             StorageBytes = 536870912L,   // its NAND reads 2048 64 4096 like the NES Classic's: 536,870,912 bytes
             ArchiveBytes = 536870912L + 3145728L + 67108864L + 314572800L + 1048576L + 65536000L + 2 * 2736128L,   // the physical reference, its five storage parts and its startup software twice, as a North American console reported them
-            About = "Nintendo's small Super NES console with 21 built-in games, sold in North America and in Europe since 2017. Workbench backs it up, restores it and checks it; its other console tasks are not available for it in this version.",
+            About = "Nintendo's small Super NES console with 21 built-in games, sold in North America and in Europe since 2017. In this version Workbench backs it up and checks it; its other console tasks are not available for it.",
             RegionalNames = new[] { ("North America", "Super NES Classic Edition"), ("Europe", "Nintendo Classic Mini: Super Nintendo Entertainment System") },
             Sections = new[]
             {
                 ("2017", "The console came out in 2017, in North America and in Europe. It is a small modern console, not the original Super NES from the 1990s.\n\n"
                     + "The North American and the European console share this one choice, but their software is not the same. Hakchi2 CE, which Workbench builds on, tells them apart by their startup software, and Workbench keeps them apart the same way: a console's software is always read from the console itself, never assumed from this choice or from its box."),
-                ("In this version", "Workbench backs up a North American or European SNES Classic Mini, restores its own backup to it and checks it (Console Browser). Preparing it with hakchi, CCS Mod and CCS Nucleus, Console Rescue, Console Composer, Expert Mode and Developer Mode are not available for it in this version: each says why when you open it, before anything starts. You can choose it to read about it and to see Workbench's pages in its words; a console task says it is not available yet and starts nothing.\n\n"
+                ("In this version", "Workbench backs up a North American or European SNES Classic Mini and checks it (Console Browser); both only read the console, and nothing on it changes. Restoring its own backup to it is not available in this version, as no change to a real console is. Preparing it with hakchi, CCS Mod and CCS Nucleus, Console Rescue, Console Composer, Expert Mode and Developer Mode are not available for it in this version: each says why when you open it, before anything starts. You can choose it to read about it and to see Workbench's pages in its words; a console task that is not available says so and starts nothing.\n\n"
                     + "Backup files already on this PC can still be browsed, checked and repaired under Backup Files, whichever console is chosen."),
                 ("What choosing it does", "Choosing this console sets the names Workbench uses. It does not connect to, identify or check a console, it does not change a console an earlier task identified, and it never makes Workbench accept a console, a backup or a system file it would otherwise refuse."),
                 ("Other consoles", "The NES Classic Mini is a different console, with its own choice at the top of the window. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
@@ -143,6 +145,36 @@ namespace CcsBackup.Ui
             Show(Message("Not available for the " + profile.Short + " Mini", why + " Nothing was started: no console connection, no USB driver check, nothing written.", "info"), "msg");
             return false;
         }
+        /// <summary>what this version does with a real console: it reads one (Back Up Console, the Console Browser check-up) and writes nothing</summary>
+        internal const string ReadsAvailable = "In this version Workbench only reads a real console: Back Up Console and the Console Browser check-up are available.";
+
+        /// <summary>the connection steps' line about the PC's USB driver: with DriverChanges closed (this version) Workbench only uses a driver the
+        /// PC already has; setting one up is offered only when that boundary is open</summary>
+        static string DriverStepNote => CcsBackup.Gate.DriverChanges
+            ? "This PC needs the console's USB driver. If Windows does not have it, Workbench asks before setting it up; it never installs a driver by itself."
+            : "This PC needs a USB driver for the console. In this version Workbench uses one this PC already has, such as the one Hakchi2 CE set up; if there is none, it says so and changes nothing.";
+
+        /// <summary>the closed physical boundary (Gate.cs) of a real console's task, as its own sentence, or null when this version opens it. It
+        /// is the engine's own check (RecoverySessions.Refusal, DeveloperTestBoot.Refusal), so the window and the worker always agree. cmd: the
+        /// worker request</summary>
+        internal static string ClosedOnRealConsole(string cmd) => (cmd == "test-boot" ? CcsBackup.Engine.DeveloperTestBoot.Refusal()
+            : CcsBackup.Device.RecoverySessions.Refusal(CcsBackup.Device.RecoverySessions.KindOf(cmd)))?.Text;
+
+        /// <summary>every console task asks this after FamilyHasTasks: with a real console, a task whose boundary is closed in this version says
+        /// so and nothing starts (no console connection, no USB driver check, no worker). A simulated console is never behind a boundary.</summary>
+        bool BoundaryOpen(string cmd)
+        {
+            if (!string.IsNullOrEmpty(opt.SimulatedConsole)) return true;
+            var closed = ClosedOnRealConsole(cmd);
+            if (closed == null) return true;
+            Show(Message("Not available in this version", closed + " Nothing was started: no console connection, no USB driver check, nothing written. " + ReadsAvailable, "info"), "msg");
+            return false;
+        }
+
+        /// <summary>the console model operation a worker request is (ConsoleModel.Refusal), for a page's availability line</summary>
+        static string OperationOfRequest(string cmd) => cmd == "restore-prepare" ? "restore" : cmd == "prepare-plan" ? "preparation" : cmd == "return-plan" ? "return"
+            : cmd == "method-plan" ? "addons" : cmd == "firmware-plan" ? "firmware" : OperationOf(cmd);
+
         /// <summary>the console model operation a worker task is (ConsoleModel.Refusal)</summary>
         static string OperationOf(string op) => op == "browse" ? "identify" : op == "sega-pictures" ? "files" : op == "compose" ? "composition" : op == "method" || op == "home-design" ? "addons" : op == "test-boot" ? "developer" : op;
 
