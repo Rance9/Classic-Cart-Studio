@@ -133,7 +133,7 @@ namespace CcsBackup.Ui
         {
             var bar = new Grid { Background = TitleBarBg };
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); bar.ColumnDefinitions.Add(new ColumnDefinition()); for (int i = 0; i < 3; i++) bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            // WB-UX-22: the program's own controller icon (app.ico, the executable's and the taskbar's icon) beside the title, 16 x 16 like any
+            // WB-UX-22: the program's own icon (workbench.ico, the wrench: the executable's and the taskbar's icon) beside the title, 16 x 16 like any
             // Windows title bar, from the icon file's frame for the display's scale so it stays sharp (chosen again when the scale changes)
             var icon = new Image { Width = 16, Height = 16, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 1), SnapsToDevicePixels = true, Focusable = false };
             RenderOptions.SetBitmapScalingMode(icon, BitmapScalingMode.HighQuality); System.Windows.Automation.AutomationProperties.SetName(icon, "CCS Console Workbench");
@@ -155,13 +155,13 @@ namespace CcsBackup.Ui
             return new Border { Background = TitleBarBg, BorderBrush = TitleBarLine, BorderThickness = new Thickness(0, 0, 0, 1), Child = bar };
         }
 
-        /// <summary>the frame of this library's app.ico (the controller icon every Workbench window and the executable carry) at least px pixels
+        /// <summary>the frame of this library's workbench.ico (the wrench every Workbench window and the executable carry) at least px pixels
         /// wide, the smallest such (else the largest there is); null when it cannot be read</summary>
         static BitmapSource TitleIcon(double px)
         {
             try
             {
-                var info = Application.GetResourceStream(new Uri("pack://application:,,,/CcsBackupUi;component/app.ico", UriKind.Absolute)); if (info == null) return null;
+                var info = Application.GetResourceStream(new Uri("pack://application:,,,/CcsBackupUi;component/workbench.ico", UriKind.Absolute)); if (info == null) return null;
                 using (var s = info.Stream)
                 {
                     var d = new IconBitmapDecoder(s, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);

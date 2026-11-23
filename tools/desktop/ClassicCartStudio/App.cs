@@ -81,19 +81,33 @@ namespace ClassicCartStudio
         public const string RepoUrl = "https://github.com/Rance9/Classic-Cart-Studio";
         public const string UpdateUrl = "https://ClassicCartStudio.com/app";
 
-        // Data folder: %LOCALAPPDATA%\ClassicCartStudio (the earlier releases' NESClassicCollectionStudio folder is moved there once, on first start),
-        // or NES_STUDIO_DATA when set, as a full path (the backend and the game player are given that same full path)
+        // Data folder: %LOCALAPPDATA%\ClassicCartStudio, or CCS_STUDIO_DATA when set, as a full path (the backend and the game player are given
+        // that same full path). Another folder is never moved, read or used in its place.
         public static string DataRoot
         {
             get
             {
-                var env = Environment.GetEnvironmentVariable("NES_STUDIO_DATA");
+                var env = Environment.GetEnvironmentVariable("CCS_STUDIO_DATA");
                 if (!string.IsNullOrEmpty(env)) { try { return Path.GetFullPath(env); } catch (Exception) { return env; } }
-                var la = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                var now = Path.Combine(la, "ClassicCartStudio"); var old = Path.Combine(la, "NESClassicCollectionStudio");
-                if (!Directory.Exists(now) && Directory.Exists(old)) { try { Directory.Move(old, now); } catch { return old; } }
-                return now;
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClassicCartStudio");
             }
+        }
+        /// <summary>environment names that are not read, each with the name that is: when one is set, the program and its --play command
+        /// refuse to start (Program.Main) instead of using the default folder or setting in its place; never read as the other name</summary>
+        static readonly string[][] NamesNotRead =
+        {
+            new[] { "NES_STUDIO_DATA", "CCS_STUDIO_DATA" }, new[] { "NES_STUDIO_SITE", "CCS_STUDIO_SITE" }, new[] { "NES_COMPANION_CONFIG", "CCS_COMPANION_CONFIG" },
+            new[] { "NES_PERSONAL_DIR", "CCS_PERSONAL_DIR" }, new[] { "NES_PUBLIC_BUILD", "CCS_PUBLIC_BUILD" }, new[] { "NES_SITE_DIR", "CCS_SITE_DIR" },
+            new[] { "NES_TEST_PORT", "CCS_TEST_PORT" }, new[] { "NES_PRIVATE_MARKERS", "CCS_PRIVATE_MARKERS" }, new[] { "NES_WORK", "CCS_WORK" },
+            new[] { "NES_ROM_SOURCE", "CCS_ROM_SOURCE" },
+        };
+        /// <summary>why this start is refused (a name that is not read is set), or null</summary>
+        public static string NameNotReadMessage()
+        {
+            foreach (var n in NamesNotRead)
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(n[0])))
+                    return "Classic Cart Studio does not read " + n[0] + ". Set " + n[1] + " instead. Nothing was started or changed.";
+            return null;
         }
         public static string AppDir => AppDomain.CurrentDomain.BaseDirectory;
         public static string LogPath => Path.Combine(DataRoot, "logs", "desktop.log");

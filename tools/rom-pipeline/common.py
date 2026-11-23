@@ -9,34 +9,37 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
+# Environment names that are not read, each with the name that is: when one is set, everything that uses these paths stops with that
+# message instead of using a default folder or setting in its place (the Windows program refuses the same names, App.cs NamesNotRead)
+NAMES_NOT_READ = {"NES_STUDIO_DATA": "CCS_STUDIO_DATA", "NES_STUDIO_SITE": "CCS_STUDIO_SITE", "NES_COMPANION_CONFIG": "CCS_COMPANION_CONFIG",
+                  "NES_PERSONAL_DIR": "CCS_PERSONAL_DIR", "NES_PUBLIC_BUILD": "CCS_PUBLIC_BUILD", "NES_SITE_DIR": "CCS_SITE_DIR", "NES_TEST_PORT": "CCS_TEST_PORT",
+                  "NES_PRIVATE_MARKERS": "CCS_PRIVATE_MARKERS", "NES_WORK": "CCS_WORK", "NES_ROM_SOURCE": "CCS_ROM_SOURCE"}
+for _n, _to in NAMES_NOT_READ.items():
+    if os.environ.get(_n): raise SystemExit(f"Classic Cart Studio does not read {_n}. Set {_to} instead. Nothing was started or changed.")
 PROJECT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 HAKCHI = os.path.join(PROJECT, "hakchi", "hakchi2-ce-3.9.3")
 # Development-only locations (the private ROM archive and the pipeline work folder) are never written into source: they come from
 # tools/rom-pipeline/dev-paths.json (git-ignored) or the environment; defaults are inside the checkout so public builds and tests run.
 _DEVP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dev-paths.json")
 _DEV = json.load(open(_DEVP, encoding="utf-8")) if os.path.exists(_DEVP) else {}
-SOURCE = os.environ.get("NES_ROM_SOURCE") or _DEV.get("source") or os.path.join(PROJECT, "work", "source")
-WORK = os.environ.get("NES_WORK") or _DEV.get("work") or os.path.join(PROJECT, "work")
+SOURCE = os.environ.get("CCS_ROM_SOURCE") or _DEV.get("source") or os.path.join(PROJECT, "work", "source")
+WORK = os.environ.get("CCS_WORK") or _DEV.get("work") or os.path.join(PROJECT, "work")
 PAYLOADS = os.path.join(WORK, "payloads")
 LOGS = os.path.join(WORK, "logs")
 DB_PATH = os.path.join(WORK, "inventory.sqlite")
 REPORTS = os.path.join(PROJECT, "reports")
 INCOMING = os.path.join(PROJECT, "roms", "incoming")
 # ---- runtime roots: the packaged Windows companion reads catalog/builtin/library data from <app>\site and keeps user data under
-#      %LOCALAPPDATA%\ClassicCartStudio (moved from the earlier NESClassicCollectionStudio folder on first start); in the development checkout both are the project's reports\ folder ----
+#      %LOCALAPPDATA%\ClassicCartStudio (another folder is never moved or used in its place); in the development checkout both are the project's reports\ folder ----
 FROZEN = bool(getattr(sys, "frozen", False))
 APP_ROOT = os.path.dirname(sys.executable) if FROZEN else PROJECT
 BUNDLE = getattr(sys, "_MEIPASS", APP_ROOT)   # PyInstaller one-folder: bundled data lives in <app>\_internal
-SITE_ROOT = os.environ.get("NES_STUDIO_SITE") or (os.path.join(BUNDLE, "site") if FROZEN else REPORTS)
+SITE_ROOT = os.environ.get("CCS_STUDIO_SITE") or (os.path.join(BUNDLE, "site") if FROZEN else REPORTS)
 def _data_root():
-    env = os.environ.get("NES_STUDIO_DATA")
-    if env: return env
+    env = os.environ.get("CCS_STUDIO_DATA")
+    if env: return os.path.abspath(env)   # the same full path the Windows program gives its backend and player
     if not FROZEN: return REPORTS
-    la = os.environ.get("LOCALAPPDATA") or APP_ROOT; new, old = os.path.join(la, "ClassicCartStudio"), os.path.join(la, "NESClassicCollectionStudio")
-    if not os.path.isdir(new) and os.path.isdir(old):
-        try: os.rename(old, new)   # one-time move of the earlier releases' data folder (same volume: atomic, nothing copied)
-        except OSError: return old
-    return new
+    return os.path.join(os.environ.get("LOCALAPPDATA") or APP_ROOT, "ClassicCartStudio")
 DATA_ROOT = _data_root()
 DEV_MODE = os.path.exists(DB_PATH) and not FROZEN
 def site_path(*p): return os.path.join(SITE_ROOT, *p)

@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib, io, json, os, random, shutil, struct, sys, tempfile, time, tracemalloc, zipfile
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
 TMP = tempfile.mkdtemp(prefix="ccs-import-")
-os.environ["NES_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["NES_STUDIO_DATA"] = os.path.join(TMP, "studio-data")
+os.environ["CCS_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["CCS_STUDIO_DATA"] = os.path.join(TMP, "studio-data")
 import ccs_package as cp, personal as ps
 from test_ccs_package import collection, NoNetwork
 MB = 10**6   # decimal, like everything people see (12 MB > the old 8,388,608-byte cap; the 40 MB ZIP > the old 33,554,432-byte cap)

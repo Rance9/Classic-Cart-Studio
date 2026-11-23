@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); REPO = os.path.normpath(os.pa
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(); ap.add_argument("--site", default=os.path.join(REPO, "site-data")); ap.add_argument("--package", action="append", default=[]); a = ap.parse_args()
-    os.environ["NES_STUDIO_SITE"] = os.path.abspath(a.site)
+    os.environ["CCS_STUDIO_SITE"] = os.path.abspath(a.site)
     for p in (HERE, os.path.join(HERE, "..", "rom-pipeline")): sys.path.insert(0, os.path.normpath(p))
     from native_home import notices as NT, console_package as cpk
     res = []

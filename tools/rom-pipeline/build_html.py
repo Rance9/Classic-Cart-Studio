@@ -40,7 +40,7 @@ FILTERS_CAST = [("ccs", "knightly-0", 2), ("ccs", "slimo-0", 2)]
 
 TEMPLATE = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" sizes="32x32" href="icon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#101014">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" sizes="32x32" href="icon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"><link rel="apple-touch-icon" sizes="167x167" href="apple-touch-icon-167.png"><link rel="apple-touch-icon" sizes="152x152" href="apple-touch-icon-152.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#101014">
 <title>NES Classic Collection — Game Selection Catalog</title>
 <meta name="nes-companion-token" content="">
 <style>

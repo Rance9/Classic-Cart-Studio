@@ -1,9 +1,9 @@
 // Classic Cart Studio console backup and restore window. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The window's taskbar and Alt-Tab icon, as Classic Cart Studio's main window sets it (tools/desktop/ClassicCartStudio/Native.cs,
-// ApplyTaskbarIcon): the running executable's own icon (ApplicationIcon = app.ico), loaded at the small-icon size of
+// ApplyTaskbarIcon): the running executable's own icon (ApplicationIcon = workbench.ico), loaded at the small-icon size of
 // the system DPI and given to Windows as both the small and the big icon, so the taskbar draws the icon file's own frame 1:1 whichever one
-// it uses. Without this, WPF hands Windows the one frame a BitmapImage keeps of app.ico (its smallest), which the taskbar draws tiny on a
-// high-DPI screen. The Utility and Classic Cart Studio both carry app.ico as their executable's icon.
+// it uses. Without this, WPF hands Windows the one frame a BitmapImage keeps of the icon (its smallest), which the taskbar draws tiny on a
+// high-DPI screen. The Workbench's executables carry workbench.ico (the wrench); Classic Cart Studio's carries app.ico (the cartridge).
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -29,8 +29,8 @@ namespace CcsBackup.Ui
                 var h = new WindowInteropHelper(w).Handle; if (h == IntPtr.Zero) return;
                 uint dpi = GetDpiForSystem(); if (dpi == 0) dpi = 96;
                 int size = GetSystemMetricsForDpi(SM_CXSMICON, dpi); if (size <= 0) return;
-                // the executable's icon (app.ico): a .NET executable keeps it as resource 32512; the single-file CCS-Console-Workbench.exe (the
-                // native host, native-host/build_host.sh) keeps the same app.ico as resource 1. Without the second, that window fell back to
+                // the executable's icon (workbench.ico): a .NET executable keeps it as resource 32512; the single-file CCS-Console-Workbench.exe (the
+                // native host, native-host/build_host.sh) keeps the same workbench.ico as resource 1. Without the second, that window fell back to
                 // WPF's smallest frame, drawn tiny on a high-DPI taskbar.
                 var mod = GetModuleHandle(IntPtr.Zero);
                 var i = LoadImage(mod, (IntPtr)APP_ICON_ID, IMAGE_ICON, size, size, 0);

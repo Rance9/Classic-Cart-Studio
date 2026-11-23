@@ -144,7 +144,7 @@ class T(unittest.TestCase):
         self.assertNotEqual(str(cm.exception), P.DOCUMENT_TEXT, "an NES collection goes on to the next check, as before")
 
     def test_page_handoff_refused(self):
-        env = dict(os.environ, NES_STUDIO_DATA=os.path.join(self.tmp, "data"), NES_COMPANION_CONFIG=os.path.join(self.tmp, "none.json"), NES_STUDIO_SITE=os.path.join(self.tmp, "site"))
+        env = dict(os.environ, CCS_STUDIO_DATA=os.path.join(self.tmp, "data"), CCS_COMPANION_CONFIG=os.path.join(self.tmp, "none.json"), CCS_STUDIO_SITE=os.path.join(self.tmp, "site"))
         code = ("import json,sys; sys.path.insert(0, %r); import nes_companion as N\n"
                 "c={'schema':'nes-classic-collection/4','selections':[{'version_id':'0123456789abcdef'}]}\n"
                 "out=[N.handoff_validate({'id':'abcdefgh1','collection':c})[1], N.handoff_validate({'id':'abcdefgh2','collection':dict(c, ccs_target={'schema':'ccs-target/1','game_system':'snes'})})[1],"

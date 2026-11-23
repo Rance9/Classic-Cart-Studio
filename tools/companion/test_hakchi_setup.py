@@ -22,8 +22,8 @@ TMP = tempfile.mkdtemp(prefix="ccs-hksetup-"); DEST = os.path.join(TMP, "dest")
 CFGP = os.path.join(TMP, "companion.json")
 json.dump({"hakchi_exe": os.path.join(DEST, "one", "hakchi2-ce-3.9.3", "hakchi.exe"), "staging_dir": os.path.join(TMP, "staging"), "exports_dir": os.path.join(TMP, "exports"),
            "rehearsal_tree": True, "packages_dir": A.package_dir or ""}, open(CFGP, "w"))
-os.environ.update(NES_COMPANION_CONFIG=CFGP, NES_STUDIO_DATA=os.path.join(TMP, "data"), NES_PERSONAL_DIR=os.path.join(TMP, "personal"))
-if A.site: os.environ["NES_STUDIO_SITE"] = A.site
+os.environ.update(CCS_COMPANION_CONFIG=CFGP, CCS_STUDIO_DATA=os.path.join(TMP, "data"), CCS_PERSONAL_DIR=os.path.join(TMP, "personal"))
+if A.site: os.environ["CCS_STUDIO_SITE"] = A.site
 sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
 import hakchi_bridge as hb, nes_companion as nc   # noqa: E402
 from console_engine import storage_model as _SM, worker_console as _WC   # noqa: E402,F401  (this source's own, before anything else is on the path)

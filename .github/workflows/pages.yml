@@ -44,7 +44,7 @@ jobs:
         run: python tools/rom-pipeline/test_public_site.py build/site
       - name: Artwork consistency (the Game Library and Preview on TV show the same cover for every game, the 30 factory games included)
         env:
-          NES_STUDIO_SITE: ${{ github.workspace }}/build/site
+          CCS_STUDIO_SITE: ${{ github.workspace }}/build/site
         run: python tools/companion/test_artwork_consistency.py --no-render
       - name: Attach the release information (release-streams.json, the four product/channel streams the update checks read; release.json and workbench-release.json, each product's newest preview, for earlier releases and the download section)
         env:

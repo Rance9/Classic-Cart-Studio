@@ -26,8 +26,9 @@ ARCHIVE_EXT = {".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".xz", ".bz2"}
 TEXT_EXT = {".py", ".js", ".css", ".html", ".md", ".json", ".txt", ".yml", ".yaml", ".ps1", ".cmd", ".iss", ".toml", ".cfg", ".ini", ".csv", ".svg"}
 # The markers are assembled from pieces so this file never contains the literal strings it hunts for. Private markers of the
 # development workspace (user name, machine name, local drive layout) come only from the environment, never from public source:
-#   NES_PRIVATE_MARKERS=name1,name2
-_EXTRA = [re.escape(m.strip()) for m in os.environ.get("NES_PRIVATE_MARKERS", "").split(",") if m.strip()]
+#   CCS_PRIVATE_MARKERS=name1,name2
+if os.environ.get("NES_PRIVATE_MARKERS"): raise SystemExit("NES_PRIVATE_MARKERS is not read: set CCS_PRIVATE_MARKERS instead (nothing was scanned)")
+_EXTRA = [re.escape(m.strip()) for m in os.environ.get("CCS_PRIVATE_MARKERS", "").split(",") if m.strip()]
 PRIVATE_PATH = re.compile("|".join([r"[A-Za-z]:\\\\?Users\\\\?[A-Za-z0-9._-]+", r"/Users/[A-Za-z0-9._-]+", "One" + "Drive" + r"\\\\", r"[A-Za-z]:\\\\" + "NES" + r"\\\\"] + _EXTRA), re.I)
 _SL = r"(?:\\\\|\\/|\\|/|%2f|%5c)"   # a path separator as it appears in text, JSON (\\ and \/) or a percent-encoded URL
 LOCAL_PATH = re.compile("|".join([

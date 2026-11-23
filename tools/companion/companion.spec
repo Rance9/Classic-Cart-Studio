@@ -3,7 +3,8 @@
 # The site/ folder (public build of the Studio page + data) is produced by tools/publish/build_public_repo.py before packaging.
 import os
 HERE = os.path.abspath(os.path.dirname(SPEC)); PROJECT = os.path.normpath(os.path.join(HERE, "..", ".."))
-SITE = os.environ.get("NES_SITE_DIR") or os.path.join(PROJECT, "build", "site")
+if os.environ.get("NES_SITE_DIR"): raise SystemExit("NES_SITE_DIR is not read: set CCS_SITE_DIR instead (nothing was built)")
+SITE = os.environ.get("CCS_SITE_DIR") or os.path.join(PROJECT, "build", "site")
 ICON = os.path.join(PROJECT, "tools", "publish", "assets", "app.ico")
 # the native HOME runtime for the console (32-bit ARM, static; sim.ps1 build-arm -> arm-musl-device/ccs-home-armv7): bundled when
 # provided; without it the app still prepares packages but reports them "not ready: runtime missing" (never install-ready)

@@ -113,8 +113,8 @@ namespace CcsBackup.Utility
             var self = Process.GetCurrentProcess().MainModule.FileName;
             InstalledLaunch launch;
             try { launch = InstalledLaunch.FromArgs(args, self); }
-            catch (InstalledLaunch.Refused r) { CcsBackup.Ui.LaunchNotice.Show(InstalledLaunch.RefusedTitle, InstalledLaunch.RefusedText(r.Message), Png("pack://application:,,,/CcsBackupUi;component/app.ico")); return 2; }
-            if (launch != null && !launch.TakeWindowOrHandOver(self, (t, b) => CcsBackup.Ui.LaunchNotice.Show(t, b, Png("pack://application:,,,/CcsBackupUi;component/app.ico")))) return 0;
+            catch (InstalledLaunch.Refused r) { CcsBackup.Ui.LaunchNotice.Show(InstalledLaunch.RefusedTitle, InstalledLaunch.RefusedText(r.Message), Png("pack://application:,,,/CcsBackupUi;component/workbench.ico")); return 2; }
+            if (launch != null && !launch.TakeWindowOrHandOver(self, (t, b) => CcsBackup.Ui.LaunchNotice.Show(t, b, Png("pack://application:,,,/CcsBackupUi;component/workbench.ico")))) return 0;
             var inUse = InstalledLaunch.MarkInUse(self);   // the file installed with Studio, in use while this window runs (Setup waits)
             string notice = null;
             using (var s = typeof(CcsBackup.Ui.BackupWorkspace).Assembly.GetManifestResourceStream("NOTICE")) if (s != null) using (var r = new StreamReader(s)) notice = r.ReadToEnd();
@@ -129,7 +129,7 @@ namespace CcsBackup.Utility
                 CheckForUpdates = string.IsNullOrEmpty(Arg(args, "--simulated-console")),
                 SettingsPath = Arg(args, "--settings") ?? (rememberedProblem == null ? remembered : null), SimulatedConsole = Arg(args, "--simulated-console"), NoticeText = notice,
                 RememberSettingsFile = ordinary, RememberedSettingsFile = rememberedProblem != null ? remembered : null, RememberedSettingsProblem = rememberedProblem,
-                Wordmark = Png("pack://application:,,,/CcsBackupUi;component/brand-wordmark.png"), AppIcon = Png("pack://application:,,,/CcsBackupUi;component/app.ico"),
+                Wordmark = Png("pack://application:,,,/CcsBackupUi;component/brand-wordmark.png"), AppIcon = Png("pack://application:,,,/CcsBackupUi;component/workbench.ico"),
             };
             launch?.Apply(opt);
             var w = new CcsBackup.Ui.BackupWorkspace(opt);

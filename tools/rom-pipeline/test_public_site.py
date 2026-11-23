@@ -89,7 +89,7 @@ def main(site: str):
         os.remove(p); ok("inline_script_parses", not errs and len(sc) >= 1 and max(len(x) for x in sc) > 100_000, str(errs)[:200])
     else: ok("inline_script_parses (node not available, skipped)", True)
     ok("page_size_reasonable", 1_000_000 < len(page) < 8_000_000, str(len(page)))
-    ok("favicon_set_present", all(os.path.exists(os.path.join(site, n)) for n in ("favicon.ico", "icon-32.png", "apple-touch-icon.png")) and 'rel="icon" href="favicon.ico"' in page and 'rel="apple-touch-icon"' in page)
+    ok("favicon_set_present", all(os.path.exists(os.path.join(site, n)) for n in ("favicon.ico", "icon-32.png", "apple-touch-icon.png", "apple-touch-icon-167.png", "apple-touch-icon-152.png")) and 'rel="icon" href="favicon.ico"' in page and 'rel="apple-touch-icon"' in page)
     app_p = os.path.join(site, "app", "index.html"); app = open(app_p, encoding="utf-8").read() if os.path.exists(app_p) else ""
     ok("app_shortlink_page_exists", bool(app), app_p)
     src = open(os.path.join(site, "source", "index.html"), encoding="utf-8").read() if os.path.exists(os.path.join(site, "source", "index.html")) else ""
@@ -97,7 +97,7 @@ def main(site: str):
     ok("footer_links_branded_source", 'Source code, releases and how to verify a download: <a href="https://ClassicCartStudio.com/source" rel="noopener">ClassicCartStudio.com/source</a>' in page and "download: <a href=\"https://github.com/Rance9/Classic-Cart-Studio\"" not in page)
     ok("footer_cast_pauses_on_hover", "footer .castwrap:hover .cast,footer .castwrap:focus-within .cast{animation-play-state:paused}" in page)
     ok("app_download_page_is_first_party", 'http-equiv="refresh"' not in app and "location.replace(" not in app and "<title>Classic Cart Studio | Windows Downloads</title>" in app and 'href="https://classiccartstudio.com/app/"' in app and 'name="robots" content="noindex,follow"' in app)
-    ok("app_download_page_separates_preview_products", "/releases/download/v0.11.8/ClassicCartStudio-Setup-0.11.8.exe" in app and "/releases/download/workbench-v0.11.8/CCS-Console-Workbench-0.11.8.exe" in app and "Development previews" in app and "unsigned" in app and "Console connections, console writes and USB driver actions are disabled" in app and "/releases/latest" not in app and 'href="https://github.com/Rance9/Classic-Cart-Studio"' not in app)
+    ok("app_download_page_separates_preview_products", "/releases/download/v0.11.9/ClassicCartStudio-Setup-0.11.9.exe" in app and "/releases/download/workbench-v0.11.9/CCS-Console-Workbench-0.11.9.exe" in app and "Development previews" in app and "unsigned" in app and "Console connections, console writes and USB driver actions are disabled" in app and "/releases/latest" not in app and 'href="https://github.com/Rance9/Classic-Cart-Studio"' not in app)
     bad = [c for c in checks if "=false" in c]; print("\n".join(checks)); print(f"RESULT: {'PASS' if not bad else 'FAIL '+str(bad)} ({len(checks)} checks)"); sys.exit(1 if bad else 0)
 
 SITE_URL = "https://classiccartstudio.com"

@@ -4,7 +4,7 @@ r"""The Windows application never bundles the website's Store (companion.spec).
   python tools/companion/test_spec_store_exclusion.py --build    also runs a real PyInstaller build of the spec (a few minutes)
 
 companion.spec is executed as PyInstaller would execute it, with the build steps (Analysis, PYZ, EXE, COLLECT) replaced by recorders
-and NES_SITE_DIR pointing at a small fixture site that has a top-level store/ folder (with an Amazon-style link) and a nested
+and CCS_SITE_DIR pointing at a small fixture site that has a top-level store/ folder (with an Amazon-style link) and a nested
 brand/store folder. Checks: the site entry in DATAS is a staging copy without store/ but with everything else (the nested folder
 included), bundle-manifest.json lists no site/store file, and the source site is untouched. With --build, PyInstaller builds the spec
 into a temporary folder and the frozen _internal/site has no store folder and no Amazon host name."""
@@ -45,7 +45,7 @@ def fixture_worker(root: str, **change) -> str:
 
 def isolated_env(tmp: str, site: str, worker: str | None = None) -> dict:
     env = {k: v for k, v in os.environ.items() if k not in ("CCS_RELEASE_BUILD", "CCS_REQUIRE_NATIVE", "CCS_HAKCHI_PACKAGE", "CCS_CONSOLE_WORKER_DIR")}
-    env.update(NES_SITE_DIR=site, CCS_NATIVE_HOME_RUNTIME=os.path.join(tmp, "absent"), CCS_NATIVE_PREVIEW_CORE=os.path.join(tmp, "absent"),
+    env.update(CCS_SITE_DIR=site, CCS_NATIVE_HOME_RUNTIME=os.path.join(tmp, "absent"), CCS_NATIVE_PREVIEW_CORE=os.path.join(tmp, "absent"),
                CCS_CONSOLE_WORKER_DIR=worker if worker is not None else (os.path.join(tmp, "worker") if os.path.isdir(os.path.join(tmp, "worker")) else fixture_worker(tmp)))
     return env
 

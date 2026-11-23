@@ -70,7 +70,7 @@ def main():
     checks = []; timings = {}
     def ok(k, v, n=""): checks.append((k, bool(v))); print(f"{k}={'PASS' if v else 'FAIL'}" + (f" ({str(n)[:300]})" if n and not v else ""), flush=True)
     tmp = tempfile.mkdtemp(prefix="ccs-pkg-")
-    os.environ["NES_PERSONAL_DIR"] = os.path.join(tmp, "personal-store"); os.environ.setdefault("NES_STUDIO_DATA", os.path.join(tmp, "studio-data"))
+    os.environ["CCS_PERSONAL_DIR"] = os.path.join(tmp, "personal-store"); os.environ.setdefault("CCS_STUDIO_DATA", os.path.join(tmp, "studio-data"))
     import warnings; warnings.simplefilter("ignore")
     try:
         def put(name, data):

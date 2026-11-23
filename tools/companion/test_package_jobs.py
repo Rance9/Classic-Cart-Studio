@@ -15,7 +15,7 @@ import argparse, hashlib, io, json, os, random, re, secrets, shutil, socket, sub
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
 ap = argparse.ArgumentParser(); ap.add_argument("--work", default=""); ap.add_argument("--http-only", action="store_true"); A = ap.parse_args()
 TMP = A.work or tempfile.mkdtemp(prefix="ccs-jobs-"); shutil.rmtree(TMP, ignore_errors=True); os.makedirs(TMP)
-os.environ["NES_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["NES_STUDIO_DATA"] = os.path.join(TMP, "studio-data")
+os.environ["CCS_PERSONAL_DIR"] = os.path.join(TMP, "personal"); os.environ["CCS_STUDIO_DATA"] = os.path.join(TMP, "studio-data")
 import ccs_package as cp, package_api as pk, personal as ps
 from test_ccs_package import collection
 from test_package_api import FH
@@ -133,7 +133,7 @@ def main():
 def http_checks(ok):
     work = os.path.join(TMP, "helper"); os.makedirs(work); s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close(); token = secrets.token_hex(16)
     cfgp = os.path.join(work, "companion.json"); json.dump({"hakchi_exe": os.path.join(work, "no", "hakchi.exe"), "hakchi_args": ["/portable"], "exports_dir": os.path.join(work, "e"), "staging_dir": os.path.join(work, "s"), "port": port, "no_launch": True}, open(cfgp, "w"))
-    env = dict(os.environ, NES_COMPANION_CONFIG=cfgp, NES_PERSONAL_DIR=os.path.join(work, "personal"), NES_STUDIO_DATA=work, CCS_HOST_TOKEN=token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8", CCS_HELPER_IDLE_TIMEOUT="4")
+    env = dict(os.environ, CCS_COMPANION_CONFIG=cfgp, CCS_PERSONAL_DIR=os.path.join(work, "personal"), CCS_STUDIO_DATA=work, CCS_HOST_TOKEN=token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8", CCS_HELPER_IDLE_TIMEOUT="4")
     log = open(os.path.join(TMP, "helper.log"), "wb")
     proc = subprocess.Popen([sys.executable, "-u", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(port)], env=env, stdout=log, stderr=subprocess.STDOUT)
     SITE = "https://classiccartstudio.com"; desk = {"Authorization": "Bearer " + token, "Origin": SITE}

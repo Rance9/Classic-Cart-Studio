@@ -68,7 +68,7 @@ def main() -> int:
         for fd, n in lock: msvcrt.locking(fd, msvcrt.LK_UNLCK, n); os.close(fd)
         lock = None
         # home and console: the whole collection or nothing
-        os.environ.update({"NES_STUDIO_SITE": site, "NES_STUDIO_DATA": os.path.join(work, "A"), "NES_COMPANION_CONFIG": cfg}); sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline"))
+        os.environ.update({"CCS_STUDIO_SITE": site, "CCS_STUDIO_DATA": os.path.join(work, "A"), "CCS_COMPANION_CONFIG": cfg}); sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline"))
         import play as PL; importlib.reload(PL); import native_home.package as NP
         pk = os.path.join(work, "pack"); os.makedirs(pk); json.dump({"games": [{"id": gid[n], "title": n.title()} for n in ("alpha", "beta")]}, open(os.path.join(pk, "games.json"), "w"))
         real, realstart, started = NP.build, PL._start, []

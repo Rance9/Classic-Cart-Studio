@@ -42,7 +42,7 @@ def build(site: str, player: str, runtime: str, out: str) -> dict:
     if os.path.exists(out) and os.listdir(out): raise SystemExit(f"{out} exists and is not empty: the HOME package is always built into a new folder")
     created = source_time()
     site = os.path.abspath(site); work = tempfile.mkdtemp(prefix="ccs-home-release-")
-    os.environ["NES_STUDIO_SITE"] = site; os.environ["NES_STUDIO_DATA"] = os.path.join(work, "data"); os.makedirs(os.environ["NES_STUDIO_DATA"])
+    os.environ["CCS_STUDIO_SITE"] = site; os.environ["CCS_STUDIO_DATA"] = os.path.join(work, "data"); os.makedirs(os.environ["CCS_STUDIO_DATA"])
     os.environ["CCS_NATIVE_HOME_RUNTIME"] = os.path.abspath(runtime); os.environ["CCS_NATIVE_HOME_ROOT"] = os.path.join(work, "native-home")
     if not os.environ.get("CCS_PLAYER_FONTS"):   # the player's menu fonts, baked from the site's HOME fonts as the app's own build does (companion.spec)
         import subprocess

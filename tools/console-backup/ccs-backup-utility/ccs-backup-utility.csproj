@@ -25,7 +25,7 @@
     <CcsWorkbenchChannel Condition="'$(CcsWorkbenchChannel)' == ''">$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\WORKBENCH-CHANNEL').Trim())</CcsWorkbenchChannel>
     <FileVersion>$(CcsWorkbenchVersion)</FileVersion>
     <InformationalVersion>$(CcsWorkbenchVersion)</InformationalVersion>
-    <ApplicationIcon>..\..\publish\assets\app.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\publish\assets\workbench.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <StartupObject>CcsBackup.Utility.Program</StartupObject>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

@@ -15,7 +15,7 @@ r"""A HOME Designer design carried by a collection, losslessly (CCS-FORMAT.md "H
                    the startup picture
 Environment (set by the engine tests, group "designer"): CCS_TEST_CCSHOME, a .ccshome the C# HomeDesign wrote; CCS_TEST_COMPILED, a folder
 the C# DesignCompiler wrote; CCS_DESIGN_COMPILER, CCS_TEST_CCSHOME_MOVED, CCS_TEST_GAMES, CCS_TEST_COMPILED_MOVED, CCS_TEST_CCSHOME_REFUSED,
-NES_STUDIO_SITE, CCS_TEST_PLAYER (class CarriedDesign). Without them, synthetic bytes stand in where they can, and the rest is skipped.
+CCS_STUDIO_SITE, CCS_TEST_PLAYER (class CarriedDesign). Without them, synthetic bytes stand in where they can, and the rest is skipped.
   python test_home_design_carry.py      Exit 0 = PASS."""
 from __future__ import annotations
 import base64, hashlib, json, os, shutil, subprocess, sys, tempfile, unittest
@@ -129,7 +129,7 @@ class CarriedDesign(unittest.TestCase):
     the Workbench, a refusal in words when it cannot be shown, never a design silently left out. Environment from the engine tests (group
     designer): CCS_DESIGN_COMPILER (a host built from this source that answers --design-compile), CCS_TEST_CCSHOME_MOVED (a design that
     moves the HOME's controls), CCS_TEST_GAMES (the games it was compiled for), CCS_TEST_COMPILED_MOVED (the Workbench's compiled folder for
-    them), CCS_TEST_CCSHOME_REFUSED (a design the console cannot show), NES_STUDIO_SITE (the built site, for a package) and CCS_TEST_PLAYER
+    them), CCS_TEST_CCSHOME_REFUSED (a design the console cannot show), CCS_STUDIO_SITE (the built site, for a package) and CCS_TEST_PLAYER
     (the console game player, for the CCS Mod and CCS Nucleus console packages)"""
     def setUp(self): self.tmp = tempfile.mkdtemp(prefix="ccs-design-compile-")
     def tearDown(self): shutil.rmtree(self.tmp, ignore_errors=True)
@@ -158,7 +158,7 @@ class CarriedDesign(unittest.TestCase):
             m2 = str(c2.exception); self.assertIn("newer version", m2); self.assertIn("Update Classic Cart Studio", m2); self.assertIn("home-design/9", m2)
 
     def test_the_package_builder_carries_the_compiled_design_into_the_console_package(self):
-        e = _env("CCS_DESIGN_COMPILER", "CCS_TEST_CCSHOME_MOVED", "CCS_TEST_GAMES", "CCS_TEST_COMPILED_MOVED", "NES_STUDIO_SITE", "CCS_TEST_CCSHOME_REFUSED")
+        e = _env("CCS_DESIGN_COMPILER", "CCS_TEST_CCSHOME_MOVED", "CCS_TEST_GAMES", "CCS_TEST_COMPILED_MOVED", "CCS_STUDIO_SITE", "CCS_TEST_CCSHOME_REFUSED")
         if not e: self.skipTest("no compiler, design or built site given")
         import test_native_home_package as TN
         from native_home import package as P, console_package as CP

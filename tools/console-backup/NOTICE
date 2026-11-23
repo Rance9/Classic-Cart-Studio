@@ -101,8 +101,8 @@ THIS PROGRAM'S OWN PICTURES
 
 - The Classic Cart Studio wordmark (brand-wordmark.png), lettered in the Press Start 2P font (SIL Open Font License 1.1, Copyright 2012 The
   Press Start 2P Project Authors; the license text is the CCS HOME package's home/licenses/OFL-PressStart2P.txt).
-- The window icon (app.ico): Classic Cart Studio's own icon, drawn by tools/publish/make_icon.py (a simplified drawing of the console
-  controller's shape; no Nintendo wordmark or logo).
+- The window icon (workbench.ico): CCS Console Workbench's own icon, a gray open-end wrench with a red handle grip, drawn in code by
+  tools/publish/make_icon.py (no controller, lettering, Nintendo wordmark or logo).
 - The Help pictures (Help/shots): this program's own pages, drawn with sample data. Those of HOME Designer show its starting-theme examples.
 - HOME Designer's starting-theme examples (theme-examples/): drawn by Classic Cart Studio's native HOME renderer from a HOME of the NES
   Classic's 30 built-in games. They show the HOME theme art above; the games' box art and, in the Featured Shelf example, the selected

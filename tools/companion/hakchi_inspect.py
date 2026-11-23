@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(PROJECT, "tools", "rom-pipeline")); sys.path.ins
 try:
     from common import SITE_ROOT as REPORTS, DB_PATH, data_path   # noqa: E402
 except Exception:   # pragma: no cover
-    REPORTS = os.path.join(PROJECT, "reports"); DB_PATH = os.path.join(os.environ.get("NES_WORK") or os.path.join(PROJECT, "work"), "inventory.sqlite")
+    REPORTS = os.path.join(PROJECT, "reports"); DB_PATH = os.path.join(os.environ.get("CCS_WORK") or os.path.join(PROJECT, "work"), "inventory.sqlite")
 COLLECTION = "NES"
 NES_ORIGINAL = re.compile(r"^CLV-P-NA..E$")   # NES Classic (USA/Europe) factory codes
 

@@ -1,7 +1,7 @@
 // Classic Cart Studio for Windows — entry point: single instance, command line (classiccartstudio:// links, .ccs files, --version, --selftest, --play FILE (PlayFile.cs),
 // --runtime-check <file>: Setup's WebView2 Runtime check, Runtime.cs), then the
 // WPF application with the one main window. The window shows the live website; the Python backend is started and supervised by Backend.cs.
-// One window per data folder (NES_STUDIO_DATA when set, else the default folder): a second start for the same folder hands its link or file
+// One window per data folder (CCS_STUDIO_DATA when set, else the default folder): a second start for the same folder hands its link or file
 // to that window; a start for another folder never reaches it (it has its own lock and handover pipe), and if the first window's backend
 // holds the port, its own backend says so instead of using that one.
 using System;
@@ -40,11 +40,19 @@ namespace ClassicCartStudio
             {
                 if (a == "--version") { Console.WriteLine(App.Version); return 0; }
             }
-            if (Array.IndexOf(args, "--selftest") >= 0) return SelfTest.Run();
             // CCS Console Workbench is its own program installed beside this one (WorkbenchLauncher.cs): its window, its console workers, its USB
             // driver step and HOME Designer's compiler (the backend runs its --design-compile, Backend.cs) all run there, never in this process
             var rc = Array.IndexOf(args, "--runtime-check");   // before anything else: no window, no data folder, no single-instance lock
             if (rc >= 0) return Runtime.CheckMain(rc + 1 < args.Length ? args[rc + 1] : null);
+            // an environment name that is not read (App.NamesNotRead) is set: refused, so a command meant for another folder never uses the
+            // default one; nothing starts and no folder is read or written
+            var notRead = App.NameNotReadMessage();
+            if (notRead != null)
+            {
+                if (PlayFile.Wanted(args)) return PlayFile.Refuse(args, notRead);
+                MessageBox.Show(notRead, ProductName, MessageBoxButton.OK, MessageBoxImage.Warning); return PlayFile.Usage;
+            }
+            if (Array.IndexOf(args, "--selftest") >= 0) return SelfTest.Run();
             // one game file in the game player (PlayFile.cs): before the single-instance lock, so an open Classic Cart Studio window is neither
             // used nor brought forward, and no window of this program opens
             if (PlayFile.Wanted(args)) return PlayFile.Run(args);

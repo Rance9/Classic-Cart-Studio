@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.normpath(os.pa
 TMP = tempfile.mkdtemp(prefix="ccs-managed-")
 SITE, WORK, DATA, PERS = (os.path.join(TMP, n) for n in ("site", "work", "data", "personal"))
 for d in (SITE, WORK, DATA, PERS): os.makedirs(d)
-os.environ.update(NES_STUDIO_SITE=SITE, NES_WORK=WORK, NES_STUDIO_DATA=DATA, NES_PERSONAL_DIR=PERS)
+os.environ.update(CCS_STUDIO_SITE=SITE, CCS_WORK=WORK, CCS_STUDIO_DATA=DATA, CCS_PERSONAL_DIR=PERS)
 sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
 
 def content(seed: str, size: int) -> bytes:

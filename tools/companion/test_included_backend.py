@@ -18,7 +18,7 @@ class Backend:
     def __init__(self, site, data, cfg):
         with socket.socket() as s: s.bind(("127.0.0.1", 0)); self.port = s.getsockname()[1]
         self.base = f"http://127.0.0.1:{self.port}"; self.tok = secrets.token_urlsafe(24)
-        env = {**os.environ, "NES_STUDIO_SITE": site, "NES_STUDIO_DATA": data, "NES_COMPANION_CONFIG": cfg, "CCS_HOST_TOKEN": self.tok}
+        env = {**os.environ, "CCS_STUDIO_SITE": site, "CCS_STUDIO_DATA": data, "CCS_COMPANION_CONFIG": cfg, "CCS_HOST_TOKEN": self.tok}
         self.log = open(os.path.join(data, "..", os.path.basename(data) + "-backend.log"), "w", encoding="utf-8")
         self.p = subprocess.Popen([sys.executable, os.path.join(HERE, "nes_companion.py"), "--port", str(self.port), "--no-browser"], cwd=HERE, env=env, stdout=self.log, stderr=subprocess.STDOUT)
         for _ in range(150):
@@ -67,7 +67,7 @@ def main() -> int:
                 "r = CF.resolve(m, {'theme': 'arcade-grid', 'order': ids, 'games': []})\n"
                 "print(json.dumps([{k: g.get(k) for k in ('id', 'title', 'version_label', 'year', 'publisher', 'texts', 'source')} for g in r['games']]))") % HERE
         nr = subprocess.run([sys.executable, "-c", code, json.dumps(ids)], capture_output=True, text=True, cwd=HERE, timeout=120,
-                            env={**os.environ, "NES_STUDIO_SITE": site, "NES_STUDIO_DATA": os.path.join(work, "A"), "NES_COMPANION_CONFIG": cfg})
+                            env={**os.environ, "CCS_STUDIO_SITE": site, "CCS_STUDIO_DATA": os.path.join(work, "A"), "CCS_COMPANION_CONFIG": cfg})
         try: games = {g["id"]: g for g in json.loads(nr.stdout.strip().splitlines()[-1])}
         except Exception: games = {}; print(nr.stdout[-600:], nr.stderr[-1200:])
         out["native"] = games
