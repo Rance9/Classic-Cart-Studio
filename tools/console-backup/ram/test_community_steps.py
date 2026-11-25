@@ -203,6 +203,36 @@ def runs(R: str, work: str):
     check("refused a link is on the way" in last(r) and not w, f"hakchi's transfer folder being a link: refused before any write ({last(r)})")
     TRI.sh_out(R, f"rm -f '{T}'")
 
+def snes_runs(R: str, work: str):
+    """the same steps on a Super NES Classic's data storage shape (its system's board dp-shvc, Hakchi2 CE's game storage games/snes-usa, its
+    saves under clover/profiles/0/CLV-P-SAAAE): ccscomm and hakchi's own package steps do not depend on the model (the PC checks that each
+    record lists the console's model before anything is placed), and nothing of the console's games or saves changes"""
+    A = "CCSTEST_ALLOW_WRITE=1"; D = "@R@/newroot/var/lib"; T = D + "/hakchi/transfer"
+    TRI.sh_out(R, "rm -rf '@R@/newroot/var'; mkdir -p '@R@/newroot/var/lib/hakchi/rootfs/etc' '@R@/newroot/var/lib/hakchi/hmod' '@R@/newroot/var/lib/hakchi/games/snes-usa/000/CLV-H-AAAAA' "
+                  "'@R@/newroot/var/lib/clover/profiles/0/CLV-P-SAAAE'; touch '@R@/newroot/var/lib/hakchi/rootfs/etc/preinit'; printf '%s\\n' '@R@/newroot' > '@R@/mounted'; "
+                  "echo dp-shvc > '@R@/newroot/etc/clover/boardtype'; echo USA > '@R@/newroot/etc/clover/REGION'; "
+                  "printf 'game\\n' > '@R@/newroot/var/lib/hakchi/games/snes-usa/000/CLV-H-AAAAA/CLV-H-AAAAA.sfrom'; printf 'sram\\n' > '@R@/newroot/var/lib/clover/profiles/0/CLV-P-SAAAE/cartridge.sram'")
+    def mine(): return TRI.sh_out(R, f"cd '{D}' && find hakchi/games clover -type f | sort | xargs -r sha256sum")
+    before = mine()
+    def step(s: str, env: str = "", stdin: str | None = None):
+        TRI.sh_out(R, "rm -f '@R@/log'")
+        r = TRI.run(R, f"sh '{R}/root/ccs/bin/ccscomm' {s}; echo rc=$?", env, TRI.wpath(stdin) if stdin else None)
+        return r, [l for l in TRI.sh_out(R, "cat '@R@/log' 2>/dev/null").splitlines() if l.startswith("TRIPWIRE")]
+    a = fixture("fx_s", "1.0"); fa = os.path.join(work, "fx_s.hmod"); open(fa, "wb").write(a); sha = hashlib.sha256(a).hexdigest()
+    r, t = step(f"cput fx_s 0 {len(a)} {sha} 100000", A, fa)
+    check(f"result cput ok {sha}" in r.stdout and not t, f"snes: cput places a package in hakchi's transfer folder on a Super NES Classic's data storage ({r.stdout.strip().splitlines()[-2:]})")
+    st = TRI.run(R, f"sh '{R}/hk-start.sh'")
+    r, t = step("cverify fx_s")
+    check("HK-START-DONE" in st.stdout and "result cverify ok" in r.stdout and not t, "snes: hakchi's own pack_install installs it at the next start and ccscomm reads its files back")
+    TRI.sh_out(R, f"printf 'lang=en\\n' > '{D}/hakchi/rootfs/etc/fx_s/settings.cfg'")
+    r, t = step("ckeep fx_s hakchi/rootfs/etc/fx_s/settings.cfg", A); r2, t2 = step("cunlist fx_s", A)
+    st = TRI.run(R, f"sh '{R}/hk-start.sh'")
+    gone = TRI.sh_out(R, f"cd '{D}' && ls hakchi/hmod; test -e hakchi/rootfs/bin/fx_s && echo BIN; test -f ccs/community/kept/fx_s/hakchi/rootfs/etc/fx_s/settings.cfg && echo KEPT").split()
+    check("result ckeep ok" in r.stdout and "result cunlist ok" in r2.stdout and "BIN" not in gone and "KEPT" in gone and "uninstall-fx_s" not in gone and not t and not t2,
+          f"snes: its settings kept, then hakchi's own removal at the next start; the kept copy stays ({gone})")
+    check(mine() == before, "snes: the console's games in hakchi's storage for this model and its saves are exactly as they were")
+    TRI.sh_out(R, "echo dp-nes > '@R@/newroot/etc/clover/boardtype'; echo EUR_USA > '@R@/newroot/etc/clover/REGION'")
+
 def main() -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--images", required=True); a = ap.parse_args()
     TRI.QEMU = TRI.wsl("echo $HOME/.cache/ccs-sim/toolchain/deb/usr/bin/qemu-arm").stdout.strip()
@@ -213,7 +243,7 @@ def main() -> int:
     print(f"== ccs-prepare {man['image_id']}")
     static({e["name"]: e for e in ents})
     R = TRI.setup("ccs-prepare", ents, cmdline, work)
-    try: runs(R, work)
+    try: runs(R, work); snes_runs(R, work)
     finally: TRI.wsl(f'rm -rf "{R}"')
     for f in failures: print("FAILED:", f)
     print(f"RESULT {passed}/{passed + failed}")

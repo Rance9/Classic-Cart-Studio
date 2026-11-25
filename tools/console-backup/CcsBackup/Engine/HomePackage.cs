@@ -47,9 +47,9 @@ namespace CcsBackup.Engine
 
         /// <summary>the shared storage accounting's input for sending this package beside the copy in use: its files (each in whole blocks)
         /// against the console's free space as its df reports it (the reserved blocks already left out)</summary>
-        public static Dictionary<string, object> SpaceInput(HomePackage p, long free) => new Dictionary<string, object>
+        public static Dictionary<string, object> SpaceInput(HomePackage p, long free, string profile = StorageSpec.NesModel) => new Dictionary<string, object>
         {
-            ["profile"] = StorageSpec.NesModel, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = free },
+            ["profile"] = profile, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = free },
             ["items"] = new object[] { new Dictionary<string, object> { ["category"] = "home", ["label"] = "CCS HOME", ["files"] = p.Files.Select(f => (object)new Dictionary<string, object> { ["bytes"] = f.Size }).ToArray() } },
         };
 
@@ -169,7 +169,7 @@ namespace CcsBackup.Engine
         /// <summary>no steps (this exact package is the copy in use), "huse" alone (it was placed and its switch did not finish), or "hput",
         /// "huse"; a refusal when the console's HOME folder is not this program's to change, the saves were made by another player build, an
         /// earlier installation of another package did not finish, or the room or RAM does not suffice</summary>
-        public static Decision Plan(HomePackage p, MethodState st, string hwid)
+        public static Decision Plan(HomePackage p, MethodState st, string hwid, string profile = StorageSpec.NesModel)
         {
             var d = new Decision();
             Decision No(string why) { d.Refusal = why; d.Steps.Clear(); return d; }
@@ -199,7 +199,7 @@ namespace CcsBackup.Engine
                 d.Archive = HomeArchive.Build(p, inUse, hwid, d.Prior, Installed(p.Version + "." + inUse)); d.Steps.Add("huse"); d.Text = "The switch to CCS HOME's package was not finished; it is finished now (nothing is sent again)."; return d;
             }
             if (st.Free < 0) return No("The console's free space could not be read. Nothing was changed.");
-            var room = StorageSpec.Account(HomePackage.SpaceInput(p, st.Free));
+            var room = StorageSpec.Account(HomePackage.SpaceInput(p, st.Free, profile));
             if (!(bool)room["write_ok"]) return No(Capacity.Why(room, out _, out _) + " Nothing was changed.");
             d.Archive = mine.Count == 1 ? HomeArchive.Build(p, mine[0], hwid, d.Prior, Installed(p.Version + "." + mine[0])) : HomeArchive.Build(p, HomeArchive.NewAttempt(), hwid, d.Prior, HomeArchive.Now());
             if (st.Ram >= 0 && st.Ram < d.Archive.Size + HomePackage.RamMargin) return No("The console's memory cannot hold CCS HOME's package for the transfer (" + Compose.Units.Size(st.Ram) + " free, " + Compose.Units.Size(d.Archive.Size + HomePackage.RamMargin) + " needed).");

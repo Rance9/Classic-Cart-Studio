@@ -77,7 +77,7 @@ def main() -> int:
         finally: NP.build, PL._start = real, realstart
         out["home"] = h
         ok("home: the HOME player refuses the collection and names the game without its file", h.get("ok") is False and h.get("code") == "incomplete" and "Beta" in h.get("error", "") and not started, h)
-        import nes_companion as NC, native_home.console_package as CPK
+        import ccs_backend as NC, native_home.console_package as CPK
         stages = []
         def fake(manifest, home, stage, **k): os.makedirs(stage, exist_ok=True); stages.append(stage); return {"ok": True, "manifest": {"unavailable": [{"id": gid["beta"], "title": "Beta", "code": "missing"}]}}
         realc = CPK.build_console; CPK.build_console = fake

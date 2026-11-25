@@ -91,15 +91,15 @@ namespace CcsBackup.Ui
         void OpenDesign()
         {
             if (!DesignLeaveOk("Save First", "Open Without Saving", "Open Without It")) return;
-            var d = new Microsoft.Win32.OpenFileDialog { Title = "Open a Shared HOME Design", Filter = DesignFilter };
-            if (d.ShowDialog(this) != true) return;
+            var chosenFile = CcsFileDialog.OpenFile(this, "Open a Shared HOME Design", null, DesignFilter, "home-design");
+            if (chosenFile == null) return;
             try
             {
                 Mouse.OverrideCursor = Cursors.Wait;
-                var len = new FileInfo(d.FileName).Length;
+                var len = new FileInfo(chosenFile).Length;
                 if (len > DesignProfile.MaxArchiveBytes) throw new ComposeException("design.size", "This file is larger than a Shared HOME Design can be (" + CUnits.Size(DesignProfile.MaxArchiveBytes) + ").");
-                var opened = HomeDesign.Open(d.FileName);
-                design = opened; designOpened = HomeDesign.Open(d.FileName); designPath = d.FileName; designDirty = false; designStep = StepTheme;
+                var opened = HomeDesign.Open(chosenFile);
+                design = opened; designOpened = HomeDesign.Open(chosenFile); designPath = chosenFile; designDirty = false; designStep = StepTheme;
             }
             catch (Exception ex) when (ex is ComposeException || ex is IOException || ex is UnauthorizedAccessException || ex is InvalidDataException)
             {
@@ -152,8 +152,8 @@ namespace CcsBackup.Ui
             var path = designPath;
             if (saveAs || path == null)
             {
-                var d = new Microsoft.Win32.SaveFileDialog { Title = "Save the Shared HOME Design", Filter = DesignFilter, FileName = SafeFileName(h.Name ?? "My HOME") + DesignProfile.Extension, OverwritePrompt = true };
-                if (d.ShowDialog(this) != true) return false; path = d.FileName;
+                var chosenFile = CcsFileDialog.SaveFile(this, "Save the Shared HOME Design", null, SafeFileName(h.Name ?? "My HOME") + DesignProfile.Extension, DesignFilter, true, "home-design");
+                if (chosenFile == null) return false; path = chosenFile;
             }
             return SaveDesignTo(path, atClose);
         }
@@ -395,7 +395,7 @@ namespace CcsBackup.Ui
             // added yet is let go by leaving, so leaving asks about that alone, and Leave Without It lets it go (Stay keeps it)
             LeaveGuard(DesignDraftWords,
                        "You typed a label, a folder or a credit in HOME Designer but did not add it. Your design stays open either way; only what you typed is let go.",
-                       ForgetDesignDrafts);
+                       ForgetDesignDrafts, "Leave Without Adding");
             PinToViewport(root, wide);
             RequestPreview();
         }
@@ -562,14 +562,14 @@ namespace CcsBackup.Ui
         }
         static string PictureTitleFor(string key) => key == "startup" ? "startup picture" : PictureTitle(key);
 
-        /// <summary>a picture of the person's own for a place: the Windows file picker, then the picture is fitted (filling the place first;
+        /// <summary>a picture of the person's own for a place: Workbench's file dialog, then the picture is fitted (filling the place first;
         /// the Fit choice beside it can show all of it instead). False when nothing was chosen or the picture was refused.</summary>
         bool PickPicture(string key, ImageSlotRule rule, Action<byte[]> use)
         {
-            var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose a picture for the " + PictureTitleFor(key) + " (PNG or JPEG)", Filter = PictureFilter };
-            if (d.ShowDialog(this) != true) return false;
+            var chosenFile = CcsFileDialog.OpenFile(this, "Choose a picture for the " + PictureTitleFor(key) + " (PNG or JPEG)", null, PictureFilter, "home-picture");
+            if (chosenFile == null) return false;
             byte[] src;
-            try { var fi = new FileInfo(d.FileName); if (fi.Length > ImageRules.ImportMaxBytes) { SetDesignProblem("This picture is too large. Choose a smaller picture.", "The file is " + CUnits.Size(fi.Length) + "; at most " + CUnits.Size(ImageRules.ImportMaxBytes) + " can be used."); return false; } src = File.ReadAllBytes(d.FileName); }
+            try { var fi = new FileInfo(chosenFile); if (fi.Length > ImageRules.ImportMaxBytes) { SetDesignProblem("This picture is too large. Choose a smaller picture.", "The file is " + CUnits.Size(fi.Length) + "; at most " + CUnits.Size(ImageRules.ImportMaxBytes) + " can be used."); return false; } src = File.ReadAllBytes(chosenFile); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { SetDesignProblem("That file could not be read. Choose another one.", ex.Message); return false; }
             if (!DesignEdit(() => use(ImageNormalizer.Normalize(src, rule, "cover")), false)) return false;
             if (rule.Exact) { designSources[key] = src; designFits[key] = "cover"; }
@@ -915,10 +915,10 @@ namespace CcsBackup.Ui
         void ExportOriginal()
         {
             var h = design; if (h?.OriginalFile == null) return;
-            var d = new Microsoft.Win32.SaveFileDialog { Title = "Export the Original File (Shared HOME Design)", Filter = DesignFilter, FileName = Path.GetFileName(designPath ?? "design.ccshome"), OverwritePrompt = false };
-            if (d.ShowDialog(this) != true) return;
-            try { h.ExportOriginal(d.FileName); Tell("Original file exported", "The design was saved exactly as it was received:\n\n" + d.FileName); }
-            catch (Exception ex) when (ex is ComposeException || ex is IOException || ex is UnauthorizedAccessException) { SetDesignProblem(ex is IOException && File.Exists(d.FileName) ? "A file with that name is already there. Choose another name." : "The original file could not be exported there.", ex.Message); }
+            var chosenFile = CcsFileDialog.SaveFile(this, "Export the Original File (Shared HOME Design)", null, Path.GetFileName(designPath ?? "design.ccshome"), DesignFilter, false, "home-design");
+            if (chosenFile == null) return;
+            try { h.ExportOriginal(chosenFile); Tell("Original file exported", "The design was saved exactly as it was received:\n\n" + chosenFile); }
+            catch (Exception ex) when (ex is ComposeException || ex is IOException || ex is UnauthorizedAccessException) { SetDesignProblem(ex is IOException && File.Exists(chosenFile) ? "A file with that name is already there. Choose another name." : "The original file could not be exported there.", ex.Message); }
         }
 
         /// <summary>what the design changes, compared with where it started (the file it was opened from, or the theme's own look)</summary>
@@ -979,9 +979,9 @@ namespace CcsBackup.Ui
             sp.Children.Add(Card(c));
             sp.Children.Add(Buttons(p.CanShare ? B(savedTo == null ? "Save the Shared Copy…" : "Save Another Shared Copy…", savedTo == null ? "Btn.Primary" : "Btn", () =>
             {
-                var d = new Microsoft.Win32.SaveFileDialog { Title = "Save a Shared Copy (Shared HOME Design)", Filter = DesignFilter, FileName = SafeFileName(h.Name ?? "My HOME") + " (shared)" + DesignProfile.Extension, OverwritePrompt = true };
-                if (d.ShowDialog(this) != true) return;
-                if (SaveSharedCopy(p, d.FileName)) ShowShare(d.FileName);
+                var chosenFile = CcsFileDialog.SaveFile(this, "Save a Shared Copy (Shared HOME Design)", null, SafeFileName(h.Name ?? "My HOME") + " (shared)" + DesignProfile.Extension, DesignFilter, true, "home-design");
+                if (chosenFile == null) return;
+                if (SaveSharedCopy(p, chosenFile)) ShowShare(chosenFile);
             }) : null, B("Back to the Design", savedTo == null ? "Btn.Ghost" : "Btn.Primary", () => ShowDesignEditor())));
             if (!p.CanShare) sp.Children.Add(T("A shared copy can be saved once the problems above are fixed in the design.", Ty.Small, false, true));
             Show(sp, "design-share");

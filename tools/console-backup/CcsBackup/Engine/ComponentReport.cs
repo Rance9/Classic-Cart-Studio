@@ -1,7 +1,9 @@
 // Classic Cart Studio console backup engine: which engine a program carries. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // "--engine-info" in Classic Cart Studio for Windows and in the CCS Console Backup & Restore Utility prints this report: the SHA-256 of
 // each shared library as that program loads it (the Windows app: the files beside it; the Utility: the copies inside it) and the
-// recovery images the engine carries. The release build compares the two reports: the same bytes mean the same engine. Reads only.
+// recovery images the engine carries, the physical boundaries as this build's code has them (Gate.cs) and the operations each console
+// model allows in it (ConsoleModel.Refusal over the registry this build carries). The release build compares the two reports: the same
+// bytes mean the same engine. Reads only.
 using CcsBackup.Device;
 using System;
 using System.Collections.Generic;
@@ -32,8 +34,18 @@ namespace CcsBackup.Engine
                 var (id, sha) = RecoveryImages.IdOf(k);
                 images.Set(RecoveryImages.Variant(k), new JObj { { "image_id", id }, { "sha256", sha } });
             }
-            return Json.Write(new JObj { { "schema", "ccs-engine-report/1" }, { "program", program }, { "version", version }, { "libraries", libs }, { "recovery_images", images } });
+            var boundaries = new JObj();
+            foreach (var f in typeof(Gate).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.IsLiteral && f.FieldType == typeof(bool)))
+                boundaries.Set(f.Name, (bool)f.GetRawConstantValue());
+            var models = new JObj();
+            foreach (var m in new[] { ConsoleModels.Nes, ConsoleModels.Snes })
+                models.Set(m.Id, Operations.Where(op => m.Refusal(op) == null).Cast<object>().ToList());
+            return Json.Write(new JObj { { "schema", "ccs-engine-report/1" }, { "program", program }, { "version", version }, { "libraries", libs }, { "recovery_images", images },
+                { "boundaries", boundaries }, { "operations", models } });
         }
+
+        /// <summary>every console operation a model can allow (ConsoleModel.Refusal)</summary>
+        public static readonly string[] Operations = { "identify", "backup", "restore", "preparation", "return", "rescue", "files", "developer", "composition", "addons", "firmware", "community" };
 
         /// <summary>the Utility's copies: the libraries inside the executable (resources "asm/&lt;name&gt;")</summary>
         public static Func<string, Stream> Embedded(Assembly exe) => n => exe.GetManifestResourceStream("asm/" + n);

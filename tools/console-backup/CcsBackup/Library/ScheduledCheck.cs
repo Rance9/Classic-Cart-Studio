@@ -1,7 +1,8 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The optional scheduled backup check (Backup Repair, D8): ONE per-user Windows Scheduled Task, registered only when the person turns it on,
 // that starts the Workbench executable they chose (where it is, never a copy) with "--scheduled-check": it verifies the backups in the
-// chosen folders offline (no console, no USB, no repair, no write to a backup) and writes a report to the chosen report folder. When a check
+// chosen folders offline (no console, no USB, no repair, no write to a backup) and writes a report to the chosen report folder; each console
+// backup's result is also recorded as its last full check in the backup location's records, so the lists show it. When a check
 // finds a problem it shows a window saying so; otherwise it shows nothing. Remove Schedule deletes the task. Nothing else is registered: no
 // service, startup entry, updater or hidden copy of the program. Moving or deleting the executable, or an unavailable drive, stops checks;
 // the Workbench shows that from the task's own last-run information.
@@ -112,6 +113,8 @@ namespace CcsBackup.Library
                     .Concat(Directory.Exists(storage) ? Directory.GetFiles(storage, "*.zip").OrderBy(x => x, StringComparer.OrdinalIgnoreCase) : Enumerable.Empty<string>()))
                 {
                     var v = External.AnyBackup.Verify(f, null, cancelled);
+                    // a console backup's check is recorded as its last full check, so the lists show it (a failed record never changes the result)
+                    if (!External.ExternalFormat.Is(f)) try { Browse.BackupList.Record(s, f, v, cancelled); } catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is OperationCanceledException) { }
                     rows.Add(new JObj { { "file", f }, { "ok", v.Ok }, { "problem", v.Ok ? null : v.Problems[0] }, { "checked_utc", Record.Now() } });
                     if (!v.Ok) problems.Add(Path.GetFileName(f) + ": " + v.Problems[0]);
                 }

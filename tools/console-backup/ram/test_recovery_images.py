@@ -20,6 +20,10 @@
    d) the preparation image's ccsprep steps on a stand-in stock console: hakchi's own mod_install/mod_repair (rsync and all) with the
       data storage as a folder, u-boot, the original kernel to the spare slot, hakchi's kernel with the console's key; each refusal,
       each burn once, a failed readback never burned again, the first-stage loader, physical storage and logical parts never written.
+   e) the preparation (with its way back), rescue and files images again on a console shaped like a Super NES Classic (board dp-shvc,
+      REGION USA, EUR or JPN, a synthetic key, its stock game folders, its boot-stage sizes): ccsbr identify and hakchi's own
+      softwareCheck, hakchi's mod_install, u-boot, spare slot and kernel with that console's key, the way back with its own u-boot, the
+      rescue of both stages and Developer Mode's system part through its own mapping; the save and stock game folders unchanged.
 QEMU is not the console: this shows what the image's own scripts and tools do with this text, not the console's hardware."""
 from __future__ import annotations
 import argparse, base64, hashlib, io, json, lzma, os, re, subprocess, sys, tarfile, tempfile
@@ -616,6 +620,17 @@ def method_runs(R: str, step, A: str):
           f"ccs-prepare: nstart writes CCS Nucleus's first start setting (CCS HOME offered and opened first, the chooser at start) in its own folder; nothing in hakchi's overlay ({last(r)}; {got.split()})")
     r, w, t = step("nstart ccs-home always on default 10", A)
     check("result nstart ok already ccs-home always on default 10" in r.stdout and "began nstart" not in r.stdout and not w, f"ccs-prepare: the same setting already there is not written again ({last(r)})")
+    check(sh_out(R, f"grep '^opt.ccs-home.compat=' '{reg}'").strip() == "opt.ccs-home.compat=nes-usa",
+          "ccs-prepare: CCS HOME's option records the console's own type and region, read from its system (an NES Classic of REGION EUR_USA: hakchi's nes-usa)")
+    # the same steps on a Super NES Classic's system (its board dp-shvc, REGION USA, then EUR): the registry names that console
+    for rg in ("USA", "EUR"):
+        sh_out(R, f"echo dp-shvc > '@R@/newroot/etc/clover/boardtype'; echo {rg} > '@R@/newroot/etc/clover/REGION'")
+        r1, w1, _ = step("nstart native never off default 10", A); r2, w2, t2 = step("nstart ccs-home never on default 10", A)
+        got = sh_out(R, f"grep '^opt.ccs-home.compat=' '{reg}'").strip()
+        check("result nstart ok native never off default 10" in r1.stdout and "result nstart ok ccs-home never on default 10" in r2.stdout and got == f"opt.ccs-home.compat=snes-{rg.lower()}" and not t2,
+              f"ccs-prepare: on a Super NES Classic's system ({rg}) nstart offers CCS HOME again and its option records snes-{rg.lower()}, never the NES Classic's ({last(r2)}; {got})")
+    sh_out(R, "echo dp-nes > '@R@/newroot/etc/clover/boardtype'; echo EUR_USA > '@R@/newroot/etc/clover/REGION'")
+    r, w, t = step("nstart ccs-home always on default 10", A)
     r, w, t = step("nstart native never off last 0", A)
     got = sh_out(R, f"grep -c 'ccs-home' '{reg}'")
     check("result nstart ok native never off last 0" in r.stdout and got.strip() == "0", f"ccs-prepare: a changed setting is written and read back; CCS HOME no longer offered leaves no trace in the registry ({last(r)})")
@@ -1183,6 +1198,183 @@ def dev_system_runs(R: str, work: str, last):
     check(not trips_all, f"ccs-files: no tripwire in the system-part runs with write permission ({'; '.join(trips_all) or 'none'})")
 
 
+# ---------------------------------------------------------------- the same programs on a console shaped like a Super NES Classic
+# The console programs never read the console's model: its board and region reach the PC through ccsbr identify, and hakchi's own scripts
+# tell the models apart at the console's normal start (softwareCheck). These runs give the image's own programs a Super NES Classic's
+# shape: board dp-shvc, REGION USA or EUR, its release, a synthetic system key (never a console's), its stock games' folders under
+# /usr/share/games (made-up stand-ins), a save under clover/profiles, boot0 of 32,768 bytes and its own u-boot of 573,440 bytes without a
+# nandinfo block (the sizes a Super NES Classic's backup holds). The flash tools are the same logging stand-ins: what is shown is the
+# programs' control flow and the bytes they hand to those tools, not the console's NAND or its flash tool's own behavior.
+SNES_KEY = b"SNESKEY-synthetic-not-a-console-key"
+SNES_SHAPE_SH = r'''R='@R@'; F="$R/fake"
+echo dp-shvc > "$R/newroot/etc/clover/boardtype"; echo @REGION@ > "$R/newroot/etc/clover/REGION"; echo VERSION=release-v2.0.14-0-gd8b65c6 > "$R/newroot/etc/clover/VERSION"
+rm -rf "$R/newroot/usr/share/games"
+for g in CLV-P-SAAAE CLV-P-SADKE CLV-P-SABCE; do mkdir -p "$R/newroot/usr/share/games/$g"; printf '[Desktop Entry]\nName=%s\n' "$g" > "$R/newroot/usr/share/games/$g/$g.desktop"; head -c 4096 /dev/urandom > "$R/newroot/usr/share/games/$g/$g.img"; done
+(cd "$R/newroot/usr/share/games" && find . -type f | sort | xargs sha256sum) > "$F/games.sum"
+{ printf '\352\000\000\016eGON.BT0'; head -c 32756 /dev/urandom; } > "$F/boot0"; { printf '\352\000\000\016uboot\000'; head -c 573430 /dev/urandom; } > "$F/boot1"
+cp "$F/boot0" "$F/boot0.good"; cp "$F/boot1" "$F/boot1.good"; cp "$F/boot1" "$F/boot1.factory"; rm -f "$F/boot0.damaged" "$F/boot1.damaged"
+printf '%s' '@KEY@' > "$R/key-file"
+echo ok
+'''
+SNES_PREP_SH = r'''R='@R@'; F="$R/fake"; cd "$F"
+rm -f boot2-68 parttable.tuned; printf '070701' > ramdisk.cpio; cp boot2 boot2.orig
+rm -rf "$R/newroot/var"; mkdir -p "$R/newroot/var/lib/clover/profiles/0/CLV-P-SAAAE"
+head -c 8192 /dev/urandom > "$R/newroot/var/lib/clover/profiles/0/CLV-P-SAAAE/cartridge.sav"
+sha256sum "$R/newroot/var/lib/clover/profiles/0/CLV-P-SAAAE/cartridge.sav" > save.sum
+printf '%s\n' "$R/newroot" > "$R/mounted"
+sha256sum boot0 phy "$R"/dev/nand* | sort > fixed.before
+echo ok
+'''
+
+def snes_shape(R: str, work: str, region: str, name: str):
+    fk = os.path.join(work, f"fake-{name}.sh"); open(fk, "w", newline="\n").write(FAKE_SH.replace("@R@", R)); wsl(f"bash '{wpath(fk)}'")
+    sh = os.path.join(work, f"snes-shape-{name}.sh"); open(sh, "w", newline="\n").write(SNES_SHAPE_SH.replace("@R@", R).replace("@REGION@", region).replace("@KEY@", SNES_KEY.decode()))
+    return "ok" in wsl(f"bash '{wpath(sh)}'").stdout
+
+def snes_identity_runs(variant: str, R: str):
+    """ccsbr identify reports the shape's board and region (the PC decides the model from them), and hakchi 3.9.3's own softwareCheck
+    (b0010_functions, sourced unchanged) gives this system the type, region and game folder its normal start uses"""
+    for region, want in (("USA", "usa"), ("EUR", "eur"), ("JPN", "jpn")):
+        sh_out(R, f"echo {region} > '@R@/newroot/etc/clover/REGION'")
+        kv = dict(l.split("=", 1) for l in ccsbr(R, "identify").stdout.splitlines() if "=" in l)
+        hk = run(R, f"modname=hakchi; mountpoint='{R}/newroot'; . '{R}/root/hakchi/rootfs/etc/preinit.d/b0000_defines'; mountpoint='{R}/newroot'; squashfs='{R}/newroot'; "
+                    f". '{R}/root/hakchi/rootfs/etc/preinit.d/b0010_functions'; softwareCheck; echo \"sftype=$sftype sfregion=$sfregion gamepath=$gamepath\"").stdout.strip().splitlines()
+        got = hk[-1] if hk else "(nothing)"
+        check(kv.get("board") == "dp-shvc" and kv.get("region") == region and kv.get("oem_version") == "release-v2.0.14-0-gd8b65c6" and got == f"sftype=snes sfregion={want} gamepath=/usr/share/games",
+              f"{variant} (SNES shape, {region}): ccsbr identify reports board dp-shvc and region {region}; hakchi's own softwareCheck gives \"{got}\" (the PC refuses JPN, the Super Famicom's region)")
+    sh_out(R, "echo USA > '@R@/newroot/etc/clover/REGION'")
+
+def snes_prep_runs(R: str, by: dict, work: str):
+    """ccsprep's preparation and return steps on a console shaped like a North American Super NES Classic"""
+    prep_overlay(R, by, work)
+    ok = snes_shape(R, work, "USA", "snes-prep")
+    fk = os.path.join(work, "snes-prep.sh"); open(fk, "w", newline="\n").write(SNES_PREP_SH.replace("@R@", R))
+    check(ok and "ok" in wsl(f"bash '{wpath(fk)}'").stdout, "ccs-prepare (SNES shape): the stand-in console (board dp-shvc, its original startup software, an empty spare slot, its own 573,440-byte u-boot, a save, three stock game folders)")
+    snes_identity_runs("ccs-prepare", R)
+    A = "CCSTEST_ALLOW_WRITE=1"; H = "@R@/newroot/var/lib/hakchi"; trips_all = []
+    def step(s: str, env: str = ""):
+        sh_out(R, "rm -f '@R@/log'")
+        r = run(R, f"sh '{R}/root/ccs/bin/ccsprep' {s}; echo rc=$?", env)
+        log = sh_out(R, "cat '@R@/log' 2>/dev/null").splitlines()
+        trips = [l for l in log if l.startswith("TRIPWIRE")]; trips_all.extend(trips)
+        return r, [l for l in log if l.startswith("WRITE")], trips
+    def last(r):
+        lines = r.stdout.strip().splitlines(); return next((l for l in reversed(lines) if l.startswith("result ")), lines[-1] if lines else "(nothing)")
+    md5 = lambda f: sh_out(R, f"md5sum '@R@/fake/{f}' | cut -d' ' -f1").strip()
+    kept = lambda: sh_out(R, "sha256sum -c '@R@/fake/save.sum' >/dev/null && echo SAVE; cd '@R@/newroot/usr/share/games' && sha256sum -c --status '@R@/fake/games.sum' && echo GAMES").split()
+    r, w, t = step("kernel", A)
+    check("result kernel failed the original kernel is not in the spare slot" in r.stdout and not w and not t, f"ccs-prepare (SNES shape): hakchi's kernel is refused while the console's original kernel is not in the spare slot ({last(r)})")
+    r, w, t = step("files", A)
+    got = sh_out(R, (r"test -f '@H@/rootfs/etc/preinit' && echo PREINIT; cmp -s '@H@/rootfs/etc/key-file' '@R@/key-file' && echo KEY; "
+                     r"cmp -s '@H@/var/version' '@R@/root/ccs/prep/hmod/var/version' && echo VERSION; cat '@R@/mounted'").replace("@H@", H)).split()
+    check("result files ok" in r.stdout and "installing hakchi" in r.stdout and w == ["WRITE mount nandc read-write", "WRITE sunxi-part tune"] and not t and got == ["PREINIT", "KEY", "VERSION", R + "/newroot"] and kept() == ["SAVE", "GAMES"],
+          f"ccs-prepare (SNES shape): hakchi's own mod_install installs hakchi with this console's key on the data storage (mounted once, tuned once by hakchi, unmounted); the save and the stock game folders unchanged ({last(r)}; {w}; {got})")
+    r, w, t = step("uboot", A)
+    same = sh_out(R, "cmp -s '@R@/fake/boot1' '@R@/root/ccs/prep/hmod/boot/uboot.bin' && echo SAME").strip()
+    check("result uboot ok" in r.stdout and w == ["WRITE burn_boot1 8"] and same == "SAME" and not t, f"ccs-prepare (SNES shape): hakchi's u-boot (the pinned hmod's, the same for both models) burned once and read back ({last(r)})")
+    r, w, t = step("slot68", A)
+    same = sh_out(R, "cmp -s '@R@/fake/boot2-68' '@R@/fake/boot2.orig' && echo SAME").strip()
+    check("result slot68 ok " in r.stdout and w == ["WRITE burn_boot2 68"] and same == "SAME" and not t, f"ccs-prepare (SNES shape): this console's own original startup software copied once to the spare slot ({last(r)})")
+    r, w, t = step("kernel", A)
+    got_words = sh_out(R, "dd if='@R@/fake/boot2' bs=64 skip=1 count=8 2>/dev/null | tr -d '\\0'").split()
+    check("result kernel ok " in r.stdout and w == ["WRITE burn_boot2 30"] and not t and got_words == kernel_words(HMOD["boot/boot.img"][1], SNES_KEY),
+          f"ccs-prepare (SNES shape): hakchi's kernel burned once with THIS console's key added to its command line by hakchi's insertKeyFile (the key read in the console's RAM from its own startup software; never sent by the PC) ({last(r)})")
+    # the way back, on the same shape: the console's own 573,440-byte u-boot staged and written by ccsboot (never the flash tool's default)
+    cp = B.cpio_build([B.entry("hakchi", 0o040755, b"", 1), B.entry("hakchi/init", 0o100755, b"#!/bin/sh\n", 2), B.entry("TRAILER!!!", 0, b"", 0)])
+    cf = os.path.join(work, "snes-hakchi-ramdisk.cpio"); open(cf, "wb").write(cp); wsl(f"cp '{wpath(cf)}' '{R}/fake/ramdisk.cpio'")
+    orig, hk_uboot, own = md5("boot2.orig"), md5("boot1"), md5("boot1.factory"); size = sh_out(R, "wc -c < '@R@/fake/boot1.factory'").strip()
+    r, w, t = step("ret-kernel " + orig, A)
+    check(f"result ret-kernel ok {orig}" in r.stdout and w == ["WRITE burn_boot2 30"] and md5("boot2") == orig and not t, f"ccs-prepare (SNES shape): ret-kernel puts the console's own original startup software back once from the spare slot ({last(r)})")
+    wsl(f"printf '070701' > '{R}/fake/ramdisk.cpio'")
+    r, w, t = step(f"ret-stage {size} {own} < '{R}/fake/boot1.factory'", A)
+    check(size == "573440" and f"result ret-stage ok {own} {size}" in r.stdout and not w and not t, f"ccs-prepare (SNES shape): ret-stage receives this console's own 573,440-byte u-boot into RAM and checks it; nothing written ({last(r)})")
+    r, w, t = step("ret-uboot " + hk_uboot + " " + own, A)
+    check(f"result ret-uboot ok {own}" in r.stdout and md5("boot1") == own and w == ["WRITE ccsboot burn1"] and not t, f"ccs-prepare (SNES shape): ret-uboot writes this console's own u-boot once with ccsboot and both readers read it back ({last(r)})")
+    r, w, t = step("ret-files", A)
+    left = sh_out(R, f"test -e '{H}' && echo THERE; cat '@R@/mounted'").split()
+    check("result ret-files ok" in r.stdout and w == ["WRITE mount nandc read-write"] and left == [R + "/newroot"] and kept() == ["SAVE", "GAMES"] and not t,
+          f"ccs-prepare (SNES shape): ret-files removes hakchi's files and keeps the save and the stock game folders ({last(r)})")
+    r, w, t = step("ret-table", A)
+    check("result ret-table ok" in r.stdout and w == ["WRITE sunxi-part shrink"] and not t, f"ccs-prepare (SNES shape): ret-table runs hakchi's shrink once (the PC reads the table back) ({last(r)})")
+    fixed = sh_out(R, "cd '@R@/fake' && sha256sum boot0 phy @R@/dev/nand* | sort | cmp -s - fixed.before && echo SAME").strip()
+    check(fixed == "SAME" and not trips_all, f"ccs-prepare (SNES shape): boot0, the physical storage and every logical part were never written; no tripwire ({'; '.join(trips_all) or 'none'})")
+
+def snes_rescue_runs(R: str, work: str):
+    """ccsrescue on a console shaped like a Super NES Classic: its own 573,440-byte u-boot and its 32,768-byte boot0"""
+    check(snes_shape(R, work, "EUR", "snes-rescue"), "ccs-rescue (SNES shape): the stand-in console (board dp-shvc, REGION EUR, boot0 32,768 bytes, u-boot 573,440 bytes)")
+    snes_identity_runs("ccs-rescue", R)
+    fixed0 = sh_out(R, "cd '@R@/fake' && sha256sum boot2 phy @R@/dev/nand* | sort")
+    A = "CCSTEST_ALLOW_WRITE=1"; trips_all = []
+    def step(s: str, env: str = ""):
+        sh_out(R, "rm -f '@R@/log'")
+        r = run(R, f"sh '{R}/root/ccs/bin/ccsrescue' {s}; echo rc=$?", env)
+        log = sh_out(R, "cat '@R@/log' 2>/dev/null").splitlines()
+        trips = [l for l in log if l.startswith("TRIPWIRE")]; trips_all.extend(trips)
+        return r, [l for l in log if l.startswith("WRITE")], trips
+    def last(r):
+        lines = r.stdout.strip().splitlines(); return next((l for l in reversed(lines) if l.startswith("result ")), lines[-1] if lines else "(nothing)")
+    md5 = lambda f: sh_out(R, f"md5sum '@R@/fake/{f}' | cut -d' ' -f1").strip()
+    size = lambda f: sh_out(R, f"wc -c < '@R@/fake/{f}'").strip()
+    sh_out(R, "printf 'rescue\\n' > '@R@/root/ccs/profile'")
+    good0, good1, n0, n1 = md5("boot0.good"), md5("boot1.good"), size("boot0.good"), size("boot1.good")
+    r, w, t = step("diag")
+    check(f"boot0={good0}" in r.stdout and f"boot1={good1}" in r.stdout and f"boot1_size={n1}" in r.stdout and n1 == "573440" and n0 == "32768" and not w, f"ccs-rescue (SNES shape): diag reads both stages, the u-boot 573,440 bytes ({last(r)})")
+    sh_out(R, FLIP_SH + "; flip '@R@/fake/boot1' 300000; touch '@R@/fake/boot1.damaged'; flip '@R@/fake/boot0' 2000; touch '@R@/fake/boot0.damaged'")
+    r, w, t = step("diag")
+    check("boot1=invalid" in r.stdout and "boot0=invalid" in r.stdout and not w, f"ccs-rescue (SNES shape): both damaged stages diagnosed ({r.stdout.strip()[:160]})")
+    r, w, t = step(f"stage1 {n1} {good1} < '{R}/fake/boot1.good'"); check(f"result stage1 ok {good1} {n1}" in r.stdout and not w, f"ccs-rescue (SNES shape): this console's own u-boot staged in RAM and checked ({last(r)})")
+    r, w, t = step(f"burn1 invalid {good1}", A)
+    check(f"result burn1 ok {good1}" in r.stdout and w == ["WRITE ccsboot burn1"] and md5("boot1") == good1 and not t, f"ccs-rescue (SNES shape): written once and read back by both readers ({last(r)})")
+    r, w, t = step(f"stage0 {n0} {good0} < '{R}/fake/boot0.good'"); check(f"result stage0 ok {good0} {n0}" in r.stdout and not w, f"ccs-rescue (SNES shape): this console's own boot0 staged ({last(r)})")
+    r, w, t = step(f"burn0 invalid {good0}", A)
+    check(f"result burn0 ok {good0}" in r.stdout and w == ["WRITE ccsboot burn0"] and md5("boot0") == good0 and not t, f"ccs-rescue (SNES shape): boot0 written once through the boot0 writer and read back ({last(r)})")
+    fixed = sh_out(R, "cd '@R@/fake' && sha256sum boot2 phy @R@/dev/nand* | sort")
+    check(fixed == fixed0 and not trips_all, f"ccs-rescue (SNES shape): the startup software, the physical storage and every logical part were never written; no tripwire ({'; '.join(trips_all) or 'none'})")
+
+SNES_DEV_SH = r'''R='@R@'; set -e
+mk(){ d="$R/sq-$1"; rm -rf "$d"; mkdir -p "$d/etc/clover" "$d/sbin"; printf '%s\n' "$2" > "$d/etc/clover/boardtype"; printf 'init %s\n' "$1" > "$d/sbin/init"
+      head -c 200000 /dev/urandom > "$d/big"; /usr/bin/mksquashfs "$d" "$R/$1.hsqs" -comp gzip -noappend -all-root -no-xattrs -quiet > /dev/null; }
+mk sa dp-shvc; mk sb dp-shvc
+head -c 1048576 /dev/zero > "$R/plain.part"; dd if="$R/sa.hsqs" of="$R/plain.part" conv=notrunc 2> /dev/null
+LC_ALL=C tr '\000-\377' '\001-\377\000' < "$R/plain.part" > "$R/dev/nandb"; LC_ALL=C tr '\001-\377\000' '\000-\377' < "$R/dev/nandb" > "$R/dev/mapper/root-crypt"
+printf 'MemTotal: 250000 kB\nMemFree: 180000 kB\n' > "$R/proc/meminfo"; echo "$R/newroot" >> "$R/mounted"
+echo ok
+'''
+
+def snes_dev_runs(R: str, work: str):
+    """ccsdev on a console shaped like a Super NES Classic: its board reported, its system part written through its own mapping with its key"""
+    ok = snes_shape(R, work, "USA", "snes-dev")
+    fk = os.path.join(work, "snes-dev.sh"); open(fk, "w", newline="\n").write(SNES_DEV_SH.replace("@R@", R))
+    check(ok and "ok" in wsl(f"bash '{wpath(fk)}'").stdout, "ccs-files (SNES shape): the stand-in system part (an encrypted SquashFS of board dp-shvc) and a second image")
+    sh_out(R, "printf 'files\\n' > '@R@/root/ccs/profile'")
+    M = "CCSTEST_MAPPED=1"; A = M + " CCSTEST_ALLOW_WRITE=1"; trips_all = []
+    def dev(s, env=M):
+        sh_out(R, "rm -f '@R@/log'"); r = run(R, f"sh '{R}/root/ccs/bin/ccsdev' {s}; echo rc=$?", env)
+        log = sh_out(R, "cat '@R@/log' 2>/dev/null").splitlines(); trips = [l for l in log if l.startswith("TRIPWIRE")]; trips_all.extend(trips)
+        return r, [l for l in log if l.startswith("WRITE")], trips
+    def last(r):
+        lines = r.stdout.strip().splitlines(); return next((l for l in reversed(lines) if l.startswith("result ")), lines[-1] if lines else "(nothing)")
+    h = lambda p, algo="sha256": sh_out(R, f"{algo}sum '{R}/{p}' | cut -d' ' -f1").strip()
+    n = lambda p: sh_out(R, f"wc -c < '{R}/{p}'").strip()
+    r, w, t = dev("sinfo")
+    lines = set(r.stdout.split())
+    check({"system=crypt", "key=yes", "comp=1", "board=dp-shvc"} <= lines and not w and not t, f"ccs-files (SNES shape): ccsdev sinfo reports board dp-shvc and an encrypted system part whose key this session holds, reading only ({' '.join(sorted(lines))})")
+    bs, bn = h("sb.hsqs"), n("sb.hsqs")
+    r, w, t = dev(f"sstage {bn} {bs} < '{R}/sb.hsqs'")
+    check(f"result sstage ok {bs} {bn}" in r.stdout and not w, f"ccs-files (SNES shape): the system image staged in RAM and checked ({last(r)})")
+    raw0 = h("dev/nandb", "md5")
+    r, w, t = dev(f"sburn {raw0} {bs}", A)
+    plain = sh_out(R, f"LC_ALL=C tr '\\001-\\377\\000' '\\000-\\377' < '{R}/dev/nandb' | head -c {bn} | sha256sum | cut -d' ' -f1").strip()
+    check("result sburn ok" in last(r) and w == ["WRITE cryptsetup open root-crypt read-write", f"WRITE dd of={R}/dev/mapper/root-crypt"] and plain == bs and not t,
+          f"ccs-files (SNES shape): ccsdev sburn writes the system part once through the console's own mapping with its key and reads it back ({last(r)}; {w})")
+    sh_out(R, "{ printf 'ANDROID!'; head -c 100000 /dev/urandom; } > '@R@/newk.img'")
+    km, kn, now = h("newk.img", "md5"), n("newk.img"), h("fake/boot2", "md5")
+    r, w, t = dev(f"kstage {kn} {km} < '{R}/newk.img'", "")
+    r, w, t = dev(f"kburn {now} {km}", "CCSTEST_ALLOW_WRITE=1")
+    check(f"result kburn ok {km}" in r.stdout and w == ["WRITE burn_boot2 30"] and not t, f"ccs-files (SNES shape): ccsdev kburn writes the startup slot once and reads it back ({last(r)})")
+    check(not trips_all, f"ccs-files (SNES shape): no tripwire ({'; '.join(trips_all) or 'none'})")
+
+
 def fixture_flip_checks():
     """the fixtures' corruption changes every chosen byte, also one that already holds "X" (88, which becomes 167) or "ZZZ" (all three of them)"""
     r = wsl(FLIP_SH + """
@@ -1229,6 +1421,13 @@ def main() -> int:
             if variant == "ccs-rescue": rescue_runs(R, work)
             if variant == "ccs-files": files_runs(R, work)
         finally: wsl(f'rm -rf "{R}"')
+        if variant in ("ccs-prepare", "ccs-rescue", "ccs-files"):   # the same image's programs again, on a console shaped like a Super NES Classic
+            R = setup(variant, ents, cmdline, work)
+            try:
+                if variant == "ccs-prepare": snes_prep_runs(R, {e["name"]: e for e in ents}, work)
+                if variant == "ccs-rescue": snes_rescue_runs(R, work)
+                if variant == "ccs-files": snes_dev_runs(R, work)
+            finally: wsl(f'rm -rf "{R}"')
     for f in failures: print("FAILED:", f)
     print(f"RESULT {passed}/{passed + failed}")
     return 0 if failed == 0 else 1

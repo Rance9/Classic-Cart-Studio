@@ -18,7 +18,8 @@ def sha(b): return hashlib.sha256(b).hexdigest()
 
 class StandIn(WorkerConsole):
     """the worker test host's disposable folder, identified as a console that runs hakchi"""
-    def identity(self, fresh=False): return {"kernel": CI.HAKCHI_KERNEL, "hakchi": "v1.0.4-126", "system": "nes-usa", "hwid": "busybox-standin", "can_interact": True, "custom_firmware": False, "simulated": True}   # k3c: the fields the engine now requires
+    def identity(self, fresh=False): return {"kernel": CI.HAKCHI_KERNEL, "hakchi": "v1.0.4-126", "system": "nes-usa", "hwid": "busybox-standin", "can_interact": True, "custom_firmware": False,
+                                             "board": "dp-nes", "region": "EUR_USA", "data_mount": CI.DATA_MOUNT, "simulated": True}   # the fields the engine requires
 class Faulty(StandIn):
     def __init__(self, *a, fault=None, **k): super().__init__(*a, **k); self.fault = fault or {}; self.nchanges = 0
     def _f(self, what, fn, *a):
@@ -188,7 +189,7 @@ class T(unittest.TestCase):
         finally:
             with open(cp_, "wb") as f: f.write(good)
         self.assertEqual({os.path.relpath(os.path.join(r, f), pk): sha(open(os.path.join(r, f), "rb").read()) for r, _, fs in os.walk(pk) for f in fs}, keep, "the package is never changed")
-    def test_04_the_shipped_path_is_closed(self):   # (in the activation rehearsal, with the gate open: blocked by the test boundary instead)
+    def test_04_the_shipped_path_is_blocked_by_the_test_boundary(self):   # (both tiers open in this version: a test never reaches the shipped worker)
         refused = gate.GateClosed if not gate.allowed("install") else console_test_guard.RealConsoleBlocked
         with self.assertRaises(refused): open_worker_console("ssh")
         with self.assertRaises(refused): CI.open_console("clovershell")

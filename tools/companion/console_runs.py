@@ -1,8 +1,8 @@
 """Console engine runs for the backend: one isolated worker process per run, the line protocol over pipes, an in-memory
 event buffer the UI polls, and the plan folder under the backend's data root. Desktop-principal only (enforced in
-nes_companion). The worker is this same program in worker mode (`--console-worker`, frozen build) or the Python module
-(development), never a path supplied by a client. Gate G1 stays closed inside the worker; the backend adds nothing that
-could open it. call() and start() take a spawn function only from Python (console_home.Dispatcher's tests: an in-process
+ccs_backend). The worker is this same program in worker mode (`--console-worker`, frozen build) or the Python module
+(development), never a path supplied by a client. Gate G1 is decided inside the worker by its code constants; the backend adds nothing that
+could change it. call() and start() take a spawn function only from Python (console_home.Dispatcher's tests: an in-process
 worker over pipes with an already simulated console); the app never passes one.
 Lock order: console_home.Dispatcher may hold its lock while it takes LOCK here (start, poll), never the reverse; LOCK is never
 held while a run's on_done is called (it takes the dispatcher's lock).

@@ -248,6 +248,7 @@ namespace CcsBackup.Engine
             ConsoleIdentity id;
             try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId, "addons"); }
             catch (ConsoleRefusedException ex) { return (null, null, ex.Message); }
+            var dw = ConsoleData.Refusal(id); if (dw != null) return (null, id, dw + " Nothing was changed.");
             var st = con.PrepState();
             if (!st.Ok) return (null, id, "The console's hakchi packages could not be read (" + st.Problem + "). Nothing was changed.");
             if (st.Hakchi != Preparation.PinnedHakchiVersion) return (st, id, HakchiRequirement.Refusal(HakchiRequirement.Detected(st.Hakchi)));
@@ -302,7 +303,7 @@ namespace CcsBackup.Engine
             if (target.Mod && !cur.Mod)
             {
                 HomeSteps.Decision hd;
-                try { hd = HomeSteps.Plan(home ?? HomePackage.Embedded(HomePackage.ModLayout), st, id.Hwid); }
+                try { hd = HomeSteps.Plan(home ?? HomePackage.Embedded(HomePackage.ModLayout), st, id.Hwid, id.Model?.Id ?? StorageSpec.NesModel); }
                 catch (HomePackageException ex) { hd = new HomeSteps.Decision { Refusal = "CCS HOME's package cannot be used: " + ex.Message }; }
                 if (hd.Refusal != null) return (null, Refuse(hd.Refusal));
                 if (hd.Steps.Count > 0) { p.Home = hd.Archive; p.HomePrior = hd.Prior; p.Steps.AddRange(hd.Steps); }

@@ -31,7 +31,7 @@ namespace CcsBackup.Ui
             ok.Click += (s, e) => w.Close();
             sp.Children.Add(ok);
             w.Content = sp;
-            w.SourceInitialized += (s, e) => { try { var h = new WindowInteropHelper(w).Handle; int on = 1; DwmSetWindowAttribute(h, 20, ref on, 4); int c = 0x00202024; DwmSetWindowAttribute(h, 35, ref c, 4); } catch { } };
+            w.SourceInitialized += (s, e) => { try { var h = new WindowInteropHelper(w).Handle; int on = 1; DwmSetWindowAttribute(h, 20, ref on, 4); int c = 0x00202024; DwmSetWindowAttribute(h, 35, ref c, 4); } catch { } WindowFrame.DialogFrame(w); };   // the dialogs' red edge
             w.Loaded += (s, e) => { ok.Focus(); Keyboard.Focus(ok); };
             w.ShowDialog();
         }

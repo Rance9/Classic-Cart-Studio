@@ -1,0 +1,230 @@
+<!-- CCS Console Workbench: the look of its one file and folder dialog (CcsFileDialog.cs). Copyright (C) 2026 Rance9. GPL-3.0-or-later.
+     Dark like the rest of the window, the red accent for the chosen row and the focus marks (shown only while the keyboard is in use, as
+     everywhere in Workbench). Colors come from the theme the dialog's window merges (Theme.xaml and Workbench.xaml), so they are looked up
+     when the dialog is shown. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:wb="clr-namespace:CcsBackup.Ui">
+
+  <SolidColorBrush x:Key="FD.Chosen" Color="#38E4000F"/>
+  <SolidColorBrush x:Key="FD.Field" Color="#FF0B0B0E"/>
+
+  <!-- a place in the side list (Desktop, Documents, a drive): a flat row, lighter under the pointer, a red bar and a lighter row when it is
+       the folder shown -->
+  <Style x:Key="FD.Place" TargetType="ListBoxItem">
+    <Setter Property="Foreground" Value="{DynamicResource B.Ink2}"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="AutomationProperties.Name" Value="{Binding Spoken}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Grid>
+            <Border x:Name="bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="10,7,8,7" SnapsToDevicePixels="True">
+              <ContentPresenter VerticalAlignment="Center"/>
+            </Border>
+            <Border x:Name="bar" Width="3" CornerRadius="1.5" Margin="0,8,0,8" HorizontalAlignment="Left" Background="Transparent"/>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{DynamicResource B.NavHover}"/><Setter Property="Foreground" Value="{DynamicResource B.Ink}"/></Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="{DynamicResource B.NavOn}"/>
+              <Setter TargetName="bar" Property="Background" Value="{DynamicResource B.Red}"/>
+              <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.FocusRing}"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- a row of the folder's list: the columns of the list's view, a light hover, the chosen rows tinted red with a red edge -->
+  <Style x:Key="FD.Row" TargetType="ListViewItem">
+    <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="AutomationProperties.Name" Value="{Binding Spoken}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListViewItem">
+          <Border x:Name="bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="5" Padding="0,4,0,4" Margin="0,0,0,1" SnapsToDevicePixels="True">
+            <GridViewRowPresenter Columns="{TemplateBinding GridView.ColumnCollection}" Content="{TemplateBinding Content}" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{DynamicResource B.Hover}"/></Trigger>
+            <Trigger Property="IsSelected" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource FD.Chosen}"/><Setter TargetName="bd" Property="BorderBrush" Value="#80E4000F"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.FocusRing}"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- the list's column headings: dark, muted text, lighter under the pointer; a click sorts by that column (the arrow shows which way) -->
+  <Style x:Key="FD.Header" TargetType="GridViewColumnHeader">
+    <Setter Property="Foreground" Value="{DynamicResource B.Muted}"/>
+    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="GridViewColumnHeader">
+          <Grid>
+            <Border x:Name="bd" Background="Transparent" BorderBrush="{DynamicResource B.Line}" BorderThickness="0,0,1,1" Padding="10,6,8,7" SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" RecognizesAccessKey="False"/>
+            </Border>
+            <Thumb x:Name="PART_HeaderGripper" HorizontalAlignment="Right" Width="8" Margin="0,0,-4,0" Cursor="SizeWE">
+              <Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate></Thumb.Template>
+            </Thumb>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{DynamicResource B.Hover}"/><Setter Property="Foreground" Value="{DynamicResource B.Ink}"/></Trigger>
+            <Trigger Property="Role" Value="Padding"><Setter TargetName="bd" Property="BorderThickness" Value="0,0,0,1"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- the list itself: no system border or highlight; its own dark field -->
+  <Style x:Key="FD.List" TargetType="ListView">
+    <Setter Property="Background" Value="{StaticResource FD.Field}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource B.Line}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
+    <Setter Property="Padding" Value="2"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListView">
+          <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" SnapsToDevicePixels="True">
+            <ScrollViewer Padding="{TemplateBinding Padding}" Focusable="False" Style="{DynamicResource {x:Static GridView.GridViewScrollViewerStyleKey}}">
+              <ItemsPresenter SnapsToDevicePixels="True"/>
+            </ScrollViewer>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- a step in the breadcrumbs (This PC > C: > Users > …): a flat button, its name trimmed only when very long -->
+  <Style x:Key="FD.Crumb" TargetType="Button">
+    <Setter Property="Foreground" Value="{DynamicResource B.Ink2}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="5" Padding="6,3,6,4" SnapsToDevicePixels="True">
+            <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="False"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{DynamicResource B.Hover}"/><Setter Property="Foreground" Value="{DynamicResource B.Ink}"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.FocusRing}"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- a toolbar button that is only a symbol (Back, Forward, Up, Refresh): square, the theme's button colors, dimmed when not available -->
+  <Style x:Key="FD.Tool" TargetType="Button">
+    <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
+    <Setter Property="Background" Value="{DynamicResource B.Surface2}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource B.Line2}"/>
+    <Setter Property="Width" Value="36"/>
+    <Setter Property="Height" Value="34"/>
+    <Setter Property="FontFamily" Value="{DynamicResource F.Icons}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" SnapsToDevicePixels="True">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="False"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="#80FFFFFF"/><Setter TargetName="bd" Property="Background" Value="#FF26262E"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Background" Value="#FF14141A"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource B.Red3}"/>
+            </MultiTrigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- a check box a little larger than Windows' own (18 px), with clear checked, unchecked, disabled and focus states; its label is part of
+       the click target -->
+  <Style x:Key="FD.Check" TargetType="CheckBox">
+    <Setter Property="Foreground" Value="{DynamicResource B.Ink}"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <Grid Background="Transparent">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Border x:Name="box" Width="18" Height="18" CornerRadius="4" BorderThickness="1.5" BorderBrush="{DynamicResource B.Muted}" Background="{StaticResource FD.Field}" VerticalAlignment="Center" SnapsToDevicePixels="True">
+              <TextBlock x:Name="mark" Text="&#xE73E;" FontFamily="{DynamicResource F.Icons}" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+            </Border>
+            <ContentPresenter Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="False"/>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource B.Ink2}"/></Trigger>
+            <Trigger Property="IsChecked" Value="True"><Setter TargetName="box" Property="Background" Value="{DynamicResource B.Red}"/><Setter TargetName="box" Property="BorderBrush" Value="#FFFF5A63"/><Setter TargetName="mark" Property="Visibility" Value="Visible"/></Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+              <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource B.FocusRing}"/>
+            </MultiTrigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- the list's cells -->
+  <DataTemplate x:Key="FD.NameCell">
+    <StackPanel Orientation="Horizontal" Margin="4,0,0,0">
+      <TextBlock Text="{Binding Glyph}" FontFamily="{DynamicResource F.Icons}" FontSize="15" Foreground="{Binding GlyphBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Text="{Binding Name}" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="FD.DateCell"><TextBlock Text="{Binding DateText}" FontSize="12.5" Foreground="{DynamicResource B.Ink2}" Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/></DataTemplate>
+  <DataTemplate x:Key="FD.TypeCell"><TextBlock Text="{Binding TypeText}" FontSize="12.5" Foreground="{DynamicResource B.Ink2}" Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/></DataTemplate>
+  <DataTemplate x:Key="FD.SizeCell"><TextBlock Text="{Binding SizeText}" FontSize="12.5" Foreground="{DynamicResource B.Ink2}" TextAlignment="Right" HorizontalAlignment="Stretch" Margin="0,0,8,0"/></DataTemplate>
+  <!-- choosing several files: each row's check box shows and changes whether that row is chosen (the row stays the keyboard's stop) -->
+  <DataTemplate x:Key="FD.CheckCell">
+    <CheckBox x:Name="cb" Style="{StaticResource FD.Check}" Focusable="False" IsTabStop="False" Margin="6,0,0,0" AutomationProperties.Name="Chosen"
+              IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}, Mode=TwoWay}"/>
+    <DataTemplate.Triggers>
+      <!-- a folder opens; it is not one of the files chosen -->
+      <DataTrigger Binding="{Binding IsFolder}" Value="True"><Setter TargetName="cb" Property="Visibility" Value="Hidden"/></DataTrigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+  <DataTemplate x:Key="FD.PlaceCell">
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text="{Binding Glyph}" FontFamily="{DynamicResource F.Icons}" FontSize="15" Foreground="{Binding GlyphBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Text="{Binding Name}" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}"/>
+    </StackPanel>
+  </DataTemplate>
+</ResourceDictionary>

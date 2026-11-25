@@ -52,6 +52,9 @@ namespace CcsBackup.Tests
             var probs = ScheduledCheck.RunCheck(s, spec.ReportFolder);
             var reports = Directory.GetFiles(spec.ReportFolder, "Backup check *.json");
             Check(probs.Count == 1 && probs[0].StartsWith("damaged copy.zip") && reports.Length == 1 && Verifier_Ok(b.PrimaryPath), "the check verifies every backup offline, reports the damaged one, and changes no backup");
+            var rows = CcsBackup.Browse.BackupList.List(s); var good = rows.First(r => r.Path == b.PrimaryPath); var badRow = rows.First(r => r.Path == bad);
+            Check(good.StatusText == "Verified" && good.LastVerifiedBy == "check" && good.LastVerifiedUtc > DateTime.UtcNow.AddMinutes(-10) && (badRow.Status == CcsBackup.Browse.BrowseStatus.Damaged || badRow.Status == CcsBackup.Browse.BrowseStatus.Salvage),
+                "the lists show the scheduled check as each file's last full check: Verified now for the good one, Damaged for the changed copy (" + good.CheckText + "; " + badRow.StatusText + ")");
             var s2 = Settings.Portable(Path.Combine(dir, "not-there"), null);
             Check(ScheduledCheck.RunCheck(s2, spec.ReportFolder).Any(p => p.Contains("not available")), "an unavailable backup folder (a disconnected drive) is reported, not skipped silently");
         }

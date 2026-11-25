@@ -122,7 +122,7 @@ namespace ClassicCartStudio
             try
             {
                 var req = (HttpWebRequest)WebRequest.Create(Base + path); req.Method = method; req.Timeout = timeoutMs;
-                req.Headers["Authorization"] = "Bearer " + Token; req.Headers["Origin"] = App.CanonicalOrigin; req.Headers["X-NES-Protocol"] = "1";
+                req.Headers["Authorization"] = "Bearer " + Token; req.Headers["Origin"] = App.CanonicalOrigin; req.Headers["X-CCS-Protocol"] = "1";
                 if (json != null) { var b = Encoding.UTF8.GetBytes(json); req.ContentType = "application/json"; req.ContentLength = b.Length; using (var s = req.GetRequestStream()) s.Write(b, 0, b.Length); }
                 using (var resp = (HttpWebResponse)req.GetResponse()) using (var sr = new StreamReader(resp.GetResponseStream())) return sr.ReadToEnd();
             }

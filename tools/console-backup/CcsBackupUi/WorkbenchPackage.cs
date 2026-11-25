@@ -53,12 +53,12 @@ namespace CcsBackup.Ui
                 var destBackup = migrate ? (dest.SelectedItem as ComboBoxItem)?.Tag as string : backup;
                 if (destBackup == null) return;
                 var tag = History.Peek(destBackup)?.O("console")?.S("tag") ?? "unknown";
-                var d = new Microsoft.Win32.SaveFileDialog { Title = "Save the Private Restore Package", Filter = PackageFilter, FileName = PrivatePackage.FileStem(DateTime.Now, tag) + ".zip", OverwritePrompt = false };
-                if (d.ShowDialog(this) != true) return;
+                var chosenFile = CcsFileDialog.SaveFile(this, "Save the Private Restore Package", null, PrivatePackage.FileStem(DateTime.Now, tag) + ".zip", PackageFilter, false, "restore-package");
+                if (chosenFile == null) return;
                 var pv = new ProgressView(this, "Building the Private Restore Package", "Your backups are checked again and the chosen files copied into one file on this PC. Nothing in the backups changes, and no console is needed.", null, null); Show(pv.Panel, "progress");
                 Task.Run(() =>
                 {
-                    try { return (PackageComposer.Build(items, destBackup, policy, start, d.FileName, opt.Version), (string)null); }
+                    try { return (PackageComposer.Build(items, destBackup, policy, start, chosenFile, opt.Version), (string)null); }
                     catch (Exception ex) when (ex is ComposeException || ex is IOException || ex is UnauthorizedAccessException) { return ((PrivatePackageInfo)null, ex.Message); }
                 }).ContinueWith(t =>
                 {
@@ -70,8 +70,8 @@ namespace CcsBackup.Ui
                         ep.Children.Add(Buttons(B("Back to the Package", "Btn", () => ShowBuildPackage(start, policy, items, planName)), B("Done", "Btn.Ghost", () => Go("Console Composer"))));
                         Show(ep, "msg"); return;
                     }
-                    long bytes = 0; try { bytes = new FileInfo(d.FileName).Length; } catch (IOException) { } catch (UnauthorizedAccessException) { }
-                    ShowPackageBuilt(d.FileName, bytes, info);
+                    long bytes = 0; try { bytes = new FileInfo(chosenFile).Length; } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                    ShowPackageBuilt(chosenFile, bytes, info);
                 }, TaskScheduler.FromCurrentSynchronizationContext());
             }, !migrate || dest.SelectedItem != null);
             if (migrate)
@@ -101,24 +101,24 @@ namespace CcsBackup.Ui
 
         void ShowApplyPackage()
         {
-            var f = new Microsoft.Win32.OpenFileDialog { Title = "Open a Private Restore Package", Filter = PackageFilter };
-            if (f.ShowDialog(this) != true) return;
+            var chosenFile = CcsFileDialog.OpenFile(this, "Open a Private Restore Package", null, PackageFilter, "restore-package");
+            if (chosenFile == null) return;
             PrivatePackageInfo info = null; string why = null;
             try
             {
-                var role = ShareGuard.Classify(f.FileName);
+                var role = ShareGuard.Classify(chosenFile);
                 if (role != FileRole.PrivateRestorePackage) throw new ComposeException("private.role", "This is not a private restore package. " + ShareGuard.Describe(role));
-                info = PrivatePackage.Open(f.FileName, true);
+                info = PrivatePackage.Open(chosenFile, true);
             }
             catch (Exception ex) when (ex is ComposeException || ex is IOException || ex is UnauthorizedAccessException) { why = ex.Message; }
             if (info == null)
             {
                 var ep = SectionHead("This file cannot be applied", "It did not pass the check for a " + FileKinds.Package + ". Nothing was changed.");
-                ep.Children.Add(Note(why ?? "", "bad")); ep.Children.Add(PathText(f.FileName));
+                ep.Children.Add(Note(why ?? "", "bad")); ep.Children.Add(PathText(chosenFile));
                 ep.Children.Add(Buttons(B("Choose Another File…", "Btn", ShowApplyPackage), B("Back", "Btn.Ghost", BackToSection)));
                 Show(ep, "msg"); return;
             }
-            ShowApplyPackageReview(f.FileName, info);
+            ShowApplyPackageReview(chosenFile, info);
         }
 
         /// <summary>a checked private package before a console is connected: the console it is for and the files it holds</summary>

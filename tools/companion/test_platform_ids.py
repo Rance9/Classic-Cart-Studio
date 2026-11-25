@@ -8,7 +8,8 @@ r"""The platform registry and its boundaries in the Windows app's backend and on
                 worker request that name the reserved SNES system, core, model, provider or capability are refused with the plain reason
   inputs        the NES controller definition is the eight actions the players already use, in their order
   build         only the supported core is vendored and pinned as the registry says; no other core, nothing for the reserved one
-  no promise    no page, window or Help text promises SNES; the recovery programs have no input that names a system or provider
+  no promise    no page, window or Help text promises SNES gameplay (the Super NES Classic console's own tasks are supported; its games
+                are not playable in Classic Cart Studio); the recovery programs have no input that names a system or provider
   python tools/companion/test_platform_ids.py      Exit 0 = PASS (a missing Node.js skips only the website half, and says so)."""
 from __future__ import annotations
 import hashlib, io, json, os, re, shutil, subprocess, sys, tempfile, unittest, zipfile
@@ -145,7 +146,7 @@ class T(unittest.TestCase):
 
     def test_page_handoff_refused(self):
         env = dict(os.environ, CCS_STUDIO_DATA=os.path.join(self.tmp, "data"), CCS_COMPANION_CONFIG=os.path.join(self.tmp, "none.json"), CCS_STUDIO_SITE=os.path.join(self.tmp, "site"))
-        code = ("import json,sys; sys.path.insert(0, %r); import nes_companion as N\n"
+        code = ("import json,sys; sys.path.insert(0, %r); import ccs_backend as N\n"
                 "c={'schema':'nes-classic-collection/4','selections':[{'version_id':'0123456789abcdef'}]}\n"
                 "out=[N.handoff_validate({'id':'abcdefgh1','collection':c})[1], N.handoff_validate({'id':'abcdefgh2','collection':dict(c, ccs_target={'schema':'ccs-target/1','game_system':'snes'})})[1],"
                 " N.handoff_validate({'id':'abcdefgh3','collection':dict(c, selections=[{'version_id':'0123456789abcdef','game_system':'snes'}])})[1]]\n"
@@ -166,10 +167,17 @@ class T(unittest.TestCase):
             with self.assertRaises(CI.PlanError) as cm: CI.build_plan(d)
             self.assertEqual(str(cm.exception), P.DOCUMENT_TEXT)
 
-    def test_console_identity_refuses_snes_hardware(self):
+    def test_console_identity_is_the_model_its_board_and_region_name(self):
         from console_engine import ccs_install as CI
-        for system in ("snes-usa", "snes-eur"):
-            with self.assertRaises(CI.Refused): CI.check_device({"hwid": "sim-0005", "system": system, "kernel": CI.SUPPORTED["kernel"], "hakchi": CI.SUPPORTED["hakchi"], "can_interact": True, "custom_firmware": False})
+        base = {"hwid": "sim-0005", "kernel": CI.SUPPORTED["kernel"], "hakchi": CI.SUPPORTED["hakchi"], "can_interact": True, "custom_firmware": False, "data_mount": CI.DATA_MOUNT}
+        for system, board, region, model in (("nes-usa", "dp-nes", "EUR_USA", "nes-classic-edition"), ("snes-usa", "dp-shvc", "USA", "snes-classic-edition"), ("snes-eur", "dp-shvc", "EUR", "snes-classic-edition")):
+            self.assertEqual(CI.check_device(base | {"system": system, "board": board, "region": region})["model"], model)
+        for system, board, region in (("snes-usa", None, None), ("snes-usa", "dp-nes", "USA"), ("shvc-jpn", "dp-shvc", "JPN"), ("nes-usa", "dp-shvc", "USA"), ("hvcj-jpn", "dp-hvcj", "JPN"), ("nes-eur", "dp-nes", "EUR")):
+            with self.assertRaises(CI.Refused, msg=(system, board, region)): CI.check_device(base | {"system": system, "board": board, "region": region})   # no model, another model, or not a supported one
+        # a change on a Super NES Classic needs the registry's own capability for its add-ons; reserved here, so it is refused with its reason
+        why = CI.model_refusal("snes-classic-edition")
+        self.assertEqual(why is None, P.allowed("capability", "snes-classic-addons")); self.assertIsNone(CI.model_refusal("nes-classic-edition"))
+        if why: self.assertIn(P.entry("capability", "snes-classic-addons")["reason"].rstrip("."), why)
 
     def test_worker_request_refused(self):
         from console_engine.worker import Worker
@@ -178,10 +186,12 @@ class T(unittest.TestCase):
             w.out = io.StringIO(); w.handle(json.dumps({"v": 1, "id": "x", "cmd": "capabilities", "args": args})); return json.loads(w.out.getvalue().strip().splitlines()[-1])
         self.assertEqual(ask({})["event"], "result", "a request that names nothing: as before")
         self.assertEqual(ask({"game_system": "nes", "capability": "nes-gameplay"})["event"], "result")
-        for args in ({"physical_model": "snes-classic-edition"}, {"capability": "snes-classic-backup"}, {"capability": "snes-classic-restore"}):   # the console hardware, its supported operations
+        for args in ({"physical_model": "snes-classic-edition"}, {"capability": "snes-classic-backup"}, {"capability": "snes-classic-restore"}, {"capability": "snes-classic-preparation"},
+                     {"capability": "snes-classic-return"}, {"capability": "snes-classic-rescue"}, {"capability": "snes-classic-developer"}, {"capability": "snes-classic-files"},
+                     {"capability": "snes-classic-composition"}, {"capability": "snes-classic-addons"}, {"capability": "snes-classic-firmware"}, {"capability": "snes-classic-community"}):   # the console hardware, its supported operations
             self.assertEqual(ask(args)["event"], "result", args)
         for args in ({"capability": "snes-gameplay"}, {"game_system": "snes"}, {"provider": {"kind": "core", "id": "snes-unselected"}}, {"boot_option": "ccs-snes"},
-                     {"ccs_target": SNES_TARGET}, {"input": "snes-pad"}, {"capability": "snes-classic-preparation"}, {"capability": "snes-classic-addons"}):
+                     {"ccs_target": SNES_TARGET}, {"input": "snes-pad"}, {"capability": "snes-stock-save-conversion"}):
             r = ask(args); self.assertEqual((r["event"], r["code"]), ("error", "unsupported-target"), args); self.assertEqual(r["text"], P.REQUEST_TEXT)
         w.out = io.StringIO(); w.handle(json.dumps({"v": 1, "id": "p", "cmd": "plan", "args": {"manifest": dict(TCP.collection(["0123456789abcdef"]), ccs_target=SNES_TARGET)}}))
         r = json.loads(w.out.getvalue().strip().splitlines()[-1]); self.assertEqual((r["event"], r["code"]), ("error", "unsupported-target"), "a plan request whose collection names SNES")
@@ -215,14 +225,19 @@ class T(unittest.TestCase):
         self.assertTrue(core["build"].startswith(core["pin"][:8] + "+"), core["build"])
         for n in core["notices"]: self.assertTrue(os.path.isfile(os.path.join(REPO, n)), n)
         self.assertIn("FCEUmm", open(os.path.join(REPO, "THIRD_PARTY_NOTICES.md"), encoding="utf-8").read())
-        self.assertEqual(sorted(os.listdir(third)), ["fceumm", "sdl_gamecontrollerdb", "zig-runtime"], "a new third-party folder needs its registry entry (and review) first")
+        self.assertEqual(sorted(os.listdir(third)), ["fceumm", "minimp3", "sdl_gamecontrollerdb", "zig-runtime"], "a new third-party folder needs its registry entry (and review) first")
+        # minimp3 (HOME Music as MP3, built but not shipped): its pinned commit, license and notice, as reviewed when it was added
+        mp3 = open(os.path.join(third, "minimp3", "VENDORED.md"), encoding="utf-8").read(); pin = re.search(r"commit `([0-9a-f]{40})`", mp3).group(1)
+        self.assertTrue(os.path.isfile(os.path.join(third, "minimp3", "LICENSE")))
+        self.assertIn(f"minimp3, commit `{pin}`", open(os.path.join(REPO, "THIRD_PARTY_NOTICES.md"), encoding="utf-8").read())
         snes = P.entry("core", "snes-unselected"); self.assertEqual((snes["bundled"], snes["license"], snes["pin"], snes["source"]), (False, None, None, None))
         hits = [os.path.join(r, f) for r, ds, fs in os.walk(os.path.join(REPO, "tools")) for f in fs + ds if re.search(r"snes9x|bsnes|higan|canoe|\.sfrom$", f, re.I)]
         self.assertEqual(hits, [], "no SNES core, firmware or game file is in the source tree")
 
     # ---- no SNES promise in what people see; the recovery programs take no system
     def test_no_snes_promise_in_ui(self):
-        """the Super NES Classic console is supported hardware (backup, restore, check-up); its games are not: no page may say they play"""
+        """the Super NES Classic console is supported hardware (its console tasks: backup, restore, check-up, preparation, return to its original
+        software, startup-stage repair and Developer Mode, each after its own checks); its games are not: no page may say they play"""
         allowed = {"Do not use it with other models, the Super NES Classic or clones.",   # existing refusals, not promises
                    "The Super NES Classic Edition and the Famicom Mini are different consoles: Workbench does not work with their hardware."}   # About This Console
         hits = []
@@ -236,12 +251,14 @@ class T(unittest.TestCase):
                             s = re.sub(r'^\("[^"]*",\s*"', "", m.group(0).strip())   # a C# (heading, "text") pair: its text
                             plays = re.search(r"\b(play|plays|playing|playable|emulat\w*|core)\b", s, re.I) and not re.search(r"\b(not|no|never|cannot|without|needs?)\b", s, re.I)
                             if s not in allowed and plays: hits.append(f"{f}: {m.group(0).strip()[:120]}")
-        import ast   # the backend's own messages: every string constant in the modules this change touched (the registry's data aside)
-        for f in ("ccs_package.py", "saves_transfer.py", "nes_companion.py", "native_home/config.py", "console_engine/ccs_install.py", "console_engine/worker.py"):
+        import ast   # the backend's own messages: every string constant of these modules, sentence by sentence, by the same rule (the Super NES
+                     # Classic is hardware the console steps check and name; no sentence may say its games play)
+        for f in ("ccs_package.py", "saves_transfer.py", "ccs_backend.py", "native_home/config.py", "console_engine/ccs_install.py", "console_engine/worker.py"):
             for n in ast.walk(ast.parse(open(os.path.join(HERE, *f.split("/")), encoding="utf-8").read())):
-                if isinstance(n, ast.Constant) and isinstance(n.value, str) and re.search(r"\b(snes|super nes|super nintendo)\b", n.value, re.I) and " " in n.value:
-                    if "snes-eur" in n.value or "snes-usa" in n.value: continue   # hakchi's own system codes in the refusal checks and test stand-ins
-                    hits.append(f"{f}: {n.value[:120]}")
+                if isinstance(n, ast.Constant) and isinstance(n.value, str) and " " in n.value:
+                    for m in re.finditer(r"[^.<>]*\b(snes|super nes|super nintendo|super famicom)\b[^.<>]*\.?", n.value, re.I):
+                        t = m.group(0).strip()
+                        if re.search(r"\b(play|plays|playing|playable|emulat\w*|core)\b", t, re.I) and not re.search(r"\b(not|no|never|cannot|without|needs?|only)\b", t, re.I): hits.append(f"{f}: {t[:120]}")
         self.assertEqual(hits, [])
         self.assertNotIn("snes", P.DOCUMENT_TEXT.lower()); self.assertNotIn("snes", P.REQUEST_TEXT.lower())
 

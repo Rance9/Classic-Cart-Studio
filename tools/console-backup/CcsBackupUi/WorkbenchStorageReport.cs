@@ -120,8 +120,9 @@ namespace CcsBackup.Ui
             var result = new StackPanel();
             sp.Children.Add(Buttons(B("Export Report…", "Btn", () =>
             {
-                var dest = PickFolder(); if (dest == null) return;
-                var x = StorageReport.Export(r, dest);
+                var q = new ExportRequest { FolderName = StorageReport.DefaultFolderName };
+                if (!ChooseExportTarget(q, "Export Report", "The figures are saved as a text file in a new folder.")) return;
+                var x = StorageReport.Export(r, q.Destination, q.FolderName);
                 result.Children.Clear();
                 result.Children.Add(x.Ok ? Note("The report was saved and read back: " + x.ManifestPath, "ok") : Note(x.Problem ?? "The report was not saved.", "bad"));
             })));

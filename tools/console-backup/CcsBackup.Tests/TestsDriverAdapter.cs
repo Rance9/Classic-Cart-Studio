@@ -671,11 +671,9 @@ namespace CcsBackup.Tests
                           why + ": not offered, a cleanup call refused, no administrator step (" + o.Message + ")");
                 }
                 Check(OfferNow(p, rec, new DriverUsage { Host = HostKind.Embedded, ParentAppNeedsDevice = false }).Kind == CloseKind.OfferRemoval, "inside Classic Cart Studio once the app no longer needs the console (its own close): offered");
-                var real = new SetupContext { Store = p.Pc, Actions = new WindowsDriverActions(), Ledger = p.Ctx.Ledger };
-                var cu = DriverSetup.CleanUp(real, DriverLedger.Load(rec.File), new DriverUsage()); var ou = OfferNow(p, rec, null, available: false);
-                Check(cu.Result == CleanupResult.Unavailable && cu.Message == string.Format(DriverText.CleanupKeptFormat, DriverText.Because(RetainReason.ActionUnavailable)) && ou.Kind == CloseKind.Message
-                      && ou.Message == cu.Message && CertsOf(p, thumb) == 2 && DriverLedger.Load(rec.File).CleanupState == "deferred",
-                      "this version's real adapter (DriverChanges closed): kept, said so, record unchanged");
+                var ou = OfferNow(p, rec, null, available: false);
+                Check(ou.Kind == CloseKind.Message && ou.Message == string.Format(DriverText.CleanupKeptFormat, DriverText.Because(RetainReason.ActionUnavailable)) && CertsOf(p, thumb) == 2,
+                      "actions that are not available: kept, said so (the real cleanup is open in this version and changes this PC: no test calls it)");
                 p.Pc.Pc = "sim-pc-0002";
                 Check(OfferNow(p, rec).Message == string.Format(DriverText.CleanupKeptFormat, DriverText.Because(RetainReason.OtherPc)) && CleanUpNow(p, rec).Result == CleanupResult.NotEligible, "a record from another PC: never acted on");
                 p.Pc.Pc = "sim-pc-0001";
@@ -870,26 +868,9 @@ namespace CcsBackup.Tests
         // ================================================================== driver-gate
         public static void DriverGate()
         {
-            Check(!CcsBackup.Gate.DriverChanges && CcsBackup.Gate.DriverText == "Setting up or removing the USB driver on this PC is not available in this version.", "the DriverChanges boundary is closed in code, with its plain sentence");
-            var real = new WindowsDriverActions();
-            string m1 = null, m2 = null, m3 = null;
-            try { real.Install(DriverSetupPlan.CcsWinUsb(), ElevationState.Elevated); } catch (DriverActionUnavailableException ex) { m1 = ex.Message; }
-            try { real.Remove(new RemovalPlan { OperationId = Guid.NewGuid().ToString("N"), PublishedName = "oem1.inf", InfSha256 = "a", CatalogSha256 = "b" }, ElevationState.Elevated); } catch (DriverActionUnavailableException ex) { m2 = ex.Message; }
-            try { real.CleanUp(new CleanupPlan { OperationId = Guid.NewGuid().ToString("N"), PublishedName = "oem1.inf", Certificates = { new CertificateEntry { Store = CertStore.Root, Thumbprint = new string('A', 40) } } }, ElevationState.Elevated); }
-            catch (DriverActionUnavailableException ex) { m3 = ex.Message; }
-            Check(!real.Available && m1 != null && m1.StartsWith(CcsBackup.Gate.DriverText) && m2 != null && m2.StartsWith(CcsBackup.Gate.DriverText) && m3 != null && m3.StartsWith(CcsBackup.Gate.DriverText),
-                  "the real setup, removal and later certificate cleanup refuse at once: " + m1);
-            var g1 = false; var g2 = false;
-            try { CallInternal(typeof(WindowsSystemDriverApi), "Open"); } catch (GateClosedException) { g1 = true; }
-            try { CallInternal(typeof(RunasLauncher), "Open", @"C:\Windows\notepad.exe"); } catch (GateClosedException) { g2 = true; }
-            Check(g1 && g2, "the only ways to the real system functions and to Windows' runas refuse while the boundary is closed");
-            var req = DriverActionRequest.ForSetup(new Func<DriverSetupPlan>(() => { var x = DriverSetupPlan.CcsWinUsb(); x.OperationId = Guid.NewGuid().ToString("N"); return x; })()).Encode();
-            var op = Guid.NewGuid().ToString("N");
-            var creq = DriverActionRequest.ForCleanup(new CleanupPlan { OperationId = op, PublishedName = "oem1.inf", Certificates = { new CertificateEntry { Store = CertStore.Root, Thumbprint = new string('A', 40) } } }).Encode();
-            Check(DriverActionHost.Run(new[] { DriverActionHost.Flag, req }) == DriverExit.GateClosed && DriverActionHost.Run(new[] { DriverActionHost.Flag, creq }) == DriverExit.GateClosed
-                  && DriverActionHost.Run(new[] { DriverActionHost.Flag, "garbage" }) == DriverExit.GateClosed,
-                  "the elevated mode itself stops with 'closed' before reading the request or the PC (setup and cleanup requests alike)");
-            Check(DriverText.SetupUnavailableNote == CcsBackup.Gate.DriverText + " " + DriverText.NothingChanged, "the window's setup page says the truth while closed: " + DriverText.SetupUnavailableNote);
+            // The DriverChanges boundary is open in this version. No test calls the real setup, removal or certificate cleanup, the elevated
+            // mode or Windows' runas: they change this PC (its driver store, its certificates) and ask for administrator permission.
+            Check(CcsBackup.Gate.DriverChanges && new WindowsDriverActions().Available, "the DriverChanges boundary is open in code (the real actions are never called by a test)");
 
             // ---- the compiled code: nothing constructs the real functions or the runas launcher, nothing calls their factories, nothing else calls their Windows functions
             var asms = new List<Assembly> { typeof(DriverActionHost).Assembly };
@@ -913,8 +894,10 @@ namespace CcsBackup.Tests
                         }
                     }
             var openIl = Calls(api.GetMethod("Open", BindingFlags.Static | BindingFlags.NonPublic)).ToList(); var runIl = Calls(typeof(DriverActionHost).GetMethod("Run")).ToList();
-            Check(methods > 1000 && siteList.Count == 0 && !openIl.Any(x => x.IsConstructor && x.DeclaringType == api) && !runIl.Any(x => x.Name == "Execute" || x.Name == "Open" || x.DeclaringType == typeof(WindowsDriverStore)) && executeCallers.Count == 0,
-                  "compiled code (" + methods + " methods in " + string.Join(", ", asms.Select(x => x.GetName().Name)) + "): no constructor of the real functions or of runas, and no call to their factories or to the elevated step's Execute, exists anywhere (" + string.Join("; ", siteList.Take(4)) + ")");
+            var expectedSites = new[] { "DriverActionHost.Run -> WindowsSystemDriverApi.Open", "WindowsDriverActions.Install -> RunasLauncher.Open", "WindowsDriverActions.Remove -> RunasLauncher.Open", "WindowsDriverActions.CleanUp -> RunasLauncher.Open" };
+            Check(methods > 1000 && siteList.OrderBy(x => x).SequenceEqual(expectedSites.OrderBy(x => x)) && openIl.Count(x => x.IsConstructor && x.DeclaringType == api) == 1
+                  && runIl.Count(x => x.Name == "Execute") == 1 && runIl.Count(x => x.Name == "Open" && x.DeclaringType == api) == 1 && executeCallers.SequenceEqual(new[] { "Run" }),
+                  "compiled code (" + methods + " methods in " + string.Join(", ", asms.Select(x => x.GetName().Name)) + "): the real functions and Windows' runas are reached in exactly the four places that make the elevated step and the three driver changes, and only the elevated mode's Run calls its Execute (" + string.Join("; ", siteList) + ")");
             Check(pinvokes.Count >= 7 && pinvokeOutside.Count == 0 && api.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).All(c => c.IsPrivate) && run.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).All(c => c.IsPrivate),
                   "the real functions' " + pinvokes.Count + " Windows calls are made only from its own (private-constructor, unconstructed) instance");
             // ---- the source: the factories are named only right after the closed check, in the three places that open the real path

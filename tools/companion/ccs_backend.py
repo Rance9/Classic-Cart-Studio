@@ -22,12 +22,14 @@ with the API, and exposes three JSON endpoints that only the served page can cal
   POST /api/library/adopt     create personal entries for local custom games the inventory does not know (read-only towards Hakchi)
   POST /api/personal/ingest-path  body {path}  (rehearsal/test configurations only: no dialog)
   GET  /api/version           public: app id, version, protocol number, whether this caller is the desktop app (CORS for allow-listed origins only)
-  POST /api/import/pick       body {mode: files|folder} -> native picker on this computer -> background import job {job}
+  POST /api/import/pick       body {mode: files|folder, paths} -> the files or folder chosen in the app's own dialog -> background import job {job}
   GET  /api/import/status?job=..  progress, per-file results, errors; POST /api/import/cancel {job}
   GET  /api/library/store     managed copies of known versions (files the person imported) — what can be prepared without the dev store
-  POST /api/library/locate    body {version_id} -> picker; accepted only when the file's content hash is that version
+  POST /api/library/locate    body {version_id, path} -> accepted only when the chosen file's content hash is that version
+  POST /api/files/*           the app's own Open, Save and folder dialog (local_files.py): places, list, mkdir, stat, grant, write;
+                              GET /api/files/read?token=: a file the person chose (desktop principal only)
 Security: binds 127.0.0.1 only and refuses any Host header other than 127.0.0.1/localhost (DNS rebinding). Two callers exist:
-  * the page served by the companion itself (same origin): POSTs carry X-NES-Token = the per-process token embedded in the page;
+  * the page served by the companion itself (same origin): POSTs carry X-CCS-Token = the per-process token embedded in the page;
   * Classic Cart Studio for Windows (its window shows the bundled site under an allow-listed origin): CORS with an exact-origin
     allow list, OPTIONS preflight (incl. Private Network Access), and Authorization: Bearer <the per-run host token>.
   The public website never authenticates: it may only hand over a collection or a .ccs package (handoff endpoints below).
@@ -43,7 +45,7 @@ import hakchi_bridge as hb
 import bundle_integrity   # noqa: E402  the installation's integrity (nothing is ever downloaded to repair it)
 import hakchi_inspect as hi
 import personal as ps
-import console_runs as cr   # console engine runs (simulation tier; Gate G1 closed in code inside the worker)
+import console_runs as cr   # console engine runs: one worker process per run (Gate G1 in code inside the worker)
 from version import VERSION, CHANNEL, PROTOCOL, APP_ID, SITE_ORIGINS, SITE_URL
 from common import SITE_ROOT, DATA_ROOT, FROZEN, data_path, art_alias
 
@@ -64,7 +66,7 @@ ALLOWED: set = set()
 #      an exact-origin, authenticated caller (the only one besides this server's own page). The token never appears in URLs, logs or pages of other origins.
 HOST_TOKEN = os.environ.pop("CCS_HOST_TOKEN", "") or ""
 HOST_PID = int(os.environ.pop("CCS_HOST_PID", "0") or 0)
-CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "package-jobs", "studio-backup", "game-saves", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides", "play-on-pc", "play-embedded", "included-games"]
+CAPABILITIES = ["library", "personal", "import", "locate", "prepare", "handoff", "ccs-package", "ccs-package-2", "package-save", "package-jobs", "studio-backup", "game-saves", "desktop-state", "shutdown", "console-sim", "native-home-package", "native-preview", "content-overrides", "play-on-pc", "play-embedded", "included-games", "file-dialog"]
 SERVER_REF: dict = {"srv": None}
 def _desktop_principal(auth: str, origin: str) -> dict | None:
     if not HOST_TOKEN or not auth.startswith("Bearer "): return None
@@ -204,23 +206,30 @@ def host_watchdog():
     threading.Thread(target=run, daemon=True, name="host-watchdog").start()
 
 
+PREVIEW_LOCK = threading.Lock()   # one collection check at a time (save_manifest, the plan and the reuse count read and write shared files)
+PREVIEW_QUEUE_WAIT = 300.0        # seconds a second check waits for the one running
+PREVIEW_ENV_WAIT = 2.0            # seconds a check waits for this computer's own checks before it answers with "checking"
 def save_manifest(man: dict) -> str:
+    """the checked collection as a new file of its own: created exclusively, so two saves in the same second never share a name"""
     os.makedirs(CFG["exports_dir"], exist_ok=True)
-    stamp = time.strftime("%Y%m%d-%H%M%S"); p = os.path.join(CFG["exports_dir"], f"{stamp}-selection.json")
-    k = 2
-    while os.path.exists(p): p = os.path.join(CFG["exports_dir"], f"{stamp}-selection-{k}.json"); k += 1
-    open(p, "w", encoding="utf-8").write(json.dumps(man, indent=1)); return p
+    stamp = time.strftime("%Y%m%d-%H%M%S"); data = json.dumps(man, indent=1).encode("utf-8")
+    for k in range(1, 1000):
+        p = os.path.join(CFG["exports_dir"], f"{stamp}-selection.json" if k == 1 else f"{stamp}-selection-{k}.json")
+        try: fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0))
+        except FileExistsError: continue
+        with os.fdopen(fd, "wb") as f: f.write(data)
+        return p
+    raise OSError("no free name for the checked collection's file")
 
 # ---- Classic Cart Studio's HOME on the console (K3; docs/console-install-architecture.md sections 13 and 14) ----
 HOME_OPS = [   # the distinct operations, in the order the app shows them; availability is read from the gate in code, never from the page
     {"id": "prepare", "label": "Prepare the console package", "tier": None, "text": "Builds the HOME menu, the game player and the exact game files of this collection on this computer."},
     {"id": "rehearse", "label": "Rehearse on a simulated console", "tier": "simulate", "text": "Runs every step against a disposable stand-in on this computer: install, update, repair, an interruption, removal and the saves copy."},
-    {"id": "inspect", "label": "Check the console", "tier": "inspect", "text": "Reads your NES Classic over USB: its software, the room left and what is installed. Not available in this version."},
-    {"id": "ram-test", "label": "RAM-only test session", "tier": "ram", "text": "A test that runs from the console's memory only. It needs its own authorization for that exact session and runs from its own helper, not from this app."},
-    {"id": "first-setup", "label": "First-time console setup", "tier": "first-setup", "text": "hakchi's own kernel is installed first with the pinned Hakchi2 CE 3.9.3, as its own approved step. This app does not install firmware."},
-    {"id": "install", "label": "Install or update the HOME", "tier": "install", "text": "Installs the reviewed plan on the checked console after you confirm it. Not available in this version."},
-    {"id": "recover", "label": "Recover or remove", "tier": "install", "text": "Recovers an interrupted installation, or removes the HOME exactly as reviewed; each needs its own confirmation. Not available in this version."},
-    {"id": "export", "label": "Copy the console's saves", "tier": "inspect", "text": "Copies the console's saves, slots and settings to this computer and checks every file. Not available in this version."},
+    {"id": "inspect", "label": "Check the console", "tier": "inspect", "text": "Reads your console over USB: its model, its software, the room left and what is installed. Nothing is changed."},
+    {"id": "first-setup", "label": "First-time console setup", "tier": "workbench", "text": "A console needs hakchi from Hakchi2 CE 3.9.3 first. CCS Console Workbench prepares it (Prepare Console), after a complete backup."},
+    {"id": "install", "label": "Install or update the HOME", "tier": "install", "text": "Installs the reviewed plan on the checked console after you confirm it, with a verified backup of that console first. Every file is read back."},
+    {"id": "recover", "label": "Recover or remove", "tier": "install", "text": "Recovers an interrupted installation, or removes the HOME exactly as reviewed; each needs its own confirmation."},
+    {"id": "export", "label": "Copy the console's saves", "tier": "inspect", "text": "Copies CCS HOME's saves, slots and settings from the console to this computer and checks every file."},
 ]
 HOME_PROFILES_UI = [{"name": "hakchi-ready", "label": "NES Classic with hakchi, room to spare"}, {"name": "nearly-full", "label": "NES Classic with hakchi, nearly full"},
                     {"name": "with-mod", "label": "NES Classic with CCS Mod already installed"},
@@ -228,10 +237,11 @@ HOME_PROFILES_UI = [{"name": "hakchi-ready", "label": "NES Classic with hakchi, 
                     {"name": "with-mod-nucleus", "label": "NES Classic with CCS Mod and CCS Nucleus (CCS HOME opens at power-on)"},
                     {"name": "with-chooser", "label": "NES Classic with CCS Nucleus and its startup chooser"},
                     {"name": "with-all", "label": "NES Classic with CCS Mod, CCS Nucleus and its startup chooser"},
-                    {"name": "stock", "label": "NES Classic without hakchi (first-time setup needed)"}]
+                    {"name": "stock", "label": "NES Classic without hakchi (first-time setup needed)"},
+                    {"name": "snes-ready", "label": "Super NES Classic with hakchi, room to spare"}]
 HOME_SCENARIOS_UI = {"first-install": "First installation", "update": "Update from an earlier HOME", "repeat": "The same HOME again", "repair": "Repair a changed file", "interrupted": "Connection lost during the installation"}
 def _transport_worker() -> dict:
-    """the console transport worker shipped beside the app (tools/console-worker): identified, never started for a connection here"""
+    """the console transport worker shipped beside the app (tools/console-worker): identified here, never started for a connection here"""
     from console_engine.worker_console import worker_exe
     exe = worker_exe()
     if not exe: return {"present": False}
@@ -242,7 +252,8 @@ def _transport_worker() -> dict:
     try:
         with open(os.path.join(bundle_integrity.BUNDLE, bundle_integrity.MANIFEST_NAME), encoding="utf-8") as f: rec = (json.load(f).get("files") or {}).get("console-worker/ccs-console-worker.exe")
     except (OSError, ValueError): pass
-    return {"present": True, "sha256": h, "recorded": bool(rec) and rec.get("sha256") == h, "physical": False, "text": "Present; real connections are closed in this version."}
+    from console_engine import gate as cg
+    return {"present": True, "sha256": h, "recorded": bool(rec) and rec.get("sha256") == h, "physical": cg.allowed("inspect"), "text": "Present." if cg.allowed("inspect") else "Present; real connections are turned off in this build."}
 def console_home_status() -> dict:
     """read directly (no worker is started): the staged package, the PC-side records, the gate, the checked console"""
     from native_home import package as nhp
@@ -261,7 +272,7 @@ def console_home_status() -> dict:
         except (OSError, ValueError): man = None; staged = None
     recs = read_home_records(os.path.join(cr.ROOT, "records"), staged)
     allowed = console_home.DISPATCH.allowed   # the dispatcher's gate: the code constants in the app (a test's own dispatcher answers for itself)
-    st = cg.state(); ops = [dict(o, available=(o["tier"] is None or o["tier"] == "simulate" or (o["tier"] in ("inspect", "install") and allowed(o["tier"])))) for o in HOME_OPS]
+    st = cg.state(); ops = [dict(o, available=(o["tier"] in (None, "simulate", "workbench") or (o["tier"] in ("inspect", "install") and allowed(o["tier"])))) for o in HOME_OPS]
     return {"ok": True, "staged": man, "records": recs, "gate": st, "operations": ops, "profiles": HOME_PROFILES_UI, "scenarios": HOME_SCENARIOS_UI, "transport_worker": _transport_worker(),
             "console": console_home.DISPATCH.status_console()}
 def console_home_post(h, op: str, body: dict):
@@ -271,20 +282,28 @@ def console_home_post(h, op: str, body: dict):
     return h._json(code, obj)
 
 class H(http.server.BaseHTTPRequestHandler):
-    server_version = "nes-companion/1.0"
+    server_version = "ccs-backend/1.0"
     timeout = IDLE_TIMEOUT          # per receive/send on this connection (socket timeout); see IDLE_TIMEOUT
     protocol_version = "HTTP/1.1"   # keep-alive: Chromium reuses the connection it opened for a CORS preflight for the actual request; an
                                     # HTTP/1.0 server closing after the preflight left those requests waiting until the page's timeout
     def log_message(self, fmt, *a):
-        if "/api/" in (a[0] if a else "") and sys.stderr is not None:   # a windowed (frozen) build may have no stderr
+        # request lines for /api/ only. The server also calls this with other arguments: a timed-out idle kept-alive connection logs
+        # ("Request timed out: %r", the exception), which is not a request line and is closed quietly (it was a TypeError before)
+        if a and isinstance(a[0], str) and "/api/" in a[0] and sys.stderr is not None:   # a windowed (frozen) build may have no stderr
             try: sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % a))
             except Exception: pass
+    def log_failure(self, what: str):
+        """a request that failed inside the backend: its reason and traceback in the backend's log (the page gets the reason as well)"""
+        import traceback
+        if sys.stderr is None: return
+        try: sys.stderr.write("%s - %s failed: %s\n" % (self.address_string(), what, traceback.format_exc().rstrip()))
+        except Exception: pass
     def _cors(self):
         """CORS headers only for an exact allow-listed Origin; anything else gets none (the browser then withholds the response)."""
         o = self.headers.get("Origin", "")
         if o and o in ALLOWED:
-            self.send_header("Access-Control-Allow-Origin", o); self.send_header("Vary", "Origin"); self.send_header("Access-Control-Expose-Headers", "X-NES-Protocol, X-NES-Version")
-        self.send_header("X-NES-Protocol", str(PROTOCOL)); self.send_header("X-NES-Version", VERSION)
+            self.send_header("Access-Control-Allow-Origin", o); self.send_header("Vary", "Origin"); self.send_header("Access-Control-Expose-Headers", "X-CCS-Protocol, X-CCS-Version")
+        self.send_header("X-CCS-Protocol", str(PROTOCOL)); self.send_header("X-CCS-Version", VERSION)
     def _json(self, code: int, obj: dict):
         try:   # an unread request body must not leak into the next request on a kept-alive connection. A small one (a refused
             # request's JSON) is read and dropped: closing a socket with unread bytes makes Windows reset the connection, and the client
@@ -320,22 +339,74 @@ class H(http.server.BaseHTTPRequestHandler):
         if not a.startswith("Bearer ") or not o or o not in ALLOWED: return None
         return _desktop_principal(a, o)
     def _protocol_ok(self) -> bool:
-        try: return int(self.headers.get("X-NES-Protocol") or PROTOCOL) <= PROTOCOL
+        try: return int(self.headers.get("X-CCS-Protocol") or PROTOCOL) <= PROTOCOL
         except ValueError: return False
     def _authed(self) -> bool:
         """Same-origin page with the per-process token, or the desktop app with its host token."""
         if not self._host_ok(): return False
-        if self._same_origin() and secrets.compare_digest(self.headers.get("X-NES-Token", ""), TOKEN): return True
+        if self._same_origin() and secrets.compare_digest(self.headers.get("X-CCS-Token", ""), TOKEN): return True
         return self._bearer() is not None
     def do_OPTIONS(self):
         """CORS preflight (incl. Chrome/Edge Private Network Access) for allow-listed origins only."""
         o = self.headers.get("Origin", "")
         if not self._host_ok() or o not in ALLOWED: self.send_response(403); self.send_header("Content-Length", "0"); self.end_headers(); return
-        self.send_response(204); self._cors(); self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS"); self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-NES-Protocol")
+        self.send_response(204); self._cors(); self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS"); self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CCS-Protocol")
         self.send_header("Access-Control-Max-Age", "600")
         if self.headers.get("Access-Control-Request-Private-Network", "").lower() == "true": self.send_header("Access-Control-Allow-Private-Network", "true")
         if self.headers.get("Access-Control-Request-Local-Network", "").lower() == "true": self.send_header("Access-Control-Allow-Local-Network", "true")
         self.send_header("Content-Length", "0"); self.end_headers()
+    def _files_post(self, path: str):
+        import local_files as lf
+        lf.PLACES_OVERRIDE = CFG.get("file_places") if CFG.get("rehearsal_tree") and isinstance(CFG.get("file_places"), list) else None   # tests only
+        if path == "/api/files/write":   # the page's bytes into the file the person chose to save to (its token, from /api/files/grant)
+            tok = dict(x.split("=", 1) for x in (self.path.split("?", 1)[1] if "?" in self.path else "").split("&") if "=" in x).get("token", "")
+            n = int(self.headers.get("Content-Length", "0") or 0)
+            if n > 4_000_000_000: return self._json(413, {"ok": False, "error": "That file is too large to save this way (4 GB at most)."})
+            self._body_read = True
+            def body(f):
+                left = n
+                while left > 0:
+                    b = self._recv(min(1 << 20, left))
+                    if not b: raise ValueError("The file stopped arriving, so it was not saved.")
+                    f.write(b); left -= len(b)
+            r = lf.write_to(self, tok, body); return self._json(200 if r.get("ok") else 409, r)
+        try: body = self._body()
+        except Exception as e: return self._json(400, {"ok": False, "error": f"The request could not be read ({e})."})
+        if path == "/api/files/places": return self._json(200, {"ok": True, "places": lf.places()})
+        if path == "/api/files/list": return self._json(200, lf.list_folder(body.get("path") or ""))
+        if path == "/api/files/stat":
+            ps_ = body.get("paths") if isinstance(body.get("paths"), list) else [body.get("path")]
+            return self._json(200, {"ok": True, "items": [lf.stat(p) for p in ps_[:500]]})
+        if path == "/api/files/mkdir": r = lf.make_folder(body.get("path") or "", body.get("name") or ""); return self._json(200 if r.get("ok") else 409, r)
+        if path == "/api/files/grant":
+            mode = str(body.get("mode") or "")
+            r = lf.grant([str(p) for p in (body.get("paths") or []) if isinstance(p, str)], mode); return self._json(200 if r.get("ok") else 409, r)
+        return self._json(404, {"ok": False, "error": "unknown endpoint"})
+    def _send_chosen(self, token: str):
+        import local_files as lf
+        p = lf.read_path(token)
+        if not p: return self._json(404, {"ok": False, "error": "That file is no longer ready to read. Choose it again."})
+        try:
+            size = os.path.getsize(p)
+            with open(p, "rb") as f:
+                self.send_response(200); self.send_header("Content-Type", "application/octet-stream"); self.send_header("Content-Length", str(size))
+                self.send_header("Cache-Control", "no-store"); self.send_header("X-Content-Type-Options", "nosniff"); self._cors(); self.end_headers()
+                for chunk in iter(lambda: f.read(1 << 20), b""): self.wfile.write(chunk)
+        except OSError as e:
+            try: self._json(409, {"ok": False, "error": f"The file could not be read ({e.strerror or e})."})
+            except Exception: pass
+    def _chosen(self, body: dict, key: str = "path") -> str:
+        """the file or folder the person chose in the app's own dialog, as the page sent it (the desktop principal; a path in a rehearsal
+        configuration too); '' when there is none"""
+        import local_files as lf
+        b = self._bearer()
+        if not ((b and b.get("desktop")) or CFG.get("rehearsal_tree")): return ""
+        return lf.chosen(body, key)
+    def _chosen_list(self, body: dict) -> list:
+        import local_files as lf
+        b = self._bearer()
+        if not ((b and b.get("desktop")) or CFG.get("rehearsal_tree")): return []
+        return lf.chosen_list(body)
     def _html(self, code: int, html: str):
         b = html.encode("utf-8"); self.send_response(code); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(b))); self.send_header("Cache-Control", "no-store")
         self.send_header("X-Frame-Options", "DENY"); self.send_header("Content-Security-Policy", "frame-ancestors 'none'; default-src 'self' 'unsafe-inline'"); self.send_header("Referrer-Policy", "no-referrer"); self.end_headers(); self.wfile.write(b)
@@ -362,6 +433,10 @@ class H(http.server.BaseHTTPRequestHandler):
         if path.startswith("/api/"):
             if not self._protocol_ok(): return self._json(426, {"ok": False, "error": "Classic Cart Studio for Windows on this computer is older than this website expects. Install the latest version from ClassicCartStudio.com/app.", "protocol": PROTOCOL, "version": VERSION})
             if self._cross_site() and not self._bearer(): return self._json(401, {"ok": False, "error": "Only Classic Cart Studio for Windows can use this. Open the Windows app on this computer.", "pair_required": True})
+        if path == "/api/files/read":   # a file the person chose in the app's own dialog, for the page to read (desktop principal only)
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
+            return self._send_chosen(dict(x.split("=", 1) for x in qs.split("&") if "=" in x).get("token", ""))
         if path.startswith(("/api/overrides", "/overrides/")): import overrides as ov; return ov.handle_get(self, path, qs)   # N3 content customization (desktop principal; images like personal art)
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_get(self, path, qs)   # N3: TV Preview drawn by the native HOME renderer (desktop principal)
         if path.startswith("/api/play/"): import play as pl; return pl.handle_get(self, path, qs)   # M3: Play on PC, the game player (desktop principal)
@@ -414,7 +489,7 @@ class H(http.server.BaseHTTPRequestHandler):
             from native_home import package as nhp
             m = nhp.inspect()
             return self._json(200, {"ok": True, "package": m and {k: m.get(k) for k in ("mode", "installable", "not_installable_reason", "configuration", "sizes", "warnings", "blockers")}, "root": nhp.package_root()})
-        if path == "/api/home/console":   # the MOCK console store (simulation; Gate G1 not approved, no device)
+        if path == "/api/home/console":   # the MOCK console store (a simulation of the HOME sync rules; no device)
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             import home_sync as hs; return self._json(200, {"ok": True, "simulation": True, "console": hs.MockConsoleStore(data_path("mock-console.json")).load()})
@@ -439,7 +514,7 @@ class H(http.server.BaseHTTPRequestHandler):
         if not os.path.isfile(fp) and rel.startswith("art/"): fp = os.path.join(ROOT, art_alias(rel))   # the installed site keeps one copy of byte-identical covers
         if not os.path.isfile(fp): self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return   # keep-alive: an empty, complete response
         if rel == "nes-catalog.html":
-            html = open(fp, encoding="utf-8").read().replace('<meta name="nes-companion-token" content="">', f'<meta name="nes-companion-token" content="{TOKEN}">', 1).encode("utf-8")
+            html = open(fp, encoding="utf-8").read().replace('<meta name="ccs-backend-token" content="">', f'<meta name="ccs-backend-token" content="{TOKEN}">', 1).encode("utf-8")
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(html))); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(html); return
         ctype = mimetypes.guess_type(fp)[0] or "application/octet-stream"
         with open(fp, "rb") as f: data = f.read()
@@ -492,7 +567,11 @@ class H(http.server.BaseHTTPRequestHandler):
             b = self._bearer()
             if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Available only in Classic Cart Studio for Windows."})
             import package_api as pk; return pk.handle_post(self, path, data_path, VERSION, CFG)
-        if path.startswith("/api/overrides/"): import overrides as ov; return ov.handle_post(self, path, CFG, ps.pick_file)   # N3: before _body(): image uploads stream to disk
+        if path.startswith("/api/overrides/"): import overrides as ov; return ov.handle_post(self, path, CFG)   # N3: before _body(): image uploads stream to disk
+        if path.startswith("/api/files/"):   # the app's own Open, Save and folder dialog: desktop principal only (local_files.py)
+            b = self._bearer()
+            if not (b and b.get("desktop")): return self._json(403, {"ok": False, "error": "Choosing files and folders works only in Classic Cart Studio for Windows."})
+            return self._files_post(path)
         try: body = self._body()
         except Exception as e: return self._json(408 if getattr(self, "_stalled", False) else 400, {"ok": False, "error": f"The request could not be read ({e})."})
         if path.startswith("/api/preview/"): import native_preview as npv; return npv.handle_post(self, path, body)   # N3: TV Preview (desktop principal)
@@ -510,9 +589,9 @@ class H(http.server.BaseHTTPRequestHandler):
                 if srv: threading.Thread(target=srv.shutdown, daemon=True).start()
                 return
             if path.startswith("/api/console/"):
-                # Console engine, simulation tier. Every call goes to an isolated worker process over the line protocol; the
-                # worker addresses plans by hash and can only open the fake transport. `execute` (the older game sync through
-                # hakchi, G2) is retired: refused here, whatever the gate says, without a worker; only /api/console/home/* reaches a console.
+                # Console engine. Every call goes to an isolated worker process over the line protocol; the worker addresses plans by hash.
+                # The older plan's routes below open only its fake transport (the older game sync through hakchi is not part of Classic Cart
+                # Studio and has no route); only /api/console/home/* reaches a console.
                 if path.startswith("/api/console/home/"): return console_home_post(self, path[len("/api/console/home/"):], body)
                 op = path[len("/api/console/"):]; prof = re.sub(r"[^a-z0-9-]", "", str(body.get("profile") or ""))[:40]
                 if op == "identify": r = cr.call("identify", {"profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "device": r.get("result"), "error": r.get("text")})
@@ -529,7 +608,6 @@ class H(http.server.BaseHTTPRequestHandler):
                     rid = cr.start("simulate", {"plan_hash": h, "profile": prof}); return self._json(200, {"ok": True, "run": rid, "simulated": True})
                 if op == "verify":
                     r = cr.call("verify", {"plan_hash": h, "profile": prof or "no-device"}); return self._json(200 if r.get("event") == "result" else 400, {"ok": r.get("event") == "result", "verify": r.get("result"), "error": r.get("text")})
-                if op == "execute": return self._json(403, {"ok": False, "error": "Syncing games through hakchi is not part of Classic Cart Studio.", "code": "physical-disabled", "physical": False})
                 if op == "cancel": return self._json(200, {"ok": True, **cr.cancel(re.sub(r"[^A-Za-z0-9-]", "", str(body.get("run") or ""))[:40])})
                 if op == "recover": r = cr.call("recover", {"stage": re.sub(r"[^a-z-]", "", str(body.get("stage") or ""))[:20]}); return self._json(200, {"ok": True, **(r.get("result") or {})})
                 return self._json(404, {"ok": False, "error": "unknown console operation"})
@@ -544,13 +622,9 @@ class H(http.server.BaseHTTPRequestHandler):
                 try:
                     if op == "clear": return self._json(200, {"ok": True, "art": fa.clear(fid)})
                     if op == "describe": return self._json(200, {"ok": True, "art": fa.describe(fid)})
-                    if op in ("pick", "set"):
-                        if body.get("path"):
-                            if not CFG.get("rehearsal_tree"): return self._json(403, {"ok": False, "error": "setting artwork from a path is available only in rehearsal configurations"})
-                            chosen = str(body.get("path"))
-                        else:
-                            chosen = ps.pick_file("Choose artwork for this folder (PNG, JPEG, WebP, BMP or GIF)", [("Images", "*.png *.jpg *.jpeg *.webp *.bmp *.gif"), ("All files", "*.*")])
-                            if not chosen: return self._json(200, {"ok": False, "canceled": True})
+                    if op in ("pick", "set"):   # the picture the person chose in the app's own dialog
+                        chosen = self._chosen(body)
+                        if not chosen: return self._json(200, {"ok": False, "canceled": True})
                         return self._json(200, {"ok": True, "art": fa.set_art(fid, chosen)})
                     return self._json(400, {"ok": False, "error": "unknown artwork operation"})
                 except ValueError as e: return self._json(400, {"ok": False, "error": str(e)})
@@ -562,7 +636,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 try: saved = home_state_save(st)
                 except Exception as e: return self._json(500, {"ok": False, "error": f"Could not save the HOME settings on this computer ({e})."})
                 return self._json(200, {"ok": True, "saved_at": saved.get("saved_at")})
-            if path == "/api/home/sync":   # one sync round against the MOCK console store; never a device (Gate G1 not approved)
+            if path == "/api/home/sync":   # one sync round against the MOCK console store (a simulation of the HOME sync rules); never a device
                 import home_sync as hs
                 man = body.get("manifest") if isinstance(body, dict) else None; st = body.get("state") if isinstance(body, dict) else None
                 if not isinstance(man, dict) or not isinstance(st, dict): return self._json(400, {"ok": False, "error": "The collection or its HOME settings were not sent. Reload the page and try again."})
@@ -590,10 +664,10 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json(200, {"ok": True, "offer": {k: item[k] for k in ("id", "name", "count", "schema", "received", "fingerprint", "taken_at", "collection")}})
         if path.startswith("/api/import/") or path == "/api/library/locate":
             try:
-                if path == "/api/import/pick":
+                if path == "/api/import/pick":   # the files, or the one folder, the person chose in the app's own dialog
                     mode = str(body.get("mode") or "files")
-                    if mode == "folder": f = ps.pick_folder("Add games from a folder (game files and ZIP archives inside it)"); items = [f] if f else []
-                    else: items = ps.pick_files("Add games from files (game files or ZIP archives)", [("NES game files and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")])
+                    items = self._chosen_list(body)
+                    if mode == "folder": items = items[:1]
                     if not items: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, "job": ps.start_import(items), "items": len(items)})
                 if path == "/api/import/start":
@@ -604,7 +678,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 if path == "/api/library/locate":
                     vid = re.sub(r"[^0-9a-f]", "", str(body.get("version_id") or ""))[:16]
                     if not ps.version_known(vid): return self._json(409, {"ok": False, "error": "This game version is not in the Game Library."})
-                    f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else (ps.pick_files("Locate the game file for this version", [("NES game files and archives", "*.nes *.unh *.unif *.bin *.rom *.fds *.zip"), ("All files", "*.*")]) or [""])[0]
+                    f = self._chosen(body)
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.locate_version(vid, f)})
             except ValueError as e: return self._json(409, {"ok": False, "error": str(e)})
@@ -632,8 +706,8 @@ class H(http.server.BaseHTTPRequestHandler):
         if path.startswith("/api/personal/") or path == "/api/library/adopt":
             try:
                 root = os.path.dirname(CFG["hakchi_exe"]); eid = str(body.get("id") or "")
-                if path == "/api/personal/pick":
-                    f = ps.pick_file("Add Your Own Game — choose a game file or ZIP", [("NES game files and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
+                if path == "/api/personal/pick":   # the game file the person chose in the app's own dialog
+                    f = self._chosen(body)
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.ingest(f)})
                 if path == "/api/personal/included":   # the Included Games shipped in this app's site (included/index.json): each file checked against its record, then kept like a person's own game
@@ -660,7 +734,7 @@ class H(http.server.BaseHTTPRequestHandler):
                     if not CFG.get("rehearsal_tree"): return self._json(403, {"ok": False, "error": "path ingestion is available only in rehearsal configurations"})
                     return self._json(200, {"ok": True, **ps.ingest(str(body.get("path") or ""), origin=str(body.get("origin") or "file"), local_code=str(body.get("local_code") or ""), local_name=str(body.get("local_name") or ""))})
                 if path == "/api/personal/relink":
-                    f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Locate the game file", [("NES game files and archives", "*.nes *.unh *.bin *.fds *.zip"), ("All files", "*.*")])
+                    f = self._chosen(body)
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     want = str(body.get("content_sha256") or "")   # a game a collection names by its content, with no record here yet (Codex v1p4 F2)
                     if want and eid not in (ps.load_index().get("entries") or {}): return self._json(200, {"ok": True, **ps.locate_exact(eid, f, want)})
@@ -677,7 +751,7 @@ class H(http.server.BaseHTTPRequestHandler):
                         except ValueError: edits = None
                     return self._json(200, {"ok": True, **ps.merge_metadata(eid, body.get("meta") if isinstance(body.get("meta"), dict) else {}, art=art, edits=edits)})
                 if path == "/api/personal/art":
-                    f = str(body.get("path") or "") if CFG.get("rehearsal_tree") and body.get("path") else ps.pick_file("Choose artwork", [("Images", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")])
+                    f = self._chosen(body)
                     if not f: return self._json(200, {"ok": False, "canceled": True})
                     return self._json(200, {"ok": True, **ps.set_art(eid, f)})
                 if path == "/api/personal/remove": return self._json(200, {"ok": True, **ps.remove(eid, bool(body.get("delete_copy")))})
@@ -702,6 +776,10 @@ class H(http.server.BaseHTTPRequestHandler):
                 if d_o or d_c: conflict = {"changed_factory": d_o, "changed_custom": d_c, "names": {c: cur["names"].get(c, c) for c in d_o + d_c}, "baseline_captured": base.get("captured")}
             except Exception as e: conflict = {"error": f"Could not compare with the games set up in Hakchi on this computer ({e})."}
         if path == "/api/preview":
+            # one check at a time (a second request waits for the first: two checks never run side by side), and it never waits for this
+            # computer's slower checks (Hakchi2 CE open, the console's USB connection, its driver): their last answer comes back as it is,
+            # marked "checking" while a new one runs, and the page follows /api/status for it; preparing checks them again itself
+            if not PREVIEW_LOCK.acquire(timeout=PREVIEW_QUEUE_WAIT): return self._json(409, {"ok": False, "busy": True, "error": "Another check of a collection is still running. Wait for it, then check again."})
             try:
                 mf = save_manifest(man); pv = hb.plan(man, approve_alternates=bool(CFG.get("approve_alternates", False)))
                 pv_out = {k: pv[k] for k in ("can_apply", "problems", "warnings", "summary", "games")}
@@ -710,9 +788,15 @@ class H(http.server.BaseHTTPRequestHandler):
                     pv_out["summary"]["reused"] = hb.already_prepared(pv, hb.HakchiTree(os.path.dirname(CFG["hakchi_exe"])))
                     pv_out["summary"]["to_prepare"] = pv_out["summary"]["to_prepare_total"] - pv_out["summary"]["reused"]
                 except Exception: pass
-                env = status_payload(wait=20)
-                return self._json(200, {"ok": True, "manifest_file": os.path.basename(mf), "preview": pv_out, "env": env, "conflict": conflict})
-            except Exception as e: return self._json(500, {"ok": False, "error": f"Could not check the collection ({e}). Try again."})
+                env = status_payload(wait=PREVIEW_ENV_WAIT)
+                answer = (200, {"ok": True, "manifest_file": os.path.basename(mf), "preview": pv_out, "env": env, "conflict": conflict})
+            except Exception as e:
+                self.log_failure("the collection check (/api/preview)")   # the technical reason and its traceback go to the log
+                why = "A file or folder Classic Cart Studio uses could not be read or written." if isinstance(e, OSError) else "Something in the collection could not be read."
+                answer = (500, {"ok": False, "error": why + " Try again; if it happens again, Classic Cart Studio's log has the details."})
+            finally: PREVIEW_LOCK.release()
+            try: return self._json(*answer)
+            except (ConnectionError, TimeoutError): return None   # the page went away before the answer: the check itself was not a failure
         if path == "/api/apply":
             mf = body.get("manifest_file") or ""
             if not re.match(r"^[0-9]{8}-[0-9]{6}-selection(-\d+)?\.json$", mf): return self._json(400, {"ok": False, "error": "Check the collection again, then apply it."})

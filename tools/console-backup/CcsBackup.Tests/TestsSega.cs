@@ -70,7 +70,7 @@ namespace CcsBackup.Tests
             }
             Check(SegaCleanup.NeverWritten("hakchi/games/nes-usa/CLV-H-AAAAA/CLV-H-AAAAA_mdmini.png") && !SegaCleanup.NeverWritten("hakchi/games/nes-usa/CLV-H-AAAAA/CLV-H-AAAAA.png") && !SegaCleanup.NeverWritten("ccs/data/x_mdmini.png"),
                   "Workbench never writes a picture for the Sega Mini menu into hakchi's game folders");
-            Check(!CcsBackup.Gate.CleanupWrites && CcsBackup.Gate.CleanupText.Contains("not available"), "a real console: the clean-up's boundary is closed in code");
+            Check(CcsBackup.Gate.CleanupWrites, "a real console: the clean-up's boundary is open in this version (its eligibility and strict-policy checks still apply)");
             SegaRuns();
         }
 
@@ -166,10 +166,11 @@ namespace CcsBackup.Tests
                 // Console Composer leaves these pictures out (rebuild from the backup made before the removal)
                 var (cp, cw) = ComposerEngine.Plan(RecoverySessions.OpenSimulated(c, ImageKind.Files), ctx, "rebuild", new[] { new ComposeItem { SourceBackup = p.Protective.Path, SourcePath = f + "/CLV-S-00001_mdmini.png" }, new ComposeItem { SourceBackup = p.Protective.Path, SourcePath = save } });
                 Check(cp != null && cp.Changes.All(x => !SegaPictures.LooksLike(Path.GetFileName(x.Path))) && cp.Skipped.Any(x => x.Contains(SegaCleanup.NotWritten)), "Console Composer never writes a picture for the Sega Mini menu (" + (cw ?? string.Join(" | ", cp.Skipped)) + ")");
-                // an SNES Classic: this version has no file changes for it
-                var sn = SnesConsole("modified-noorig");
+                // a Super Famicom (JPN) console: refused before anything is read or backed up (a North American or European Super NES Classic
+                // has its own clean-up run in the snes-data group)
+                var sn = SnesConsole("modified-noorig", "JPN");
                 var (sp_, sw) = SegaCleanup.PlanRemove(RecoverySessions.OpenSimulated(sn, ImageKind.Files), Ctx(SettingsIn(NewDir("sega-snes"), false), ImageKind.Files));
-                Check(sp_ == null && sw.Contains("not available"), "an SNES Classic: refused before anything is read or backed up (" + sw + ")");
+                Check(sp_ == null && sw.Contains("JPN") && Writes(sn).Count == 0, "a Super Famicom (JPN) console: refused before anything is read or backed up (" + sw + ")");
             }
             finally { SimulatedConsole.FileStore = null; }
         }

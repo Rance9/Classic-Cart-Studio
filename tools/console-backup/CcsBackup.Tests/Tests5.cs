@@ -125,6 +125,19 @@ namespace CcsBackup.Tests
                 "restored: every storage part is byte for byte the backup made before preparing (Nintendo's system, the 30 games, every save and other programs' files as they were then) (" + bo.Problem + ")");
             Check(Md5(File.ReadAllBytes(SimulatedConsole.Dev(c, "boot2"))) == sv.Members["restore/boot2-active.img"].md5 && Md5(File.ReadAllBytes(SimulatedConsole.Dev(c, "boot1"))) == snapBoot1 && bp.Notes.Any(n => n.Contains("spare copy of the original")),
                 "the original kernel runs; the original kernel's spare copy is left in place, as the restore says (a safety copy)");
+            // prepared again after the return and the restore: like an original console, the spare copy of the original kernel kept as it is
+            var (rp, rr, rcon, rctx, radm) = PrepPlanFor(c, s);
+            Check(rr == null && rp != null && rp.State == "original" && rp.Steps.SequenceEqual(Preparation.Order) && rp.Notes.Any(n => n.Contains("already holds a copy of this same original")),
+                "a console returned to its original software (its spare slot keeps the same original kernel) can be prepared again (" + (rr?.Problem ?? rp?.Refusal) + ")");
+            if (rcon != null) { var rid = rcon.Identify(); Check(Preparation.ReturnedToOriginal(rid, Support.Classify(rid)), "the add-on pages use the same rule: the returned console is original there too, so CCS Mod and CCS Nucleus are offered while it is prepared again"); }
+            if (rp != null)
+            {
+                File.Delete(Path.Combine(c, "writes.log"));
+                var ro = Preparation.Execute(rcon, rp, rp.Digest, rp.Nonce, rctx, () => UsePrep(s, radm, rcon, rp));
+                Check(ro.Ok && !Writes(c).Contains("prep slot68") && File.ReadAllBytes(SimulatedConsole.Dev(c, "boot1")).SequenceEqual(SimulatedConsole.SimHakchiUboot) && File.Exists(Path.Combine(c, "prepared-files.txt"))
+                      && Md5(File.ReadAllBytes(SimulatedConsole.Dev(c, "boot2-68"))) == sv.Members["restore/boot2-active.img"].md5,
+                    "prepared again: hakchi's bootloader, kernel and files; the spare copy of the original kernel was already there and is not written again (" + ro.Problem + ")");
+            }
             var inv = sv.Members.ContainsKey(BackupFormat.InventoryName);
             Check(inv && Verifier.VerifyFile(snap).Ok && Verifier.VerifyFile(plan.ProtectivePath).Ok, "the backup made before preparing and the one from the return session are unchanged and verified (the save made after preparing stays available in the latter)");
             // the snapshot does not hold a complete bootloader image: refused before anything (the bytes to write are not known)
@@ -164,8 +177,7 @@ namespace CcsBackup.Tests
             var o3 = ReturnEngine.Execute(con3, plan3, plan3.Digest, plan3.Nonce, ctx3);
             Check(o3.State == "stopped" && o3.Done.Count == 0 && Writes(c3).Count == 0 && Record.Load(o3.RecordFile).S("state") == "stopped", "the kernel step fails: stopped there, nothing after it, nothing retried, recorded (" + o3.Problem + ")");
             // the real console stays behind its own closed boundary
-            try { RecoverySessions.OpenReal(ImageKind.Return, null, () => false); Check(false, "a real return session opened"); }
-            catch (GateClosedException ex) { Check(!CcsBackup.Gate.ReturnWrites && ex.Message.Contains("not available"), "a real console: closed in code, before any USB activity (" + ex.Message + ")"); }
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.ReturnWrites && RecoverySessions.Refusal(ImageKind.Return) == null, "a real console: Return to Original Software's boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
         }
     }
 }

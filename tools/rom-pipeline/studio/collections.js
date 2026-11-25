@@ -166,20 +166,12 @@ function csFileFor(r, o){ return csWithRecord(r, ()=>{ const m=buildManifest(); 
 // ---- file names (always editable) ----
 function csStamp(){ const d=new Date().toISOString(); return d.slice(0,10)+' '+d.slice(11,19).replace(/:/g,'-')+' UTC'; }
 function csSafeName(n, ext){ n=String(n||'').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,' ').replace(/\s+/g,' ').trim().slice(0,150); if(!n) n='Classic Cart Studio'; if(ext&&!n.toLowerCase().endsWith(ext)) n+=ext; return n; }
-// Save As: the system's own dialog when the browser or the app supports it (name and folder chosen there); otherwise an editable name
-// first, then the browser's download (its own settings decide the folder)
-async function ccsSaveFile(defName, blob, kind){ const ext=(defName.match(/\.[a-z0-9]+$/i)||[''])[0].toLowerCase(); const mime=blob.type||'application/octet-stream';
- if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({suggestedName:defName, types:[{description:kind||'File', accept:{[mime]:[ext]}}]}); const w=await h.createWritable(); await w.write(blob); await w.close(); return {ok:true, name:h.name}; }
-  catch(e){ if(e&&e.name==='AbortError') return {ok:false, canceled:true}; } }
- return new Promise(res=>{ let m=document.getElementById('savem'); if(!m){ m=document.createElement('div'); m.id='savem'; m.className='modal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-labelledby','savemT'); document.body.appendChild(m); }
-  m.innerHTML=`<div class="mbox" style="max-width:560px"><div class="mhd"><h2 id="savemT">Save ${esc(kind||'File')}</h2></div><div class="fld"><label for="savemN">File name</label><input type="text" id="savemN" value="${esc(defName)}" spellcheck="false"></div><p class="small">Your browser saves it to its usual download location.</p><div class="acts"><span class="sp"></span><button class="btn" id="savemC">Cancel</button><button class="btn hk" id="savemS">Save</button></div></div>`;
-  m.classList.add('open'); const inp=$('savemN'); inp.focus(); inp.setSelectionRange(0, Math.max(0, inp.value.length-ext.length));
-  const done=r=>{ m.classList.remove('open'); res(r); };
-  $('savemC').onclick=()=>done({ok:false,canceled:true}); m.onkeydown=e=>{ if(e.key==='Escape') done({ok:false,canceled:true}); if(e.key==='Enter'&&e.target===inp) $('savemS').click(); };
-  $('savemS').onclick=()=>{ const name=csSafeName(inp.value, ext); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000); done({ok:true,name,download:true}); }; }); }   // download: handed to the browser's downloads (no path or finished write is known)
+// Save As: the app's own Save dialog in Classic Cart Studio for Windows; on the website the browser's own Save picker where the browser has it,
+// otherwise an editable name first, then the browser's download (its own settings decide the folder) (files.js, CCSF.saveBlob)
+async function ccsSaveFile(defName, blob, kind){ return CCSF.saveBlob(defName, blob, kind); }
 window.ccsSaveFile=ccsSaveFile;
 // ---- Export Collection ----
-async function csExport(id){ id=id||CS.active; const r=CS.items[id]; if(!r) return; if(id===CS.active&&typeof confirmExportWarnings==='function'&&!confirmExportWarnings()) return;
+async function csExport(id){ id=id||CS.active; const r=CS.items[id]; if(!r) return; if(id===CS.active&&typeof confirmExportWarnings==='function'&&!(await confirmExportWarnings())) return;
  try{ if(typeof suEnsure==='function') await suEnsure([r]); }catch(e){ toast(`The file was not saved: ${e.message}.`); return; }
  const m=csFileFor(r, {export:true}); const res=await ccsSaveFile(`Classic Cart Studio Collection Backup ${csStamp()}.json`, new Blob([JSON.stringify(m,null,1)],{type:'application/json'}), 'Collection File');
  if(!res.ok) return; if(id===CS.active){ COLL.savedToFile={at:csNow(),fp:collFingerprint()}; saveColl(); updateStatusLine(); }
@@ -232,13 +224,13 @@ async function csImportObject(obj, fileName){ if(!obj||typeof obj!=='object'){ c
   csSwitch(last.id, true); toast(`Imported ${n} collection${n===1?'':'s'}${miss?` · ${miss} game${miss===1?'':'s'} ${csAwayWord()}`:''}`); csMenuRefresh(); return n; }
  if(typeof KNOWN_SCHEMAS!=='undefined'&&KNOWN_SCHEMAS.includes(obj.schema)){ const r=csCreate(obj.name||(fileName||'Imported collection').replace(/\.json$/i,'')); csSwitch(r.id, true); const res=await applyManifest(obj, fileName, 'before importing a collection file'); if(res){ COLL.name=r.name; saveColl(); updateStatusLine(); csSaveActiveNow(); } return res?1:0; }
  csNotCollection(fileName); return 0; }
-function csImportPick(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json'; inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; f.text().then(t=>{ let o; try{ o=JSON.parse(t); }catch(e){ csNotCollection(f.name); return; } csImportObject(o, f.name); }); }; inp.click(); }
+function csImportPick(){ cvPick('application/json,.json', false, 'Import a collection file').then(fs=>{ const f=fs[0]; if(!f) return; f.text().then(t=>{ let o; try{ o=JSON.parse(t); }catch(e){ csNotCollection(f.name); return; } csImportObject(o, f.name); }); }); }
 // ---- Save Lists and Settings / Restore Lists and Settings: every collection, library favorites, settings and recovery snapshots ----
 function csBackupObject(o){ csSaveActiveNow(); return {schema:SBACKUP_SCHEMA, exported:csNow(), app:'Classic Cart Studio', origin:location.origin, active:CS.active, collections:csList().map(r=>csRecordOut(r, o)), favorites:[...fav], view:(typeof view==='string'?view:'list'), extended:localStorage.getItem(EKEY)||'', welcomed:!!localStorage.getItem(WKEY), snapshots:JSON.parse(localStorage.getItem(SKEY)||'[]')}; }
 async function csBackup(){ csSaveActiveNow(); try{ if(typeof suEnsure==='function') await suEnsure(csList()); }catch(e){ toast(`The file was not saved: ${e.message}.`); return; } const d=csBackupObject({export:true});
  if(typeof gsCurrent==='function'&&!(typeof gsApp==='function'&&gsApp())){ try{ d.game_settings=await gsCurrent(); }catch(e){ toast(`The file was not saved. ${e.message}`); return; } }   /* the Game Settings as they are now (the browser player's files): an unread or older copy is never saved as current */ const res=await ccsSaveFile(`Classic Cart Studio Collections Without Game Files ${csStamp()}.json`, new Blob([JSON.stringify(d,null,1)],{type:'application/json'}), 'Collections without game files');
  if(res.ok) toast(`${res.download?'Your browser is saving':'Saved'} ${d.collections.length} collection${d.collections.length===1?'':'s'}, favorites and settings (no game files) ${res.download?'to its downloads as':'to'} ${res.name}`); }
-function csRestorePick(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json'; inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; f.text().then(t=>{ let o; try{ o=JSON.parse(t); }catch(e){ toast('That file is not a Classic Cart Studio backup file'); return; } csRestoreDialog(o, f.name); }); }; inp.click(); }
+function csRestorePick(){ cvPick('application/json,.json', false, 'Restore from a backup file').then(fs=>{ const f=fs[0]; if(!f) return; f.text().then(t=>{ let o; try{ o=JSON.parse(t); }catch(e){ toast('That file is not a Classic Cart Studio backup file'); return; } csRestoreDialog(o, f.name); }); }); }
 function csRestoreDialog(d, fileName){ const v1=d&&d.schema==='nes-classic-studio-data/1', v2=d&&d.schema===SBACKUP_SCHEMA; if(!v1&&!v2){ if(d&&(d.ccs_collection||(typeof KNOWN_SCHEMAS!=='undefined'&&KNOWN_SCHEMAS.includes(d.schema))||d.schema===CBUNDLE_SCHEMA)){ csImportObject(d, fileName); return; } toast('That file is not a Classic Cart Studio backup file'); return; }
  const cols=v2?(d.collections||[]):((Array.isArray(d.selection)&&d.collection)?[{name:(d.collection||{}).name||'Restored collection', sel:d.selection, decisions:d.decisions||{}, coll:d.collection||{}, home:null}]:[]);
  const have=new Set(Object.keys(CS.items));

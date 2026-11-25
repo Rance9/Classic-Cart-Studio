@@ -42,10 +42,13 @@ namespace CcsBackup.Tests
                       && KnownKernels.ReleaseFor(ConsoleModels.Snes, "USA", usa14) == "kernel-dp-snesusa-release-v2.0.14-0-gd8b65c6"
                       && KnownKernels.Sha256ByMd5[usa14] == "a358326433d7bb5d1093d313fd7656f8706b493972cea446fd926437704f8911",
                       "a kernel is stock only for its own model and region: the North American and European lists are separate, the Super Famicom's is not used, and the NES Classic's list is unchanged");
-                var on = new[] { "identify", "backup", "restore" }; var off = new[] { "preparation", "return", "rescue", "files", "developer", "composition", "addons", "firmware", "community" };
-                Check(on.All(o => ConsoleModels.Snes.Refusal(o) == null) && off.All(o => (ConsoleModels.Snes.Refusal(o) ?? "").StartsWith("This operation is not available for the Super NES Classic Edition in this version: ", StringComparison.Ordinal))
-                      && on.Concat(off).All(o => ConsoleModels.Nes.Refusal(o) == null) && Capabilities.Allowed("capability", "snes-classic-browse") && !Capabilities.Allowed("game-system", "snes"),
-                      "backup, restore and the check-up are available for the Super NES Classic; each other operation is refused with its own reason; the NES Classic's operations are as before; its games stay unplayable (" + ConsoleModels.Snes.Refusal("preparation") + ")");
+                // which operations the Super NES Classic has comes from the registry's capabilities alone; these are required in this version
+                var ops = new[] { "identify", "backup", "restore", "preparation", "return", "rescue", "files", "developer", "composition", "addons", "firmware", "community" };
+                var on = ops.Where(o => Capabilities.Allowed("capability", "snes-classic-" + o)).ToArray(); var off = ops.Except(on).ToArray();
+                Check(ops.All(on.Contains) && on.All(o => ConsoleModels.Snes.Refusal(o) == null)
+                      && off.All(o => (ConsoleModels.Snes.Refusal(o) ?? "").StartsWith("This operation is not available for the Super NES Classic Edition in this version: ", StringComparison.Ordinal))
+                      && ops.All(o => ConsoleModels.Nes.Refusal(o) == null) && Capabilities.Allowed("capability", "snes-classic-browse") && !Capabilities.Allowed("game-system", "snes"),
+                      "the Super NES Classic's operations follow the registry (available: " + string.Join(", ", on) + "; any other refused with its own reason); the NES Classic's operations are as before; its games stay unplayable");
                 var jpn = ConsoleIdentity.Parse("ccsbr=1\nboard=dp-shvc\nregion=JPN\nend=1\n"); var nob = ConsoleIdentity.Parse("ccsbr=1\nend=1\n");
                 Check(ConsoleModels.RefusalFor(jpn, "rescue") != null && ConsoleModels.RefusalFor(nob, "rescue") == null, "a dp-shvc console of another region is refused even where its model cannot be read; an unreadable board keeps the NES Classic's handling (Console Rescue)");
             });
@@ -109,18 +112,24 @@ namespace CcsBackup.Tests
                 GoneConsole(nes); GoneBackups(sn);
             });
 
-            Part("every operation not available for it is refused before anything is read or written", () =>
+            Part("every operation not available for it is refused before anything is read or written; every available one passes the identity check", () =>
             {
                 var con = RecoverySessions.OpenSimulated(c, ImageKind.Prepare); var id = con.Identify();
-                foreach (var op in new[] { "preparation", "return", "firmware", "addons", "community" })
+                var checkedOps = new[] { "preparation", "return", "rescue", "developer", "files", "composition", "firmware", "addons", "community" };
+                foreach (var op in checkedOps.Where(o => Capabilities.Allowed("capability", "snes-classic-" + o)))
+                    Check(Support.CheckForBackup(id, id.Image, op).Count == 5, op + ": available for the Super NES Classic, it passes the same identity check as backup");
+                foreach (var op in checkedOps.Where(o => !Capabilities.Allowed("capability", "snes-classic-" + o)))
                 {
                     string code = null, text = null;
                     try { Support.CheckForBackup(id, id.Image, op); } catch (ConsoleRefusedException ex) { code = ex.Code; text = ex.Message; }
                     Check(code == "unsupported-operation" && text.Contains("not available for the Super NES Classic Edition") && text.EndsWith("Nothing was read.", StringComparison.Ordinal), op + ": refused at the identity check, before any backup or write (" + text + ")");
                 }
                 Check(Support.CheckForBackup(id, id.Image, "backup").Count == 5 && Support.CheckForBackup(id, id.Image, "identify").Count == 5, "backup and the check-up pass the same identity check");
-                var (pt, why) = RestorePoints.Establish(RecoverySessions.OpenSimulated(c, ImageKind.Files), b?.PrimaryPath ?? "x", () => false);
-                Check(pt == null && (why ?? "").Contains("Expert Mode"), "Expert Mode's file changes are refused for the Super NES Classic before a restore point is made (" + why + ")");
+                if (!Capabilities.Allowed("capability", "snes-classic-files"))
+                {
+                    var (pt, why) = RestorePoints.Establish(RecoverySessions.OpenSimulated(c, ImageKind.Files), b?.PrimaryPath ?? "x", () => false);
+                    Check(pt == null && (why ?? "").Contains("Expert Mode"), "Expert Mode's file changes are refused for the Super NES Classic before a restore point is made (" + why + ")");
+                }
                 Check(Writes(c).Count == 0, "nothing was written to the Super NES Classic by any of these");
             });
 

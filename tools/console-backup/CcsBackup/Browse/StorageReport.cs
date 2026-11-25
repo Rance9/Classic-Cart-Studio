@@ -281,14 +281,18 @@ namespace CcsBackup.Browse
 
         /// <summary>writes the text report into a NEW folder inside the chosen folder, the export's way: the destination checked, a new file
         /// created (never written over), flushed, read back from the disk and compared with its SHA-256 before it gets its name</summary>
-        public static ExportResult Export(StorageReport r, string destination)
+        public const string DefaultFolderName = "Storage report";
+
+        /// <summary>folderName: the new folder's name as the person confirmed it (the default: "Storage report"; never the backup file's own
+        /// name, which can carry a console's ID); " (2)", " (3)" ... when it is taken</summary>
+        public static ExportResult Export(StorageReport r, string destination, string folderName = null)
         {
             var res = new ExportResult();
             var why = Exporter.CheckDestination(destination); if (why != null) { res.Problem = why; return res; }
             var bytes = new UTF8Encoding(false).GetBytes(r.Text()); string sha; using (var h = SHA256.Create()) sha = Hex.Of(h.ComputeHash(bytes));
             try
             {
-                var root = Exporter.NewExportFolder(System.IO.Path.GetFullPath(destination).TrimEnd('\\'), "Storage Report - " + SafeNames.Component(System.IO.Path.GetFileNameWithoutExtension(r.BackupFile ?? "backup"), 70));
+                var root = Exporter.NewExportFolder(System.IO.Path.GetFullPath(destination).TrimEnd('\\'), ExportNames.Clean(folderName) ?? DefaultFolderName);
                 res.Folder = root;
                 var final = System.IO.Path.Combine(root, "storage-report.txt"); var tmp = final + ".part";
                 using (var f = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { f.Write(bytes, 0, bytes.Length); f.Flush(true); }

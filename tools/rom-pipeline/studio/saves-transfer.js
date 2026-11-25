@@ -49,8 +49,9 @@ async function gxExport(){ if(gxApp()) return gxExportApp(); if(typeof fbWebPlay
  const blob=new Blob([ccsZipBlob(entries)], {type:'application/zip'}); const d=new Date(); const stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
  const res=await ccsSaveFile(`Classic Cart Studio Game Saves ${stamp}.zip`, blob, 'Game saves'); if(!res.ok){ closeColl(); return; }
  gxExported(games.length, entries.length-1, res.name, skipped, res.download); }
-async function gxExportApp(){ openColl('Export Game Saves', '', '<div class="msgbox" role="status">Choose where to save the file in the window that opened.</div>'); procSet('collm','native');
- const r=await hkPost('/api/studio/saves-export', {}); procSet('collm',null);
+async function gxExportApp(){ openColl('Export Game Saves', '', '<div class="msgbox" role="status">Choose where to save the file.</div>'); procSet('collm','native');
+ const d=new Date(), stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+ const r=await hkChoose('/api/studio/saves-export', {}, {mode:'save', title:'Save your game saves', name:'Classic Cart Studio Game Saves '+stamp+'.zip', kinds:[{label:'ZIP file', ext:['.zip']}], purpose:'saves'}); procSet('collm',null);
  if(r&&r.canceled){ closeColl(); return; } if(!r||!r.ok){ cvSaid('Export Game Saves', `<div class="msgbox ${r&&/no saved games/.test(r.error||'')?'':'bad'}">${esc((r&&r.error)||'The file could not be saved.')}</div>${r&&r.read_error?'<div class="acts"><span class="sp"></span><button class="btn hk" data-gx-retry="out">Try Again</button></div>':''}`); return; }
  gxExported(r.games, r.files, r.name, r.skipped||[], false); }
 function gxExported(games, files, name, skipped, download){ const s=n=>n===1?'':'s';
@@ -111,7 +112,7 @@ function gxDecide(sha, ok, cur, choice){ const out=[]; const taken=new Set(); co
  return out; }
 async function gxImport(){ if(CS_STATE!=='ok'){ rdyStoreProblem(); return; }
  if(!gxApp()&&(typeof fbWebPlay!=='function'||!fbWebPlay())){ cvSaid('Import Game Saves', '<div class="msgbox bad">This browser cannot keep games or saved games here. Use a current Edge, Chrome, Firefox or Safari, or Classic Cart Studio for Windows.</div>'); return; }
- const files=await cvPick('.zip,application/zip', false); const f=files&&files[0]; if(!f) return;
+ const files=await cvPick('.zip,application/zip', false, 'Import game saves'); const f=files&&files[0]; if(!f) return;
  openColl('Import Game Saves', f.name, '<div class="msgbox" role="status">Checking the file…</div>');
  if(gxApp()){ procSet('collm','running');
   const up=await fetch(CO.base+'/api/studio/saves-stage', lnaInit({method:'POST', headers:hdrs({'Content-Type':'application/octet-stream'}), body:f, cache:'no-store'})).then(r=>r.json()).catch(e=>({ok:false, error:String(e)})); procSet('collm',null);

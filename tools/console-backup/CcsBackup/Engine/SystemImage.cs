@@ -75,12 +75,26 @@ namespace CcsBackup.Engine
                 r.RegionFile = Plain(region); r.Version = Plain(Cat(fs, "/etc/clover/VERSION"));
             }
             catch (Exception ex) when (ex is InvalidDataException || ex is NotSupportedException) { r.Why = "could not be read as a system image (" + ex.Message + ")"; return r; }
-            if (r.Platform == "snes")
-            {
-                r.Notes.Add("Its games use the X, Y, L and R buttons, which the NES Classic controller does not have: connect an SNES Classic controller to play them.");
-                r.Notes.Add("hakchi keeps this system's HOME menu saves apart from the NES Classic system's: it swaps them at each start, so neither system's saves replace the other's.");
-            }
+            r.Notes = NotesOn(r, ConsoleModels.Nes);
             return r;
+        }
+
+        /// <summary>what to know about starting this system on a console of the given model (the image starts with hakchi's kernel on that
+        /// console, never with its own startup software): an SNES Classic system on an NES Classic needs the SNES Classic controller's extra
+        /// buttons; an NES Classic and an SNES Classic system on one console keep their HOME menu saves apart, as hakchi swaps them at each
+        /// start (softwareCheck); a system of the console's own kind needs no note</summary>
+        public static List<string> NotesOn(SystemImageInfo r, ConsoleModel host)
+        {
+            var n = new List<string>(); if (r == null || !r.Ok) return n;
+            bool hostSnes = host != null && host == ConsoleModels.Snes;
+            if (r.Platform == "snes" && !hostSnes)
+            {
+                n.Add("Its games use the X, Y, L and R buttons, which the NES Classic controller does not have: connect an SNES Classic controller to play them.");
+                n.Add("hakchi keeps this system's HOME menu saves apart from the NES Classic system's: it swaps them at each start, so neither system's saves replace the other's.");
+            }
+            else if (r.Platform == "nes" && hostSnes)
+                n.Add("hakchi keeps this system's HOME menu saves apart from the SNES Classic system's: it swaps them at each start, so neither system's saves replace the other's.");
+            return n;
         }
     }
 }

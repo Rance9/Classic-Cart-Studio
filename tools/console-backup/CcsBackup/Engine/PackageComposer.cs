@@ -61,6 +61,8 @@ namespace CcsBackup.Engine
                 bool same = ConsoleIdentity.SameConsole(vb.Hwid, dv.Hwid);
                 if (startingPoint == "rebuild-from-backups" && !same) throw new ComposeException("private.destination", "A rebuild package is for the console its backups came from.");
                 if (startingPoint == "like-my-other-console" && same) throw new ComposeException("private.destination", "Choose a backup of the OTHER console the package is for.");
+                if (vb.Model == null || vb.Model != dv.Model) throw new ComposeException("private.destination", Path.GetFileName(b) + " is a backup of " + (vb.Model?.Name ?? "a console this version does not support") + ", not of the model of the console the package is for (" + (dv.Model?.Name ?? "unknown") + "): one kind of console's data is never put on another kind.");
+                var rw = same ? null : ConsoleData.RegionRefusal(vb.Model, vb.Region, dv.Region); if (rw != null) throw new ComposeException("private.destination", rw);
                 verified[b] = vb;
             }
             if (startingPoint == "like-my-other-console" && verified.Count != 1) throw new ComposeException("private.source", "A migration package takes one backup of the other console.");
@@ -94,6 +96,7 @@ namespace CcsBackup.Engine
             catch (ComposeException ex) { return (null, "The private package cannot be used: " + ex.Message); }
             catch (IOException ex) { return (null, "The private package could not be read: " + ex.Message); }
             var id = con.Identify();
+            var mw = ConsoleModels.RefusalFor(id, "composition") ?? ConsoleData.Refusal(id); if (mw != null) return (null, mw + " Nothing was changed.");
             if (!ConsoleIdentity.SameConsole(info.DestinationHwid, id.Hwid)) return (null, "This private package is for console " + info.DestinationTag + ", not the console connected now (" + id.ShortTag + "). Nothing was changed.");
             if (info.Members.Any(x => x.Provenance?["simulated"] is bool s && s != con.Simulated)) return (null, "A simulated console's files and a real console are never mixed.");
             var p = new PackagePlan { Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated, PackagePath = package, PackageSha256 = sha, PackageBytes = bytes, PackageId = info.PackageId };

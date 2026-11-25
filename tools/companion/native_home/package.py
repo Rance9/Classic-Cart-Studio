@@ -261,7 +261,7 @@ class Builder:
                 h = DV.sha256_file(hs)
                 p = self.cached("hero", h, f"hero{DV.DETAILS_ART}", ".jpg", lambda out, hs=hs: DV.hero(hs, "hero", out)); rec["hero"] = self.put(f"hero/{DV.sha256_file(p)[:16]}.jpg", p, "shared", "backdrop-jpeg")
                 rec["hero_kind"] = "hero"; rec["scene"] = g.get("scene")
-            sp = CF._art_path(g.get("snap"))   # the game's own screen behind it in Featured Shelf: the site's file, unchanged (one per screen)
+            sp = CF._art_path(g.get("snap"))   # the game's own screen behind it in Featured Shelf: the site's picture with every pixel unchanged (put() stores its smallest exact PNG encoding), named by the site file's checksum (one per screen)
             if sp: rec["snap"] = self.put(f"snap/{DV.sha256_file(sp)[:16]}.png", sp, "game-theme-artwork", "snap-png")
             t = g.get("texts")
             if t:

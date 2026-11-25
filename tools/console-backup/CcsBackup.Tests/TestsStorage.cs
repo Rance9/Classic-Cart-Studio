@@ -8,8 +8,8 @@
 //   storage-large    one file over 4 GB (a sparse file) through capture, ZIP64, verification and the FAT32 4 GB restore rule
 //   storage-image    whole drive image mode: an MBR image with FAT32, ext4 and an exFAT boot sector; index, browse, export, GPT, superfloppy
 //   storage-repair   second copy, merge, borrowing from other backups of the same storage, truncation, salvage, recovery data
-//   storage-restore  file restore plans (create, same, keep, replace) and their execution; whole-drive restore refusals and writes to files
-//   storage-protect  the "back up these volumes now, verified" entry point
+//   storage-restore  file restore plans (create, same, keep, replace) and their execution; whole-drive restores onto drive image files
+//   storage-protect  the "back up these volumes now, verified" entry point, a connected drive among them (on a stand-in PC: TestsRawDisk.cs)
 using CcsBackup.Archive;
 using CcsBackup.Browse;
 using CcsBackup.Engine;
@@ -468,12 +468,6 @@ namespace CcsBackup.Tests
         }
 
         // ------------------------------------------------------------------ storage-restore
-        sealed class FakeDisks : IDiskFacts
-        {
-            public Dictionary<int, SourceIdentity> Ids = new Dictionary<int, SourceIdentity>(); public int Sys; public Dictionary<string, int[]> Of = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase); public int[] Default = { 9 };
-            public int SystemDisk() => Sys; public int[] DisksOf(string p) => Of.TryGetValue(Path.GetFullPath(p), out var d) ? d : Default; public SourceIdentity Describe(int n) => Ids.TryGetValue(n, out var x) ? x : null;
-        }
-
         public static void StorageRestores()
         {
             var dir = NewDir("st-restore"); var s = StorageSettings(Path.Combine(dir, "loc"), false); var src = Tree(dir);
@@ -501,24 +495,14 @@ namespace CcsBackup.Tests
             File.SetLastWriteTimeUtc(o.PrimaryPath, DateTime.UtcNow.AddHours(1));
             Check(StorageRestore.RestoreFiles(late, late.Digest, late.Nonce).Written == 0 && Files(late, "create") == 2, "a backup file that changed after its plan was made: nothing is restored");
             Check(StorageRestore.PlanFiles(o.PrimaryPath, "s01", null, Environment.GetFolderPath(Environment.SpecialFolder.Windows), "merge").Problem != null, "Windows' own folder is never a restore target");
-            // a whole drive image: refusals on stand-in drives, then real writes only to files
+            // a whole drive image onto drive image files (a connected drive as the target: storage-raw, on stand-in drives)
             var (disk, _) = DiskA(dir, 5); var io = StRun(disk, s, "image"); var bk = io.PrimaryPath;
-            var sid = SourceIdentity.FromJson(StorageVerifier.Verify(bk).SourceList[0].O("identity"));
-            SourceIdentity Drive(long bytes, string serial) { var d = new SourceIdentity { Kind = SourceKind.Disk, BusType = "USB", Vendor = "Test", Product = "Stick", DiskSerial = serial, DiskBytes = bytes, Removable = true }; d.MakeKey(); return d; }
-            var fd = new FakeDisks { Sys = 0 }; fd.Of[bk] = new[] { 1 };
-            fd.Ids[2] = SourceIdentity.FromJson(Json.Parse(Json.Write(sid.ToJson()))); fd.Ids[3] = Drive(50_000_000, "SMALL"); fd.Ids[4] = Drive(200_000_000, "REAL"); fd.Ids[5] = Drive(200_000_000, "BACKED");
-            string Ref(int n, string backing = null) => StorageRestore.PlanImage(bk, "s01", new DiskTarget { DiskNumber = n, BackingFile = backing }, fd).Refusal;
-            Check(Ref(0)?.Contains("Windows runs from") == true, "the drive Windows runs from is refused");
-            Check(Ref(1)?.Contains("holds the backup") == true, "the drive holding the backup is refused");
-            Check(Ref(2)?.Contains("made from") == true, "the drive the backup was made from is refused");
-            Check(Ref(3)?.Contains("smaller") == true, "a drive smaller than the image is refused");
-            Check(Ref(4)?.Contains("not available in this version") == true, "a real connected drive is behind the closed boundary: refused, nothing written");
-            var backing = Path.Combine(dir, "stand-in drive 5.img"); File.WriteAllBytes(backing, Rnd(1_000_000, 3)); using (var f = new FileStream(backing, FileMode.Open)) f.SetLength(200_000_000);
-            var ip = StorageRestore.PlanImage(bk, "s01", new DiskTarget { DiskNumber = 5, BackingFile = backing }, fd);
-            Check(ip.Refusal == null && ip.Review.Any(x => x.Contains("lost")) && ip.Review.Any(x => x.Contains("larger than the image")), "a stand-in drive that passes every check gets a review of exactly what is lost (" + ip.Refusal + ")");
-            var ir = StorageRestore.RestoreImage(ip, ip.Digest, ip.Nonce, s);
             string HeadSha(string p, long n) { using (var f = File.OpenRead(p)) using (var h = SHA256.Create()) { var b = new byte[n]; f.Read(b, 0, (int)n); return Hex.Of(h.ComputeHash(b)); } }
-            Check(ir.Ok && HeadSha(backing, new FileInfo(disk).Length) == Sha(disk) && new FileInfo(backing).Length == 200_000_000, "the image is written and read back region by region; the rest of the target is left as it was (" + ir.Text + ")");
+            var backing = Path.Combine(dir, "larger image file.img"); File.WriteAllBytes(backing, Rnd(1_000_000, 3)); using (var f = new FileStream(backing, FileMode.Open)) f.SetLength(200_000_000);
+            var lp = StorageRestore.PlanImage(bk, "s01", new DiskTarget { ImageFile = backing });
+            Check(lp.Refusal == null && lp.ProtectFirst && lp.Review.Any(x => x.Contains("lost")) && lp.Review.Any(x => x.Contains("larger than the image")), "an existing, larger image file as the target gets a review of exactly what is lost (" + lp.Refusal + ")");
+            var lr = StorageRestore.RestoreImage(lp, lp.Digest, lp.Nonce, s);
+            Check(lr.Ok && HeadSha(backing, new FileInfo(disk).Length) == Sha(disk) && new FileInfo(backing).Length == 200_000_000 && lr.ProtectionBackup != null, "the image is written and read back region by region; the rest of the target file is left as it was (" + lr.Text + ")");
             Check(StorageRestore.PlanImage(bk, "s01", new DiskTarget { ImageFile = bk }).Refusal != null && StorageRestore.PlanImage(bk, "s01", new DiskTarget { ImageFile = disk }).Refusal != null, "the backup itself and its source image file are refused as targets");
             var fresh = Path.Combine(dir, "restored.img"); var np = StorageRestore.PlanImage(bk, "s01", new DiskTarget { ImageFile = fresh });
             var nr = StorageRestore.RestoreImage(np, np.Digest, np.Nonce, s);
@@ -526,6 +510,8 @@ namespace CcsBackup.Tests
             var ep = StorageRestore.PlanImage(bk, "s01", new DiskTarget { ImageFile = backing });
             var er = StorageRestore.RestoreImage(ep, ep.Digest, ep.Nonce, s);
             Check(ep.ProtectFirst && er.Ok && er.ProtectionBackup != null && StorageVerifier.Verify(er.ProtectionBackup).Ok, "an existing image file as the target is backed up first (a checked whole drive image backup), then written");
+            var dp = StorageRestore.PlanImage(bk, "s01", new DiskTarget { DiskNumber = 3 }, new RawPc { Sys = 0 });
+            Check(dp.Refusal != null && dp.Refusal.Contains("not connected"), "a connected drive that is not there is refused at the review (" + dp.Refusal + ")");
             var files = StorageRestore.PlanFiles(bk, "s01", new[] { "/partition 1/games" }, tgt, "merge");
             Check(files.Problem == null && files.Items.Count(i => i.Kind == "file" && i.Action == "create") == 4 && files.Items.Any(i => i.Path.EndsWith("TWIN.TXT") && i.Rel.Contains("(2)") || i.Path.EndsWith("Twin.txt") && i.Rel.Contains("(2)")), "files can be restored from a drive image's index; two names differing only in case are kept apart on Windows");
         }
@@ -549,8 +535,19 @@ namespace CcsBackup.Tests
             var moved = o.PrimaryPath + ".moved"; File.Move(o.PrimaryPath, moved);
             Check(!RecoverySet.Check(set.RecordFile).Ok, "a recovery set whose storage backup is gone no longer checks");
             File.Move(moved, o.PrimaryPath);
-            var raw = StorageBackup.BackUpVolumesNow(new[] { new StorageRequest { Mode = "image", DiskNumber = 7 } }, s, "x");
-            Check(raw.State == "refused" && raw.Problem.Contains("not available in this version"), "reading a connected drive whole is behind the closed boundary");
+            // a connected drive copied whole through the administrator step, on a stand-in PC (storage-raw has every case)
+            var saved = (RawDiskClient.Launcher, RawDiskClient.Program, RawDiskClient.TempRoot, StorageBackup.DiskQueries, RawDiskHost.ConnectMs);
+            try
+            {
+                var (pc, l) = RawSetup(dir); var (img, _) = DiskA(dir, 7); pc.Add(7, img, "SD", "CARD-7");
+                var raw = StorageBackup.BackUpVolumesNow(new[] { new StorageRequest { Mode = "image", DiskNumber = 7 } }, s, "before a test change");
+                Check(raw.Protected && raw.Sources[0].Identity.Kind == SourceKind.Disk && StorageVerifier.Verify(raw.PrimaryPath).Ok && l.Starts == 1, "a connected SD card read whole is complete protection, through one administrator step (" + raw.Problem + ")");
+                l.Decline = true; var no = StorageBackup.BackUpVolumesNow(new[] { new StorageRequest { Mode = "image", DiskNumber = 7 } }, s, "x");
+                Check(no.State == "refused" && !no.Protected && no.ElevationDeclined, "a refused permission prompt is never protection");
+                var gone = StorageBackup.BackUpVolumesNow(new[] { new StorageRequest { Mode = "image", DiskNumber = 8 } }, s, "x");
+                Check(gone.State == "refused" && !gone.Protected && gone.Problem.Contains("no longer connected"), "a connected drive that is not there is refused, not skipped");
+            }
+            finally { (RawDiskClient.Launcher, RawDiskClient.Program, RawDiskClient.TempRoot, StorageBackup.DiskQueries, RawDiskHost.ConnectMs) = saved; }
         }
     }
 }

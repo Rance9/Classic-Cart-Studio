@@ -712,16 +712,13 @@ namespace CcsBackup.Tests
             });
 
             // ---- the real console stays behind its own closed boundaries
-            try { RecoverySessions.OpenReal(ImageKind.Method, null, () => false); Check(false, "a real add-on session opened"); }
-            catch (GateClosedException ex) { Check(!CcsBackup.Gate.MethodWrites && !CcsBackup.Gate.PreparationWrites && ex.Message.Contains("not available"), "a real console's add-on session: closed in code, before any USB activity (" + ex.Message + ")"); }
-            try { RecoverySessions.OpenReal(ImageKind.Prepare, null, () => false); Check(false, "a real preparation session opened"); }
-            catch (GateClosedException ex) { Check(ex.Message.Contains("not available"), "a real console's preparation session: closed in code, before any USB activity (" + ex.Message + ")"); }
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.MethodWrites && RecoverySessions.Refusal(ImageKind.Method) == null, "a real console: the add-on boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.PreparationWrites && RecoverySessions.Refusal(ImageKind.Prepare) == null, "a real console: preparation's boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
             var real = new WriteAuthority("x", HwidA, Methods.Steps, () => CcsBackup.Gate.MethodWrites, CcsBackup.Gate.MethodText);
-            foreach (var step in Methods.Steps)
-            {
-                try { real.Require(step, HwidA); Check(false, "a real add-on write was admitted: " + step); }
-                catch (GateClosedException) { Check(true, "an add-on write (" + step + ") on a real console is refused by its boundary"); }
-            }
+            foreach (var step in Methods.Steps) { try { real.Require(step, HwidA); Check(true, "an add-on write (" + step + ") on a real console: admitted by its open boundary for the plan's own step and console"); } catch (Exception ex) { Check(false, "an add-on write (" + step + ") was refused: " + ex.Message); } }
+            try { real.Require("no-such-step", HwidA); Check(false, "a step outside the plan was admitted"); } catch (InvalidOperationException) { Check(true, "an add-on write: a step outside the reviewed plan is refused"); }
+            try { real.Require(Methods.Steps[0], HwidB); Check(false, "another console was admitted"); } catch (InvalidOperationException) { Check(true, "an add-on write: another console is refused"); }
+            real.Revoke("an earlier step failed"); try { real.Require(Methods.Steps[0], HwidA); Check(false, "a revoked authority was admitted"); } catch (InvalidOperationException) { Check(true, "an add-on write: nothing more after an earlier failure"); }
         }
     }
 }

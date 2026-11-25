@@ -24,7 +24,7 @@ namespace CcsBackup.Tests
             var c = SmallConsole("modified", true);
             var (p0, r0) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, "My Other System", img);
             Check(p0 == null && r0.Problem.Contains("CCS Nucleus is not installed") && Writes(c).Count == 0, "CCS Nucleus not installed: adding a system image is refused (" + r0?.Problem + ")");
-            SetInstalled(c, Methods.Nucleus);
+            SetInstalled(c, Methods.Nucleus, Methods.Chooser);
             var (pj, rj) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, "Junk", junk);
             Check(pj == null && rj.Problem.Contains("SquashFS") && Writes(c).Count == 0, "a file that is not a system root (its real content checked): refused (" + rj?.Problem + ")");
             var (pl, rl) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, "Bad \"name\"", img);
@@ -84,8 +84,7 @@ namespace CcsBackup.Tests
             var (p5, r5) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), ctx, "remove", "native", null, null);
             Check(p5 == null && r5.State == "refused", "the console's own system can never be removed as a choice");
             GoneConsole(c); GoneBackups(s); Gone(img, junk);
-            try { RecoverySessions.OpenReal(ImageKind.Firmware, null, () => false); Check(false, "a real session to add a system image opened"); }
-            catch (GateClosedException ex) { Check(!CcsBackup.Gate.FirmwareWrites && ex.Message.Contains("not available"), "a real console: closed in code, before any USB activity (" + ex.Message + ")"); }
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.FirmwareWrites && RecoverySessions.Refusal(ImageKind.Firmware) == null, "a real console: Browse for Firmware's boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
         }
     }
 }

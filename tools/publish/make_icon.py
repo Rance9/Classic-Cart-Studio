@@ -15,8 +15,9 @@ thick ridges and no small lines, a one-pixel darker edge so the gray holds on a 
   python tools/publish/make_icon.py          writes into tools/publish/assets: app.ico (Classic Cart Studio, Windows), workbench.ico
       (CCS Console Workbench, Windows), app-16.png, app-32.png, app-256.png, favicon.ico, icon-192.png, icon-512.png,
       icon-maskable-512.png, apple-touch-icon.png (180), apple-touch-icon-167.png, apple-touch-icon-152.png, app-icon-sheet.png and
-      app-icon-sheet-light.png (both marks at their sizes); and the icon pictures in tools/desktop/ClassicCartStudio/Loading.html and
-      Recovery.html
+      app-icon-sheet-light.png (both marks at their sizes), workbench-20.png and workbench-40.png (the wrench the Studio page shows on
+      its Console Workbench button and menu entry, at 20 px and for 2x displays); and the icon pictures in
+      tools/desktop/ClassicCartStudio/Loading.html and Recovery.html
   python tools/publish/make_icon.py --check  exit 1 when any of those differs from what this code draws"""
 from __future__ import annotations
 import base64, hashlib, io, math, os, re, struct, sys
@@ -219,6 +220,7 @@ def outputs() -> dict:
         "app.ico": ico_bytes([studio[n] for n in ICO_SIZES]),
         "workbench.ico": ico_bytes([bench[n] for n in ICO_SIZES]),
         "app-16.png": png_bytes(studio[16]), "app-32.png": png_bytes(studio[32]), "app-256.png": png_bytes(studio[256]),
+        "workbench-20.png": png_bytes(bench[20]), "workbench-40.png": png_bytes(bench[40]),
         "favicon.ico": ico_bytes([studio[16], studio[32], studio[48]]),
         "icon-192.png": png_bytes(cartridge(192)), "icon-512.png": png_bytes(cartridge(512)),
         "icon-maskable-512.png": png_bytes(maskable(512)),

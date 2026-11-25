@@ -162,6 +162,17 @@ namespace CcsBackup.Device
             return parts;
         }
 
+        /// <summary>null when the console's storage table puts its system part (rootfs) on nandb and its data storage (data or rootfs_data)
+        /// on nandc, where hakchi 3.9.3's own installation and uninstall (its mount_base mounts /dev/nandc; its kernel starts root=/dev/nandb)
+        /// and Classic Cart Studio's preparation steps (ram/ccsprep) find them, on every supported model; otherwise why not. Preparation and
+        /// Return to Original Software change nothing on a console whose table says otherwise.</summary>
+        public static string HakchiLayout(ConsoleIdentity id)
+        {
+            var sys = id.Table.FirstOrDefault(p => p.Label == "rootfs"); var data = id.Table.FirstOrDefault(p => p.Label == "data" || p.Label == "rootfs_data");
+            if (sys?.Device == "nandb" && data?.Device == "nandc") return null;
+            return "This console's storage table does not have its system on nandb and its data storage on nandc, where hakchi's installation and Classic Cart Studio's console programs find them (system: " + (sys?.Device ?? "not found") + ", data: " + (data?.Device ?? "not found") + "). Nothing was changed.";
+        }
+
         /// <summary>the state of the console's startup software, judged against its own model's (and region's) stock kernels</summary>
         public static Classification Classify(ConsoleIdentity id, string activeSha256 = null, string slot68Sha256 = null)
         {

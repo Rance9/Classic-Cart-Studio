@@ -216,7 +216,9 @@ namespace CcsBackup.Ui
             {
                 if (v == null) continue;
                 g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                var kt = new TextBlock { Text = k, Style = Res<Style>("T.Muted"), FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 18, 3) }; Grid.SetRow(kt, r); g.Children.Add(kt);
+                // the key's own width limit (the column's 220 less its margin): an Auto column measures its text without a limit, so a long key
+                // would be cut off at the column's edge instead of wrapping
+                var kt = new TextBlock { Text = k, Style = Res<Style>("T.Muted"), FontSize = 13, TextWrapping = TextWrapping.Wrap, MaxWidth = 202, Margin = new Thickness(0, 3, 18, 3) }; Grid.SetRow(kt, r); g.Children.Add(kt);
                 var vt = new TextBlock { Text = v, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 3) }; Grid.SetRow(vt, r); Grid.SetColumn(vt, 1); g.Children.Add(vt);
                 r++;
             }

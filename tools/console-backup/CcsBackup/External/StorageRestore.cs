@@ -12,11 +12,18 @@
 //                   is written to a new temporary name, checked while it is written and read back, then renamed.
 //   Restore a whole drive image   a separate, destructive operation: every byte of the image written onto a target drive or drive image
 //                   file of at least its size, then read back and compared region by region. The plan names the target exactly (what Windows
-//                   reports about it, its size, its layout now) and what is lost. Refused: the drive Windows runs from, the drive the backup
-//                   was made from, any drive holding the backup or its recovery data, a target that is too small, and the backup or its
-//                   source image themselves. A drive image file as the target is protected first (a whole drive image backup of it, checked)
-//                   unless it is new. A connected drive as the target is behind the closed StorageDiskWrites boundary. This is never a write to
-//                   a console: a console's storage is restored only by Console Restore from a console backup.
+//                   reports about it, its size, its layout now) and what is lost. Refused: the drive Windows runs from, any drive holding the
+//                   backup, its recovery data or the backup location, a target that is too small, and the backup or its source image file
+//                   themselves. A drive image file as the target is protected first (a whole drive image backup of it, checked) unless it
+//                   is new. A connected USB drive or SD card as the target (RestoreDisk) is checked the same way as a whole-drive read
+//                   (RawDiskTarget: still the same drive, a USB drive or SD card, never one that cannot be told apart from another, sectors of
+//                   the image's size); its review names it (maker, model, size, serial number, how it is connected, the volumes on it now)
+//                   and says that what is on it is lost and is not backed up first; one that looks like the drive the backup was made from
+//                   is named so. Windows asks for administrator permission once; Workbench's administrator step checks the drive again,
+//                   locks and dismounts its volumes, reads its identity once more through the opened drive, writes only after the window's
+//                   go-ahead, reads every region back from the drive, and the operation record (kind "disk-restore") says "writing" from the
+//                   go-ahead until the result is known, so an interrupted write is never taken for a finished or untouched drive. This is
+//                   never a write to a console: a console's storage is restored only by Console Restore from a console backup.
 using CcsBackup.Engine;
 using CcsBackup.Library;
 using CcsBackup.Repair;
@@ -50,32 +57,25 @@ namespace CcsBackup.External
     public sealed class StorageRestoreResult
     {
         public bool Ok; public string Text; public int Written, Same, Kept, Replaced, NotRestored; public long Bytes; public string ReplacedFolder, ProtectionBackup;
+        /// <summary>a connected drive as the target: the write's state (RawDiskWriteResult.State), and whether nothing was written to it</summary>
+        public string DiskState; public bool NothingWritten;
         public readonly List<string> Problems = new List<string>();
     }
 
-    /// <summary>a whole-drive restore target: a drive image file, or a connected drive by its number</summary>
+    /// <summary>a whole-drive restore target: a drive image file, or a connected drive by its number (with its identity when it was chosen)</summary>
     public sealed class DiskTarget
     {
-        public string ImageFile; public int DiskNumber = -1;
-        /// <summary>tests only: a connected drive number that is really this file on the PC (the refusals are decided by the drive number)</summary>
-        internal string BackingFile;
+        public string ImageFile; public int DiskNumber = -1; public DiskIdentity Disk;
         public override string ToString() => ImageFile != null ? "the drive image file " + ImageFile : "drive " + DiskNumber;
-    }
-
-    /// <summary>what Windows reports about this PC's drives (replaceable in tests: the refusals are checked on stand-in drives)</summary>
-    public interface IDiskFacts { int SystemDisk(); int[] DisksOf(string path); SourceIdentity Describe(int disk); }
-
-    public sealed class WindowsDiskFacts : IDiskFacts
-    {
-        public int SystemDisk() => Devices.SystemDisk();
-        public int[] DisksOf(string path) => Devices.DisksOf(path);
-        public SourceIdentity Describe(int disk) { foreach (var d in Devices.Connected()) if (d.DiskNumber == disk) return d; return null; }
     }
 
     public sealed class ImageRestorePlan
     {
         public string Backup, BackupSha256, BackupId, Source, SourceLabel, SourceKey, Refusal, Digest, Nonce, TargetText; public DiskTarget Target;
         public long ImageBytes, TargetBytes, BackupBytes; public DateTime BackupMtime; public bool NewFile, ProtectFirst; public DriveLayout TargetLayout;
+        /// <summary>a connected drive as the target: its identity and volumes as reviewed, the image's sector size, and whether it looks like
+        /// the drive the backup was made from</summary>
+        public DiskIdentity TargetDisk; public List<DiskVolume> TargetVolumes = new List<DiskVolume>(); public int ImageSectorBytes = 512; public bool SameAsSource;
         public readonly List<string> Review = new List<string>();
         internal long RegionSize; internal List<(long dataOffset, long size, string sha)> Regions;
     }
@@ -251,10 +251,21 @@ namespace CcsBackup.External
             public override long Seek(long off, SeekOrigin so) => throw new NotSupportedException(); public override void SetLength(long v) => throw new NotSupportedException();
         }
 
-        // ------------------------------------------------------------------ a whole drive image
-        public static ImageRestorePlan PlanImage(string backup, string sourceId, DiskTarget target, IDiskFacts facts = null, Func<bool> cancelled = null)
+        /// <summary>the places whose drives a whole-drive write never touches: the backup location, the additional-copy location and the records</summary>
+        public static List<ProtectedPath> Protected(Settings s)
         {
-            facts = facts ?? new WindowsDiskFacts();
+            var l = new List<ProtectedPath>();
+            if (s == null) return l;
+            if (!string.IsNullOrEmpty(s.PrimaryFolder)) l.Add(new ProtectedPath(s.PrimaryFolder, "your backup location"));
+            if (!string.IsNullOrEmpty(s.ArchiveFolder)) l.Add(new ProtectedPath(s.ArchiveFolder, "your additional-copy location"));
+            if (!string.IsNullOrEmpty(s.RecordsFolder)) l.Add(new ProtectedPath(s.RecordsFolder, "Workbench's records"));
+            return l;
+        }
+
+        // ------------------------------------------------------------------ a whole drive image
+        public static ImageRestorePlan PlanImage(string backup, string sourceId, DiskTarget target, IDiskQueries facts = null, Func<bool> cancelled = null, IEnumerable<ProtectedPath> alsoProtect = null)
+        {
+            facts = facts ?? StorageBackup.DiskQueries;
             var p = new ImageRestorePlan { Backup = System.IO.Path.GetFullPath(backup), Source = sourceId, Target = target };
             string Refuse(string why) { p.Refusal = why; return why; }
             var v = StorageVerifier.Verify(p.Backup, null, cancelled);
@@ -281,22 +292,36 @@ namespace CcsBackup.External
             }
             else
             {
-                int n = target.DiskNumber;
-                if (n == facts.SystemDisk()) { Refuse("The target is the drive Windows runs from. That is never a restore target."); return p; }
-                foreach (var x in inputs) { var d = facts.DisksOf(x); if (d == null) { Refuse("Which drive holds " + System.IO.Path.GetFileName(x) + " cannot be determined, so the target cannot be shown to be a different drive."); return p; } if (d.Contains(n)) { Refuse("The target drive holds the backup being restored (or its recovery data). Choose another drive."); return p; } }
-                var id = facts.Describe(n);
-                if (id == null) { Refuse("Drive " + n + " is not a connected USB drive or SD card."); return p; }
-                if (sid != null && id.Key == sid.Key) { Refuse("The target is the drive the backup was made from. A whole drive image is never restored onto its own source drive in one step: restore onto a separate drive or card."); return p; }
-                p.TargetBytes = id.DiskBytes; if (p.TargetBytes < p.ImageBytes) { Refuse("The target drive is smaller (" + Units.Gb(p.TargetBytes) + ") than the drive image (" + Units.Gb(p.ImageBytes) + ")."); return p; }
-                p.TargetText = "drive " + n + ": " + id.Display + ", " + (id.Vendor + " " + id.Product).Trim() + (id.DiskSerial != null ? ", serial " + id.DiskSerial : "") + ", " + Units.Gb(id.DiskBytes);
-                if (target.BackingFile == null && !Gate.StorageDiskWrites) { Refuse(Gate.StorageDiskText + " Restore onto a drive image file instead, or restore the files."); return p; }
-                if (target.BackingFile != null) using (var f = new FileStream(target.BackingFile, FileMode.Open, FileAccess.Read, FileShare.Read)) p.TargetLayout = PartitionTable.Read(f);
+                if (!Gate.StorageDiskWrites) { Refuse(Gate.StorageDiskText + " Restore onto a drive image file instead, or restore the files."); return p; }
+                int n = target.DiskNumber; var wanted = target.Disk;
+                if (wanted == null) { var e = facts.Disks().FirstOrDefault(d => d.Number == n); wanted = e == null ? null : facts.Describe(e); }
+                if (wanted == null) { Refuse("Drive " + n + " is not connected now."); return p; }
+                var protect = inputs.Select(x => new ProtectedPath(x, string.Equals(x, p.Backup, StringComparison.OrdinalIgnoreCase) ? "the backup being restored" : "the backup's recovery data")).Concat(alsoProtect ?? Enumerable.Empty<ProtectedPath>())
+                    .Concat(RawDiskTarget.Always(RawDiskClient.Program())).ToList();
+                var tc = RawDiskTarget.Check(facts, StorageBackup.WindowPolicy, wanted, protect);
+                if (!tc.Ok) { Refuse(tc.Text); return p; }
+                var id = p.TargetDisk = tc.Now; p.TargetVolumes = tc.Volumes;
+                p.TargetBytes = id.Bytes; if (p.TargetBytes < p.ImageBytes) { Refuse("The drive is smaller (" + Units.Gb(p.TargetBytes) + ") than the drive image (" + Units.Gb(p.ImageBytes) + ")."); return p; }
+                p.ImageSectorBytes = sid?.SectorBytes > 0 ? sid.SectorBytes : 512;
+                if (id.SectorBytes != p.ImageSectorBytes) { Refuse("The drive uses " + id.SectorBytes.ToString("N0", CultureInfo.InvariantCulture) + "-byte sectors and the image " + p.ImageSectorBytes.ToString("N0", CultureInfo.InvariantCulture) + "-byte sectors, so its partitions would not line up on it. Choose another drive, or restore the files."); return p; }
+                p.SameAsSource = sid != null && sid.Kind == SourceKind.Disk && id.ToSource().Key == sid.Key;
+                p.TargetText = id.Display + (id.Serial != null ? ", serial number " + id.Serial : ", no serial number reported") + ", connected by " + id.BusText;
+                p.Review.Add("Everything on " + id.Display + " from its first byte up to " + Units.Gb(p.ImageBytes) + " is replaced by the drive image of " + p.SourceLabel + ". What is on that part of the drive now is lost: Workbench does not back it up first. To keep it, cancel and back the drive up first.");
+                if (p.TargetBytes > p.ImageBytes) p.Review.Add("The drive is larger than the image: its last " + Units.Gb(p.TargetBytes - p.ImageBytes) + " stay as they are, and its partitions keep the image's sizes.");
+                p.Review.Add(p.TargetVolumes.Count == 0 ? "Windows shows no volume on the drive now." : "On the drive now: " + string.Join("; ", p.TargetVolumes.Select(v => v.Display)) + ".");
+                var letters = p.TargetVolumes.SelectMany(v => v.Mounts).Where(m => m.Length <= 3).Select(m => m.TrimEnd('\\')).ToList();
+                if (letters.Count > 0) p.Review.Add("While it is written, " + string.Join(" and ", letters) + " go" + (letters.Count == 1 ? "es" : "") + " away; afterward Windows shows the volumes the image holds.");
+                if (p.SameAsSource) p.Review.Add("This looks like the drive the backup was made from (the same maker, model, serial number and size). Restoring onto it puts back what the backup holds and replaces what is on it now.");
+                p.Review.Add("Windows asks for administrator permission once for this restore. Then the drive is checked again, written, and read back from the drive.");
             }
-            p.Review.Add(p.NewFile ? "A new file of " + Units.Gb(p.ImageBytes) + " is made, holding the drive image of " + p.SourceLabel + ". Nothing that exists now is replaced."
-                : "Every byte of the target from its start to " + Units.Gb(p.ImageBytes) + " is replaced by the drive image of " + p.SourceLabel + ". What is on that part of the target now is lost" + (p.ProtectFirst ? " (it is backed up first, as a whole drive image, and checked)" : "") + ".");
-            if (p.TargetBytes > p.ImageBytes) p.Review.Add("The target is larger than the image: the last " + Units.Gb(p.TargetBytes - p.ImageBytes) + " stay as they are, and the drive's partitions keep the image's sizes.");
-            if (p.TargetLayout != null) p.Review.Add("On the target now: " + (p.TargetLayout.Parts.Count == 0 ? "no partition or file system this version recognizes" : string.Join("; ", p.TargetLayout.Parts.Select(x => "partition " + x.Number + ", " + x.FileSystem + (x.Label != null ? " \"" + x.Label + "\"" : "") + ", " + Units.Gb(x.Length)))) + ".");
-            p.Digest = Sha(string.Join("\n", p.Backup, p.BackupSha256, p.Source, p.TargetText, p.ImageBytes.ToString(CultureInfo.InvariantCulture)));
+            if (p.TargetDisk == null)
+            {
+                p.Review.Add(p.NewFile ? "A new file of " + Units.Gb(p.ImageBytes) + " is made, holding the drive image of " + p.SourceLabel + ". Nothing that exists now is replaced."
+                    : "Every byte of the target from its start to " + Units.Gb(p.ImageBytes) + " is replaced by the drive image of " + p.SourceLabel + ". What is on that part of the target now is lost" + (p.ProtectFirst ? " (it is backed up first, as a whole drive image, and checked)" : "") + ".");
+                if (p.TargetBytes > p.ImageBytes) p.Review.Add("The target is larger than the image: the last " + Units.Gb(p.TargetBytes - p.ImageBytes) + " stay as they are, and the drive's partitions keep the image's sizes.");
+                if (p.TargetLayout != null) p.Review.Add("On the target now: " + (p.TargetLayout.Parts.Count == 0 ? "no partition or file system this version recognizes" : string.Join("; ", p.TargetLayout.Parts.Select(x => "partition " + x.Number + ", " + x.FileSystem + (x.Label != null ? " \"" + x.Label + "\"" : "") + ", " + Units.Gb(x.Length)))) + ".");
+            }
+            p.Digest = Sha(string.Join("\n", p.Backup, p.BackupSha256, p.Source, p.TargetText, p.ImageBytes.ToString(CultureInfo.InvariantCulture), p.TargetDisk == null ? "" : Json.Write(p.TargetDisk.ToJson())));
             p.Nonce = NewNonce();
             return p;
         }
@@ -307,9 +332,9 @@ namespace CcsBackup.External
             if (p == null || p.Refusal != null) { r.Text = p?.Refusal ?? "There is no plan to carry out."; return r; }
             if (digest != p.Digest || !UseNonce(nonce)) { r.Text = "This plan was not confirmed as reviewed (or its confirmation was already used). Review it again."; return r; }
             var fi = new FileInfo(p.Backup);
-            if (!fi.Exists || fi.Length != p.BackupBytes || fi.LastWriteTimeUtc != p.BackupMtime) { r.Text = "The backup file changed after the plan was made, so nothing was written. Review it again."; return r; }
-            string file = p.Target.ImageFile ?? p.Target.BackingFile;
-            if (file == null) { r.Text = Gate.StorageDiskText; return r; }   // a connected drive: behind the closed boundary
+            if (!fi.Exists || fi.Length != p.BackupBytes || fi.LastWriteTimeUtc != p.BackupMtime) { r.Text = "The backup file changed after the plan was made, so nothing was written. Review it again."; r.NothingWritten = true; return r; }
+            if (p.Target.ImageFile == null) return RestoreDisk(p, settings, cancelled, progress);
+            string file = p.Target.ImageFile;
             if (p.ProtectFirst)
             {
                 progress?.Invoke(new EngineProgress { Phase = "protect", Text = "Backing up the target first..." });
@@ -354,6 +379,51 @@ namespace CcsBackup.External
             r.Ok = r.Problems.Count == 0; r.Bytes = p.ImageBytes;
             r.Text = r.Ok ? "The drive image was written to " + p.TargetText + " and read back: every region matches the backup's recorded checksum." : "The drive image was written, but " + r.Problems.Count + " region(s) read back differently: the target cannot be relied on.";
             return r;
+        }
+
+        /// <summary>a connected USB drive or SD card as the target: one administrator step writes and reads back, under an operation record</summary>
+        static StorageRestoreResult RestoreDisk(ImageRestorePlan p, Settings settings, Func<bool> cancelled, Action<EngineProgress> progress)
+        {
+            var r = new StorageRestoreResult();
+            if (!Gate.StorageDiskWrites || p.TargetDisk == null) { r.Text = Gate.StorageDiskText; r.NothingWritten = true; return r; }
+            var id = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            Record rec;
+            try
+            {
+                rec = Record.Start(settings.RecordsFolder, id, "disk-restore", new JObj { { "target", p.TargetDisk.ToJson() }, { "target_text", p.TargetText }, { "backup", p.Backup }, { "backup_sha256", p.BackupSha256 },
+                    { "source", p.Source }, { "source_label", p.SourceLabel }, { "image_bytes", p.ImageBytes } });
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { r.Text = "Workbench could not write its record of this restore (" + ex.Message + "), so nothing was written."; r.NothingWritten = true; return r; }
+            rec.State("asking");
+            var image = new RawImagePlan { Backup = p.Backup, BackupBytes = p.BackupBytes, BackupMtimeUtc = p.BackupMtime, ImageBytes = p.ImageBytes, SectorBytes = p.ImageSectorBytes, RegionSize = p.RegionSize, Regions = p.Regions.ToList() };
+            var protect = Protected(settings); protect.AddRange(Parity.FilesOf(p.Backup).Select(x => new ProtectedPath(x, "the backup's recovery data")));
+            progress?.Invoke(new EngineProgress { Phase = "elevate", Text = "Asking Windows for administrator permission to write the drive..." });
+            var w = RawDiskClient.Write(p.TargetDisk, image, protect, cancelled,
+                (phase, d, t) => progress?.Invoke(new EngineProgress { Phase = phase, Text = phase == "readback" ? "Reading the drive back..." : "Writing the drive image...", Done = phase == "readback" ? t + d : d, Total = t * 2 }),
+                () => rec.State("writing"));
+            rec.Set("result", new JObj { { "state", w.State }, { "text", w.Text }, { "written", w.Written }, { "checked", w.Checked }, { "bad_regions", w.BadRegions.Cast<object>().ToList() }, { "exit_code", w.ExitCode.HasValue ? (object)(long)w.ExitCode.Value : null } });
+            rec.State(w.State);
+            r.DiskState = w.State; r.NothingWritten = w.NothingWritten; r.Ok = w.Ok; r.Bytes = w.Written;
+            r.Text = w.Ok ? "The drive image was written to " + p.TargetText + " and read back from the drive: every region matches the backup's recorded checksum." : w.Text;
+            foreach (var b in w.BadRegions) r.Problems.Add("Region " + b + " reads back differently from the backup.");
+            return r;
+        }
+
+        /// <summary>whole-drive restores onto a connected drive that did not finish as written and read back, newest first, unless a later one
+        /// onto the same drive did (the drive may hold part of an image)</summary>
+        public static List<(DateTime? when, string target, string state, string text)> UnfinishedDiskRestores(Settings s)
+        {
+            var all = new List<(DateTime? when, string key, string target, string state, string text)>();
+            if (s == null || string.IsNullOrEmpty(s.RecordsFolder) || !Directory.Exists(s.RecordsFolder)) return new List<(DateTime?, string, string, string)>();
+            foreach (var f in Directory.GetFiles(s.RecordsFolder, "disk-restore-*.json"))
+            {
+                var d = Record.Load(f); if (d?.S("kind") != "disk-restore") continue;
+                var t = DiskIdentity.FromJson(d.O("target")); var key = t == null ? f : t.ToSource().Key;
+                all.Add((Browse.BackupList.Parse(d.S("created_utc")), key, d.S("target_text") ?? "a drive", d.S("state"), d.O("result")?.S("text")));
+            }
+            var bad = new HashSet<string> { "writing", "canceled-incomplete", "stopped-incomplete", "interrupted", "written-not-checked", "read-back-differs" };
+            return all.Where(x => bad.Contains(x.state) && !all.Any(y => y.key == x.key && y.state == "complete" && (y.when ?? DateTime.MinValue) > (x.when ?? DateTime.MinValue)))
+                      .OrderByDescending(x => x.when ?? DateTime.MinValue).Select(x => (x.when, x.target, x.state, x.text)).ToList();
         }
     }
 }

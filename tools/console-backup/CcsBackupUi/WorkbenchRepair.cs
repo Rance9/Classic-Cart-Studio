@@ -1,6 +1,8 @@
 // Classic Cart Studio console backup and restore window. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // Backup Repair (offline, no console and no USB driver): backup files on this PC are checked, copied, given recovery data or repaired,
-// and a repair always writes a new file (the original stays exactly as it is). It is not Console Rescue, which concerns a console that no
+// and a repair always writes a new file (the original stays exactly as it is). Open a Backup File... brings in a backup file from any
+// folder on this PC for this window only: it is listed apart, with the same actions, and is never moved, copied first or added to the
+// backup locations (Close This File puts it away again). It is not Console Rescue, which concerns a console that no
 // longer starts and changes the console. The optional scheduled check is a per-user Windows task that the person turns on here, pointing
 // at the Workbench program, settings file and report folder they choose; it checks backups offline and shows a window only when it finds a
 // problem. Nothing is scheduled unless the person turns it on, and Remove Schedule takes it away again. A check of a file runs only when
@@ -29,9 +31,26 @@ namespace CcsBackup.Ui
             var sp = SectionHead("Backup Repair", "Check, copy and repair your backup files on this PC, without a console: run a file check, copy a file to another folder, add recovery data that can repair it later, or make a repaired copy of a damaged one. A repair always writes a new file; the original stays exactly as it is.");
             sp.Children.Add(T("This is not Console Rescue, which is for a console that no longer starts and changes the console.", Ty.Text, false, true, new Thickness(0, -8, 0, 12)));
             if (justChecked != null) sp.Children.Add(CheckedNote(justChecked, checkedFrom));
-            sp.Children.Add(Group("Your backups", 0));
+            sp.Children.Add(Buttons(B("Open a Backup File…", "Btn", OpenFileForRepair), B("Backup Locations", "Btn.Ghost", () => Go("Settings"))));
             List<BackupListEntry> list = null;
             try { list = BackupList.List(settings); }
+            catch (Exception) { }
+            // a backup file opened from another folder: listed apart, with the same actions; it stays where it is (in the backup locations
+            // already, it is simply in the list below)
+            if (repairOpened != null && list != null && list.Any(x => string.Equals(x.Path, repairOpened, StringComparison.OrdinalIgnoreCase))) repairOpened = null;
+            if (repairOpened != null)
+            {
+                sp.Children.Add(Group("A backup file you opened", 0));
+                sp.Children.Add(T("It stays where it is: it is not moved or added to your backup locations. Anything a repair makes is a new file; this one is only read.", Ty.Text, false, true));
+                var row = BackupList.Row(settings, repairOpened); var path = repairOpened;
+                var acts = new List<UIElement> { File.Exists(path) ? B("Check the File", "Btn.Ghost", () => CheckForRepair(path)) : null };
+                if (row != null && path.EndsWith(CcsBackup.Archive.BackupFormat.Extension, StringComparison.OrdinalIgnoreCase) && (row.Status == BrowseStatus.Damaged || row.Status == BrowseStatus.Salvage) && File.Exists(path)) acts.Add(B("Find What Can Be Saved…", "Btn.Ghost", () => FindWhatCanBeSaved(row)));
+                if (row != null) acts.AddRange(RepairActionList(row));
+                acts.Add(B("Close This File", "Btn.Ghost", () => { repairOpened = null; ShowBackupRepair(); }));
+                sp.Children.Add(row != null ? (UIElement)BackupEntryCard(row, acts.ToArray()) : Card(T("The file could not be read.", Ty.Text, false, true)));
+            }
+            sp.Children.Add(Group("Your backups", repairOpened != null ? 14 : 0));
+            try { if (list == null) list = BackupList.List(settings); }
             catch (Exception ex) { sp.Children.Add(LocationsUnreadable(ex, () => ShowBackupRepair())); }
             if (list != null && list.Count == 0) sp.Children.Add(NoBackupsYet(true, () => ShowBackupRepair()));
             foreach (var e in list ?? new List<BackupListEntry>())
@@ -39,7 +58,7 @@ namespace CcsBackup.Ui
                 var x = e; var acts = new List<UIElement> { File.Exists(e.Path) ? B("Check the File", "Btn.Ghost", () => CheckForRepair(x.Path)) : null }; acts.AddRange(RepairActionList(x));
                 sp.Children.Add(BackupEntryCard(e, acts.ToArray()));
             }
-            if (list != null && list.Count > 0) sp.Children.Add(T("A passed file check means the file was intact when it was checked. It is not a test of restoring it to a console.", Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
+            if (list != null && list.Count > 0) sp.Children.Add(T(VerifiedNote, Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
             sp.Children.Add(Group("Scheduled check (optional)", 14));
             Func<bool> scheduleChanged = null;
             sp.Children.Add(ScheduleCard(f => scheduleChanged = f));
@@ -54,6 +73,17 @@ namespace CcsBackup.Ui
         List<UIElement> RepairActionList(BackupListEntry e) { var l = new List<UIElement>(); RepairActionsFor(e, l); return l; }
 
         void CheckForRepair(string path) => CheckFile(path, (row, from) => ShowBackupRepair(row, from));
+
+        /// <summary>a backup file from another folder, opened in Backup Repair for this window (never saved, moved or added to a list)</summary>
+        string repairOpened;
+
+        /// <summary>Open a Backup File in Backup Repair: any console backup on this PC, chosen with the file picker; it is only read</summary>
+        void OpenFileForRepair()
+        {
+            var chosenFile = CcsFileDialog.OpenFile(this, "Open a console backup to check or repair", null, FileKinds.ConsoleBackupFilter, "console-backup");
+            if (chosenFile == null) return;
+            repairOpened = chosenFile; ShowBackupRepair();
+        }
 
         // ------------------------------------------------------------------ the optional scheduled check
         /// <summary>changed: given a test of whether the person has changed the schedule's choices without turning it on</summary>
@@ -91,7 +121,7 @@ namespace CcsBackup.Ui
             System.Windows.Automation.AutomationProperties.SetName(freq, "How often"); System.Windows.Automation.AutomationProperties.SetName(day, "Day"); System.Windows.Automation.AutomationProperties.SetName(hour, "Time");
             string exe0 = exe.Text, report0 = report.Text;
             changed(() => exe.Text != exe0 || report.Text != report0 || freq.SelectedIndex != 0 || day.SelectedIndex != (int)DayOfWeek.Sunday || hour.SelectedIndex != 12);
-            c.Children.Add(Field("Workbench program (keep it where it is; the schedule starts it from here)", exe, B("Choose…", "Btn.Ghost", () => { var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose CCS-Console-Workbench.exe", Filter = "CCS Console Workbench (*.exe)|*.exe" }; if (d.ShowDialog(this) == true) exe.Text = d.FileName; })));
+            c.Children.Add(Field("Workbench program (keep it where it is; the schedule starts it from here)", exe, B("Choose…", "Btn.Ghost", () => { var chosenFile = CcsFileDialog.OpenFile(this, "Choose CCS-Console-Workbench.exe", null, "CCS Console Workbench (*.exe)|*.exe", "workbench-program"); if (chosenFile != null) exe.Text = chosenFile; })));
             c.Children.Add(Field("Report folder", report));
             c.Children.Add(FieldRow(("How often", freq, 150), ("Day (weekly)", day, 170), ("Time", hour, 130)));
             c.Children.Add(T("Settings file it reads:", Ty.Small, false, true, new Thickness(0, 0, 0, 2))); c.Children.Add(PathText(settings.Path, 12));

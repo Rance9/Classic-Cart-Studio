@@ -68,8 +68,8 @@ namespace CcsBackup.Tests
             var a2 = StorageSpec.Account(Capacity.Input(new Dictionary<string, object> { ["source"] = "measured", ["free_bytes"] = 395460608L, ["reserved_bytes"] = 20656128L, ["block_bytes"] = 4096L }, ch));
             Check((long)a2["available_bytes"] == 374804480 && (string)a2["block_source"] == "measured", "a backup's file system header: the reserve is subtracted once and its block size is used as measured");
             var a3 = StorageSpec.Account(Capacity.Input(new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = 100000000L }, ch, StorageSpec.SnesModel));
-            Check((string)a3["status"] == "unconfirmed" && !(bool)a3["write_ok"] && Capacity.Why(a3, out _, out _).Contains("room for saves and suspend points"),
-                "a Super NES Classic: no room for saves is established, so a write is not confirmed (it says why)");
+            Check((string)a3["status"] == "fits" && (bool)a3["write_ok"] && (long)a3["saves_allowance_bytes"] == 10485760 && Capacity.Why(a3, out _, out _) == null,
+                "a Super NES Classic: its room for saves and suspend points is the NES Classic's (the same player and NES games), so a write that fits is allowed");
             // CCS HOME through the Workbench: its files, each in whole blocks, against the console's df figure
             var hp = new HomePackage(); hp.Files.Add(new HomePackage.Entry { Rel = "a", Size = 1000 }); hp.Files.Add(new HomePackage.Entry { Rel = "b", Size = 5000 });
             var h1 = StorageSpec.Account(HomePackage.SpaceInput(hp, 100000000)); var h2 = StorageSpec.Account(HomePackage.SpaceInput(hp, 1000000));

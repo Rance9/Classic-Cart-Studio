@@ -24,16 +24,19 @@ namespace CcsBackup.Ui
         StackPanel SectionHead(string title, string text) => PageHead(title, text);
 
         /// <summary>a console task's connection steps, after one line on whether this version does the task with a real console of the chosen
-        /// family (cmd: the task's worker request): available (reads only), not available for this console model, or behind a closed boundary</summary>
-        UIElement ConnectSteps(string what, string cmd)
+        /// family (cmd: the task's worker request): available (a task that only reads, or one that changes the console after its review and
+        /// your confirmation), not available for this console model, or behind a closed boundary. operation: the console model operation when
+        /// the request alone does not say it (a file session: Expert Mode's "files" or Developer Mode's "developer")</summary>
+        UIElement ConnectSteps(string what, string cmd, string operation = null)
         {
             if (!profile.ConsoleTasks || profile.RecoveryStep == null) return FamilyNotYetNote();
             var steps = new StackPanel();
-            var modelWhy = CcsBackup.Device.ConsoleModels.ById(profile.PhysicalModel)?.Refusal(OperationOfRequest(cmd));
+            var modelWhy = CcsBackup.Device.ConsoleModels.ById(profile.PhysicalModel)?.Refusal(operation ?? OperationOfRequest(cmd));
             var closed = ClosedOnRealConsole(cmd);
             steps.Children.Add(modelWhy != null ? Note(modelWhy + " This page starts nothing.", "info")
-                : closed != null ? Note(closed + " " + ReadsAvailable, "warn")
-                : Note("Available in this version with a real " + Con + ": this task only reads the console. Nothing on it changes.", "ok"));
+                : closed != null ? Note(closed + " This page starts nothing.", "warn")
+                : ReadOnlyRequest(cmd) ? Note("Available with a real " + Con + ": this task only reads the console. Nothing on it changes.", "ok")
+                : Note("Available with a real " + Con + ". This task changes the console only after Workbench has checked it, backed it up as its rules require and shown you exactly what will change, and you confirm.", "ok"));
             steps.Children.Add(T("Connect the console", 15, true, false, new Thickness(0, 0, 0, 10)));
             steps.Children.Add(Numbered("Turn the " + Con + " off and connect it to this PC with its USB cable.", profile.RecoveryStep, "The TV stays dark until you start the task below; then it shows a Classic Cart Studio screen while a small program runs from the console's memory. " + what));
             steps.Children.Add(T(DriverStepNote, 12.5, false, true, new Thickness(0, 6, 0, 0)));
@@ -42,7 +45,8 @@ namespace CcsBackup.Ui
 
         void StartOp(string op, string title, string note, JObj req)
         {
-            if (!FamilyHasTasks(OperationOf(op)) || !BoundaryOpen(req["cmd"] as string)) return;
+            // a file session is Developer Mode's operation when its scope is "dev", Expert Mode's otherwise (each console model's own capability)
+            if (!FamilyHasTasks(op == "files" && req["scope"] as string == "dev" ? "developer" : OperationOf(op)) || !BoundaryOpen(req["cmd"] as string) || !OwnTaskAllows(OpTitle(op))) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartOp(op, title, note, req)); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console task is running", "The console is already in use by this window, another CCS Console Workbench window or Classic Cart Studio. Wait for that task to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, title, note, "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -95,7 +99,7 @@ namespace CcsBackup.Ui
                 list.Items.Add(new ComboBoxItem { Content = e.When + "  ·  " + Path.GetFileName(e.PrimaryPath), Tag = e.PrimaryPath });
             if (list.Items.Count > 0) list.SelectedIndex = 0;
             c.Children.Add(new Border { Height = 10 });
-            c.Children.Add(Field("Backup of this console to take them from", list, B("Browse…", "Btn.Ghost", () => { var d = new Microsoft.Win32.OpenFileDialog { Filter = "Console backups (*.zip)|*.zip" }; if (d.ShowDialog(this) == true) { list.Items.Insert(0, new ComboBoxItem { Content = d.FileName, Tag = d.FileName }); list.SelectedIndex = 0; } })));
+            c.Children.Add(Field("Backup of this console to take them from", list, B("Browse…", "Btn.Ghost", () => { var chosenFile = CcsFileDialog.OpenFile(this, "Choose a backup of this console", null, FileKinds.ConsoleBackupFilter, "console-backup"); if (chosenFile != null) { list.Items.Insert(0, new ComboBoxItem { Content = chosenFile, Tag = chosenFile }); list.SelectedIndex = 0; } })));
             TextBox ack = null;
             if (damaged.Count > 0)
             {
@@ -197,7 +201,8 @@ namespace CcsBackup.Ui
             lastCheckup = r;
             var c = r.O("checkup") ?? new Dictionary<string, object>(); var s = c.O("storage") ?? new Dictionary<string, object>();
             string Gb(string k) => s.L(k) >= 0 ? Units.Gb(s.L(k)) : "unknown";   // L(): whole numbers arrive as int or long
-            var sp = SectionHead("Console Check-Up", "What Workbench read from console " + c.S("console_tag") + " just now. Nothing on the console was changed.");
+            var who = seenNow != null && seenNow.Tag == c.S("console_tag") && FriendlyName(seenNow) is string fn ? fn + " (console " + c.S("console_tag") + ")" : "console " + c.S("console_tag");
+            var sp = SectionHead("Console Check-Up", "What Workbench read from " + who + " just now. Nothing on the console was changed.");
             var k = new StackPanel();
             var inv = c.O("installed"); var by = inv?.O("files_by_owner");
             k.Children.Add(KeyValues(("Startup software", c.S("kernel") ?? "unknown"),
@@ -234,7 +239,7 @@ namespace CcsBackup.Ui
             c.Children.Add(Details("Technical details", "Before a change, the file on the console must still be exactly what you reviewed. It is written under a temporary name, renamed into place, then read back and compared."));
             if (scope == "dev") c.Children.Add(Note("Developer Mode can change the console's own software. Code you add runs with full control of the console once it starts; a restore point cannot undo what that code does to the startup stages or the console's keys.", "warn"));
             sp.Children.Add(Card(c));
-            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Files change only as you confirm.", "files"));
+            if (string.IsNullOrEmpty(opt.SimulatedConsole) || !profile.ConsoleTasks) sp.Children.Add(ConnectSteps("Files change only as you confirm.", "files", scope == "dev" ? "developer" : "files"));
             sp.Children.Add(Buttons(B("Start the Session", "Btn.Primary", () => { var r = ConsoleReq("files"); r.Add("scope", scope); StartOp("files", scope == "dev" ? "Developer Mode Session" : "Expert Mode Session", "Keep the USB cable connected.", r); }), B("Back", "Btn.Ghost", () => Go(scope == "dev" ? "Developer Mode" : "Console Browser"))));
             Show(sp, "files-intro");
         }
@@ -252,7 +257,7 @@ namespace CcsBackup.Ui
                 if (list.Items.Count > 0) list.SelectedIndex = 0;
                 c.Children.Add(Field("A backup of this console", list));
                 c.Children.Add(Buttons(B("Use This Backup", "Btn.Primary", () => worker?.Send(new JObj { { "cmd", "restore-point" }, { "backup", (list.SelectedItem as ComboBoxItem)?.Tag as string } })),
-                    B("Browse…", "Btn.Ghost", () => { var d = new Microsoft.Win32.OpenFileDialog { Filter = FileKinds.ConsoleBackupFilter, Title = "Choose a backup of this console as the restore point" }; if (d.ShowDialog(this) == true) worker?.Send(new JObj { { "cmd", "restore-point" }, { "backup", d.FileName } }); })));
+                    B("Browse…", "Btn.Ghost", () => { var chosenFile = CcsFileDialog.OpenFile(this, "Choose a backup of this console as the restore point", null, FileKinds.ConsoleBackupFilter, "console-backup"); if (chosenFile != null) worker?.Send(new JObj { { "cmd", "restore-point" }, { "backup", chosenFile } }); })));
                 sp.Children.Add(Card(c));
             }
             else
@@ -262,7 +267,7 @@ namespace CcsBackup.Ui
                 var path = new TextBox(); System.Windows.Automation.AutomationProperties.SetName(path, "File on the console");
                 c.Children.Add(Field(filesScope == "dev" ? "Path on the data storage (for example hakchi/rootfs/etc/…)" : "Path on the data storage (inside clover/profiles/, hakchi/games/ or ccs/data/)", path, null, 760));
                 c.Children.Add(Buttons(
-                    B("Add or Replace with a File…", "Btn", () => { var d = new Microsoft.Win32.OpenFileDialog(); if (d.ShowDialog(this) == true) worker?.Send(new JObj { { "cmd", "files-plan" }, { "changes", new List<object> { new JObj { { "op", "put" }, { "path", path.Text.Trim() }, { "from", d.FileName } } } } }); }),
+                    B("Add or Replace with a File…", "Btn", () => { var chosenFile = CcsFileDialog.OpenFile(this, "Choose the file to put on the console", null, null, "console-file"); if (chosenFile != null) worker?.Send(new JObj { { "cmd", "files-plan" }, { "changes", new List<object> { new JObj { { "op", "put" }, { "path", path.Text.Trim() }, { "from", chosenFile } } } } }); }),
                     B("Remove…", "Btn.Ghost", () => worker?.Send(new JObj { { "cmd", "files-plan" }, { "changes", new List<object> { new JObj { { "op", "del" }, { "path", path.Text.Trim() } } } } })),
                     B("Check", "Btn.Ghost", () => worker?.Send(new JObj { { "cmd", "stat" }, { "path", path.Text.Trim() } }))));
                 sp.Children.Add(Card(c));

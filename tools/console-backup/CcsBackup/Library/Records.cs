@@ -31,9 +31,12 @@ namespace CcsBackup.Library
         public int? EarlierHomeVersions;
         /// <summary>the number in force: the setting when it is a valid number, otherwise the storage specification's default (one)</summary>
         public int EarlierHomeKeep => Engine.StorageSpec.EarlierKeep(EarlierHomeVersions.HasValue ? (object)(long)EarlierHomeVersions.Value : null);
+        /// <summary>the friendly names of the consoles this window has identified (ConsoleNames.cs): labels on this PC only, private to these
+        /// settings; never an identity, an approval or part of a backup, plan or design</summary>
+        public ConsoleNameBook ConsoleNames = new ConsoleNameBook();
         /// <summary>fields a settings file holds that this version does not use (a newer version's): kept as they are and written back</summary>
         readonly List<KeyValuePair<string, object>> other = new List<KeyValuePair<string, object>>();
-        static readonly string[] Known = { "schema", "primary_folder", "archive_folder", "console_profile", "earlier_home_versions" };
+        static readonly string[] Known = { "schema", "primary_folder", "archive_folder", "console_profile", "earlier_home_versions", "console_names" };
         public static Settings Portable(string primary, string archive) => new Settings { InMemory = true, PrimaryFolder = string.IsNullOrWhiteSpace(primary) || !System.IO.Path.IsPathRooted(primary) ? DefaultPrimary : primary, ArchiveFolder = string.IsNullOrWhiteSpace(archive) || !System.IO.Path.IsPathRooted(archive) ? null : archive };
         public static string DefaultPath => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CCS Console Backup", "settings.json");
         public static string DefaultPrimary => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "CCS Console Backups");
@@ -51,6 +54,7 @@ namespace CcsBackup.Library
                     if (d.ContainsKey("archive_folder")) { var a = d.S("archive_folder"); s.ArchiveFolder = string.IsNullOrWhiteSpace(a) || !System.IO.Path.IsPathRooted(a) ? null : a; }
                     var cp = d.S("console_profile"); if (!string.IsNullOrWhiteSpace(cp)) s.ConsoleProfile = cp;
                     var ev = d.L("earlier_home_versions", -1); if (ev >= 0 && ev == Engine.StorageSpec.EarlierKeep(ev)) s.EarlierHomeVersions = (int)ev;
+                    s.ConsoleNames = ConsoleNameBook.FromJson(d.A("console_names"));
                     foreach (var kv in d) if (Array.IndexOf(Known, kv.Key) < 0) s.other.Add(kv);
                 }
             }
@@ -65,11 +69,12 @@ namespace CcsBackup.Library
             var j = new JObj { { "schema", "ccs-console-backup-settings/1" }, { "primary_folder", PrimaryFolder }, { "archive_folder", ArchiveFolder ?? "" } };
             if (!string.IsNullOrEmpty(ConsoleProfile)) j.Add("console_profile", ConsoleProfile);
             if (EarlierHomeVersions.HasValue) j.Add("earlier_home_versions", (long)EarlierHomeVersions.Value);
+            if (ConsoleNames.Entries.Count > 0) j.Add("console_names", ConsoleNames.ToJson());
             foreach (var kv in other) j.Add(kv.Key, kv.Value);
             Durable.WriteAtomic(file, Json.Write(j));
         }
         /// <summary>a copy (the same file, values and kept fields)</summary>
-        public Settings Copy() { var c = new Settings { PrimaryFolder = PrimaryFolder, ArchiveFolder = ArchiveFolder, Path = Path, InMemory = InMemory, ConsoleProfile = ConsoleProfile, EarlierHomeVersions = EarlierHomeVersions }; c.other.AddRange(other); return c; }
+        public Settings Copy() { var c = new Settings { PrimaryFolder = PrimaryFolder, ArchiveFolder = ArchiveFolder, Path = Path, InMemory = InMemory, ConsoleProfile = ConsoleProfile, EarlierHomeVersions = EarlierHomeVersions, ConsoleNames = ConsoleNames.Copy() }; c.other.AddRange(other); return c; }
         public string RecordsFolder => System.IO.Path.Combine(PrimaryFolder, ".ccs-records");
     }
 
@@ -100,8 +105,12 @@ namespace CcsBackup.Library
     {
         public string Id, ConsoleTag, PrimaryPath, ArchivePath, PartialPath, StateText, Kind, Problem; public DateTime? CreatedUtc, VerifiedUtc;
         public BackupStatus Status; public long Bytes; public bool Simulated, RestoreReady, RecoveryBaseline, TwoCopies, SameDisk;
+        /// <summary>NeedsVerification only: the record says its full check passed when it was made, and the file still has the size and time it
+        /// had then (its second copy was not finished). The words people see say Verified for it; the status stays as it is.</summary>
+        public bool CheckedWhenMade;
         public Dictionary<string, object> RecordData;
         public string When => CreatedUtc.HasValue ? CreatedUtc.Value.ToLocalTime().ToString("dddd, MMMM d, yyyy 'at' h:mm tt", CultureInfo.GetCultureInfo("en-US")) : "Unknown time";
+        /// <summary>the file's state as a full check found it (never what its description says about itself)</summary>
         public string StatusText
         {
             get
@@ -109,11 +118,11 @@ namespace CcsBackup.Library
                 switch (Status)
                 {
                     case BackupStatus.Verified: return TwoCopies ? "Verified, two copies" : "Verified, one copy";
-                    case BackupStatus.NeedsVerification: return "Needs verification";
-                    case BackupStatus.Changed: return "Changed since it was checked";
+                    case BackupStatus.NeedsVerification: return CheckedWhenMade ? "Verified, one copy" : "Not checked";
+                    case BackupStatus.Changed: return "Changed since last check";
                     case BackupStatus.Incomplete: return "Incomplete";
                     case BackupStatus.Damaged: return "Damaged";
-                    default: return "File not found";
+                    default: return "Missing";
                 }
             }
         }
@@ -156,7 +165,13 @@ namespace CcsBackup.Library
                         case "damaged": e.Status = BackupStatus.Damaged; break;
                         case "published":
                         case "copying":
-                            e.Status = finalExists ? BackupStatus.NeedsVerification : BackupStatus.Incomplete; break;
+                            e.Status = finalExists ? BackupStatus.NeedsVerification : BackupStatus.Incomplete;
+                            if (finalExists && e.VerifiedUtc != null)
+                            {
+                                var pf = new FileInfo(e.PrimaryPath); e.Bytes = pf.Length;
+                                e.CheckedWhenMade = pf.Length == prim.L("bytes") && pf.LastWriteTimeUtc.ToString("o", CultureInfo.InvariantCulture) == prim.S("mtime_utc");
+                            }
+                            break;
                         default:   // started, reading, captured, checking, checked, canceled, stopped
                             e.Status = finalExists ? BackupStatus.NeedsVerification : BackupStatus.Incomplete; break;
                     }

@@ -79,7 +79,8 @@ namespace CcsBackup.Engine
                 if (state == "folder" || state == "link" || state == "special") return (null, "\"" + c.Path + "\" is a " + (state == "folder" ? "folder" : state == "link" ? "link" : "special file") + " on the console; only regular files are changed.");
                 if (c.Op == "del" && state == "absent") return (null, "\"" + c.Path + "\" is not on the console.");
                 var data = c.Data;
-                if (c.Op == "put" && scope == "user") { var (d2, note, refusal) = SaveDrop(c.Path, data); if (refusal != null) return (null, refusal); if (note != null) p.Notes.Add(note); data = d2; }
+                if (c.Op == "put" && scope == "user" && point.Model.IsNes) { var (d2, note, refusal) = SaveDrop(c.Path, data); if (refusal != null) return (null, refusal); if (note != null) p.Notes.Add(note); data = d2; }
+                else if (c.Op == "put" && scope == "user" && IsBatteryName(c.Path)) p.Notes.Add("\"" + c.Path + "\" is written exactly as you chose it: Workbench does not convert the " + point.Model.Name + "'s saves.");
                 p.Changes.Add(new PlannedFileChange { Op = c.Op, Path = c.Path, Data = data, Bytes = c.Op == "put" ? data.LongLength : 0, NewSha256 = c.Op == "put" ? Sha(data) : null, OldState = state, OldBytes = bytes });
             }
             if (p.Changes.Any(c => c.Op == "put" && c.Path.StartsWith("hakchi/games/", StringComparison.Ordinal))) p.Notes.Add("Copying a game file does not by itself add it to the console's menu: a menu entry needs its own data.");
@@ -92,6 +93,9 @@ namespace CcsBackup.Engine
         /// is written as it is only when it already is in the console's save format; a plain battery save is converted only for a game whose
         /// entry is confirmed on a real console, and anything else is refused with the reason (nothing is guessed or written blind). A suspend
         /// point is never taken for a battery save, and a Classic Cart Studio saved state never goes into a battery-save file.</summary>
+        /// <summary>a file at one of the console's own battery-save names, in its HOME saves (not a suspend point)</summary>
+        static bool IsBatteryName(string path) => path.StartsWith("clover/profiles/", StringComparison.Ordinal) && !Saves.StockSave.IsSuspendPointPath(path) && Saves.StockWrapper.BatteryNames.Contains(path.Substring(path.LastIndexOf('/') + 1));
+
         static (byte[] data, string note, string refusal) SaveDrop(string path, byte[] data)
         {
             if (!path.StartsWith("clover/profiles/", StringComparison.Ordinal) || Saves.StockSave.IsSuspendPointPath(path)) return (data, null, null);

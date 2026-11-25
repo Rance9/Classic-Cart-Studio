@@ -87,8 +87,8 @@ namespace CcsBackup.Tests
                 }
             }
             var missing = Path.Combine(Work, "no-such-console-" + Guid.NewGuid().ToString("N").Substring(0, 6));
-            foreach (var (what, extra) in new[] { ("SNES gameplay", "\"capability\":\"snes-gameplay\""), ("preparing a SNES Classic", "\"capability\":\"snes-classic-preparation\""), ("the reserved core provider", "\"provider\":{\"kind\":\"core\",\"id\":\"snes-unselected\"}"),
-                                                ("a SNES target", "\"ccs_target\":{\"schema\":\"ccs-target/1\",\"game_system\":\"snes\"}"), ("CCS Mod or CCS Nucleus on a SNES Classic", "\"capability\":\"snes-classic-addons\"") })
+            foreach (var (what, extra) in new[] { ("SNES gameplay", "\"capability\":\"snes-gameplay\""), ("converting a SNES Classic's stock saves", "\"capability\":\"snes-stock-save-conversion\""), ("the reserved core provider", "\"provider\":{\"kind\":\"core\",\"id\":\"snes-unselected\"}"),
+                                                ("a SNES target", "\"ccs_target\":{\"schema\":\"ccs-target/1\",\"game_system\":\"snes\"}") })
             {
                 var r = Ask("{\"cmd\":\"backup\",\"console\":\"simulated\",\"folder\":" + Json.Write(missing).Trim() + "," + extra + "}");
                 Check(r["state"] as string == "unavailable" && r["code"] as string == "reserved" && !Directory.Exists(missing), "worker: a backup request for " + what + " is refused before anything (" + r["problem"] + ")");

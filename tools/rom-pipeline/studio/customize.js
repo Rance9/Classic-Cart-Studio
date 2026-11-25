@@ -44,7 +44,8 @@ function ovMaybeLoad(){ if(ovEnabled()&&!OVR.loaded&&!OVR.loading) ovReload(); }
 const _ovConnPill=connPill; connPill=function(){ _ovConnPill.apply(this,arguments); try{ ovMaybeLoad(); }catch(e){} };
 // ---- Details: decoration (Windows app only) ----
 const _ovOpenDetails=openDetails;
-openDetails=function(id){ if(ovTextDirty()&&OVED.id!==id&&!confirm(OV_DISCARD)) return; OVED=null; _ovOpenDetails(id); OVR.cur=id; ovDecorate(id); };
+openDetails=function(id){ const go=()=>{ OVED=null; _ovOpenDetails(id); OVR.cur=id; ovDecorate(id); };
+ if(ovTextDirty()&&OVED.id!==id){ ccsAsk(OV_DISCARD).then(yes=>{ if(yes) go(); }); return; } go(); };   /* the question only when unsaved text would be lost; otherwise at once, as before */
 function ovRefreshDetails(force){ if(!OVR.cur||!$('details').classList.contains('open')) return; if(OVED&&!force) return; const b=$('detailsBox'), sc=b.scrollTop; OVED=null; openDetails(OVR.cur); b.scrollTop=sc; }   // the whole chain (this file's decoration and the layers added after it: Play, Game Settings, the loadout and kept-game notes), not only the base
 function ovPen(field,label){ return `<button type="button" class="ovpen" data-ovedit="${field}" title="${esc(label)}" aria-label="${esc(label)}">${OV_PEN}</button>`; }
 function ovChip(t){ return `<span class="ovchip" title="${esc(t||'Your version; the original can be restored')}">Customized</span>`; }
@@ -57,7 +58,7 @@ function ovDecorate(id){ const g=byId[id], box=$('detailsBox'); if(!g||!box||!ov
  if(!o&&v){ v.parentElement.insertAdjacentHTML('beforeend',`<button type="button" class="ovadd" data-ovedit="official" title="Write your own description for this game. It is shown as &quot;Custom description&quot;, never as publisher text.">${OV_PEN}<span>Add a custom description</span></button>`); } }
 // ---- text editors (one field at a time, inline in its section) ----
 function ovTextDirty(){ const t=$('ovText'); return !!(OVED&&t&&t.value!==OVED.initial); }
-function ovEditText(field){ const g=byId[OVR.cur]; if(!g||!ovEditable(g)) return; if(OVED){ if(OVED.field===field) return; if(ovTextDirty()&&!confirm(OV_DISCARD)) return; ovRefreshDetails(true); }
+async function ovEditText(field){ const g=byId[OVR.cur]; if(!g||!ovEditable(g)) return; if(OVED){ if(OVED.field===field) return; if(ovTextDirty()&&!(await ccsAsk(OV_DISCARD))) return; ovRefreshDetails(true); }
  const c=ovCanon(g); const canon=field==='official'?(c.official||ovLibOfficial(g)):(c.overview||ovLibOverview(g)); const o=(OVR.games[g.game_id]||{})[field]||null; const cur=o?o.text:(canon||'');
  OVED={field,id:g.game_id,initial:cur,hasOverride:!!o};
  let sec=$(field==='official'?'dOfficial':'dOverview');
@@ -71,7 +72,7 @@ function ovEditText(field){ const g=byId[OVR.cur]; if(!g||!ovEditable(g)) return
   <div class="acts"><button type="button" class="btn sm ghost" id="ovCanonBtn" aria-pressed="false" aria-controls="ovCanon">Show Original</button><button type="button" class="btn sm secondary" id="ovReset" ${o?'':'disabled'} title="${o?'Remove your text and show the original again':'Nothing to reset: this field shows the original'}">Reset to Original</button><span class="sp"></span><span class="small ovmsg" id="ovMsg" role="status"></span><button type="button" class="btn sm" id="ovCancel">Cancel</button><button type="button" class="btn sm primary" id="ovSave">Save</button></div>`;
  const ta=$('ovText'); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); sec.scrollIntoView({block:'nearest'}); }
 function ovMsg(id,t,cls){ const m=$(id); if(m){ m.textContent=t||''; m.className='small ovmsg'+(cls?' '+cls:''); } }
-function ovCancelEdit(){ if(ovTextDirty()&&!confirm(OV_DISCARD)) return false; ovRefreshDetails(true); return true; }
+async function ovCancelEdit(){ if(ovTextDirty()&&!(await ccsAsk(OV_DISCARD))) return false; ovRefreshDetails(true); return true; }
 async function ovSaveText(){ if(!OVED) return; const t=$('ovText').value, ed=OVED;
  if(!t.trim()){ ovMsg('ovMsg','Write some text, or use Reset to Original.','bad'); return; }
  if(t.trim()===String(ed.initial).trim()&&!ed.hasOverride){ ovRefreshDetails(true); return; }   // unchanged original: nothing to keep
@@ -80,7 +81,7 @@ async function ovSaveText(){ if(!OVED) return; const t=$('ovText').value, ed=OVE
  OVED=null; await ovReload(); toast(ed.field==='official'?'Description saved':'Game overview saved'); }
 async function ovResetField(field, id){ const g=byId[id]; if(!g) return;
  const what=field==='art'?'box art':field==='official'?((ovCanon(g).official)?'Official description':'custom description'):'Game overview';
- if(!confirm(field==='art'?'Use the original box art again? Your imported image is removed; the file you chose is not touched.':field==='official'&&!ovCanon(g).official?'Remove your custom description? This game has no approved Official description, so the section disappears.':`Reset the ${what} to the original? Your text is removed.`)) return false;
+ if(!(await ccsAsk(field==='art'?'Use the original box art again? Your imported image is removed; the file you chose is not touched.':field==='official'&&!ovCanon(g).official?'Remove your custom description? This game has no approved Official description, so the section disappears.':`Reset the ${what} to the original? Your text is removed.`))) return false;
  const r=await hkPost('/api/overrides/reset',{id,field}); if(!r||!r.ok){ toast('Not reset: '+((r&&r.error)||'no response. Try again.')); return false; }
  if(field!=='art') OVED=null; await ovReload(); toast(what==='custom description'?'Custom description removed':`Original ${what} restored`); return true; }
 $('detailsBox').addEventListener('click',e=>{ const t=e.target;
@@ -95,7 +96,7 @@ document.addEventListener('keydown',e=>{ if(e.key!=='Escape') return;
  if(OVA&&$('ovArt')&&$('ovArt').classList.contains('open')){ e.preventDefault(); e.stopImmediatePropagation(); ovArtClose(); return; }
  if(OVED&&$('details').classList.contains('open')){ e.preventDefault(); e.stopImmediatePropagation(); ovCancelEdit(); } },true);
 document.addEventListener('click',e=>{ const t=e.target; if(!(t.id==='details'||(t.closest&&t.closest('#dClose')))) return;
- if(ovTextDirty()&&!confirm(OV_DISCARD)){ e.preventDefault(); e.stopImmediatePropagation(); return; } OVED=null; },true);
+ if(ovTextDirty()){ e.preventDefault(); e.stopImmediatePropagation(); ccsAsk(OV_DISCARD).then(yes=>{ if(!yes) return; OVED=null; t.click(); }); return; } OVED=null; },true);   /* asked first; the same close again once the text may go */
 // ---- artwork editor ----
 function ovArtEnsure(){ if($('ovArt')) return; const m=document.createElement('div'); m.id='ovArt'; m.className='modal ovart'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-labelledby','ovArtTitle');
  m.innerHTML=`<div class="mbox"><div class="mhd"><h2 id="ovArtTitle">Edit Box Art</h2><span class="small" id="ovArtSub"></span><button class="btn sm" id="ovArtClose" type="button">Close</button></div>
@@ -112,7 +113,7 @@ function ovArtEnsure(){ if($('ovArt')) return; const m=document.createElement('d
  ['dragenter','dragover'].forEach(ev=>m.addEventListener(ev,e=>{ e.preventDefault(); if(OVA&&!OVA.busy) $('ovDrop').classList.add('over'); }));
  m.addEventListener('dragleave',e=>{ if(e.target===m||e.target===$('ovDrop')) $('ovDrop').classList.remove('over'); });
  m.addEventListener('drop',e=>{ e.preventDefault(); $('ovDrop').classList.remove('over'); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) ovArtUpload(f); });
- $('ovArtClose').onclick=()=>ovArtClose(); $('ovArtCancel').onclick=()=>ovArtClose(); $('ovArtPick').onclick=()=>$('ovArtFile').click();
+ $('ovArtClose').onclick=()=>ovArtClose(); $('ovArtCancel').onclick=()=>ovArtClose(); $('ovArtPick').onclick=async()=>{ const r=await CCSF.open({title:'Choose box art for this game (PNG, JPEG, WebP, GIF or BMP)', kinds:CCSF_PICTURES, purpose:'art', accept:'image/png,image/jpeg,image/webp,image/gif,image/bmp,.png,.jpg,.jpeg,.webp,.gif,.bmp'}); if(r&&r[0]) ovArtUpload(await r[0].file()); };
  $('ovArtFile').onchange=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(f) ovArtUpload(f); };
  m.querySelector('.ovview').onclick=e=>{ const b=e.target.closest('[data-ovview]'); if(!b||b.disabled) return; OVA.view=b.dataset.ovview; ovArtPaint(); };
  $('ovFit').onclick=()=>{ OVA.crop=null; ovArtPaint(); }; $('ovCrop').onclick=()=>{ if(!OVA.crop){ OVA.crop=ovCropAt(1,0.5,0.5); } OVA.view='mine'; ovArtPaint(); const f=$('ovFrame'); if(f) f.focus(); };
@@ -121,10 +122,10 @@ function ovArtEnsure(){ if($('ovArt')) return; const m=document.createElement('d
  $('ovArtSave').onclick=ovArtSave; }
 function ovArtRec(){ return OVA&&(OVA.staged||OVA.cur)||null; }
 function ovArtDirty(){ return !!(OVA&&(OVA.staged||JSON.stringify(OVA.crop||null)!==OVA.initialCrop)); }
-function ovArtOpen(id){ const g=byId[id]; if(!g||!ovEditable(g)) return; if(OVED&&ovTextDirty()&&!confirm(OV_DISCARD)) return; if(OVED) ovRefreshDetails(true);
+async function ovArtOpen(id){ const g=byId[id]; if(!g||!ovEditable(g)) return; if(OVED&&ovTextDirty()&&!(await ccsAsk(OV_DISCARD))) return; if(OVED) ovRefreshDetails(true);
  ovArtEnsure(); const o=(OVR.games[id]||{}).art||null; OVA={id,g,cur:o&&o.present!==false?o:null,staged:null,crop:o?o.crop||null:null,view:o?'mine':'orig',busy:false,initialCrop:JSON.stringify((o&&o.crop)||null),ret:document.activeElement};
  $('ovArtSub').textContent=g.display_title+(g.nointro_name&&g.nointro_name!==g.display_title?' · '+g.nointro_name:''); ovMsg('ovArtMsg',''); $('ovArt').classList.add('open'); ovArtPaint(); $('ovArtPick').focus(); }
-function ovArtClose(){ if(!OVA) { $('ovArt')&&$('ovArt').classList.remove('open'); return true; } if(OVA.busy) return false; if(ovArtDirty()&&!confirm(OV_DISCARD)) return false; const ret=OVA.ret; OVA=null; $('ovArt').classList.remove('open'); if(ret&&ret.focus&&ret.isConnected) ret.focus(); else { const b=$('ovArtBtn'); if(b) b.focus(); } return true; }
+async function ovArtClose(){ if(!OVA) { $('ovArt')&&$('ovArt').classList.remove('open'); return true; } if(OVA.busy) return false; if(ovArtDirty()&&!(await ccsAsk(OV_DISCARD))) return false; if(!OVA) return true; const ret=OVA.ret; OVA=null; $('ovArt').classList.remove('open'); if(ret&&ret.focus&&ret.isConnected) ret.focus(); else { const b=$('ovArtBtn'); if(b) b.focus(); } return true; }
 function ovWorkUrl(rec){ return artUrl('overrides/work/'+OVA.id+'.jpg?m='+String(rec.sha256||'').slice(0,16)); }
 // crop geometry: the frame keeps the console box shape (340:466 in pixels); zoom 1 = the largest such frame inside the image
 function ovBase(){ const r=ovArtRec(); const W=r.width, H=r.height, A=OV_BOX[0]/OV_BOX[1]; return W/H>=A?{w:A*H/W,h:1}:{w:1,h:W/(A*H)}; }
@@ -158,7 +159,7 @@ function ovConsolePaint(){ const box=$('ovConsole'); if(!box||!OVA) return; cons
  if(!rec){ const src=ovCanonArt(OVA.g); box.innerHTML=src?`<img src="${esc(src)}" alt="" style="width:100%;height:100%;object-fit:contain">`:''; return; }
  const W=rec.width, H=rec.height, c=OVA.crop||{x:0,y:0,w:1,h:1}; const R=ovFitBox(c.w*W,c.h*H,BW,BH);
  box.innerHTML=`<div class="ovclip" style="left:${R.x}px;top:${R.y}px;width:${R.w}px;height:${R.h}px"><img src="${esc(ovWorkUrl(rec))}" alt="" style="left:${-c.x*W*R.s}px;top:${-c.y*H*R.s}px;width:${W*R.s}px;height:${H*R.s}px"></div>`; }
-async function ovArtUpload(file){ if(!OVA||OVA.busy) return; if(OVA.staged&&!confirm('Replace the image you imported but have not saved yet?')) return;
+async function ovArtUpload(file){ if(!OVA||OVA.busy) return; if(OVA.staged&&!(await ccsAsk('Replace the image you imported but have not saved yet?'))) return; if(!OVA||OVA.busy) return;
  OVA.busy=true; ovArtButtons(); ovMsg('ovArtMsg',`Importing “${file.name||'image'}” (${fmt(file.size||0)})…`);
  try{ const qs=new URLSearchParams({id:OVA.id,name:file.name||'image',stage:'1'}); let j;
   try{ const r=await fetch(CO.base+'/api/overrides/art?'+qs.toString(),lnaInit({method:'POST',headers:hdrs({'Content-Type':file.type||'application/octet-stream'}),body:file,cache:'no-store'})); j=await r.json().catch(()=>({ok:false,error:'unexpected response (HTTP '+r.status+')'})); }

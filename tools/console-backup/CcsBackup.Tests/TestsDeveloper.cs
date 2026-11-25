@@ -169,8 +169,7 @@ namespace CcsBackup.Tests
             var o2 = DeveloperEngine.FlashKernel(con2, p2, p2.Digest, p2.Nonce, ctx);
             Check(o2.State == "stopped" && o2.Problem.Contains("Console Restore with your restore point") && File.ReadAllLines(Path.Combine(c, "writes.log")).Count(l => l.EndsWith("dev kernel")) == 2, "a write that reads back differently stops, is not written again, and points to the way back (" + o2.Problem + ")");
             File.Delete(Path.Combine(c, "faults.json"));
-            try { RecoverySessions.OpenReal(ImageKind.Files, null, () => false); Check(false, "a real file session opened"); }
-            catch (GateClosedException) { Check(!CcsBackup.Gate.DeveloperWrites, "a real console: Developer Mode's boundary is closed in code"); }
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.DeveloperWrites && RecoverySessions.Refusal(ImageKind.Files) == null, "a real console: Developer Mode's boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
         }
 
         // ------------------------------------------------------------------ the system part, the test boot and the way back
@@ -300,8 +299,7 @@ namespace CcsBackup.Tests
             using (var t = DeveloperTestBoot.OpenSimulated(c)) { var (xp, xw) = TestBootEngine.Point(t, ob.PrimaryPath, null); Check(xp == null && xw.Contains("different console"), "another console's backup is never a test boot's restore point (" + xw + ")"); }
             var mc = Console_("modified"); var mb = Backup(mc, s);
             using (var t = DeveloperTestBoot.OpenSimulated(mc)) { var (mp2, _) = TestBootEngine.Point(t, mb.PrimaryPath, null); var (op, opw) = TestBootEngine.Plan(t, mp2, TestBootEngine.OwnStartup, null, null, null); Check(op == null && opw.Contains("cannot be started from memory"), "a restore point whose startup software does not fit the console's layout is not test-started (" + opw + ")"); }
-            try { DeveloperTestBoot.OpenReal(); Check(false, "a real test boot opened"); }
-            catch (GateClosedException ex) { Check(!CcsBackup.Gate.DeveloperTestBoot && ex.Message.Contains("not available"), "a real console: the test boot's own boundary is closed in code (" + ex.Message + ")"); }
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.DeveloperTestBoot && DeveloperTestBoot.Refusal() == null, "a real console: the test boot's own boundary is open in this version (asked of the boundary itself: no test starts a real test boot)");
 
             // the way back: Console Restore with the restore point, under its own strict rules (its own protective backup, plan, confirmation)
             var rcon = RecoverySessions.OpenSimulated(c, ImageKind.Restore); var rctx = Ctx(s, ImageKind.Restore);
@@ -366,8 +364,6 @@ namespace CcsBackup.Tests
             var notImage = Path.Combine(Work, "not-a-startup-image-" + Guid.NewGuid().ToString("N").Substring(0, 6) + ".img"); File.WriteAllText(notImage, "not a startup image");
             var (p3, r3, _) = Worker(Req(TestBootEngine.ImageFile, notImage), s, true);
             Check(p3 == null && r3?.S("state") == "refused" && r3.S("problem").Contains("not an Android boot image") && !File.Exists(ram), "worker: a file that is not a startup image is refused before any plan (" + r3?.S("problem") + ")");
-            var (p4, r4, _) = Worker(Json.Write(new JObj { { "cmd", "test-boot" }, { "console", "real" }, { "class", TestBootEngine.OwnStartup }, { "backup", backup } }).Replace("\n", " "), s, true);
-            Check(p4 == null && r4?.S("state") == "unavailable", "worker: a real console's test boot is unavailable, closed in code (" + r4?.S("problem") + ")");
         }
 
         // ------------------------------------------------------------------ the real adapter over the FEL protocol model

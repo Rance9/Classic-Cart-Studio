@@ -159,7 +159,7 @@ def session() -> Session:
     if SESSION is None: SESSION = Session()
     return SESSION
 
-# ---- HTTP routes (desktop principal only; dispatched from nes_companion.py) ----
+# ---- HTTP routes (desktop principal only; dispatched from ccs_backend.py) ----
 def _desktop(h) -> bool:
     b = h._bearer(); return bool(b and b.get("desktop"))
 def handle_get(h, path: str, qs: str):

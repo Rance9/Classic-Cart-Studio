@@ -185,6 +185,34 @@
   <DataTemplate x:Key="Wb.ChoiceText">
     <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip="{Binding}"/>
   </DataTemplate>
+  <!-- check boxes and choices: the theme's boxes (Theme.xaml Ccs.CheckBox / Ccs.RadioButton: 18 pixels, 8 before the words, the whole row
+       takes the click), with the Workbench's focus mark: the red ring around the box shows only while the keyboard is in use (FocusCue) -->
+  <Style TargetType="CheckBox">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="Template" Value="{StaticResource Ccs.CheckBox}"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Style.Triggers>
+      <Trigger Property="HasContent" Value="True"><Setter Property="Padding" Value="8,0,0,0"/></Trigger>
+      <MultiTrigger>
+        <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Red3}"/>
+      </MultiTrigger>
+    </Style.Triggers>
+  </Style>
+  <Style TargetType="RadioButton">
+    <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+    <Setter Property="Template" Value="{StaticResource Ccs.RadioButton}"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Style.Triggers>
+      <Trigger Property="HasContent" Value="True"><Setter Property="Padding" Value="8,0,0,0"/></Trigger>
+      <MultiTrigger>
+        <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="wb:FocusCue.Shown" Value="True"/></MultiTrigger.Conditions>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Red3}"/>
+      </MultiTrigger>
+    </Style.Triggers>
+  </Style>
   <!-- check boxes and choices: their sentence wraps -->
   <DataTemplate x:Key="Wb.CheckText">
     <TextBlock Text="{Binding}" TextWrapping="Wrap"/>

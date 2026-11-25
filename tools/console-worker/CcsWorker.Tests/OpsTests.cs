@@ -207,16 +207,19 @@ namespace CcsWorker.Tests
                 var s = new ScriptedShell(); s.Answer = (c, i) =>
                     c == "hakchi ismdPartitioning" ? R(1) : c.StartsWith("source /hakchi/config") ? R(1) : c == "hakchi hwid" ? R(0, "12 34 56 78 9a bc de f0 01 23 45 67 89 ab cd ef\n") :
                     c == "cat /proc/sys/kernel/osrelease" ? R(0, "3.4.113.29-madmonkey\n") : c == "[ -f /var/version ] && echo \"yes\"" ? R(0, "yes\n") :
-                    c.StartsWith("source /var/version") ? R(0, "1.0.3 3.4.113 v1.0.4-126\n") : c.StartsWith("hakchi eval") ? R(0, "nes-usa\n") : c == "hakchi currentFirmware" ? R(0, "_nand_\n") : R(127, "", "?");
+                    c.StartsWith("source /var/version") ? R(0, "1.0.3 3.4.113 v1.0.4-126\n") : c.StartsWith("hakchi eval") ? R(0, "nes-usa\n") : c == "hakchi currentFirmware" ? R(0, "_nand_\n") :
+                    c == "cat /etc/clover/boardtype" ? R(0, "dp-nes\n") : c == "cat /etc/clover/REGION" ? R(0, "EUR_USA\n") : c.EndsWith("done < /proc/mounts") ? R(0, "/dev/nandc ext4\n") : R(127, "", "?");
                 var r = new ConsoleOps(s, null).Identify();
                 T.True(s.Commands.SequenceEqual(new[] { "hakchi ismdPartitioning", "source /hakchi/config; [ \"$cf_memboot\" = \"y\" ]", "hakchi hwid", "cat /proc/sys/kernel/osrelease", "[ -f /var/version ] && echo \"yes\"",
-                    "source /var/version && echo \"$bootVersion $kernelVersion $hakchiVersion\"", "hakchi eval 'echo \"$sftype-$sfregion\"'", "hakchi currentFirmware" }), "commands: " + string.Join(" | ", s.Commands));
+                    "source /var/version && echo \"$bootVersion $kernelVersion $hakchiVersion\"", "hakchi eval 'echo \"$sftype-$sfregion\"'", "hakchi currentFirmware",
+                    "cat /etc/clover/boardtype", "cat /etc/clover/REGION", "while read -r d m t o x; do [ \"$m\" = /var/lib ] && echo \"$d $t\"; done < /proc/mounts" }), "commands: " + string.Join(" | ", s.Commands));
+                T.Eq("dp-nes", r["board"] as string, "board, as the console's own software names it"); T.Eq("EUR_USA", r["region"] as string, "region"); T.Eq("/dev/nandc ext4", r["data_mount"] as string, "where its data storage is mounted");
                 T.Eq("nes-usa", r["system"] as string, "system"); T.Eq("3.4.113.29-madmonkey", r["kernel"] as string, "running kernel"); T.Eq("1.0.3", r["boot_version"] as string, "boot");
                 T.Eq("v1.0.4-126", r["hakchi_version"] as string, "hakchi"); T.Eq("123456789abcdef00123456789abcdef", r["hwid"] as string, "hwid without spaces");
                 T.Eq(false, (bool)r["custom_firmware"], "stock NAND firmware"); T.Eq(true, (bool)r["can_interact"], "can interact"); T.Eq(false, (bool)r["md_partitioning"], "md"); T.Eq(false, (bool)r["minimal_memboot"], "memboot");
                 var s2 = new ScriptedShell(); s2.Answer = (c, i) => c.StartsWith("[ -f /var/version ]") ? R(1) : c == "hakchi hwid" ? R(0, "00") : R(1);
                 var r2 = new ConsoleOps(s2, null).Identify();
-                T.Eq(false, (bool)r2["can_interact"], "no /var/version: severely outdated"); T.True(r2["system"] == null, "no system asked"); T.True(!s2.Commands.Any(c => c.StartsWith("hakchi eval")), "nothing more asked");
+                T.Eq(false, (bool)r2["can_interact"], "no /var/version: severely outdated"); T.True(r2["system"] == null && r2["board"] == null, "no system or board asked"); T.True(!s2.Commands.Any(c => c.StartsWith("hakchi eval") || c.Contains("/etc/clover")), "nothing more asked");
                 var s3 = new ScriptedShell(); s3.Answer = (c, i) => c.StartsWith("source /hakchi/config") ? R(0) : R(0, "x");
                 var r3 = new ConsoleOps(s3, null).Identify(); T.Eq(true, (bool)r3["minimal_memboot"], "memboot"); T.Eq(4, s3.Commands.Count, "a minimal memboot stops after hwid and the kernel");
                 T.True(ConsoleOps.Version("v1.0.4-118") >= new Version(1, 0, 4, 118) && ConsoleOps.Version("3.4.112-00") < new Version(3, 4, 113), "ConvertVersion");

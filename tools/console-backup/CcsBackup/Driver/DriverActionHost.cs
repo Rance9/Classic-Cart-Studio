@@ -17,8 +17,8 @@
 //            certificates stay and the exit code says the cleanup is deferred; nothing is reported finished that is not.
 //   cleanup  later, certificates a removal kept: the same reading again inside this step (the package gone, a restart seen when one is
 //            required, no signer user, the certificate exactly this operation's), or nothing is touched.
-// The exit code is the result (DriverExit); the window never trusts it alone and reads the PC back. Run stops at once while the DriverChanges
-// boundary is closed: the compiler leaves out everything after that check, so in this version this mode reads nothing and changes nothing.
+// The exit code is the result (DriverExit); the window never trusts it alone and reads the PC back. Run stops at once if the DriverChanges
+// boundary is ever closed (Gate.cs: open in this version), before reading the request or the PC.
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -144,11 +144,38 @@ namespace CcsBackup.Driver
             { 0x24C, "the driver package could not be deleted from the driver store" },            // ERROR_DRIVER_STORE_DELETE_FAILED
         };
 
+        /// <summary>Windows' trust check's errors for a package signed by a certificate this PC does not trust (WinVerifyTrust, wintrust.h)</summary>
+        static readonly Dictionary<int, string> TrustErrors = new Dictionary<int, string>
+        {
+            { unchecked((int)0x800B0109), "Windows did not trust the certificate Workbench's setup made for its driver package" },      // CERT_E_UNTRUSTEDROOT
+            { unchecked((int)0x800B0112), "Windows did not trust the certificate Workbench's setup made for its driver package" },      // CERT_E_UNTRUSTEDCA
+            { unchecked((int)0x800B010A), "Windows could not connect the package's signature to a certificate it trusts" },             // CERT_E_CHAINING
+            { unchecked((int)0x800B0111), "this PC is set to distrust the package's signer" },                                       // TRUST_E_EXPLICIT_DISTRUST
+            { unchecked((int)0x800B0004), "this PC's settings do not let Windows trust the package's signer" },                     // TRUST_E_SUBJECT_NOT_TRUSTED
+            { unchecked((int)0x80092026), "this PC's security settings do not allow it" },                                           // CRYPT_E_SECURITY_SETTINGS
+            { unchecked((int)0x800B0100), "the driver package has no signature Windows accepts" },                                   // TRUST_E_NOSIGNATURE
+        };
+
+        /// <summary>the sentence that names an unmet requirement of this PC behind a refusal (trust in the setup's certificate, a policy, a copy
+        /// for another processor), or null when the code is not one</summary>
+        public static string Requirement(int? code)
+        {
+            if (code == null) return null;
+            int c = code.Value;
+            if (TrustErrors.ContainsKey(c) || c == unchecked((int)0xE0000242) || c == unchecked((int)0xE0000243) || c == unchecked((int)0xE0000240))
+                return "This PC does not trust a driver package signed by a certificate made on it for one setup, as Workbench's package is. Workbench took that certificate back and changes no trust setting. Someone who manages this PC can set up a driver for the console that this PC accepts.";
+            if (c == unchecked((int)0xE0000248) || c == unchecked((int)0xE0000249))
+                return "A policy set by whoever manages this PC does not allow setting up this device or driver. Workbench changes no policy.";
+            if (c == NotNative) return "Use the CCS Console Workbench download made for this PC's processor.";
+            return null;
+        }
+
         /// <summary>Windows' own words for an error (FormatMessage, or the device-setup table above), with its number</summary>
         public static string WindowsError(int code)
         {
             string text;
             if ((code & unchecked((int)0xFFFFF000)) == unchecked((int)0xE0000000) && DeviceSetupErrors.TryGetValue(code & 0xFFF, out var t)) text = t;
+            else if (TrustErrors.TryGetValue(code, out var tt)) text = tt;
             else try { text = new Win32Exception(code).Message; } catch { text = null; }
             if (string.IsNullOrWhiteSpace(text) || text.StartsWith("Unknown error", StringComparison.OrdinalIgnoreCase)) text = "Windows reported an error";
             return "Windows: " + text.Trim().TrimEnd('.') + " (error 0x" + code.ToString("X8") + ")";

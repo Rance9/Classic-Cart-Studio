@@ -68,7 +68,8 @@ namespace CcsBackup.Engine
     public static class ConsoleBrowser
     {
         /// <summary>the check-up: reads only</summary>
-        public static ConsoleCheckup Checkup(RecoveryConsole con, string expectedImage, Func<bool> cancelled = null)
+        /// <summary>identified: told the console's identity once it is checked (before its storage is read), as CaptureEngine does</summary>
+        public static ConsoleCheckup Checkup(RecoveryConsole con, string expectedImage, Func<bool> cancelled = null, Action<ConsoleIdentity> identified = null)
         {
             var id = con.Identify(); var c = new ConsoleCheckup { ConsoleTag = id.ShortTag, ActiveMd5 = id.ActiveMd5 };
             c.PhysicalModel = id.Model?.Id; c.ModelName = id.Model?.Name; c.StockGames = id.Model?.StockGames ?? 0;
@@ -77,6 +78,7 @@ namespace CcsBackup.Engine
                 : id.ActiveHakchiEntries > 0 ? "Modified startup software (hakchi), not on this version's list of recognized startup software" : "Startup software not on this version's list of recognized startup software";
             List<PartitionEntry> parts;
             try { parts = Support.CheckForBackup(id, expectedImage, "identify"); } catch (ConsoleRefusedException ex) { c.Problem = ex.Message; return c; }
+            identified?.Invoke(id);
             var data = parts.FirstOrDefault(p => p.Label == "data" || p.Label == "rootfs_data");
             if (data == null) { c.Problem = "The console's data storage was not found in its storage table."; return c; }
             c.DataDevice = data.Device; c.PartBytes = data.Bytes;

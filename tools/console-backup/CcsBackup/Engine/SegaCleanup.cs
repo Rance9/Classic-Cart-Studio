@@ -65,7 +65,7 @@ namespace CcsBackup.Engine
         public static (SegaCleanupPlan plan, string why) PlanRemove(RecoveryConsole con, EngineContext ctx)
         {
             if (con.Profile != SessionProfile.Files) return (null, "The console is not in a file session.");
-            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "files"); if (mw != null) return (null, mw + " Nothing was changed.");
+            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "files") ?? ConsoleData.Refusal(id); if (mw != null) return (null, mw + " Nothing was changed.");
             var p = new SegaCleanupPlan { Kind = RemoveKind, Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated };
             var (prot, pwhy) = Protect(con, ctx, id, "backup made just now, before the pictures are removed"); if (prot == null) return (null, pwhy);
             p.Protective = prot;
@@ -112,7 +112,7 @@ namespace CcsBackup.Engine
             var ev = (rp.A("evidence") ?? new List<object>()).OfType<Dictionary<string, object>>().FirstOrDefault();
             var srcPath = ev?.S("path");
             if (srcPath == null || !File.Exists(srcPath)) return (null, "The backup made before the removal is missing (" + srcPath + "), so the pictures cannot be put back from it. Nothing was changed.");
-            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "files"); if (mw != null) return (null, mw + " Nothing was changed.");
+            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "files") ?? ConsoleData.Refusal(id); if (mw != null) return (null, mw + " Nothing was changed.");
             var v = Verifier.VerifyFile(srcPath, null, ctx.Cancelled);
             if (!v.Ok) return (null, "The backup made before the removal no longer passes its check (" + v.Problems[0] + "). Nothing was changed.");
             if (v.ArchiveSha256 != ev.S("sha256")) return (null, "The backup made before the removal is not the file its record names (it changed). Nothing was changed.");

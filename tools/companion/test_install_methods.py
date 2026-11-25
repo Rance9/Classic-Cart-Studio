@@ -364,6 +364,49 @@ def ask(w: Worker, cmd: str, args: dict | None = None) -> tuple[dict, list]:
     out = io.StringIO(); w.out = out; w.handle(json.dumps({"v": 1, "id": "t", "cmd": cmd, "args": args or {}}))
     lines = [json.loads(l) for l in out.getvalue().splitlines() if l.strip()]; return lines[-1], lines[:-1]
 
+class SuperNes(Base):
+    """the Super NES Classic Edition (its own software's board and region): what Classic Cart Studio may change follows the shared platform
+    registry's capability for its add-ons and the shared storage specification's room for its saves (both as this version ships them:
+    refused before any change, with the reason); with both supplied in this test only, CCS HOME installs, is verified and is removed again,
+    its 21 built-in games and their saves never touched, and the collection's games are never added as Hakchi games (its own software has no
+    NES emulator). A Super Famicom Classic Mini, or a console whose software and hakchi disagree, is never one."""
+    def supplied(self):
+        import platform_ids as P
+        from console_engine import storage_model as SM
+        was, pol = P.allowed, SM.SPEC["policies"]["saves_allowance_bytes"]; had = pol.get("snes-classic-edition")
+        P.allowed = lambda k, i: True if (k, i) == ("capability", "snes-classic-addons") else was(k, i)
+        pol["snes-classic-edition"] = pol["nes-classic-edition"]   # this test only: the NES Classic's allowance
+        def undo(): P.allowed = was; pol["snes-classic-edition"] = had
+        self.addCleanup(undo)
+    def test_25_as_this_version_ships_the_change_is_refused_before_anything(self):
+        import platform_ids as P
+        from console_engine import storage_model as SM
+        cap, room = P.allowed("capability", "snes-classic-addons"), SM.SPEC["policies"]["saves_allowance_bytes"].get("snes-classic-edition") is not None
+        for prof in ("snes-usa", "snes-eur"):
+            root = self.console(prof); before = tree(root); r = self.run_inst(root, self.plan())
+            if cap and room: self.assertEqual(r["result"], "installed", r); continue
+            self.assertEqual((r["ok"], r["result"]), (False, "refused"), r)
+            self.assertIn("Super NES Classic Edition is not available in this version" if not cap else "room needed on the console cannot be confirmed", r["why"])
+            self.assertEqual(changes(before, tree(root)), [], prof)
+            ins = CI.inspect_console(CI.FakeConsole(root)); self.assertTrue(ins["ok"], ins); self.assertEqual((ins["device"]["model"], ins["device"]["system"]), ("snes-classic-edition", prof))
+    def test_26_with_its_capability_and_room_supplied_ccs_home_installs_and_is_removed(self):
+        self.supplied()
+        for prof in ("snes-usa", "snes-eur"):
+            root = self.console(prof); before = tree(root); stock = CI.stock_digest(root)
+            r = self.run_inst(root, self.plan({"mod": True, "nucleus": "direct", "start": "ccs-home"})); self.assertEqual(r["result"], "installed", r)
+            self.assertEqual(listed(root), ["ccs-mod", "ccs-nucleus"]); self.assertTrue(CI.verify_installed(CI.FakeConsole(root), self.plan({"mod": True, "nucleus": "direct", "start": "ccs-home"}))["verified"])
+            self.assertEqual(CI.stock_digest(root), stock, "the built-in games, their saves and suspend points as they were")
+            self.assertFalse(any(k.startswith(("usr/", "var/lib/clover/", "var/squashfs/")) for k in changes(before, tree(root))), "nothing of Nintendo's own")
+            hk = CI.build_plan(self.pkg(), {"mod": True, "nucleus": "direct", "start": "ccs-home"}, True); x = self.run_inst(root, hk); self.assertEqual(x["result"], "refused", x); self.assertIn("has no NES emulator", x["why"])
+            rv = CI.uninstall_plan(CI.FakeConsole(root)); self.assertTrue(rv["ok"], rv); u = CI.uninstall(CI.FakeConsole(root), expect=rv["hash"]); self.assertTrue(u["ok"], u)
+            self.assertEqual([k for k in self.rest(before, root) if not k.startswith("var/lib/ccs/data")], [], prof)
+            self.assertEqual(CI.stock_digest(root), stock)
+    def test_27_other_models_and_disagreeing_identities_are_never_one(self):
+        self.supplied()
+        for prof, words in (("sfc-jpn", "is not one Classic Cart Studio supports"), ("model-mismatch", "but hakchi reports snes-usa"), ("no-model", "model could not be read"), ("data-elsewhere", "data storage is not where")):
+            root = self.console(prof); before = tree(root); r = self.run_inst(root, self.plan())
+            self.assertEqual(r["result"], "refused", (prof, r)); self.assertIn(words, r["why"]); self.assertEqual(changes(before, tree(root)), [], prof)
+
 class WorkerAddons(Base):
     def setUp(self):
         super().setUp(); self.w = Worker(os.path.join(self.t, "root"), console_package=self.st)
@@ -510,7 +553,7 @@ const vm=require('vm'), fs=require('fs');
 const [JS, B, TOKEN]=process.argv.slice(1);
 const els={}; const mk=id=>({id, innerHTML:'', textContent:'', disabled:false, checked:false, value:'', onclick:null, onchange:null, classList:{add(){}, remove(){}, contains(){return false;}}});
 const $=id=>{ const h=Object.values(els).map(e=>e.innerHTML).join(''); if(!els[id]&&!['hkBody','hkTitle','hkSub','hkpanel','nhPkg'].includes(id)&&!h.includes(`id="${id}"`)) return null; return els[id]||(els[id]=mk(id)); };
-const H={'Content-Type':'application/json','X-NES-Protocol':'1',Origin:'https://classiccartstudio.com',Authorization:'Bearer '+TOKEN};
+const H={'Content-Type':'application/json','X-CCS-Protocol':'1',Origin:'https://classiccartstudio.com',Authorization:'Bearer '+TOKEN};
 async function hkPost(p,b){ const r=await fetch(B+p,{method:'POST',headers:H,body:JSON.stringify(b||{})}); const j=await r.json(); return Object.assign({status:r.status}, j); }
 async function capi(p){ const r=await fetch(B+p,{headers:H}); return r.json(); }
 let tvOpened=0;
@@ -570,7 +613,7 @@ const has=t=>html().includes(t);
   console.log(JSON.stringify(out)); })().catch(e=>{ console.log(JSON.stringify({error:String(e&&e.stack||e)})); process.exit(1); });
 """
 
-PORT = 8774; B = f"http://127.0.0.1:{PORT}"
+PORT = int(os.environ.get("CCS_TEST_PORT") or 8774); B = f"http://127.0.0.1:{PORT}"
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class Page(unittest.TestCase):
     """the Install on NES Classic page (tools/rom-pipeline/studio/install.js) through the app's own backend: the two add-on pages, what they
@@ -620,8 +663,125 @@ class Page(unittest.TestCase):
         self.assertEqual(out["games_rehearse"], {"result": "installed", "delivery": "games", "published": 1, "added": []}, out)
         self.assertEqual(out["games_verify"], {"files": True, "menu": True}, out); self.assertEqual(out["games_ready"], {"said": True}, out)
 
+PAGE_PHYS = r"""
+const vm=require('vm'), fs=require('fs');
+const [JS, B, TOKEN, CONSOLE_JSON, ADMIT, FAULTS]=process.argv.slice(1);
+const els={}; const mk=id=>({id, innerHTML:'', textContent:'', disabled:false, checked:false, value:'', onclick:null, onchange:null, classList:{add(){}, remove(){}, contains(){return false;}}});
+const $=id=>{ const h=Object.values(els).map(e=>e.innerHTML).join(''); if(!els[id]&&!['hkBody','hkTitle','hkSub','hkpanel','nhPkg'].includes(id)&&!h.includes(`id="${id}"`)) return null; return els[id]||(els[id]=mk(id)); };
+const H={'Content-Type':'application/json','X-CCS-Protocol':'1',Origin:'https://classiccartstudio.com',Authorization:'Bearer '+TOKEN};
+async function hkPost(p,b){ const r=await fetch(B+p,{method:'POST',headers:H,body:JSON.stringify(b||{})}); const j=await r.json(); return Object.assign({status:r.status}, j); }
+async function capi(p){ const r=await fetch(B+p,{headers:H}); return Object.assign({status:r.status}, await r.json()); }
+const ctx=vm.createContext({console, setTimeout, clearTimeout, setInterval, clearInterval, fetch, $, hkPost, capi, document:{addEventListener(){}, querySelectorAll(){return [];}},
+  esc:s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'), fmt:n=>n+' B', COMPANION:{ok:true, desktop:true, capabilities:['console-sim']},
+  INST:{step:'inspect'}, STEPS:[], stepperHtml:()=>'', renderInstall:async()=>{}, procSet(){}, PROC:{}, HOME_STARTUP:[], HOME_THEME_META:[], homeModelFromStudio:()=>({theme:'arcade-grid'}), dispatchEvent(){}, CustomEvent:function(){}, openTv(){} });
+ctx.window=ctx; vm.runInContext(fs.readFileSync(JS,'utf8'), ctx);
+const R=(code)=>vm.runInContext(code, ctx);
+const phys=()=>els.cPhys?els.cPhys.innerHTML:'';
+const btn=id=>{ const m=phys().match(new RegExp('<button[^>]*id="'+id+'"[^>]*>')); return m?{on:!/ disabled/.test(m[0])}:null; };
+const setConsole=o=>{ const c=JSON.parse(fs.readFileSync(CONSOLE_JSON,'utf8')); fs.writeFileSync(CONSOLE_JSON, JSON.stringify(Object.assign(c,o))); };
+const until=async(f,ms)=>{ for(let i=0;i<(ms||120000)/50;i++){ if(f()) return true; await new Promise(r=>setTimeout(r,50)); } throw new Error('timed out'); };
+// a click as a person makes it: some buttons start their work without returning it, so the page is read again only once it settled
+const click=async id=>{ if(!els[id]||!els[id].onclick) throw new Error('no '+id+' on the page: '+R("JSON.stringify({result:PHYS.result,check:PHYS.check,confirm:PHYS.confirm})").slice(0,600));
+  const before=R('PHYS.result'), conf=R('PHYS.confirm'); await els[id].onclick();
+  if(id==='hkPhys'||id==='pRemove') await until(()=>R('PHYS.confirm')!==conf||R('PHYS.result')!==before); else await until(()=>!R('PHYS.busy')&&R('PHYS.result')!==before); };
+(async()=>{ const out={};
+  // Console State: On your console, every step available (no "Turned off" text), nothing checked yet
+  R("INST.step='inspect'"); await R('renderConsoleStep()');
+  out.state={panel:phys().includes('<b>On your console</b>'), off:phys().includes('Turned off'), inspect:btn('pInspect'), install:btn('hkPhys'), ops:els.hkBody.innerHTML.includes('Turned off')};
+  await click('pInspect'); const c=R('physConsole()');
+  out.checked={label:c&&c.label, model:c&&c.identity.model, result:R("PHYS.result&&PHYS.result.result&&PHYS.result.result.ok")};
+  // the plan, checked against the checked console, confirmed and installed; then verified; Verify and Complete show the change on the console
+  await R('ensurePlan(true)'); R("INST.step='install'"); await R('renderConsoleStep()');
+  out.before_check={install:btn('hkPhys')};
+  await click('pCheck'); out.check={ok:R('PHYS.check&&PHYS.check.ok'), install:btn('hkPhys')};
+  await click('hkPhys'); out.confirm={covers:R("PHYS.confirm&&PHYS.confirm.covers")||'', yes:phys().includes('Confirm and Install')};
+  await click('pConfYes'); const r=R("PHYS.result&&PHYS.result.result"); out.install={result:r&&r.result, simulated:r&&r.simulated, next:els.hkNext&&!els.hkNext.disabled};
+  await R('consoleStatus()'); await click('pInspect'); await click('pVerify'); const v=R("PHYS.result&&PHYS.result.result"); out.verify={verified:v&&v.verified};
+  R("INST.step='verify'"); await R('renderConsoleStep()'); out.verify_step={sub:els.hkSub.textContent, panel:phys().includes('On your console')};
+  R("INST.step='ready'"); await R('renderConsoleStep()'); out.ready={said:els.hkBody.innerHTML.includes('Installed and checked'), sim:els.hkBody.innerHTML.includes('SIMULATION')};
+  // a refused backup admission: the confirmation is made, the change is refused before any worker, and the console is not changed
+  fs.writeFileSync(ADMIT, 'refuse'); await click('pInspect'); R("INST.step='install'"); await R('renderConsoleStep()'); await click('pCheck');
+  await click('hkPhys'); await click('pConfYes'); out.refused={code:R("PHYS.result&&PHYS.result.code"), text:R("PHYS.result&&PHYS.result.text")}; fs.writeFileSync(ADMIT, 'ok');
+  // another console answers after the check: the install is refused by the engine before any change
+  await click('pInspect'); await click('pCheck'); await click('hkPhys'); setConsole({hwid:'sim-SWAPPED'}); await click('pConfYes');
+  const sw=R("PHYS.result&&PHYS.result.result"); out.swapped={result:sw&&sw.result, why:sw&&sw.why}; setConsole({hwid:'sim-0001'});
+  // no confirmation: the backend refuses the change itself
+  const nc=await R("hkPost('/api/console/home/install',{plan_hash:CONSOLE.plan.hash})"); out.unconfirmed={status:nc.status, code:nc.code};
+  // removal, exactly as reviewed and confirmed
+  await click('pInspect'); await click('pReview'); out.review={ok:R('!!(PHYS.review&&PHYS.review.ok)'), remove:R("PHYS.review&&PHYS.review.remove.length")};
+  await click('pRemove'); out.remove_confirm=R("PHYS.confirm&&PHYS.confirm.operation"); await click('pConfYes'); const u=R("PHYS.result&&PHYS.result.result"); out.uninstall={result:u&&u.result};
+  // an installation whose connection is lost after a change stops there (nothing more is written); its recovery is its own confirmed step
+  fs.writeFileSync(FAULTS, JSON.stringify({after:6})); await click('pInspect'); await click('pCheck'); await click('hkPhys'); await click('pConfYes');
+  const st=R("PHYS.result&&PHYS.result.result"); out.stopped={result:st&&st.result, attempt:st&&st.attempt}; fs.unlinkSync(FAULTS);
+  await click('pInspect'); await click('pRecRev'); const a=R("PHYS.recovery&&PHYS.recovery.attempts&&PHYS.recovery.attempts[0]"); out.recovery={attempt:a&&a.attempt, recoverable:a&&a.recoverable};
+  await R("physConfirm('recover',{attempt:PHYS.recovery.attempts[0].attempt})"); await until(()=>R('!!PHYS.confirm')); await click('pConfYes'); const rc=R("PHYS.result&&PHYS.result.result"); out.recovered={result:rc&&rc.result};
+  // another Hakchi setup on the console: refused with the notice and the official Hakchi2 CE 3.9.3 release page (opened outside the window)
+  setConsole({hakchi:'v1.0.3-111'}); await click('pInspect'); out.hakchi={checked:!!R('physConsole()'), title:phys().includes('Hakchi2 CE 3.9.3 is required'),
+    link:phys().includes('href="https://github.com/TeamShinkansen/Hakchi2-CE/releases/tag/v3.9.3" target="_blank" rel="noopener"'), found:phys().includes('hakchi v1.0.3-111')}; setConsole({hakchi:'v1.0.4-126'});
+  // a Super NES Classic (its own software's board and region): checked as one; the page counts its 21 built-in games; the plan is checked against it
+  setConsole({system:'snes-usa', board:'dp-shvc', region:'USA', hwid:'sim-0014'}); await click('pInspect'); const s=R('physConsole()');
+  out.snes={label:s&&s.label, model:s&&s.identity.model, games:R('stockGames()')}; await click('pCheck'); out.snes.check={ok:R('PHYS.check&&PHYS.check.ok'), why:R("PHYS.check&&PHYS.check.why")||''};
+  // a Super Famicom Classic Mini (JPN): never a checked console
+  setConsole({system:'shvc-jpn', board:'dp-shvc', region:'JPN', hwid:'sim-0016'}); await click('pInspect'); out.sfc={checked:!!R('physConsole()'), why:R("PHYS.result&&PHYS.result.result&&PHYS.result.result.why")||''};
+  console.log(JSON.stringify(out)); })().catch(e=>{ console.log(JSON.stringify({error:String(e&&e.stack||e)})); process.exit(1); });
+"""
+
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class PagePhysical(unittest.TestCase):
+    """the physical steps on the Install on NES Classic page (install.js) through the app's own backend, routes, dispatcher, confirmations,
+    worker protocol and installation engine (console_test_backend.py: the worker runs in the backend's process and its console sessions open
+    a disposable stand-in; the backup prerequisite is answered by the test): check the console, check the plan, confirm, install, verify;
+    review and remove; an installation stopped by a lost connection and its separately confirmed recovery;
+    a refused backup admission, another console answering after the check and a change without a confirmation all refuse before any change;
+    a Super NES Classic is checked as one and the plan is checked against its model; a Super Famicom Classic Mini is never a checked console"""
+    @classmethod
+    def setUpClass(cls):
+        cls.t = tempfile.mkdtemp(prefix="ccs-add-phys-", dir=_T); cls.nh = os.path.join(cls.t, "native-home"); staged(os.path.join(cls.nh, "console", "current"))
+        cls.standin = os.path.join(cls.t, "console"); CI.make_stand_in(cls.standin, "hakchi-ready"); cls.stock = CI.stock_digest(cls.standin)
+        cls.admit = os.path.join(cls.t, "admit.txt"); wr(cls.admit, b"ok"); cls.faults = os.path.join(cls.t, "faults.json")
+        cfgp = os.path.join(cls.t, "companion.json"); wr(cfgp, json.dumps({"hakchi_exe": os.path.join(cls.t, "no-hakchi", "hakchi.exe"), "port": PORT + 2, "no_launch": True, "exports_dir": os.path.join(cls.t, "exports"), "staging_dir": os.path.join(cls.t, "staging")}))
+        cls.token = secrets.token_hex(32); env = dict(os.environ, CCS_COMPANION_CONFIG=cfgp, CCS_PERSONAL_DIR=os.path.join(cls.t, "personal"), CCS_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
+                                                       CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8", CCS_TEST_STANDIN=cls.standin, CCS_TEST_ADMIT_FILE=cls.admit, CCS_TEST_FAULTS_FILE=cls.faults, **chooser_env())
+        cls.log = open(os.path.join(cls.t, "companion.log"), "w", encoding="utf-8"); cls.B = f"http://127.0.0.1:{PORT + 2}"
+        cls.proc = subprocess.Popen([sys.executable, "-u", "-B", os.path.join(HERE, "console_test_backend.py"), os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT + 2)], env=env, stdout=cls.log, stderr=subprocess.STDOUT)
+        for _ in range(200):
+            try:
+                with urllib.request.urlopen(cls.B + "/api/ping", timeout=1): break
+            except Exception: time.sleep(0.25)
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        try: cls.proc.wait(20)
+        except subprocess.TimeoutExpired: cls.proc.kill(); cls.proc.wait(10)
+        cls.log.close()
+    def test_51_the_page_runs_the_physical_steps_with_every_safeguard(self):
+        js = os.path.join(HERE, "..", "rom-pipeline", "studio", "install.js")
+        r = subprocess.run([shutil.which("node"), "-e", PAGE_PHYS, js, self.B, self.token, os.path.join(self.standin, "console.json"), self.admit, self.faults], capture_output=True, text=True, timeout=900, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, (r.stdout[-1500:], r.stderr[-1500:])); out = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(out["state"], {"panel": True, "off": False, "inspect": {"on": True}, "install": {"on": False}, "ops": False}, out)
+        self.assertTrue(out["checked"]["label"].startswith("NES Classic Edition (nes-usa, hakchi v1.0.4-126)"), out); self.assertEqual((out["checked"]["model"], out["checked"]["result"]), ("nes-classic-edition", True), out)
+        self.assertEqual(out["before_check"], {"install": {"on": False}}, "no install before the plan is checked against the console")
+        self.assertEqual(out["check"], {"ok": True, "install": {"on": True}}, out)
+        self.assertIn("Once, within 5 minutes: install this collection as planned on NES Classic Edition", out["confirm"]["covers"]); self.assertTrue(out["confirm"]["yes"])
+        self.assertEqual(out["install"], {"result": "installed", "simulated": True, "next": True}, out)
+        self.assertEqual(out["verify"], {"verified": True}, out); self.assertEqual(out["verify_step"], {"sub": "Verify", "panel": True}, out)
+        self.assertEqual(out["ready"], {"said": True, "sim": False}, out)
+        self.assertEqual(out["refused"]["code"], "backup-required", out); self.assertIn("Back up this console first", out["refused"]["text"])
+        self.assertEqual(out["swapped"]["result"], "refused", out); self.assertIn("not the console that was checked", out["swapped"]["why"])
+        self.assertEqual(out["unconfirmed"], {"status": 403, "code": "not-confirmed"}, out)
+        self.assertEqual((out["review"]["ok"], out["remove_confirm"], out["uninstall"]), (True, "uninstall", {"result": "uninstalled"}), out); self.assertGreater(out["review"]["remove"], 0)
+        self.assertEqual(out["stopped"]["result"], "stopped", out); self.assertEqual(out["recovery"], {"attempt": out["stopped"]["attempt"], "recoverable": True}, out)
+        self.assertEqual(out["recovered"], {"result": "rolled-back"}, out)
+        self.assertEqual(out["hakchi"], {"checked": False, "title": True, "link": True, "found": True}, out)
+        self.assertTrue(out["snes"]["label"].startswith("Super NES Classic Edition (snes-usa"), out); self.assertEqual((out["snes"]["model"], out["snes"]["games"]), ("snes-classic-edition", 21), out)
+        import platform_ids
+        if not platform_ids.allowed("capability", "snes-classic-addons"):
+            self.assertFalse(out["snes"]["check"]["ok"]); self.assertIn("Super NES Classic Edition is not available in this version", out["snes"]["check"]["why"])
+        self.assertFalse(out["sfc"]["checked"], out); self.assertIn("is not one Classic Cart Studio supports", out["sfc"]["why"])
+        self.assertEqual(CI.stock_digest(self.standin), self.stock, "the stand-in's built-in games, saves and other modules are as they were")
+
 REAL = ("CCS_STUDIO_SITE", "CCS_CONSOLE_PLAYER", "CCS_NATIVE_HOME_RUNTIME", "CCS_PLAYER_FONTS")
-PORT2 = 8775; B2 = f"http://127.0.0.1:{PORT2}"
+PORT2 = PORT + 1; B2 = f"http://127.0.0.1:{PORT2}"
 @unittest.skipUnless(all(os.environ.get(k) and os.path.exists(os.environ[k]) for k in REAL), "the built site, console player, HOME runtime and player fonts are not given (" + ", ".join(REAL) + ")")
 class RealPackage(unittest.TestCase):
     """the app's own route: /api/home/native-package builds the native HOME package and stages the console package in CCS HOME's layout (the real
@@ -657,7 +817,7 @@ class RealPackage(unittest.TestCase):
         except subprocess.TimeoutExpired: cls.proc.kill(); cls.proc.wait(10)
         cls.log.close()
     def req(self, method, path, body=None):
-        r = urllib.request.Request(B2 + path, data=json.dumps(body).encode() if body is not None else None, method=method, headers={"Content-Type": "application/json", "X-NES-Protocol": "1", "Origin": "https://classiccartstudio.com", "Authorization": "Bearer " + self.token})
+        r = urllib.request.Request(B2 + path, data=json.dumps(body).encode() if body is not None else None, method=method, headers={"Content-Type": "application/json", "X-CCS-Protocol": "1", "Origin": "https://classiccartstudio.com", "Authorization": "Bearer " + self.token})
         try:
             with urllib.request.urlopen(r, timeout=600) as resp: return resp.status, json.loads(resp.read() or b"{}")
         except urllib.error.HTTPError as e: return e.code, json.loads(e.read() or b"{}")
@@ -685,10 +845,16 @@ class RealPackage(unittest.TestCase):
         s, j = self.req("POST", "/api/console/home/preflight", {"plan_hash": h, "profile": "with-nucleus"}); pf = j["result"]; self.assertFalse(pf["ok"]); self.assertEqual(pf["why"], CI.REMOVES_TEXT)
         s, j = self.req("POST", "/api/console/home/plan", pf["keep_choice"]); hk = j["result"]["hash"]
         s, j = self.req("POST", "/api/console/home/rehearse", {"plan_hash": hk, "profile": "with-nucleus", "scenario": "update", "then": ["uninstall"]}); x = self.run_wait(j["run"])["result"]
-        self.assertEqual((x["install"]["result"], x["install"]["added"]), ("installed", ["ccs-mod"]), x); self.assertTrue(x["uninstall"]["ok"])
+        # an update rehearsal first installs an earlier HOME with the same add-on choice (CCS HOME's one layout comes with CCS Mod), so the update
+        # itself adds nothing; CCS Mod is this program's and goes with the removal, the CCS Nucleus another tool added stays
+        self.assertEqual((x["setup"][0]["installed_first"], x["install"]["result"], x["install"]["added"]), ("installed", "installed", []), x); self.assertTrue(x["uninstall"]["ok"])
+        self.assertEqual((x["uninstall"]["addons_removed"], x["uninstall"]["addons_kept"]), (["ccs-mod"], ["ccs-nucleus"]), x)
         s, j = self.req("POST", "/api/console/home/plan", {"nucleus": "chooser", "start": "ccs-home"}); self.assertEqual(s, 200, j)
         s, j = self.req("POST", "/api/console/home/rehearse", {"plan_hash": j["result"]["hash"], "profile": "hakchi-ready", "scenario": "first-install"})
         x = self.run_wait(j["run"])["result"]; self.assertEqual((x["install"]["result"], x["install"]["start"]), ("installed", "ccs-home always on default 10"), x)
+        # a first install on a console with hakchi and none of the add-ons adds every add-on of its choice: CCS Mod (CCS HOME's layout), CCS
+        # Nucleus and its startup chooser (a first install that added nothing would fail here)
+        self.assertEqual(x["install"]["added"], ["ccs-mod", "ccs-nucleus", "ccs-nucleus-chooser"], x)
         # a game whose file is not here: the whole collection is refused and the staged package stays the one before
         before = rd(os.path.join(a, "MANIFEST.json")); man2 = json.loads(json.dumps(self.man)); home2 = json.loads(json.dumps(self.home))
         man2["selections"].append({"game_id": "p_00000000deadbeef", "version_id": "p_00000000deadbeef", "display_title": "Missing", "source": "personal", "install_required": True})

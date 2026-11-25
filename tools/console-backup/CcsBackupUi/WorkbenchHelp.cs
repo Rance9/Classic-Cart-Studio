@@ -243,8 +243,9 @@ namespace CcsBackup.Ui
                 Dispatcher.BeginInvoke(new Action(() => sv.ScrollToVerticalOffset(offset)), System.Windows.Threading.DispatcherPriority.Loaded);   // once the topic is laid out
             }
             backButton.Click += (s, e) => GoBack();
-            g.PreviewKeyDown += (s, e) => { if ((e.Key == Key.System ? e.SystemKey : e.Key) == Key.Left && Keyboard.Modifiers == ModifierKeys.Alt) { GoBack(); e.Handled = true; } };
-            g.PreviewMouseDown += (s, e) => { if (e.ChangedButton == MouseButton.XButton1) { GoBack(); e.Handled = true; } };
+            // on the Help page, with no earlier topic, Alt+Left and the mouse's back button are the window's Back (WorkbenchNav.cs)
+            g.PreviewKeyDown += (s, e) => { if ((e.Key == Key.System ? e.SystemKey : e.Key) == Key.Left && Keyboard.Modifiers == ModifierKeys.Alt && (window || history.Count > 0)) { GoBack(); e.Handled = true; } };
+            g.PreviewMouseDown += (s, e) => { if (e.ChangedButton == MouseButton.XButton1 && (window || history.Count > 0)) { GoBack(); e.Handled = true; } };
             search.TextChanged += (s, e) => Contents();
             go = open; open(start);
             return g;

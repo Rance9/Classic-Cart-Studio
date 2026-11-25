@@ -1,10 +1,11 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The physical boundaries, in code: not a setting, not an environment variable, not an argument, not a request field. Each is opened by
-// a reviewed code change released as its own milestone (G1 and G3 stay closed here). This version opens ConsoleSessions alone: a real
-// console can be read (identified, backed up and checked) and nothing can be written to it.
+// a reviewed code change released as its own milestone. This version opens every one of them: a real console can be read and, after its
+// own checks, reviewed plan and confirmation, written; the USB driver can be set up; a USB drive or SD card can be imaged and restored.
+// Opening a boundary removes no check: every operation keeps its identity, backup, plan, confirmation and read-back rules.
 //   ConsoleSessions      connecting to a real console at all: the FEL RAM boot of a Classic Cart Studio recovery image and the
-//                        clovershell link to it (reads only). Backup needs this one alone. With every write boundary below closed, only
-//                        the backup image's sessions open (Back Up Console and the Console Browser check-up; RecoverySessions.Refusal).
+//                        clovershell link to it. Backup needs this one alone; every other image kind also needs its own write boundary
+//                        below (RecoverySessions.Refusal).
 //   RestoreWrites        writing a console's storage to put back a captured state (G3).
 //   PreparationWrites    the first-time preparation of a console (G1).
 //   ReturnWrites         returning a console Classic Cart Studio prepared to its original software (Return to Original Software:
@@ -40,8 +41,8 @@
 //                        mod's settings kept or put back in Classic Cart Studio's own folder (CommunityEngine, ram/ccscomm). Its own boundary;
 //                        MethodWrites never opens it.
 // A restore, a preparation or a return needs ConsoleSessions AND its own write boundary; RecoveryConsole asks the write boundary again before
-// every write command. With a constant false, the compiler leaves the code behind it out (CS0162): no write path in this version reaches
-// the hardware. A simulated console (a folder of files on the PC, SimulatedConsole) is not behind these boundaries: it can only ever
+// every write command (WriteAuthority: the boundary, the reviewed plan's targets, the same console). With a constant false, the compiler
+// leaves the code behind it out (CS0162). A simulated console (a folder of files on the PC, SimulatedConsole) is not behind these boundaries: it can only ever
 // change files on the PC, and every backup it makes is marked simulated and refused for a real console.
 using System;
 
@@ -49,22 +50,22 @@ namespace CcsBackup
 {
     public static class Gate
     {
-        public const bool ConsoleSessions = true;       // reading a real console (recovery image in RAM): approved in this version, reads only
-        public const bool RestoreWrites = false;        // G3: writes that put back a captured state: NOT approved
-        public const bool PreparationWrites = false;    // G1: first-time console preparation writes: NOT approved
-        public const bool ReturnWrites = false;         // returning a CCS-prepared console to its original software: NOT approved
-        public const bool RescueWrites = false;         // Console Rescue boot0/boot1 writes: NOT approved
-        public const bool ExpertWrites = false;         // Expert Mode user-file changes: NOT approved
-        public const bool DeveloperWrites = false;      // Developer Mode writes: NOT approved
-        public const bool DeveloperTestBoot = false;    // Developer Mode's test boot of a startup image in the console's memory: NOT approved
-        public const bool ComposerWrites = false;       // Console Composer's file composition: NOT approved
-        public const bool CleanupWrites = false;        // removing or putting back the pictures for the Sega Mini menu on a real console: NOT approved
-        public const bool MethodWrites = false;         // removing or changing CCS Mod / CCS Nucleus on a real console: NOT approved
-        public const bool FirmwareWrites = false;       // an owner's system image added to or removed from CCS Nucleus on a real console: NOT approved
-        public const bool DriverChanges = false;        // setting up or removing the USB driver package and its certificate on this PC: NOT approved
-        public const bool StorageRawReads = false;      // reading a connected USB drive or SD card whole, for a whole drive image: NOT approved
-        public const bool StorageDiskWrites = false;    // writing a whole drive image back onto a connected USB drive or SD card: NOT approved
-        public const bool CommunityWrites = false;      // installing, updating or removing a listed community mod on a real console: NOT approved
+        public const bool ConsoleSessions = true;    // reading a real console (recovery image in RAM): open in this version
+        public const bool RestoreWrites = true;      // G3: writes that put back a captured state: open in this version
+        public const bool PreparationWrites = true;  // G1: first-time console preparation writes: open in this version
+        public const bool ReturnWrites = true;       // returning a CCS-prepared console to its original software: open in this version
+        public const bool RescueWrites = true;       // Console Rescue boot0/boot1 writes: open in this version
+        public const bool ExpertWrites = true;       // Expert Mode user-file changes: open in this version
+        public const bool DeveloperWrites = true;    // Developer Mode writes: open in this version
+        public const bool DeveloperTestBoot = true;  // Developer Mode's test boot of a startup image in the console's memory: open in this version
+        public const bool ComposerWrites = true;     // Console Composer's file composition: open in this version
+        public const bool CleanupWrites = true;      // removing or putting back the pictures for the Sega Mini menu on a real console: open in this version
+        public const bool MethodWrites = true;       // removing or changing CCS Mod / CCS Nucleus on a real console: open in this version
+        public const bool FirmwareWrites = true;     // an owner's system image added to or removed from CCS Nucleus on a real console: open in this version
+        public const bool DriverChanges = true;      // setting up or removing the USB driver package and its certificate on this PC: open in this version
+        public const bool StorageRawReads = true;    // reading a connected USB drive or SD card whole, for a whole drive image: open in this version
+        public const bool StorageDiskWrites = true;  // writing a whole drive image back onto a connected USB drive or SD card: open in this version
+        public const bool CommunityWrites = true;    // installing, updating or removing a listed community mod on a real console: open in this version
         public const string SessionsText = "Connecting to a real console is not available in this version.";
         public const string RestoreText = "Restoring a real console is not available in this version.";
         public const string PreparationText = "Preparing a real console is not available in this version.";

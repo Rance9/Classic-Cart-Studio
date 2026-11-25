@@ -133,11 +133,11 @@ function tpNeedRom(g){ const st=TP.pop&&!TP.pop.closed?TP.popStage:tpStage(); le
  m.innerHTML=`<div class="tpbox"><b>${esc(g.title)} is not ready to play in this browser</b><span>Choose this game's file (the exact version) once: a private copy is kept in this browser so it plays here. That copy is not a backup, so keep your own file. Restoring a backup file here keeps its games too.</span><div class="tpacts"><button type="button" class="btn sm" data-tp="no">Not Now</button><button type="button" class="btn sm hk" data-tp="pick">Choose the Game File…</button></div><span class="tpmsg small" role="status"></span></div>`;
  const close=()=>{ m.remove(); tpStage().focus({preventScroll:true}); };
  m.querySelector('[data-tp=no]').onclick=e=>{ e.stopPropagation(); close(); };
- m.querySelector('[data-tp=pick]').onclick=e=>{ e.stopPropagation(); const inp=st.ownerDocument.createElement('input'); inp.type='file'; inp.accept='.nes,.unh,.bin,application/octet-stream';
-  inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return; const msg=m.querySelector('.tpmsg'); msg.textContent='Checking the file…';
+ m.querySelector('[data-tp=pick]').onclick=async e=>{ e.stopPropagation(); const r=await CCSF.open({title:'Choose the game file', accept:'.nes,.unh,.bin,application/octet-stream', kinds:CCSF_ROMS, purpose:'play', doc:st.ownerDocument});
+  const f=r&&r[0]?await r[0].file():null; { if(!f) return; const msg=m.querySelector('.tpmsg'); msg.textContent='Checking the file…';
    try{ if(f.size>16e6) throw new Error('This file is larger than any NES game.'); const u8=new Uint8Array(await f.arrayBuffer()); await CCSROMS.put(u8,{sha:g.sha, title:g.title, name:f.name, header_hex:g.header_hex}); await CCSROMS.persist();
     msg.textContent='Kept in this browser.'; close(); tpWebLaunch(g.id); }
-   catch(err){ msg.textContent=String(err&&err.message||err); } }; inp.click(); };
+   catch(err){ msg.textContent=String(err&&err.message||err); } } };
  m.querySelector('[data-tp=pick]').focus({preventScroll:true}); }
 // the website's side panel: whether this browser keeps the game's file for playing here (CCSROMS)
 function tpFileText(e){ if(tpAppCapable()||typeof CCSROMS==='undefined'||!TP.romKeys) return ''; const g=tpWebGame(e.id); if(!g.sha) return ''; return TP.romKeys.has(g.sha)?'ready to play in this browser':'not in this browser yet: choose its file when you play it'; }

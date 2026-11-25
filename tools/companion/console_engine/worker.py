@@ -4,7 +4,8 @@ Request:  {"v": 1, "id": "<client id>", "cmd": "<name>", "args": {...}}
 Replies:  {"v": 1, "id": ..., "event": "progress"|"stage"|"result"|"error", ...}  (zero or more progress/stage events, then exactly one result or error)
 
 Commands: capabilities, identify(profile), plan(manifest, profile?, keep_foreign?), preflight(plan_hash), simulate(plan_hash, profile),
-execute(plan_hash) [always refused, whatever the gate: the older game sync through hakchi (G2) is retired], cancel-if-safe, recover(stage), verify(plan_hash, profile).
+cancel-if-safe, recover(stage), verify(plan_hash, profile): the older plan's simulation against fake profiles (the older game sync through
+hakchi itself is not part of Classic Cart Studio, so this worker has no command for it).
 Classic Cart Studio's own HOME under hakchi (ccs_install.py, K3): home-plan(mod?, nucleus?, start?, auto?, hakchi_games?) from the console package the app
 staged (the folder is given to the worker when it starts, never by its client) and the add-ons the console should have afterwards: mod
 (true or false: CCS Mod, the CCS HOME tile), nucleus ("none", "direct" or "chooser": CCS Nucleus, started directly or with its startup
@@ -23,17 +24,17 @@ names by its identity as it was checked (device) and read again inside the opera
 (reads only), home-execute(plan_hash, device, operation install|update) (a failure stops all writes: no rollback by itself),
 home-verify(plan_hash, device), home-uninstall-review(device, keep_data) then home-uninstall(device, review, keep_data) (exactly the
 reviewed removal), home-recover-review(device) then home-recover(device, attempt) (G3: one interrupted attempt, from its own journal) and
-home-export-console(device) (a new folder under the worker's own exports). Every one asks Gate G1 first (inspect or install tier): closed in
-code, so in this version each is refused before any console session is looked for; the opener is the shipped transport worker, whose own
-gate refuses "connect" with its device code compiled out. A test injects an already simulated session in place of the opener (the
-constructor's console_factory/allowed, from Python only); nothing a client sends can choose a transport, a device or the gate.
+home-export-console(device) (a new folder under the worker's own exports). Every one asks Gate G1 first (inspect or install tier, open in
+this version), then opens its session through the shipped transport worker, which asks its own gate again at "connect" and connects only
+through hakchi's clovershell or SSH; each write session is admitted by the console's verified backup ("admit") before its first change. A
+test injects an already simulated session in place of the opener (the constructor's console_factory/allowed, from Python only); nothing a
+client sends can choose a transport, a device or the gate.
 While a command runs, the worker still reads its input: "cancel-if-safe" stops a rehearsal at its next safe point (before the switch).
 The worker never accepts file paths, shell strings or transport parameters from its client: a plan is addressed by its
-hash and read from the worker's own plan folder; the only transport it can open is the fake one. Inputs are bounded.
+hash and read from the worker's own plan folder; the older plan's commands open only the fake transport. Inputs are bounded.
 
-This Python worker is the protocol reference and the simulation tier. The derived GPL worker (Phase 2b) speaks the same
-protocol for the physical tiers once Gate G1 opens them; the backend refuses any worker whose `capabilities` reply does
-not match the pinned protocol version.
+This Python worker is the protocol reference, the simulation tier and the engine of the physical operations; the console transport worker
+(tools/console-worker, a separate process per session) carries each physical session's typed console commands.
 """
 from __future__ import annotations
 import json, os, queue, shutil, sys, threading, time
@@ -44,8 +45,7 @@ from .transport import open_transport
 
 MAX_LINE = 1_000_000
 class PlanObsolete(RuntimeError): pass
-class Retired(RuntimeError): pass   # an operation that is no longer part of Classic Cart Studio: refused like a closed gate, whatever the gate says
-COMMANDS = ("capabilities", "identify", "plan", "preflight", "simulate", "execute", "cancel-if-safe", "recover", "verify",
+COMMANDS = ("capabilities", "identify", "plan", "preflight", "simulate", "cancel-if-safe", "recover", "verify",
             "home-plan", "home-preflight", "home-simulate", "home-records", "home-inspect", "home-check", "home-execute", "home-verify",
             "home-uninstall-review", "home-uninstall", "home-recover-review", "home-recover", "home-export-console")
 PHYSICAL_TIER = {"home-inspect": "inspect", "home-check": "inspect", "home-verify": "inspect", "home-uninstall-review": "inspect", "home-recover-review": "inspect", "home-export-console": "inspect",
@@ -128,13 +128,13 @@ class Worker:
         except ccs_install.Refused as e: self._final({"id": rid, "event": "error", "code": "refused", "text": e.why, "at": e.step})
         except KeyError as e: self._final({"id": rid, "event": "error", "code": "not-found", "text": str(e)})
         except gate.GateClosed as e: self._final({"id": rid, "event": "error", "code": "physical-disabled", "text": str(e)})
-        except Retired as e: self._final({"id": rid, "event": "error", "code": "physical-disabled", "text": str(e)})   # k3f: a refusal, never a result
         except Exception as e: self._final({"id": rid, "event": "error", "code": "worker-error", "text": f"{type(e).__name__}: {e}"})
 
     # ---- commands ----
     def cmd_capabilities(self, rid, a):
         return {"engine": ENGINE_VERSION, "protocol": PROTOCOL_VERSION, "capability": CAPABILITY, "tiers": gate.state(), "transports": ["fake"], "profiles": [profiles.public(n) for n in profiles.names()], "commands": list(COMMANDS),
-                "home": {"profiles": list(ccs_install.HOME_PROFILES), "package_staged": bool(ccs_install.staged_package(self.console_package)), "simulated_only": not gate.allowed("install")}}
+                "home": {"profiles": list(ccs_install.HOME_PROFILES), "package_staged": bool(ccs_install.staged_package(self.console_package)), "physical": {"inspect": gate.allowed("inspect"), "install": gate.allowed("install")},
+                         "models": {m: x["name"] for m, x in ccs_install.MODELS.items()}}}
 
     def _profile(self, a) -> str:
         name = str(a.get("profile") or "no-device")
@@ -167,9 +167,6 @@ class Worker:
     def cmd_simulate(self, rid, a):
         p = self._plan(a); t = open_transport("fake", self._profile(a)); e = self._engine(rid, p["hash"])
         e.identify(t); return e.simulate(p, t)
-
-    def cmd_execute(self, rid, a):   # the older plan's game sync through hakchi (G2): refused whatever the gate says, without an engine or a transport
-        raise Retired("Syncing games through hakchi is not part of Classic Cart Studio.")
 
     def cmd_cancel_if_safe(self, rid, a):
         if not self.engine: return {"accepted": False, "text": "no operation running"}
@@ -311,7 +308,7 @@ class Worker:
     def cmd_home_records(self, rid, a):
         os.makedirs(self.records, exist_ok=True); return read_home_records(self.records, self._staged())
 
-    # ---- the physical operations (each refused by Gate G1 before a session is looked for; see the module docstring)
+    # ---- the physical operations (each asks Gate G1 before a session is looked for; see the module docstring)
     def _device(self, a) -> str:
         d = str(a.get("device") or "")
         if not ccs_install.HWID_RE.match(d): raise KeyError("device: the console's identity as it was checked")

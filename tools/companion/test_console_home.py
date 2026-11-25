@@ -1,9 +1,11 @@
 """Classic Cart Studio's HOME on the console (K3) through the worker and the backend, PC only: the worker's HOME commands on fresh stand-ins
 (the add-on choice in the plan, the check on each simulated console, every rehearsal scenario, removal and the saves copy, real progress, a
-cancel at a safe point, obsolete plans, the PC-side records, every physical step refused), the backend's /api/console/home/ routes (desktop
-principal only; the page names no path, shell text, transport or fault, and only the add-on choice reaches a new plan; physical operations
-and confirmations refused by the gate in code), and the backend-owned confirmation (bound to one operation, plan and console, single use,
-expiring; made only when the gate allows the tier, so never today). No device, socket to a console or shell.
+cancel at a safe point, obsolete plans, the PC-side records, every physical step reaching only the console opener, which the test boundary
+blocks here), the backend's /api/console/home/ routes (desktop principal only; the page names no path, shell text, transport or fault, and
+only the add-on choice reaches a new plan; physical operations and confirmations open in code and refused without a checked console; a
+console check from a source checkout finds no console worker), and the backend-owned confirmation (bound to one operation, plan and console,
+single use, expiring; made only when the gate allows the tier). The backend started here answers its USB and driver probes with nothing
+(no Windows device or driver list is read). No device, socket to a console or shell.
   python tools/companion/test_console_home.py"""
 from __future__ import annotations
 import hashlib, io, json, os, secrets, shutil, subprocess, sys, tempfile, time, unittest, urllib.error, urllib.request
@@ -35,8 +37,10 @@ class WorkerHome(unittest.TestCase):
     def test_02_preflight_on_each_simulated_console(self):
         # Studio's default plan (CCS Mod) against each simulated console: where it would take an add-on away, the check refuses and names the
         # choice that keeps the console's add-ons (test_install_methods.py installs those choices)
+        snes = CI.model_refusal("snes-classic-edition")   # a Super NES Classic: as the platform registry's capability for its add-ons says
         exp = {"hakchi-ready": (True, ""), "stock": (False, "hakchi must be installed first"), "nearly-full": (False, "not enough room"), "with-mod": (True, ""),
-               "with-nucleus": (False, CI.REMOVES_TEXT), "with-mod-nucleus": (False, CI.REMOVES_TEXT), "with-chooser": (False, CI.REMOVES_TEXT), "with-all": (False, CI.REMOVES_TEXT)}
+               "with-nucleus": (False, CI.REMOVES_TEXT), "with-mod-nucleus": (False, CI.REMOVES_TEXT), "with-chooser": (False, CI.REMOVES_TEXT), "with-all": (False, CI.REMOVES_TEXT),
+               "snes-ready": (snes is None, snes or "")}
         self.assertEqual(set(exp), set(CI.HOME_PROFILES))
         for prof, (ok, words) in exp.items():
             r, _ = ask(self.w, "home-preflight", {"plan_hash": self.plan["hash"], "profile": prof}); res = r["result"]
@@ -67,8 +71,9 @@ class WorkerHome(unittest.TestCase):
         shutil.rmtree(self.pkg); make_package(self.pkg, "changed")
         for cmd in ("home-preflight", "home-simulate"):
             r, _ = ask(self.w, cmd, {"plan_hash": self.plan["hash"], "profile": "hakchi-ready"}); self.assertEqual(r.get("code"), "plan-obsolete", (cmd, r))
-        # k3c: a physical step is refused by the gate before its arguments are read (the obsolete plan of a physical install: test_console_dispatch)
-        r, _ = ask(self.w, "home-execute", {"plan_hash": self.plan["hash"], "profile": "hakchi-ready"}); self.assertEqual(r.get("code"), "physical-disabled", r)
+        # a physical step whose plan is no longer the staged package's is refused before any console session is looked for
+        r, _ = ask(self.w, "home-execute", {"plan_hash": self.plan["hash"], "device": "sim-0001"}); self.assertEqual(r.get("code"), "plan-obsolete", r)
+        self.assertFalse(os.path.exists(console_test_guard.LOG), "no console session was asked for")
         rec, _ = ask(self.w, "home-records"); self.assertFalse(rec["result"]["last_plan_current"])
     def test_06_records_keep_each_rehearsal(self):
         self.sim(scenario="first-install"); self.sim(scenario="interrupted")
@@ -77,11 +82,21 @@ class WorkerHome(unittest.TestCase):
             self.assertEqual(o["schema"], "ccs-console-operation/1"); self.assertTrue(o["simulated"]); self.assertEqual(o["plan"], self.plan["hash"]); self.assertTrue(o["journal"].endswith(".jsonl"))
             self.assertNotIn("token", json.dumps(o).lower()); self.assertTrue(os.path.isfile(os.path.join(self.t, "root", "journals", o["journal"])))
         self.assertEqual({o["outcome"] for o in ops}, {"installed", "stopped"})
-    def test_07_every_physical_step_is_refused_whatever_the_client_adds(self):
-        extra = {"transport": "ssh", "host": "169.254.13.37", "force": True, "gate": "open", "token": "x", "physical": True}
-        for cmd in ("home-inspect", "home-execute", "home-uninstall", "home-recover", "home-export-console"):
-            r, _ = ask(self.w, cmd, {"plan_hash": self.plan["hash"], **extra}); self.assertEqual(r.get("code"), "physical-disabled", (cmd, r))
-        self.assertFalse(gate.PHYSICAL_WRITE_ENABLED or gate.PHYSICAL_INSPECT_ENABLED)
+    def test_07_every_physical_step_reaches_only_the_console_opener_whatever_the_client_adds(self):
+        # both tiers are open in this version: a physical step opens its console session through the shipped opener (the transport worker),
+        # which the test boundary blocks before any worker starts; nothing the client adds chooses a transport, a host or the gate
+        self.assertTrue(gate.PHYSICAL_WRITE_ENABLED and gate.PHYSICAL_INSPECT_ENABLED)
+        try: os.remove(console_test_guard.LOG)
+        except OSError: pass
+        extra = {"transport": "clovershell", "host": "169.254.13.37", "force": True, "gate": "closed", "token": "x", "physical": True}
+        for cmd, tier in (("home-inspect", "inspect"), ("home-check", "inspect"), ("home-verify", "inspect"), ("home-export-console", "inspect"), ("home-uninstall-review", "inspect"),
+                          ("home-recover-review", "inspect"), ("home-execute", "install"), ("home-uninstall", "install")):
+            r, _ = ask(self.w, cmd, {"plan_hash": self.plan["hash"], "device": "sim-0001", "review": "b" * 64, **extra})
+            self.assertEqual((r["event"], r.get("code")), ("error", "worker-error"), (cmd, r)); self.assertIn("blocked by the test boundary", r["text"], cmd)
+            self.assertEqual(rd(console_test_guard.LOG, "r").split()[-2:], ["ssh", tier], f"{cmd}: the shipped opener tries ssh first, for its own tier")
+        r, _ = ask(self.w, "home-recover", {"device": "sim-0001", "attempt": "c" * 8, **extra}); self.assertEqual(r.get("code"), "not-found", "no journal for that attempt: refused before a session")
+        r, _ = ask(self.w, "home-execute", {"plan_hash": self.plan["hash"], **extra}); self.assertEqual(r.get("code"), "not-found", "no checked console named: refused before a session")
+        os.remove(console_test_guard.LOG)
     def test_08_a_cancel_reaches_a_running_rehearsal_and_stops_it_before_the_switch(self):
         big = make_package(os.path.join(self.t, "big"), extra={f"home/covers/c{i:04d}.png": os.urandom(4000) for i in range(500)})
         root = os.path.join(self.t, "root2"); env = dict(os.environ, PYTHONPATH=HERE + os.pathsep + os.environ.get("PYTHONPATH", ""))
@@ -108,11 +123,14 @@ class WorkerHome(unittest.TestCase):
             p.wait(30); p.stdout.close()
 
 class Confirmation(unittest.TestCase):
-    def test_10_the_backend_makes_none_while_the_gate_is_closed(self):
+    def test_10_the_backend_asks_the_gate_in_code_and_makes_none_while_a_tier_is_closed(self):
+        self.assertIs(CC.BACKEND.allowed, gate.allowed, "the backend's confirmations ask the gate in code (open in this version)")
+        c = CC.Confirmations(allowed=lambda tier: False)   # a build whose tiers are closed
         for op in CC.OPS:
-            with self.assertRaises(gate.GateClosed): CC.BACKEND.mint(op, "a" * 64, "sim-0001")
-            with self.assertRaises(gate.GateClosed): CC.BACKEND.consume("anything", op, "a" * 64, "sim-0001")
-        self.assertIs(CC.BACKEND.allowed, gate.allowed, "the backend's confirmations ask the gate in code")
+            with self.assertRaises(gate.GateClosed): c.mint(op, "a" * 64, "sim-0001")
+            with self.assertRaises(gate.GateClosed): c.consume("anything", op, "a" * 64, "sim-0001")
+        t = CC.BACKEND.mint("install", "a" * 64, "sim-0001")["token"]; CC.BACKEND.consume(t, "install", "a" * 64, "sim-0001")   # this version: made and used once
+        with self.assertRaises(CC.ConfirmationRefused): CC.BACKEND.consume(t, "install", "a" * 64, "sim-0001")
     def test_11_a_confirmation_covers_exactly_one_operation_plan_and_console_once(self):
         now = [1000.0]; c = CC.Confirmations(allowed=lambda tier: True, clock=lambda: now[0]); P, Q, D = "a" * 64, "b" * 64, "hw-0001"
         t = c.mint("install", P, D)["token"]; c.consume(t, "install", P, D)
@@ -128,10 +146,10 @@ class Confirmation(unittest.TestCase):
             with self.assertRaises(CC.ConfirmationRefused): c.mint(*bad)
         self.assertNotIn(t, json.dumps(list(c.live)), "only a hash of a confirmation is kept")
 
-PORT = 8773; B = f"http://127.0.0.1:{PORT}"; SITE = "https://classiccartstudio.com"
+PORT = int(os.environ.get("CCS_TEST_PORT") or 8773); B = f"http://127.0.0.1:{PORT}"; SITE = "https://classiccartstudio.com"
 def req(method, path, body=None, headers=None):
     data = json.dumps(body).encode() if body is not None else None
-    r = urllib.request.Request(B + path, data=data, method=method, headers={"Content-Type": "application/json", "X-NES-Protocol": "1", **(headers or {})})
+    r = urllib.request.Request(B + path, data=data, method=method, headers={"Content-Type": "application/json", "X-CCS-Protocol": "1", **(headers or {})})
     try:
         with urllib.request.urlopen(r, timeout=300) as resp: return resp.status, json.loads(resp.read() or b"{}")
     except urllib.error.HTTPError as e:
@@ -148,7 +166,7 @@ class Routes(unittest.TestCase):
         cls.token = secrets.token_hex(32); env = dict(os.environ, CCS_WORKBENCH_SETTINGS=wb, CCS_COMPANION_CONFIG=cfgp, CCS_PERSONAL_DIR=os.path.join(cls.t, "personal"), CCS_STUDIO_DATA=cls.t, CCS_NATIVE_HOME_ROOT=cls.nh,
                                                        CCS_HOST_TOKEN=cls.token, CCS_HOST_PID=str(os.getpid()), PYTHONIOENCODING="utf-8", CCS_PHYSICAL_WRITE="1", CCS_GATE="open", **chooser_env())
         cls.log = open(os.path.join(cls.t, "companion.log"), "w", encoding="utf-8")
-        cls.proc = subprocess.Popen([sys.executable, "-u", "-B", os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT)], env=env, stdout=cls.log, stderr=subprocess.STDOUT)
+        cls.proc = subprocess.Popen([sys.executable, "-u", "-B", os.path.join(HERE, "console_test_backend.py"), os.path.join(HERE, "companion_app.py"), "--headless", "--port", str(PORT)], env=env, stdout=cls.log, stderr=subprocess.STDOUT)
         for _ in range(200):
             try:
                 with urllib.request.urlopen(B + "/api/ping", timeout=1): break
@@ -169,8 +187,9 @@ class Routes(unittest.TestCase):
         s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); self.assertEqual((s, j["result"]["earlier_home_versions"]), (200, 2), "and so does the installation plan")
     def test_21_status_plan_preflight_rehearsal_and_records(self):
         s, j = req("GET", "/api/console/home/status", headers=self.desk); self.assertEqual(s, 200, j); self.assertEqual(j["staged"]["layout"], "mod")
-        ops = {o["id"]: o for o in j["operations"]}; self.assertTrue(ops["rehearse"]["available"]); self.assertTrue(all(not ops[k]["available"] for k in ("inspect", "install", "recover", "export", "ram-test", "first-setup")))
-        self.assertFalse(j["gate"]["install"]); self.assertEqual({p["name"] for p in j["profiles"]}, set(CI.HOME_PROFILES))
+        ops = {o["id"]: o for o in j["operations"]}; self.assertTrue(ops["rehearse"]["available"]); self.assertTrue(all(ops[k]["available"] for k in ("inspect", "install", "recover", "export", "first-setup")))
+        self.assertNotIn("ram-test", ops); self.assertFalse(any("not available" in o["text"] for o in j["operations"]), "no operation says it is not available")
+        self.assertTrue(j["gate"]["install"] and j["gate"]["inspect"]); self.assertEqual({p["name"] for p in j["profiles"]}, set(CI.HOME_PROFILES))
         s, j = req("POST", "/api/console/home/plan", {"folder": "C:/elsewhere"}, headers=self.desk); self.assertEqual(s, 200, j); h = j["result"]["hash"]
         s, j = req("POST", "/api/console/home/preflight", {"plan_hash": h, "profile": "hakchi-ready"}, headers=self.desk); self.assertTrue(j["result"]["ok"], j)
         self.assertEqual(req("POST", "/api/console/home/preflight", {"plan_hash": h, "profile": ""}, headers=self.desk)[0], 400)
@@ -200,13 +219,24 @@ class Routes(unittest.TestCase):
         self.assertEqual(pf["changes_text"], "Adds CCS Mod and CCS Nucleus's startup chooser. Updates CCS Nucleus's start setting: When the console is turned on, the startup chooser appears first. Nothing starts until you choose.")
         s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); s, j = req("POST", "/api/console/home/preflight", {"plan_hash": j["result"]["hash"], "profile": "with-all"}, headers=self.desk)
         pf = j["result"]; self.assertFalse(pf["ok"]); self.assertEqual((pf["why"], pf["keep_choice"]), (CI.REMOVES_TEXT, {"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "last"}))
-    def test_22_physical_operations_and_confirmations_are_refused_end_to_end(self):
+    def test_22_physical_operations_need_a_checked_console_and_a_source_checkout_has_no_console_worker(self):
         s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); h = j["result"]["hash"]
-        for op in ("confirm", "install", "update", "uninstall", "recover", "inspect", "export"):
-            for extra in ({}, {"force": True, "token": "x", "transport": "clovershell", "host": "169.254.13.37", "physical": True, "gate": "open", "device": "hw-0001", "operation": "install"}):
-                s, j = req("POST", f"/api/console/home/{op}", {"plan_hash": h, **extra}, headers=self.desk)
-                self.assertEqual(s, 403, (op, extra, j)); self.assertEqual(j["code"], "physical-disabled"); self.assertIs(j["physical"], False)
+        for op in ("confirm", "install", "update", "uninstall", "recover", "check", "verify", "export"):
+            for extra in ({}, {"force": True, "token": "x", "transport": "clovershell", "host": "169.254.13.37", "physical": True, "gate": "open", "device": "hw-0001", "operation": "install", "review": "b" * 64, "attempt": "c" * 8}):
+                s, j = req("POST", f"/api/console/home/{op}", {"plan_hash": h, "operation": "install", **extra}, headers=self.desk)
+                self.assertEqual((s, j.get("code")), (409, "check-console"), (op, extra, j))   # the gate is open; nothing is confirmed or run before a check
+        # the check itself starts its run; this backend is a source checkout, whose console worker (the shipped transport worker) is not
+        # there, so no console is ever looked for and nothing becomes the checked console
+        s, j = req("POST", "/api/console/home/inspect", {"transport": "ssh", "host": "169.254.13.37"}, headers=self.desk); self.assertEqual(s, 200, j); self.assertTrue(j["physical"])
+        q = None
+        for _ in range(300):
+            s, q = req("GET", f"/api/console/run?id={j['run']}", headers=self.desk)
+            if q.get("done"): break
+            time.sleep(0.2)
+        self.assertEqual(q["result"]["event"], "error", q); self.assertIn("no console answered", q["result"]["text"])
+        s, st = req("GET", "/api/console/home/status", headers=self.desk); self.assertIsNone(st["console"]["checked"]); self.assertFalse(st["transport_worker"]["present"])
         self.assertEqual(req("POST", "/api/console/home/format", {}, headers=self.desk)[0], 404)
+        self.assertEqual(req("POST", "/api/console/execute", {"plan_hash": h}, headers=self.desk)[0], 404, "the older game sync has no route")
     def test_23_a_changed_package_makes_the_old_plan_obsolete(self):
         s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); h = j["result"]["hash"]
         shutil.rmtree(self.pkg); make_package(self.pkg, "changed")

@@ -186,8 +186,8 @@ async function incOpenStore(key, anyway){ const g = incByKey(key); if(!g) return
  if(st && st.state !== 'none'){ incRefresh(); toast(st.state === 'available' ? 'The full game is already in your library.' : st.state === 'missing' ? 'The full game was added before: locate its game file first.' : 'Classic Cart Studio could not check your library. Try again.'); return; }
  const u = incStoreUrl(g, st || {latest:incFulls(g)[0]}); if(!/^https:\/\//.test(u)) return; window.open(u, '_blank', 'noopener'); }
 async function incLocateFull(content, held){ const f = incGames().concat(incKnown()).find(x => x.content_sha256 === content); if(!f) return; const id = incIdOf(f, held);
- if(typeof CO !== 'undefined' && CO.desktop){ toast('Choose the game file in the window that opened');
-  const r = /^p_/.test(id) ? await hkPost('/api/personal/relink', {id, content_sha256:f.content_sha256}) : await hkPost('/api/library/locate', {version_id:id});   // the id the check found it under
+ if(typeof CO !== 'undefined' && CO.desktop){ const ask = {mode:'open', title:'Locate the game file of ' + f.title, kinds:CCSF_ROMS, purpose:'locate'};
+  const r = /^p_/.test(id) ? await hkChoose('/api/personal/relink', {id, content_sha256:f.content_sha256}, ask) : await hkChoose('/api/library/locate', {version_id:id}, ask);   // the id the check found it under
   if(r && (r.canceled || r.cancelled)) return; if(!r || !r.ok){ cvSaid('Game File Not Added', `<div class="msgbox bad">${esc((r && r.error) || 'That file does not match this game.')} Nothing was changed.</div>`); return; }
   try{ await refreshPersonal(); if(typeof companionStatus === 'function') await companionStatus(); }catch(e){} if(typeof rdyChanged === 'function') rdyChanged(true); incRefresh(); toast(`Game file found and verified: ${f.title}`); return; }
  const files = await cvPick('.nes,.unh,.zip', false); if(!files || !files.length) return; let list;
@@ -213,7 +213,6 @@ document.addEventListener('click', e => { const t = e.target.closest && e.target
  if(d.incplay) incPlay(d.incplay); else if(d.incadd){ const s = document.querySelector(`select[data-inc-to="${CSS.escape(d.incadd)}"]`); incAddTo(d.incadd, s ? s.value : null); }
  else if(d.inclink) incCopyLink(d.inclink); else if(d.incGofull) incGoFull(d.incGofull, d.incId); else if(d.incLocate) incLocateFull(d.incLocate, d.incId);
  else if(d.incRetry) incRefresh(); else if(d.incStore) incOpenStore(d.incStore, d.incStoreAnyway === '1'); else if(d.incAddown) incOwn(d.incAddown, false, d.incId); else if(d.incPlayown) incOwn(d.incPlayown, true, d.incId); }, true);
-document.addEventListener('click', e => { const t = e.target.closest && e.target.closest('#mIncluded'); if(!t) return; e.preventDefault(); incBrowse(); });
 // the lists follow what changes here: a game kept or removed, a Locate, a collection's games
 (function(){ const wrap = n => { const f = window[n]; if(typeof f !== 'function') return; window[n] = function(){ const r = f.apply(this, arguments); try{ incRefresh(); }catch(e){} return r; }; };
  ['keptAvailChanged', 'rdyChanged'].forEach(wrap); })();

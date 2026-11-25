@@ -1,7 +1,6 @@
-"""Backend-owned confirmations for physical console operations (docs/console-install-architecture.md sections 5 and 14). Prepared, not enabled:
-the backend's instance asks Gate G1 (console_engine.gate, code constants, both closed) before it makes anything, so every request is refused
-today. When a physical tier is opened by its own reviewed release, the same object is what binds a person's confirmation to exactly one
-operation:
+"""Backend-owned confirmations for physical console operations (docs/console-install-architecture.md sections 5 and 14). The backend's
+instance asks Gate G1 (console_engine.gate, code constants, both tiers open in this version) before it makes anything; it is what binds a
+person's confirmation to exactly one operation:
   - made by the backend only, after the gate allows that operation's tier, for one operation (install, update, uninstall, recover, inspect,
     export), one subject (the plan's SHA-256 for install and update, the reviewed removal's hash for uninstall, the attempt's id for
     recover; none for inspect/export) and one console (its hardware id as the checked session read it);

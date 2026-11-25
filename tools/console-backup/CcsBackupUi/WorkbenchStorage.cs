@@ -4,16 +4,17 @@
 //   storage-home      the two tasks and the list of USB and SD backups, each with Check the File, Browse (the Backup Browser's own views),
 //                     Repair… and Restore…
 //   storage-select    what to back up: the console's built-in storage (a console backup is a separate file: Back Up Console), each USB drive
-//                     and SD card connected now with Files and Folders (the default) or Whole Drive Image, chosen folders, what is left out,
-//                     a folder or a drive image file; the space needed worked out from the actual selected bytes (the backup, its
-//                     additional copy, recovery data and room to repair it), with why used files and a whole image differ in size
+//                     and SD card connected now with Files and Folders (the default) or Whole Drive Image (advanced; also for a drive without
+//                     a drive letter: WorkbenchStorageDisk.cs), chosen folders, what is left out, a folder or a drive image file; the space
+//                     needed worked out from the actual selected bytes (the backup, its additional copy, recovery data and room to repair
+//                     it), with why used files and a whole image differ in size
 //   storage-result    what was copied, what was not and why, when each source was read, the file and its additional copy
 //   storage-repair    the file checked, then: a second copy, recovery data (make, check, rebuild), repair from other copies or backups of the
 //                     same storage, and Save What Can Be Saved; each makes something new and checks it, the backup never changes
-//   storage-restore   files into a folder or onto a drive (merge or replace, reviewed), or a whole drive image onto a drive image file
-//                     (reviewed, destructive); a connected drive as the target is not available in this version
-// Every task here runs on this PC only: no console, no USB driver, no worker. Copying a connected drive whole is not available in this
-// version (Gate.StorageRawReads); its files and folders are.
+//   storage-restore   files into a folder or onto a drive (merge or replace, reviewed), or a whole drive image onto a drive image file or
+//                     a connected USB drive or SD card (reviewed, destructive: WorkbenchStorageDisk.cs)
+// Every task here runs on this PC only: no console, no USB driver, no worker. Reading or writing a connected drive whole is done by
+// Workbench's administrator step, one Windows permission prompt per operation (CcsBackup/External/RawDiskClient.cs).
 using CcsBackup.Engine;
 using CcsBackup.External;
 using CcsBackup.Repair;
@@ -36,7 +37,7 @@ namespace CcsBackup.Ui
         int storageParity = 0; bool storageSecond = true;
         StorageEstimate storageEst;
 
-        const string StorageIntro = "Back up the USB drives and SD cards you use with your console, or any folder or drive image file, on this PC. No console is needed, and the drives are only read.";
+        const string StorageIntro = "Back up the USB drives and SD cards you use with your console, or any folder or drive image file, on this PC. No console is needed, and backing up only reads the drives.";
         const string StorageSizeNote = "A Files and Folders backup is about as large as the files you choose. A Whole Drive Image is as large as the whole drive, used or not.";
 
         // ------------------------------------------------------------------ the first page
@@ -44,9 +45,10 @@ namespace CcsBackup.Ui
         {
             settings = Reload();
             var sp = SectionHead("USB and SD Backup", StorageIntro);
+            AddUnfinishedDiskNotes(sp);
             sp.Children.Add(CardGrid(300, 2,
                 ActionCard("Back Up USB or SD Storage", "Choose drives, folders or a drive image file, see how much space the backup needs, then make a checked backup. Nothing on the drives changes.", "Btn.Primary", () => { storageSel.Clear(); storageEst = null; ShowStorageSelect(); }),
-                ActionCard("Restore From a USB or SD Backup", "Put files back into a folder or onto a drive, or write a whole drive image to a drive image file. You review every change first.", "Btn", () => { var f = PickStorageBackup(); if (f != null) ShowStorageRestore(f); }, "Choose a Backup…")));
+                ActionCard("Restore From a USB or SD Backup", "Put files back into a folder or onto a drive, or write a whole drive image onto a USB drive, SD card or drive image file. You review every change first.", "Btn", () => { var f = PickStorageBackup(); if (f != null) ShowStorageRestore(f); }, "Choose a Backup…")));
             sp.Children.Add(Group("Your USB and SD backups"));
             List<StorageBackupRow> rows;
             try { rows = StorageLibrary.List(settings); }
@@ -83,10 +85,10 @@ namespace CcsBackup.Ui
 
         string PickStorageBackup()
         {
-            var d = new Microsoft.Win32.OpenFileDialog { Filter = "USB and SD backups (*.zip)|*.zip", Title = "Choose a USB and SD backup", InitialDirectory = Directory.Exists(StorageBackup.Folder(settings)) ? StorageBackup.Folder(settings) : null };
-            if (d.ShowDialog(this) != true) return null;
-            if (!ExternalFormat.Is(d.FileName)) { Tell("Not a USB and SD backup", "That file is not a USB and SD backup made by Workbench. A console backup is restored with Console Restore."); return null; }
-            return d.FileName;
+            var chosenFile = CcsFileDialog.OpenFile(this, "Choose a USB and SD backup", Directory.Exists(StorageBackup.Folder(settings)) ? StorageBackup.Folder(settings) : null, "USB and SD backups (*.zip)|*.zip", "storage-backup");
+            if (chosenFile == null) return null;
+            if (!ExternalFormat.Is(chosenFile)) { Tell("Not a USB and SD backup", "That file is not a USB and SD backup made by Workbench. A console backup is restored with Console Restore."); return null; }
+            return chosenFile;
         }
 
         void CheckStorage(string path)
@@ -132,9 +134,11 @@ namespace CcsBackup.Ui
                 c.Children.Add(cb);
                 c.Children.Add(T((id.FileSystem ?? "file system not known") + "  ·  " + (id.TotalBytes > 0 ? Size(id.TotalBytes - Math.Max(0, id.FreeBytes)) + " used of " + Size(id.TotalBytes) : "size not known") + (id.Vendor != null ? "  ·  " + (id.Vendor + " " + id.Product).Trim() : ""), Ty.Small, false, true, new Thickness(26, 2, 0, 4)));
                 var opts = new StackPanel { Margin = new Thickness(26, 4, 0, 0), Visibility = ch != null ? Visibility.Visible : Visibility.Collapsed };
-                var files = new RadioButton { GroupName = "mode-" + id.Key, Content = "Files and Folders (recommended): the files on it, with their dates", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
-                var image = new RadioButton { GroupName = "mode-" + id.Key, Content = "Whole Drive Image (advanced): every byte of the drive, free space included", IsEnabled = Gate.StorageRawReads, Margin = new Thickness(0, 2, 0, 2) };
+                bool isImage = ch?.Req.Mode == "image";
+                var files = new RadioButton { GroupName = "mode-" + id.Key, Content = "Files and Folders (recommended): the files on it, with their dates", IsChecked = !isImage, Margin = new Thickness(0, 2, 0, 2) };
+                var image = new RadioButton { GroupName = "mode-" + id.Key, Content = "Whole Drive Image (advanced): every byte of the drive, free space included", IsChecked = isImage, IsEnabled = Gate.StorageRawReads && id.DiskNumber >= 0, Margin = new Thickness(0, 2, 0, 2) };
                 opts.Children.Add(files); opts.Children.Add(image);
+                var imageNote = DiskModeNote(id.DiskNumber); imageNote.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed; opts.Children.Add(imageNote);
                 if (!Gate.StorageRawReads) opts.Children.Add(T(Gate.StorageRawText + " To keep a whole image of a drive, make one with another program and add it below as a drive image file.", Ty.Small, false, true, new Thickness(22, 0, 0, 6)));
                 var folders = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
                 void ShowFolders()
@@ -146,15 +150,20 @@ namespace CcsBackup.Ui
                     folders.Children.Add(Buttons(B("Choose Folders…", "Btn.Ghost", () => { var f = PickFolderIn(id.Root); if (f != null && cur != null) { cur.Req.Folders = (cur.Req.Folders ?? new List<string>()).Concat(new[] { f }).Distinct().ToList(); storageEst = null; ShowFolders(); } }),
                         list != null && list.Count > 0 ? B("Everything on the Drive", "Btn.Ghost", () => { cur.Req.Folders = null; storageEst = null; ShowFolders(); }) : null));
                 }
-                opts.Children.Add(folders);
+                opts.Children.Add(folders); folders.Visibility = isImage ? Visibility.Collapsed : Visibility.Visible;
                 c.Children.Add(opts);
-                cb.Checked += (s, e) => { if (!storageSel.Any(x => x.Connected && x.Id.Key == id.Key)) storageSel.Add(new StorageChoice { Req = new StorageRequest { Path = id.Root }, Id = id, Connected = true }); opts.Visibility = Visibility.Visible; storageEst = null; ShowFolders(); };
+                StorageChoice Cur() => storageSel.FirstOrDefault(x => x.Connected && x.Id.Key == id.Key);
+                // Whole Drive Image copies the drive this volume is on, every volume of it; Files and Folders this volume's files
+                files.Checked += (s, e) => { var cur = Cur(); if (cur != null) { cur.Req.Mode = "files"; cur.Req.DiskNumber = -1; cur.Req.Disk = null; cur.Req.Path = id.Root; } folders.Visibility = Visibility.Visible; imageNote.Visibility = Visibility.Collapsed; storageEst = null; };
+                image.Checked += (s, e) => { var cur = Cur(); if (cur != null) { cur.Req.Mode = "image"; cur.Req.DiskNumber = id.DiskNumber; cur.Req.Disk = null; cur.Req.Folders = null; } folders.Visibility = Visibility.Collapsed; imageNote.Visibility = Visibility.Visible; storageEst = null; };
+                cb.Checked += (s, e) => { if (!storageSel.Any(x => x.Connected && x.Id.Key == id.Key)) storageSel.Add(new StorageChoice { Req = image.IsChecked == true ? new StorageRequest { Path = id.Root, Mode = "image", DiskNumber = id.DiskNumber } : new StorageRequest { Path = id.Root }, Id = id, Connected = true }); opts.Visibility = Visibility.Visible; storageEst = null; ShowFolders(); };
                 cb.Unchecked += (s, e) => { storageSel.RemoveAll(x => x.Connected && x.Id.Key == id.Key); opts.Visibility = Visibility.Collapsed; storageEst = null; };
                 if (ch != null) ShowFolders();
                 var card = Card(c, 16); card.Margin = new Thickness(0, 0, 0, 10); sp.Children.Add(card);
             }
+            AddUnletteredDrives(sp, connected);
             sp.Children.Add(Buttons(B("Look Again", "Btn.Ghost", ShowStorageSelect), B("Add a Folder…", "Btn.Ghost", () => { var f = PickFolderIn(null); if (f != null) { storageSel.Add(new StorageChoice { Req = new StorageRequest { Path = f }, Id = Devices.ForFolder(f) }); storageEst = null; ShowStorageSelect(); } }),
-                B("Add a Drive Image File…", "Btn.Ghost", () => { var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose a drive image file (a copy of a whole USB drive or SD card)", Filter = "Drive images (*.img;*.bin;*.raw;*.iso)|*.img;*.bin;*.raw;*.iso|All files (*.*)|*.*" }; if (d.ShowDialog(this) == true) { try { storageSel.Add(new StorageChoice { Req = new StorageRequest { Path = d.FileName, Mode = "image" }, Id = Devices.ForImage(d.FileName) }); storageEst = null; } catch (Exception ex) { Tell("That file cannot be used", ex.Message); } ShowStorageSelect(); } })));
+                B("Add a Drive Image File…", "Btn.Ghost", () => { var chosenFile = CcsFileDialog.OpenFile(this, "Choose a drive image file (a copy of a whole USB drive or SD card)", null, "Drive images (*.img;*.bin;*.raw;*.iso)|*.img;*.bin;*.raw;*.iso|All files (*.*)|*.*", "drive-image"); if (chosenFile != null) { try { storageSel.Add(new StorageChoice { Req = new StorageRequest { Path = chosenFile, Mode = "image" }, Id = Devices.ForImage(chosenFile) }); storageEst = null; } catch (Exception ex) { Tell("That file cannot be used", ex.Message); } ShowStorageSelect(); } })));
             var others = storageSel.Where(x => !x.Connected).ToList();
             if (others.Count > 0)
             {
@@ -194,14 +203,12 @@ namespace CcsBackup.Ui
         /// <summary>a folder chosen by the person (inside root when given); returned relative to root ("/hakchi"), or the full path when root is null</summary>
         string PickFolderIn(string root)
         {
-            using (var d = new System.Windows.Forms.FolderBrowserDialog { Description = root == null ? "Choose a folder to back up" : "Choose a folder on " + root + " to back up", SelectedPath = root ?? "", ShowNewFolderButton = false })
-            {
-                if (d.ShowDialog(new Win32Owner(this)) != System.Windows.Forms.DialogResult.OK) return null;
-                if (root == null) return d.SelectedPath;
-                var full = Path.GetFullPath(d.SelectedPath); var r = Path.GetFullPath(root).TrimEnd('\\');
-                if (!full.StartsWith(r, StringComparison.OrdinalIgnoreCase)) { Tell("Choose a folder on that drive", "The folder must be on " + root + "."); return null; }
-                var rel = full.Substring(r.Length).Replace('\\', '/'); return rel.Length == 0 ? "/" : rel;
-            }
+            var chosen = CcsFileDialog.ChooseFolder(this, root == null ? "Choose a folder to back up" : "Choose a folder on " + root + " to back up", root, "storage-source", newFolder: false);
+            if (chosen == null) return null;
+            if (root == null) return chosen;
+            var full = Path.GetFullPath(chosen); var r = Path.GetFullPath(root).TrimEnd('\\');
+            if (!full.StartsWith(r, StringComparison.OrdinalIgnoreCase)) { Tell("Choose a folder on that drive", "The folder must be on " + root + "."); return null; }
+            var rel = full.Substring(r.Length).Replace('\\', '/'); return rel.Length == 0 ? "/" : rel;
         }
 
         void WorkOutStorageSpace()
@@ -270,8 +277,8 @@ namespace CcsBackup.Ui
                        : ActionCard("Make Recovery Data", "Extra data saved beside the backup (10% of its size) that can rebuild it later if part of it is damaged. Made only for a backup that passes its check.", "Btn", () => StorageParityRun(path, false)),
                 ActionCard("Repair From Other Copies or Backups", "A new, repaired file, each damaged piece taken from another copy of this backup, or from another backup of the same drive where that piece is exactly the same.", "Btn", () =>
                 {
-                    var d = new Microsoft.Win32.OpenFileDialog { Filter = "USB and SD backups (*.zip)|*.zip", Multiselect = true, Title = "Choose other copies of this backup, or other backups of the same drive" };
-                    if (d.ShowDialog(this) != true) return; var donors = d.FileNames.Where(f => !string.Equals(Path.GetFullPath(f), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)).ToList(); var outF = PickFolder(); if (outF == null) return;
+                    var chosenFiles = CcsFileDialog.OpenFiles(this, "Choose other copies of this backup, or other backups of the same drive", null, "USB and SD backups (*.zip)|*.zip", true, "storage-backup");
+                    if (chosenFiles == null) return; var donors = chosenFiles.Where(f => !string.Equals(Path.GetFullPath(f), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)).ToList(); var outF = PickFolder(); if (outF == null) return;
                     StorageRepairRun("Repairing the Backup", o => StorageRepair.Rebuild(new[] { path }, donors, outF, o));
                 }, "Choose Files…"),
                 ActionCard("Save What Can Be Saved", "When a backup cannot be repaired: every file that still matches its recorded checksum is copied into a new folder. That folder is not a backup.", "Btn", () => { var outF = PickFolder(); if (outF != null) StorageRepairRun("Saving What Can Be Saved", o => StorageRepair.Salvage(new[] { path }, outF, o)); }, "Choose a Folder…")));
@@ -337,8 +344,9 @@ namespace CcsBackup.Ui
                     var acts = new List<UIElement> { B("Choose Where and Review…", "Btn", () => { var tgt = PickFolder(); if (tgt != null) PlanStorageFiles(path, id, tgt, replace.IsChecked == true ? "replace" : "merge"); }) };
                     if (s.S("mode") == "image")
                     {
-                        acts.Add(B("Write the Whole Drive Image to a File…", "Btn.Ghost", () => { var d = new Microsoft.Win32.SaveFileDialog { Title = "Choose the drive image file to write (a new file, or one to replace)", Filter = "Drive images (*.img)|*.img|All files (*.*)|*.*", OverwritePrompt = false }; if (d.ShowDialog(this) == true) PlanStorageImage(path, id, new DiskTarget { ImageFile = d.FileName }); }));
-                        c.Children.Add(T(Gate.StorageDiskText + " The whole drive image can be written to a drive image file, which other programs can put on a card.", Ty.Small, false, true, new Thickness(0, 0, 0, 6)));
+                        acts.Add(B("Write the Whole Drive Image to a File…", "Btn.Ghost", () => { var chosenFile = CcsFileDialog.SaveFile(this, "Choose the drive image file to write (a new file, or one to replace)", null, null, "Drive images (*.img)|*.img|All files (*.*)|*.*", false, "drive-image"); if (chosenFile != null) PlanStorageImage(path, id, new DiskTarget { ImageFile = chosenFile }); }));
+                        if (Gate.StorageDiskWrites) acts.Insert(1, B("Write the Whole Drive Image to a USB Drive or SD Card…", "Btn", () => ShowDiskTargets(path, id)));
+                        c.Children.Add(T(Gate.StorageDiskWrites ? "The whole drive image can be written back onto a USB drive or SD card, replacing everything on it, or into a drive image file." : Gate.StorageDiskText + " The whole drive image can be written to a drive image file, which other programs can put on a card.", Ty.Small, false, true, new Thickness(0, 0, 0, 6)));
                     }
                     c.Children.Add(Buttons(acts.ToArray()));
                     sp.Children.Add(Card(c));
@@ -377,11 +385,13 @@ namespace CcsBackup.Ui
         void PlanStorageImage(string path, string source, DiskTarget target)
         {
             var pv = new ProgressView(this, "Reviewing the Drive Image Restore", "The backup is checked and the target examined. Nothing is written yet.", null, null); Show(pv.Panel, "progress");
-            Task.Run(() => StorageRestore.PlanImage(path, source, target)).ContinueWith(t =>
+            var protect = StorageRestore.Protected(Reload());
+            Task.Run(() => StorageRestore.PlanImage(path, source, target, null, null, protect)).ContinueWith(t =>
             {
                 if (page.Content != pv.Panel) return;
                 var p = t.IsFaulted ? new ImageRestorePlan { Refusal = t.Exception.GetBaseException().Message } : t.Result;
                 if (p.Refusal != null) { Show(Message("This target cannot be used", p.Refusal, "bad"), "msg"); return; }
+                if (p.TargetDisk != null) { ReviewDiskRestore(p, path); return; }
                 var sp = PageHead("Review the Drive Image Restore", "Nothing has been written yet. This replaces what is on the target.");
                 sp.Children.Add(Card(KeyValues(("From", p.SourceLabel + ", " + Size(p.ImageBytes)), ("Onto", p.TargetText))));
                 foreach (var r in p.Review) sp.Children.Add(Note(r, r.Contains("lost") || r.Contains("replaced") ? "warn" : "info"));

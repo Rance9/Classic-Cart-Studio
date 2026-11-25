@@ -826,6 +826,81 @@ def transfer_route():
     clear_log(); mark(); boot(); L = since_mark()
     check("LOOPMOUNT" not in L and "PLAYER" not in L and "CHOOSER" not in L and "S81clover-mcp the console menu" in L and not [t for t in trips()], "transfer: the next start is the console's own, exactly as before either add-on")
 
+# ---------------------------------------------------------------- the same add-ons on a Super NES Classic (a stand-in of its system's shape)
+def snes_shape(region: str = "USA", storage: bool = True):
+    """the stand-in console as a North American or European Super NES Classic: its system's board dp-shvc and REGION, one stand-in built-in
+    game folder in its own game folder /usr/share/games (a menu entry written for this test in the form of the console's entries, launched
+    by its own Super NES emulator; no Nintendo file), and Hakchi2 CE's own game storage games/snes-<region> (or no game storage)"""
+    rg = region.lower()
+    sh(f"printf 'dp-shvc\\n' > '@R@/newroot/var/squashfs/etc/clover/boardtype' && printf '{region}\\n' > '@R@/newroot/var/squashfs/etc/clover/REGION' && "
+       "mkdir -p '@R@/newroot/var/squashfs/usr/share/games/CLV-P-SAAAE' && "
+       "printf '[Desktop Entry]\\nType=Application\\nExec=/usr/bin/clover-canoe-shvc -rom /usr/share/games/CLV-P-SAAAE/CLV-P-SAAAE.sfrom --volume 100\\n"
+       "Path=/var/lib/clover/profiles/0/CLV-P-SAAAE\\nName=A stand-in built-in game\\nIcon=/usr/share/games/CLV-P-SAAAE/CLV-P-SAAAE.png\\n' "
+       "> '@R@/newroot/var/squashfs/usr/share/games/CLV-P-SAAAE/CLV-P-SAAAE.desktop' && "
+       + (f"cd '@R@/newroot/var/lib/hakchi/games' && mkdir snes-{rg} && mv 000 snes-{rg}/ && " if storage else "rm -rf '@R@/newroot/var/lib/hakchi/games' && ")
+       + "echo DONE")
+
+def snes_tests():
+    """CCS Mod, CCS Nucleus (direct and with its chooser), what opens at power-on and the collections' place on a Super NES Classic: the
+    same packages, through hakchi's own pack_install and pack_uninstall, with hakchi's own findGameStorage for this model (games/snes-usa or
+    games/snes-eur, the built-in /usr/share/games); the native choice continues to the console's own menu start (S81clover-mcp, which the
+    Super NES Classic's system starts the same way); CCS HOME's option records the console's type and region"""
+    reg = "@R@/newroot/var/lib/ccs/nucleus/registry"
+    for region in ("USA", "EUR"):
+        rg = region.lower(); gs = f"/var/lib/hakchi/games/snes-{rg}"
+        fresh(foreign=True); snes_shape(region)
+        before = snapshot()
+        r = result(hakchi("pack_install @R@/hmods/ccs-mod.hmod"))
+        check(r.startswith("result postinstall ok installed") and f"entry ok {gs}/000/CLV-H-CCSMD" in r and exists(f"@R@/newroot{gs}/000/CLV-H-CCSMD/CLV-H-CCSMD.desktop")
+              and not exists(f"{HKR}/usr/share/games/CLV-H-CCSMD") and not exists(f"{HKR}/usr/share/games/nes/kachikachi/CLV-H-CCSMD"),
+              f"snes {region}: CCS Mod's CCS HOME tile goes into Hakchi2 CE's own game storage for this model (games/snes-{rg}), its first page ({r})")
+        r = result(hakchi("pack_install @R@/hmods/ccs-nucleus.hmod"))
+        out = nuc("start ccs-home never on default 10"); regtext = sh(f"cat '{reg}'")
+        check(r == "result postinstall ok installed" and result(out) == "result start ok default=ccs-home chooser=never home=on selection=default timeout=10"
+              and f"opt.ccs-home.compat=snes-{rg}\n" in regtext and "compat=nes-" not in regtext and "opt.native.saves=/var/lib/clover/profiles/0" in regtext,
+              f"snes {region}: CCS Nucleus installed; CCS HOME opened first; its option records this console's type and region (snes-{rg}), not the NES Classic's ({result(out)})")
+        clear_log(); mark(); boot(); L = since_mark()
+        seq = [l for l in L.splitlines() if l.startswith(("S80", "HOME", "S81clover", "CHOOSER"))]
+        check(seq == ["S80 drivers", "HOME startup", "S81clover-mcp the console menu"] and not trips(),
+              f"snes {region}: at power-on S81ccs-nucleus runs after the S80 start scripts, opens CCS HOME, then the console's own menu start continues ({seq})")
+        out = nuc("start native never on default 10")
+        clear_log(); mark(); boot(); L = since_mark()
+        seq = [l for l in L.splitlines() if l.startswith(("HOME", "S81clover", "CHOOSER", "PLAYER"))]
+        check(result(out).startswith("result start ok default=native") and seq == ["S81clover-mcp the console menu"],
+              f"snes {region}: the native choice opens the console's own menu straight away, nothing else first ({seq})")
+        r = result(hakchi("pack_install @R@/hmods/ccs-nucleus-chooser.hmod"))
+        clear_log(); sh("printf '%s\\n' back > '@R@/picks'"); out = mod("launch")
+        check(r.startswith("result chooser-postinstall ok") and f"{gs}/000/CLV-H-CCSNU" in r and exists(f"@R@/newroot{gs}/000/CLV-H-CCSNU/CLV-H-CCSNU.desktop")
+              and result(out).startswith("result launch ok home-ended 0 (to the chooser)") and "CHOOSER --choose" in log(),
+              f"snes {region}: the chooser's menu entry goes into the same storage, and Choose Another Menu in CCS HOME opens the chooser ({r}; {result(out)})")
+        sh("rm -f '@R@/picks'")
+        for p in ("ccs-nucleus-chooser", "ccs-nucleus", "ccs-mod"): hakchi(f"pack_uninstall {p}")
+        left = sh(f"ls '@R@/newroot{gs}/000'").split()
+        check(left == ["CLV-H-AAAAA"] and not exists(f"{HKR}/bin/ccs-nucleus") and not exists(f"{HKR}/bin/ccs-mod") and snapshot() == before and not trips(),
+              f"snes {region}: removing the chooser, CCS Nucleus and CCS Mod takes their entries out of the storage again; the games, saves, the other package and the console's system folder are unchanged ({left})")
+    # no hakchi game storage: the tile goes into the console menu's own game folder in hakchi's overlay (/usr/share/games on this model)
+    fresh(foreign=False); snes_shape("USA", storage=False)
+    r = result(hakchi("pack_install @R@/hmods/ccs-mod.hmod"))
+    check(r.startswith("result postinstall ok installed") and "entry ok /var/lib/hakchi/rootfs/usr/share/games/CLV-H-CCSMD" in r and not exists(f"{HKR}/usr/share/games/nes"),
+          f"snes: without game storage, the tile goes into the console's own game folder in hakchi's overlay for this model, never the NES Classic's ({r})")
+    # the NES Classic stand-in records its own type (its REGION EUR_USA is hakchi's usa)
+    fresh(foreign=False); hakchi("pack_install @R@/hmods/ccs-nucleus.hmod"); nuc("start ccs-home never on default 10")
+    check("opt.ccs-home.compat=nes-usa" in sh(f"cat '{reg}'"), "nes: CCS HOME's option on the NES Classic stand-in records nes-usa, as before")
+    # where the collections program finds the console's menu on this model
+    sys.path.insert(0, os.path.join(TOOLS, "companion"))
+    from console_engine import hakchi_publish as HP
+    prog = HP.program(); pd = os.path.join(WORK, "prog-snes"); os.makedirs(pd, exist_ok=True)
+    for n, b in prog["files"].items(): open(os.path.join(pd, n), "wb").write(b)
+    P = "@R@/newroot" + prog["dir"]
+    for storage in (True, False):
+        fresh(foreign=False); snes_shape("EUR", storage=storage)
+        sh(f"mkdir -p '{P}' && cp -r '{wpath(pd)}/.' '{P}/' && echo DONE")
+        w = HP.parse_output(bb(f"sh {P}/ccs-collections where"))["where"]
+        want = {"mode": "storage", "store": "/var/lib/hakchi/games/snes-eur", "menu": "/var/lib/hakchi/games/snes-eur/000", "system": "/var/squashfs/usr/share/games"} if storage \
+            else {"mode": "overlay", "menu": "/var/lib/hakchi/rootfs/usr/share/games", "system": "/var/squashfs/usr/share/games"}
+        check(all(w.get(k) == v for k, v in want.items()),
+              f"snes collections: where the console's menu lists games on a European Super NES Classic, by hakchi's own rules ({'its storage games/snes-eur' if storage else 'no storage: the overlay'}; {w})")
+
 # ---------------------------------------------------------------- the real chooser in the start sequence
 REAL_CHOOSER = r"""#!/bin/bash
 # tests only: the REAL chooser program (the console build of the native HOME program, ccs-home-armv7 --choose) under qemu-arm, with
@@ -1240,7 +1315,7 @@ def main() -> int:
     ap.add_argument("--chooser", help="the console build of the native HOME program (ccs-home-armv7: scripts/wsl_build.sh arm-musl-device) for the chooser part")
     ap.add_argument("--fonts", help="the player's menu fonts (silk17, sans600_22, sans400_17 .ccsf) for the chooser part (optional)")
     ap.add_argument("--chain-data", help="for --only chain: the data storage tar test_recovery_images.py --home-archive --export-data wrote")
-    ap.add_argument("--only", help="comma-separated: syntax,insertion,mod,third-party,nucleus,transitions,transfer,chooser,collections,chain (default: all but chain)"); a = ap.parse_args()
+    ap.add_argument("--only", help="comma-separated: syntax,insertion,mod,third-party,nucleus,transitions,transfer,chooser,collections,snes,chain (default: all but chain)"); a = ap.parse_args()
     CHOOSER_BIN = os.path.abspath(a.chooser) if a.chooser else None; FONTS_DIR = os.path.abspath(a.fonts) if a.fonts else None
     CHAIN[0] = os.path.abspath(a.chain_data) if a.chain_data else None
     WORK = tempfile.mkdtemp(prefix="ccs-nu-")
@@ -1258,7 +1333,7 @@ def main() -> int:
     check(not bad, f"stand-in: the test copies of hakchi's preinit, b0000_defines, b0010_functions, b0030_package, rcS and hakchi command differ from the pinned files only in RAM-root paths ({bad or 'mapped back exactly'})")
     try:
         parts = {"syntax": syntax, "insertion": insertion_point, "mod": mod_tests, "third-party": foreign_semantics, "nucleus": nucleus_tests, "transitions": transitions, "transfer": transfer_route,
-                 "chooser": chooser_real, "collections": collections_tests, "chain": chain}
+                 "chooser": chooser_real, "collections": collections_tests, "snes": snes_tests, "chain": chain}
         for k in (a.only.split(",") if a.only else [x for x in parts if x != "chain"]): parts[k]()
     finally:
         if not a.keep:

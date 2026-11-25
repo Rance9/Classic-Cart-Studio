@@ -64,18 +64,18 @@ namespace CcsBackup.Ui
                 into.Children.Add(Buttons(B(conv.Trial ? "Save the Comparison Copy…" : "Save the Game Save File…", "Btn", () =>
                 {
                     var name = (conv.Trial ? "COMPARISON ONLY - " : "") + conv.OutputName;
-                    var d = new Microsoft.Win32.SaveFileDialog { Title = conv.Trial ? "Save the comparison copy (for checking only)" : "Save the " + FileKinds.GameSaves.ToLowerInvariant(), FileName = name, OverwritePrompt = false,
-                                                                Filter = FileKinds.GameSaves + " (*" + Path.GetExtension(conv.OutputName) + ")|*" + Path.GetExtension(conv.OutputName) + "|All files (*.*)|*.*" };
-                    if (string.IsNullOrEmpty(Path.GetExtension(conv.OutputName))) d.Filter = "All files (*.*)|*.*";
-                    if (d.ShowDialog(this) != true) return;
-                    if (File.Exists(d.FileName) || File.Exists(d.FileName + ".conversion.json")) { Tell("Choose another name", "A file with that name already exists; choose another name. Nothing is overwritten."); return; }
+                    var ext = Path.GetExtension(conv.OutputName);
+                    var chosenFile = CcsFileDialog.SaveFile(this, conv.Trial ? "Save the comparison copy (for checking only)" : "Save the " + FileKinds.GameSaves.ToLowerInvariant(), null, name,
+                                                             string.IsNullOrEmpty(ext) ? "All files (*.*)|*.*" : FileKinds.GameSaves + " (*" + ext + ")|*" + ext + "|All files (*.*)|*.*", false, "game-save");
+                    if (chosenFile == null) return;
+                    if (File.Exists(chosenFile) || File.Exists(chosenFile + ".conversion.json")) { Tell("Choose another name", "A file with that name already exists; choose another name. Nothing is overwritten."); return; }
                     try
                     {
-                        using (var f = new FileStream(d.FileName, FileMode.CreateNew)) f.Write(conv.Output, 0, conv.Output.Length);
-                        File.WriteAllText(d.FileName + ".conversion.json", CcsBackup.Json.Write(conv.Report));
+                        using (var f = new FileStream(chosenFile, FileMode.CreateNew)) f.Write(conv.Output, 0, conv.Output.Length);
+                        File.WriteAllText(chosenFile + ".conversion.json", CcsBackup.Json.Write(conv.Report));
                         saved.Children.Clear();
                         saved.Children.Add(Note((conv.Trial ? "The comparison copy is saved" : "The " + FileKinds.GameSaves.ToLowerInvariant() + " is saved") + ", with its conversion report beside it. The save in the " + (c.Live ? "console" : "backup") + " is unchanged.", "ok"));
-                        saved.Children.Add(PathText(d.FileName)); saved.Children.Add(PathText(d.FileName + ".conversion.json", 12));
+                        saved.Children.Add(PathText(chosenFile)); saved.Children.Add(PathText(chosenFile + ".conversion.json", 12));
                     }
                     catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { Tell("Not saved", "It could not be saved: " + ex.Message); }
                 })));

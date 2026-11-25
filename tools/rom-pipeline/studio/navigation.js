@@ -159,7 +159,7 @@ updateStatusLine(); csMenuRefresh();
 //      scroll that way (also at either end of its content). Two-finger pinch zoom is never touched. Closing the last surface releases it.
 //      Operation locks (PROC), focus containment and Escape are separate and unchanged. ----
 (function(){
- const BLOCK=['#collm','#hkpanel','#filters','#details','#savem','#tech','#guide','#glight','#tv','#ovArt','.ccsack','#gsetm'];
+ const BLOCK=['#collm','#hkpanel','#filters','#details','#savem','#tech','#guide','#glight','#tv','#ovArt','.ccsack','#gsetm','#ccsfd','.ccsask'];
  const SHEETS=matchMedia('(max-width:640px), (max-height:500px) and (max-width:1000px)');
  const open=el=>!!el&&el.classList.contains('open')&&!el.hidden&&getComputedStyle(el).display!=='none';
  const z=el=>{ const v=parseInt(getComputedStyle(el).zIndex,10); return isNaN(v)?0:v; };
@@ -211,10 +211,10 @@ updateStatusLine(); csMenuRefresh();
 //      own window and never navigates. Modified clicks on the website open "/" as a normal link. ----
 (function(){ const a=$('brandHome'); if(!a) return;
  const target=()=>{ if(CO.desktop) return null; const keep=new URLSearchParams(location.search).get('companion'); const want=new URL('./', location.href).pathname+(keep?'?companion='+encodeURIComponent(keep):''); return (location.pathname+location.search+location.hash)===want?null:want; };
- window.goHome=function(){
+ window.goHome=async function(){
   if(PROC.collm||PROC.hkpanel){ toast('Finish or cancel the current operation first'); return false; }
-  if(typeof ovTextDirty==='function'&&ovTextDirty()){ if(!confirm(OV_DISCARD)) return false; try{ OVED=null; }catch(e){} }
-  if(typeof OVA!=='undefined'&&OVA&&typeof ovArtClose==='function'&&ovArtClose()===false) return false;
+  if(typeof ovTextDirty==='function'&&ovTextDirty()){ if(!(await ccsAsk(OV_DISCARD))) return false; try{ OVED=null; }catch(e){} }
+  if(typeof OVA!=='undefined'&&OVA&&typeof ovArtClose==='function'&&(await ovArtClose())===false) return false;
   document.querySelectorAll('.menu').forEach(m=>m.hidden=true); if(typeof closeVerPop==='function') closeVerPop();
   try{ if(typeof closeTech==='function') closeTech(); }catch(e){}   // also cancels a Technical Details open still waiting for its data
   try{ if(typeof TV!=='undefined'&&TV.open&&typeof closeTv==='function') closeTv(); }catch(e){}

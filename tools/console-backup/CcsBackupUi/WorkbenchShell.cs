@@ -3,9 +3,13 @@
 //   Side column    the wordmark (as wide as the navigation under it; a button: About Classic Cart Studio) and the product's name; Dashboard; the section groups Console Operations,
 //                  Backup Files and Advanced (each heading larger than the sections under it); then Settings, Help and About and, in the
 //                  standalone only, Get Full Classic Cart Studio (an introduction page inside this window).
-//   Console strip  the console family the window works with (ConsoleProfile) and what is known about the console in front of it: "Console not
-//                  checked" until an operation's own session identifies one. Choosing the family is the window's context only.
-//   Status strip   what the window is doing now: no task, a task running, or a console session that is still open.
+//   Console strip  Back and Forward at its left (WorkbenchNav.cs), then the console family the window works with (ConsoleProfile) and what
+//                  is known about the console in front of it: "Console not checked" until an operation's own session identifies one, then
+//                  its friendly name and short tag with the pencil that renames it. Choosing the family is the window's context only. When
+//                  the window is narrow the console choice moves to a second line under the arrows (and the two links to a third when
+//                  needed); nothing is cut off or covered.
+//   Status strip   what the window is doing now: no task, a task running, or a console session that is still open; with Return to Task
+//                  while the task's page is not in front (WorkbenchNav.cs).
 //   Dashboard      the opening page: Back Up Console first, the three common tasks, the other tools and recent backups (with a refresh button
 //                  beside its heading). The console's status is the console strip's alone.
 // Nothing in this file starts a console session, a USB scan, a driver check, a full backup check or a network request. A web page opens only
@@ -29,9 +33,9 @@ using Ellipse = System.Windows.Shapes.Ellipse;
 namespace CcsBackup.Ui
 {
     /// <summary>A console family the Workbench works with: its names and what the window says about it. Choosing one never connects to,
-    /// identifies or checks a console; a console is identified only by an operation's own session. This version has two: the NES Classic Mini
-    /// and the SNES Classic Mini, whose console tasks are not in this version yet (ConsoleTasks false: every console task says so and starts
-    /// nothing; it is never sent through the NES Classic Mini's engine).</summary>
+    /// identifies or checks a console; a console is identified only by an operation's own session (its own board and region). This version
+    /// has two: the NES Classic Mini and the SNES Classic Mini. Which console tasks a family has is its model's (ConsoleModel.Refusal, from the
+    /// registry's capabilities); a family with ConsoleTasks false has none (TasksNotYet says why).</summary>
     public sealed class ConsoleProfile
     {
         /// <summary>Id: what settings files keep (the first family kept the id it had before its display name changed: "nes-classic-na");
@@ -57,6 +61,9 @@ namespace CcsBackup.Ui
         public string RecoveryStep, TestBootRecoveryStep;
         public override string ToString() => Name;
 
+        /// <summary>the sentence both families' About text uses to keep a CCS Nucleus system image apart from a console's own software</summary>
+        const string SystemImageSeparate = "A system image you add as a choice in CCS Nucleus is a separate thing: it is one of the menus the console can start, never the console's own startup software or its backup.";
+
         public static readonly ConsoleProfile NesClassicMini = new ConsoleProfile
         {
             Id = "nes-classic-na", Name = "NES Classic Mini — North America / Europe", Short = "NES Classic", PhysicalModel = "nes-classic-edition",
@@ -69,11 +76,11 @@ namespace CcsBackup.Ui
                     + "They are the same product, but not identical inside: there are different versions of its circuit board."),
                 ("What choosing it does", "Choosing this console sets the names and steps Workbench uses. It does not connect to, identify or check a console, and it never makes Workbench accept a console, a backup or a system file it would otherwise refuse.\n\n"
                     + "The year a console was sold does not tell which software it runs. When you start a console task, Workbench reads that console's own startup software and says what it found."),
-                ("In this version", "With a real console, this version only reads it: Back Up Console makes a complete, checked backup on this PC, and the Console Browser check-up shows the console's state. Nothing on the console changes.\n\n"
-                    + "The tasks that change a console (restoring a backup, Prepare Console, Return to Original Software, Console Rescue, Console Composer, add-ons, system images, community mods, Expert Mode and Developer Mode) are not available for a real console in this version: each says so and starts nothing."),
+                ("In this version", "Back Up Console and the Console Browser check-up only read the console: nothing on it changes.\n\n"
+                    + "The tasks that change a console (restoring a backup, Prepare Console, Return to Original Software, Console Rescue, Console Composer, add-ons, system images, community mods, Expert Mode and Developer Mode) work with a real console. Each one first checks that it is the right console, makes or checks the backup its rules require, and shows you exactly what will change; nothing is written until you confirm. A preview version's console tasks have not all been tried on real consoles yet."),
                 ("Startup software and system images", "A restore puts a console's own backup back on that same console; Workbench refuses a backup from another console. Some steps replace a console's startup software on purpose and say so before you confirm: preparing a console replaces its startup software and bootloader, and a change you review in Developer Mode can replace its startup software. Return to Original Software puts back Nintendo's startup software and the console's own bootloader.\n\n"
                     + "With CCS Nucleus, a Nintendo system image you supply, such as one from your own 2016 console, can be added as one of its choices. A system image is not startup software for another circuit board. Workbench checks every system image before it adds one and says why when it cannot use one."),
-                ("Other consoles", "The SNES Classic Mini is a different console, with its own choice at the top of the window. In this version Workbench backs it up and checks it; its other console tasks are not available for it. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
+                ("Other consoles", "The SNES Classic Mini is a different console, with its own choice at the top of the window; Workbench's console tasks work with it too. Workbench never puts one kind of console's backup or startup software on a console of another kind. " + SystemImageSeparate + "\n\n"
                     + "The Famicom Mini and the Super Famicom Mini, sold in Japan, are different consoles too: Workbench does not work with their hardware."),
             },
             RecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go: the console starts in recovery mode.",
@@ -85,16 +92,18 @@ namespace CcsBackup.Ui
             Id = "snes-classic", Name = "SNES Classic Mini — North America / Europe", Short = "SNES Classic", PhysicalModel = "snes-classic-edition",
             StorageBytes = 536870912L,   // its NAND reads 2048 64 4096 like the NES Classic's: 536,870,912 bytes
             ArchiveBytes = 536870912L + 3145728L + 67108864L + 314572800L + 1048576L + 65536000L + 2 * 2736128L,   // the physical reference, its five storage parts and its startup software twice, as a North American console reported them
-            About = "Nintendo's small Super NES console with 21 built-in games, sold in North America and in Europe since 2017. In this version Workbench backs it up and checks it; its other console tasks are not available for it.",
+            About = "Nintendo's small Super NES console with 21 built-in games, sold in North America and in Europe since 2017.",
             RegionalNames = new[] { ("North America", "Super NES Classic Edition"), ("Europe", "Nintendo Classic Mini: Super Nintendo Entertainment System") },
             Sections = new[]
             {
                 ("2017", "The console came out in 2017, in North America and in Europe. It is a small modern console, not the original Super NES from the 1990s.\n\n"
                     + "The North American and the European console share this one choice, but their software is not the same. Hakchi2 CE, which Workbench builds on, tells them apart by their startup software, and Workbench keeps them apart the same way: a console's software is always read from the console itself, never assumed from this choice or from its box."),
-                ("In this version", "Workbench backs up a North American or European SNES Classic Mini and checks it (Console Browser); both only read the console, and nothing on it changes. Restoring its own backup to it is not available in this version, as no change to a real console is. Preparing it with hakchi, CCS Mod and CCS Nucleus, Console Rescue, Console Composer, Expert Mode and Developer Mode are not available for it in this version: each says why when you open it, before anything starts. You can choose it to read about it and to see Workbench's pages in its words; a console task that is not available says so and starts nothing.\n\n"
-                    + "Backup files already on this PC can still be browsed, checked and repaired under Backup Files, whichever console is chosen."),
+                ("In this version", "Every console task works with a North American or European SNES Classic Mini: Back Up Console and the Console Browser check-up, restoring its own backup, Prepare Console, Return to Original Software, Console Rescue, Console Composer, CCS Mod and CCS Nucleus, system images, community mods, Expert Mode and Developer Mode. Each one first reads the console's own board and region and checks that it is the right console, makes or checks the backup its rules require, and shows you exactly what will change; nothing is written until you confirm.\n\n"
+                    + "Preparing it uses the same Hakchi2 CE 3.9.3 files as for the NES Classic Mini: hakchi's kernel gets the console's own key from the console itself, and its 21 games and their saves stay. Return to Original Software puts back Nintendo's original kernel for the console's region and the console's own bootloader.\n\n"
+                    + "A preview version's console tasks have not all been tried on real consoles yet. A European SNES Classic Mini is handled by the same rules as a North American one, but it has not been tried.\n\n"
+                    + "Backup files already on this PC can be browsed, checked and repaired under Backup Files, whichever console is chosen."),
                 ("What choosing it does", "Choosing this console sets the names Workbench uses. It does not connect to, identify or check a console, it does not change a console an earlier task identified, and it never makes Workbench accept a console, a backup or a system file it would otherwise refuse."),
-                ("Other consoles", "The NES Classic Mini is a different console, with its own choice at the top of the window. Workbench never puts one kind of console's backup or startup software on a console of another kind.\n\n"
+                ("Other consoles", "The NES Classic Mini is a different console, with its own choice at the top of the window. Workbench never puts one kind of console's backup or startup software on a console of another kind: a backup goes back only to the console it was made from, and Console Rescue writes a startup stage only from that console's own backup. " + SystemImageSeparate + "\n\n"
                     + "The Super Famicom Mini, sold in Japan, is a different console too: Workbench does not work with its hardware."),
             },
             RecoveryStep = "Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go: the console starts in recovery mode.",
@@ -145,8 +154,9 @@ namespace CcsBackup.Ui
             Show(Message("Not available for the " + profile.Short + " Mini", why + " Nothing was started: no console connection, no USB driver check, nothing written.", "info"), "msg");
             return false;
         }
-        /// <summary>what this version does with a real console: it reads one (Back Up Console, the Console Browser check-up) and writes nothing</summary>
-        internal const string ReadsAvailable = "In this version Workbench only reads a real console: Back Up Console and the Console Browser check-up are available.";
+        /// <summary>true for a worker request that only reads a real console (Back Up Console, the Console Browser check-up: the backup image,
+        /// which has no write verb)</summary>
+        internal static bool ReadOnlyRequest(string cmd) => cmd == "backup" || cmd == "browse";
 
         /// <summary>the connection steps' line about the PC's USB driver: with DriverChanges closed (this version) Workbench only uses a driver the
         /// PC already has; setting one up is offered only when that boundary is open</summary>
@@ -167,7 +177,7 @@ namespace CcsBackup.Ui
             if (!string.IsNullOrEmpty(opt.SimulatedConsole)) return true;
             var closed = ClosedOnRealConsole(cmd);
             if (closed == null) return true;
-            Show(Message("Not available in this version", closed + " Nothing was started: no console connection, no USB driver check, nothing written. " + ReadsAvailable, "info"), "msg");
+            Show(Message("Not available in this version", closed + " Nothing was started: no console connection, no USB driver check, nothing written.", "info"), "msg");
             return false;
         }
 
@@ -269,14 +279,22 @@ namespace CcsBackup.Ui
         /// <summary>marks a section as the open one without opening its first page (a Dashboard action that goes straight to a task in it)</summary>
         void Enter(string name) { section = name; Mark(name); }
 
-        /// <summary>opens a section's first page. Not while a console operation runs (its own page stays, and the status strip says why), and
-        /// not before the open page's unsaved changes are kept or let go.</summary>
+        /// <summary>opens a section's first page, also while a console task runs: the task goes on (it belongs to the window, not to its page;
+        /// Return to Task brings its page back), and nothing is canceled, restarted or repeated. Not before the open page's unsaved work is
+        /// kept or let go.</summary>
         public void Go(string name)
         {
-            if (Busy) { UpdateStatus("A console task is running. Finish or cancel it on this page before opening another page."); return; }
             if (!LeaveOk()) return;   // also when going back to the open section's own first page
-            if (worker != null) { worker.Send(new JObj { { "cmd", "quit" } }); }
-            if (worker == null && (page.Content as FrameworkElement)?.Tag as string == "progress") backgroundWork = progressTitle;
+            if (PageTag == "progress" && page.Content != taskPage) backgroundWork = progressTitle;   // a task on this PC goes on; the status strip says when it ends
+            RememberShown();   // the page's place in Back and Forward keeps its state before the next page's builder changes anything
+            NoteLeavingTask();
+            navigating++;
+            try { Open(name); }
+            finally { navigating--; }
+        }
+
+        void Open(string name)
+        {
             Enter(name);
             switch (name)
             {
@@ -333,16 +351,17 @@ namespace CcsBackup.Ui
         void OnEscape(System.Windows.Input.KeyEventArgs e)
         {
             var tag = (page.Content as FrameworkElement)?.Tag as string;
-            if (worker != null || tag == null || !EscapePages.Contains(tag)) return;   // Go asks about unsaved changes
+            if (worker != null && page.Content == taskPage || tag == null || !EscapePages.Contains(tag)) return;   // never the console task's own page; Go asks about unsaved changes
             Go(section); e.Handled = true;
         }
 
         // ------------------------------------------------------------------ the console strip (top of the page column)
         readonly TextBlock consoleState = new TextBlock(); readonly Ellipse consoleDot = new Ellipse { Width = 8, Height = 8, Margin = new Thickness(0, 1, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         ComboBox consoleChoice;
-        readonly TextBlock consoleEarlier = new TextBlock();
-        /// <summary>a console an operation's own session identified: its label, when, and whether it was simulated</summary>
-        sealed class ConsoleSeen { public string Tag; public DateTime At; public bool Simulated; }
+        readonly TextBlock consoleEarlier = new TextBlock(); Button renameButton;
+        /// <summary>a console an operation's own session identified: its label, its full key and model when the session sent them (the
+        /// friendly name's key: ConsoleNameBook), when, and whether it was simulated</summary>
+        internal sealed class ConsoleSeen { public string Tag, Key, Model; public DateTime At; public bool Simulated; }
         /// <summary>the latest operation session (one per worker; 0 before the first), what that session's own worker identified (null until
         /// it does) and, kept apart as history only, the console an earlier session identified. An earlier session's console is never shown
         /// as the current session's.</summary>
@@ -372,12 +391,15 @@ namespace CcsBackup.Ui
 
         UIElement ConsoleStrip()
         {
-            // the choice and the status side by side; the status moves to a second line when the window is narrow, and the two links move
-            // under them when the choice (with its whole console name) and the links do not fit on one line
+            // Back and Forward first, at the strip's left edge; then the console choice and the status side by side (the status moves under
+            // the choice when there is not room for both), and the two links at the right. Narrower: the choice moves to a second line under
+            // the arrows; narrower still, the links to a third. The arrows always stay on the first line.
             var g = new Grid { Background = Res<Brush>("B.Bar") };
-            g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var wrap = new WrapPanel { Margin = new Thickness(32, 4, 12, 4), VerticalAlignment = VerticalAlignment.Center };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            for (int r = 0; r < 3; r++) g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var arrows = new Border { Child = HistoryArrows(), Margin = new Thickness(16, 7, 14, 7), VerticalAlignment = VerticalAlignment.Top };
+            g.Children.Add(arrows);
+            var wrap = new WrapPanel { Margin = new Thickness(0, 4, 12, 4), VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(wrap, 1);
             var pick = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 20, 4) };
             var label = new TextBlock { Text = "Console", Style = Res<Style>("T.Muted"), FontSize = Ty.Small, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
             pick.Children.Add(label);
@@ -386,9 +408,14 @@ namespace CcsBackup.Ui
             AutomationProperties.SetName(consoleChoice, "Console"); AutomationProperties.SetLabeledBy(consoleChoice, label);
             consoleChoice.SelectionChanged += (s, e) => OnStripProfileChanged();   // ApplyProfile: the one guarded change
             pick.Children.Add(consoleChoice); wrap.Children.Add(pick);
-            var state = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 20, 4) };
-            SetNoTerms(consoleState, true); SetNoTerms(consoleEarlier, true); consoleState.FontSize = Ty.Text; consoleState.VerticalAlignment = VerticalAlignment.Center;
-            state.Children.Add(consoleDot); state.Children.Add(consoleState);
+            // the dot, the console's name and state (wrapping onto a second line when the strip is narrow) and the pencil that renames it
+            var state = new Grid { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 20, 4) };
+            state.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); state.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); state.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            SetNoTerms(consoleState, true); SetNoTerms(consoleEarlier, true); consoleState.FontSize = Ty.Text; consoleState.VerticalAlignment = VerticalAlignment.Center; consoleState.TextWrapping = TextWrapping.Wrap;
+            consoleEarlier.TextWrapping = TextWrapping.Wrap;
+            renameButton = RenameButton();
+            Grid.SetColumn(consoleState, 1); Grid.SetColumn(renameButton, 2);
+            state.Children.Add(consoleDot); state.Children.Add(consoleState); state.Children.Add(renameButton);
             AutomationProperties.SetName(state, "Console status"); AutomationProperties.SetLiveSetting(consoleState, AutomationLiveSetting.Polite);
             wrap.Children.Add(state);
             consoleEarlier.FontSize = Ty.Small; consoleEarlier.Foreground = Res<Brush>("B.Muted"); consoleEarlier.VerticalAlignment = VerticalAlignment.Center; consoleEarlier.Margin = new Thickness(0, 4, 0, 4);
@@ -402,15 +429,26 @@ namespace CcsBackup.Ui
             var about = new Button { Content = "About This Console", Style = Res<Style>("Btn.Link"), VerticalAlignment = VerticalAlignment.Center };
             about.Click += (s, e) => OpenAboutConsole(); AutomationProperties.SetName(about, "About This Console");
             links.Children.Add(help); links.Children.Add(about);
-            Grid.SetColumn(links, 1); g.Children.Add(links);
+            Grid.SetColumn(links, 2); g.Children.Add(links);
+            // 0: one line; 1: the console choice on a second line (the links stay on the first, beside a status with room to read);
+            // 2: the status alone beside the arrows, the choice and the links on the second line; 3: the links on a third line
+            int mode = 0;
             void Fit()
             {
-                pick.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity)); links.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                bool under = g.ActualWidth > 0 && g.ActualWidth < wrap.Margin.Left + pick.DesiredSize.Width + wrap.Margin.Right + links.DesiredSize.Width + 24;
-                if (under == (Grid.GetRow(links) == 1)) return;
-                Grid.SetRow(links, under ? 1 : 0); Grid.SetColumn(links, under ? 0 : 1);
+                if (g.ActualWidth <= 0) return;
+                var inf = new Size(double.PositiveInfinity, double.PositiveInfinity);
+                arrows.Measure(inf); pick.Measure(inf); links.Measure(inf);
+                double w = g.ActualWidth, a = arrows.DesiredSize.Width, p = pick.DesiredSize.Width, l = links.DesiredSize.Width;
+                int want = w >= a + p + l + wrap.Margin.Right + 24 ? 0 : w >= a + l + 380 ? 1 : w >= 16 + p + 12 + l + 24 ? 2 : 3;
+                if (want == mode && (want == 0) == (pick.Parent == wrap)) return;
+                mode = want;
+                if (pick.Parent is Panel from) from.Children.Remove(pick);
+                if (mode == 0) { wrap.Children.Insert(0, pick); pick.Margin = new Thickness(0, 4, 20, 4); }
+                else { Grid.SetRow(pick, 1); Grid.SetColumn(pick, 0); Grid.SetColumnSpan(pick, mode == 2 ? 2 : 3); pick.HorizontalAlignment = HorizontalAlignment.Left; pick.Margin = new Thickness(16, 0, 12, 8); g.Children.Add(pick); }
+                Grid.SetRow(links, mode == 3 ? 2 : mode == 2 ? 1 : 0); Grid.SetColumn(links, mode == 3 ? 0 : 2); Grid.SetColumnSpan(links, mode == 3 ? 3 : 1);
                 links.HorizontalAlignment = HorizontalAlignment.Left;
-                links.Margin = under ? new Thickness(32, 0, 12, 10) : new Thickness(0, 0, 24, 0);
+                links.Margin = mode == 3 ? new Thickness(16, 0, 12, 10) : mode == 2 ? new Thickness(0, 0, 24, 8) : new Thickness(0, 0, 24, 0);
+                Grid.SetColumnSpan(wrap, mode >= 2 ? 2 : 1);   // the status alone on the first line: the whole width beside the arrows
             }
             g.SizeChanged += (s, e) => Fit();
             var border = new Border { BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 0, 0, 1), Child = g };
@@ -430,9 +468,12 @@ namespace CcsBackup.Ui
             consoleDot.Fill = seenNow != null && open ? Res<Brush>("B.Ok") : null;
             consoleDot.Stroke = Res<Brush>(seenNow != null && open ? "B.Ok" : "B.Muted"); consoleDot.StrokeThickness = 1.5;
             if (consoleChoice != null) consoleChoice.IsEnabled = !Busy;
+            if (renameButton != null) renameButton.Visibility = seenNow?.Key != null ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        static string Seen(ConsoleSeen s) => (s.Simulated ? "Simulated console " : "Console ") + s.Tag + ", identified at " + s.At.ToString("h:mm tt", En);
+        /// <summary>"NES Classic (1) · Console 73f23039, identified at 2:05 PM": the friendly name (when the session sent the console's key)
+        /// and the short tag</summary>
+        string Seen(ConsoleSeen s) => (FriendlyName(s) is string n ? n + " · " : "") + (s.Simulated ? "Simulated console " : "Console ") + s.Tag + ", identified at " + s.At.ToString("h:mm tt", En);
 
         /// <summary>the latest session's console status in words; and, while that session has not identified its console, the console an
         /// earlier session identified, marked as earlier (null when there is none to show)</summary>
@@ -452,7 +493,12 @@ namespace CcsBackup.Ui
         {
             var tag = ev.S("console_tag") ?? ev.O("plan")?.S("console_tag") ?? ev.O("checkup")?.S("console_tag");
             if (string.IsNullOrEmpty(tag)) return;
-            seenNow = new ConsoleSeen { Tag = tag, At = DateTime.Now, Simulated = !string.IsNullOrEmpty(opt.SimulatedConsole) };
+            var key = ev.S("console_key"); if (key != null && !CcsBackup.Library.ConsoleNameBook.IsKey(key)) key = null;
+            // the same console named again by a later event of this session: when it was identified, its key and its name stay
+            if (seenNow != null && seenNow.Tag == tag && (key == null || key == seenNow.Key)) return;
+            if (seenNow != null && seenNow.Tag == tag && seenNow.Key == null) { seenNow.Key = key; seenNow.Model = ev.S("physical_model"); }
+            else seenNow = new ConsoleSeen { Tag = tag, Key = key, Model = ev.S("physical_model"), At = DateTime.Now, Simulated = !string.IsNullOrEmpty(opt.SimulatedConsole) };
+            NameOf(seenNow, true);   // its friendly name: numbered the first time this console is identified (WorkbenchNav.cs)
             UpdateConsoleStrip();
         }
 
@@ -467,9 +513,13 @@ namespace CcsBackup.Ui
             seenNow = null; int session = ++consoleSession;
             gotResult = false; writing = false; quitting = false; workerOp = op;
             var w = new WorkerClient(opt.WorkerExe, Args(), Dispatcher);
-            w.Event += ev => { if (session != consoleSession) return; NoteConsole(ev); OnWorkerEvent(ev); };
-            w.Exited += code => { if (session != consoleSession) { w.Dispose(); return; } OnWorkerExit(code); };
-            worker = w; UpdateConsoleStrip();
+            // the session's own events and end; a page they show is the task's (WorkbenchNav.cs: kept for Return to Task while another page
+            // is in front). The person's quit (Done, a review's Cancel, Restart the Console's end) ends the session: nothing it still sends
+            // changes a page.
+            w.Event += ev => { if (session != consoleSession) return; workerDispatch++; try { NoteConsole(ev); OnWorkerEvent(ev); } finally { workerDispatch--; } };
+            w.Exited += code => { if (session != consoleSession) { w.Dispose(); return; } workerDispatch++; try { OnWorkerExit(code); } finally { workerDispatch--; } };
+            w.Sending += req => { if (session == consoleSession && req["cmd"] as string == "quit") quitting = true; };
+            worker = w; BeginTask(op); UpdateConsoleStrip();
             return w;
         }
 
@@ -486,26 +536,27 @@ namespace CcsBackup.Ui
             AutomationProperties.SetLiveSetting(statusText, AutomationLiveSetting.Polite);   // its own words are its name for screen readers
             g.Children.Add(statusText);
             var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 22, 6) }; Grid.SetColumn(right, 1); g.Children.Add(right);
+            right.Children.Add(ReturnButton());   // Return to Task, while the console task's page is not in front (WorkbenchNav.cs)
             right.Children.Add(UpdateIndicator());   // "Update available", only when a newer version is published (WorkbenchUpdates.cs)
             if (!string.IsNullOrEmpty(opt.SimulatedConsole)) right.Children.Add(Pill("Simulated console", "B.Warn"));
             return g;
         }
 
-        /// <summary>the status strip and the side column after a page change: what is running, and which sections can be opened now</summary>
+        /// <summary>the status strip, the arrows and the console strip after a page change. Every section can always be opened.</summary>
         void UpdateChrome()
         {
-            bool busy = Busy;
-            foreach (var kv in navButtons) kv.Value.IsEnabled = !busy || kv.Key == section;
-            UpdateStatus(null); UpdateConsoleStrip();
+            UpdateStatus(null); UpdateConsoleStrip(); UpdateArrows();
         }
 
         void UpdateStatus(string say)
         {
             var tag = (page.Content as FrameworkElement)?.Tag as string;
-            string text;
+            string text; var task = TaskStatusLine(out bool canReturn);
+            if (returnButton != null) { returnButton.Visibility = canReturn ? Visibility.Visible : Visibility.Collapsed; returnButton.ToolTip = canReturn ? "Back to " + (taskTitle ?? "the console task") : null; }
             if (say != null) { text = say; backgroundWork = null; }
+            else if (task != null) text = task;
             else if (backgroundWork != null && !(worker != null && worker.Running)) text = "Still working on this PC: " + backgroundWork + ". You can keep using Workbench; this line says when it finishes.";
-            else if (worker != null && worker.Running && !gotResult) text = "Working: " + (tag == "progress" && progressTitle != null ? progressTitle : "a console task") + ". Other pages open again when it finishes or is canceled.";
+            else if (worker != null && worker.Running && !gotResult) text = "Working: " + (tag == "progress" && progressTitle != null ? progressTitle : taskTitle ?? "a console task") + ". You can open other pages while it runs; it keeps going, and Return to Task brings you back.";
             else if (worker != null && worker.Running) text = "The console session is still open: the console waits in its memory program. Restart the Console or Done ends it.";
             else if (tag == "progress") text = "Working: " + (progressTitle ?? "a task on this PC") + ".";
             else if (lookProblem != null) text = "Workbench could not load its colors and styles (" + lookProblem + "). Close Workbench and open it again.";   // WB-UX-07: never silent
@@ -660,7 +711,7 @@ namespace CcsBackup.Ui
                 var second = list.FirstOrDefault(x => x != e && x.BackupId == e.BackupId && e.BackupId != null && x.Copy == "Second copy");
                 sp.Children.Add(RecentRow(e, second));
             }
-            sp.Children.Add(T("A passed file check means the file was intact when it was checked. It is not a test of restoring it to a console. " + BackupSizeNote, Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
+            sp.Children.Add(T(VerifiedNote + " " + BackupSizeNote, Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
             return sp;
         }
 
@@ -684,33 +735,27 @@ namespace CcsBackup.Ui
             var card = Card(row, 14); card.Margin = new Thickness(0, 0, 0, 8); return card;
         }
 
-        /// <summary>a backup's state in the Dashboard's words: complete or not, and whether its file passed a check (never "restorable")</summary>
+        /// <summary>a backup's state in the words of every list (the Dashboard, the Backup Browser, Backup Repair, Console Backup): the result
+        /// of a full check (BackupListEntry.StatusText), never what the file's description says about itself, and never "restorable"</summary>
         static (string, string) RowState(BackupListEntry e)
         {
             switch (e.Status)
             {
-                case BrowseStatus.Complete: return e.Check == CheckState.Verified ? ("Complete · file check passed", "B.Ok") : e.Check == CheckState.ChangedSinceCheck ? ("Changed since its last check", "B.Warn") : ("Complete · not checked yet", "B.Warn");
-                case BrowseStatus.Incomplete: return ("Incomplete: not a backup", "B.Red3");
-                case BrowseStatus.Damaged: return ("Damaged", "B.Red3");
-                case BrowseStatus.Salvage: return ("Damaged · some files can be saved", "B.Warn");
-                default: return ("File not found", "B.Red3");
+                case BrowseStatus.Complete: return (e.StatusText, e.Check == CheckState.Verified ? "B.Ok" : "B.Warn");
+                case BrowseStatus.Salvage: return (e.StatusText, "B.Warn");
+                default: return (e.StatusText, "B.Red3");
             }
         }
 
-        static string LastCheckText(BackupListEntry e)
-        {
-            if (e.Status == BrowseStatus.Missing) return "The file is no longer where it was saved.";
-            if (e.Status == BrowseStatus.Incomplete) return "The backup did not finish; nothing in this file is used.";
-            if (e.LastVerifiedUtc == null) return e.Status == BrowseStatus.Damaged || e.Status == BrowseStatus.Salvage ? "The file did not pass its last check." : "No passed file check on this PC yet.";
-            return "Last passed file check: " + e.LastVerifiedUtc.Value.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm tt", En) + (e.LastVerifiedBy == "made" ? " (when it was made)" : "");
-        }
+        /// <summary>the line under a backup's date: its last full check and what it found (BackupListEntry.CheckText)</summary>
+        static string LastCheckText(BackupListEntry e) => e.CheckText;
 
         /// <summary>opens a console backup file from anywhere on this PC in the Backup Browser (checked first; nothing is written to it)</summary>
         void OpenBackupFile()
         {
-            var d = new Microsoft.Win32.OpenFileDialog { Filter = FileKinds.ConsoleBackupFilter, Title = "Open a console backup" };
-            if (d.ShowDialog(this) != true) return;
-            Enter("Backup Browser"); OpenBrowse(d.FileName, false);
+            var chosenFile = CcsFileDialog.OpenFile(this, "Open a console backup", null, FileKinds.ConsoleBackupFilter, "console-backup");
+            if (chosenFile == null) return;
+            Enter("Backup Browser"); OpenBrowse(chosenFile, false);
         }
 
         static void OpenPath(string folder)
@@ -749,7 +794,7 @@ namespace CcsBackup.Ui
             InfoCard("Organize your collection", "Bring in the NES game files you own, see them with their artwork and details, and arrange them in collections."),
             InfoCard("Play", "Play NES games in the app on Windows, or on " + HomepageName + " in a web browser or on a phone where the browser supports it."),
             InfoCard("Included Games", "Free games and demos whose developers gave permission, ready to play. No commercial Nintendo games are included."),
-            InfoCard("Your NES Classic's HOME", "Plan collections for your NES Classic and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first; those steps are not available in this version."));
+            InfoCard("Your NES Classic's HOME", "Plan collections for your NES Classic and preview Classic Cart Studio's HOME on your PC. Putting them on a console uses guided steps with a backup first."));
 
         // ------------------------------------------------------------------ About Classic Cart Studio (the wordmark's window, both hosts)
         /// <summary>the address the window's button opens, exactly (the site's front page)</summary>

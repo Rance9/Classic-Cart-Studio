@@ -53,8 +53,7 @@ namespace CcsBackup.Tests
                 Check(mo != null && mo.Ok && con2.FileStat("compose", save).bytes == "the other console's save".Length && mp.Notes.Any(n => n.Contains("keeps its own startup")) && mp.Skipped.Count == 1,
                     "migrated: the other console's save moved; its system files did not; this console keeps its own startup and identity (" + (mw ?? mo?.Problem) + ")");
                 Check(boots.All(kv => Sha(SimulatedConsole.Dev(c, kv.Key)) == kv.Value) && ConsoleIdentity.SameConsole(con2.Identify().Hwid, HwidA), "after migration this console's startup stages, kernel and identity are its own");
-                try { RecoverySessions.OpenReal(ImageKind.Files, null, () => false); Check(false, "a real file session opened"); }
-                catch (GateClosedException ex) { Check(!CcsBackup.Gate.ComposerWrites, "a real console: Console Composer's boundary is closed in code (" + ex.Message + ")"); }
+                Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.ComposerWrites && RecoverySessions.Refusal(ImageKind.Files) == null, "a real console: Console Composer's boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
             }
             finally { SimulatedConsole.FileStore = null; }
         }

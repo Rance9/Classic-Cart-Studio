@@ -178,7 +178,7 @@ namespace CcsBackup.Ui
             }), B("Back", "Btn.Ghost", () => { if (LeaveOk()) BackToSection(); })));
             Show(sp, "composer-plan");
             LeaveGuard(() => !boxes.Any(x => x.box.IsChecked == true) && planName.Text.Trim().Length == 0 ? null : "The files and plan name you chose in Console Composer",
-                       "The files you chose on this page are not kept if you leave it.");
+                       "The files and the plan name you chose on this page are not kept if you leave this setup.", null, "Leave Setup");
         }
 
         /// <summary>the review of a composition (from backups or from a private restore package): the console it changes, where the files

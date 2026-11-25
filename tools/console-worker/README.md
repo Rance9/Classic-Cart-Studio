@@ -2,15 +2,17 @@
 
 Copyright (C) 2026 Rance9. GPL-3.0-or-later. Parts are derived from Hakchi2 CE 3.9.3 (GPL-3.0). See `NOTICE` and `SOURCE.md`.
 
-`ccs-console-worker.exe` is the separate program Classic Cart Studio would use to talk to an NES Classic that runs hakchi: the clovershell
-USB shell and the SSH shell from Hakchi2 CE, and the operations K3 needs (identification, free space, stat/list/hash/read (whole small files, or any file in bounded pieces), a guarded
+`ccs-console-worker.exe` is the separate program Classic Cart Studio uses to talk to an NES Classic or a Super NES Classic that runs hakchi: the clovershell
+USB shell and the SSH shell from Hakchi2 CE, and the operations K3 needs (identification, with the model its software names by board and region and where its data storage is mounted, free space, stat/list/hash/read (whole small files, or any file in bounded pieces), a guarded
 write with readback, folders, rename, owned-file removal, the version pointer (optionally only from the state it expects), sync, and hakchi's own module install/uninstall). It speaks the
 worker protocol (version 1, newline-delimited JSON on stdin/stdout) to the Classic Cart Studio backend, which starts it as a child process.
 
-**The physical tiers are closed in code (Gate G1).** `Gate.PhysicalInspectEnabled` and `Gate.PhysicalWriteEnabled` are `false` compile-time
-constants; `connect` always answers `physical-disabled`, before any USB enumeration, device handle, socket or discovery; with the constants
-false the compiler leaves the device-opening code out of the program. There is no option, setting, environment variable or second
-executable that changes this. Opening a physical tier is a reviewed code change released as its own milestone.
+**The physical tiers are decided in code (Gate G1), and both are open in this version.** `Gate.PhysicalInspectEnabled` and
+`Gate.PhysicalWriteEnabled` are compile-time constants (`true`); `connect` asks the first before any USB enumeration, device handle, socket
+or discovery, and connects only through clovershell or SSH (any other transport is refused before anything is looked for). Each command
+that changes the console asks the second again, and needs the backup admission the backend obtained for exactly that console, operation
+and subject (`admit`). There is no option, setting, environment variable or second executable that changes the constants; changing them is
+a reviewed code change.
 
 | Project | What it is |
 |---|---|
@@ -50,7 +52,7 @@ disposable WSL folder that is removed afterwards. QEMU is not a console: this sh
 console's storage, timing or USB/network transport.
 
 `CcsWorker.Tests --serve-busybox [--package DIR]` (test only) serves the protocol with such a disposable folder already attached, for the
-backend's own integration tests. `connect` stays closed there too.
+backend's own integration tests. Its `connect` goes to a test opener that refuses every transport, whatever the gate says.
 
 ## What the console's tools taught the design
 

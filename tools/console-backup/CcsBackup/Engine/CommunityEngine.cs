@@ -357,6 +357,7 @@ namespace CcsBackup.Engine
             ConsoleIdentity id;
             try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId, "community"); }
             catch (ConsoleRefusedException ex) { rd.Refusal = ex.Message; return rd; }
+            var dw = ConsoleData.Refusal(id); if (dw != null) { rd.Refusal = dw + " Nothing was changed."; return rd; }
             rd.ConsoleTag = id.ShortTag; rd.Family = FamilyOf(id); rd.Region = id.Region;
             var st = con.PrepState(); rd.State = st;
             if (!st.Ok) { rd.Refusal = "The console's hakchi packages could not be read (" + st.Problem + "). Nothing was changed."; return rd; }
@@ -434,7 +435,7 @@ namespace CcsBackup.Engine
                 if (st.Free < 0) return (null, Refuse("The console's free space could not be read. Nothing was changed."));
                 var room = StorageSpec.Account(new Dictionary<string, object>
                 {
-                    ["profile"] = StorageSpec.NesModel, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = st.Free },
+                    ["profile"] = id.Model?.Id ?? StorageSpec.NesModel, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = st.Free },
                     ["items"] = new object[] { new Dictionary<string, object> { ["category"] = "mods", ["label"] = "the mods' packages and their unpacked files", ["estimated"] = true, ["files"] = new object[] { new Dictionary<string, object> { ["bytes"] = need } } } },
                 });
                 if (!(bool)room["write_ok"]) return (null, Refuse(Capacity.Why(room, out _, out _) + " Nothing was changed."));

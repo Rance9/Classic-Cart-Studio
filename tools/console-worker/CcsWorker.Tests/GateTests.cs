@@ -1,9 +1,8 @@
 // Classic Cart Studio console transport worker tests. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
-// Gate G1: every connect is refused before any device, socket or discovery; the real pipe and session are constructed nowhere but
-// RealTransports, whose compiled code (the gate constants are false) contains no reference to them at all. These run first: the
-// loaded-assembly check needs a process that has not yet reflected over the worker's types. The two tests that call the real opener do
-// so only while its gate is closed: in a build whose gate is open (the activation rehearsal) that code is compiled out and they skip,
-// and every other worker server here connects through TestOpeners.Never.
+// Gate G1, open in this version: the real pipe and session are constructed nowhere but RealTransports, whose first statement asks the
+// gate; it connects only through clovershell or SSH. No test ever sends those two kinds to the real opener (it would look for a console):
+// every worker server here connects through TestOpeners.Never, and the real opener is called only with kinds it refuses before anything
+// is looked for. These run first: the loaded-assembly check needs a process that has not yet reached the real opener.
 using CcsWorker.Protocol;
 using CcsWorker.Shell;
 using System;
@@ -22,41 +21,26 @@ namespace CcsWorker.Tests
 
         public static void Register()
         {
-            T.Add("gate", "the gate constants are false (compile-time constants)", () =>
+            T.Add("gate", "the gate constants are compile-time constants, both open in this version", () =>
             {
                 foreach (var f in new[] { "PhysicalInspectEnabled", "PhysicalWriteEnabled" })
                 {
                     var fi = typeof(Gate).GetField(f, BindingFlags.Public | BindingFlags.Static);
                     T.True(fi != null && fi.IsLiteral, f + " is a const");
-                    T.Eq(false, (bool)fi.GetRawConstantValue(), f);
+                    T.Eq(true, (bool)fi.GetRawConstantValue(), f);
                 }
             });
 
-            T.Add("gate", "connect is physical-disabled for every transport and argument shape (real opener)", () =>
+            T.Add("gate", "a test's worker server never reaches a console: its connect goes to TestOpeners.Never, whatever the gate; nothing loaded USB or SSH code", () =>
             {
-                if (Gate.PhysicalInspectEnabled) throw new SkipException("the gate is open in this build: a test never calls the real opener");
-                using (var h = new Harness(opener: RealTransports.Open))
-                {
-                    var kinds = new object[] { "clovershell", "ssh", "fel", "usb", "rndis", "fake", "", null, 7, true, new object[0], new Dictionary<string, object>() };
-                    foreach (var k in kinds)
-                        foreach (var extra in new[] { null, new Dictionary<string, object> { ["host"] = "169.254.13.37", ["port"] = 22, ["force"] = true, ["gate"] = "open", ["device"] = "USB\\VID_1F3A&PID_EFE8" } })
-                        {
-                            var a = new Dictionary<string, object> { ["transport"] = k };
-                            if (extra != null) foreach (var kv in extra) a[kv.Key] = kv.Value;
-                            T.Eq("physical-disabled", Harness.Err(h.Call("connect", a)), "connect " + Harness.Json.Serialize(k));
-                        }
-                    T.Eq("physical-disabled", Harness.Err(h.Call("connect")), "connect without arguments");
-                    T.Eq("not-connected", Harness.Err(h.Call("stat", new Dictionary<string, object> { ["path"] = "/var/lib/ccs" })), "nothing is connected afterwards");
-                }
-            });
-
-            T.Add("gate", "no USB or SSH assembly was loaded by the refusals (nothing reached LibUsbDotNet or SSH.NET)", () =>
-            {
-                if (Gate.PhysicalInspectEnabled) throw new SkipException("the gate is open in this build: a test never calls the real opener");
+                using (var h = new Harness())
+                    foreach (var k in new object[] { "clovershell", "ssh", null })
+                    {
+                        var e = h.Call("connect", new Dictionary<string, object> { ["transport"] = k });
+                        T.Eq("physical-disabled", Harness.Err(e), "connect " + Harness.Json.Serialize(k));
+                        T.True((e["text"] as string).Contains(TestOpeners.NeverText), "refused by the test opener, not the gate: " + e["text"]);
+                    }
                 foreach (var n in Real) T.True(!Loaded(n), n + " is not loaded");
-                var e = T.Throws<GateClosedException>(() => RealTransports.Open("clovershell"), "RealTransports.Open");
-                T.True(e.Message.Contains("Gate G1"), "the refusal names the gate");
-                foreach (var n in Real) T.True(!Loaded(n), n + " is still not loaded after a direct call");
             });
 
             T.Add("gate", "source: the real pipe and session are built only in RealTransports, the gate is its first statement", () =>
@@ -82,16 +66,27 @@ namespace CcsWorker.Tests
                 T.True(ws.Contains("RealTransports.Open, null, () => Gate.PhysicalWriteEnabled,"), "the production server's write tier is the gate constant");
             });
 
-            T.Add("gate", "a test's worker server never reaches a console: its connect goes to TestOpeners.Never, whatever the gate", () =>
+            T.Add("gate", "the production opener connects only through clovershell or SSH: every other transport and argument shape is refused before anything is looked for", () =>
             {
-                using (var h = new Harness())
-                    foreach (var k in new object[] { "clovershell", "ssh", null })
-                    {
-                        var e = h.Call("connect", new Dictionary<string, object> { ["transport"] = k });
-                        T.Eq("physical-disabled", Harness.Err(e), "connect " + Harness.Json.Serialize(k));
-                        T.True((e["text"] as string).Contains(TestOpeners.NeverText), "refused by the test opener, not the gate: " + e["text"]);
-                    }
-                foreach (var n in Real) T.True(!Loaded(n), n + " is not loaded");
+                // never "clovershell" or "ssh" here: with the gate open the real opener would look for a console
+                using (var h = new Harness(opener: RealTransports.Open))
+                {
+                    var kinds = new object[] { "fel", "usb", "rndis", "fake", "SSH", "Clovershell", " ssh", "", null, 7, true, new object[0], new Dictionary<string, object>() };
+                    foreach (var k in kinds)
+                        foreach (var extra in new[] { null, new Dictionary<string, object> { ["host"] = "169.254.13.37", ["port"] = 22, ["force"] = true, ["gate"] = "open", ["device"] = "USB\\VID_1F3A&PID_EFE8" } })
+                        {
+                            var a = new Dictionary<string, object> { ["transport"] = k };
+                            if (extra != null) foreach (var kv in extra) a[kv.Key] = kv.Value;
+                            T.Eq(Gate.PhysicalInspectEnabled ? "bad-transport" : "physical-disabled", Harness.Err(h.Call("connect", a)), "connect " + Harness.Json.Serialize(k));
+                        }
+                    T.Eq(Gate.PhysicalInspectEnabled ? "bad-transport" : "physical-disabled", Harness.Err(h.Call("connect")), "connect without arguments");
+                    T.Eq("not-connected", Harness.Err(h.Call("stat", new Dictionary<string, object> { ["path"] = "/var/lib/ccs" })), "nothing is connected afterwards");
+                }
+                foreach (var k in new[] { "fel", null, "usb" })
+                {
+                    var e = T.Throws<Exception>(() => RealTransports.Open(k), "RealTransports.Open " + (k ?? "null"));
+                    T.True(Gate.PhysicalInspectEnabled ? e is CcsWorker.Ops.OpException o && o.Code == "bad-transport" : e is GateClosedException, "refused before any device: " + e.GetType().Name + " " + e.Message);
+                }
             });
 
             T.Add("gate", "the write tier is asked per command: with writes closed every changing command is refused before the console, reads are not", () =>
@@ -121,21 +116,22 @@ namespace CcsWorker.Tests
                 }
             });
 
-            T.Add("gate", "the production worker server asks the write tier before anything else (closed: physical-disabled even with no console)", () =>
+            T.Add("gate", "the production worker server (process, never connected): a write asks the write tier, then the backup admission, before anything else", () =>
             {
-                if (Gate.PhysicalWriteEnabled) throw new SkipException("the write tier is open in this build");
                 using (var p = new WorkerProcess())
                 {
                     p.Write("{\"v\":1,\"id\":\"w\",\"cmd\":\"mkdir\",\"args\":{\"path\":\"/var/lib/ccs/x\"}}\n{\"v\":1,\"id\":\"r\",\"cmd\":\"stat\",\"args\":{\"path\":\"/var/lib/ccs\"}}\n{\"v\":1,\"id\":\"end\",\"cmd\":\"shutdown\"}\n");
                     T.True(p.WaitExit(30000), "exits after shutdown");
-                    var w = (Dictionary<string, object>)Harness.Json.DeserializeObject(p.Out[0]); T.Eq("physical-disabled", w["code"] as string, "mkdir: the write tier first");
+                    var w = (Dictionary<string, object>)Harness.Json.DeserializeObject(p.Out[0]);
+                    T.Eq(Gate.PhysicalWriteEnabled ? "backup-required" : "physical-disabled", w["code"] as string, "mkdir: the write tier first, then the backup admission (none: nothing was admitted)");
                     var r = (Dictionary<string, object>)Harness.Json.DeserializeObject(p.Out[1]); T.Eq("not-connected", r["code"] as string, "stat: no console");
+                    T.True(!(r["text"] as string).Contains("not available"), "not-connected says only that: " + r["text"]);
                 }
             });
 
-            T.Add("gate", "compiled code: no method refers to the real pipe, the SSH session, LibUsbDotNet or SSH.NET except those two classes", () =>
+            T.Add("gate", "compiled code: no method refers to the real pipe, the SSH session, LibUsbDotNet or SSH.NET except those two classes and RealTransports.Open", () =>
             {
-                var asm = typeof(Gate).Assembly; var bad = new List<string>();
+                var asm = typeof(Gate).Assembly; var bad = new List<string>(); var opener = new List<string>();
                 var realTypes = new[] { "CcsWorker.Shell.LibUsbBulkPipe", "CcsWorker.Shell.SshNetSession" };
                 foreach (var t in asm.GetTypes())
                 {
@@ -153,11 +149,12 @@ namespace CcsWorker.Tests
                             MemberInfo r; try { r = t.Module.ResolveMember(tok, t.IsGenericType ? t.GetGenericArguments() : null, m.IsGenericMethod ? m.GetGenericArguments() : null); } catch { continue; }
                             var dt = r as Type ?? r.DeclaringType; if (dt == null) continue;
                             var an = dt.Assembly.GetName().Name;
-                            if (realTypes.Contains(dt.FullName) || an.StartsWith("LibUsbDotNet") || an == "Renci.SshNet") bad.Add(t.Name + "." + m.Name + " -> " + dt.FullName);
+                            if (realTypes.Contains(dt.FullName) || an.StartsWith("LibUsbDotNet") || an == "Renci.SshNet") (t.FullName == "CcsWorker.Shell.RealTransports" && m.Name == "Open" && realTypes.Contains(dt.FullName) ? opener : bad).Add(t.Name + "." + m.Name + " -> " + dt.FullName);
                         }
                     }
                 }
                 T.True(bad.Count == 0, "references: " + string.Join("; ", bad.Distinct()));
+                T.True(Gate.PhysicalInspectEnabled ? opener.Distinct().Count() == 2 : opener.Count == 0, "RealTransports.Open builds the real pipe and session only while the gate is open: " + string.Join("; ", opener.Distinct()));
             });
 
             T.Add("gate", "the worker executable takes no transport, host, port or device option", () =>

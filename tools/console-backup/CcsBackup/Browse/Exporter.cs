@@ -1,7 +1,10 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // Export from an opened backup to a folder the person chose: a selection, search results, a whole By-type category, one or more game
-// bundles, or a folder of the All files tree. The backup is only read. Each export goes into a NEW folder inside the chosen one (its name
-// made unique, never an existing folder), and every name inside it is rebuilt by SafeNames/ExportPaths, so nothing from the backup can
+// bundles, or a folder of the All files tree. The backup is only read. Each export goes into a NEW folder inside the chosen one, named
+// with the request's FolderName: a suggestion that fits what is exported (ExportNames: the game's title for one game's files, the kind,
+// the folder or the search; never a console's name or ID), which the person can change before the export starts. Its name is made safe
+// and unique (" (2)", " (3)" ... when the name is taken; never an existing folder), and every name inside it is rebuilt by
+// SafeNames/ExportPaths, so nothing from the backup can
 // reach outside it (no "..", absolute, UNC, device or drive paths, no alternate data streams, no reserved device names) and nothing is
 // ever written over: files are created new, and a folder the export needs is checked to be a real folder, not a link or junction.
 // For every file:
@@ -49,7 +52,7 @@ namespace CcsBackup.Browse
         public static ExportRequest WholeCategory(BackupContents c, Category cat, string destination)
         {
             var all = c.ByType(cat); var r = new ExportRequest { Destination = destination, Scope = ExportScope.WholeCategory, Category = cat, CategoryCount = all.Count, ShownCount = all.Count };
-            r.Entries.AddRange(all); r.ScopeText = "All " + all.Count + " item(s) in " + Categories.Label(cat) + " (the whole category, not filtered)."; r.FolderName = Categories.Label(cat); return r;
+            r.Entries.AddRange(all); r.ScopeText = "All " + all.Count + " item(s) in " + Categories.Label(cat) + " (the whole category, not filtered)."; r.FolderName = ExportNames.Kind(cat); return r;
         }
 
         /// <summary>only what a search (in a category, or everywhere) shows</summary>
@@ -59,27 +62,43 @@ namespace CcsBackup.Browse
             r.CategoryCount = cat == null ? c.Entries.Count(e => e.Kind != EntryKind.Folder) : c.ByType(cat.Value).Count;
             r.Entries.AddRange(list);
             r.ScopeText = "Only the " + list.Count + " search result(s) for \"" + search + "\"" + (cat == null ? "" : " in " + Categories.Label(cat.Value)) + " (filtered: " + list.Count + " of " + r.CategoryCount + ").";
-            r.FolderName = "Search results" + (cat == null ? "" : " in " + Categories.Label(cat.Value)); return r;
+            r.FolderName = ExportNames.Matching(cat, search); return r;
         }
 
         /// <summary>only the entries the person selected (folders bring everything inside them)</summary>
         public static ExportRequest Selected(BackupContents c, Selection sel, string destination, ExportLayout layout = ExportLayout.ByGame)
         {
             var list = sel.Entries(c); var r = new ExportRequest { Destination = destination, Scope = ExportScope.Selection, Layout = layout, ShownCount = list.Count };
-            r.Entries.AddRange(list); r.ScopeText = "Only the " + list.Count + " selected item(s)" + (list.Any(e => e.Kind == EntryKind.Folder) ? ", with everything inside the selected folders." : "."); r.FolderName = "Selected files"; return r;
+            r.Entries.AddRange(list); r.ScopeText = "Only the " + list.Count + " selected item(s)" + (list.Any(e => e.Kind == EntryKind.Folder) ? ", with everything inside the selected folders." : "."); r.FolderName = ExportNames.ForEntries(c, list); return r;
+        }
+
+        /// <summary>one entry on its own (Export This File, Export This Image, Export the Key File), with its place as stored</summary>
+        public static ExportRequest One(BackupContents c, BrowseEntry e, string destination)
+        {
+            var r = new ExportRequest { Destination = destination, Scope = ExportScope.Selection, Layout = ExportLayout.OriginalPaths, ShownCount = 1, ScopeText = "One item: " + e.DisplayPath + "." };
+            r.Entries.Add(e); r.FolderName = ExportNames.ForEntries(c, r.Entries); return r;
+        }
+
+        /// <summary>everything inside a file that holds files (the data storage image, a system image, a startup image, the CCS HOME
+        /// package), with their original folders</summary>
+        public static ExportRequest Inside(BackupContents c, BrowseEntry holder, string destination)
+        {
+            var r = new ExportRequest { Destination = destination, Scope = ExportScope.Folder, Layout = ExportLayout.OriginalPaths, ScopeText = "Everything inside " + holder.DisplayPath + ", with its original folders." };
+            r.FolderName = holder.Member == c.DataMember && holder.Source == EntrySource.Member ? "Console files" : "Files inside " + holder.Name;
+            r.Entries.AddRange(c.Children(holder.Id)); return r;
         }
 
         /// <summary>one game's bundle: its game files, battery saves, suspend points, artwork, settings and other files</summary>
         public static ExportRequest GameBundle(BackupContents c, GameGroup g, string destination)
         {
-            var r = new ExportRequest { Destination = destination, Scope = ExportScope.Game, FolderName = g.Title, ShownCount = g.Entries.Count };
+            var r = new ExportRequest { Destination = destination, Scope = ExportScope.Game, FolderName = ExportNames.Title(g), ShownCount = g.Entries.Count };
             r.Entries.AddRange(g.Entries); r.ScopeText = "Everything found for " + g.Title + " (" + g.Entries.Count + " item(s))."; return r;
         }
 
         /// <summary>several games' bundles, each in its own folder</summary>
         public static ExportRequest GameBundles(BackupContents c, IEnumerable<GameGroup> games, string destination)
         {
-            var gs = games.ToList(); var r = new ExportRequest { Destination = destination, Scope = ExportScope.Game, FolderName = "Games", ShownCount = gs.Count };
+            var gs = games.ToList(); var r = new ExportRequest { Destination = destination, Scope = ExportScope.Game, FolderName = gs.Count == 1 ? ExportNames.Title(gs[0]) : ExportNames.SeveralGames, ShownCount = gs.Count };
             foreach (var g in gs) r.Entries.AddRange(g.Entries);
             r.ScopeText = "Everything found for " + gs.Count + " game(s), each in its own folder."; return r;
         }
@@ -87,8 +106,65 @@ namespace CcsBackup.Browse
         /// <summary>All files: one folder (or member) with its original layout</summary>
         public static ExportRequest Folder(BackupContents c, BrowseEntry folder, string destination)
         {
-            var r = new ExportRequest { Destination = destination, Scope = ExportScope.Folder, Layout = ExportLayout.OriginalPaths, FolderName = folder.Name };
+            var r = new ExportRequest { Destination = destination, Scope = ExportScope.Folder, Layout = ExportLayout.OriginalPaths, FolderName = ExportNames.FolderOf(folder) };
             r.Entries.Add(folder); r.ScopeText = "Everything in " + folder.DisplayPath + ", with its original folders."; return r;
+        }
+    }
+
+    /// <summary>The name an export's new folder is offered with (ExportRequest.FolderName): what is being exported, in plain words. One
+    /// game's files: the game's title; one kind: the kind ("Saves"); one folder: its name; a search: what it matched; otherwise a neutral
+    /// name. Never a console's name or ID, a backup file's name or a selection mode. The person can change it before the export starts;
+    /// a name already used in the chosen folder gets " (2)", " (3)" ... (Exporter.FolderNameFor), and nothing is ever written over.</summary>
+    public static class ExportNames
+    {
+        public const string Neutral = "Backup files", SeveralGames = "Games";
+        const int Max = 60;
+
+        /// <summary>a game's name for its folder: its title, its code when the title is not known</summary>
+        public static string Title(GameGroup g) => g == null ? "Game files" : g.TitleKnown && !string.IsNullOrWhiteSpace(g.Title) ? g.Title : g.Code ?? "Game files";
+
+        /// <summary>a kind of file as a folder name ("Everything else" reads as "Other files")</summary>
+        public static string Kind(Category c) => c == Category.EverythingElse ? "Other files" : Categories.Label(c);
+
+        /// <summary>search results: the kind they were found in and what was searched for ("Saves matching mario")</summary>
+        public static string Matching(Category? c, string search)
+        {
+            var s = (search ?? "").Trim(); if (s.Length > 30) s = s.Substring(0, 30).TrimEnd();
+            return (c == null ? "Files" : Kind(c.Value)) + (s.Length > 0 ? " matching " + s : "");
+        }
+
+        /// <summary>a folder of the All files tree: its own name (a part's folder such as "restore" included)</summary>
+        public static string FolderOf(BrowseEntry folder) => string.IsNullOrWhiteSpace(folder?.Name) ? Neutral : folder.Name.TrimEnd('/');
+
+        /// <summary>what fits these entries: one game, several games, one kind, one folder or one file; otherwise the neutral name</summary>
+        public static string ForEntries(BackupContents c, IList<BrowseEntry> entries)
+        {
+            var list = (entries ?? new List<BrowseEntry>()).Where(e => e != null).ToList();
+            if (list.Count == 0) return Neutral;
+            var games = list.Select(e => e.GameKey).Distinct().ToList();
+            if (games.Count == 1 && games[0] != null && c?.Game(games[0]) != null) return Title(c.Game(games[0]));
+            if (games.All(k => k != null && c?.Game(k) != null)) return SeveralGames;
+            if (list.Count == 1)
+            {
+                var e = list[0];
+                if (e.Kind == EntryKind.Folder) return FolderOf(e);
+                var n = e.Name ?? ""; var stem = System.IO.Path.GetFileNameWithoutExtension(n);
+                return string.IsNullOrWhiteSpace(stem) ? (string.IsNullOrWhiteSpace(n) ? Neutral : n) : stem;
+            }
+            var files = list.Where(e => e.Kind != EntryKind.Folder).ToList();
+            if (files.Count == list.Count && files.Select(e => e.Category).Distinct().Count() == 1) return Kind(files[0].Category);
+            var parents = list.Select(e => e.ParentId).Distinct().ToList();
+            if (parents.Count == 1 && parents[0] != null) { var p = c?.Find(parents[0]); if (p != null && p.Kind == EntryKind.Folder && !string.IsNullOrWhiteSpace(p.Name)) return FolderOf(p); }
+            return Neutral;
+        }
+
+        /// <summary>a name the person typed (or the suggestion), as the folder will be named: made safe and at most 60 characters; null when
+        /// nothing usable is left</summary>
+        public static string Clean(string typed)
+        {
+            var t = (typed ?? "").Trim(); if (t.Length == 0) return null;
+            var safe = SafeNames.Component(t, Max);
+            return t.Trim('.', ' ').Length == 0 ? null : safe;
         }
     }
 
@@ -162,14 +238,16 @@ namespace CcsBackup.Browse
             // where each goes
             var alloc = new ExportPaths(); alloc.Reserve("", ManifestName, "export-manifest");
             var gameKeys = items.Where(e => e.GameKey != null && c.Game(e.GameKey) != null).Select(e => e.GameKey).Distinct().ToList();
-            bool single = r.Scope == ExportScope.Game && gameKeys.Count == 1 && items.All(e => e.GameKey == gameKeys[0]);
+            // one game's files (its bundle, or a selection of only its files): the new folder already carries the game's name, so no second
+            // folder of that name inside it
+            bool single = (r.Scope == ExportScope.Game || r.Scope == ExportScope.Selection) && gameKeys.Count == 1 && items.All(e => e.GameKey == gameKeys[0]);
             var gameNames = GameFolderNames(c, gameKeys);
             var plan = items.Select(e => (e, rel: Place(c, r, e, alloc, gameNames, single))).ToList();
             long need = plan.Where(p => p.e.Kind == EntryKind.File && p.e.Unreadable == null).Sum(p => p.e.Size) + 1000000;
             long free = Durable.FreeBytes(dest);
             if (free >= 0 && free < need) { res.Problem = "There is not enough free space in that folder: about " + Engine.Units.Gb(need) + " is needed and " + Engine.Units.Gb(free) + " is free. Nothing was exported."; return res; }
             string root;
-            try { root = NewFolder(dest, SafeNames.Component(r.FolderName ?? "Export", 60) + " - " + SafeNames.Component(Path.GetFileNameWithoutExtension(c.Path), 70)); }
+            try { root = NewFolder(dest, ExportNames.Clean(r.FolderName) ?? ExportNames.Neutral); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { res.Problem = "The export folder could not be created there (" + ex.Message + "). Nothing was exported."; return res; }
             res.Folder = root;
             for (int i = 0; i < plan.Count; i++)   // a path that would be too long for Windows goes into "Long names", shortened (its original path stays in the manifest)
@@ -289,9 +367,24 @@ namespace CcsBackup.Browse
             return e.Kind == EntryKind.Folder ? a.Folder(parent, ms[ms.Length - 1], "m:/" + string.Join("/", ms)) : a.File(parent, ms[ms.Length - 1], e.Id);
         }
 
-        /// <summary>a new folder inside dest, never an existing one</summary>
         /// <summary>a new, empty folder inside dest (never an existing one), for an export that writes its own files (the Storage report)</summary>
         internal static string NewExportFolder(string dest, string name) => NewFolder(dest, name);
+
+        /// <summary>the name the export's new folder would get in dest now: the cleaned name, or "name (2)", "name (3)" ... when something
+        /// there already has it (the export makes the same choice when it starts, and never uses an existing folder). Null when the name or
+        /// the destination cannot be used. Nothing is created.</summary>
+        public static string FolderNameFor(string dest, string name)
+        {
+            var clean = ExportNames.Clean(name); if (clean == null || CheckDestination(dest) != null) return null;
+            var d = Path.GetFullPath(dest).TrimEnd('\\');
+            for (int n = 1; n < 10000; n++)
+            {
+                var nm = n == 1 ? clean : SafeNames.WithSuffix(clean, n, true);
+                var p = Path.Combine(d, nm);
+                if (!Directory.Exists(p) && !File.Exists(p)) return nm;
+            }
+            return null;
+        }
 
         static string NewFolder(string dest, string name)
         {

@@ -167,6 +167,8 @@ namespace CcsBackup.Tests
             return null;
         }
         static void Click(AutomationElement e) => ((InvokePattern)e.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        /// <summary>Back Up Console's Name the Backup page: its Start Backup (the suggested name)</summary>
+        static void ClickNamed(AutomationElement w) { var b = Find(w, "Start Backup", ControlType.Button, 60000); if (b != null) Click(b); }
         static List<Process> Workers(int parentStart) => Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Utility)).Where(x => { try { return x.MainWindowHandle == IntPtr.Zero; } catch { return false; } }).ToList();
 
         static (Process ui, AutomationElement w, Settings s, string console) StartBackupInWindow(string tag)
@@ -175,6 +177,7 @@ namespace CcsBackup.Tests
             var ui = Process.Start(new ProcessStartInfo(Utility, "--simulated-console \"" + c + "\" --settings \"" + s.Path + "\"") { UseShellExecute = false });
             var w = Win(ui.Id); if (w == null) return (ui, null, s, c);
             Click(Find(w, "Back Up Console", ControlType.Button)); Click(Find(w, "Start Backup (Simulated Console)", ControlType.Button));
+            ClickNamed(w);   // the backup's name, asked once the console is identified and before anything is read: the suggested one, as is
             // wait until it is reading (the worker exists and progress is shown)
             var until = DateTime.UtcNow.AddSeconds(60);
             while (DateTime.UtcNow < until && Find(w, "Cancel", ControlType.Button, 500) == null) { }
@@ -230,6 +233,7 @@ namespace CcsBackup.Tests
                 var ui = Process.Start(new ProcessStartInfo(Utility, "--simulated-console \"" + c + "\" --settings \"" + s.Path + "\"") { UseShellExecute = false });
                 var w = Win(ui.Id);
                 Click(Find(w, "Back Up Console", ControlType.Button)); Click(Find(w, "Start Backup (Simulated Console)", ControlType.Button));
+                ClickNamed(w);   // the backup's name, asked once the console is identified and before anything is read: the suggested one, as is
                 var done = Find(w, "Done", ControlType.Button, 600000);
                 bool workerWaiting = Workers(0).Any(x => x.StartTime.ToUniversalTime() > before);
                 Click(Find(w, "Close", ControlType.Button));

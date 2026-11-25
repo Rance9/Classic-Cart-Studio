@@ -56,8 +56,9 @@ namespace CcsBackup.Engine
             return null;
         }
 
-        /// <summary>a real console: Gate.ConsoleSessions and Gate.DeveloperTestBoot first, as constants (DeveloperTestBoot is closed in this
-        /// version: everything after it is compiled out). Then exactly one NES Classic in FEL mode, its SID read.</summary>
+        /// <summary>a real console: Gate.ConsoleSessions and Gate.DeveloperTestBoot first, as constants. Then exactly one console in FEL mode
+        /// (an NES Classic or a Super NES Classic: the same chip answers there), its SID read; which model it is comes from the restore
+        /// point's backup, whose model must allow Developer Mode (Point).</summary>
         public static ITestBootTarget OpenReal()
         {
             if (!Gate.ConsoleSessions) throw new GateClosedException(Gate.SessionsText, "open a test-boot connection");
@@ -130,7 +131,7 @@ namespace CcsBackup.Engine
         public static (SessionRestorePoint point, string why) Point(ITestBootTarget t, string backup, Func<bool> cancelled)
         {
             var sid = t.ReadSid(); if (sid == null) return (null, "The console's hardware id could not be read. Nothing was sent.");
-            return RestorePoints.EstablishFor(sid, t.Simulated, t.SessionId, null, backup, cancelled);
+            return RestorePoints.EstablishFor(sid, t.Simulated, t.SessionId, null, backup, cancelled, "developer");   // the backup's own model must allow Developer Mode (the console's cannot be read here)
         }
 
         /// <summary>exactly n bytes of a member of a verified backup, checked against the backup's own record of it (size, SHA-256, MD5)</summary>

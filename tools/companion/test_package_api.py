@@ -74,19 +74,16 @@ def main():
                 h = post("/api/package/open", {"path": pp}); ok("open_without_free_space_is_507", h.code == 507, h.obj)
             finally: shutil.disk_usage = real_du
             # ---- save / reveal ----
-            seen = {}; dest_dir = os.path.join(TMP, "Saved ünï folder"); os.makedirs(dest_dir); dest = os.path.join(dest_dir, "My pack.ccs")
-            pk.pick_save = lambda title, name, d="": (seen.update(title=title, name=name), dest)[1]
-            h = post("/api/package/save", {"id": pid, "name": "My: pack"})
-            ok("save_copies_to_the_chosen_path", h.code == 200 and h.obj == {"ok": True, "name": "My pack.ccs", "path": dest} and open(dest, "rb").read() == open(pp, "rb").read() and seen["name"] == "My pack.ccs", (h.obj, seen))
+            # the file the person chose in the app's own Save dialog (files.js) comes with the request; no dialog opens in the backend
+            dest_dir = os.path.join(TMP, "Saved ünï folder"); os.makedirs(dest_dir); dest = os.path.join(dest_dir, "My pack.ccs")
+            h = post("/api/package/save", {"id": pid, "name": "My: pack", "path": dest})
+            ok("save_copies_to_the_chosen_path", h.code == 200 and h.obj == {"ok": True, "name": "My pack.ccs", "path": dest} and open(dest, "rb").read() == open(pp, "rb").read(), h.obj)
             ok("save_leaves_no_partial_file", not os.path.exists(dest + ".part"))
-            pk.pick_save = lambda *a: ""
             h = post("/api/package/save", {"id": pid, "name": "x"}); ok("save_canceled", h.code == 200 and h.obj == {"ok": False, "canceled": True}, h.obj)
+            h = post("/api/package/save", {"id": pid, "name": "x", "path": "relative\\copy.ccs"}); ok("save_refuses_a_path_that_is_not_full", h.code == 200 and h.obj == {"ok": False, "canceled": True}, h.obj)
             h = post("/api/package/save", {"id": "A" * 24, "name": "x"}); ok("save_unknown_package_404", h.code == 404)
-            def no_dialog(*a): raise AssertionError("dialog")
-            pk.pick_save = no_dialog; d2 = os.path.join(dest_dir, "rehearsal copy")
-            h = post("/api/package/save", {"id": pid, "name": "x", "path": d2}, cfg={"rehearsal_tree": True}); ok("save_path_override_only_in_rehearsal", h.code == 200 and h.obj["path"] == d2 + ".ccs" and os.path.isfile(d2 + ".ccs"), h.obj)
-            try: h = post("/api/package/save", {"id": pid, "name": "x", "path": d2}); ok("save_path_ignored_outside_rehearsal", False, h.obj)
-            except AssertionError: ok("save_path_ignored_outside_rehearsal", True)
+            d2 = os.path.join(dest_dir, "rehearsal copy")
+            h = post("/api/package/save", {"id": pid, "name": "x", "path": d2}); ok("save_adds_the_ccs_extension", h.code == 200 and h.obj["path"] == d2 + ".ccs" and os.path.isfile(d2 + ".ccs"), h.obj)
             opened = []; pk.open_explorer = lambda p: opened.append(p)
             h = post("/api/package/reveal", {"id": pid}); ok("reveal_selects_the_last_saved_file", h.code == 200 and opened == [d2 + ".ccs"], (h.obj, opened))
             h = post("/api/package/reveal", {"id": "B" * 24}); ok("reveal_unknown_id_404", h.code == 404 and len(opened) == 1)

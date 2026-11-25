@@ -85,7 +85,7 @@
    1400,
    1066
   ],
-  "bytes": 215455
+  "bytes": 223283
  },
  {
   "name": "game-settings",
@@ -93,7 +93,7 @@
    1400,
    1082
   ],
-  "bytes": 147859
+  "bytes": 142023
  },
  {
   "name": "my-collection-menu",
@@ -107,25 +107,25 @@
   "name": "backup",
   "size": [
    1400,
-   529
+   532
   ],
-  "bytes": 80486
+  "bytes": 77619
  },
  {
   "name": "will-it-fit",
   "size": [
    1400,
-   856
+   962
   ],
-  "bytes": 88277
+  "bytes": 94324
  },
  {
   "name": "tv-preview",
   "size": [
    1600,
-   900
+   903
   ],
-  "bytes": 336179
+  "bytes": 330935
  },
  {
   "name": "tv-pad",
@@ -163,57 +163,57 @@
   "name": "desktop-invitation",
   "size": [
    1400,
-   364
+   366
   ],
-  "bytes": 54416
+  "bytes": 54074
  },
  {
   "name": "install-check",
   "size": [
    1400,
-   791
+   979
   ],
-  "bytes": 137567
+  "bytes": 139327
  },
  {
   "name": "install-connect",
   "size": [
    1400,
-   761
+   769
   ],
-  "bytes": 103612
+  "bytes": 110445
  },
  {
   "name": "install-console-state",
   "size": [
    1400,
-   526
+   979
   ],
-  "bytes": 73042
+  "bytes": 206541
  },
  {
   "name": "install-review",
   "size": [
    1400,
-   784
+   768
   ],
-  "bytes": 146122
+  "bytes": 142802
  },
  {
   "name": "install-rehearse",
   "size": [
    1400,
-   737
+   751
   ],
-  "bytes": 130486
+  "bytes": 146541
  },
  {
   "name": "install-verify",
   "size": [
    1400,
-   737
+   580
   ],
-  "bytes": 130188
+  "bytes": 85173
  },
  {
   "name": "tv-sample",

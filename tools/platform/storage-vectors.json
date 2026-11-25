@@ -1,7 +1,7 @@
 {
  "schema": "ccs-storage-vectors/1",
  "about": "Shared storage accounting cases: storage_model.py, storage-model.js and the C# engine (StorageSpec.Account) must each give exactly the recorded result. 'measured' cases use the file lengths of a prepared console package with two Included Games.",
- "spec_sha256": "87eb01b17a685248a8e75fcc30f05d1b21a1e4c452aa12ede651f68fd4f7bd50",
+ "spec_sha256": "47a7d87c25ee88996df984a6f7041de1800dbb7fcc1bace3feff6243a3b7a0fd",
  "account": [
   {
    "name": "nes-reference-nothing",
@@ -421,7 +421,7 @@
    }
   },
   {
-   "name": "snes-reference-saves-unknown",
+   "name": "snes-reference-saves-allowance",
    "input": {
     "profile": "snes-classic-edition",
     "storage": null,
@@ -463,16 +463,14 @@
     "allocated_bytes": 1003520,
     "freed_bytes": 0,
     "removed_bytes": 0,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 8438784,
-    "steady_bytes": 9442304,
-    "peak_bytes": 9442304,
-    "remaining_bytes": 272763904,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false
+    "steady_bytes": 19928064,
+    "peak_bytes": 19928064,
+    "remaining_bytes": 262278144,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
    }
   },
   {
@@ -2447,16 +2445,14 @@
     "allocated_bytes": 23699456,
     "freed_bytes": 0,
     "removed_bytes": 0,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 9573580,
-    "steady_bytes": 33273036,
-    "peak_bytes": 33273036,
-    "remaining_bytes": 248933172,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false
+    "steady_bytes": 43758796,
+    "peak_bytes": 43758796,
+    "remaining_bytes": 238447412,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true
    }
   },
   {
@@ -3611,16 +3607,14 @@
     "allocated_bytes": 99328249,
     "freed_bytes": 0,
     "removed_bytes": 24371283,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 13355020,
-    "steady_bytes": 88311986,
-    "peak_bytes": 112683269,
-    "remaining_bytes": 169522939,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false,
+    "steady_bytes": 98797746,
+    "peak_bytes": 123169029,
+    "remaining_bytes": 159037179,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
     "rom": 262160,
     "added": 1,
     "unknown_games": 0,
@@ -3631,9 +3625,9 @@
     "hakchi": 26214400,
     "earlier_versions": 1,
     "copy_bytes": 23830750,
-    "used": 112683269,
+    "used": 123169029,
     "available": 282206208,
-    "remaining": 169522939,
+    "remaining": 159037179,
     "source": "reference"
    }
   },
@@ -5507,16 +5501,14 @@
     "allocated_bytes": 101154067,
     "freed_bytes": 0,
     "removed_bytes": 24979889,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 13446311,
-    "steady_bytes": 89620489,
-    "peak_bytes": 114600378,
-    "remaining_bytes": 167605830,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false,
+    "steady_bytes": 100106249,
+    "peak_bytes": 125086138,
+    "remaining_bytes": 157120070,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
     "rom": 786480,
     "added": 3,
     "unknown_games": 0,
@@ -5527,9 +5519,9 @@
     "hakchi": 26214400,
     "earlier_versions": 1,
     "copy_bytes": 24417854,
-    "used": 114600378,
+    "used": 125086138,
     "available": 282206208,
-    "remaining": 167605830,
+    "remaining": 157120070,
     "source": "reference"
    }
   },
@@ -5627,16 +5619,14 @@
     "allocated_bytes": 126133956,
     "freed_bytes": 0,
     "removed_bytes": 24979889,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 14695305,
-    "steady_bytes": 115849372,
-    "peak_bytes": 140829261,
-    "remaining_bytes": 141376947,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false,
+    "steady_bytes": 126335132,
+    "peak_bytes": 151315021,
+    "remaining_bytes": 130891187,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
     "rom": 786480,
     "added": 3,
     "unknown_games": 0,
@@ -5647,9 +5637,9 @@
     "hakchi": 26214400,
     "earlier_versions": 2,
     "copy_bytes": 24417854,
-    "used": 140829261,
+    "used": 151315021,
     "available": 282206208,
-    "remaining": 141376947,
+    "remaining": 130891187,
     "source": "reference"
    }
   },
@@ -5791,13 +5781,13 @@
     },
     "profile": "snes-classic-edition",
     "earlier": 2,
-    "free": 128339316
+    "free": 138825076
    },
    "result": {
     "schema": "ccs-storage-account/1",
     "profile": "snes-classic-edition",
     "reference": null,
-    "available_bytes": 128339316,
+    "available_bytes": 138825076,
     "available_source": "measured",
     "block_bytes": 4096,
     "block_source": "reference",
@@ -5861,14 +5851,12 @@
     "allocated_bytes": 126133956,
     "freed_bytes": 0,
     "removed_bytes": 24979889,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 14695305,
-    "steady_bytes": 115849372,
-    "peak_bytes": 140829261,
+    "steady_bytes": 126335132,
+    "peak_bytes": 151315021,
     "remaining_bytes": -12489945,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
+    "unknown": [],
     "status": "over-at-peak",
     "write_ok": false,
     "rom": 786480,
@@ -5881,8 +5869,8 @@
     "hakchi": 26214400,
     "earlier_versions": 2,
     "copy_bytes": 24417854,
-    "used": 140829261,
-    "available": 128339316,
+    "used": 151315021,
+    "available": 138825076,
     "remaining": -12489945,
     "source": "device"
    }
@@ -6098,16 +6086,14 @@
     "allocated_bytes": 65420563,
     "freed_bytes": 0,
     "removed_bytes": 13068721,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 11659636,
-    "steady_bytes": 64011478,
-    "peak_bytes": 77080199,
-    "remaining_bytes": 205126009,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false,
+    "steady_bytes": 74497238,
+    "peak_bytes": 87565959,
+    "remaining_bytes": 194640249,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
     "rom": 786480,
     "added": 3,
     "unknown_games": 0,
@@ -6118,9 +6104,9 @@
     "hakchi": 26214400,
     "earlier_versions": 1,
     "copy_bytes": 12510738,
-    "used": 77080199,
+    "used": 87565959,
     "available": 282206208,
-    "remaining": 205126009,
+    "remaining": 194640249,
     "source": "reference"
    }
   },
@@ -6633,16 +6619,14 @@
     "allocated_bytes": 38682624,
     "freed_bytes": 0,
     "removed_bytes": 5537792,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 10322739,
-    "steady_bytes": 43467571,
-    "peak_bytes": 49005363,
-    "remaining_bytes": 233200845,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false,
+    "steady_bytes": 53953331,
+    "peak_bytes": 59491123,
+    "remaining_bytes": 222715085,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
     "rom": 5243200,
     "added": 20,
     "unknown_games": 0,
@@ -6653,9 +6637,9 @@
     "hakchi": 26214400,
     "earlier_versions": 0,
     "copy_bytes": 5430331,
-    "used": 49005363,
+    "used": 59491123,
     "available": 282206208,
-    "remaining": 233200845,
+    "remaining": 222715085,
     "source": "reference"
    }
   },
@@ -6814,16 +6798,14 @@
     "allocated_bytes": 37863424,
     "freed_bytes": 0,
     "removed_bytes": 5537792,
-    "saves_allowance_bytes": null,
+    "saves_allowance_bytes": 10485760,
     "margin_bytes": 10281779,
-    "steady_bytes": 42607411,
-    "peak_bytes": 48145203,
-    "remaining_bytes": 234061005,
-    "unknown": [
-     "room for saves and suspend points"
-    ],
-    "status": "unconfirmed",
-    "write_ok": false,
+    "steady_bytes": 53093171,
+    "peak_bytes": 58630963,
+    "remaining_bytes": 223575245,
+    "unknown": [],
+    "status": "fits",
+    "write_ok": true,
     "rom": 5243200,
     "added": 20,
     "unknown_games": 0,
@@ -6834,9 +6816,9 @@
     "hakchi": 26214400,
     "earlier_versions": 0,
     "copy_bytes": 5430331,
-    "used": 48145203,
+    "used": 58630963,
     "available": 282206208,
-    "remaining": 234061005,
+    "remaining": 223575245,
     "source": "reference"
    }
   }

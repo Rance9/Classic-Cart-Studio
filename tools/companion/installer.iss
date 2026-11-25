@@ -1,5 +1,5 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.11.10 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release /DWorkbenchDir=..\..\build\workbench-host installer.iss
+; Build: ISCC.exe /DAppVersion=0.11.11 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release /DWorkbenchDir=..\..\build\workbench-host installer.iss
 ; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe and the WebView2 assemblies, copied there by the release workflow. The wizard's
 ; pictures (tools/publish/make_installer_art.py) and the setup's icon come from the repository, relative to this script, like the legal files.
 ; Needs Inno Setup 6.7.0 or later (the dark style's hidebevels, WizardBackColor and WizardBackImageFile).
@@ -240,7 +240,10 @@ Type: filesandordirs; Name: "{app}\_internal"
 // The data folder is %LOCALAPPDATA%\ClassicCartStudio (App.cs DataRoot and common.py _data_root); no other folder is moved or used.
 const
   USAGE_SCHEMA = 'ccs-usage-choice/1';
-  OBM_CHECKBOXES = 32759; CHECK_OFFSET = 4;   // TNewCheckListBox: its check width is a quarter of Windows' check-box bitmap, with 4 px either side
+  OBM_CHECKBOXES = 32759;   // TNewCheckListBox: its check width is a quarter of Windows' check-box bitmap
+  // the space before every check box (its list's Offset) and between the box and its words, at 100 %: Inno Setup's own is 4 pixels at every
+  // display scale, which left the words touching the box (at 200 % the box doubles and the space does not); CheckGap is it at this scale
+  CHECK_GAP = 8;
   WORDMARK_W = 100; WORDMARK_H = 26;   // the wordmark's size at 100 % (tools/publish/make_installer_art.py draws it at every scale)
   HORIZON_PCT = 80;   // the background's glowing horizon line, in percent of the window's height (make_installer_art.py back()): no words reach it
   USAGE_LABEL = 'Send optional usage and diagnostic data (recommended)';
@@ -254,6 +257,7 @@ var
   TermsFiles: array[0..2] of String; TermsNames: array[0..2] of String;
   UsagePage: TWizardPage; UsageBox: TNewCheckListBox; UsageStored: String;   // UsageStored: 'on' / 'off' kept on this computer, 'file' another file there, '' none
   LabelIndent: Integer;   // where a check box's own words start at this display's scale: text that belongs to a check box lines up with them
+  CheckGap: Integer;      // CHECK_GAP at this display's scale (RoomyChecks)
 
 type
   TWinBitmap = record bmType, bmWidth, bmHeight, bmWidthBytes: Longint; bmPlanes, bmBitsPixel: Word; bmBits: Longint; end;
@@ -277,15 +281,20 @@ begin
   Result := (Region <> '') and (Pos(',' + Region + ',', OPTIN_REGIONS) = 0) and ((Zone = '') or (Pos(',' + Zone + ',', OPTIN_ZONES) = 0));
 end;
 
-function CheckLabelIndent: Integer;   // as TNewCheckListBox places a check box's words: its check width + 4 + 4 + 1 (22 px at 100 %, 34 at 200 %)
-var H: Longint; Bm: TWinBitmap;
+function CheckLabelIndent: Integer;   // as TNewCheckListBox places a check box's words in the lists here (WantTabs, Offset = CheckGap): the
+var H: Longint; Bm: TWinBitmap;        // space, the box, the space again (29 px at 100 %, 57 at 200 %)
 begin
-  Result := ScaleX(17);   // (only if Windows cannot say: the 200 % value)
+  Result := ScaleX(13) + 2 * CheckGap;   // (only if Windows cannot say)
   H := LoadBitmapW(0, OBM_CHECKBOXES);
   if H <> 0 then begin
-    if GetObjectW(H, 24, Bm) > 0 then Result := Bm.bmWidth div 4 + 2 * CHECK_OFFSET + 1;
+    if GetObjectW(H, 24, Bm) > 0 then Result := Bm.bmWidth div 4 + 2 * CheckGap;
     DeleteObject(H);
   end;
+end;
+
+procedure RoomyChecks(L: TNewCheckListBox);   // CheckGap before the box and between the box and its words, at this display's scale
+begin
+  L.Offset := CheckGap;
 end;
 
 function ReadUtf8(const Path: String): String;   // the copies are UTF-8 (the terms with a byte-order mark); lines end in CR LF for the box
@@ -353,8 +362,8 @@ end;
 procedure FitCheckRow(L: TNewCheckListBox; const S: String);   // a one-box list exactly as tall as its words wrap at this display's scale
 var H: Integer;
 begin
-  H := WrappedHeight(L.Parent, S, L.ClientWidth - LabelIndent - CHECK_OFFSET);   // the list's own text width (its MeasureItem)
-  L.MinItemHeight := H + ScaleY(4); L.Height := H + ScaleY(8);
+  H := WrappedHeight(L.Parent, S, L.ClientWidth - LabelIndent - CheckGap);   // the list's own text width (its MeasureItem)
+  L.MinItemHeight := H + ScaleY(6); L.Height := H + ScaleY(10);
 end;
 
 function SafeBottom(Surface: TWinControl): Integer;   // the lowest point words may reach on a page: a margin above the background's horizon line
@@ -406,7 +415,7 @@ begin
   UsagePage := CreateCustomPage(TermsPage.ID, 'Usage and Diagnostics', 'Choose whether to share usage and diagnostic data.');
   UsageBox := TNewCheckListBox.Create(UsagePage);
   UsageBox.Parent := UsagePage.Surface; UsageBox.Left := 0; UsageBox.Top := 0; UsageBox.Width := UsagePage.SurfaceWidth; UsageBox.Height := ScaleY(22);
-  UsageBox.Flat := True; UsageBox.BorderStyle := bsNone; UsageBox.ParentColor := True;
+  UsageBox.Flat := True; UsageBox.BorderStyle := bsNone; UsageBox.ParentColor := True; RoomyChecks(UsageBox);
   UsageBox.WantTabs := True;   // a plain check box on the page: no list background or selection bar on the dark style (as the terms' agreement)
   UsageBox.AddCheckBox(USAGE_LABEL, '', 0, UsageStartsChecked, True, False, False, nil);   // checked, or unchecked where opt-in applies (see above)
   FitCheckRow(UsageBox, USAGE_LABEL);   // as tall as its words wrap (a one-line row cut them off)
@@ -604,7 +613,8 @@ end;
 procedure InitializeWizard;
 var Intro, Note: TNewStaticText; Top: Integer;
 begin
-  ShowWordmark; LabelIndent := CheckLabelIndent;
+  CheckGap := ScaleX(CHECK_GAP); ShowWordmark; LabelIndent := CheckLabelIndent;
+  RoomyChecks(WizardForm.TasksList); RoomyChecks(WizardForm.RunList);   // Setup's own lists: the Shortcuts page and Start Classic Cart Studio now
   TermsFiles[0] := 'ccs-terms.txt'; TermsFiles[1] := 'ccs-license.txt'; TermsFiles[2] := 'ccs-notices.txt';
   TermsNames[0] := 'Classic Cart Studio Installation Terms 1.3.txt'; TermsNames[1] := 'GNU General Public License v3.txt'; TermsNames[2] := 'Classic Cart Studio Third-Party Notices.txt';
   ExtractTemporaryFile(TermsFiles[0]); ExtractTemporaryFile(TermsFiles[1]); ExtractTemporaryFile(TermsFiles[2]);
@@ -626,7 +636,7 @@ begin
   Note.Caption := 'Your open-source rights and rights protected by law are preserved. Installing Classic Cart Studio does not, by itself, authorize console changes. Any console modification requires a separate review and your explicit approval.';
   TermsAgree := TNewCheckListBox.Create(TermsPage);
   TermsAgree.Parent := TermsPage.Surface; TermsAgree.Left := 0; TermsAgree.Width := TermsPage.SurfaceWidth; TermsAgree.Flat := True; TermsAgree.BorderStyle := bsNone;
-  TermsAgree.ParentColor := True;
+  TermsAgree.ParentColor := True; RoomyChecks(TermsAgree);
   TermsAgree.WantTabs := True;   // checkbox-like (Inno's own pattern): no list background or selection bar on the dark style, Space toggles
   TermsAgree.AddCheckBox(AGREE_LABEL, '', 0, False, True, False, False, nil); FitCheckRow(TermsAgree, AGREE_LABEL); TermsAgree.OnClickCheck := @TermsAgreeClick;
   // from the bottom up, above the background's horizon line: the note (always visible), the agreement above it, the text filling what is left

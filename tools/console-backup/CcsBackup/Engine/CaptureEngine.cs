@@ -28,6 +28,10 @@ namespace CcsBackup.Engine
 {
     public sealed class EngineProgress { public string Phase, Text; public long Done, Total; }
 
+    /// <summary>the person's answer to Back Up Console's backup name: a name (cleaned by BackupNames), the usual name (Name null, Stop null),
+    /// or no backup at all (Stop: why, in the window's words; nothing is read)</summary>
+    public sealed class BackupNameAnswer { public string Name, Stop; }
+
     public sealed class EngineContext
     {
         public Settings Settings; public string Entry = "workbench"; public string ToolName = "CCS Console Workbench"; public string ToolVersion = EngineInfo.Version;
@@ -36,6 +40,14 @@ namespace CcsBackup.Engine
         /// there (the tests' deterministic termination points). Never set for a real console.</summary>
         public Action<string> Boundary;
         public string RecoveryImageId, RecoveryImageSha256;
+        /// <summary>told the console's identity as soon as this session has checked it (its hardware ID, model and storage layout), before
+        /// anything is read from its storage; the worker sends it to the window at once (WorkerHostIdentity.cs). Never called for an identity
+        /// that was refused.</summary>
+        public Action<ConsoleIdentity> Identified;
+        /// <summary>Back Up Console's backup name, when the window asked for one: called once the console is identified and the backup folders
+        /// are checked, before anything is read; given the identity and the usual file name, it returns the person's answer (BackupNameAnswer).
+        /// null: no name is asked (the usual name, as for every backup a task makes first).</summary>
+        public Func<ConsoleIdentity, string, BackupNameAnswer> NameBackup;
         /// <summary>tests only (internal): wraps the file the engine writes ("primary" or "copy") to inject a disk-full or write error</summary>
         internal Func<string, Stream, Stream> WrapFile;
         internal Stream Wrap(string which, Stream s) => WrapFile == null ? s : WrapFile(which, s);
@@ -84,6 +96,7 @@ namespace CcsBackup.Engine
             try { id = con.Identify(); parts = Support.CheckForBackup(id, ctx.RecoveryImageId); }
             catch (ConsoleRefusedException ex) { o.State = "refused"; o.Problem = ex.Message; return o; }
             o.Identity = id;
+            ctx.Identified?.Invoke(id);   // the window shows the console now, before anything is read
             var s = ctx.Settings; long need = EstimateBytes(parts);
             try { Directory.CreateDirectory(s.PrimaryFolder); }
             catch (Exception ex) { o.State = "refused"; o.Problem = "The backup folder could not be created (" + ex.Message + "). Choose another folder."; return o; }
@@ -97,16 +110,39 @@ namespace CcsBackup.Engine
                 bool sameVol = Durable.VolumeId(s.ArchiveFolder) == Durable.VolumeId(s.PrimaryFolder);
                 if (f2 >= 0 && f2 < (sameVol ? need * 2 : need)) { o.State = "refused"; o.Problem = "There is not enough free space for the second copy: about " + Units.Gb(sameVol ? need * 2 : need) + " is needed and " + Units.Gb(f2) + " is free. Nothing was read."; return o; }
             }
-            o.Id = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             var stem = BackupFormat.FileStem(started, id.ShortTag, con.Simulated, id.Model);
-            o.PartialPath = Unique(s.PrimaryFolder, stem, BackupFormat.Partial);
+            if (ctx.NameBackup != null)
+            {   // Back Up Console's backup name: asked in this same session, before anything is read (the console waits in its memory program)
+                var answer = ctx.NameBackup(id, stem);
+                if (answer == null || answer.Stop != null || ctx.Cancelled()) { o.State = "canceled"; o.Problem = answer?.Stop ?? "Canceled before anything was read. Nothing on the console changed, and no backup file was made."; return o; }
+                if (answer.Name != null) stem = BackupNames.Stem(answer.Name, con.Simulated, s.PrimaryFolder) ?? stem;
+                started = DateTime.Now;   // the backup starts now, after the person's answer
+            }
+            o.Id = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            // the unfinished file's name is taken by creating it: a file another program made under the same name a moment ago is never
+            // written over; the next free name is used instead
+            FileStream reserved = null;
+            try
+            {
+                for (int tries = 0; reserved == null; tries++)
+                {
+                    o.PartialPath = Unique(s.PrimaryFolder, stem, BackupFormat.Partial);
+                    try { reserved = Durable.CreateNew(o.PartialPath); }
+                    catch (IOException) when (tries < 20 && File.Exists(o.PartialPath)) { }
+                }
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { o.State = "refused"; o.Problem = "The backup folder cannot be written (" + ex.Message + "). Choose another folder. Nothing was read."; o.PartialPath = null; return o; }
             var finalPath = o.PartialPath.Substring(0, o.PartialPath.Length - ".partial".Length);
             Record rec;
             try
             {
                 rec = Record.Start(s.RecordsFolder, o.Id, "backup", new JObj { { "entry", ctx.Entry }, { "console_tag", id.ShortTag }, { "simulated", con.Simulated }, { "primary", new JObj { { "partial", o.PartialPath }, { "final", finalPath } } } });
             }
-            catch (Exception ex) { o.State = "refused"; o.Problem = "The backup folder cannot be written (" + ex.Message + "). Choose another folder. Nothing was read."; return o; }
+            catch (Exception ex)
+            {   // nothing was read: the empty file made just now to take the name goes again
+                reserved.Dispose(); try { File.Delete(o.PartialPath); } catch (Exception) { } o.PartialPath = null;
+                o.State = "refused"; o.Problem = "The backup folder cannot be written (" + ex.Message + "). Choose another folder. Nothing was read."; return o;
+            }
             o.RecordFile = rec.File;
             rec.State("reading"); ctx.At("record-started");
             var expected = new Dictionary<string, string>();
@@ -116,7 +152,7 @@ namespace CcsBackup.Engine
             string activeSha = null, slotSha = null;
             try
             {
-                using (var fs = Durable.CreateNew(o.PartialPath))
+                using (var fs = reserved)
                 {
                     var z = new ZipWriter(ctx.Wrap("primary", fs), started) { ChunkSize = ctx.LegacyFormat ? 0 : RepairMap.ChunkSize };
                     // the repair map's early descriptor: placed first now, filled when everything else is written (Repair/RepairMap.cs)

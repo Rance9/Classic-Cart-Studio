@@ -15,14 +15,14 @@ namespace CcsWorker.Tests
 
         public static void Register()
         {
-            T.Add("protocol", "capabilities: protocol 1, the closed tiers, transports, every command, the pinned upstream", () =>
+            T.Add("protocol", "capabilities: protocol 1, the tiers as the gate constants say (both open in this version), transports, every command, the pinned upstream", () =>
             {
                 using (var h = new Harness())
                 {
                     var e = h.Call("capabilities"); var r = Harness.Res(e);
                     T.Eq(1, (int)e["v"], "envelope version");
                     T.Eq(1, (int)r["protocol"], "protocol"); T.Eq("ccs-console-worker", r["worker"] as string, "worker");
-                    var tiers = (Dictionary<string, object>)r["tiers"]; T.Eq(false, (bool)tiers["inspect"], "inspect tier"); T.Eq(false, (bool)tiers["install"], "install tier");
+                    var tiers = (Dictionary<string, object>)r["tiers"]; T.Eq(Gate.PhysicalInspectEnabled, (bool)tiers["inspect"], "inspect tier"); T.Eq(Gate.PhysicalWriteEnabled, (bool)tiers["install"], "install tier"); T.True((bool)tiers["inspect"] && (bool)tiers["install"], "both open in this version");
                     T.True(((object[])r["transports"]).SequenceEqual(new object[] { "clovershell", "ssh" }), "transports");
                     T.True(Protocol.WorkerServer.Commands.All(c => ((object[])r["ops"]).Contains(c)), "every command listed");
                     var up = (Dictionary<string, object>)r["upstream"]; T.True(((string)up["hakchi"]).StartsWith("25bfcfd") && ((string)up["sshnet"]).StartsWith("32181aeb") && (string)up["libusbdotnet"] == "2.2.29", "upstream identities");
@@ -72,7 +72,7 @@ namespace CcsWorker.Tests
                     foreach (var l in p.Out) { var o = (Dictionary<string, object>)Harness.Json.DeserializeObject(l); T.Eq(1, (int)o["v"], "v"); T.True(o.ContainsKey("id") && o.ContainsKey("event"), "envelope: " + l); }
                     var codes = p.Out.Skip(1).Select(l => ((Dictionary<string, object>)Harness.Json.DeserializeObject(l))["code"] as string).ToList();
                     var want = new List<string> { "bad-json" }; if (connect.Length > 0) want.Add("physical-disabled");
-                    want.Add("not-connected"); want.Add(Gate.PhysicalWriteEnabled ? "not-connected" : "physical-disabled");   // put: the write tier is asked first (k3e)
+                    want.Add("not-connected"); want.Add(Gate.PhysicalWriteEnabled ? "backup-required" : "physical-disabled");   // put: the write tier, then the backup admission, before the connection
                     T.True(codes.SequenceEqual(want), "codes: " + string.Join(",", codes));
                 }
             });
@@ -80,7 +80,7 @@ namespace CcsWorker.Tests
             T.Add("protocol", "a request naming the reserved SNES system, model, provider or capability is unsupported-target, before any shell command", () =>
             {
                 var sh = new ScriptedShell(); int calls = 0; sh.Answer = (c, i) => { calls++; return Tuple.Create(0, "dir\n", ""); }; var h = new Harness(sh);
-                foreach (var extra in new[] { "\"capability\":\"snes-gameplay\"", "\"game_system\":\"snes\"", "\"capability\":\"snes-classic-preparation\"", "\"provider\":{\"kind\":\"core\",\"id\":\"snes-unselected\"}",
+                foreach (var extra in new[] { "\"capability\":\"snes-gameplay\"", "\"game_system\":\"snes\"", "\"capability\":\"snes-stock-save-conversion\"", "\"provider\":{\"kind\":\"core\",\"id\":\"snes-unselected\"}",
                                               "\"ccs_target\":{\"schema\":\"ccs-target/1\",\"game_system\":\"snes\"}", "\"boot_option\":\"ccs-snes\"" })
                 {
                     h.SendRaw("{\"v\":1,\"id\":\"s\",\"cmd\":\"stat\",\"args\":{\"path\":\"/var/lib/ccs\"," + extra + "}}");

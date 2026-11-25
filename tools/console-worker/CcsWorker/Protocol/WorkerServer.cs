@@ -2,8 +2,8 @@
 // The worker protocol, version 1 (docs/console-install-architecture.md section 3; the same envelope as console_engine/worker.py):
 // newline-delimited JSON on stdin/stdout. A request {"v":1,"id":…,"cmd":…,"args":{…}} gets zero or more progress events and then
 // exactly one result or error. One request at a time; only "cancel" is read while an operation runs. stdout carries protocol lines
-// only. The worker never takes a transport, host, port, device or shell text from its client: "connect" goes to RealTransports, which
-// Gate G1 closes in code.
+// only. The worker never takes a transport, host, port, device or shell text from its client: "connect" goes to RealTransports, which asks
+// Gate G1 in code (both tiers open in this version) and connects only through hakchi's clovershell or SSH.
 using CcsWorker.Ops;
 using CcsWorker.Shell;
 using System;
@@ -175,7 +175,7 @@ namespace CcsWorker.Protocol
                 }
                 if (WriteCommands.Contains(cmd) && !writesOpen()) throw new GateClosedException("write " + cmd);   // the write tier, for this command, before anything else
                 if (WriteCommands.Contains(cmd) && admitted == null) throw new OpException("backup-required", "No verified backup admission for this change: back up the console first (Console Backup & Restore), then check it again.");
-                if (shell == null) throw new OpException("not-connected", "no console is connected (" + Gate.Text + ")");
+                if (shell == null) throw new OpException("not-connected", "no console is connected");
                 if (brokenWhy != null || !shell.IsOnline) throw new OpException("connection-lost", brokenWhy ?? "the console connection ended");
                 var ops = new ConsoleOps(shell, packageRoot, () => cancelRequested, (done, total) => Send(new Dictionary<string, object> { ["id"] = id, ["event"] = "progress", ["bytes"] = done, ["total"] = total }));
                 Dictionary<string, object> r;

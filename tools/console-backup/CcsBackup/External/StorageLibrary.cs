@@ -28,13 +28,13 @@ namespace CcsBackup.External
             {
                 switch (Status)
                 {
-                    case "complete": return "Complete · checked";
-                    case "incomplete-scope": return "Checked · not everything was copied";
-                    case "not-checked": return "Not checked yet";
-                    case "changed": return "Changed since it was checked";
-                    case "unfinished": return "Unfinished: not a backup";
+                    case "complete": return "Verified";
+                    case "incomplete-scope": return "Verified · not everything was copied";
+                    case "not-checked": return "Not checked";
+                    case "changed": return "Changed since last check";
+                    case "unfinished": return "Incomplete";
                     case "damaged": return "Damaged";
-                    default: return "File not found";
+                    default: return "Missing";
                 }
             }
         }
@@ -99,11 +99,12 @@ namespace CcsBackup.External
             {
                 r.Status = r.ScopeComplete == false ? "incomplete-scope" : "complete";
                 r.LastVerifiedUtc = logSame ? BackupList.Parse(lg.S("utc")) : BackupList.Parse(prim.S("verified_utc"));
-                if (r.Status == "incomplete-scope") r.Detail = "Not everything selected was copied as it was (files that could not be read or changed while they were copied). The rest can be used.";
+                var when = "Last full check: " + r.LastVerifiedUtc?.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm tt", CultureInfo.GetCultureInfo("en-US")) + (logSame ? "." : " (when it was made).");
+                r.Detail = r.Status == "incomplete-scope" ? when + " Not everything selected was copied as it was (files that could not be read or changed while they were copied). The rest can be used." : when;
                 return r;
             }
             r.Status = lg != null || prim != null ? "changed" : "not-checked";
-            r.Detail = r.Status == "changed" ? "The file has changed since it was last checked. Check it again before relying on it." : "This file has not been checked on this PC yet.";
+            r.Detail = r.Status == "changed" ? "The file has changed since it was last checked. Check it again before relying on it." : "No full check of this file is recorded here.";
             return r;
         }
 

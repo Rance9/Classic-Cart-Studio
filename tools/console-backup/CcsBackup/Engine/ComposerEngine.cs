@@ -78,7 +78,7 @@ namespace CcsBackup.Engine
             if (con.Profile != SessionProfile.Files) return (null, "The console is not in a file session.");
             if (kind != "rebuild" && kind != "migrate") return (null, "Unknown composition.");
             if (items == null || items.Count == 0) return (null, "Nothing was chosen.");
-            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "composition"); if (mw != null) return (null, mw + " Nothing was changed.");
+            var id = con.Identify(); var mw = ConsoleModels.RefusalFor(id, "composition") ?? ConsoleData.Refusal(id); if (mw != null) return (null, mw + " Nothing was changed.");
             var p = new ComposePlan { Kind = kind, Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated };
             var verified = new Dictionary<string, Verification>(StringComparer.OrdinalIgnoreCase);
             foreach (var src in items.Select(i => i.SourceBackup).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -91,6 +91,7 @@ namespace CcsBackup.Engine
                 bool same = ConsoleIdentity.SameConsole(v.Hwid, id.Hwid);
                 if (kind == "rebuild" && !same) return (null, Path.GetFileName(src) + " is a backup of another console. Use \"Set Up Like My Other Console\" for that.");
                 if (kind == "migrate" && same) return (null, Path.GetFileName(src) + " is a backup of this console. Use \"Rebuild from My Backups\" for that.");
+                var rw = kind == "migrate" ? ConsoleData.RegionRefusal(v.Model, v.Region, id.Region) : null; if (rw != null) return (null, rw + " Nothing was changed.");
                 verified[src] = v; p.Sources.Add(BoundArchive.From(kind == "migrate" ? "source backup of another console" : "source backup", src, v));
             }
             if (kind == "migrate" && p.Sources.Count != 1) return (null, "Migration takes one source console's backup at a time.");

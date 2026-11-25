@@ -29,8 +29,8 @@ namespace CcsWorker.Ops
         public static readonly System.Collections.Generic.Dictionary<string, string> MethodPackages = new System.Collections.Generic.Dictionary<string, string>
         {
             { "ccs-mod", "5c5318b62efc712a4fb5b36f123ecd8b17953d770233a2674dbe6cb41668530c" },
-            { "ccs-nucleus", "65bc716ee6b7386bea45344be10ae0da5421378bb7a9da0f5928200c6ade5d7b" },
-            { "ccs-nucleus-chooser", "9f35f7b0e3d30ab846466365c7823a5fd7c1cd44a7b4d78468d423afc19d1801" },
+            { "ccs-nucleus", "0074f2ec6bba1f7f329a3eafdfac4beaef3681e87802680e38aa435043eef2b7" },
+            { "ccs-nucleus-chooser", "1c6abd0f646332ccd59300d85cb427333aa39e72792d68cf895c3756ed6d3a27" },
         };
         /// <summary>the console program that adds a Classic Cart Studio collection to the console's menu as ordinary Hakchi games, and its
         /// library (tools/console-nucleus/console/collections/ccs-collections, lib.sh): run only as these exact files, from the folder named

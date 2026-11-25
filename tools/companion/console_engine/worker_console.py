@@ -3,9 +3,10 @@ from Hakchi2 CE 3.9.3's clovershell and SSH code). The same operations as the st
 typed commands over its line protocol (version 1): the worker composes and quotes every console command itself, checks every path against
 its own roots (writes only under /var/lib/ccs and /tmp/ccs) and never takes shell text, a host or a device from here.
 
-open_worker_console is the only way to a real console and the gate refuses it first (console_engine.gate in this program; the worker's own
-Gate.cs refuses "connect" again before any device is looked for). A session keeps the tier it was opened for: one opened to inspect refuses
-every change here, before the worker is asked, and the worker asks its own write tier again for each changing command ("write-tier"). The test host (CcsWorker.Tests.exe --serve-busybox, test project only)
+open_worker_console is the only way to a real console; the gate is asked first (console_engine.gate in this program; the worker's own
+Gate.cs asks again at "connect", before any device is looked for: both tiers are open in this version). A session keeps the tier it was
+opened for: one opened to inspect refuses every change here, before the worker is asked, and the worker asks its own write tier again for
+each changing command ("write-tier"); every change also needs the backup admission the worker checks ("admit"). The test host (CcsWorker.Tests.exe --serve-busybox, test project only)
 serves the same protocol with the console's own BusyBox running in a disposable folder: a stand-in, constructed with simulated=True by the
 tests, never by the application. Copyright (C) 2026 Rance9, GPL-3.0-or-later."""
 from __future__ import annotations
@@ -71,7 +72,8 @@ class WorkerConsole:
         first answer (the installer does at each commit point, so another console answering is noticed)"""
         if self._ident is None or fresh:
             r = self.call("identify"); self._ident = {"kernel": r.get("kernel"), "hakchi": r.get("hakchi_version"), "system": r.get("system"), "hwid": r.get("hwid"),
-                                                      "can_interact": r.get("can_interact"), "custom_firmware": r.get("custom_firmware"), "simulated": self.simulated}
+                                                      "can_interact": r.get("can_interact"), "custom_firmware": r.get("custom_firmware"),
+                                                      "board": r.get("board"), "region": r.get("region"), "data_mount": r.get("data_mount"), "simulated": self.simulated}
         return self._ident
     def free_bytes(self, path: str) -> int: return int(self.call("df", {"path": "/var/lib"})["free_bytes"])
     def stat(self, path: str) -> dict:
@@ -167,8 +169,9 @@ def worker_exe() -> str | None:
 
 def open_worker_console(kind: str, package_dir: str | None = None, tier: str = "install") -> WorkerConsole:
     """a real console through the shipped worker (kind: the transport, "ssh" or "clovershell"; tier: what the session is for, "inspect" or
-    "install"): refused by the gate here first, and by the worker's own gate at "connect", before any device is looked for"""
+    "install"): the gate is asked here first, and by the worker's own gate at "connect", before any device is looked for"""
     if tier not in ("inspect", "install"): raise ValueError("tier: inspect or install")
+    if kind not in ("ssh", "clovershell"): raise ValueError(f"unknown console transport {kind!r}")
     gate.require(tier, f"open a {kind} console")
     exe = worker_exe()
     if not exe: raise FileNotFoundError("the console worker is not installed with this app")

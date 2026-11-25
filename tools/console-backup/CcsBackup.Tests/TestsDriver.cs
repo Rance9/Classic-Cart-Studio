@@ -282,9 +282,7 @@ namespace CcsBackup.Tests
                 p.Act.RemoveMode = RemoveBehavior.Fails;
                 var rf = DriverSetup.Remove(p.Ctx, rec, new DriverUsage());
                 Check(rf.Result == RemovalResult.Failed && rf.Message == "The USB driver was kept because Windows could not remove it (Access is denied.). No other driver was removed.", "removal failed: kept, with Windows' reason (" + rf.Message + ")");
-                var real = new SetupContext { Store = p.Pc, Actions = new WindowsDriverActions(), Ledger = p.Ctx.Ledger };
-                var ru = DriverSetup.Remove(real, rec, new DriverUsage());
-                Check(ru.Result == RemovalResult.Unavailable && ru.Message == DriverText.Kept(DriverText.Because(RetainReason.ActionUnavailable)) && p.Pc.Package(rec.OwnedPackage) != null, "this build's real removal is closed: kept");
+                // (the real removal is open in this version and changes this PC: no test calls it)
             }
 
             // ---------------------------------------------------------- each reason removal is not offered
@@ -378,16 +376,10 @@ namespace CcsBackup.Tests
                 Check(d2.Offer && d2.CertificatesKept.Single().Why == RetainReason.CertificateChanged && d2.Plan.Certificates.Single().Store == CertStore.TrustedPublisher, "a certificate that changed (it now has a private key): it stays");
             }
 
-            // ---------------------------------------------------------- the real actions are closed in this version (DriverChanges, Gate.cs)
-            {
-                var p = NewPc("real-closed");
-                var real = new WindowsDriverActions();
-                string msg = null; try { real.Install(DriverSetupPlan.CcsWinUsb(), ElevationState.Elevated); } catch (DriverActionUnavailableException ex) { msg = ex.Message; }
-                var o = DriverSetup.Run(new SetupContext { Store = p.Pc, Actions = real, Ledger = p.Ctx.Ledger });
-                Check(msg != null && msg.StartsWith("Setting up or removing the USB driver on this PC is not available in this version.") && !real.Available && o.Result == SetupResult.Unavailable
-                      && o.Message == DriverText.SetupUnavailableNote && RecordFiles(p).Count == 0 && p.Pc.PackageList.Count(x => !x.IsInbox) == 1,
-                      "the real setup is closed by the DriverChanges boundary ('" + msg + "'); Run changes nothing and writes no record");
-            }
+            // ---------------------------------------------------------- the real actions are open in this version (DriverChanges, Gate.cs). No test
+            // calls them: they change this PC's driver store and certificates. The fake actions above stand in for them.
+            Check(CcsBackup.Gate.DriverChanges && new WindowsDriverActions().Available, "the real setup is open by the DriverChanges boundary in this version (never called by a test)");
+            DriverNeeds();
 
             // ---------------------------------------------------------- keep, and the startup check after a kept setup; unreadable records
             {
@@ -403,6 +395,50 @@ namespace CcsBackup.Tests
                 var close = DriverSetup.AtClose(rec, p.Pc, new DriverUsage(), ElevationState.Elevated);
                 Check(close.Body == DriverText.CloseBodyFor(ElevationState.Elevated) && !close.Body.Contains("Administrator permission is required"), "close text for an already elevated person does not say permission must be asked for");
             }
+        }
+
+        /// <summary>a stand-in for Windows' policy settings (HKLM\key: DWORD values and string lists)</summary>
+        sealed class FakePolicy : IPolicyReader
+        {
+            public readonly Dictionary<string, Dictionary<string, object>> Keys = new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
+            public FakePolicy Set(string key, string name, object v) { if (!Keys.TryGetValue(key, out var d)) Keys[key] = d = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase); if (name != null) d[name] = v; return this; }
+            public bool KeyExists(string key) => Keys.ContainsKey(key);
+            public int? Dword(string key, string name) => Keys.TryGetValue(key, out var d) && d.TryGetValue(name, out var v) && v is int i ? i : (int?)null;
+            public List<string> Strings(string key) => Keys.TryGetValue(key, out var d) ? d.Values.OfType<string>().ToList() : new List<string>();
+        }
+
+        /// <summary>what this PC needs for Workbench's own driver setup, read before the page is shown: each need met, asked for, possibly
+        /// stopping the setup, or not met (then named exactly, and no setup offered); and the plain words for Windows' refusals</summary>
+        static void DriverNeeds()
+        {
+            const string R = DriverPrerequisites.RestrictionsKey;
+            Needs N(FakePolicy p, ElevationState e = ElevationState.CanElevate, string notNative = null) => DriverPrerequisites.Check(e, notNative, p);
+            var clean = N(new FakePolicy());
+            Check(clean.Blocker == null && clean.Items.Count == 5 && clean.Items[0].State == NeedState.Asked && clean.Items[1].State == NeedState.Met && clean.Items[2].State == NeedState.Met
+                  && clean.Items[3].State == NeedState.Asked && clean.Items[4].Text.Contains("Windows' own WinUSB driver"), "a PC with no policies: setup offered; permission and the setup's certificate are asked for, nothing else is needed (" + string.Join(" | ", clean.Items) + ")");
+            Check(N(new FakePolicy(), ElevationState.Elevated).Items[0].State == NeedState.Met && N(new FakePolicy(), ElevationState.StandardUser).Items[0].Text.Contains("administrator's name and password"), "permission is described for this account: already elevated, or an administrator's name and password");
+            var arm = N(new FakePolicy(), notNative: "an x64 program on an Arm-based PC");
+            Check(arm.Blocker?.Title == "A copy of Workbench made for this PC" && arm.Blocker.Text.Contains("an x64 program on an Arm-based PC") && arm.Blocker.Text.Contains("Arm64"), "a copy made for another processor: not met, and says which copy to use");
+            var byId = N(new FakePolicy().Set(R, "DenyDeviceIDs", 1).Set(R + @"\DenyDeviceIDs", "1", @"usb\vid_1f3a&pid_efe8"));
+            Check(byId.Blocker?.Title == "Device installation allowed" && byId.Blocker.Text.Contains(PinnedDriver.HardwareId) && byId.Blocker.Text.Contains("changes no policy"), "a policy naming the console's USB identity: not met, named exactly (" + byId.Blocker?.Text + ")");
+            Check(N(new FakePolicy().Set(R, "DenyDeviceIDs", 1).Set(R + @"\DenyDeviceIDs", "1", @"USB\VID_1F3A&PID_EFE8&REV_0100")).Blocker != null, "a listed identity with a revision matches too");
+            Check(N(new FakePolicy().Set(R, "DenyDeviceIDs", 1).Set(R + @"\DenyDeviceIDs", "1", @"USB\VID_045E&PID_0040")).Blocker == null, "a policy naming another device does not stop it");
+            Check(N(new FakePolicy().Set(R, "DenyDeviceClasses", 1).Set(R + @"\DenyDeviceClasses", "1", DriverPrerequisites.PackageClass.ToLowerInvariant())).Blocker != null, "a policy naming the package's device class: not met");
+            Check(N(new FakePolicy().Set(R, "DenyRemovableDevices", 1)).Blocker != null && N(new FakePolicy().Set(R, "DenyUnspecified", 1)).Blocker != null && N(new FakePolicy().Set(R, "DenyAll", 1)).Blocker != null,
+                  "policies against removable devices, against devices no rule names, and against all devices: not met");
+            Check(N(new FakePolicy().Set(R, "DenyUnspecified", 1).Set(R, "AllowDeviceIDs", 1).Set(R + @"\AllowDeviceIDs", "1", PinnedDriver.HardwareId)).Blocker == null, "a policy that allows only named devices and names the console: not stopped");
+            var adm = N(new FakePolicy().Set(R, "DenyRemovableDevices", 1).Set(R, "AllowAdminInstall", 1));
+            Check(adm.Blocker == null && adm.Items[2].State == NeedState.MayStop, "administrators allowed to override: offered, said it may still stop");
+            Check(N(new FakePolicy().Set(R, "SomethingElse", 1)).Items[2].State == NeedState.MayStop, "other device installation rules: offered, said they may stop it");
+            var pub = N(new FakePolicy().Set(DriverPrerequisites.PublisherKey, "AuthenticodeFlags", 2));
+            Check(pub.Blocker?.Title == "Windows accepts the setup's certificate" && pub.Blocker.Text.StartsWith("Not met") && pub.Blocker.Text.Contains("changes no trust setting"), "only the organization's administrators may decide trusted publishers: not met, named exactly (" + pub.Blocker?.Text + ")");
+            Check(N(new FakePolicy().Set(DriverPrerequisites.PublisherKey, "AuthenticodeFlags", 1)).Blocker == null, "local administrators may decide trusted publishers: the setup (as an administrator) is offered");
+            Check(N(new FakePolicy().Set(DriverPrerequisites.RootsKey, "Flags", 8)).Items[3].State == NeedState.MayStop, "only the organization's root certificates trusted: offered, said it may stop");
+            Check(new[] { NeedState.Met, NeedState.Asked, NeedState.MayStop, NeedState.NotMet }.Select(DriverPrerequisites.StateWords).Distinct().Count() == 4, "each state has its own plain words");
+            // Windows' refusals after a setup, named as the requirement they are
+            Check(DriverExit.Requirement(unchecked((int)0x800B0109))?.Contains("does not trust") == true && DriverExit.WindowsError(unchecked((int)0x800B0109)).Contains("did not trust the certificate"), "an untrusted-root refusal is named as the trust requirement it is");
+            Check(DriverExit.Requirement(unchecked((int)0xE0000248))?.Contains("policy") == true && DriverExit.Requirement(DriverExit.NotNative) != null && DriverExit.Requirement(5) == null, "a blocked-device refusal names the policy; an ordinary error names no requirement");
+            Check(!DriverText.Because(RetainReason.ActionUnavailable).Contains("in this version"), "no driver text says a feature is not available in this version");
         }
 
         static void Texts()

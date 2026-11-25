@@ -3,20 +3,20 @@
 Three tiers. `simulate` is always available and only ever touches fake transports and disposable copies. `inspect`
 (read-only console interrogation) and `install` (anything that changes a console) are decided by the two constants below,
 which are **code**: not a config key, not an environment variable, not an API argument, not a query parameter. Changing
-them is a reviewed code change released as its own milestone. `transport.open_transport` checks the same
-constants again at the last boundary, so a caller that somehow reaches it with a real transport kind is still refused.
+them is a reviewed code change released as its own milestone; this version opens both.
 The two physical tiers stay separate all the way down: a console session is opened for one of them (worker_console), a
 session opened to inspect refuses every change itself, and the transport worker asks the write tier again for each command
-that changes the console. The older game sync through hakchi (G2, the engine's `execute`) is not a tier: it is refused
-unconditionally, whatever these constants say, and only Classic Cart Studio's own HOME operations (ccs_install) reach a console.
+that changes the console. Every change also needs its own checks: the console's identity and model, a verified backup of it,
+the reviewed plan and a confirmation for exactly that operation (console_home, ccs_install). Only Classic Cart Studio's own
+HOME operations (ccs_install) reach a console; the older game sync through hakchi is not part of Classic Cart Studio.
 """
 from __future__ import annotations
 
-PHYSICAL_INSPECT_ENABLED = False   # Gate G1 NOT approved (2026-10-11): no read-only console interrogation
-PHYSICAL_WRITE_ENABLED = False     # Gate G1 NOT approved (2026-10-11): no console writes of any kind
+PHYSICAL_INSPECT_ENABLED = True    # open in this version: reading a real console
+PHYSICAL_WRITE_ENABLED = True      # open in this version: changing a real console, after its own checks, plan and confirmation
 
 TIERS = ("simulate", "inspect", "install")
-GATE_STATE_TEXT = "Installing on a real console is not available in this version."   # Gate G1 not approved; shown in the interface
+GATE_STATE_TEXT = "Changing a real console is turned off in this build."   # shown only while a tier is closed in code
 
 
 class GateClosed(PermissionError):

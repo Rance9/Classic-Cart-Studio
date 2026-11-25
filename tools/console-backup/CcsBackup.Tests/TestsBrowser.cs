@@ -72,6 +72,8 @@ namespace CcsBackup.Tests
             var made = DateTime.Parse(Record.Load(oa.RecordFile).O("primary").S("verified_utc"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal);
             Check(ra != null && ra.Status == BrowseStatus.Complete && ra.Check == CheckState.Verified && ra.LastVerifiedBy == "made" && ra.LastVerifiedUtc == made && ra.ConsoleTag != null && ra.Bytes == new FileInfo(oa.PrimaryPath).Length,
                 "a finished backup: Complete, verified, last verified when its own check passed as it was made (" + ra?.StatusText + ", " + ra?.LastVerifiedText + ")");
+            Check(ra.StatusText == "Verified" && ra.CheckText.StartsWith("Last full check: ", StringComparison.Ordinal) && ra.CheckText.EndsWith("(when it was made).", StringComparison.Ordinal),
+                "its words: \"Verified\" with its last full check, the one that ran as it was made (" + ra.CheckText + ")");
             var t0 = DateTime.UtcNow.AddSeconds(-1); var ca = BackupList.Check(s, oa.PrimaryPath); var t1 = DateTime.UtcNow.AddSeconds(1);
             Check(ca.Status == BrowseStatus.Complete && ca.Check == CheckState.Verified && ca.LastVerifiedBy == "check" && ca.LastVerifiedUtc >= t0 && ca.LastVerifiedUtc <= t1,
                 "checked again now: the list records the real time of that check as its last verified date (" + ca.LastVerifiedText + ")");
@@ -87,16 +89,33 @@ namespace CcsBackup.Tests
             File.Move(oa.PrimaryPath, oa.PrimaryPath + ".away");
             var rm = BackupList.List(s).FirstOrDefault(r => r.Path == oa.PrimaryPath);
             File.Move(oa.PrimaryPath + ".away", oa.PrimaryPath);
-            Check(rm != null && rm.Status == BrowseStatus.Missing && !rm.CanOpen, "Missing: a finished backup whose file is no longer where it was saved (" + rm?.Detail + ")");
+            Check(rm != null && rm.Status == BrowseStatus.Missing && !rm.CanOpen && rm.StatusText == "Missing", "Missing: a finished backup whose file is no longer where it was saved (" + rm?.Detail + ")");
             // a copy brought in from elsewhere, then damaged in two ways
             var copy = Path.Combine(s.PrimaryFolder, "copied in.zip"); File.Copy(ob.PrimaryPath, copy);
             var rc = BackupList.List(s).FirstOrDefault(r => r.Path == copy);
             Check(rc != null && rc.Status == BrowseStatus.Complete && rc.Check == CheckState.NotChecked && rc.LastVerifiedUtc == null, "a backup copied in from elsewhere (the same backup id as B): listed on its own, not checked yet, no verified date invented");
+            Check(rc.StatusText == "Not checked" && rc.CheckText.StartsWith("No full check of this file is recorded here", StringComparison.Ordinal) && rc.LastVerifiedText == "No full check recorded here" && !rc.CheckText.Contains("never"),
+                "its words: \"Not checked\", and that no full check is recorded here (its readable description is not a check; never \"never checked\") (" + rc.CheckText + ")");
+            // a backup file in another folder, outside the backup locations: its row read the same way, without a check and without listing it
+            var away = Path.Combine(NewDir("browser-away"), "from another drive.zip"); File.Copy(ob.PrimaryPath, away);
+            var aw = BackupList.Row(s, away);
+            Check(aw != null && aw.Status == BrowseStatus.Complete && aw.Check == CheckState.NotChecked && aw.Copy == "File" && aw.BackupId == BackupList.List(s).First(r => r.Path == ob.PrimaryPath).BackupId && !BackupList.List(s).Any(r => r.Path == away),
+                "a backup file in another folder: its row (Not checked, its own backup id) is read without a check, and it is not added to the list");
+            var awc = BackupList.Check(s, away); var aw2 = BackupList.Row(s, away);
+            Check(awc.Check == CheckState.Verified && aw2.StatusText == "Verified" && aw2.LastVerifiedBy == "check" && !BackupList.List(s).Any(r => r.Path == away),
+                "after Check the File it is Verified, with that check as its last full check, and still not in the list (" + aw2.CheckText + ")");
+            var other = SettingsIn(NewDir("browser-other-settings"), false); Directory.CreateDirectory(other.PrimaryFolder);
+            var ao = BackupList.Row(other, away);
+            Check(ao.StatusText == "Not checked" && ao.CheckText.StartsWith("No full check of this file is recorded here", StringComparison.Ordinal),
+                "with other backup locations the same file's check is not recorded there: it says so, never that the file was never checked (" + ao.CheckText + ")");
+            Check(BackupList.Row(s, away + ".gone").StatusText == "Missing", "a file that is not there: Missing");
+            File.Delete(away);
             var cv = BackupList.Check(s, copy);
             Check(cv.Status == BrowseStatus.Complete && cv.Check == CheckState.Verified && cv.LastVerifiedBy == "check", "checked: Complete, verified now");
             Flip(copy, "reference/nand-physical.bin", 1000);
             rc = BackupList.List(s).First(r => r.Path == copy);
             Check(rc.Check == CheckState.ChangedSinceCheck && rc.LastVerifiedUtc == cv.LastVerifiedUtc, "one byte changed: \"Changed since it was last checked\"; the last verified date stays the real one, not refreshed (" + rc.StatusText + ")");
+            Check(rc.StatusText == "Changed since last check" && rc.CheckText.Contains("has changed since then"), "its words: \"Changed since last check\", after its last full check (" + rc.CheckText + ")");
             var cs = BackupList.Check(s, copy);
             Check(cs.Status == BrowseStatus.Salvage && cs.DamagedParts.Contains("reference/nand-physical.bin") && cs.IntactParts.Contains("restore/nandc.img") && cs.LastVerifiedUtc == cv.LastVerifiedUtc && cs.CanOpenSalvage && !cs.CanOpen,
                 "Salvage: the raw reference copy is damaged but the data storage still matches its trusted checksum (" + cs.Detail + ")");
@@ -208,6 +227,25 @@ namespace CcsBackup.Tests
                     "search is case-insensitive over names, paths, games and categories, within a view or everywhere");
                 var sel = new Selection(); sel.Add(smb.BatterySaves.First()); sel.Toggle(g1.GameFiles.First()); sel.Toggle(g1.GameFiles.First()); sel.Add(g1.BatterySaves.First());
                 Check(sel.Count == 2 && sel.Entries(c).Count == 2, "the selection keeps exactly what was selected (toggling twice removes)");
+                // the names an export's new folder is offered with: what is exported, never a selection mode, a backup file or a console
+                var one = new Selection(); one.Add(smb.BatterySaves.First());
+                var several = new Selection(); several.Add(smb.BatterySaves.First()); several.Add(g1.BatterySaves.First());
+                var folders = new Selection(); folders.Add(data["/unknown"]); folders.Add(data["/link-to-notes"]);
+                var names = new Dictionary<string, string>
+                {
+                    { "one game's save", ExportRequest.Selected(c, one, null).FolderName }, { "two games' saves", ExportRequest.Selected(c, several, null).FolderName },
+                    { "a whole kind", ExportRequest.WholeCategory(c, Category.Saves, null).FolderName }, { "everything else", ExportRequest.WholeCategory(c, Category.EverythingElse, null).FolderName },
+                    { "a search", ExportRequest.SearchResults(c, Category.Saves, "naaae", c.Search("naaae", c.ByType(Category.Saves)), null).FolderName },
+                    { "a folder", ExportRequest.Folder(c, data["/unknown"], null).FolderName }, { "a game", ExportRequest.GameBundle(c, g1, null).FolderName },
+                    { "one file", ExportRequest.One(c, data["/hakchi/config"], null).FolderName }, { "the data storage's files", ExportRequest.Inside(c, c.Find("m:" + c.DataMember), null).FolderName },
+                    { "files from several places", ExportRequest.Selected(c, folders, null).FolderName },
+                };
+                Check(names["one game's save"] == smb.Title && names["two games' saves"] == "Games" && names["a whole kind"] == "Saves" && names["everything else"] == "Other files" && names["a search"] == "Saves matching naaae"
+                      && names["a folder"] == "unknown" && names["a game"] == g1.Title && names["one file"] == "config" && names["the data storage's files"] == "Console files" && names["files from several places"] == ExportNames.Neutral,
+                    "the offered names fit what is exported (" + string.Join("; ", names.Select(kv => kv.Key + ": " + kv.Value)) + ")");
+                Check(names.Values.All(n => n != "Selected files" && !n.Contains(c.ConsoleTag ?? "\u0000") && !n.Contains(Path.GetFileNameWithoutExtension(oa.PrimaryPath))), "no offered name is \"Selected files\", the backup file's name or the console's ID");
+                Check(ExportNames.Clean("   ") == null && ExportNames.Clean("..") == null && ExportNames.Clean("Saves: <best>?") == "Saves - _best__" && ExportNames.Clean("CON") == "_CON" && ExportNames.Clean(new string('x', 200)).Length == 60 && ExportNames.Clean("Zelda \u00e9t\u00e9 \u2605") == "Zelda \u00e9t\u00e9 \u2605",
+                    "a typed name: empty or dots only is refused; characters Windows refuses and reserved names are made safe; at most 60 characters; other Unicode is kept");
                 // export: the whole category
                 var exp = NewDir("browser-export");
                 var whole = Exporter.Export(c, ExportRequest.WholeCategory(c, Category.Saves, exp));
@@ -221,6 +259,15 @@ namespace CcsBackup.Tests
                 }
                 Check(whole.Ok && whole.Files.Count == c.ByType(Category.Saves).Count && wm.A("files").Count == whole.Files.Count && badFile == 0 && wm.O("asked_for").S("kind") == "whole-category",
                     "Export All of This Type (Saves): every save exported, each equal to debugfs' read, with the manifest naming the whole category (" + whole.Summary + ")");
+                Check(Path.GetFileName(whole.Folder) == "Saves" && Exporter.FolderNameFor(exp, "Saves") == "Saves (2)" && Exporter.FolderNameFor(exp, "Something new") == "Something new" && Exporter.FolderNameFor(Path.Combine(exp, "missing"), "x") == null,
+                    "its new folder is named \"Saves\" (nothing else added); the same name now would be \"Saves (2)\", and a destination that cannot be used gives none");
+                var again = Exporter.Export(c, ExportRequest.WholeCategory(c, Category.Saves, exp));
+                Check(again.Ok && Path.GetFileName(again.Folder) == "Saves (2)" && File.Exists(Path.Combine(whole.Folder, "Super Mario Bros", "Battery saves", "cartridge.sram")),
+                    "the same export again goes into \"Saves (2)\": the first folder is untouched");
+                var typed = ExportRequest.Selected(c, one, exp); typed.FolderName = "  My saves: best*  ";
+                var tx = Exporter.Export(c, typed);
+                Check(tx.Ok && Path.GetFileName(tx.Folder) == "My saves - best_", "a name the person typed is used, made safe (\"" + Path.GetFileName(tx.Folder) + "\")");
+                Check(tx.Files.Count == 1 && tx.Files[0].RelativePath == @"Battery saves\cartridge.sram", "a selection of one game's files is laid out like that game's own export: no second folder of the game's name inside (" + tx.Files[0].RelativePath + ")");
                 Check(badTime == 0 && File.Exists(Path.Combine(whole.Folder, "Super Mario Bros", "Battery saves", "cartridge.sram")) && File.Exists(Path.Combine(whole.Folder, "Test Cart One", "Battery saves", "cart.sav")),
                     "each file keeps the console's recorded time, and lands in its game's folder by role (\"Super Mario Bros\\Battery saves\\cartridge.sram\")");
                 // export: only the search results
@@ -315,6 +362,20 @@ namespace CcsBackup.Tests
         // ------------------------------------------------------------------ the documented rules the fixtures do not exercise, on synthetic entries
         static void BrowserRules()
         {
+            // the history's words: a backup whose record says its full check passed when it was made, published before its second copy
+            // finished, is Verified while the file is unchanged, and Not checked once it changes (a file's description is never a check)
+            {
+                var hs = SettingsIn(NewDir("browser-history-words"), false); Directory.CreateDirectory(hs.PrimaryFolder); Directory.CreateDirectory(hs.RecordsFolder);
+                var f = Path.Combine(hs.PrimaryFolder, "NES Classic Backup 2026-11-24 1000 (console 0badf00d).zip"); File.WriteAllBytes(f, new byte[4096]);
+                var rec = new JObj { { "schema", "ccs-console-backup-record/1" }, { "id", "history-words" }, { "kind", "backup" }, { "state", "copying" }, { "created_utc", "2026-11-24T16:00:00.000Z" },
+                    { "primary", new JObj { { "final", f }, { "bytes", 4096L }, { "mtime_utc", File.GetLastWriteTimeUtc(f).ToString("o", System.Globalization.CultureInfo.InvariantCulture) }, { "verified_utc", "2026-11-24T16:05:00.000Z" } } } };
+                File.WriteAllText(Path.Combine(hs.RecordsFolder, "backup-history-words.json"), Json.Write(rec));
+                var h = History.List(hs).First(x => x.Id == "history-words");
+                Check(h.Status == BackupStatus.NeedsVerification && h.CheckedWhenMade && h.StatusText == "Verified, one copy", "the history: published before its second copy finished, unchanged: Verified, one copy (" + h.StatusText + ")");
+                File.WriteAllBytes(f, new byte[4097]);
+                h = History.List(hs).First(x => x.Id == "history-words");
+                Check(h.Status == BackupStatus.NeedsVerification && !h.CheckedWhenMade && h.StatusText == "Not checked", "changed since: Not checked (" + h.StatusText + ")");
+            }
             var files = new Dictionary<string, string>(StringComparer.Ordinal); var entries = new List<BrowseEntry>();
             void D(string p) => entries.Add(new BrowseEntry { Id = "d:" + p, ImagePath = p, ConsolePath = "/var/lib" + p, Name = p.Substring(p.LastIndexOf('/') + 1), Source = EntrySource.DataFile, Kind = EntryKind.Folder, TypeCode = 'd' });
             void F(string p, string text = "x") { files[p] = text; entries.Add(new BrowseEntry { Id = "d:" + p, ImagePath = p, ConsolePath = "/var/lib" + p, Name = p.Substring(p.LastIndexOf('/') + 1), Source = EntrySource.DataFile, Kind = EntryKind.File, TypeCode = 'f', Size = Encoding.UTF8.GetByteCount(text), Inode = (uint)entries.Count + 100 }); }

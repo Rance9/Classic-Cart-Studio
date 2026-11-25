@@ -210,24 +210,18 @@ def _safe_file_name(name: str) -> str:
     return n if n.lower().endswith(".ccs") else n + ".ccs"
 
 # ---------------- Save As and Explorer (this computer only) ----------------
-def pick_save(title: str, initial_name: str, initial_dir: str = "", ext: str = ".ccs", kind: str = "Classic Cart Studio collection") -> str:
-    """Native Windows Save As dialog on the user's desktop (the same tkinter mechanism as the backend's file pickers)."""
-    import tkinter as tk
-    from tkinter import filedialog
-    root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-    try: return filedialog.asksaveasfilename(title=title, initialfile=initial_name, initialdir=initial_dir or None, defaultextension=ext,
-                                             filetypes=[(kind, "*" + ext)], confirmoverwrite=True) or ""
-    finally: root.destroy()
+def chosen_save(body: dict, ext: str) -> str:
+    """where to save: the file the person chose in the app's own Save dialog (files.js; it asked before replacing a file that is there),
+    with the kind's extension; '' when none was chosen. Only the desktop principal reaches these routes (ccs_backend.py)."""
+    import local_files as lf
+    dest = lf.chosen(body)
+    if not dest: return ""
+    return dest if dest.lower().endswith(ext) else dest + ext
 
 def open_explorer(path: str):
     """File Explorer with the file selected (explorer.exe /select,"<path>"); Windows paths cannot contain a double quote."""
     if '"' in path: raise ValueError("unsafe path")
     subprocess.Popen(f'explorer.exe /select,"{os.path.normpath(path)}"')
-
-def _default_dir() -> str:
-    last = next((os.path.dirname(p) for p in reversed(list(SAVED.values())) if os.path.isdir(os.path.dirname(p))), "")
-    docs = os.path.join(os.path.expanduser("~"), "Documents")
-    return last or (docs if os.path.isdir(docs) else "")
 
 def _copy_to(src: str, dest: str):
     _check_space(os.path.dirname(dest) or ".", os.path.getsize(src), "save this package there")
@@ -339,10 +333,7 @@ def _art(body: dict) -> dict:
     return art
 
 def _dest(body: dict, cfg: dict, name: str) -> str:
-    if cfg.get("rehearsal_tree") and body.get("path"): dest = str(body["path"])   # rehearsal/test configurations only: no dialog
-    else: dest = pick_save("Save the collection package", name, _default_dir())
-    if not dest: return ""
-    dest = os.path.abspath(dest); return dest if dest.lower().endswith(".ccs") else dest + ".ccs"
+    return chosen_save(body, ".ccs")   # the file chosen in the app's own Save dialog (a rehearsal test sends one too)
 
 def _saves_plan(i: str, p: str, data_path) -> dict:
     import saves_transfer as st
@@ -377,10 +368,8 @@ def handle_post(handler, path: str, data_path, version: str, cfg: dict | None = 
     except Exception as e: return handler._json(408 if getattr(handler, "_stalled", False) else 400, {"ok": False, "error": f"The request could not be read ({e})."})
     if path == "/api/studio/saves-export":   # Export Game Saves: the saved games only (no ROM file), to a ZIP file the person chooses
         import saves_transfer as st
-        if cfg.get("rehearsal_tree") and body.get("path"): out = str(body["path"])   # rehearsal/test configurations only: no dialog
-        else: out = pick_save("Save your game saves", "Classic Cart Studio Game Saves " + time.strftime("%Y-%m-%d") + ".zip", _default_dir(), ".zip", "ZIP file")
+        out = chosen_save(body, ".zip")   # the file chosen in the app's own Save dialog
         if not out: return handler._json(200, {"ok": False, "canceled": True})
-        out = os.path.abspath(out); out = out if out.lower().endswith(".zip") else out + ".zip"
         shas = body.get("shas"); shas = {str(s) for s in shas} if isinstance(shas, list) else None
         return handler._json(200, st.export(data_path, out, shas, version))
     if path == "/api/studio/saves-plan":
