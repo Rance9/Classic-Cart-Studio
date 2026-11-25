@@ -39,14 +39,16 @@ namespace CcsBackup.Ui
         /// own description; game files are the person's own, so they become placeholders in the shared copy)</summary>
         CompositionDraft DraftFrom(string startingPoint, string policy, string title, string backup, IList<string> paths)
         {
-            var d = new CompositionDraft { Title = title, StartingPoint = startingPoint, InstallPolicy = policy };
             var m = backup == null ? null : History.Peek(backup);
+            var model = m != null ? CcsBackup.Device.ConsoleModels.OfManifest(m) : CcsBackup.Device.ConsoleModels.ById(profile.PhysicalModel);
+            var d = new CompositionDraft { Title = title, StartingPoint = startingPoint, InstallPolicy = policy, Platform = Composition.PlatformOf(model) };
+            var gameFiles = model == CcsBackup.Device.ConsoleModels.Snes ? new[] { ".sfrom", ".sfc", ".smc" } : new[] { ".nes" };
             d.SourceConsoleHwid = m?.O("console")?.S("hwid"); d.SourceConsoleTag = m?.O("console")?.S("tag");
             bool hakchi = paths.Any(p => p.StartsWith("hakchi/", StringComparison.Ordinal)), ccs = paths.Any(p => p.StartsWith("ccs/", StringComparison.Ordinal));
             d.Environments.Add(new DraftEnvironment { Id = "nintendo", Kind = "nintendo-original", Default = !ccs });
             if (hakchi) d.Environments.Add(new DraftEnvironment { Id = "hakchi", Kind = "hakchi-ce" });
             if (ccs) d.Environments.Add(new DraftEnvironment { Id = "ccs", Kind = "ccs-home", Default = true });
-            foreach (var p in paths.Where(p => p.StartsWith("hakchi/games/", StringComparison.Ordinal) && p.EndsWith(".nes", StringComparison.OrdinalIgnoreCase)))
+            foreach (var p in paths.Where(p => p.StartsWith("hakchi/games/", StringComparison.Ordinal) && gameFiles.Any(x => p.EndsWith(x, StringComparison.OrdinalIgnoreCase))))
             {
                 var parts = p.Split('/'); var code = parts.Length >= 2 ? parts[parts.Length - 2] : p;
                 d.Games.Add(new DraftGame { PersonalId = code, FileName = parts[parts.Length - 1], Environment = "hakchi" });
@@ -72,13 +74,13 @@ namespace CcsBackup.Ui
             var problem = new ContentControl();
             sp.Children.Add(Buttons(p.CanShare ? B("Save the Shared Plan…", "Btn.Primary", () =>
             {
-                var f = new Microsoft.Win32.SaveFileDialog { Title = "Save a Shared Composition Plan", Filter = PlanFilter, FileName = SafeFileName(string.IsNullOrWhiteSpace(d.Title) ? "My plan" : d.Title) + Composition.Extension, OverwritePrompt = false };
-                if (f.ShowDialog(this) != true) return;
-                try { CompositionShare.Write(p, f.FileName); }
+                var chosenFile = CcsFileDialog.SaveFile(this, "Save a Shared Composition Plan", null, SafeFileName(string.IsNullOrWhiteSpace(d.Title) ? "My plan" : d.Title) + Composition.Extension, PlanFilter, false, "composition-plan");
+                if (chosenFile == null) return;
+                try { CompositionShare.Write(p, chosenFile); }
                 catch (Exception ex) when (ex is ComposeException || ex is IOException || ex is UnauthorizedAccessException) { problem.Content = Note("The plan was not saved: " + ex.Message, "bad"); return; }
                 var r = SectionHead("Shared Composition Plan saved", "It was written and checked: it holds only your choices and public references, never your games, saves or console details.");
-                r.Children.Add(Card(new StackPanel { Children = { T("Saved as:", Ty.Small, false, true, new Thickness(0, 0, 0, 2)), PathText(f.FileName, 13) } }));
-                r.Children.Add(Buttons(B("Open Folder", "Btn", () => OpenFolder(f.FileName)), B("Back to Your Choices", "Btn.Ghost", back), B("Done", "Btn.Ghost", () => Go("Console Composer"))));
+                r.Children.Add(Card(new StackPanel { Children = { T("Saved as:", Ty.Small, false, true, new Thickness(0, 0, 0, 2)), PathText(chosenFile, 13) } }));
+                r.Children.Add(Buttons(B("Open Folder", "Btn", () => OpenFolder(chosenFile)), B("Back to Your Choices", "Btn.Ghost", back), B("Done", "Btn.Ghost", () => Go("Console Composer"))));
                 Show(r, "plan-saved");
             }) : null, B("Back", "Btn.Ghost", back)));
             if (!p.CanShare) sp.Children.Add(T("This plan cannot be saved for sharing until the problems above are fixed.", Ty.Small, false, true));
@@ -88,25 +90,25 @@ namespace CcsBackup.Ui
 
         void OpenPlan()
         {
-            var f = new Microsoft.Win32.OpenFileDialog { Title = "Open a Shared Composition Plan", Filter = PlanFilter };
-            if (f.ShowDialog(this) != true) return;
+            var chosenFile = CcsFileDialog.OpenFile(this, "Open a Shared Composition Plan", null, PlanFilter, "composition-plan");
+            if (chosenFile == null) return;
             Composition plan; string why = null;
             try
             {
-                if (new FileInfo(f.FileName).Length > Composition.MaxBytes) throw new ComposeException("composition.size", "This file is larger than a shared plan can be.");
-                var role = ShareGuard.Classify(f.FileName);
+                if (new FileInfo(chosenFile).Length > Composition.MaxBytes) throw new ComposeException("composition.size", "This file is larger than a shared plan can be.");
+                var role = ShareGuard.Classify(chosenFile);
                 if (role != FileRole.SharedComposition) throw new ComposeException("composition.role", "This is not a shared plan. " + ShareGuard.Describe(role));
-                plan = Composition.Parse(File.ReadAllBytes(f.FileName));
+                plan = Composition.Parse(File.ReadAllBytes(chosenFile));
             }
             catch (Exception ex) when (ex is ComposeException || ex is IOException || ex is UnauthorizedAccessException) { plan = null; why = ex.Message; }
             if (plan == null)
             {
                 var ep = SectionHead("This plan could not be opened", "It is not a " + FileKinds.Plan + " this version can read. Nothing was changed.");
-                ep.Children.Add(Note(why ?? "", "bad")); ep.Children.Add(PathText(f.FileName));
+                ep.Children.Add(Note(why ?? "", "bad")); ep.Children.Add(PathText(chosenFile));
                 ep.Children.Add(Buttons(B("Choose Another File…", "Btn", OpenPlan), B("Back", "Btn.Ghost", BackToSection)));
                 Show(ep, "msg"); return;
             }
-            ShowPlanChecklist(plan, System.IO.Path.GetFileName(f.FileName));
+            ShowPlanChecklist(plan, System.IO.Path.GetFileName(chosenFile));
         }
 
         static string StartingPointName(string s) => s == "fresh-ccs" ? "Start Fresh with Classic Cart Studio" : s == "like-my-other-console" ? "Set Up Like My Other Console" : s == "rebuild-from-backups" ? "Rebuild from My Backups" : null;

@@ -1,10 +1,11 @@
-"""The console boundary for an activation rehearsal, and the separate permissions (k3e), PC only, with no console:
-  - the test boundary (console_test_guard) refuses a real session once a tier is open, before any worker starts, and records it;
+"""The console boundary for the console tests, and the separate permissions, PC only, with no console:
+  - both physical tiers are open in this version (code constants); the test boundary (console_test_guard) refuses every real session a test
+    asks for, before any worker starts, and records it;
   - without it, a source run still cannot start the shipped transport worker (it exists only inside the frozen app);
   - a console session opened to inspect refuses every change itself, before the worker is asked; one opened to install asks the gate;
-  - the older game sync through hakchi (G2) is refused whatever the gate says, with no transport opened.
-A tier is opened (or closed) here only inside one test, in this process, with the boundary in front; the gate constants are restored
-afterwards, so the suite also runs unchanged in the activation rehearsal (the delta applied to a temporary copy).
+  - the older game sync through hakchi has no worker command, engine method, transport or route.
+A tier is closed (or opened) here only inside one test, in this process, with the boundary in front; the gate constants are restored
+afterwards.
   python tools/companion/test_console_guard.py"""
 from __future__ import annotations
 import io, json, os, subprocess, sys, tempfile, unittest
@@ -39,8 +40,14 @@ class T(unittest.TestCase):
         try: return rd(guard.LOG).split()
         except OSError: return []
 
+    def test_00_both_tiers_are_open_in_this_version(self):
+        self.assertIs(gate.PHYSICAL_INSPECT_ENABLED, True); self.assertIs(gate.PHYSICAL_WRITE_ENABLED, True)
+        self.assertTrue(gate.allowed("inspect") and gate.allowed("install")); self.assertEqual(gate.state()["text"], "physical writes enabled")
+        src = rd(gate.__file__); self.assertIn("PHYSICAL_INSPECT_ENABLED = True", src); self.assertIn("PHYSICAL_WRITE_ENABLED = True", src)
+        for word in ("import os", "environ", "getenv", "sys.argv"): self.assertNotIn(word, src.split('"""')[-1], f"the gate reads nothing but its constants ({word})")
+
     def test_01_closed_the_boundary_refuses_exactly_as_the_shipped_opener(self):
-        with Opened(False, False):   # (this version's state; the activation rehearsal runs this suite with the gate open too)
+        with Opened(False, False):   # (a build whose tiers are closed in code)
             for tier in ("inspect", "install"):
                 with self.assertRaises(gate.GateClosed): WC.open_worker_console("ssh", tier=tier)
                 with self.assertRaises(gate.GateClosed): guard._guarded.original("clovershell", tier=tier)
@@ -98,20 +105,21 @@ class T(unittest.TestCase):
         cs = os.path.join(HERE, "..", "console-worker", "CcsWorker", "Protocol", "WorkerServer.cs")
         if os.path.isfile(cs): self.assertIn('"write-tier"', rd(cs), "the transport worker lists the feature")
 
-    def test_07_the_older_game_sync_is_refused_whatever_the_gate(self):
+    def test_07_the_older_game_sync_has_no_command_engine_method_transport_or_route(self):
         sent = Sentinel(); was = TR.open_transport; TR.open_transport = sent
         try:
             for opened in ((False, False), (True, True)):
                 with Opened(*opened):
-                    events = []; e = EN.Engine.__new__(EN.Engine); e.emit = lambda *a, **k: events.append((a, k))
-                    r = EN.Engine.execute(e, {"hash": "a" * 64}, "ssh"); self.assertEqual(r["code"], "physical-disabled"); self.assertIn("not part of Classic Cart Studio", r["state"])
+                    self.assertFalse(hasattr(EN.Engine, "execute"), "the engine has no game sync")
                     out = io.StringIO(); w = Worker(tempfile.mkdtemp(prefix="ccs-guard-"), out=out)
                     w.handle(json.dumps({"v": 1, "id": "x", "cmd": "execute", "args": {"plan_hash": "b" * 64, "transport": "ssh"}}))
-                    ev = json.loads(out.getvalue().splitlines()[-1]); self.assertEqual(ev["event"], "error"); self.assertEqual(ev["code"], "physical-disabled")   # k3f: a refusal event (the G1 guard's contract)
+                    ev = json.loads(out.getvalue().splitlines()[-1]); self.assertEqual((ev["event"], ev["code"]), ("error", "bad-command"))
         finally: TR.open_transport = was
         self.assertEqual(sent.calls, [], "no transport was opened"); self.assertNotIn("open_transport", rd(EN.__file__), "the engine opens no transport by kind")
-        nc = rd(os.path.join(HERE, "nes_companion.py")); line = nc[nc.index('if op == "execute"'):].split("\n", 1)[0]
-        self.assertIn("403", line); self.assertIn("physical-disabled", line); self.assertNotIn("cr.call", line, "the route starts no worker")
+        for kind in ("ssh", "clovershell", "fel", "usb"):
+            with self.assertRaises(ValueError): TR.open_transport(kind)   # the older plan's simulation opens only its fake transport
+        nc = rd(os.path.join(HERE, "ccs_backend.py")); self.assertNotIn('op == "execute"', nc, "no route for it: an unknown console operation")
+        self.assertEqual(self.requests(), []); self.assertEqual(self.popen.calls, [])
 
     def test_08_the_console_test_modules_put_the_boundary_first(self):
         for f in ("test_console_home.py", "test_console_dispatch.py", "test_console_lifecycle.py", "test_ccs_install.py", "test_k3_boundaries.py", "test_worker_console.py", "test_console_guard.py"):

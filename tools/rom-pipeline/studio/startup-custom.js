@@ -152,10 +152,10 @@ function suWire(m){ const say=t=>{ const o=$('suOut'); if(o) o.textContent=t; };
     toast(`Startup picture set: ${m.startup_custom.name}`); if(old&&old.sha256!==sha) setTimeout(suTidy, 0); }
    catch(e){ b.disabled=false; say('The picture was not saved: '+String(e&&e.message||e)+'. Nothing was changed.'); } };
   return; }
- const pick=$('suPick'); if(pick) pick.onclick=async()=>{ const files=await cvPick('image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp', false); if(!files||!files.length) return; say('Reading the picture…');
+ const pick=$('suPick'); if(pick) pick.onclick=async()=>{ const files=await cvPick('image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp', false, 'Choose a startup picture'); if(!files||!files.length) return; say('Reading the picture…');
   try{ const r=await suRead(files[0]); SU.draft={bm:r.bm, name:r.name, w:r.w, h:r.h, fit:Math.abs(r.w/r.h-16/9)<0.02?'fill':'fit'}; suDraftDraw(); hfRender(); }
   catch(e){ say(`That picture cannot be used: ${String(e&&e.message||e)}. Nothing was changed.`); } };
- const rm=$('suRemove'); if(rm) rm.onclick=()=>{ const c=m.startup_custom; if(!c) return; if(!confirm(`Remove your startup picture "${c.name||'My picture'}" from this collection? ${m.startup_image===c.id?'The startup screen goes back to Random. ':''}Your own file is not affected.`)) return;
+ const rm=$('suRemove'); if(rm) rm.onclick=async()=>{ const c=m.startup_custom; if(!c) return; if(!(await ccsAsk(`Remove your startup picture "${c.name||'My picture'}" from this collection? ${m.startup_image===c.id?'The startup screen goes back to Random. ':''}Your own file is not affected.`))) return; if(m.startup_custom!==c) return;
   if(m.startup_image===c.id) m.startup_image='random'; m.startup_custom=null; hfSave(); try{ dispatchEvent(new CustomEvent('ccs-content-changed',{detail:{what:'startup'}})); }catch(e){} toast('Startup picture removed from this collection'); setTimeout(suTidy, 0); };
  const sel=$('hfStartup'); if(sel) sel.onchange=()=>{ const v=sel.value; m.startup_image=v==='random'||HOME_STARTUP.some(s=>s.id===v)||(m.startup_custom&&v===m.startup_custom.id)?v:'random'; hfSave(); try{ dispatchEvent(new CustomEvent('ccs-content-changed',{detail:{what:'startup'}})); }catch(e){} }; }
 // at start: the pictures the collections name, from this browser's storage; then pictures nothing names are tidied away

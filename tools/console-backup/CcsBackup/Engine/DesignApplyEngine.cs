@@ -50,6 +50,8 @@ namespace CcsBackup.Engine
 
     public sealed class DesignApplyPlan
     {
+        /// <summary>the connected console's model id (its room for saves in the storage check)</summary>
+        public string Profile;
         public string Kind, Hwid, ConsoleTag, Session, Digest, Nonce, Refusal, DesignId, DesignName, RevertTo, RenderCheckSha256, PackManifestSha256;
         public string CurrentBefore, KnownGoodBefore, CurrentAfter, KnownGoodAfter;
         public DateTime ExpiresUtc; public bool Simulated; public long NewBytes, FreeBytes;
@@ -80,10 +82,10 @@ namespace CcsBackup.Engine
         /// <summary>the room a design apply needs (the shared storage accounting): the new design's files beside the ones in use, against the
         /// data storage's free blocks outside the reserve as the session's backup recorded them; the older designs it removes are freed only
         /// after the switch, so they lower the final figure, never the peak</summary>
-        public static JObj Room(DesignConsoleState st, IEnumerable<PlannedFileChange> changes)
+        public static JObj Room(DesignConsoleState st, IEnumerable<PlannedFileChange> changes, string profile = StorageSpec.NesModel)
         {
             var list = changes.ToList();
-            var room = Capacity.Input(new Dictionary<string, object> { ["source"] = "measured", ["free_bytes"] = st.FreeBytes, ["reserved_bytes"] = st.ReservedBytes, ["block_bytes"] = st.BlockBytes }, list);
+            var room = Capacity.Input(new Dictionary<string, object> { ["source"] = "measured", ["free_bytes"] = st.FreeBytes, ["reserved_bytes"] = st.ReservedBytes, ["block_bytes"] = st.BlockBytes }, list, profile);
             room["removed_after"] = list.Where(c => c.Op == "del").Select(c => (object)new Dictionary<string, object> { ["label"] = c.Path, ["allocated_bytes"] = StorageSpec.Rounded(c.OldBytes, st.BlockBytes) }).ToArray();
             return StorageSpec.Account(room);
         }
@@ -162,7 +164,8 @@ namespace CcsBackup.Engine
             st = null; backup = null;
             if (con.Profile != SessionProfile.Files) return (null, "The console is not in a file session.");
             var id = con.Identify();
-            var p = new DesignApplyPlan { Kind = kind, Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated };
+            var mw = ConsoleModels.RefusalFor(id, "addons") ?? ConsoleData.Refusal(id); if (mw != null) return (null, mw + " Nothing was changed.");
+            var p = new DesignApplyPlan { Kind = kind, Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated, Profile = id.Model?.Id ?? StorageSpec.NesModel };
             ctx.Say("protect", "Backing up the console as it is now, before anything changes...");
             var prot = CaptureEngine.Run(con, ctx);
             if (!prot.Ok || prot.Verification == null || !prot.Verification.Ok || !ConsoleIdentity.SameConsole(prot.Verification.Hwid, id.Hwid) || !prot.Verification.RestoreReady)
@@ -251,7 +254,7 @@ namespace CcsBackup.Engine
                 }
             }
             catch (InvalidDataException ex) { return (null, ex.Message + ". Nothing was changed."); }
-            var acct = Room(st, p.Changes);
+            var acct = Room(st, p.Changes, p.Profile);
             if (!(bool)acct["write_ok"]) return (null, Capacity.Why(acct, out _, out _) + " Nothing was changed.");
             p.Notes.Add("Only the HOME's appearance changes: saves, Game Settings and the HOME's other choices are not touched.");
             if (known != "none") p.Notes.Add("If the new design cannot be shown at a start, the console shows the design it shows now."); else p.Notes.Add("If the new design cannot be shown at a start, the console shows the theme as it comes.");

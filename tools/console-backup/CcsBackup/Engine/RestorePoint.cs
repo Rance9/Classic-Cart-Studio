@@ -33,6 +33,8 @@ namespace CcsBackup.Engine
     {
         public const string NoticeText = "Restoring returns this console to that restore point. Changes and saves made after it are not protected.";
         public string Hwid, ConsoleTag, Session, MadeUtc; public BoundArchive Archive; public DateTime EstablishedUtc; public bool Simulated;
+        /// <summary>the console model the point's backup and the console are (ConsoleModels: its saves' handling in Expert Mode)</summary>
+        public ConsoleModel Model = ConsoleModels.Nes;
         /// <summary>false when the console's storage table could not be read when the point was chosen (Developer Mode's test boot): a
         /// RecoveryConsole operation never accepts it then</summary>
         public bool LayoutChecked = true;
@@ -46,19 +48,21 @@ namespace CcsBackup.Engine
     {
         public const string UserFiles = "user-files", Kernel = "kernel", SystemPart = "system", Layout = "layout", BootStages = "boot-stages";
 
-        /// <summary>a verified backup of this console as the session restore point (null with the reason otherwise). Reads only.</summary>
-        public static (SessionRestorePoint point, string why) Establish(RecoveryConsole con, string backupPath, Func<bool> cancelled)
+        /// <summary>a verified backup of this console as the session restore point (null with the reason otherwise). Reads only. operation:
+        /// the mode it protects, as the console model's capability names it ("files": Expert Mode; "developer": Developer Mode)</summary>
+        public static (SessionRestorePoint point, string why) Establish(RecoveryConsole con, string backupPath, Func<bool> cancelled, string operation = "files")
         {
             if (string.IsNullOrEmpty(backupPath) || !File.Exists(backupPath)) return (null, "Choose a backup of this console to use as the restore point.");
             ConsoleIdentity id;
             try { id = con.Identify(); } catch (ConsoleRefusedException ex) { return (null, ex.Message); }
-            var mw = ConsoleModels.RefusalFor(id, "files"); if (mw != null) return (null, mw);
-            return EstablishFor(id.Hwid, con.Simulated, con.SessionId, id.Get("parttable") ?? "", backupPath, cancelled);
+            var mw = ConsoleModels.RefusalFor(id, operation) ?? ConsoleData.Refusal(id); if (mw != null) return (null, mw);
+            return EstablishFor(id.Hwid, con.Simulated, con.SessionId, id.Get("parttable") ?? "", backupPath, cancelled, operation, id.Model);
         }
 
         /// <summary>the same for a connection that knows the console only by its hardware id (Developer Mode's test boot: the console is in
-        /// its boot ROM's USB mode, its storage table cannot be read: parttableNow null). Reads only.</summary>
-        public static (SessionRestorePoint point, string why) EstablishFor(string hwid, bool simulated, string session, string parttableNow, string backupPath, Func<bool> cancelled)
+        /// its boot ROM's USB mode, its storage table and model cannot be read: parttableNow and consoleModel null). Reads only. The backup's
+        /// own model must allow the operation, and be the console's model when that is known.</summary>
+        public static (SessionRestorePoint point, string why) EstablishFor(string hwid, bool simulated, string session, string parttableNow, string backupPath, Func<bool> cancelled, string operation = "files", ConsoleModel consoleModel = null)
         {
             if (string.IsNullOrEmpty(backupPath) || !File.Exists(backupPath)) return (null, "Choose a backup of this console to use as the restore point.");
             var v = Verifier.VerifyFile(backupPath, null, cancelled);
@@ -66,7 +70,10 @@ namespace CcsBackup.Engine
             if (!ConsoleIdentity.SameConsole(v.Hwid, hwid)) return (null, "This backup belongs to a different console (console " + v.ConsoleTag + "). Another console's backup can be a source in Console Composer, but never this console's restore point.");
             if (v.Simulated != simulated) return (null, "A simulated console's backup and a real console are never mixed.");
             if (!v.RestoreReady) return (null, "This backup does not hold everything a restore needs, so it cannot be a restore point.");
-            var p = new SessionRestorePoint { Hwid = ConsoleIdentity.NormalizeHwid(hwid), ConsoleTag = ConsoleIdentity.HwidTag(hwid), Session = session, MadeUtc = v.Manifest.S("completed_utc"), EstablishedUtc = DateTime.UtcNow, Simulated = simulated, Archive = BoundArchive.From("session restore point", backupPath, v), LayoutChecked = parttableNow != null };
+            if (v.Model == null) return (null, "This backup does not name a console model this version supports, so it cannot be a restore point.");
+            if (consoleModel != null && v.Model != consoleModel) return (null, "This backup is of " + v.Model.Name + ", not of this console's model (" + consoleModel.Name + "): one kind of console's backup is never another kind's restore point.");
+            var ow = v.Model.Refusal(operation ?? "files"); if (ow != null) return (null, ow);
+            var p = new SessionRestorePoint { Hwid = ConsoleIdentity.NormalizeHwid(hwid), ConsoleTag = ConsoleIdentity.HwidTag(hwid), Session = session, MadeUtc = v.Manifest.S("completed_utc"), EstablishedUtc = DateTime.UtcNow, Simulated = simulated, Archive = BoundArchive.From("session restore point", backupPath, v), LayoutChecked = parttableNow != null, Model = v.Model };
             var layoutSame = parttableNow != null && v.Manifest.O("layout")?.S("partition_table") == parttableNow;
             var layoutOk = layoutSame || parttableNow == null;   // unknown here: the backup's own coverage, and Console Restore checks the layout when used
             if (layoutSame) p.Covers.Add(Layout);
@@ -98,11 +105,11 @@ namespace CcsBackup.Engine
         }
 
         /// <summary>Update Restore Point: a complete backup of the console now, in this session; on any failure the earlier point stays.</summary>
-        public static (SessionRestorePoint point, string why) Update(RecoveryConsole con, EngineContext ctx, SessionRestorePoint earlier)
+        public static (SessionRestorePoint point, string why) Update(RecoveryConsole con, EngineContext ctx, SessionRestorePoint earlier, string operation = "files")
         {
             var b = CaptureEngine.Run(con, ctx);
             if (!b.Ok || b.Verification == null || !b.Verification.Ok) return (earlier, "The new backup did not complete (" + (b.Problem ?? b.State) + "). Your earlier restore point is still the one in use.");
-            var (p, why) = Establish(con, b.PrimaryPath, ctx.Cancelled);
+            var (p, why) = Establish(con, b.PrimaryPath, ctx.Cancelled, operation);
             return p == null ? (earlier, why + " Your earlier restore point is still the one in use.") : (p, null);
         }
     }

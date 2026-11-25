@@ -124,7 +124,7 @@ namespace CcsBackup.Tests
 
             // ---- an SNES Classic system added and removed as a CCS Nucleus choice (simulated console)
             var s = SettingsIn(NewDir("system-image-console"), false);
-            var c = SmallConsole("modified", true); SetInstalled(c, Methods.Nucleus);
+            var c = SmallConsole("modified", true); SetInstalled(c, Methods.Nucleus, Methods.Chooser);
             var img = Path.Combine(dir, "My SNES dump.hsqs"); File.WriteAllBytes(img, xzImg);
             var kimg = Path.Combine(dir, "kernel_snes.img"); File.WriteAllBytes(kimg, Kernel());
             var (pk, rk) = FirmwareEngine.Prepare(RecoverySessions.OpenSimulated(c, ImageKind.Firmware), Ctx(s, ImageKind.Firmware), "add", null, null, kimg);

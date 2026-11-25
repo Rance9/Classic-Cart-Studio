@@ -21,6 +21,8 @@ namespace CcsBackup.Ui
         /// <summary>Console Browser's read answers, delivered on the reader thread (a waiting read never depends on the window's thread)</summary>
         public event Action<Dictionary<string, object>> RangeData;
         public event Action<int> Exited;
+        /// <summary>each request as it is sent (on the thread that sends it): the window notes the person's quit, which ends the session</summary>
+        public event Action<JObj> Sending;
         public bool Running => !p.HasExited;
         public int Pid => p.Id;
 
@@ -65,6 +67,7 @@ namespace CcsBackup.Ui
 
         public void Send(JObj req)
         {
+            Sending?.Invoke(req);
             lock (sendLock) { try { if (!p.HasExited) input.WriteLine(CcsBackup.Engine.WorkerHost.RequestLine(req)); } catch { } }
         }
         public void Cancel() => Send(new JObj { { "cmd", "cancel" } });

@@ -25,11 +25,11 @@ CCS HOME is separate from the console's original menu. Setting it up is your cho
 
 ## Console tasks in this version
 
-! In this version, Workbench only reads a real console. **Back Up Console** and the **Console Browser** check-up are available: they run a small program in the console's memory and read the console; nothing on it changes. The tasks that change a console are turned off for a real console: Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, add-on changes, Your System Images, Community Mods changes, Expert Mode and Developer Mode. Their pages say so, and if you start one, Workbench shows **Not available in this version** and starts nothing: no console connection, no USB driver check, nothing written. Setting up the USB driver on this PC is turned off too: a console task uses a driver this PC already has for the console, such as the one Hakchi2 CE set up.
+! Every console task works with a real console in this version: **Back Up Console**, the **Console Browser** check-up, Restore, Prepare Console, Return to Original Software, Console Rescue, Console Composer, CCS Mod and CCS Nucleus, Your System Images, Community Mods, Expert Mode and Developer Mode. Backing up and the check-up only read the console. A task that changes the console first checks which console is connected, backs it up as its rules require, and shows you exactly what will change; nothing is written until you confirm. If this PC has no USB driver for the console, Workbench can set one up with your permission. See [Connect Your Console](#connect).
 
-For the SNES Classic Mini (North America and Europe), this version backs up the console and checks it (Console Browser): the same reads as for the NES Classic Mini. Restoring its own backups to it is turned off, like every change to a real console, and its other console tasks are not available for it in this version: with the SNES Classic Mini chosen at the top of the window, their pages say so and start nothing (no console connection, no USB driver check, nothing written). Backup Browser and Backup Repair work the same whichever console is chosen.
+For the SNES Classic Mini (North America and Europe), every console task works as it does for the NES Classic Mini: Back Up Console, the Console Browser check-up, restoring its own backups, Prepare Console, Return to Original Software, Console Rescue, Console Composer, CCS Mod and CCS Nucleus, system images, community mods, Expert Mode and Developer Mode. Each task reads the console's own board and region first and works with the console it finds, whichever console is chosen at the top of the window. The tasks that change a console have not all been tried on real consoles yet, on either console, and a European SNES Classic Mini is handled by the same rules but has not been tried. Backup Browser and Backup Repair work the same whichever console is chosen.
 
-You can still open every console page in this version and read what each task will do.
+You can open every console page without a console connected and read what each task will do.
 
 ## Your first steps
 
@@ -76,13 +76,13 @@ For the parts of the window, see [The Workbench Window](#window). Words you may 
 
 The Dashboard is the first page Workbench shows, and the first entry in the side column. Opening it never connects to a console and never starts a task.
 
-[shot 00-dashboard | The Dashboard with sample backups: one not checked yet, one damaged and one whose file check passed.]
+[shot 00-dashboard | The Dashboard with sample backups: one not checked, one damaged and one verified.]
 
 ## Start here
 
 **Start here** is the first thing to do: **Back Up Console**, with what a backup copies. Under it, a short line says that Workbench connects to a console only when you start a console task, and that backups already on this PC can be browsed, checked and repaired without a console or a USB driver.
 
-With the SNES Classic Mini chosen at the top of the window, the Dashboard's tasks are the same: a task that is not available for it in this version says so when you open it, before anything starts.
+With the SNES Classic Mini chosen at the top of the window, the Dashboard's tasks are the same, and each one works with an SNES Classic Mini.
 
 ## The console line above the Dashboard
 
@@ -91,17 +91,21 @@ The console line at the top of the window, above every page, names the console f
 | What it says | What it means |
 | Console not checked | No console task has run since Workbench opened. |
 | Console not identified yet · session open | A console task has started, but has not yet worked out which console is connected. |
-| Console 73f23039, identified at 2:12 PM · session open | A console task is working with that console now. |
-| Console 73f23039, identified at 2:12 PM · session ended | The latest task identified that console and has finished. |
+| NES Classic (1) · Console 73f23039, identified at 2:12 PM · session open | A console task is working with that console now. It is shown as soon as the task has identified the console, before anything is read from it. |
+| NES Classic (1) · Console 73f23039, identified at 2:12 PM · session ended | The latest task identified that console and has finished. |
 | The last session ended before identifying a console | The latest task ended before it could tell which console it was. If an earlier task identified one, it is shown underneath as Earlier session. |
 
 A label such as Console 73f23039 is a short name worked out from the console's own hardware ID. It keeps backups of different consoles apart without showing the full ID. Workbench names a console only when the current task identified it; an earlier console is never shown as the one connected now.
+
+Each console Workbench identifies also gets a friendly name, such as **NES Classic (1)** or **SNES Classic (2)**: the first console of a kind is (1), the next one (2), and a console keeps its number, also when you connect your consoles one at a time. Choose the pencil beside the name (**Rename Console**) to give the console a name of your own, such as Living Room; the kind of console stays shown beside it. A name is only a label on this PC: it never changes the console or its backups, and Workbench never uses it to recognize a console. Names are kept with your settings (see [Settings](#settings)); a simulated console's name is kept only until Workbench closes.
 
 Workbench connects to a console only when you start a console task and follow its steps. **About This Console**, at the right of the console line, opens a window about the console Workbench works with; your page stays as it is. See [About This Console](#about-console).
 
 [shot 00e-dashboard-console-seen | The console line after a task identified a sample console and ended.]
 
 [shot 00e2-dashboard-earlier-session | The console line when the latest task ended before identifying a console, with the earlier console shown beside it.]
+
+[shot 00e3-rename-console | Rename Console for a sample console: a name of your own typed over its usual name, NES Classic (1).]
 
 ## Tasks on the Dashboard
 
@@ -118,16 +122,16 @@ Workbench connects to a console only when you start a console task and follow it
 
 ## Recent backups
 
-Up to four of your newest backups are listed, newest first. Each row shows when the backup was made, which console it came from, its size, and when its file last passed a check. If an additional copy was kept, the row says so. The label on the right shows the file's state:
+Up to four of your newest backups are listed, newest first. Each row shows when the backup was made, which console it came from, its size, and its last full check. If an additional copy was kept, the row says so. The label on the right shows what a full check of the file found:
 
 | Label | What it means |
-| Complete · file check passed | The file passed a full check on this PC. |
-| Complete · not checked yet | The backup finished, but its file has not passed a check on this PC yet. |
-| Changed since its last check | The file has changed since it last passed a check. Check it again. |
-| Damaged · some files can be saved | The file did not pass its check, but some of its files still match their checksums. |
-| Damaged | The file did not pass its check. |
-| Incomplete: not a backup | The backup did not finish. Nothing in this file is used. |
-| File not found | The file is no longer where it was saved. |
+| Verified | The whole file passed a full check, and it has not changed since. The line under the date says when: **Last full check**, either when the backup was made or later on this PC. |
+| Not checked | No full check of this file is recorded here. A file copied in from another folder starts this way, and so does a file whose check was recorded with other backup locations. **Check the File** runs one. Reading the file's own description is not a check. |
+| Changed since last check | The file has changed since its last full check. Check it again before you rely on it. |
+| Damaged: some files can still be saved | The file did not pass its last full check, but some of its files still match their checksums. |
+| Damaged | The file did not pass its last full check. |
+| Incomplete | The backup did not finish. Nothing in this file is used. |
+| Missing | The file is no longer where it was saved. |
 
 Each row has the buttons that fit its state:
 
@@ -138,7 +142,7 @@ Each row has the buttons that fit its state:
 
 The list only reads file names, Workbench's records and a small description inside each file. It never runs a new check by itself.
 
-! A passed file check means the file was intact when it was checked. It is not a test of restoring it to a console.
+! Verified means the whole file passed a full check: it was intact when it was checked. Not checked means no full check of it is recorded here. Neither is a test of restoring it to a console.
 
 ## When no backups are listed
 
@@ -163,7 +167,7 @@ The Dashboard looks and works the same when Classic Cart Studio for Windows open
 
 ## Getting back
 
-Choose **Dashboard** at the top of the side column whenever no console task is running. Pressing Escape on the Dashboard keeps you on the Dashboard.
+Choose **Dashboard** at the top of the side column at any time, also while a console task runs: the task goes on, and **Return to Task** in the status line at the bottom brings you back to it. **Back** and **Forward**, the arrows at the left of the console line, return to the pages you opened before and after. Pressing Escape on the Dashboard keeps you on the Dashboard.
 
 @end
 
@@ -174,14 +178,14 @@ Choose **Dashboard** at the top of the side column whenever no console task is r
 
 Every console task (a backup, a check-up, a restore or a change) talks to the console over its USB cable while the console is in its recovery mode. In recovery mode, a small program runs from the console's memory. Connecting does not install anything on the console.
 
-! In this version, only Back Up Console and the Console Browser check-up connect to a real console, and they only read it. A task that changes a console shows **Not available in this version** and starts nothing. Setting up the USB driver on this PC is turned off: a console task uses a driver this PC already has for the console; if it has none, Workbench says so and changes nothing. See [Start Here](#start).
+! Backing up and checking only read the console. A task that changes the console shows exactly what it changes and asks you to confirm before anything is written. If this PC has no USB driver for the console, Workbench offers to set one up first and asks before it changes anything on this PC. See [Start Here](#start).
 
 ## What you need
 
 - The console and its USB cable.
 - A free USB port on this PC.
 - The TV connected to the console, so you can see its screen.
-- A USB driver for the console on this PC. In this version Workbench uses one this PC already has, such as the one Hakchi2 CE set up; setting one up is turned off, and if there is none Workbench says so and changes nothing.
+- A USB driver for the console on this PC. Workbench uses one this PC already has, such as the one Hakchi2 CE set up. If there is none, it offers to set up its own, with your permission (see below).
 
 ## Start the NES Classic Mini in recovery mode
 
@@ -196,7 +200,7 @@ These steps are the same for the NES Classic Mini and the SNES Classic Mini. Eac
 
 Test Boot in Developer Mode is different: no Classic Cart Studio screen appears, and the console waits for this PC until you confirm the test boot. See [Developer Mode](#developer).
 
-Keep the USB cable connected and this PC on until the task finishes. While a console task runs, the other pages in the side column are locked; they open again when it finishes or is canceled. Only one console task can run at a time. If another one is already running, in this window, another Workbench window or Classic Cart Studio, Workbench asks you to wait for it to finish.
+Keep the USB cable connected and this PC on until the task finishes. While a console task runs you can open other pages: the task goes on, and nothing about it is canceled, started again or repeated. The status line at the bottom says what the task is doing, and **Return to Task** brings back its page: its progress, a question waiting for your answer, or its result. Only one console task can run at a time. If another one is already running, in this window, another Workbench window or Classic Cart Studio, Workbench says so where the new task would start (with **Return to Task** when it is this window's own) and asks you to wait for it to finish.
 
 ## When the task is done
 
@@ -218,9 +222,20 @@ If this PC has no driver for the console, the **USB driver setup required** page
 3. Nothing else is installed, nothing is installed on the console, and no other driver or certificate is replaced or removed.
 4. Windows keeps its own record of the setup in its logs. Removing the driver later does not erase that record.
 
-Setup needs administrator permission. In this version the page ends with **Setting up or removing the USB driver on this PC is not available in this version. Nothing on this PC was changed.** Choose **Back** to leave the page.
+Under **What this PC needs**, the page says what the setup needs and whether this PC has it. Workbench reads these before it offers the setup; reading changes nothing.
 
-[shot 55-driver-setup | The USB driver setup required page, listing what setup would change on this PC.]
+| Need | What it means |
+| Administrator permission | Windows asks once, in its permission prompt. If your Windows account is not an administrator, Windows asks for an administrator's name and password. If Workbench already has administrator permission, Windows does not ask again. |
+| A copy of Workbench made for this PC | Windows sets up drivers only from a program made for the PC's own processor. On an Arm-based PC, use the Arm64 download of CCS Console Workbench. |
+| Device installation allowed | Some PCs, often work or school PCs, have a policy that does not allow setting up some devices. If such a policy names the console's USB identity, its kind of device, removable devices or all devices, the setup cannot run on this PC. |
+| Windows accepts the setup's certificate | The setup adds a certificate it makes for this PC, and Windows checks the driver package with it. If this PC lets only its organization's administrators decide which publishers Windows trusts, Windows would not accept it, and the setup is not offered. |
+| Driver signature enforcement and Secure Boot | Not changed and not needed. The package holds no driver program of its own: Windows' own WinUSB driver, which Microsoft signs, does the work. |
+
+Choose **Set Up Driver** to go ahead. Windows asks for administrator permission, Workbench sets up its driver package, then reads this PC's driver list again and says what it found. If you refuse Windows' prompt, nothing is changed. If Windows refuses the package, Workbench takes back its certificate, says what Windows reported, and changes nothing else.
+
+If a need is not met, the page is titled **The USB driver cannot be set up on this PC**. It names the need and what it means, and offers no setup. Workbench never changes a policy, a trust setting or driver signature enforcement. Someone who manages the PC can allow the console's USB identity, or set up a driver for it that the PC accepts. Choose **Back** to leave the page.
+
+[shot 55-driver-setup | The USB driver setup required page, listing what setup would change on this PC and what this PC needs.]
 
 ## When the driver cannot be used
 
@@ -315,13 +330,19 @@ Workbench works with several kinds of files. They are different things, and none
 @topic window
 @title The Workbench Window
 @pages
-@summary The parts of the window: the side column, the console line at the top, the status line at the bottom and the window buttons.
+@summary The parts of the window: the side column, Back and Forward, the console line at the top, the status line at the bottom and the window buttons.
 
 ## The side column
 
 The side column on the left lists every part of Workbench. **Dashboard** is at the top. Under it are the groups **Console Operations**, **Backup Files**, **Advanced** and **Settings and Help**. Choose an entry to open its first page. The entry you are in is marked.
 
-While a console task runs, the other entries are locked; they open again when the task finishes or is canceled.
+Every entry can be chosen at any time, also while a console task runs and while the console's files are open in Console Browser. The task goes on; **Return to Task** in the status line brings it back. When the page you are on holds something that would be lost, such as choices in a setup you have not finished or text you typed and did not use, Workbench asks first and names it: **Stay Here** keeps the page as it is, **Leave Setup** or **Leave Without Saving** lets it go. Work that is kept anyway, such as an open HOME design or your settings, is never asked about.
+
+## Back and Forward
+
+The two arrows at the left of the console line go back to the page you were on before, and forward again. Alt+Left and Alt+Right, and a mouse's back and forward buttons, do the same. A page comes back as you left it where it can: an open backup with its view, search and chosen files, the Help topic you were reading, and the place you had scrolled to. An arrow is dimmed when there is no page that way.
+
+Only pages you can open by themselves are on the way back: a task's progress, a review, a result or a message never is, so Back and Forward never start, confirm or repeat a task, and never reopen a console session that has ended. A guided setup's own **Back** and **Next** buttons stay separate from the arrows. On the Help page, Alt+Left first goes back through the Help topics you read.
 
 ## The wordmark
 
@@ -332,18 +353,22 @@ A red outline around a button or picture shows where the keyboard is: it appears
 ## The console line at the top
 
 | Part | What it does |
-| Console | The console family Workbench works with: **NES Classic Mini — North America / Europe** or **SNES Classic Mini — North America / Europe**. Choosing one never connects to or checks a console, and never changes a console a task already identified. When the window is narrow, **Help on This Page** and **About This Console** move to a line of their own so the console's whole name stays visible. See [About This Console](#about-console). |
-| The status beside it | What the latest console task found: **Console not checked**, **Console not identified yet · session open**, or a console label such as Console 73f23039 with when it was identified. A console an earlier task found is shown apart, as **Earlier session**. |
+| Back and Forward | The arrows at the left: the page you were on before, and forward again (see Back and Forward above). |
+| Console | The console family Workbench works with: **NES Classic Mini — North America / Europe** or **SNES Classic Mini — North America / Europe**. Choosing one never connects to or checks a console, and never changes a console a task already identified. When the window is narrow, this choice moves to a second line under the arrows, and **Help on This Page** and **About This Console** move to a line of their own when needed, so nothing is cut off. See [About This Console](#about-console). |
+| The status beside it | What the latest console task found: **Console not checked**, **Console not identified yet · session open**, or the console's friendly name and label, such as NES Classic (1) · Console 73f23039, with when it was identified. A console an earlier task found is shown apart, as **Earlier session**. |
+| Rename Console | The pencil beside a console's name: gives it a name of your own. The name is a label on this PC only. |
 | Help on This Page | Opens the Help for the page you are on, in the Help window beside Workbench. F1 does the same. |
 | About This Console | Opens the About This Console window. |
 
 ## The status line at the bottom
 
-The line at the bottom of the window says what Workbench is doing now: **No task running**, a task running on this PC or with the console, or a console session that is still open. When a newer version of Workbench is published, **Update available** appears at its right: choose it to open [About Workbench](#about-app).
+The line at the bottom of the window says what Workbench is doing now: **No task running**, a task running on this PC or with the console, or a console session that is still open. While you are on another page than a console task's, it says what the task is doing and shows **Return to Task**, which brings back the task's page as it is now: its progress, a question waiting for you, the console's files or its result. When a newer version of Workbench is published, **Update available** appears at its right: choose it to open [About Workbench](#about-app).
+
+[shot 00w2-return-to-task | The Dashboard while a sample backup runs: the status line says the backup is still running, with Return to Task.]
 
 ## The title bar
 
-The title bar names Workbench and the version you are running, for example **CCS Console Workbench — v0.11.4 (Preview)**. **(Preview)** marks a preview version. Workbench shows its own version in the title bar however it was opened, also from Classic Cart Studio.
+The title bar names Workbench and the version you are running, for example **CCS Console Workbench — v0.11.11 (Preview)**. **(Preview)** marks a preview version. Workbench shows its own version in the title bar however it was opened, also from Classic Cart Studio.
 
 ## The window buttons
 
@@ -383,11 +408,11 @@ Choose the Classic Cart Studio wordmark at the top of the side column to open th
 
 ## While a task runs
 
-A progress page shows what the task is doing, a progress bar and the time so far. A task that writes to a console shows **Stop After This Part** or **Stop After This Step**: the part being written is finished and checked first, and then the task stops. A task that only reads shows **Cancel**, which stops at once.
+A progress page shows what the task is doing, a progress bar and the time so far. The time counts every second, also while the console is busy and has nothing new to report, and it is right when you come back to the page from another one; it stops when the step ends. The amounts and the bar only ever show what the task reported. A task that writes to a console shows **Stop After This Part** or **Stop After This Step**: the part being written is finished and checked first, and then the task stops. A task that only reads shows **Cancel**, which stops at once.
 
 [shot 54-progress | A progress page with its progress bar and its stop button.]
 
-A task on this PC, such as checking a backup file, keeps going if you open another page; the status line at the bottom says when it finishes.
+A task on this PC, such as checking a backup file, keeps going if you open another page; the status line at the bottom says when it finishes. A console task keeps going too, and **Return to Task** in the status line brings back its page.
 
 ## Messages
 
@@ -422,7 +447,7 @@ When you close the window (with **Close**, its X or Escape) after choosing a dif
 
 Choosing the same console as before, or going back to it, closes the window without asking; so does **Use Selection** with the current console in **Use console**. While a console task or session is open, Workbench cannot change the console it works with: the window says so, and you can keep reading. If the page you are on has changes that are not saved, its own question comes first.
 
-This version knows two console families: the NES Classic Mini and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. For the SNES Classic Mini, this version backs it up and checks it; restoring its own backups to it is turned off, like every change to a real console, and its other console tasks are not available for it yet.
+This version knows two console families: the NES Classic Mini and the SNES Classic Mini, each for North America and Europe. The information at the top of this topic is for the console chosen at the top of the window; choose the other one in **Console to read about** to read about it. They are different consoles: Workbench never puts one kind of console's backup or startup software on a console of the other kind. A system image you add as a choice in CCS Nucleus is a separate thing: it is one of the menus the console can start, never the console's own startup software or its backup. Every console task works with the SNES Classic Mini too.
 
 [shot 59-about-console | The About This Console window, on the NES Classic Mini.]
 
@@ -437,7 +462,7 @@ A system image and startup software are different things:
 - **A system image** (a .hsqs file) is a console's system: its own software and built-in games. With CCS Nucleus, a system image you supply, for example one from your own 2016 NES Classic, can be added as one of Nucleus's choices. See [Your System Images](#firmware).
 - **Startup software** (the kernel) is what the console's circuit board loads first; a system image does not replace it. A restore puts a console's own backup back on that same console, and Console Rescue repairs a console only from its own backup. Some steps replace a console's startup software on purpose and say so before you confirm: preparing a console replaces its startup software and bootloader, and a change you review in Developer Mode can replace its startup software. Return to Original Software puts back Nintendo's startup software and the console's own bootloader.
 
-To add a 2016 system image with CCS Nucleus you need: a console with CCS Nucleus and its startup chooser (Prepare Console, or Add-ons and Startup in Console Restore), the system image file from your own console on this PC, and enough free room on the console. Workbench checks the file before anything is written. It never supplies, links to or downloads a system image.
+To add a 2016 system image with CCS Nucleus you need: a console with CCS Nucleus (Prepare Console, or Add-ons and Startup in Console Restore; when its startup chooser is not there yet, adding the image adds it in the same change), the system image file from your own console on this PC, and enough free room on the console. Workbench checks the file before anything is written. It never supplies, links to or downloads a system image.
 
 ! Workbench reads each console's own storage layout before any task and refuses one it does not know.
 
@@ -447,7 +472,7 @@ To add a 2016 system image with CCS Nucleus you need: a console with CCS Nucleus
 
 @topic backup
 @title Back Up Your Console
-@pages backup-home, backup, result
+@pages backup-home, backup, backup-name, result
 @summary Make a complete, checked copy of your console's built-in storage on this PC, and see every backup you have made.
 
 A console backup is one file on this PC that holds everything on the console's built-in storage, exactly as stored. Making a backup only reads the console. Nothing on it changes.
@@ -479,7 +504,7 @@ Open **Console Backup** in the side column. It has two cards and the list of you
 | Open Folder | Shown for the selected backup. Opens its folder in File Explorer with the file selected. |
 | Restore This Backup… | Shown for a selected backup that is complete. Opens its restore review. |
 
-The states in the list are **Complete · checked**, **Complete · checked, with an additional copy**, **Complete · not checked yet**, **Incomplete: not a backup** and **Damaged**. If both copies of a backup are on the same drive, its row says that this protects against a damaged file, not against losing the drive.
+The states in the list are the same as on the Dashboard: **Verified** (or **Verified, with an additional copy**), **Not checked**, **Changed since last check**, **Damaged**, **Incomplete** and **Missing**, with the last full check under each date. If both copies of a backup are on the same drive, its row says that this protects against a damaged file, not against losing the drive.
 
 [shot 01-backup-home | The Console Backup page with two sample backups in Your Backups.]
 
@@ -491,15 +516,20 @@ The states in the list are **Complete · checked**, **Complete · checked, with 
 2. Read **What is backed up** and **Where it is saved**. To change the folder, choose **Edit in Settings** beside it: Settings opens at **Backup locations**, ready for typing in the backup location's box. **Back to Back Up Console**, at the top of Settings, brings you back here, where the new folder shows.
 3. Start the console in recovery mode, as the **Connect the console** steps show. See [Connect Your Console](#connect).
 4. Choose **Start Backup**.
-5. Keep the USB cable connected while the progress page shows what is being read. See [Progress and Messages](#progress).
-6. When it finishes, read the result.
+5. Workbench identifies the console, and the console line shows its name. Before anything is read, **Name the Backup** suggests a name for the backup file: the console's friendly name with the date and time, such as NES Classic (1) Backup 2026-11-24 1405. Press Enter or choose **Start Backup** to use it, or type your own first. **Cancel** stops here: nothing was read and no file is made.
+6. Keep the USB cable connected while the progress page shows what is being read. See [Progress and Messages](#progress).
+7. When it finishes, read the result.
+
+The backup's name is only its file's name, used for the additional copy too. Characters Windows does not allow in a file name become a dash, and if a file with that name is already in the folder, Workbench adds a number such as (2): it never replaces a file. The backup's own record of the console is the same whatever it is called, and renaming the console later does not rename backups you already have.
+
+[shot 02c-backup-name | Name the Backup for a sample console: the suggested name and the file it is saved as. Nothing has been read yet.]
 
 [shot 02-backup-start | The Back Up Console page: what is backed up, where it is saved and how to connect the console.]
 
 | Button | What it does |
 | Edit in Settings | Beside the folder under **Where it is saved**: opens Settings at **Backup locations**, where you choose where new backups are saved. A new folder is used for new backups only; backups already saved stay where they are. |
 | Technical details | Shows what the backup file holds. Copy Details copies that text. |
-| Start Backup | Starts the backup. If this PC has no USB driver for the console, Workbench says so and changes nothing (setting one up is turned off in this version). |
+| Start Backup | Starts the backup. If this PC has no USB driver for the console, Workbench first offers to set one up, and asks before it changes anything on this PC. See [Connect Your Console](#connect). |
 | Back | Returns to the Console Backup page. Escape does the same. |
 | Cancel, while backing up | Stops at once. Nothing on the console changes. The unfinished file is kept and marked Incomplete. |
 
@@ -533,7 +563,7 @@ Checked means the file is intact. Restoring it to the console is a separate step
 | The backup could not start | Workbench could not start it. The page says why. |
 | The backup ended unexpectedly | The program doing the backup stopped before it finished. |
 | Another console operation is running | Wait for the other task to finish, then try again. |
-| Not available in this version | This version cannot back up that console. The page says why. |
+| Not available in this version | This version does not back up that kind of console. The page says why, and nothing was started. |
 
 In each case nothing on the console was changed. An unfinished file is kept and listed as Incomplete; it is never used as a backup. Choose **Done** to return.
 
@@ -550,6 +580,7 @@ In each case nothing on the console was changed. An unfinished file is kept and 
 - Its built-in storage is 537 MB, as on the NES Classic Mini, divided into five parts of other sizes; a North American console's backup is about 994 MB.
 - Its startup software is recognized as Nintendo's original only when it is one of Nintendo's releases for that console's own region (Hakchi2 CE 3.9.3's lists for North America and for Europe).
 - Its saves and suspend points are kept and exported exactly as they are; Workbench converts none of them.
+- Preparing it, returning it to its original software and repairing its startup stages work on the same parts as on the NES Classic Mini. Workbench first checks that its storage table has the system on nandb and the data storage on nandc, where hakchi's own installation finds them, and changes nothing on a console whose table says otherwise.
 
 @end
 
@@ -588,9 +619,9 @@ From Console Backup, the result has its own page:
 
 Choose **Back**, or press Escape, to return.
 
-Each backup's row shows **Last passed file check** with its date. A backup copied here from somewhere else is remembered once it passes a check.
+Each backup's row shows **Last full check** with its date, and **Verified** while the file is unchanged since. A backup copied here from somewhere else shows **Not checked** until a full check of it is recorded here. Checks are recorded with your backup locations, so a check made with other settings is not shown here; the row then says no full check is recorded here, not that the file was never checked.
 
-! A passed file check means the file was intact when it was checked. It is not a test of restoring it to a console.
+! Verified means the whole file passed a full check: it was intact when it was checked. It is not a test of restoring it to a console.
 
 ## Check backups on a schedule
 
@@ -688,7 +719,7 @@ The progress page says **Do not unplug the console.** **Stop After This Part** f
 | Nothing to restore | The console already matches this backup. |
 | Restore canceled | The restore was canceled. The page says what happened. |
 | The restore could not continue | The page says why. |
-| Not available in this version | Restoring a real console is turned off in this version. |
+| Not available in this version | This version does not restore that kind of console. The page says why, and nothing was started. |
 
 [shot 09-restore-result-ok | Restore complete, with the location of the backup made just before.]
 
@@ -718,9 +749,9 @@ The progress page says **Do not unplug the console.** **Stop After This Part** f
 @pages prepare, prep-plan
 @summary Set your console up with Hakchi2 CE 3.9.3's foundation and the add-ons you choose: CCS Mod (CCS HOME) and CCS Nucleus.
 
-Prepare Console sets your console up with the foundation Classic Cart Studio's add-ons run on, from Hakchi2 CE 3.9.3; no other program is needed. Then it adds the add-ons you choose: **CCS Mod**, which adds CCS HOME, the game menu Classic Cart Studio puts on the console, and **CCS Nucleus**, which chooses what opens when the console is turned on. In this version CCS HOME is made for the NES Classic Mini. Nintendo's HOME, its built-in games and their saves stay. A console that is already prepared this way keeps its foundation; only the add-ons you choose are added.
+Prepare Console sets your console up with the foundation Classic Cart Studio's add-ons run on, from Hakchi2 CE 3.9.3; no other program is needed. Then it adds the add-ons you choose: **CCS Mod**, which adds CCS HOME, the game menu Classic Cart Studio puts on the console, and **CCS Nucleus**, which chooses what opens when the console is turned on. CCS HOME plays NES games, on the NES Classic Mini and on the SNES Classic Mini alike. Nintendo's HOME, its built-in games and their saves stay. A console that is already prepared this way keeps its foundation; only the add-ons you choose are added.
 
-! For the SNES Classic Mini, this task is not available in this version: preparing it with hakchi needs hakchi's kernel built with its own system key and a check of what preparation changes on it. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini (North America and Europe), this task is available too, with the same pinned Hakchi2 CE 3.9.3 files. Workbench reads the console's own board and region first and recognizes its original startup software only as one of Nintendo's releases for that region. Hakchi's kernel gets the console's own key from the console itself, and the console's 21 built-in games and their saves stay.
 
 Open it from **Console Composer**: choose **Start Fresh** on the **Start Fresh with Classic Cart Studio** card.
 
@@ -785,7 +816,7 @@ It starts with the same plain summary as every add-on review (CCS HOME, Original
 | Already prepared | Nothing needed to change. |
 | The preparation stopped partway | A step failed. The steps after it were not done, and nothing was retried. |
 | Canceled | The preparation was canceled. |
-| Not available in this version | Preparing a real console is turned off in this version. |
+| Not available in this version | This version does not prepare that kind of console. The page says why, and nothing was started. |
 
 Choose **Restart the Console** to start it normally, or **Done** to return.
 
@@ -817,7 +848,7 @@ If preparing stops partway, do not run it again straight away. Back up the conso
 
 After Workbench has checked the console, two pages ask what you want. They open in **Prepare Console** and in Console Restore's **Add-ons and Startup**, and they start from what the console has now. A suggestion never removes anything: only your own choice does, and the review shows it before anything is written.
 
-! For the SNES Classic Mini, these tasks are not available in this version: CCS Mod and CCS Nucleus need the console prepared with hakchi first, and preparing it is not available yet.
+! For the SNES Classic Mini, these pages work the same way: CCS Mod and CCS Nucleus are offered for an SNES Classic Mini too.
 
 ## Choose your add-ons
 
@@ -874,7 +905,7 @@ The console stays connected while you choose. If you take more than 10 minutes, 
 
 On a console prepared with Hakchi2 CE 3.9.3, CCS Mod and CCS Nucleus are separate add-ons: you can have either one, both or neither.
 
-! For the SNES Classic Mini, this task is not available in this version: CCS Mod and CCS Nucleus need the console prepared with hakchi first, and preparing it is not available yet. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is available too: CCS Mod and CCS Nucleus work on an SNES Classic Mini prepared with hakchi.
 
 | Add-on | What it is |
 | CCS Mod — CCS HOME | A menu for your game collections, opened from its tile in Original Menu. It adds nothing that runs when the console is turned on. |
@@ -937,7 +968,6 @@ While it writes, **Stop After This Step** finishes the step in progress, then st
 
 The backup made just before is kept, and its location is shown. Choose **Restart the Console** or **Done**.
 
-In this version, with a real console, the result says that changing add-ons on a real console is not available in this version, and nothing is written.
 
 [shot 19-method-result | Change scheduled for the next start, with the backup made just before.]
 
@@ -961,7 +991,7 @@ In this version, with a real console, the result says that changing add-ons on a
 
 Return to Original Software undoes Classic Cart Studio's preparation of your console. It is not a factory reset: it brings back the console as it was just before it was prepared.
 
-! For the SNES Classic Mini, this task is not available in this version: returning it to its original software needs its preparation and its own replacement-bootloader evidence. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini (North America and Europe), this task is available too, for a console Classic Cart Studio prepared. It puts back Nintendo's original kernel for that console's region and the console's own bootloader, exactly as the backup made before preparing holds them; then Console Restore puts back its storage, with its 21 games and their saves.
 
 ! This changes the console's startup software, bootloader, storage table and data storage. You review every step first.
 
@@ -1004,6 +1034,8 @@ The review lists the steps in order:
 
 Your two backups are bound to this return: the one made before preparing and the one made just now.
 
+The spare slot keeps its copy of the original Nintendo kernel after the return, as a safety copy. A returned console can be prepared again with Prepare Console: that copy stays as it is.
+
 | Button | What it does |
 | I understand box | Tick it to turn on Return Now. |
 | Return Now | Writes the steps, each once, and reads each back. |
@@ -1019,7 +1051,7 @@ Your two backups are bound to this return: the one made before preparing and the
 | The return stopped partway | A step failed. The steps after it were not done, and nothing was retried. |
 | Canceled | The return was canceled. |
 | The return could not continue | The page says why. |
-| Not available in this version | Returning a real console to its original software is turned off in this version. |
+| Not available in this version | This version does not return that kind of console to its original software. The page says why, and nothing was started. |
 
 | Button | What it does |
 | Restore the Backup Made Before Preparing… | Opens the restore review for that backup, the second part of the return. |
@@ -1045,7 +1077,7 @@ If a return stops partway, do not run it again straight away. Back up the consol
 
 Console Rescue is for a console that no longer starts because one of its startup stages is damaged. It writes this console's own copy of that stage back from one of its backups. It changes the console only after you confirm.
 
-! For the SNES Classic Mini, this task is not available in this version: repairing its startup stages needs its own boot0 and boot1 references, read from a genuine console of this model. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini (North America and Europe), this task is available too. A startup stage is written only from a backup of that same SNES Classic Mini: another console's backup, and an NES Classic Mini's, is never used.
 
 It is not the same as Backup Repair: Backup Repair fixes a backup file on this PC and never touches a console. See [Repair a Backup File](#backup-repair).
 
@@ -1106,7 +1138,7 @@ For each stage, the review says what it is like now (it differs from your backup
 | Canceled | The rescue was canceled. |
 | The repair did not complete | The page says why. Nothing is retried. |
 
-In this version, with a real console, the result says that repairing a real console's startup stages is not available in this version, and nothing is written. Choose **Done** to return to Console Rescue.
+Choose **Done** to return to Console Rescue.
 
 [shot 23-rescue-result | Repaired and read back, with what to do next.]
 
@@ -1130,7 +1162,7 @@ In this version, with a real console, the result says that repairing a real cons
 
 Console Composer sets up your console from your own backups and files. Each setup changes the console: you review it first, and the console is backed up before anything is written. Open **Console Composer** in the side column.
 
-! For the SNES Classic Mini, this task is not available in this version: moving data between consoles needs two consoles of this model and its own data plan. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is available too. Console Composer moves data only between consoles of the same kind: an SNES Classic Mini's data never goes to an NES Classic Mini, or the other way around.
 
 [shot 24-composer | The Console Composer page, with its setup cards and its designs, system images and packages cards.]
 
@@ -1218,7 +1250,6 @@ While it writes, **Stop After This File** finishes the file being written, then 
 
 The backup made just before is kept, and its location is shown. Choose **Restart the Console** or **Done**.
 
-In this version, with a real console, the result says that composing a real console is not available in this version, and nothing is written.
 
 [shot 28-compose-result | Changes written and checked: three files were written and read back.]
 
@@ -1361,7 +1392,7 @@ Your games, saves, the console's own pictures of each game and anything else sta
 
 **Put Them Back…** on the result page, or beside a removal under **Put back pictures removed earlier**, puts exactly the removed files back from the backup made before the removal. Workbench first backs up the console as it is now. A picture is put back only where the console has no file of that name and the game or folder is still there; anything else is listed, with the reason, and left alone.
 
-! For the SNES Classic Mini, this task is not available in this version: changing files on it needs its own file scopes, which this version does not define yet.
+! For the SNES Classic Mini, this task works the same way.
 
 ## Technical details
 
@@ -1378,13 +1409,13 @@ Your games, saves, the console's own pictures of each game and anything else sta
 
 A system image is the main software of a console system, in one file. You can add one of your own from this PC as a choice in CCS Nucleus's chooser. It starts only when you pick it, for that one start. When you don't pick it, your console starts its own system as before, and that stays your way back.
 
-! For the SNES Classic Mini, this task is not available in this version: adding system images to its startup chooser needs CCS Nucleus on it. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is available too, once CCS Nucleus is on the console. A system image you add as a choice in CCS Nucleus is a separate thing: it is one of the menus the console can start, never the console's own startup software or its backup.
 
 Workbench does not supply or download system images. Adding one changes files on the console: you review it first, and the console is backed up before anything is written. Workbench does not promise that every system image works.
 
 ## What you need
 
-- A console with CCS Nucleus and its startup chooser installed. Add them with Prepare Console or with Add-ons and Startup in Console Restore. See [Prepare Your Console for CCS HOME](#prepare) and [Add-ons and Startup](#methods).
+- A console with CCS Nucleus installed. Add it with Prepare Console or with Add-ons and Startup in Console Restore. When its startup chooser is not there yet, adding a system image adds the chooser in the same reviewed change: a system image starts only from it. See [Prepare Your Console for CCS HOME](#prepare) and [Add-ons and Startup](#methods).
 - A system image file (.hsqs) of your own on this PC.
 - Enough free space: the image, room kept for saves and a small safety margin must fit on the console's data storage.
 
@@ -1419,7 +1450,7 @@ On an NES Classic Mini, for an SNES Classic system image, the notes also say tha
 
 [shot 29c-firmware-result-added | System image added, showing the id needed to remove it later.]
 
-Other results: **Nothing needed to change**, **Canceled: nothing was changed**, **Nothing was changed** with the reason, or **Stopped before every step was written**. In this version, with a real console, the result says that adding or removing a system image on a real console is not available in this version, and nothing is written.
+Other results: **Nothing needed to change**, **Canceled: nothing was changed**, **Nothing was changed** with the reason, or **Stopped before every step was written**.
 
 ## Remove an image
 
@@ -1450,7 +1481,7 @@ Community Mods lists mods other authors make for your console: extra controls, t
 
 ! No community mod is listed in this version yet, so Browse says so and there is nothing to install. Mods you added with other tools stay on your console as they are; Workbench does not change or remove them.
 
-! For the SNES Classic Mini, this task is not available in this version: community mods need CCS Nucleus on it and each mod's own approval for it.
+! For the SNES Classic Mini, this task is available too, once CCS Nucleus is on the console. A community mod is listed for it only when it is approved for the SNES Classic Mini.
 
 ## Browse, Installed and Updates
 
@@ -1522,7 +1553,7 @@ A change that stops says so in three parts: **The mod could not be installed.**,
 @pages designer, design-editor, design-screens
 @summary Design how CCS HOME looks, step by step, with your own pictures, colors, folders and game order, and see the real HOME as you work.
 
-HOME Designer lets you design how CCS HOME looks on your console; in this version CCS HOME is made for the NES Classic Mini. You work on a Shared HOME Design file (.ccshome) on this PC, and you see the real HOME as you go: Workbench draws it with the console HOME's own program, here on this PC. Nothing on the console changes until you check the design and apply it. See [Check and Apply a Design](#design-apply).
+HOME Designer lets you design how CCS HOME looks on your console. CCS HOME plays NES games, on the NES Classic Mini and on the SNES Classic Mini alike. You work on a Shared HOME Design file (.ccshome) on this PC, and you see the real HOME as you go: Workbench draws it with the console HOME's own program, here on this PC. Nothing on the console changes until you check the design and apply it. See [Check and Apply a Design](#design-apply).
 
 A design can change pictures, the startup picture, colors and fonts (the HOME's own), the place of the HOME's controls, folders and the game order. It cannot add animation, new fonts, programs or scripts, and it never holds games, saves or console files.
 
@@ -1671,7 +1702,7 @@ If something in the design cannot be shared, the problems are listed, and a shar
 
 Before a design can go on your console, it is checked: it is fitted to the games in a backup of your console and every screen is made by the console's own HOME program, here on this PC. Checking reads a backup and changes nothing. Applying changes the console, and the console is backed up first.
 
-! For the SNES Classic Mini, this task is not available in this version: applying a design needs CCS HOME on the console, and CCS Mod is not available for it yet. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, this task is available too, on a console that has CCS HOME.
 
 In HOME Designer's last step, **Review & Save**, choose **Check and Apply on My Console…**.
 
@@ -1724,7 +1755,7 @@ Then connect the console, read **Review: Revert Design** and choose **Revert Now
 
 **Design applied and checked** (or **Design reverted and checked**) means it was written to the console and read back. The console shows the HOME's new appearance from its next start, and games and saves are as they were. The backup made just before is kept. Choose **Restart the Console** or **Done**.
 
-Other results: **Nothing needed to change**, **Canceled: nothing was changed**, **Nothing was changed** with the reason, or **Stopped before every file was written**. In this version, with a real console, applying or reverting says that it is not available in this version, and nothing is written.
+Other results: **Nothing needed to change**, **Canceled: nothing was changed**, **Nothing was changed** with the reason, or **Stopped before every file was written**.
 
 [shot 51-design-result | Design applied and checked, with the backup made just before.]
 
@@ -1755,7 +1786,7 @@ Open **Console Browser** in the side column, or choose **Check the Console** on 
 
 **Expert Mode…** opens Expert Mode instead, for changing your own files on the console. See [Expert Mode](#expert).
 
-In this version the check-up and browsing are available with a real console; they only read it. Expert Mode is not available for a real console in this version.
+The check-up and browsing only read the console. Expert Mode changes files on it, each change only after you review and confirm it; see [Expert Mode](#expert).
 
 ## What the check-up shows
 
@@ -1800,7 +1831,7 @@ To look through files, see [Look Through a Backup](#backup-browser). To copy fil
 
 Expert Mode changes your own files on your console: you can add, replace or remove game files, saves, artwork and settings. It writes to the console's storage, and you review each change before it is made. Nothing else on the console is written.
 
-! For the SNES Classic Mini, this task is not available in this version: changing files on it needs its own file scopes, which this version does not define yet. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini, Expert Mode is available too, for the same kinds of files: saves, settings, and games and artwork added with hakchi.
 
 Open **Console Browser** and choose **Expert Mode…**.
 
@@ -1851,7 +1882,6 @@ The review lists each change as **Add**, **Replace** or **Remove**, with the fil
 
 [shot 36-files-plan | Review the Changes: one save replaced and one picture removed.]
 
-In this version, with a real console, Expert Mode says that changing files on a real console is not available in this version.
 
 ## Technical details (NES Classic Mini)
 
@@ -1871,9 +1901,9 @@ Open **Backup Browser** in the side column, or choose **Browse a Backup** on the
 
 ## The backup list
 
-[shot 39-backup-browser | The Backup Browser's list with three sample backups: not checked yet, damaged, and file check passed.]
+[shot 39-backup-browser | The Backup Browser's list with three sample backups: not checked, damaged, and verified.]
 
-Each backup shows when it was made, its console, its size, its last file check, its state and where the file is. A damaged backup also says how much of it is damaged and how many files can still be copied.
+Each backup shows when it was made, its console, its size, its last full check, its state (Verified, Not checked, Changed since last check, Damaged, Incomplete or Missing) and where the file is. A damaged backup also says how much of it is damaged and how many files can still be copied.
 
 | Button | What it does |
 | Open a Backup File… | Opens a console backup from anywhere on this PC. |
@@ -1896,7 +1926,14 @@ If your backup locations hold no backups, the page says **No backups yet** and o
 2. Workbench checks the whole file first. The top of the page then says **passed its full check when it was opened**.
 3. Look through it by game, by type or as stored, or see how its storage was used.
 
-If the file does not pass that check, **This backup could not be opened** says why, and its contents are not shown. Nothing was written to it. Choose **Back to the Backup List**, or **Backup Repair** to make a repaired copy.
+If the file does not pass that check, **This backup could not be opened** says why, and its contents are not shown. Nothing was written to it. For that same file, wherever it is:
+
+| Button | What it does |
+| Find What Can Be Saved… | Reads the file and shows what still matches its records: you can browse that, copy it out or rebuild a repaired copy. See **Damaged backups** below. |
+| Repair This File… | Shows every way to make a repaired copy of it. See [Repair a Backup File](#backup-repair). |
+| Back to the Backup List | Returns to the list. |
+
+Nothing is repaired by itself, the file is only read, and anything new is written as a new file. A file opened from another folder stays where it is: it is not moved or added to your backup locations.
 
 [shot 40c-browse-open-failed | This backup could not be opened, because part of the file does not match its records.]
 
@@ -1905,7 +1942,7 @@ If the file does not pass that check, **This backup could not be opened** says w
 | Button | What it shows |
 | By Game | Each game with its files: its game file, its saves and suspend points, and its copies in CCS HOME. Games whose name is not known show their code. This is the first view. |
 | By Type | The files sorted into kinds: Games, Saves, Suspend points, Artwork, Mods and emulators, Settings, System files and Everything else, each with its count. |
-| All Files | The backup exactly as it is stored, with its folders. Open a folder with the arrow beside it. |
+| All Files | The backup exactly as it is stored, as a table of folders and files: each folder one step further in than the folder it is in, with its arrow and how many items it holds. Click a folder to open or close it. |
 | Storage | How the console's data storage was used when the backup was made (see **How the storage was used** below). |
 
 Type in the search box and choose **Search** to find files by name, folder, kind or game title.
@@ -1940,18 +1977,29 @@ If the backup is damaged, the page says its figures are partial: the files it ca
 
 ## Files in the lists
 
-Each file has a check box to select it, its name with its folder underneath, its size and its date. Dates come from the console's own clock, which may not have been set correctly; they are shown exactly as recorded, or as **No date**.
+Every view lists files as rows of a table under the column names **NAME**, **SIZE** and **DATE**, which stay in view while the list scrolls. Each file has a check box, an icon, its name (with its folder underneath outside All Files), its size and its date. Dates come from the console's own clock, which may not have been set correctly; they are shown exactly as recorded, or as **No date**. In a narrow window the date column is left out; each file's date is in its details.
 
-Click a file's name to see what it is and where its checksum comes from, with a preview if it is a picture. From there you can copy that one file, and for a battery save you can convert it. See [Copy Files Out](#export) and [Battery Saves and Suspend Points](#saves).
+- **Click anywhere on a file's row**, its name included, to select it or to clear it. Each click changes it once. The file's details show beside the list: what it is and where its checksum comes from, with a preview if it is a picture.
+- **The details button** at the end of a row shows a file's details without selecting it.
+- **With the keyboard**: Tab to a file's check box, Space selects it or clears it, and Enter shows its details.
+- **Right-click a row** (or press Shift+F10) for its menu: Select, Show Details and the file's own export.
+
+A file stays selected when you change views or search: the line under the list counts every selected file. From a file's details you can copy that one file, and for a battery save you can convert it. See [Copy Files Out](#export) and [Battery Saves and Suspend Points](#saves).
 
 | Button | What it does |
-| Export Selected… | Copies the files you ticked. |
-| Clear Selection | Unticks every file. |
+| Export Selected… | Copies the selected files. |
+| Clear Selection | Clears every selected file. |
 | Back to the Backup List | Returns to the list of backups. |
+
+## Folders in All Files
+
+A folder's row has an arrow, a folder icon and how many items it holds; what is inside it is listed under it, one step further in. Click a folder (or press Enter, Space, or the right and left arrow keys) to open or close it. A faint line ties the rows to the folder they are in.
+
+The bar above the list names the folder or file you clicked last, with where it is, and offers what you can do with it: **Export This Folder…** for a folder, or the file's own export. A folder's right-click menu has **Open** or **Close** and **Export This Folder…**.
 
 ## Inside the startup software and the system part
 
-In **All Files**, the restore folder holds the backup's parts. Some of them can be opened like folders with **Files inside**:
+In **All Files**, the restore folder holds the backup's parts. Some of them hold files of their own: a folder named **Files inside** and the part's name is listed right under such a part, one step further in, and opens like any other folder:
 
 - **The startup software.** A startup image holds the console's kernel and its ramdisk, and the ramdisk holds the console's system key file, marked **(private)**.
 - **The system part.** The NES Classic Mini keeps its system part encrypted. Workbench opens it on this PC, read only, with the key from the backup's own startup software, so you can see its files. Their checksums are worked out on this PC from a checked part of the backup, not recorded when the backup was made, and the page says so.
@@ -2016,15 +2064,15 @@ You can copy any files from a backup to this PC. Each file is read back and comp
 2. Choose what to copy, with one of these buttons:
 
 | Button | What it copies |
-| Export Selected… | The files you ticked. |
+| Export Selected… | The files you selected (click a file's row to select it). |
 | Export This Game… | Every file of one game, in By Game. |
 | Export All of This Type… | Every file of the kind you are viewing, in By Type. |
-| Export This Folder… | A folder and everything in it, in All Files. |
+| Export This Folder… | A folder and everything in it, from the bar above All Files' list or the folder's right-click menu. |
 | Export These Search Results… | The files your search found. |
 | Export This File… | One file, from its details. For a whole storage part, such as the system part, the button is Export This Image…. |
 | Export the Key File… | The console's system key file, from its own details. Keep it private. |
 
-3. Choose a folder on this PC. Workbench makes a new folder inside it for the copies.
+3. Name the new folder and choose where it goes. Workbench offers a name that fits what you are copying: the game's title for one game's files, the kind of file (such as Saves), the folder's name, or what a search found. Change it if you like, and choose **Choose…** for the folder to make it in. The page shows the exact new folder: if that name is already used there, a number is added, such as (2); nothing is written over. Choose **Export**, or **Cancel** to copy nothing.
 4. A progress page shows the copying. **Cancel** stops it; files already copied stay, and the rest are not copied.
 5. Read the result.
 
@@ -2064,7 +2112,7 @@ Both are in every console backup. Suspend points are kept and copied exactly as 
 
 1. Open the backup in the Backup Browser. See [Look Through a Backup](#backup-browser).
 2. Choose **By Game** to see each game's saves, or **By Type** and then **Saves** or **Suspend points**.
-3. Tick the saves and choose **Export Selected…**, or **Export This Game…**. See [Copy Files Out](#export).
+3. Click the saves to select them and choose **Export Selected…**, or **Export This Game…**. See [Copy Files Out](#export).
 
 ## Convert a battery save to a Game save file
 
@@ -2112,6 +2160,8 @@ Open **Backup Repair** in the side column, or **Open** beside Repair a Backup Fi
 
 ## Your backups
 
+**Open a Backup File…** brings in a console backup from any folder on this PC, for example one you copied from another drive. It is listed apart, under **A backup file you opened**, with the same buttons. It stays where it is: it is not moved, copied first or added to your backup locations. **Close This File** puts it away.
+
 Each backup has the buttons that fit its state:
 
 | Button | What it does |
@@ -2157,7 +2207,7 @@ If a part is damaged or missing in every copy, choose **Choose…** and pick you
 | Repaired copy made | A new backup file was made on this PC and passed its full check. The original was only read and is unchanged. The page shows where the new file and its report were saved. |
 | The repair stopped with a problem | No new backup file was made, and the original is unchanged. If a file is on a drive that is not connected, or is open in another program, fix that and try again. |
 
-The result may also say what is not known, for example whether the new file is byte-for-byte the original, when the original's checksum was not recorded. **Open the Folder** opens the folder; **Back to Backup Repair** returns.
+A repaired copy also says what is known about the file as a whole: that it is byte-for-byte the original backup file (its checksum equals the one recorded when the backup was made), that every part matches its recorded checksum but the file as a whole is a new file, or, when no checksum of the original whole file is recorded here (for example a file opened from another folder), that every part matches and whether the whole file is byte-for-byte the original is not known. The result may also list other things that are not known. **Open the Folder** opens the folder; **Back to Backup Repair** returns.
 
 [shot 44d-repair-result | Repaired copy made, with the new file and its report saved beside the original.]
 
@@ -2240,10 +2290,10 @@ If the page says recovery data cannot be made, checked or used in this copy of W
 
 @topic storage-backup
 @title USB and SD Backup
-@pages storage-home, storage-select, storage-result, storage-repair, storage-restore, storage-plan
+@pages storage-home, storage-select, storage-result, storage-repair, storage-restore, storage-plan, storage-disk-targets, storage-disk-review, storage-disk-result
 @summary Back up USB drives, SD cards, folders and drive image files on this PC, without a console, and check, browse, repair and restore those backups.
 
-**USB and SD Backup**, under **Backup Files** in the side column, makes backups of the USB drives and SD cards you use with your console, or of any folder or drive image file. It works on this PC only: no console, USB cable or USB driver is needed, and the drives are only read.
+**USB and SD Backup**, under **Backup Files** in the side column, makes backups of the USB drives and SD cards you use with your console, or of any folder or drive image file. It works on this PC only: no console, USB cable or USB driver is needed, and backing up only reads the drives.
 
 A USB and SD backup is a separate file from a console backup. Your console's built-in storage is backed up with **Back Up Console**. The two are made one after the other, not at the same moment, and each says when it was made.
 
@@ -2253,12 +2303,12 @@ A USB and SD backup is a separate file from a console backup. Your console's bui
 | Files and Folders (recommended) | The files you choose, with their folders, sizes, dates and read-only, hidden, system and archive settings. The backup is about as large as those files. |
 | Whole Drive Image (advanced) | Every byte of the drive: its partitions, file systems and free space. It is as large as the whole drive, used or not, and its free space can hold deleted or private files. |
 
-! In this version, copying a connected USB drive or SD card as a whole drive image is not available. Its files and folders can be backed up. A drive image file made with another program can be added and backed up as a whole drive image.
+Windows lets a program read a drive whole only with administrator permission. For a Whole Drive Image of a connected drive, Windows asks once when the backup starts; the rest of Workbench never has that permission. Workbench checks the drive again just before it reads it, and keeps other programs from writing to it while it is read. Close other windows and programs that use the drive first: if another program has it open, the backup is still made and checked, but it says the drive could have changed while it was read. Only USB drives and SD cards are read whole, one per backup, never the drive Windows runs from or a drive holding your backup location.
 
 ## Make a backup
 
 1. Choose **Back Up USB or SD Storage**.
-2. Tick each connected drive to back up. **Choose Folders…** limits it to some folders; **Everything on the Drive** goes back to all of it. Windows' own folders on the drive (System Volume Information and $RECYCLE.BIN) are left out, and the page says so.
+2. Tick each connected drive to back up, and choose **Files and Folders** or **Whole Drive Image**. With Files and Folders, **Choose Folders…** limits it to some folders; **Everything on the Drive** goes back to all of it. Windows' own folders on the drive (System Volume Information and $RECYCLE.BIN) are left out, and the page says so. A USB drive or SD card that Windows shows without a drive letter, for example a card formatted on a console, is listed under **USB drives and SD cards without a drive letter**, as a whole drive image only.
 3. **Add a Folder…** adds any folder on this PC; **Add a Drive Image File…** adds a drive image file.
 4. Choose whether to add recovery data, then **Work Out the Space**. The page adds up the files you chose and shows the size of the backup, its additional copy, the recovery data and the room a repair would need later, with the free space in your backup location.
 5. Choose **Back Up**.
@@ -2300,13 +2350,33 @@ Each way reads the backup and makes something new, checked in full. The backup f
 
 Each file is checked against its recorded checksum while it is written, and read back. A name Windows cannot create is restored under a safe name, and the review lists it. A drive formatted FAT32 cannot hold a file over 4 GB; the review names such a file.
 
-A whole drive image can be written to a drive image file with **Write the Whole Drive Image to a File…**. That replaces what is in that file; an existing file is backed up first. Writing a whole drive image back onto a connected drive is not available in this version. The drive Windows runs from, the drive the backup was made from, and any drive holding the backup are never used as targets.
+A whole drive image can be written to a drive image file with **Write the Whole Drive Image to a File…**. That replaces what is in that file; an existing file is backed up first.
+
+## Write a whole drive image onto a USB drive or SD card
+
+**Write the Whole Drive Image to a USB Drive or SD Card…** replaces everything on a connected drive with the image. It cannot be undone, and what is on the drive now is not backed up first: to keep it, back it up before you start.
+
+1. Choose the drive. Each USB drive and SD card connected now is listed with its maker and model, size, serial number, how it is connected and the volumes on it.
+2. Read the review: the drive, exactly what is replaced and lost, and what is on it now. If it looks like the drive the backup was made from, the review says so.
+3. Tick **I understand**, type REPLACE in the box, and choose **Write the Drive Image**.
+
+Windows asks for administrator permission once. Then Workbench checks that the drive is still exactly the one you reviewed, takes its drive letters away while it writes, writes the image, and reads every part back from the drive to compare it with the backup. A drive larger than the image keeps the rest of its bytes. A drive with a different sector size from the image is refused, because its partitions would not line up.
+
+| Result | What it means |
+| Written and read back | Every part of the drive read back the same as the backup. |
+| Nothing was written | Windows did not give permission, the drive was refused, or you canceled before writing began. The drive was not written. |
+| The drive is incomplete | Writing was canceled or stopped part way. The drive holds part of the image and part of what was there before, and cannot be relied on. Write the image again to finish. |
+| The drive does not read back the same | The image was written, but a part read back differently. The drive cannot be relied on. |
+
+Cancel stops after the piece being written. If Workbench closes, or its permission step ends, while a drive is being written, that drive is reported as incomplete, never as finished or untouched, and USB and SD Backup names it until an image is written onto it completely.
+
+The drive Windows runs from, internal drives, and any drive holding the backup, its recovery data or your backup location are never used as targets. A drive that cannot be told apart from another connected drive (the same maker, model and size, and no serial number) is refused: disconnect the other one.
 
 ## Technical details
 
 - The file is a ZIP with every part in the ZIP64 form: packs of small files, one part per large file (16,000,000 bytes or more), lists of at most 4,000 entries, and for a drive image, regions of 64 MiB plus an index of each file's place in it. Each file's SHA-256 is recorded when it is copied.
 - Records of every part, with a checksum of each 1,048,576-byte piece, are kept in maps through the file, and each map again near its end, so a file damaged at its start or its end can still be checked and repaired.
-- A drive is identified by what Windows reports about it (its serial numbers, size and file system), never as a console.
+- A drive is identified by what Windows reports about it (its serial numbers, size and file system), never as a console. A drive read or written whole is identified by its maker, model, serial number, size, sector size and how it is connected, all checked again before reading or writing.
 - Not kept in a Files and Folders backup: permissions and owners, alternate data streams, extended attributes, short 8.3 names, and links (they are listed, not followed).
 
 @end
@@ -2320,7 +2390,7 @@ A whole drive image can be written to a drive image file with **Write the Whole 
 
 Developer Mode changes your console's own software: its startup software, its system part and any file on its data storage. It is for experienced users who develop for the console.
 
-! For the SNES Classic Mini, this task is not available in this version: test boots and startup or system changes need its system key and root settings established on its own startup software. With the SNES Classic Mini chosen at the top of the window, its page says so and starts nothing.
+! For the SNES Classic Mini (North America and Europe), Developer Mode is available too. Its restore point must be a backup of that same SNES Classic Mini. A system image you write as its system part must be one for the SNES Classic Mini (Workbench checks its board type), and a startup image is checked against the console's own startup layout. The console's key stays on the console.
 
 ! Code you put on the console runs with full control of it once it starts. It can write the console's storage, its startup stages or its keys, and a restore point cannot undo what it does to the startup stages or keys.
 
@@ -2381,9 +2451,9 @@ A test boot sends a startup image to the console's memory once and starts it the
 
 If there is no complete backup in your backup location, the page says so: choose **Browse…** or make one with Back Up Console first.
 
-To connect an NES Classic Mini for a test boot (Developer Mode is not available for the SNES Classic Mini in this version):
+To connect the console for a test boot (the NES Classic Mini and the SNES Classic Mini connect the same way):
 
-1. Turn your NES Classic Mini off and connect it to this PC with its USB cable.
+1. Turn your console off and connect it to this PC with its USB cable.
 2. Hold the console's RESET button, switch POWER on, and keep holding RESET for about 5 seconds, then let go. The TV stays dark: the console waits for this PC.
 3. Workbench reads only the console's hardware ID until you confirm the test boot.
 
@@ -2409,13 +2479,12 @@ The review shows the restore point's date, the console, what starts, how its sta
 | Started in the console's memory | The image was sent and started. Only the TV shows whether it runs; Workbench cannot see the console from here. If the console's storage or startup changed, choose Return to a Restore Point. |
 | The test boot did not start | The page says why, for example that the backup belongs to a different console. Another console's backup can be a source in Console Composer, but never this console's restore point. Choose Try Again or Done. |
 | Test boot canceled | You canceled it. |
-| Not available in this version | Starting a startup image in the console's memory is turned off in this version. |
+| Not available in this version | This version does not start a startup image on that kind of console. The page says why, and nothing was started. |
 
 [shot 38h-test-boot-result-sent | Started in the console's memory, with Return to a Restore Point.]
 
 [shot 38i-test-boot-result-refused | The test boot did not start, because the backup belongs to a different console.]
 
-[shot 38j-test-boot-result-unavailable | Not available in this version: starting a startup image in the console's memory.]
 
 ## Return to a Restore Point
 
@@ -2432,7 +2501,6 @@ This puts the console back the way one of its backups recorded it. It changes th
 
 [shot 38g2-developer-return-empty | Return to a Restore Point when there is no complete backup in the backup location.]
 
-In this version, with a real console, Developer Mode's changes say that developer changes to a real console are not available in this version.
 
 ## Technical details (NES Classic Mini)
 
@@ -2489,7 +2557,7 @@ The number is kept with your other settings. Classic Cart Studio for Windows use
 
 ## In the standalone: your settings file
 
-Workbench remembers which settings file you used and opens it next time. Save your changes with Save Settings. Until you save to a settings file, your settings are used only while Workbench is open. A settings file keeps the backup locations, the earlier HOME versions to keep and the console chosen at the top of the window. It is separate from your console backups.
+Workbench remembers which settings file you used and opens it next time. Save your changes with Save Settings. Until you save to a settings file, your settings are used only while Workbench is open. A settings file keeps the backup locations, the earlier HOME versions to keep, the console chosen at the top of the window and the names your consoles are shown by (Rename Console). It is separate from your console backups.
 
 | Button | What it does |
 | Save Settings… | Saves your settings to a file you choose. After that, the button is **Save Settings** and saves to the same file. |

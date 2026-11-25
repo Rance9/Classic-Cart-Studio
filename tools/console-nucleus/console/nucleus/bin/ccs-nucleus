@@ -98,10 +98,23 @@ reg_edit(){
   g="$(reg generation)"; g=$((g + 1))
   reg_body | awk -v gen="$g" "$1"' { if (index($0, "generation=") == 1) { print "generation=" gen; next } print }' | reg_write
 }
-home_lines(){   # CCS HOME's option (CCS Mod's HOME, which CCS Nucleus can start)
+# ccs_console_type: the console's own software type and region as hakchi names them (its softwareCheck, b0010_functions): nes-usa,
+# nes-eur, snes-usa, snes-eur (hvcj-jpn and the like for other Nintendo systems), read only from the console's own system: hakchi's
+# read-only view of it (/var/squashfs) where there is one, else the system itself (a console program's RAM image mounts it as the root);
+# "unknown" when neither has /etc/clover
+ccs_console_type(){
+  local d="" x t=nes g=usa
+  for x in "$R0/var/squashfs/etc/clover" "$R0/etc/clover"; do [ -d "$x" ] && { d="$x"; break; }; done
+  [ -n "$d" ] || { echo unknown; return 0; }
+  [ "$(cat "$d/boardtype" 2>/dev/null)" = dp-shvc ] && t=snes
+  grep -qF dp-hvcj "${d%/clover}/issue" 2>/dev/null && t=hvcj
+  case "$(cat "$d/REGION" 2>/dev/null)" in JPN) g=jpn ;; EUR) g=eur ;; esac
+  echo "$t-$g"
+}
+home_lines(){   # CCS HOME's option (CCS Mod's HOME, which CCS Nucleus can start): it runs in the console's own system (compat: its type and region)
   printf 'opt.ccs-home.kind=ccs-home\nopt.ccs-home.label=CCS HOME\nopt.ccs-home.package=current\nopt.ccs-home.kernel=3.4.113.29-madmonkey\n'
   printf 'opt.ccs-home.drivers=\nopt.ccs-home.requires=/var/lib/ccs/pkg/current\nopt.ccs-home.overlay=hakchi\nopt.ccs-home.saves=/var/lib/ccs/data\n'
-  printf 'opt.ccs-home.compat=nes-usa\nopt.ccs-home.fallback=native\nopt.ccs-home.auto=yes\n'
+  printf 'opt.ccs-home.compat=%s\nopt.ccs-home.fallback=native\nopt.ccs-home.auto=yes\n' "$(ccs_console_type)"
 }
 # reg_first DEFAULT SELECTION CHOOSER [on]: the first registry: the console's own system (Original Menu), and CCS HOME when it is offered
 # (on: the PC's reviewed change says so, as CCS Mod is installed at the same start; or CCS Mod is installed already)
@@ -621,10 +634,11 @@ case "$1" in
       r start "ok first default=$d chooser=$c home=$h selection=$s timeout=$t"
     fi
     if [ "$h" = on ] && ! listed ccs-home; then
+      ct="$(ccs_console_type)"
       reg_edit 'index($0, "options=") == 1 { sub(/^options=native( |$)/, "options=native ccs-home "); sub(/ $/, ""); print; next }
         END { print "opt.ccs-home.kind=ccs-home"; print "opt.ccs-home.label=CCS HOME"; print "opt.ccs-home.package=current"
               print "opt.ccs-home.kernel=3.4.113.29-madmonkey"; print "opt.ccs-home.drivers="; print "opt.ccs-home.requires=/var/lib/ccs/pkg/current"
-              print "opt.ccs-home.overlay=hakchi"; print "opt.ccs-home.saves=/var/lib/ccs/data"; print "opt.ccs-home.compat=nes-usa"
+              print "opt.ccs-home.overlay=hakchi"; print "opt.ccs-home.saves=/var/lib/ccs/data"; print "opt.ccs-home.compat='"$ct"'"
               print "opt.ccs-home.fallback=native"; print "opt.ccs-home.auto=yes" }' || r start "failed adding CCS HOME"
     fi
     if [ "$h" = off ] && listed ccs-home; then

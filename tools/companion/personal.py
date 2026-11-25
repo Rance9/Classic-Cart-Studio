@@ -465,14 +465,6 @@ def adopt_unmatched(root: str, library: dict) -> list:
         if "entry" in r: out.append(r["entry"])
     return out
 
-def pick_file(title: str, patterns) -> str:
-    """Native Windows file dialog on the user's desktop (the browser cannot hand the companion a path)."""
-    import tkinter as tk
-    from tkinter import filedialog
-    root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-    try: return filedialog.askopenfilename(title=title, filetypes=patterns) or ""
-    finally: root.destroy()
-
 # ------------------------------------------------------------------ bulk import (Add Games from Files): asynchronous, cancellable, deduplicated
 import threading
 JOBS: dict = {}
@@ -534,20 +526,6 @@ def cancel_job(jid: str) -> bool:
     j = JOBS.get(jid)
     if not j: return False
     j["canceled"] = True; return True
-
-def pick_files(title: str, patterns) -> list[str]:
-    import tkinter as tk
-    from tkinter import filedialog
-    root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-    try: return list(filedialog.askopenfilenames(title=title, filetypes=patterns) or [])
-    finally: root.destroy()
-
-def pick_folder(title: str) -> str:
-    import tkinter as tk
-    from tkinter import filedialog
-    root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-    try: return filedialog.askdirectory(title=title) or ""
-    finally: root.destroy()
 
 def locate_version(version_id: str, path: str) -> dict:
     """Locate Game File for a known version that has no file on this computer: accept the chosen file only when its content hash IS that

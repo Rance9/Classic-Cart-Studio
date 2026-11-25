@@ -1,7 +1,7 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The console's Windows USB driver, as data: what Windows has for the console's USB identity (1F3A:EFE8) and what the pinned Hakchi2 CE
 // 3.9.3 driver setup puts there. Nothing here reads or changes the PC: IDriverStore reads,
-// IDriverActions (behind the closed DriverChanges boundary) would change. Every type turns into JSON and back for the USB driver records.
+// IDriverActions (behind the DriverChanges boundary, open in this version) changes. Every type turns into JSON and back for the USB driver records.
 //   PinnedDriver     the identity Hakchi2 CE 3.9.3's driver\classic_driver.exe creates (TeamShinkansen/libwdi classic_driver_1)
 //   DeviceBinding    one device instance Windows knows for an identity (present or not) and the driver it is bound to
 //   DriverPackage    one driver package (a published oemNN.inf, or a Windows inbox INF such as winusb.inf)

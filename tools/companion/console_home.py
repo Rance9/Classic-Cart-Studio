@@ -10,7 +10,7 @@ in plain words; a plan that would remove an add-on is refused there, with the co
 inspect reports the console's add-ons and what opens at power-on in plain words. Rehearsals run against disposable stand-ins (the
 simulation tier). The
 physical operations run the same engine code (console_engine.ccs_install through console_engine.worker), each asking Gate G1 here first
-(closed in code: refused before any worker starts), then again inside the worker, then in the transport worker:
+(in code; both tiers open in this version), then again inside the worker, then in the transport worker:
   inspect   reads the console and makes it the checked console (its identity, for SESSION_TTL; a new check replaces it and voids every
             confirmation made for the console before)
   check     the reviewed plan against the checked console (reads only)
@@ -44,7 +44,7 @@ ORIGINAL_UNAVAILABLE_TEXT = ("Classic Cart Studio can back up your current Hakch
 WRITE = {"install": "home-execute", "update": "home-execute", "uninstall": "home-uninstall", "recover": "home-recover"}
 READ = {"inspect": "home-inspect", "check": "home-check", "verify": "home-verify", "uninstall-review": "home-uninstall-review", "recover-review": "home-recover-review", "export": "home-export-console"}
 TIER = {**{k: "inspect" for k in READ}, **{k: "install" for k in WRITE}}
-CLOSED = {"inspect": "Reading a real console is not available in this version.", "install": "Installing on your NES Classic is not available in this version."}
+CLOSED = {"inspect": "Reading a real console is turned off in this build.", "install": "Changing a real console is turned off in this build."}   # only when a tier is closed in code
 BUSY = {"ok": False, "code": "busy", "error": "Another console operation is still running; wait for it to finish."}
 STUCK = {"ok": False, "code": "busy", "error": "The last console operation did not stop. Close Classic Cart Studio and open it again before the next console operation."}
 SCENARIOS = ("first-install", "update", "repeat", "repair", "interrupted")
@@ -76,8 +76,8 @@ class Dispatcher:
         dev = (r or {}).get("device") if (r or {}).get("ok") else None
         if epoch != self.epoch or not dev or not cc.HWID_RE.match(str(dev.get("hwid") or "")): return
         self.console = {"id": secrets.token_hex(6), "epoch": epoch, "device": dev["hwid"], "at": self.clock(), "written": False, "simulated": bool(r.get("simulated")),
-                        "label": f"NES Classic ({dev.get('system')}, hakchi {dev.get('hakchi')}), console {hashlib.sha256(dev['hwid'].encode()).hexdigest()[:8]}",
-                        "identity": {k: dev.get(k) for k in ("system", "kernel", "hakchi")},
+                        "label": f"{dev.get('model_name') or 'Console'} ({dev.get('system')}, hakchi {dev.get('hakchi')}), console {hashlib.sha256(dev['hwid'].encode()).hexdigest()[:8]}",
+                        "identity": {k: dev.get(k) for k in ("system", "kernel", "hakchi", "model", "model_name", "board", "region")},
                         "state": {k: r.get(k) for k in ("pointer", "module", "addons", "addons_text", "addons_problem", "start", "attempts", "copies", "games_copies", "in_use", "free_bytes")}}
     def _finished(self, epoch: int, op: str, ev: dict | None, stopped: bool = True):
         """a run's completion (console_runs calls it after the worker has stopped, without its own lock held). A change was already counted

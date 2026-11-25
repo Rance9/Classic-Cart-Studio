@@ -117,7 +117,7 @@ async function fbMake(){ const a=await ccsAck(FB_ACK); if(a!=='export') return; 
  try{ if(typeof suEnsure==='function'){ csSaveActiveNow(); await suEnsure(csList()); } }   /* every collection's startup picture read again and checked now: one that cannot be read stops the backup */
  catch(e){ openColl('Back Up All Collections', '', `<div class="msgbox bad"><b>The backup was not created, and no file was saved.</b> ${esc(String(e&&e.message||e))}.</div><div class="acts"><span class="sp"></span><button class="btn" id="ccsOk">OK</button><button class="btn hk" id="fbAgain">Try Again</button></div>`); $('ccsOk').onclick=closeColl; $('fbAgain').onclick=()=>fbMake(); return; }
  if(app){ $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native');
-  const st=await hkPost('/api/studio/backup', {studio:csBackupObject({export:true}), games:FB.ids.map(id=>({version_id:id, title:FB.titles[id]||id})), name});
+  const st=await hkChoose('/api/studio/backup', {studio:csBackupObject({export:true}), games:FB.ids.map(id=>({version_id:id, title:FB.titles[id]||id})), name}, ccsSaveAsk(name, 'Save the backup of all collections'));
   if(st.canceled){ procSet('collm',null); closeColl(); toast('Canceled; nothing was saved'); return; } if(!st.ok){ procSet('collm',null); return ccsJobFail(st.error); }
   const j=await ccsWatch(st.job, 'Creating '+st.name);
   if(j.phase==='canceled'){ closeColl(); toast('Backup canceled; nothing was saved'); return; } if(j.phase!=='done'){ return ccsJobFail(j.error); }

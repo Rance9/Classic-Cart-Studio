@@ -147,10 +147,17 @@ class B_Typical(Base):
             self.assertNotIn("hero_wide", g)   # no theme's main HOME shows a game or genre scene, so no Featured Shelf key art
         self.assertTrue(all(len(v) == 1 for v in by_scene.values()), by_scene)
         self.assertFalse([f["path"] for f in m["files"] if f["path"].startswith("wide/")])
-        # Featured Shelf: each catalog game with a game screen carries it (the site's file, unchanged); a game without one carries none
+        # Featured Shelf: each catalog game with a game screen carries it (the site's picture in its smallest exact encoding, DV.png_exact: the
+        # same size and every RGBA pixel the same, named by the site file's checksum); a game without one carries none. The package's own
+        # checks (assertPackageIntegrity: every file's checksum and size as its manifest records them) hold for the encoding it carries.
         for g in self.games():
             want = CAT.get(g["id"], {}).get("art_snap")
-            if want: self.assertEqual(g.get("snap"), f"snap/{DV.sha256_file(CF._art_path(want))[:16]}.png", g["id"]); self.assertEqual(DV.sha256_file(os.path.join(self.root, "current", *g["snap"].split("/"))), DV.sha256_file(CF._art_path(want)))
+            if want:
+                src = CF._art_path(want); got = os.path.join(self.root, "current", *g["snap"].split("/"))
+                self.assertEqual(g.get("snap"), f"snap/{DV.sha256_file(src)[:16]}.png", g["id"])
+                with open(src, "rb") as a, open(got, "rb") as b: ws, wp = DV.decoded(a.read()); gs, gp = DV.decoded(b.read())
+                self.assertEqual(gs, ws, g["id"] + ": the game screen's exact size"); self.assertTrue(gp == wp, g["id"] + ": every RGBA pixel of the game screen")
+                self.assertLessEqual(os.path.getsize(got), os.path.getsize(src), g["id"])
             else: self.assertNotIn("snap", g, g["id"])
         self.assertTrue(any(g.get("snap") for g in self.games()), "some games carry their game screen")
         if EVIDENCE:

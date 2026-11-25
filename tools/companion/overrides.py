@@ -376,7 +376,7 @@ def export_zip(dest: str) -> dict:
         z.writestr("README.txt", "Classic Cart Studio customized content (schema ccs-overrides/1).\r\nThe original box art, descriptions and overviews are not included: only your own changes and the images you imported.\r\n")
     return {"games": len(st["games"]), "images": n}
 
-# ------------------------------------------------------------------------------------------------ HTTP routes (nes_companion dispatch)
+# ------------------------------------------------------------------------------------------------ HTTP routes (ccs_backend dispatch)
 def _desktop(h) -> bool:
     b = h._bearer(); return bool(b and b.get("desktop"))
 
@@ -440,7 +440,7 @@ def _stream_body(h) -> str:
         raise
     return tmp
 
-def handle_post(h, path: str, cfg: dict, pick_file=None):
+def handle_post(h, path: str, cfg: dict):
     if not _desktop(h): return h._json(403, {"ok": False, "error": "this works only in the Windows app"})
     q = urllib.parse.parse_qs(h.path.split("?", 1)[1] if "?" in h.path else "")
     ctype = (h.headers.get("Content-Type") or "").split(";")[0].strip().lower()
@@ -468,14 +468,10 @@ def handle_post(h, path: str, cfg: dict, pick_file=None):
         if path == "/api/overrides/art":
             op = str(body.get("op") or "pick"); stage = bool(body.get("stage"))
             if op == "commit": return h._json(200, {"ok": True, "art": commit_art(vid, str(body.get("master") or ""), body.get("crop")), "game": game(vid)})
-            if op in ("pick", "path"):
-                if body.get("path"):
-                    if not cfg.get("rehearsal_tree"): return h._json(403, {"ok": False, "error": "importing from a path is available only in rehearsal configurations"})
-                    chosen = str(body.get("path"))
-                else:
-                    if not pick_file: return h._json(400, {"ok": False, "error": "no file picker on this computer"})
-                    chosen = pick_file("Choose box art for this game (PNG, JPEG, WebP, GIF or BMP)", [("Images", "*.png *.jpg *.jpeg *.webp *.gif *.bmp"), ("All files", "*.*")])
-                    if not chosen: return h._json(200, {"ok": False, "canceled": True})
+            if op in ("pick", "path"):   # the picture the person chose in the app's own dialog (this route is the desktop principal's only)
+                import local_files as lf
+                chosen = lf.chosen(body)
+                if not chosen: return h._json(200, {"ok": False, "canceled": True})
                 rec = stage_art(vid, chosen, os.path.basename(chosen))
                 if stage: return h._json(200, {"ok": True, "art": rec, "staged": True})
                 return h._json(200, {"ok": True, "art": commit_art(vid, rec["master"], None), "game": game(vid)})

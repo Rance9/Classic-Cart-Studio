@@ -223,8 +223,7 @@ namespace CcsBackup.Tests
                     "refused before anything is written: a design that fails the check (" + wf1.Substring(0, Math.Min(90, wf1.Length)) + "...) and a HOME package that is not the console's own (" + wf2 + ")");
                 var stale = pa; var ostale = DesignApplyEngine.Execute(rc4, stale, stale.Digest, stale.Nonce, ctx);
                 Check(ostale.State == "refused", "a confirmation is used once and belongs to its own session (" + ostale.Problem + ")");
-                try { RecoverySessions.OpenReal(ImageKind.Files, null, () => false); Check(false, "a real file session opened"); }
-                catch (GateClosedException ex) { Check(!CcsBackup.Gate.ComposerWrites, "a real console: the HOME design's boundary (Console Composer's) is closed in code (" + ex.Message + ")"); }
+                Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.ComposerWrites && RecoverySessions.Refusal(ImageKind.Files) == null, "a real console: the HOME design's boundary (Console Composer's) is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
             }
             finally { SimulatedConsole.FileStore = null; }
         }

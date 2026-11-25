@@ -210,7 +210,7 @@ footer .support .legallink{font-weight:600;color:var(--ink2);text-decoration:non
 #guide .kbd{font-size:9px}
 @media (max-width:640px){#guide article{padding:14px 12px 28px}#guide .step{padding:11px 12px;column-gap:10px}#guide h3{font-size:13px}}
 /* ==== Help & User Guide: showcase layout ==== */
-#guide .mbox{background:#0b0b0f;border:1px solid rgba(255,255,255,.09);box-shadow:0 40px 100px rgba(0,0,0,.75),0 0 0 1px rgba(228,0,15,.15);grid-template-rows:auto auto 1fr}
+#guide .mbox{background:#0b0b0f;border:2px solid var(--red);box-shadow:0 40px 100px rgba(0,0,0,.75),0 0 0 1px rgba(228,0,15,.15);grid-template-rows:auto auto 1fr}
 #guide .ghd{background:radial-gradient(900px 120px at 12% 0%,rgba(228,0,15,.28),transparent 70%),linear-gradient(180deg,#1a1118,#111115);border-bottom:0;padding:12px 20px}
 #guide .ghd h2{font-size:13px;letter-spacing:.3px}#guide .ghd h2 span{color:var(--red3);opacity:.9}
 #guide .ghd .gkeys{display:inline-flex;align-items:center;gap:4px;color:var(--muted);margin-right:8px}
@@ -483,7 +483,7 @@ details.lotech summary{cursor:pointer;color:var(--ink2);font-size:12.5px;margin-
 .shg .ph.shph{width:44px;height:62px;flex:none;padding:0;font-size:7px;display:grid;place-content:center;border-radius:4px}
 /* .ccs packages: the ROM acknowledgment modal (above every other dialog; the page behind is inert) and the drop target */
 .ccsack{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.72);backdrop-filter:blur(7px)}.ccsack.open{display:flex}
-.ccsackbox{max-width:620px;width:100%;border:2px solid var(--red3);box-shadow:0 30px 90px rgba(0,0,0,.7)}.ccsackbox h2{font-family:var(--display);font-size:20px;letter-spacing:1px;text-transform:uppercase;margin:0 0 10px}.ccsackbox p{margin:0 0 10px;color:var(--ink2)}
+.ccsackbox{max-width:620px;width:100%;border:2px solid var(--red);box-shadow:0 30px 90px rgba(0,0,0,.7)}.ccsackbox h2{font-family:var(--display);font-size:20px;letter-spacing:1px;text-transform:uppercase;margin:0 0 10px}.ccsackbox p{margin:0 0 10px;color:var(--ink2)}
 .ccsackchk{display:flex;gap:10px;align-items:flex-start;margin:14px 0 6px;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--bg1);color:#fff;font-weight:600;cursor:pointer}.ccsackchk input{margin-top:3px;flex:none}
 .ccsack .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}.ccsack .btn:disabled{opacity:.45;cursor:not-allowed}
 body.ccsdrop::after{content:'Drop the .ccs file to open it';position:fixed;inset:12px;z-index:299;border:3px dashed var(--red3);border-radius:16px;background:rgba(0,0,0,.55);color:#fff;font:700 22px var(--display);display:grid;place-content:center;pointer-events:none}
@@ -790,7 +790,7 @@ details.csmore[open]>summary{border-color:var(--acc)}
 .lochoice .lc:has(input:checked){border-color:#da6879;background:#3b2731}
 .lochoice .lc:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
 .lochoice .lc.off{opacity:.55;cursor:not-allowed}
-.lochoice .lc input[type=radio]{flex:none;width:18px;height:18px;margin:0;accent-color:var(--acc)}
+.lochoice .lc input[type=radio]{flex:none;margin:0}
 .lochoice .lc>span:not(.mic){display:flex;flex-direction:column;gap:2px;min-width:0}.lochoice .lc b{color:#fff}.lochoice .lc .mic{width:30px;height:30px;font-size:16px}
 .lolist{display:flex;flex-direction:column;gap:4px;margin:2px 0 6px}
 .lolist .mi{border-color:var(--sfl);background:rgba(255,255,255,.03)}
@@ -986,7 +986,8 @@ img.px{image-rendering:pixelated}
 .dlbtn:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .dlbtn .dlic{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(0,0,0,.24);box-shadow:0 1px 0 rgba(255,255,255,.18)}
 .dlbtn .dlic svg{width:16px;height:16px}
-.dlbtn .dlic.emo{font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI Symbol",sans-serif;font-size:18px;line-height:1;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35)}   /* the toolbox: Windows draws it from Segoe UI Emoji, on a light tile so its red stands out on the red button */
+.dlbtn .dlic.wb{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35)}.dlbtn .dlic.wb img{width:20px;height:20px}   /* the Workbench's own wrench (make_icon.py), on a light tile so its red grip stands out on the red button */
+.mic img.wbmark{image-rendering:auto}
 @media (prefers-reduced-motion:reduce){.dlbtn,.dlbtn::after{transition:none}}
 .barhidden{display:none!important}
 
@@ -1224,3 +1225,55 @@ p.mempty{margin:6px 12px;color:var(--muted)}
 .gterm[aria-expanded=true]{background:rgba(156,163,175,.18)}
 #gpop{position:fixed;z-index:10050;box-sizing:border-box;background:#1f1f26;border:1px solid #9CA3AF;border-radius:10px;padding:12px 16px;box-shadow:0 12px 30px rgba(0,0,0,.6);color:var(--ink);font:13.5px/1.45 var(--font);text-align:left;text-transform:none;letter-spacing:normal}
 #gpop b{display:block;font-size:14px;margin-bottom:4px;color:#fff}#gpop p{margin:0 0 8px}#gpop .gtech,#gpop .gdetail{color:var(--muted);font-size:12.5px}#gpop .btn{margin-top:2px}
+/* ---- the app's own Open, Save and folder dialog (files.js): the app's dark look and red accent; its heading, toolbar and list headings
+   stay in place while the list scrolls ---- */
+#ccsfd{z-index:80}
+#ccsfd>.mbox{width:min(1040px,100%);height:min(720px,calc(var(--vvh) - var(--mpt) - var(--mpb)));display:flex;flex-direction:column;overflow:hidden}
+/* the red edge around the whole dialog (the approved accent, 2 px), so it stands apart from the page behind it; the website's Save name too */
+#ccsfd>.mbox,#savem>.mbox{border:2px solid var(--red)}
+/* the page's own question, notice and text answer (files.js ccsDialog: in place of the browser's confirm, alert and prompt) */
+.modal.ccsask{z-index:90;align-items:center}
+.modal.ccsask>.mbox{width:min(520px,100%);border:2px solid var(--red)}
+.ccsask-t{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;line-height:1.5;color:var(--ink)}
+.ccsask-in{width:100%;box-sizing:border-box;margin-top:12px;height:36px;padding:6px 10px;border-radius:8px;border:1px solid var(--line2);background:#0b0b0e;color:#fff;font:inherit;font-size:14px}
+#ccsfd .mhd{margin-bottom:10px;padding-bottom:10px}
+#ccsfd .fd-bar{display:flex;gap:6px;align-items:center}
+#ccsfd .fd-tool{width:36px;height:34px;flex:none;border-radius:8px;border:1px solid var(--line2);background:var(--s2);color:var(--ink);font:inherit;font-size:16px;line-height:1;cursor:pointer}
+#ccsfd .fd-tool:hover{border-color:rgba(255,255,255,.5);background:#2a2a33}#ccsfd .fd-tool:disabled{opacity:.35;cursor:default}
+#ccsfd input[type=text],#ccsfd input[type=search],#ccsfd select{height:34px;padding:6px 10px;border-radius:8px;border:1px solid var(--line2);background:#0b0b0e;color:#fff;font:inherit;font-size:13px;min-width:0;box-sizing:border-box}
+#ccsfd select{color-scheme:dark}#ccsfd select option{background:#1f1f26;color:#fff}
+#ccsfd .fd-addr{flex:1}#ccsfd .fd-search{width:230px;flex:none}
+#ccsfd .fd-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin:8px 0}
+#ccsfd .fd-crumb{border:1px solid transparent;background:transparent;color:var(--ink2);font:inherit;font-size:13px;padding:3px 6px;border-radius:6px;cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ccsfd .fd-crumb:hover{background:rgba(255,255,255,.07);color:#fff}#ccsfd .fd-crumb.on{font-weight:600;color:#fff}#ccsfd .fd-sep{color:var(--muted);font-size:13px}
+#ccsfd .fd-mid{flex:1;min-height:0;display:grid;grid-template-columns:200px 1fr;gap:10px}
+#ccsfd .fd-places{list-style:none;margin:0;padding:0;overflow:auto}
+#ccsfd .fd-places li{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--ink2);font-size:13px;border-left:3px solid transparent;min-width:0}
+#ccsfd .fd-places li span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ccsfd .fd-places li:hover{background:rgba(255,255,255,.07);color:#fff}#ccsfd .fd-places li[aria-selected=true]{background:#23232b;color:#fff;border-left-color:var(--red)}
+#ccsfd .fd-places:focus-visible{outline:none}#ccsfd .fd-places:focus-visible li.fx{outline:2px solid var(--red3);outline-offset:-2px}
+#ccsfd .fd-ico{display:inline-flex;width:18px;height:18px;flex:none}#ccsfd .fd-ico svg{width:18px;height:18px}
+#ccsfd .fd-list{min-height:0;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0b0b0e}
+#ccsfd .fd-list:focus-visible{outline:2px solid var(--red3);outline-offset:1px}
+#ccsfd .fd-head,#ccsfd .fd-row{display:grid;grid-template-columns:minmax(180px,1fr) 170px 140px 90px;align-items:center}
+#ccsfd .fd-list[aria-multiselectable=true] .fd-head,#ccsfd .fd-list[aria-multiselectable=true] .fd-row{grid-template-columns:40px minmax(180px,1fr) 170px 140px 90px}
+#ccsfd .fd-head{position:sticky;top:0;z-index:1;background:#141419;border-bottom:1px solid var(--line)}
+#ccsfd .fd-head .fd-c{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12.5px;text-align:left;padding:8px 10px;cursor:pointer;white-space:nowrap}
+#ccsfd .fd-head .fd-c:hover{color:#fff;background:rgba(255,255,255,.05)}#ccsfd .fd-head .fd-cs{text-align:right}
+#ccsfd .fd-row{min-height:34px;border:1px solid transparent;border-radius:5px;font-size:13px;cursor:default;user-select:none}
+#ccsfd .fd-row:hover{background:rgba(255,255,255,.06)}#ccsfd .fd-row.on{background:rgba(228,0,15,.22);border-color:rgba(228,0,15,.5)}
+#ccsfd .fd-list:focus-visible .fd-row.fx{border-color:var(--red3)}
+#ccsfd .fd-row .fd-c{padding:4px 10px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}
+#ccsfd .fd-row .fd-cn{display:flex;align-items:center;gap:10px;color:var(--ink)}#ccsfd .fd-nm{overflow:hidden;text-overflow:ellipsis}#ccsfd .fd-row .fd-cs{text-align:right}
+#ccsfd .fd-cc{display:flex;align-items:center;justify-content:center;cursor:pointer}
+#ccsfd .fd-check{display:inline-block;width:18px;height:18px;border-radius:4px;border:1.5px solid var(--muted);background:#0b0b0e;box-sizing:border-box}
+#ccsfd .fd-row:hover .fd-check{border-color:var(--ink2)}
+#ccsfd .fd-row.on .fd-check{border-color:#ff5a63;background:var(--red) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat}
+#ccsfd .fd-status{min-height:20px;margin:6px 0 0;color:var(--muted)}
+#ccsfd .fd-msg{margin-top:6px}
+#ccsfd .fd-ask{margin-top:8px}#ccsfd .fd-ask .fld{display:flex;flex-direction:column;gap:5px}#ccsfd .fd-ask label{font-size:12.5px;color:var(--muted)}
+#ccsfd .fd-foot{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:8px}
+#ccsfd .fd-nl{color:var(--muted);font-size:12.5px}#ccsfd .fd-kind{max-width:320px}
+#ccsfd .fd-acts{margin-top:12px;padding-bottom:2px}
+@media (max-width:760px){#ccsfd .fd-mid{grid-template-columns:1fr;grid-template-rows:auto 1fr}#ccsfd .fd-places{display:flex;overflow-x:auto;gap:4px}#ccsfd .fd-places li{white-space:nowrap;border-left:0;border-bottom:3px solid transparent}#ccsfd .fd-places li[aria-selected=true]{border-bottom-color:var(--red)}
+ #ccsfd .fd-search{width:130px}#ccsfd .fd-head,#ccsfd .fd-row{grid-template-columns:minmax(140px,1fr) 90px}#ccsfd .fd-list[aria-multiselectable=true] .fd-head,#ccsfd .fd-list[aria-multiselectable=true] .fd-row{grid-template-columns:40px minmax(140px,1fr) 90px}#ccsfd .fd-cd,#ccsfd .fd-ct{display:none}#ccsfd .fd-foot{grid-template-columns:1fr}}

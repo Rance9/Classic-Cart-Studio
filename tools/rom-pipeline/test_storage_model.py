@@ -62,9 +62,12 @@ def main():
     ok("shared_asset_counted_once", sh["allocated_bytes"] == 102400 + 8192 + 8192 and sh["rows"][1]["logical_bytes"] == 7000)
     ok("unknown_size_is_not_zero", r("unknown-file-size")["status"] == "unconfirmed" and not r("unknown-file-size")["write_ok"] and r("unknown-file-size")["rows"][0]["kind"] == "unknown"
        and r("estimate-missing")["status"] == "unconfirmed" and r("removed-copy-size-unknown")["status"] == "unconfirmed")
-    sn = r("snes-reference-saves-unknown")
-    ok("snes_saves_allowance_unknown_blocks_a_write", sn["available_bytes"] == 282206208 and sn["saves_allowance_bytes"] is None and sn["status"] == "unconfirmed" and not sn["write_ok"]
-       and "room for saves and suspend points" in sn["unknown"] and r("measured-two-game-package-on-snes-reference")["status"] == "unconfirmed")
+    # the Super NES Classic's room for saves and suspend points is the NES Classic's: CCS installs the same player and NES games on it
+    sn = r("snes-reference-saves-allowance"); nes_room = SM.SPEC["policies"]["saves_allowance_bytes"]["nes-classic-edition"]
+    ok("snes_saves_allowance_is_the_nes_classics", sn["available_bytes"] == 282206208 and sn["saves_allowance_bytes"] == nes_room == 10485760 and sn["status"] == "fits" and sn["write_ok"]
+       and not sn["unknown"] and r("measured-two-game-package-on-snes-reference")["status"] == "fits")
+    up0 = r("unknown-profile")
+    ok("unknown_model_saves_room_unknown_blocks_a_write", up0["saves_allowance_bytes"] is None and "room for saves and suspend points" in up0["unknown"] and not up0["write_ok"])
     up = r("unknown-profile")
     ok("unknown_console_model_is_unknown", up["available_bytes"] is None and up["remaining_bytes"] is None and up["status"] == "unconfirmed" and not up["write_ok"])
     pk = r("peak-does-not-fit-final-would")
@@ -93,7 +96,7 @@ def main():
     ok("meter_unknown_game_size", e("game-size-unknown")["status"] == "unconfirmed" and e("game-size-unknown")["unknown_games"] == 1)
     ok("meter_hakchi_once_none_when_present", e("hakchi-present")["hakchi"] == 0 and e("mod-home-estimated")["hakchi"] == SM.SPEC["estimates"]["hakchi_base"]["logical_bytes"])
     ok("meter_measured_free_used", e("measured-free")["available"] == 20000000 and e("measured-free")["source"] == "device" and e("measured-free")["status"] == "over")
-    ok("meter_snes_unconfirmed", e("snes-profile")["status"] == "unconfirmed" and e("snes-profile")["available"] == 282206208)
+    ok("meter_snes_reference", e("snes-profile")["status"] == "fits" and e("snes-profile")["available"] == 282206208)
     # Include HOME music (selected by default): left out, CCS HOME's song is not counted, in the copy in use, the earlier version kept and
     # the next update alike (both references); the held MP3 has its own figures, counted nowhere
     hm = SM.SPEC["estimates"]["home"]; hrow = lambda n, c="home": next(x for x in e(n)["rows"] if x["category"] == c)
@@ -149,7 +152,7 @@ def main():
         ok("nucleus_capacity_old_copy_not_charged_again", any("already counted" in x["what"] and "20.0 MB" in x["what"] and x["bytes"] == 0 for x in c2["rows"]) and c2["fits"])
         ok("nucleus_capacity_shortfall_shown", c["fits"] is False and c["status"] == "over" and c["shortfall_bytes"] == c["required_bytes"] - 30_000_000)
         c3 = CAP.compute(t, "nucleus", 300_000_000, 4096, profile="snes-classic-edition")
-        ok("nucleus_capacity_snes_unconfirmed", c3["status"] == "unconfirmed" and not c3["fits"])
+        ok("nucleus_capacity_snes_counts_its_saves_room", c3["status"] == "fits" and c3["fits"] and c3["account"]["result"]["saves_allowance_bytes"] == 10485760)
         if js is not None:
             j = run_js("const S=" + json.dumps(SM.SPEC) + "; const I=" + json.dumps([c["account"]["input"], c2["account"]["input"]]) + "; process.stdout.write(JSON.stringify(I.map(i=>ccsStorageAccount(i,S))));")
             ok("nucleus_capacity_same_in_website_script", j == [c["account"]["result"], c2["account"]["result"]])

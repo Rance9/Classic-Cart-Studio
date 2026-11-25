@@ -156,7 +156,9 @@ class Ownership(Base):
 # ---------------------------------------------------------------- CS3-F2: the console answering now
 class Identity(Base):
     def test_20_another_system_an_older_hakchi_a_custom_firmware_or_no_identity_change_nothing(self):
-        for prof, words in (("snes-eur", "North American NES Classic"), ("old-hakchi", "Hakchi2 CE 3.9.3 is required"), ("custom-firmware", "custom firmware"), ("no-identity", "identity could not be read"), ("stock", "hakchi must be installed first")):
+        for prof, words in (("sfc-jpn", "is not one Classic Cart Studio supports"), ("nes-eur", "this console reports nes-eur"), ("model-mismatch", "but hakchi reports snes-usa"),
+                            ("no-model", "model could not be read"), ("data-elsewhere", "data storage is not where"), ("old-hakchi", "Hakchi2 CE 3.9.3 is required"),
+                            ("custom-firmware", "custom firmware"), ("no-identity", "identity could not be read"), ("stock", "hakchi must be installed first")):
             with self.subTest(prof):
                 root = os.path.join(self.t, prof); CI.make_stand_in(root, prof); before = tree(root)
                 r = CI.Installer(CI.FakeConsole(root), self.plan, self.pkg, self.jnew()).run(); self.assertEqual(r["result"], "refused", r); self.assertIn(words, r["why"])

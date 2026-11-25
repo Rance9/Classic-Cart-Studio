@@ -1,15 +1,23 @@
 // Classic Cart Studio console backup and restore window. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // Backup Browser (offline, no console and no USB driver): the list of backups in the backup locations (complete, incomplete, damaged,
-// salvage, missing, each with its state and last passed file check), Open a Backup File for one saved anywhere else on this PC, then a
+// salvage, missing, each with its state and last full check), Open a Backup File for one saved anywhere else on this PC, then a
 // chosen backup By game (the default), By type or as stored (All files), with search, multi-select, a picture preview and export
-// (CcsBackup.Browse: names made safe, nothing overwritten, every file read back against its checksum). System images, the console's own
+// (CcsBackup.Browse: names made safe, nothing overwritten, every file read back against its checksum). Every view lists files as rows of
+// one table: a check box, an icon and the name (indented one step a level in All Files, a folder with its arrow), the size and the date
+// under a column header that stays in view while the list scrolls. A click anywhere on a file's row (its name included) selects or clears
+// it, exactly once, and shows its details beside the list; the details button at the end of a row shows them without changing the
+// selection. All Files names the folder or file last clicked in a bar above the list, with what can be done to it (Export This
+// Folder...), and every row has the same actions on its context menu. Before anything is copied the export step offers the new folder's
+// name (ExportNames: the game's title, the kind, the folder or the search), which can be changed. System images, the console's own
 // system part (decrypted on the PC with the key its startup images carry), the startup images' parts and ramdisk files and the CCS HOME
 // package open under their own entries, each file with where its checksum comes from (a short line on the page, the engine's full words
 // and the exact checksums under Technical details). The system key is never shown. Its separate key file is exported only when it is
 // itself selected; whole startup images, ramdisks and raw NAND images export as they are and can still contain the key, and the page and
 // the export's result say so. A damaged backup leads to Find What Can Be Saved: Backup Repair's part finder reads it (nothing is written
 // to it), then it can be browsed in place, rebuilt into a new file in a folder the person chooses, or have what still checks out copied
-// out. Reading a backup is never a restore and never a new check of a console. A check of a file runs only when the person asks for it.
+// out. A file that could not be opened (also one opened from another folder, not in the backup locations) offers Find What Can Be Saved
+// and Repair This File for that same file; nothing is repaired by itself, and the file is never moved or added to the backup locations.
+// Reading a backup is never a restore and never a new check of a console. A check of a file runs only when the person asks for it.
 using CcsBackup.Browse;
 using CcsBackup.Engine;
 using CcsBackup.Library;
@@ -32,6 +40,15 @@ namespace CcsBackup.Ui
     public sealed partial class BackupWorkspace
     {
         BackupContents browsing; readonly Selection browseSel = new Selection(); string browseView = "game"; Category browseCat = Category.Games; string browseSearch = "";
+        /// <summary>All Files: the folders open now (kept when the page is drawn again: another view, a search, a selection change)</summary>
+        readonly HashSet<string> browseOpen = new HashSet<string>(StringComparer.Ordinal);
+        /// <summary>the folder or file last clicked: All Files' action bar names it and offers what can be done to it</summary>
+        BrowseTarget browseCurrent;
+        /// <summary>where the last export in this window went (the export step offers it again; never saved)</summary>
+        string lastExportFolder;
+
+        /// <summary>what Verified means, under every list of backups (the Dashboard, the Backup Browser, Backup Repair)</summary>
+        internal const string VerifiedNote = "Verified means the whole file passed a full check: it was intact when it was checked. Not checked means no full check of it is recorded here. Neither is a test of restoring it to a console.";
 
         /// <summary>the window's own words about the console's system key (the engine's KeyPrivateText says the same for its records)</summary>
         const string KeyUiText = "This is the console's system key: its startup software uses it to open the encrypted system part. Its bytes are never shown here. Exporting a folder, a type, search results or a game skips this separate key file; it is exported only when you select it itself. Whole startup images, ramdisks and raw NAND images can still contain the key. Keep those exports, and any copy of the key file, private.";
@@ -40,7 +57,8 @@ namespace CcsBackup.Ui
         /// <summary>the backups in the backup locations; justChecked: a file the person just checked here (its result is said at the top)</summary>
         void ShowBackupBrowser(BackupListEntry justChecked = null, DateTime checkedFrom = default(DateTime))
         {
-            browsing?.Dispose(); browsing = null; browseSel.Clear(); browseSearch = "";
+            RememberShown();   // an open backup's view, search, open folders and chosen files are kept for Back before they are let go (WorkbenchNav.cs)
+            browsing?.Dispose(); browsing = null; browseSel.Clear(); browseSearch = ""; browseOpen.Clear(); browseCurrent = null; browseDetails = null;
             settings = Reload();
             var sp = SectionHead("Backup Browser", "See the backups in your backup locations and open any of them on this PC, without a console: look through it by game, by type or as it is stored, and copy files out of it. Reading a backup never changes it or any console.");
             List<BackupListEntry> list;
@@ -58,7 +76,7 @@ namespace CcsBackup.Ui
                     damaged ? B("Find What Can Be Saved…", e.CanOpenSalvage ? "Btn.Ghost" : "Btn", () => FindWhatCanBeSaved(x)) : null,
                     File.Exists(e.Path) ? B("Check the File", "Btn.Ghost", () => CheckBackup(x.Path)) : null, B("Open Folder", "Btn.Ghost", () => OpenFolder(x.Path))));
             }
-            sp.Children.Add(T("A passed file check means the file was intact when it was checked. It is not a test of restoring it to a console.", Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
+            sp.Children.Add(T(VerifiedNote, Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
             Show(sp, "backup-browser");
         }
 
@@ -153,20 +171,34 @@ namespace CcsBackup.Ui
                 if (t.IsFaulted) { ShowOpenFailed(path, t.Exception.GetBaseException().Message, null); return; }
                 var r = t.Result;
                 if (!r.Ok) { ShowOpenFailed(path, r.Problem, r.Problems); return; }
-                browsing?.Dispose(); browsing = r.Contents; browseSel.Clear(); browseView = "game"; browseSearch = ""; ShowBrowse();
+                browsing?.Dispose(); browsing = r.Contents; browseSel.Clear(); browseOpen.Clear(); browseCurrent = null; browseDetails = null; browseView = "game"; browseSearch = ""; ShowBrowseOpened(path);   // as it was when opened again by Back or Forward
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        /// <summary>a backup that did not pass the check before opening: what that means, the engine's words, and where to go next</summary>
+        /// <summary>a backup that did not pass the check before opening: what that means, the engine's words, and what can be done with that same
+        /// file, wherever it is (in the backup locations or opened from another folder): Find What Can Be Saved and Repair This File. Nothing
+        /// is repaired by itself; both only read the file, and anything new is written as a new file.</summary>
         void ShowOpenFailed(string path, string problem, List<string> problems)
         {
             var sp = PageHead("This backup could not be opened", "The file did not pass the check that runs before a backup is opened, so its contents are not shown. Nothing was written to it.");
             { var at = PathText(path, 13); at.Margin = new Thickness(0, 0, 0, 12); sp.Children.Add(at); }
             sp.Children.Add(Note(problem == null ? "It is not a complete console backup." : "Part of the file does not match what was recorded when the backup was made, so the file is damaged.", "bad"));
             if (problem != null || problems?.Count > 0) sp.Children.Add(Details("Technical details", new object[] { problem }.Concat((problems ?? new List<string>()).Where(x => x != problem)).ToArray()));
-            bool listed = false; try { listed = BackupList.List(Reload()).Any(x => string.Equals(x.Path, path, StringComparison.OrdinalIgnoreCase)); } catch (Exception) { }
-            if (listed) sp.Children.Add(T("The backup list offers Find What Can Be Saved for a damaged backup, and Backup Repair can make a repaired copy. The file itself is never changed.", Ty.Text, false, true));
-            sp.Children.Add(Buttons(B("Back to the Backup List", "Btn", BackToList), listed ? B("Backup Repair", "Btn.Ghost", () => Go("Backup Repair")) : null));
+            bool exists = false; try { exists = File.Exists(path); } catch (Exception) { }
+            bool storage = exists && CcsBackup.External.ExternalFormat.Is(path);
+            BackupListEntry row = null; bool listed = false;
+            if (exists && !storage)
+            {
+                var s0 = Reload();
+                try { row = BackupList.List(s0).FirstOrDefault(x => string.Equals(x.Path, path, StringComparison.OrdinalIgnoreCase)); listed = row != null; } catch (Exception) { }
+                if (row == null) try { row = BackupList.Row(s0, path); } catch (Exception) { }
+            }
+            if (exists)
+                sp.Children.Add(T(storage ? "Repair This File shows how a repaired copy of this USB and SD backup can be made. The file itself is never changed."
+                    : "Find What Can Be Saved reads the file and shows what still matches its records: you can browse that, copy it out or rebuild a repaired copy. Repair This File shows every way to make a repaired copy. Both only read this file; anything new is written as a new file." + (listed ? "" : " The file stays where it is and is not added to your backup locations."), Ty.Text, false, true));
+            sp.Children.Add(Buttons(row != null ? B("Find What Can Be Saved…", "Btn", () => FindWhatCanBeSaved(row)) : null,
+                                    row != null ? B("Repair This File…", "Btn.Ghost", () => { if (!listed) repairOpened = path; ShowRepairRoutes(row); }) : storage ? B("Repair This File…", "Btn.Ghost", () => ShowStorageRepair(path)) : null,
+                                    B("Back to the Backup List", "Btn.Ghost", BackToList)));
             Show(sp, "msg");
         }
 
@@ -180,8 +212,10 @@ namespace CcsBackup.Ui
             Task.Run(() => BackupContents.OpenLive(stream, tag, state, () => cts.IsCancellationRequested, physicalModel)).ContinueWith(t =>
             {
                 var r = t.Result;
+                // the person opened another page meanwhile: the console's files wait for Return to Task (WorkbenchNav.cs)
+                if (TaskStepAway(pv.Panel, () => { if (!r.Ok) { stream.Dispose(); Show(Message("The console's files could not be read", r.Problem ?? "", "bad"), "msg"); } else KeepLiveAway(r.Contents); })) return;
                 if (!r.Ok) { stream.Dispose(); Show(Message("The console's files could not be read", r.Problem ?? "", "bad"), "msg"); return; }
-                browsing?.Dispose(); browsing = r.Contents; browseSel.Clear(); browseView = "game"; browseSearch = ""; ShowBrowse();
+                browsing?.Dispose(); browsing = r.Contents; browseSel.Clear(); browseOpen.Clear(); browseCurrent = null; browseDetails = null; browseView = "game"; browseSearch = ""; ShowBrowse();
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
@@ -198,7 +232,8 @@ namespace CcsBackup.Ui
             if (e.Bytes > 0) bits.Add(Units.Gb(e.Bytes));
             var where = CopyWords(e.Copy); if (where != null) bits.Add(where);
             if (bits.Count > 0) who.Children.Add(T(string.Join("  ·  ", bits), Ty.Small, false, true, new Thickness(0)));
-            // a file that is missing or unfinished says why in the list's own words; every other file says its last passed file check
+            // a file that is missing or unfinished says why in the list's own words; every other file says its last full check and what it
+            // found (Verified only for a full check of the file as it is now)
             bool gone = e.Status == BrowseStatus.Missing || e.Status == BrowseStatus.Incomplete;
             who.Children.Add(T(gone ? e.Detail ?? LastCheckText(e) : LastCheckText(e), Ty.Small, false, true, new Thickness(0, 2, 0, 0)));
             top.Children.Add(who);
@@ -216,7 +251,7 @@ namespace CcsBackup.Ui
                 row.Children.Add(T(string.Join(" ", said), Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
                 tech = e.Detail;
             }
-            else if (!gone && e.Detail != null && !(e.Status == BrowseStatus.Complete && e.Check == CheckState.NotChecked)) row.Children.Add(T(e.Detail, Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
+            else if (!gone && e.Detail != null && e.Status != BrowseStatus.Complete) row.Children.Add(T(e.Detail, Ty.Small, false, true, new Thickness(0, 6, 0, 0)));   // a complete file's state is its check line above
             var path = PathText(e.Path, 12); path.Margin = new Thickness(0, 6, 0, 0); row.Children.Add(path);
             if (tech != null) row.Children.Add(Details("Technical details", tech, e.DamagedParts.Count > 0 ? "Damaged or missing parts: " + string.Join(", ", e.DamagedParts) : null, e.FoundBy != null ? "Its parts were found through " + e.FoundBy + "." : null));
             var acts = Buttons(actions); acts.Margin = new Thickness(0, 10, 0, -10); row.Children.Add(acts);
@@ -281,169 +316,441 @@ namespace CcsBackup.Ui
             sp.Children.Add(bar);
 
             var preview = new StackPanel();
-            preview.Children.Add(T("Click a file's name to see what it is and where its checksum comes from, with a preview of a picture. " + (c?.DatesText ?? BackupContents.ClockText), 12.5, false, true));
-            var listPanel = new StackPanel();
-            IEnumerable<BrowseEntry> shown;
+            preview.Children.Add(T(PreviewHint + " " + (c?.DatesText ?? BackupContents.ClockText), 12.5, false, true));
+            var cols = new BrowseColumns(); drawn.Clear(); actionBar = null;
+            FrameworkElement list;
             if (browseView == "game")
             {
+                var listPanel = new StackPanel();
                 var games = string.IsNullOrEmpty(browseSearch) ? c.Games.ToList() : c.SearchGames(browseSearch);
                 if (games.Count == 0) listPanel.Children.Add(T("No games" + (string.IsNullOrEmpty(browseSearch) ? "." : " match the search."), 13, false, true));
                 foreach (var g in games.Take(300))
                 {
                     var gp = new StackPanel();
                     var files = g.GameFiles.Concat(g.BatterySaves).Concat(g.SuspendPoints.SelectMany(x => x.Value)).Concat(g.Artwork).Concat(g.SettingsFiles).Concat(g.OtherFiles).Concat(g.PackageCopies).Distinct().ToList();
-                    var gg = g; var exp = B("Export This Game…", "Btn.Ghost", () => DoExport(ExportRequest.GameBundle(c, gg, PickFolder()))); exp.Margin = new Thickness(0); exp.VerticalAlignment = VerticalAlignment.Center;
+                    var gg = g; var exp = B("Export This Game…", "Btn.Ghost", () => ExportFlow(ExportRequest.GameBundle(c, gg, null), "Export This Game")); exp.Margin = new Thickness(0); exp.VerticalAlignment = VerticalAlignment.Center;
+                    System.Windows.Automation.AutomationProperties.SetHelpText(exp, "Every file of " + g.Title);
                     var head = new Grid { Margin = new Thickness(0, 0, 0, 10) }; head.ColumnDefinitions.Add(new ColumnDefinition()); head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     var title = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
                     title.Children.Add(T(g.Title + (g.TitleKnown ? "" : " (name not known)"), 14.5, true, false, new Thickness(0)));
                     title.Children.Add(T(files.Count + " file" + (files.Count == 1 ? "" : "s"), 12, false, true, new Thickness(0)));
                     head.Children.Add(title); Grid.SetColumn(exp, 1); head.Children.Add(exp);
                     gp.Children.Add(head);
-                    gp.Children.Add(FileHeader());
-                    foreach (var e in files.Take(60)) gp.Children.Add(FileRow(e, preview));
+                    gp.Children.Add(FileHeader(cols));
+                    foreach (var e in files.Take(60)) gp.Children.Add(FileRow(e, preview, cols));
+                    if (files.Count > 60) gp.Children.Add(MoreLine(files.Count - 60, -1));
                     var card = Card(gp, 14); card.Margin = new Thickness(0, 0, 0, 10); listPanel.Children.Add(card);
+                    cols.Watch(card);
                 }
-                shown = games.SelectMany(g => g.GameFiles);
+                if (games.Count > 300) listPanel.Children.Add(T("And " + (games.Count - 300).ToString("N0", En) + " more games. Search to find one.", 12.5, false, true));
+                list = new ScrollViewer { Content = listPanel, MaxHeight = 520, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Padding = new Thickness(0, 0, 6, 0) };
             }
             else if (browseView == "type")
             {
-                var counts = c.Counts(); var tabs = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+                var counts = c.Counts(); var tabs = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
                 foreach (var cat in Categories.All) { var k = cat; var b = B(Categories.Label(cat) + " (" + counts[cat].count + ")", browseCat == cat ? "Btn.Primary" : "Btn.Ghost", () => { browseCat = k; ShowBrowse(); }); b.MinWidth = 0; b.Margin = new Thickness(0, 0, 6, 6); tabs.Children.Add(b); }
-                listPanel.Children.Add(tabs);
-                shown = string.IsNullOrEmpty(browseSearch) ? c.ByType(browseCat) : c.Search(browseSearch, c.ByType(browseCat));
-                var table = new StackPanel(); table.Children.Add(FileHeader());
-                int n = 0; foreach (var e in shown.Take(1000)) { table.Children.Add(FileRow(e, preview)); n++; }
-                if (n == 0) table.Children.Add(T("Nothing of this type" + (string.IsNullOrEmpty(browseSearch) ? "." : " matches the search."), 13, false, true, new Thickness(0, 6, 0, 0)));
-                var card = Card(table, 14); card.Margin = new Thickness(0, 0, 0, 10); listPanel.Children.Add(card);
-                listPanel.Children.Add(Buttons(B("Export All of This Type…", "Btn", () => DoExport(ExportRequest.WholeCategory(c, browseCat, PickFolder()))),
-                    !string.IsNullOrEmpty(browseSearch) ? B("Export These Search Results…", "Btn.Ghost", () => DoExport(ExportRequest.SearchResults(c, browseCat, browseSearch, shown, PickFolder()))) : null));
+                var shown = string.IsNullOrEmpty(browseSearch) ? c.ByType(browseCat) : c.Search(browseSearch, c.ByType(browseCat));
+                var rows = new StackPanel(); int n = 0;
+                foreach (var e in shown.Take(1000)) { rows.Children.Add(FileRow(e, preview, cols)); n++; }
+                if (n == 0) rows.Children.Add(T("Nothing of this type" + (string.IsNullOrEmpty(browseSearch) ? "." : " matches the search."), 13, false, true, new Thickness(0, 8, 0, 0)));
+                if (shown.Count > 1000) rows.Children.Add(MoreLine(shown.Count - 1000, -1));
+                var left = new StackPanel();
+                left.Children.Add(Table(tabs, rows, cols));
+                left.Children.Add(Buttons(B("Export All of This Type…", "Btn", () => ExportFlow(ExportRequest.WholeCategory(c, browseCat, null), "Export All of This Type")),
+                    !string.IsNullOrEmpty(browseSearch) ? B("Export These Search Results…", "Btn.Ghost", () => ExportFlow(ExportRequest.SearchResults(c, browseCat, browseSearch, shown, null), "Export These Search Results")) : null));
+                list = left;
             }
             else
             {
-                shown = string.IsNullOrEmpty(browseSearch) ? c.Children("") : c.Search(browseSearch);
-                var table = new StackPanel(); table.Children.Add(FileHeader());
-                // folders and files are rows of one table: the same thin line between every row, the check boxes in one column, and each
-                // level indented in the name column with a faint guide line, so what is inside a folder is plainly under it. A folder's row
-                // has a chevron and how many items it holds; what is inside is listed under it the first time it is opened, then its export
-                void Expander(string label, int depth, StackPanel into, Func<IEnumerable<BrowseEntry>> kids, Func<ExportRequest> export, int count)
-                {
-                    var inner = new StackPanel { Visibility = Visibility.Collapsed }; bool loaded = false;
-                    var g = FileGrid(0); g.Margin = new Thickness(-2, 0, -2, 0);   // the button's 2-pixel focus edge: the columns stay in line with the files'
-                    var chev = new TextBlock { Text = "", FontFamily = Res<FontFamily>("F.Icons"), FontSize = 10, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, Width = 14, Margin = new Thickness(0, 0, 6, 0) };
-                    var head = new DockPanel(); var guides = Guides(depth); DockPanel.SetDock(guides, Dock.Left); head.Children.Add(guides); DockPanel.SetDock(chev, Dock.Left); head.Children.Add(chev);
-                    head.Children.Add(new TextBlock { Text = label, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Ink"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 7, 12, 7) });
-                    Grid.SetColumn(head, 1); g.Children.Add(head);
-                    var n = new TextBlock { Text = count == 1 ? "1 item" : count.ToString("N0", CultureInfo.InvariantCulture) + " items", FontSize = 12, Foreground = Res<Brush>("B.Muted"), TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
-                    Grid.SetColumn(n, 2); g.Children.Add(n);
-                    var row = new Button { Content = g, Style = Res<Style>("Wb.Plain"), HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0) };
-                    System.Windows.Automation.AutomationProperties.SetName(row, label + ", folder, " + n.Text + ", closed");
-                    row.Click += (s, ev) =>
-                    {
-                        if (!loaded)
-                        {
-                            loaded = true; Tree(kids(), depth + 1, inner);
-                            var eg = FileGrid(0); var ep = new DockPanel(); var gd = Guides(depth + 1); DockPanel.SetDock(gd, Dock.Left); ep.Children.Add(gd);
-                            var eb = B("Export This Folder…", "Btn.Ghost", () => DoExport(export())); eb.Margin = new Thickness(0, 6, 0, 6); eb.MinHeight = 30; ep.Children.Add(eb);
-                            Grid.SetColumn(ep, 1); eg.Children.Add(ep); inner.Children.Add(new Border { Child = eg, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0) });
-                        }
-                        bool open = inner.Visibility != Visibility.Visible; inner.Visibility = open ? Visibility.Visible : Visibility.Collapsed; chev.Text = open ? "" : "";
-                        System.Windows.Automation.AutomationProperties.SetName(row, label + ", folder, " + n.Text + (open ? ", open" : ", closed"));
-                    };
-                    into.Children.Add(new Border { Child = row, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0) }); into.Children.Add(inner);
-                }
-                void Tree(IEnumerable<BrowseEntry> es, int depth, StackPanel into)
-                {
-                    foreach (var e in es.Take(2000))
-                    {
-                        var ee = e;
-                        if (e.Kind == EntryKind.Folder) { Expander(e.Name + "/", depth, into, () => c.Children(ee.Id), () => ExportRequest.Folder(c, ee, PickFolder()), c.Children(ee.Id).Count); continue; }
-                        into.Children.Add(FileRow(e, preview, depth));
-                        // the data storage image is a part of the backup file that also holds the console's files: they open under it
-                        var inside = c.Children(e.Id).Count;
-                        if (inside > 0)
-                            Expander("Files inside " + e.Name, depth, into, () => c.Children(ee.Id), () =>
-                            {
-                                var dest = PickFolder(); if (dest == null) return null;
-                                var r = new ExportRequest { Destination = dest, Scope = ExportScope.Folder, Layout = ExportLayout.OriginalPaths, FolderName = ee.Member == c.DataMember && ee.Source == EntrySource.Member ? "Console files" : "Files inside " + ee.Name, ScopeText = "Everything inside " + ee.DisplayPath + ", with its original folders." };
-                                r.Entries.AddRange(c.Children(ee.Id)); return r;
-                            }, inside);
-                    }
-                }
-                Tree(shown, 0, table);
-                var card = Card(table, 14); card.Margin = new Thickness(0, 0, 0, 10); listPanel.Children.Add(card);
+                // All Files: the backup as it is stored, as one table. A folder's row has its arrow, its icon and how many items it holds; what is
+                // inside is drawn under it, one step further in, the first time it is opened. The bar above the list names the folder or file
+                // last clicked and offers what can be done to it; every row has the same actions on its right-click menu.
+                bool searching = !string.IsNullOrEmpty(browseSearch);
+                var rows = new StackPanel();
+                var abar = actionBar = new ContentControl { Focusable = false };
+                Tree(c, searching ? c.Search(browseSearch) : c.Children(""), 0, rows, preview, cols, searching);
+                if (rows.Children.Count == 0) rows.Children.Add(T(searching ? "Nothing matches the search." : "This backup lists no files.", 13, false, true, new Thickness(0, 8, 0, 0)));
+                UpdateActionBar();
+                list = Table(abar, rows, cols);
             }
-            var listHost = new ScrollViewer { Content = listPanel, MaxHeight = 520, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Padding = new Thickness(0, 0, 6, 0) };
             var previewCard = Card(preview, 16); previewCard.Margin = new Thickness(0, 0, 0, 10); previewCard.VerticalAlignment = VerticalAlignment.Top;
-            sp.Children.Add(SideBySide(listHost, previewCard, 320, 860));
-            sp.Children.Add(Buttons(B("Export Selected…", "Btn.Primary", () => { if (browseSel.Count == 0) { Tell("Select files first", "Select the files to export first: check the box beside each one."); return; } DoExport(ExportRequest.Selected(c, browseSel, PickFolder())); }),
-                                    B("Clear Selection", "Btn.Ghost", () => { browseSel.Clear(); ShowBrowse(); }), c.Live ? B("Back to the Check-Up", "Btn.Ghost", () => ShowCheckup(lastCheckup)) : B("Back to the Backup List", "Btn.Ghost", BackToList)));
-            sp.Children.Add(T("Exports copy files to a new folder on this PC that you choose; each one is read back and compared with its checksum. Nothing in the " + (c.Live ? "console" : "backup") + " changes.", Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
+            sp.Children.Add(SideBySide(list, previewCard, 320, 860));
+            // what is selected (in any view), and what can be done with it
+            var picked = selectionLine = T("", Ty.Small, false, true, new Thickness(0, 4, 0, 0)); UpdateSelectionLine(); sp.Children.Add(picked);
+            sp.Children.Add(Buttons(B("Export Selected…", "Btn.Primary", () => { if (browseSel.Count == 0) { Tell("Select files first", "Select the files to export first: click a file, or its check box, to select it."); return; } ExportFlow(ExportRequest.Selected(c, browseSel, null), "Export Selected Files"); }),
+                                    B("Clear Selection", "Btn.Ghost", () => { browseSel.Clear(); RefreshSelection(); }), c.Live ? B("Back to the Check-Up", "Btn.Ghost", () => ShowCheckup(lastCheckup)) : B("Back to the Backup List", "Btn.Ghost", BackToList)));
+            sp.Children.Add(T("Exports copy files to a new folder on this PC: you name it and choose where it goes before anything is copied. Each file is read back and compared with its checksum. Nothing in the " + (c.Live ? "console" : "backup") + " changes.", Ty.Fine, false, true, new Thickness(0, 2, 0, 0)));
+            // the details shown before the page was drawn again stay shown
+            var again = browseDetails != null ? c.Find(browseDetails) : null;
+            if (again != null) Preview(again, preview);
             Show(sp, "browse");
         }
 
+        /// <summary>the words over the details beside the list before a file is clicked</summary>
+        const string PreviewHint = "Click a file to select it. What it is and where its checksum comes from show here, with a preview when it is a picture. The details button at the end of a row shows a file here without selecting it.";
+
+        /// <summary>the folder or file last clicked or reached with the keyboard: what All Files' bar and a row's menu act on. Inside: the files
+        /// inside Entry (a file that holds files: the data storage image, a system image, a startup image, the CCS HOME package), shown as a
+        /// folder under it.</summary>
+        sealed class BrowseTarget
+        {
+            public BrowseEntry Entry; public bool Inside;
+            public string Key => (Inside ? "in:" : "") + Entry.Id;
+            public bool IsFolder => Inside || Entry.Kind == EntryKind.Folder;
+            public string Label => Inside ? "Files inside " + Entry.Name : Entry.Kind == EntryKind.Folder ? Entry.Name + "/" : string.IsNullOrEmpty(Entry.Name) ? Entry.DisplayPath : Entry.Name;
+        }
+
+        /// <summary>the columns of every file table on the page: the check box, the name, the size and the date. The date column is left out
+        /// while the table is narrower than NarrowBelow (the date stays in a file's details), so names keep their room.</summary>
+        sealed class BrowseColumns
+        {
+            public const double Check = 36, Size = 86, Date = 132, NarrowBelow = 600;
+            public bool Narrow;
+            readonly List<(ColumnDefinition col, UIElement cell)> dates = new List<(ColumnDefinition, UIElement)>();
+            public ColumnDefinition DateColumn() => new ColumnDefinition { Width = new GridLength(Narrow ? 0 : Date) };
+            public void Track(ColumnDefinition col, UIElement cell) { dates.Add((col, cell)); if (Narrow) cell.Visibility = Visibility.Collapsed; }
+            public void Watch(FrameworkElement host)
+            {
+                host.SizeChanged += (s, e) =>
+                {
+                    bool n = e.NewSize.Width < NarrowBelow; if (n == Narrow) return; Narrow = n;
+                    foreach (var (col, cell) in dates) { col.Width = new GridLength(n ? 0 : Date); cell.Visibility = n ? Visibility.Collapsed : Visibility.Visible; }
+                };
+            }
+        }
+
+        /// <summary>a glyph from the icon font that UI Automation does not read out (the row or button around it has the words)</summary>
+        sealed class Glyph : TextBlock { protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => null; }
+        Glyph IconText(string glyph, double size, string brush) => new Glyph { Text = glyph, FontFamily = Res<FontFamily>("F.Icons"), FontSize = size, Foreground = Res<Brush>(brush), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center };
+        static string FolderGlyph(bool open) => open ? "\uE838" : "\uE8B7";
+        static string ChevronGlyph(bool open) => open ? "\uE70D" : "\uE76C";
+        static string FileGlyph(BrowseEntry e)
+        {
+            if (e.Kind == EntryKind.Link) return "\uE71B";
+            if (e.Private != null) return "\uE72E";
+            if (e.IsImage) return "\uEDA2";
+            switch (e.Category)
+            {
+                case Category.Games: return "\uE7FC";
+                case Category.Saves: case Category.SuspendPoints: return "\uE74E";
+                case Category.Artwork: return "\uEB9F";
+                case Category.Settings: return "\uE713";
+                default: return "\uE7C3";
+            }
+        }
+
+        /// <summary>a file table in a card: what sits above it (By Type's tabs, All Files' bar), the column header, then the rows, which scroll
+        /// under the header (the header stays in view, lined up with the rows when the scroll bar shows)</summary>
+        Border Table(UIElement top, UIElement rows, BrowseColumns cols)
+        {
+            var g = new Grid();
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            if (top != null) g.Children.Add(top);
+            var head = FileHeader(cols); Grid.SetRow(head, 1); g.Children.Add(head);
+            var sv = new ScrollViewer { Content = rows, MaxHeight = 460, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+            void Line() => head.Margin = new Thickness(0, 0, sv.ComputedVerticalScrollBarVisibility == Visibility.Visible ? Math.Max(0, sv.ActualWidth - sv.ViewportWidth) : 0, 0);
+            sv.ScrollChanged += (s, e) => Line(); sv.SizeChanged += (s, e) => Line();
+            Grid.SetRow(sv, 2); g.Children.Add(sv);
+            var card = Card(g, 14); card.Margin = new Thickness(0, 0, 0, 10);
+            cols.Watch(card);
+            return card;
+        }
+
         /// <summary>the column names over a list of files</summary>
-        Grid FileHeader()
+        Grid FileHeader(BrowseColumns cols)
         {
-            var g = FileGrid(0); g.Margin = new Thickness(0, 0, 0, 4);
-            TextBlock H(string t, int col, TextAlignment a = TextAlignment.Left) { var x = new TextBlock { Text = t, FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Muted"), TextAlignment = a, TextTrimming = TextTrimming.CharacterEllipsis }; Grid.SetColumn(x, col); g.Children.Add(x); return x; }
-            H("NAME", 1); H("SIZE", 2, TextAlignment.Right).Margin = new Thickness(0, 0, 16, 0); H("DATE", 3).ToolTip = "The date each file has on the console, by the console's own clock (often not set).";
+            var g = FileGrid(cols); g.Margin = new Thickness(0, 0, 0, 2); SetNoTerms(g, true);
+            TextBlock H(string t, int col, TextAlignment a = TextAlignment.Left) { var x = new TextBlock { Text = t, FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Muted"), TextAlignment = a, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 4, 0, 6) }; Grid.SetColumn(x, col); g.Children.Add(x); return x; }
+            H("NAME", 1); H("SIZE", 2, TextAlignment.Right).Margin = new Thickness(0, 4, 14, 6);
+            var d = H("DATE", 3); d.ToolTip = "The date each file has on the console, by the console's own clock (often not set)."; cols.Track(g.ColumnDefinitions[3], d);
             return g;
         }
-        static Grid FileGrid(double indent)
+        Grid FileGrid(BrowseColumns cols)
         {
-            var g = new Grid { Margin = new Thickness(indent, 0, 0, 0) };
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(BrowseColumns.Check) });
             g.ColumnDefinitions.Add(new ColumnDefinition { MinWidth = 120 });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(BrowseColumns.Size) });
+            g.ColumnDefinitions.Add(cols.DateColumn());
             return g;
         }
 
-        /// <summary>the indent of a row at this depth of the All Files tree: 18 pixels a level, each with a faint guide line, so the rows under
-        /// a folder line up under it</summary>
-        FrameworkElement Guides(int depth)
+        /// <summary>the indent of a row at this depth of the All Files tree: 20 pixels a level. One faint line, under the folder the row is in
+        /// (at its arrow), ties the row to that folder; rows further in draw their own folder's line instead, so lines never stack up.</summary>
+        const double IndentStep = 20;
+        FrameworkElement Indent(int depth, double reach = 0)
         {
-            var sp = new StackPanel { Orientation = Orientation.Horizontal };
-            for (int i = 0; i < depth; i++) sp.Children.Add(new Border { Width = 11, Margin = new Thickness(7, 0, 0, 0), BorderBrush = Res<Brush>("B.Line2"), BorderThickness = new Thickness(1, 0, 0, 0) });
-            return sp;
+            var g = new Grid { Width = Math.Max(0, depth) * IndentStep };
+            if (depth >= 1) g.Children.Add(new Border { Width = 1, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness((depth - 1) * IndentStep + 7.5, -reach, 0, -reach), Background = Res<Brush>("B.Line2") });
+            return g;
         }
 
-        /// <summary>one file: its check box (selection), its name with its folder under it (click to preview), its size and its date. In the
-        /// All Files tree (depth 0 or more) the name is indented to its level and its folder is the row above it, so only the name is shown.</summary>
-        FrameworkElement FileRow(BrowseEntry e, StackPanel preview, int depth = -1)
+        /// <summary>a line at the end of a long list: how many more there are, and that a search finds them</summary>
+        UIElement MoreLine(int more, int depth)
         {
-            var g = FileGrid(0); SetNoTerms(g, true);   // a backup's own file names and folders
+            var t = T("And " + more.ToString("N0", En) + " more. Search to find them.", 12.5, false, true, new Thickness(Math.Max(0, depth) * IndentStep + BrowseColumns.Check, 8, 0, 8));
+            return new Border { Child = t, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0) };
+        }
+
+        /// <summary>All Files: entries as rows of the table, each level one step further in. A file that holds files (the data storage image, a
+        /// system image, a startup image, the CCS HOME package) has a folder "Files inside" right under it. paths: search results, out of their
+        /// folders: each row shows where it is.</summary>
+        void Tree(BackupContents c, IEnumerable<BrowseEntry> es, int depth, StackPanel into, StackPanel preview, BrowseColumns cols, bool paths)
+        {
+            var all = es as IList<BrowseEntry> ?? es.ToList();
+            foreach (var e in all.Take(2000))
+            {
+                if (e.Kind == EntryKind.Folder) { FolderRow(c, new BrowseTarget { Entry = e }, depth, into, preview, cols, paths); continue; }
+                into.Children.Add(FileRow(e, preview, cols, depth, paths));
+                if (c.Children(e.Id).Count > 0) FolderRow(c, new BrowseTarget { Entry = e, Inside = true }, depth + 1, into, preview, cols, false);
+            }
+            if (all.Count > 2000) into.Children.Add(MoreLine(all.Count - 2000, depth));
+        }
+
+        /// <summary>a folder of the All Files tree (or the files inside a file): its arrow, icon, name and how many items it holds. Clicking it
+        /// (or Enter, Space, the right and left arrow keys) opens and closes it and makes it the bar's folder; its contents are drawn the
+        /// first time it opens. Its right-click menu has Open or Close and Export This Folder.</summary>
+        void FolderRow(BackupContents c, BrowseTarget t, int depth, StackPanel into, StackPanel preview, BrowseColumns cols, bool paths)
+        {
+            var kids = c.Children(t.Entry.Id); int count = kids.Count;
+            var inner = new StackPanel { Visibility = Visibility.Collapsed }; bool loaded = false;
+            var g = FileGrid(cols); g.Margin = new Thickness(-2, 0, -2, 0); SetNoTerms(g, true);   // the button's 2-pixel focus edge: the columns stay in line with the files'
+            var line = new DockPanel();
+            var ind = Indent(depth, 2); DockPanel.SetDock(ind, Dock.Left); line.Children.Add(ind);
+            var chev = IconText(ChevronGlyph(false), 10, "B.Muted"); chev.Width = 16; DockPanel.SetDock(chev, Dock.Left); line.Children.Add(chev);
+            var icon = IconText(FolderGlyph(false), 15, "B.Ink2"); icon.Margin = new Thickness(4, 0, 8, 0); DockPanel.SetDock(icon, Dock.Left); line.Children.Add(icon);
+            var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 7, 8, 7) };
+            names.Children.Add(new TextBlock { Text = t.Label, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Res<Brush>("B.Ink"), TextTrimming = TextTrimming.CharacterEllipsis });
+            var where = paths ? FolderOfEntry(t.Entry) : null;
+            if (!string.IsNullOrEmpty(where)) names.Children.Add(new TextBlock { Text = where, FontSize = 11.5, Foreground = Res<Brush>("B.Muted"), TextTrimming = TextTrimming.CharacterEllipsis });
+            line.Children.Add(names);
+            Grid.SetColumn(line, 1); g.Children.Add(line);
+            var n = new TextBlock { Text = count == 1 ? "1 item" : count.ToString("N0", CultureInfo.InvariantCulture) + " items", FontSize = 12, Foreground = Res<Brush>("B.Muted"), TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
+            Grid.SetColumn(n, 2); g.Children.Add(n);
+            var row = new Button { Content = g, Style = Res<Style>("Wb.Plain"), HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0), ToolTip = t.Entry.DisplayPath };
+            void Name(bool open) => System.Windows.Automation.AutomationProperties.SetName(row, t.Label + ", folder, " + n.Text + (open ? ", open" : ", closed"));
+            Name(false);
+            void Open(bool open)
+            {
+                if (open && !loaded)
+                {
+                    loaded = true;
+                    if (t.Inside || t.Entry.Kind == EntryKind.Folder) Tree(c, kids, depth + 1, inner, preview, cols, false);
+                    if (count == 0) inner.Children.Add(new Border { BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0), Child = T("This folder is empty.", 12.5, false, true, new Thickness((depth + 1) * IndentStep + BrowseColumns.Check + 20, 7, 0, 7)) });
+                }
+                inner.Visibility = open ? Visibility.Visible : Visibility.Collapsed; chev.Text = ChevronGlyph(open); icon.Text = FolderGlyph(open); Name(open);
+                if (open) browseOpen.Add(t.Key); else browseOpen.Remove(t.Key);
+            }
+            bool IsOpen() => inner.Visibility == Visibility.Visible;
+            row.Click += (s, ev) => { Open(!IsOpen()); SetCurrent(t); };
+            row.KeyDown += (s, ev) =>
+            {
+                if (ev.Key == System.Windows.Input.Key.Right && !IsOpen()) { Open(true); ev.Handled = true; }
+                else if (ev.Key == System.Windows.Input.Key.Left && IsOpen()) { Open(false); ev.Handled = true; }
+            };
+            row.GotKeyboardFocus += (s, ev) => SetCurrent(t);
+            Menu(row, m =>
+            {
+                MenuLabel(m, t.Label);
+                m.Items.Add(MenuItemOf(IsOpen() ? "Close" : "Open", () => { Open(!IsOpen()); SetCurrent(t); }));
+                foreach (var (text, go) in ActionsFor(t)) m.Items.Add(MenuItemOf(text, go));
+            });
+            into.Children.Add(new Border { Child = row, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0) }); into.Children.Add(inner);
+            if (browseOpen.Contains(t.Key)) Open(true);
+        }
+
+        /// <summary>the folder an entry is in, as people see it ("/var/lib/clover"), for search results shown out of their folders</summary>
+        static string FolderOfEntry(BrowseEntry e)
+        {
+            var p = e?.DisplayPath; if (string.IsNullOrEmpty(p)) return null;
+            var name = string.IsNullOrEmpty(e.Name) ? p : e.Name;
+            return p.Length > name.Length && p.EndsWith(name, StringComparison.Ordinal) ? p.Substring(0, p.Length - name.Length).TrimEnd('/') : null;
+        }
+
+        // the check boxes drawn now, by entry id (one entry can show in several places: a game's card and By Type, a search): a change of the
+        // selection shows on every one at once, each exactly once
+        readonly Dictionary<string, List<(CheckBox box, Action paint)>> drawn = new Dictionary<string, List<(CheckBox, Action)>>(StringComparer.Ordinal);
+        bool syncingSelection; TextBlock selectionLine; ContentControl actionBar; string browseDetails;
+        static readonly Brush SelectedRow = Frozen(Color.FromArgb(0x30, 0xE4, 0x00, 0x0F));
+
+        /// <summary>selects or clears one entry: the selection, every check box that shows it, its rows' look and the line that counts it</summary>
+        void SelectEntry(BrowseEntry e, bool on)
+        {
+            if (syncingSelection) return;
+            if (on) browseSel.Add(e); else browseSel.Remove(e);
+            syncingSelection = true;
+            try { if (drawn.TryGetValue(e.Id, out var l)) foreach (var (b, paint) in l) { if (b.IsChecked != on) b.IsChecked = on; paint(); } }
+            finally { syncingSelection = false; }
+            UpdateSelectionLine();
+        }
+
+        /// <summary>every check box drawn now shows the selection again (after Clear Selection)</summary>
+        void RefreshSelection()
+        {
+            syncingSelection = true;
+            try { foreach (var kv in drawn) { var e = browsing?.Find(kv.Key); bool on = e != null && browseSel.Contains(e); foreach (var (b, paint) in kv.Value) { if (b.IsEnabled && b.IsChecked != on) b.IsChecked = on; paint(); } } }
+            finally { syncingSelection = false; }
+            UpdateSelectionLine();
+        }
+
+        void UpdateSelectionLine()
+        {
+            var t = selectionLine; if (t == null) return;
+            var c = browsing; var sel = c == null ? new List<BrowseEntry>() : browseSel.Entries(c);
+            int files = sel.Count(e => e.Kind != EntryKind.Folder); long bytes = sel.Where(e => e.Kind == EntryKind.File).Sum(e => e.Size);
+            t.Text = files == 0 ? "No files selected." : files.ToString("N0", En) + (files == 1 ? " file" : " files") + " selected (" + Units.Gb(bytes) + ").";
+        }
+
+        /// <summary>makes a folder or file the one All Files' bar names, with what can be done to it</summary>
+        void SetCurrent(BrowseTarget t)
+        {
+            if (t == null || browseCurrent != null && browseCurrent.Key == t.Key) { browseCurrent = t ?? browseCurrent; return; }
+            browseCurrent = t; UpdateActionBar();
+        }
+
+        /// <summary>All Files' bar above the list: the folder or file last clicked (its name and where it is) and the buttons for it, or what to
+        /// do to get some</summary>
+        void UpdateActionBar()
+        {
+            var bar = actionBar; if (bar == null) return;
+            var box = new Border { Background = Res<Brush>("B.Surface2"), CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 8, 8, 8), Margin = new Thickness(0, 0, 0, 10), MinHeight = 50 };
+            var t = browseCurrent; var c = browsing;
+            if (t == null || c == null || c.Find(t.Entry.Id) == null)
+            {
+                var hint = T("Click a folder or a file to see what you can do with it here. Right-click any row for the same actions.", Ty.Small, false, true, new Thickness(0)); hint.VerticalAlignment = VerticalAlignment.Center;
+                box.Child = hint; bar.Content = box; return;
+            }
+            var g = new Grid(); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); g.ColumnDefinitions.Add(new ColumnDefinition { MinWidth = 80 }); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var icon = IconText(t.IsFolder ? FolderGlyph(false) : FileGlyph(t.Entry), 16, "B.Ink2"); icon.Margin = new Thickness(0, 0, 10, 0); g.Children.Add(icon);
+            var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) }; SetNoTerms(words, true);
+            words.Children.Add(new TextBlock { Text = (t.IsFolder ? "Folder: " : "File: ") + t.Label, FontSize = 13, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = t.Entry.DisplayPath });
+            words.Children.Add(new TextBlock { Text = t.Inside ? "Everything inside " + t.Entry.DisplayPath : t.Entry.DisplayPath, FontSize = 11.5, Foreground = Res<Brush>("B.Muted"), TextTrimming = TextTrimming.CharacterEllipsis });
+            Grid.SetColumn(words, 1); g.Children.Add(words);
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            foreach (var (text, go) in ActionsFor(t)) { var b = B(text, "Btn", go); b.Margin = new Thickness(6, 0, 0, 0); b.MinHeight = 32; b.MinWidth = 0; System.Windows.Automation.AutomationProperties.SetHelpText(b, t.Entry.DisplayPath); buttons.Children.Add(b); }
+            if (buttons.Children.Count == 0) buttons.Children.Add(T(c.Live ? "Select it to export it with Export Selected." : "Nothing to export here.", Ty.Small, false, true, new Thickness(0)));
+            Grid.SetColumn(buttons, 2); g.Children.Add(buttons);
+            box.Child = g; bar.Content = box;
+        }
+
+        /// <summary>what can be done to a folder or file in All Files' bar and in its row's menu (the export is offered only where it was before:
+        /// a file's own export only from a backup, a folder's also from a console read live)</summary>
+        List<(string text, Action go)> ActionsFor(BrowseTarget t)
+        {
+            var c = browsing; var l = new List<(string, Action)>();
+            if (c == null || t?.Entry == null) return l;
+            if (t.Inside) l.Add(("Export This Folder…", () => ExportFlow(ExportRequest.Inside(c, t.Entry, null), "Export This Folder")));
+            else if (t.Entry.Kind == EntryKind.Folder) l.Add(("Export This Folder…", () => ExportFlow(ExportRequest.Folder(c, t.Entry, null), "Export This Folder")));
+            else if (t.Entry.Kind == EntryKind.File && t.Entry.Unreadable == null && !c.Live) { var text = ExportOneText(t.Entry); l.Add((text, () => ExportFlow(ExportRequest.One(c, t.Entry, null), text.TrimEnd('…')))); }
+            return l;
+        }
+        static string ExportOneText(BrowseEntry e) => e.Private != null ? "Export the Key File…" : e.IsImage ? "Export This Image…" : "Export This File…";
+
+        // ------------------------------------------------------------------ a row's right-click menu (also Shift+F10 and the menu key)
+        static ControlTemplate menuTemplate, menuItemTemplate, menuSeparatorTemplate;
+        /// <summary>gives an element a menu in the Workbench's look, filled each time it opens (so it shows the row as it is then)</summary>
+        void Menu(FrameworkElement on, Action<ContextMenu> fill)
+        {
+            if (menuTemplate == null)
+            {
+                const string ns = "xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"";
+                menuTemplate = (ControlTemplate)System.Windows.Markup.XamlReader.Parse("<ControlTemplate " + ns + " TargetType=\"ContextMenu\"><Border Background=\"{TemplateBinding Background}\" BorderBrush=\"{TemplateBinding BorderBrush}\" BorderThickness=\"1\" CornerRadius=\"6\" Padding=\"4\"><StackPanel IsItemsHost=\"True\" KeyboardNavigation.DirectionalNavigation=\"Cycle\"/></Border></ControlTemplate>");
+                menuItemTemplate = (ControlTemplate)System.Windows.Markup.XamlReader.Parse("<ControlTemplate " + ns + " TargetType=\"MenuItem\"><Border x:Name=\"bd\" Background=\"Transparent\" CornerRadius=\"4\" Padding=\"12,7,20,7\" MinWidth=\"190\"><ContentPresenter ContentSource=\"Header\" RecognizesAccessKey=\"False\"/></Border><ControlTemplate.Triggers><Trigger Property=\"IsHighlighted\" Value=\"True\"><Setter TargetName=\"bd\" Property=\"Background\" Value=\"#26FFFFFF\"/></Trigger><Trigger Property=\"IsEnabled\" Value=\"False\"><Setter Property=\"Opacity\" Value=\"0.45\"/></Trigger></ControlTemplate.Triggers></ControlTemplate>");
+                menuSeparatorTemplate = (ControlTemplate)System.Windows.Markup.XamlReader.Parse("<ControlTemplate " + ns + " TargetType=\"Separator\"><Border Height=\"1\" Margin=\"8,4,8,4\" Background=\"#30FFFFFF\"/></ControlTemplate>");
+            }
+            var m = new ContextMenu { Template = menuTemplate, Background = Res<Brush>("B.Surface2"), BorderBrush = Res<Brush>("B.Line2"), Foreground = Res<Brush>("B.Ink"), FontFamily = Res<FontFamily>("F.Ui"), FontSize = 13, HasDropShadow = false };
+            on.ContextMenu = m;
+            on.ContextMenuOpening += (s, e) => { m.Items.Clear(); fill(m); };
+        }
+        /// <summary>the menu's first line: the name of what it acts on (not an action: the keyboard and the mouse pass over it)</summary>
+        void MenuLabel(ContextMenu m, string text)
+        {
+            m.Items.Add(new MenuItem { Header = text, Template = menuItemTemplate, Foreground = Res<Brush>("B.Muted"), FontWeight = FontWeights.SemiBold, Focusable = false, IsHitTestVisible = false });
+            m.Items.Add(new Separator { Template = menuSeparatorTemplate });
+        }
+        MenuItem MenuItemOf(string text, Action go) { var mi = new MenuItem { Header = text, Template = menuItemTemplate, Foreground = Res<Brush>("B.Ink") }; mi.Click += (s, e) => go(); return mi; }
+
+        /// <summary>one file as a row of the table: its check box, its icon, its name (with its folder under it outside All Files, and its state
+        /// when it cannot be copied), the details button, its size and its date. A click anywhere on the row selects or clears it, exactly
+        /// once (a click on the check box itself is the check box's own), and shows its details; the details button shows them without
+        /// changing the selection. Space on the focused check box selects or clears it, Enter shows its details, and the right-click menu
+        /// has Select, Show Details and the file's export. In the All Files tree (depth 0 or more) the name is indented to its level.</summary>
+        FrameworkElement FileRow(BrowseEntry e, StackPanel preview, BrowseColumns cols, int depth = -1, bool paths = false)
+        {
+            var g = FileGrid(cols); SetNoTerms(g, true);   // a backup's own file names and folders
             // a file that cannot be copied (damaged, or not checkable in a damaged backup) is shown with its state and cannot be selected
             bool blocked = e.Kind == EntryKind.File && e.Unreadable != null;
-            var cb = new CheckBox { IsChecked = browseSel.Contains(e) && !blocked, IsEnabled = !blocked, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
-            System.Windows.Automation.AutomationProperties.SetName(cb, "Select " + e.DisplayPath);
-            cb.Click += (s, ev) => { browseSel.Toggle(e); };
-            g.Children.Add(cb);
-            var nm = new StackPanel { Margin = new Thickness(0, 5, 12, 5), Background = Brushes.Transparent, Cursor = System.Windows.Input.Cursors.Hand, ToolTip = e.Unreadable ?? e.DisplayPath };
             var name = string.IsNullOrEmpty(e.Name) ? e.DisplayPath : e.Name;
+            var cb = new CheckBox { IsChecked = browseSel.Contains(e) && !blocked, IsEnabled = !blocked, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(8, 0, 0, 0) };
+            System.Windows.Automation.AutomationProperties.SetName(cb, "Select " + e.DisplayPath);
+            System.Windows.Automation.AutomationProperties.SetHelpText(cb, "Space selects or clears it. Enter shows its details.");
+            g.Children.Add(cb);
+            var line = new DockPanel();
+            if (depth >= 0)
+            {   // the tree's indent, then the place of a folder's arrow, so a file's icon lines up with its folders' icons
+                var ind = Indent(depth); DockPanel.SetDock(ind, Dock.Left); line.Children.Add(ind);
+                var gap = new Border { Width = 16 }; DockPanel.SetDock(gap, Dock.Left); line.Children.Add(gap);
+            }
+            var icon = IconText(FileGlyph(e), 15, blocked ? "B.Muted" : "B.Ink2"); icon.Margin = new Thickness(depth >= 0 ? 4 : 0, 0, 8, 0); DockPanel.SetDock(icon, Dock.Left); line.Children.Add(icon);
+            var details = new Button { Content = IconText("\uE946", 14, "B.Muted"), Style = Res<Style>("Wb.Plain"), Padding = new Thickness(7, 5, 7, 5), Margin = new Thickness(2, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, IsTabStop = false, ToolTip = "Show details" };
+            System.Windows.Automation.AutomationProperties.SetName(details, "Details: " + name);
+            DockPanel.SetDock(details, Dock.Right); line.Children.Add(details);
+            var nm = new StackPanel { Margin = new Thickness(0, 6, 4, 6), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent, ToolTip = e.Unreadable ?? e.DisplayPath };
             // a file inside a system image or the package gets its checksum from its verified holder when it is read: not marked
             var noSum = (e.HashOrigin == HashOrigin.None || e.HashOrigin == HashOrigin.Unreadable) && e.Container == null;
             var mark = e.StateWord ?? (blocked ? "damaged" : e.Private != null ? "private" : noSum && e.Kind == EntryKind.File ? "no checksum" : null);
             var nt = new TextBlock { Text = name + (mark != null ? "  (" + mark + ")" : ""), FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis };
             if (blocked) nt.Foreground = Res<Brush>("B.Muted");
             nm.Children.Add(nt);
-            var folder = e.DisplayPath != null && e.DisplayPath.Length > name.Length && e.DisplayPath.EndsWith(name) ? e.DisplayPath.Substring(0, e.DisplayPath.Length - name.Length).TrimEnd('/') : null;
-            if (!string.IsNullOrEmpty(folder) && depth < 0) nm.Children.Add(new TextBlock { Text = folder, FontSize = 11.5, Foreground = Res<Brush>("B.Muted"), TextTrimming = TextTrimming.CharacterEllipsis });
-            nm.MouseLeftButtonUp += (s, ev) => Preview(e, preview);
-            if (depth >= 0)
-            {   // the tree's indent, then the name (20 pixels: where a folder's chevron is, so a file's name lines up with its folder's)
-                var line = new DockPanel(); var gd = Guides(depth); DockPanel.SetDock(gd, Dock.Left); line.Children.Add(gd);
-                nm.Margin = new Thickness(20, 6, 12, 6); line.Children.Add(nm);
-                Grid.SetColumn(line, 1); g.Children.Add(line);
-            }
-            else { Grid.SetColumn(nm, 1); g.Children.Add(nm); }
-            var size = new TextBlock { Text = e.Kind == EntryKind.Folder ? "" : Units.Gb(e.Size), FontSize = 12.5, Foreground = Res<Brush>("B.Ink2"), TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
+            var folder = depth < 0 || paths ? FolderOfEntry(e) : null;
+            if (!string.IsNullOrEmpty(folder)) nm.Children.Add(new TextBlock { Text = folder, FontSize = 11.5, Foreground = Res<Brush>("B.Muted"), TextTrimming = TextTrimming.CharacterEllipsis });
+            line.Children.Add(nm);
+            Grid.SetColumn(line, 1); g.Children.Add(line);
+            var size = new TextBlock { Text = e.Kind == EntryKind.Folder ? "" : Units.Gb(e.Size), FontSize = 12.5, Foreground = Res<Brush>("B.Ink2"), TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
             Grid.SetColumn(size, 2); g.Children.Add(size);
             var date = new TextBlock { Text = e.MtimeUtc?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "No date", FontSize = 12.5, Foreground = Res<Brush>("B.Muted"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = e.DateText };
-            Grid.SetColumn(date, 3); g.Children.Add(date);
-            var row = new Border { Child = g, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0), Background = Brushes.Transparent };
-            row.MouseEnter += (s, ev) => row.Background = Res<Brush>("B.Hover"); row.MouseLeave += (s, ev) => row.Background = Brushes.Transparent;
+            Grid.SetColumn(date, 3); g.Children.Add(date); cols.Track(g.ColumnDefinitions[3], date);
+            var row = new Border { Child = g, BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(0, 1, 0, 0), Background = Brushes.Transparent, Cursor = blocked ? null : System.Windows.Input.Cursors.Hand, MinHeight = 34 };
+            bool hover = false;
+            void Paint() => row.Background = cb.IsChecked == true ? SelectedRow : hover || cb.IsKeyboardFocused && FocusCue.KeyboardInUse ? Res<Brush>("B.Hover") : Brushes.Transparent;
+            var target = new BrowseTarget { Entry = e };
+            void ShowIt() { SetCurrent(target); Preview(e, preview); }
+            cb.Checked += (s, ev) => { SelectEntry(e, true); Paint(); };
+            cb.Unchecked += (s, ev) => { SelectEntry(e, false); Paint(); };
+            if (!drawn.TryGetValue(e.Id, out var boxes)) drawn[e.Id] = boxes = new List<(CheckBox, Action)>();
+            boxes.Add((cb, Paint));
+            details.Click += (s, ev) => ShowIt();
+            // a click on the row (its name, icon, size or date, or the space between): one change of the selection. The name answers first
+            // and marks the click handled, so the row does not answer it again; the check box and the details button handle their own
+            // clicks (also marked handled), which never reach here a second time
+            void RowClick(object s, System.Windows.Input.MouseButtonEventArgs ev)
+            {
+                if (ev.Handled || InsideButton(ev.OriginalSource as DependencyObject, row)) return;
+                ev.Handled = true;
+                if (!blocked) { cb.IsChecked = cb.IsChecked != true; cb.Focus(); }
+                ShowIt();
+            }
+            nm.MouseLeftButtonUp += RowClick; row.MouseLeftButtonUp += RowClick;
+            row.MouseEnter += (s, ev) => { hover = true; Paint(); }; row.MouseLeave += (s, ev) => { hover = false; Paint(); };
+            cb.GotKeyboardFocus += (s, ev) => { SetCurrent(target); Paint(); }; cb.LostKeyboardFocus += (s, ev) => Paint();
+            cb.KeyDown += (s, ev) => { if (ev.Key == System.Windows.Input.Key.Enter) { ShowIt(); ev.Handled = true; } };
+            Menu(row, m =>
+            {
+                MenuLabel(m, name);
+                if (!blocked) m.Items.Add(MenuItemOf(cb.IsChecked == true ? "Remove from Selection" : "Select", () => { cb.IsChecked = cb.IsChecked != true; SetCurrent(target); }));
+                m.Items.Add(MenuItemOf("Show Details", ShowIt));
+                foreach (var (text, go) in ActionsFor(target)) m.Items.Add(MenuItemOf(text, go));
+            });
+            Paint();
             return row;
+        }
+
+        /// <summary>true when the click landed on a control inside the row (its check box, its details button) rather than on the row itself</summary>
+        static bool InsideButton(DependencyObject d, DependencyObject row)
+        {
+            for (; d != null && !ReferenceEquals(d, row); d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+                if (d is ButtonBase) return true;
+            return false;
         }
 
         /// <summary>two panels side by side when the page is at least `wide` wide (the second `second` wide), one under the other otherwise</summary>
@@ -495,6 +802,7 @@ namespace CcsBackup.Ui
 
         void Preview(BrowseEntry e, StackPanel into)
         {
+            browseDetails = e.Id;
             into.Children.Clear(); into.Children.Add(T(string.IsNullOrEmpty(e.Name) ? e.DisplayPath : e.Name, 14, true, false, new Thickness(0, 0, 0, 2))); into.Children.Add(T(e.DisplayPath, 12, false, true));
             // what a part or an image holds, then where its checksum comes from in a sentence; the engine's full words and the exact
             // checksums under Technical details (kept open when the read below updates them)
@@ -520,7 +828,7 @@ namespace CcsBackup.Ui
             if (e.Kind == EntryKind.File && e.Private == null) into.Children.Add(prov);   // the key is never read for a preview: its provenance is under Technical details
             if (e.Private != null) into.Children.Add(Note(KeyUiText, "warn"));
             var acts = new List<UIElement>();
-            if (e.Kind == EntryKind.File && browsing?.Live == false) { var ee = e; acts.Add(B(e.Private != null ? "Export the Key File…" : e.IsImage ? "Export This Image…" : "Export This File…", "Btn.Ghost", () => DoExport(OneEntry(browsing, ee, PickFolder())))); }
+            if (e.Kind == EntryKind.File && browsing?.Live == false) { var ee = e; var text = ExportOneText(e); acts.Add(B(text, "Btn.Ghost", () => ExportFlow(ExportRequest.One(browsing, ee, null), text.TrimEnd('…')))); }
             var saveArea = new StackPanel();
             if (e.Category == Category.Saves && e.Kind == EntryKind.File && e.Source == EntrySource.DataFile && browsing.NesSaves) acts.Add(B("Convert to a Game Save File", "Btn.Ghost", () => ConvertSave(e, saveArea)));
             if (acts.Count > 0) into.Children.Add(Buttons(acts.ToArray()));
@@ -542,17 +850,78 @@ namespace CcsBackup.Ui
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        string PickFolder()
+        /// <summary>a folder to copy into (Export…, a rebuild, a copy out, a second copy): the files go into a new folder made inside it</summary>
+        string PickFolder() => CcsFileDialog.ChooseFolder(this, "Choose where to copy the files (a new folder is made inside it)", null, "copy-destination");
+
+        /// <summary>the name an export of the current selection is offered with (Export Selected): what the selected files are, never a selection
+        /// mode's name (ExportNames.ForEntries), already made a valid folder name (ExportNames.Clean: "Super Mario Bros." is offered as "Super
+        /// Mario Bros"). The export step, or the folder dialog that asks where to export, shows it to be changed.</summary>
+        internal string SuggestedExportName() => browsing == null ? ExportNames.Neutral : ExportNames.Clean(ExportRequest.Selected(browsing, browseSel, null).FolderName) ?? ExportNames.Neutral;
+
+        /// <summary>an export from the Backup Browser: the export step first (the new folder's name and where it goes), then the copying</summary>
+        void ExportFlow(ExportRequest r, string title)
         {
-            using (var d = new System.Windows.Forms.FolderBrowserDialog { Description = "Choose where to copy the files (a new folder is made inside it)", ShowNewFolderButton = true })
-                return d.ShowDialog(new Win32Owner(this)) == System.Windows.Forms.DialogResult.OK ? d.SelectedPath : null;
+            if (r == null || browsing == null) return;
+            if (!ChooseExportTarget(r, title, ExportWhat(browsing, r))) return;
+            DoExport(r);
         }
 
-        /// <summary>this window as the owner of a Windows Forms dialog (a folder picker), so the dialog stays in front of it</summary>
-        sealed class Win32Owner : System.Windows.Forms.IWin32Window
+        /// <summary>what an export copies, in a sentence: how many files and how much</summary>
+        static string ExportWhat(BackupContents c, ExportRequest r)
         {
-            public Win32Owner(Window w) { Handle = new System.Windows.Interop.WindowInteropHelper(w).Handle; }
-            public IntPtr Handle { get; }
+            var seen = new HashSet<string>(StringComparer.Ordinal); int files = 0; long bytes = 0;
+            void Take(BrowseEntry e) { if (e == null || !seen.Add(e.Id)) return; if (e.Kind == EntryKind.File) { files++; bytes += e.Size; } if (e.Kind == EntryKind.Folder) foreach (var d in c.Descendants(e)) Take(d); }
+            foreach (var e in r.Entries) Take(e);
+            return files == 0 ? "Nothing in it is a file that can be copied." : files.ToString("N0", En) + (files == 1 ? " file" : " files") + " (" + Units.Gb(bytes) + ") will be copied into a new folder.";
+        }
+
+        /// <summary>The export step, before anything is copied: the new folder's name, offered with the suggestion (r.FolderName) and changed
+        /// freely, and the folder it is made in (Choose… or typed). It says the exact folder that will be made: a name already used there gets
+        /// " (2)", " (3)" ..., and nothing is replaced. True when the person chose Export: r.Destination and r.FolderName are then set. This is
+        /// the one place the export's name and destination are asked for.</summary>
+        bool ChooseExportTarget(ExportRequest r, string title, string what)
+        {
+            var dlg = Owned(title, 620, false);
+            bool go = false;
+            var sp = new StackPanel { Margin = new Thickness(24, 20, 24, 14) };
+            sp.Children.Add(T(title, 17, true, false, new Thickness(0, 0, 0, 8)));
+            if (what != null) sp.Children.Add(T(what, 13.5, false, true, new Thickness(0, 0, 0, 14)));
+            var name = new TextBox { Text = ExportNames.Clean(r.FolderName) ?? ExportNames.Neutral, MaxLength = 120 }; System.Windows.Automation.AutomationProperties.SetName(name, "Name of the new folder");
+            sp.Children.Add(Field("Name of the new folder", name, null, 560));
+            var at = new TextBox { Text = lastExportFolder ?? "" }; System.Windows.Automation.AutomationProperties.SetName(at, "Make it in this folder");
+            var said = T("", 12.5, false, true, new Thickness(0, -4, 0, 10));
+            var ok = B("Export", "Btn.Primary", () => { go = true; dlg.Close(); }); ok.IsDefault = true;
+            var cancel = B("Cancel", "Btn.Ghost", () => dlg.Close()); cancel.IsCancel = true;
+            void Update()
+            {
+                var dest = at.Text.Trim(); var clean = ExportNames.Clean(name.Text); string why = null, final = null;
+                if (clean == null) why = "Type a name for the new folder.";
+                else if (dest.Length == 0) why = "Choose the folder to make it in.";
+                else why = Exporter.CheckDestination(dest);
+                if (why == null) { final = Exporter.FolderNameFor(dest, name.Text); if (final == null) why = "That folder cannot be used; choose another one."; }
+                ok.IsEnabled = why == null;
+                said.Foreground = Res<Brush>(why == null ? "B.Muted" : "B.Warn");
+                said.Text = why ?? "The files go into a new folder: " + Path.Combine(Path.GetFullPath(dest).TrimEnd('\\'), final) + "."
+                    + (final != clean ? " A folder named \u201c" + clean + "\u201d is already there, so this one gets a number; nothing is replaced." : "")
+                    + (clean != name.Text.Trim() ? " Windows cannot use that name exactly as typed in a folder name, so it was changed as shown." : "");
+            }
+            var choose = B("Choose…", "Btn.Ghost", () =>
+            {
+                // the folder dialog shows the new folder's name too (it may be changed there): both come back into this step
+                var start = at.Text.Trim().Length > 0 ? at.Text.Trim() : lastExportFolder;
+                var c = CcsFileDialog.ChooseExportFolder(this, "Choose where to make the new folder", start, ExportNames.Clean(name.Text) ?? ExportNames.Neutral, "copy-destination");
+                if (c != null) { at.Text = c.Folder; name.Text = c.Name; Update(); }
+            });
+            sp.Children.Add(Field("Make it in this folder", at, choose, 560));
+            sp.Children.Add(said);
+            sp.Children.Add(T("Each file is read back and compared with its checksum before it gets its name. Nothing is written over, and nothing in the " + (browsing?.Live == true ? "console" : "backup") + " changes.", Ty.Small, false, true, new Thickness(0, 0, 0, 6)));
+            sp.Children.Add(Buttons(ok, cancel));
+            name.TextChanged += (s, e) => Update(); at.TextChanged += (s, e) => Update(); Update();
+            dlg.Content = sp; dlg.Loaded += (s, e) => { name.Focus(); name.SelectAll(); };
+            Modal(dlg);
+            if (!go) return false;
+            r.Destination = Path.GetFullPath(at.Text.Trim()); r.FolderName = name.Text.Trim(); lastExportFolder = r.Destination;
+            return true;
         }
 
         void DoExport(ExportRequest r)
@@ -564,6 +933,8 @@ namespace CcsBackup.Ui
             Show(pv.Panel, "progress"); var c = browsing;
             Task.Run(() => Exporter.Export(c, r, () => cts.IsCancellationRequested, p => Dispatcher.BeginInvoke(new Action(() => pv.Update(p.Current ?? p.Phase, p.BytesDone, p.BytesTotal))))).ContinueWith(t =>
             {
+                // copied from the console's files in a session the person left: the result waits for Return to Task (WorkbenchNav.cs)
+                if (TaskStepAway(pv.Panel, () => { if (t.IsFaulted) Show(Message("The files were not copied", "Copying stopped with a problem. Nothing on the console changed.", "bad", t.Exception.GetBaseException().Message), "msg"); else ShowExportResult(t.Result, c); })) return;
                 if (page.Content != pv.Panel) { UpdateStatus(t.IsFaulted ? "Copying files stopped with a problem." : "Copying files finished: " + t.Result.Summary); return; }
                 if (t.IsFaulted) { Show(Message("The files were not copied", "Copying stopped with a problem. Nothing in the backup changed.", "bad", t.Exception.GetBaseException().Message), "msg"); return; }
                 ShowExportResult(t.Result, c);
@@ -599,15 +970,6 @@ namespace CcsBackup.Ui
             sp.Children.Add(Buttons(folder != null && Directory.Exists(folder) ? B("Open the Folder", "Btn", () => { try { System.Diagnostics.Process.Start("explorer.exe", "\"" + folder + "\""); } catch { } }) : null,
                                     B(c?.Live == true ? "Back to the Console's Files" : "Back to the Backup", "Btn.Ghost", () => ShowBrowse())));
             Show(sp, "export-result");
-        }
-
-        /// <summary>one entry on its own, with its place as stored (a storage part under "Backup parts", a file inside an image under "Files
-        /// inside" the image)</summary>
-        static ExportRequest OneEntry(BackupContents c, BrowseEntry e, string dest)
-        {
-            if (dest == null) return null;
-            var r = new ExportRequest { Destination = dest, Scope = ExportScope.Selection, Layout = ExportLayout.OriginalPaths, FolderName = e.Name, ShownCount = 1, ScopeText = "One item: " + e.DisplayPath + "." };
-            r.Entries.Add(e); return r;
         }
 
         // ------------------------------------------------------------------ a damaged backup: Backup Repair's part finder, from the browser
@@ -678,10 +1040,6 @@ namespace CcsBackup.Ui
             Show(sp, "browse-damaged");
         }
 
-        string PickBackupFolder()
-        {
-            using (var d = new System.Windows.Forms.FolderBrowserDialog { Description = "Choose where to save the repaired backup file (the damaged file is not changed)", ShowNewFolderButton = true })
-                return d.ShowDialog(new Win32Owner(this)) == System.Windows.Forms.DialogResult.OK ? d.SelectedPath : null;
-        }
+        string PickBackupFolder() => CcsFileDialog.ChooseFolder(this, "Choose where to save the repaired backup file (the damaged file is not changed)", null, "repair-destination");
     }
 }

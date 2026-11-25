@@ -1,6 +1,6 @@
 """Classic Cart Studio backend — the Windows entry point of the Python backend.
 
-A small status window plus the loopback server from nes_companion.py (same code as the development companion). It:
+A small status window plus the loopback server from ccs_backend.py (same code as the development companion). It:
   * creates the per-user data folder (%LOCALAPPDATA%\\ClassicCartStudio) and a default companion.json on first run,
   * starts the server on 127.0.0.1:8765 (refuses to start when another program holds the port; if the other program IS this
     companion, the new instance just hands over and exits — single instance),
@@ -12,7 +12,7 @@ from __future__ import annotations
 import os, sys, json, threading, time, webbrowser, urllib.request, logging, logging.handlers
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "..", "rom-pipeline"))
 from common import DATA_ROOT, SITE_ROOT, FROZEN
-import nes_companion as nc
+import ccs_backend as nc
 from version import VERSION, PROTOCOL, APP_ID, DEFAULT_PORT, SITE_URL
 
 APP_NAME = "Classic Cart Studio backend"

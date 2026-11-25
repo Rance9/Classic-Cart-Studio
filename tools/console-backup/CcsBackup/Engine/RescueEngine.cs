@@ -5,7 +5,8 @@
 //                invalid (read, checksum or structure wrong), noimage (read, no recognizable image), unreadable (the driver answers, a
 //                block cannot be read) or nodriver (the NAND driver did not answer: nothing is known, and no repair is ever offered on
 //                that basis). The flash tool says only its MD5 or "damaged". A black screen alone is never taken as a damaged stage.
-//   2 source     a backup of this console (same hardware id), verified from scratch, holding complete valid images of the chosen stages
+//   2 source     a backup of this console (same hardware id and model: the NES Classic's or the Super NES Classic's own stages, the same
+//                boot-area format on both), verified from scratch, holding complete valid images of the chosen stages
 //                (BootImage.Check), not recorded as damaged in that backup. Another console's backup, a downloaded file, a stage from
 //                another console or a generic board image are refused: no cross-console boot transplant, no geometry guessed.
 //   3 protect    a backup of the console as it is now, in this session. A stage the diagnosis found damaged is kept as read (or recorded as
@@ -123,6 +124,23 @@ namespace CcsBackup.Engine
             if (!v.Ok) return (null, Refuse("This backup did not pass its check: " + v.Problems[0]));
             if (!ConsoleIdentity.SameConsole(v.Hwid, id.Hwid)) return (null, Refuse("This backup belongs to a different console (console " + v.ConsoleTag + "). A startup stage is only ever taken from a backup of the same console."));
             if (v.Simulated != con.Simulated) return (null, Refuse("A simulated console's backup and a real console are never mixed."));
+            // the backup's model must be this console's (read from its own board and region); when the console's board cannot be read (a system
+            // that does not start), the backup's own model must allow a rescue: one kind of console's startup stages never go on another kind
+            if (v.Model == null) return (null, Refuse("This backup does not name a console model this version supports, so it cannot supply a startup stage."));
+            if (id.Model != null && v.Model != id.Model) return (null, Refuse("This backup is of " + v.Model.Name + ", not of this console's model (" + id.Model.Name + "): one kind of console's startup stages are never put on another kind. Nothing was changed."));
+            var vw = v.Model.Refusal("rescue"); if (vw != null) return (null, Refuse(vw + " Nothing was changed."));
+            // a bootloader goes with the startup software and storage table it starts: it is taken only from a backup made with the console's
+            // current kernel and storage table, as far as they can be read now (preparation changes all three; its way back is Return to
+            // Original Software, never a rescue)
+            if (want.Contains("boot1"))
+            {
+                string tableNow = id.Get("parttable"), tableThen = v.Manifest.O("layout")?.S("partition_table"), kernelNow = id.ActiveMd5;
+                string kernelThen = v.Members.TryGetValue("restore/boot2-active.img", out var ka) ? ka.md5 : null;
+                bool tableDiffers = !string.IsNullOrEmpty(tableNow) && tableThen != null && tableNow != tableThen;
+                bool kernelDiffers = !string.IsNullOrEmpty(kernelNow) && kernelThen != null && !string.Equals(kernelNow, kernelThen, StringComparison.OrdinalIgnoreCase);
+                if (tableDiffers || kernelDiffers)
+                    return (null, Refuse("This backup was made when the console's " + (kernelDiffers ? "startup software" : "storage table") + " was different from now (for example before or after it was prepared). A bootloader is only written together with the startup software it starts: choose a backup made with the console as it is now. To undo a preparation, use Return to Original Software. Nothing was changed."));
+            }
             var p = new RescuePlan { Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Simulated = con.Simulated, Diagnosis = dg, SourceArchive = BoundArchive.From("backup the startup stage comes from", sourceBackup, v) };
             foreach (var s in StageOrder.Where(want.Contains))
             {

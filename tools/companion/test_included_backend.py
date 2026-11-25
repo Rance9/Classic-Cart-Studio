@@ -20,7 +20,7 @@ class Backend:
         self.base = f"http://127.0.0.1:{self.port}"; self.tok = secrets.token_urlsafe(24)
         env = {**os.environ, "CCS_STUDIO_SITE": site, "CCS_STUDIO_DATA": data, "CCS_COMPANION_CONFIG": cfg, "CCS_HOST_TOKEN": self.tok}
         self.log = open(os.path.join(data, "..", os.path.basename(data) + "-backend.log"), "w", encoding="utf-8")
-        self.p = subprocess.Popen([sys.executable, os.path.join(HERE, "nes_companion.py"), "--port", str(self.port), "--no-browser"], cwd=HERE, env=env, stdout=self.log, stderr=subprocess.STDOUT)
+        self.p = subprocess.Popen([sys.executable, os.path.join(HERE, "ccs_backend.py"), "--port", str(self.port), "--no-browser"], cwd=HERE, env=env, stdout=self.log, stderr=subprocess.STDOUT)
         for _ in range(150):
             try: self.call("/api/ping", get=True); return
             except Exception: time.sleep(0.2)

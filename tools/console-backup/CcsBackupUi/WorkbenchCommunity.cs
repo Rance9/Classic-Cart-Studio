@@ -334,18 +334,18 @@ namespace CcsBackup.Ui
 
         void CommChoose(CommunityRecord r, CommunityVariant v)
         {
-            var d = new Microsoft.Win32.OpenFileDialog { Filter = "Hakchi packages (*.hmod)|*.hmod", Title = "Choose the approved file for " + r.Name + " " + r.Version, FileName = v.FileName };
-            if (d.ShowDialog(this) != true) return;
-            var (pkg, why) = CommunityAdmission.Admit(r, v, d.FileName);
+            var chosenFile = CcsFileDialog.OpenFile(this, "Choose the approved file for " + r.Name + " " + r.Version, null, "Hakchi packages (*.hmod)|*.hmod", "community-package", v.FileName);
+            if (chosenFile == null) return;
+            var (pkg, why) = CommunityAdmission.Admit(r, v, chosenFile);
             if (pkg != null) commFiles[v.Sha256] = pkg.File;
             ShowCommFiles(pkg != null ? null : why, "bad");
         }
 
         void CommDownload(CommunityRecord r, CommunityVariant v)
         {
-            var d = new Microsoft.Win32.SaveFileDialog { Title = "Choose where to save " + r.Name + "'s file", FileName = v.FileName, Filter = "Hakchi packages (*.hmod)|*.hmod", OverwritePrompt = false };
-            if (d.ShowDialog(this) != true) return;
-            var folder = Path.GetDirectoryName(d.FileName);
+            var chosenFile = CcsFileDialog.SaveFile(this, "Choose where to save " + r.Name + "'s file", null, v.FileName, "Hakchi packages (*.hmod)|*.hmod", false, "community-package");
+            if (chosenFile == null) return;
+            var folder = Path.GetDirectoryName(chosenFile);
             var pv = new ProgressView(this, "Downloading " + r.Name, "From the author's release: " + v.Url, null, null);
             Show(pv.Panel, "progress");
             Task.Run(() =>

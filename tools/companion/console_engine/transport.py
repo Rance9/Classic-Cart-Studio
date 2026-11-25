@@ -1,11 +1,10 @@
 """Transports for the console engine.
 
-Only one transport class exists in this milestone: `FakeTransport`, an in-memory NES Classic that answers the exact
-command surface the pinned Hakchi2 CE 3.9.3 PC code uses after a shell connects (hakchi.cs Shell_OnConnected,
-MemoryStats.Refresh, SyncTask, ModTasks, MembootTasks). It never opens a USB device, a socket or a file outside the
-staging root. `open_transport()` is the last boundary: real transport kinds are refused by the gate in code, and no real
-transport is implemented here, so even a caller that reached this function with "ssh", "clovershell" or "fel" gets
-`GateClosed` (and would get `NotImplementedError` after the gate milestone until the derived worker exists).
+The older plan's simulation has one transport: `FakeTransport`, an in-memory NES Classic that answers the exact command surface the
+pinned Hakchi2 CE 3.9.3 PC code uses after a shell connects (hakchi.cs Shell_OnConnected, MemoryStats.Refresh, SyncTask, ModTasks,
+MembootTasks). It never opens a USB device, a socket or a file outside the staging root. `open_transport()` opens only it: a real console
+is never reached from here (Classic Cart Studio's own operations reach one through the console transport worker, worker_console.py), so
+any other kind, "ssh", "clovershell" and "fel" included, is refused as unknown.
 
 The fake keeps a tiny device filesystem (path -> size) for the game storage so that `CalculateRemoteDiff`-style listing,
 transfer and independent read-back comparison behave like the real sequence, including deletion of files that are not in
@@ -13,10 +12,7 @@ the local set, which is why foreign content must be added to the local set by th
 """
 from __future__ import annotations
 import re, time
-from . import gate
 from .profiles import get as get_profile
-
-REAL_KINDS = ("ssh", "clovershell", "fel")
 
 
 class TransportError(RuntimeError): pass
@@ -132,9 +128,6 @@ class FakeTransport:
 
 
 def open_transport(kind: str, target=None):
-    """The last boundary. Only the fake transport can be opened; real kinds are refused by Gate G1 in code."""
+    """Only the fake transport: a real console is reached through the console transport worker (worker_console.py), never from here."""
     if kind == "fake": return FakeTransport(target or "no-device")
-    if kind in REAL_KINDS:
-        gate.require("inspect" if kind in ("ssh", "clovershell") else "install", f"open {kind} transport")
-        raise NotImplementedError(f"the {kind} transport is provided by the derived worker, which is not part of this build")
-    raise ValueError(f"unknown transport kind {kind!r}")
+    raise ValueError(f"the older plan's simulation opens only its fake transport, not {kind!r}")

@@ -1,8 +1,9 @@
 """The production dispatcher (console_home.Dispatcher -> console_runs -> console_engine.worker -> ccs_install) for the physical console
 operations, proven through private injected sessions: the worker runs in-process over pipes (the same line protocol console_runs speaks to
 the frozen worker), its console opener replaced by one that returns an already simulated stand-in, and its gate and the confirmations given
-by the test. Nothing here opens a device, and the app's own instance (console_home.DISPATCH) is shown refusing everything with the gate as
-it is in code. The flow: check the console, check the plan, confirm, install, verify, copy the saves, review and remove; also a lost
+by the test. Nothing here opens a device; the app's own instance (console_home.DISPATCH) asks the gate in code (both tiers open in this
+version), and a dispatcher whose tiers are closed refuses everything before any worker. The flow: check the console, check the plan,
+confirm, install, verify, copy the saves, review and remove, on an NES Classic and on a Super NES Classic (by its own model); also a lost
 connection that stops (no rollback by itself) and its separately confirmed recovery, another console answering, an old check, a confirmation
 used twice or for something else, one operation at a time, a cancel before the switch and a plan whose package changed.
   python tools/companion/test_console_dispatch.py"""
@@ -119,10 +120,34 @@ class Binding(Base):
         self.clock.t += 600; code, r = self.d.post("confirm", {"operation": "install", "plan_hash": h}); self.assertEqual((code, r["code"]), (409, "check-console"))
         self.assertEqual(boot_state(self.root), "nintendo")
 
-    def test_12_another_system_is_never_a_checked_console(self):
-        CI.make_stand_in(os.path.join(self.t, "snes"), "snes-eur"); self.root = os.path.join(self.t, "snes")
-        ins, _ = self.run_op("inspect"); self.assertFalse(ins["ok"]); self.assertIsNone(self.d.public_console())
-        code, r = self.d.post("confirm", {"operation": "install", "plan_hash": self.plan()}); self.assertEqual(code, 409)
+    def test_12_an_unsupported_model_is_never_a_checked_console(self):
+        for prof in ("sfc-jpn", "nes-eur", "model-mismatch", "no-model", "data-elsewhere"):
+            with self.subTest(prof):
+                CI.make_stand_in(os.path.join(self.t, prof), prof); self.root = os.path.join(self.t, prof); before = tree(self.root)
+                ins, _ = self.run_op("inspect"); self.assertFalse(ins["ok"], ins); self.assertIsNone(self.d.public_console())
+                code, r = self.d.post("confirm", {"operation": "install", "plan_hash": self.plan()}); self.assertEqual(code, 409)
+                self.assertEqual(changes(before, tree(self.root)), [])
+
+    def test_13_a_super_nes_classic_is_checked_as_one_and_its_change_follows_its_models_capability(self):
+        # a North American Super NES Classic with hakchi: checked as that model (its own software's board and region); installing CCS HOME
+        # on it needs the platform registry's snes-classic-addons capability and the storage specification's room for its saves: while
+        # either is missing the run is refused before any change, with that reason
+        import platform_ids
+        from console_engine import storage_model as SM
+        room = SM.SPEC["policies"]["saves_allowance_bytes"].get("snes-classic-edition") is not None
+        for prof in ("snes-usa", "snes-eur"):
+            with self.subTest(prof):
+                CI.make_stand_in(os.path.join(self.t, prof), prof); self.root = os.path.join(self.t, prof); before = tree(self.root)
+                ins, _ = self.run_op("inspect"); self.assertTrue(ins["ok"], ins); s = self.d.public_console()
+                self.assertEqual((s["identity"]["model"], s["identity"]["system"]), ("snes-classic-edition", prof)); self.assertTrue(s["label"].startswith("Super NES Classic Edition ("), s["label"])
+                h = self.plan(); res, _ = self.run_op("install", plan_hash=h, confirmation=self.confirm("install", plan_hash=h))
+                cap = platform_ids.allowed("capability", "snes-classic-addons")
+                if cap and room: self.assertEqual(res["result"], "installed", res)
+                else:
+                    self.assertEqual((res["ok"], res["result"]), (False, "refused"), res)
+                    self.assertIn("Super NES Classic Edition" if not cap else "room needed on the console cannot be confirmed", res["why"])
+                    self.assertEqual(changes(before, tree(self.root)), [], "nothing on the console changed")
+                ex, _ = self.run_op("inspect"); self.assertTrue(ex["ok"])
 
 class Lifetime(Base):
     def test_20_one_operation_at_a_time_and_a_cancel_before_the_switch(self):
@@ -139,15 +164,17 @@ class Lifetime(Base):
         code, r = self.d.post("install", {"plan_hash": h, "confirmation": tok}); self.assertEqual(code, 200); p = self.wait(r["run"])
         self.assertEqual(p["result"]["code"], "plan-obsolete"); self.assertEqual(boot_state(self.root), "nintendo")
 
-class Closed(unittest.TestCase):
-    def test_30_the_apps_dispatcher_refuses_every_physical_operation_before_any_worker(self):
-        self.assertFalse(gate.PHYSICAL_INSPECT_ENABLED); self.assertFalse(gate.PHYSICAL_WRITE_ENABLED)
-        spawned = []; d = console_home.Dispatcher(spawn=lambda: spawned.append(1))
+class Gates(unittest.TestCase):
+    def test_30_the_apps_dispatcher_asks_the_gate_in_code_and_a_closed_tier_refuses_before_any_worker(self):
+        self.assertTrue(gate.PHYSICAL_INSPECT_ENABLED and gate.PHYSICAL_WRITE_ENABLED, "both tiers are open in this version")
+        self.assertIs(console_home.DISPATCH.allowed, gate.allowed); self.assertIs(console_home.DISPATCH.conf, CC.BACKEND); self.assertIsNone(console_home.DISPATCH.spawn)
+        self.assertIs(console_home.DISPATCH.admit, console_home.backup_admission.admit, "the app's own: the shared backup validation")
+        spawned = []; d = console_home.Dispatcher(allowed=lambda t: False, spawn=lambda: spawned.append(1))   # a build whose tiers are closed
         for op in ("inspect", "check", "verify", "export", "uninstall-review", "recover-review", "install", "update", "uninstall", "recover", "confirm"):
             code, r = d.post(op, {"operation": "install", "plan_hash": "a" * 64, "confirmation": "x", "review": "b" * 64, "attempt": "c" * 8, "device": "sim-0001"})
             self.assertEqual((code, r.get("code")), (403, "physical-disabled"), (op, r))
-        self.assertEqual(spawned, []); self.assertIs(console_home.DISPATCH.allowed, gate.allowed); self.assertIs(console_home.DISPATCH.conf, CC.BACKEND)
-        w = Worker(os.path.join(_T, "closed-worker"), out=io.StringIO())   # the worker's own refusal, whatever the arguments
+        self.assertEqual(spawned, [])
+        w = Worker(os.path.join(_T, "closed-worker"), out=io.StringIO(), allowed=lambda t: False, console_factory=lambda *a: self.fail("a closed tier opened a session"))
         for cmd in ("home-inspect", "home-check", "home-execute", "home-verify", "home-uninstall-review", "home-uninstall", "home-recover-review", "home-recover", "home-export-console"):
             w.out = io.StringIO(); w.handle(json.dumps({"v": 1, "id": "x", "cmd": cmd, "args": {"plan_hash": "a" * 64, "device": "sim-0001", "review": "b" * 64, "attempt": "c" * 8}}))
             self.assertEqual(json.loads(w.out.getvalue())["code"], "physical-disabled", cmd)

@@ -47,8 +47,8 @@ namespace CcsBackup.Ui
 
         // ------------------------------------------------------------------ in the file session: the startup software and the system part
         string pickedKernel;   // the startup image file chosen for the review (shown by name; the plan itself carries its checksums)
-        void PickKernel() { var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose a startup image file" }; if (d.ShowDialog(this) == true) { pickedKernel = d.FileName; worker?.Send(new JObj { { "cmd", "kernel-plan" }, { "from", d.FileName } }); } }
-        void PickSystem() { var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose a system image file", Filter = "System images (*.hsqs;*.squashfs;*.img)|*.hsqs;*.squashfs;*.img|All files|*.*" }; if (d.ShowDialog(this) == true) worker?.Send(new JObj { { "cmd", "system-plan" }, { "from", d.FileName } }); }
+        void PickKernel() { var chosenFile = CcsFileDialog.OpenFile(this, "Choose a startup image file", null, null, "startup-image"); if (chosenFile != null) { pickedKernel = chosenFile; worker?.Send(new JObj { { "cmd", "kernel-plan" }, { "from", chosenFile } }); } }
+        void PickSystem() { var chosenFile = CcsFileDialog.OpenFile(this, "Choose a system image file", null, "System images (*.hsqs;*.squashfs;*.img)|*.hsqs;*.squashfs;*.img|All files|*.*", "system-image"); if (chosenFile != null) worker?.Send(new JObj { { "cmd", "system-plan" }, { "from", chosenFile } }); }
 
         static string Banner(Dictionary<string, object> p) => (p.A("notes") ?? new List<object>()).OfType<string>().FirstOrDefault(n => n.StartsWith("Restore point:")) ?? SessionRestorePoint.NoticeText;
         void Bullets(StackPanel c, string title, IEnumerable<string> items)
@@ -142,8 +142,8 @@ namespace CcsBackup.Ui
         }
         Button BrowseRestorePoint(ComboBox list, Action chosen = null) => B("Browse…", "Btn.Ghost", () =>
         {
-            var d = new Microsoft.Win32.OpenFileDialog { Filter = FileKinds.ConsoleBackupFilter, Title = "Choose a console backup as the restore point" };
-            if (d.ShowDialog(this) == true) { list.Items.Insert(0, new ComboBoxItem { Content = d.FileName, Tag = d.FileName }); list.SelectedIndex = 0; chosen?.Invoke(); }
+            var chosenFile = CcsFileDialog.OpenFile(this, "Choose a console backup as the restore point", null, FileKinds.ConsoleBackupFilter, "console-backup");
+            if (chosenFile != null) { list.Items.Insert(0, new ComboBoxItem { Content = chosenFile, Tag = chosenFile }); list.SelectedIndex = 0; chosen?.Invoke(); }
         });
 
         // ------------------------------------------------------------------ test boot in memory
@@ -156,7 +156,7 @@ namespace CcsBackup.Ui
             var file = new RadioButton { Content = "A startup image file", GroupName = "testboot", Margin = new Thickness(0, 4, 0, 10) };
             c.Children.Add(own); c.Children.Add(file);
             var path = new TextBox { IsReadOnly = true };
-            c.Children.Add(Field("Startup image file", path, B("Browse…", "Btn.Ghost", () => { var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose a startup image file" }; if (d.ShowDialog(this) == true) { path.Text = d.FileName; file.IsChecked = true; } })));
+            c.Children.Add(Field("Startup image file", path, B("Browse…", "Btn.Ghost", () => { var chosenFile = CcsFileDialog.OpenFile(this, "Choose a startup image file", null, null, "startup-image"); if (chosenFile != null) { path.Text = chosenFile; file.IsChecked = true; } })));
             c.Children.Add(T("Restore point", Ty.Heading, true, false, new Thickness(0, 6, 0, 6)));
             c.Children.Add(T("A test boot does not make a fresh backup first. You choose one of this console's backups as its restore point, and its date is shown when you review the test boot. It can be older than the console's current state. " + SessionRestorePoint.NoticeText + " It must be a complete backup: startup software, system part, files and startup stages.", Ty.Text, false, true, new Thickness(0, 0, 0, 10)));
             var (list, empty) = RestorePointList();
@@ -174,7 +174,7 @@ namespace CcsBackup.Ui
             {
                 var s = new StackPanel();
                 var closed = ClosedOnRealConsole("test-boot");   // the test boot's own boundary (Gate.DeveloperTestBoot)
-                if (closed != null) s.Children.Add(Note(closed + " " + ReadsAvailable, "warn"));
+                if (closed != null) s.Children.Add(Note(closed + " This page starts nothing.", "warn"));
                 s.Children.Add(T("Connect the console", Ty.Heading, true, false, new Thickness(0, 0, 0, 10)));
                 s.Children.Add(Numbered("Turn your " + Con + " off and connect it to this PC with its USB cable.", profile.TestBootRecoveryStep, "Workbench reads only the console's hardware id until you confirm the test boot."));
                 s.Children.Add(T(DriverStepNote, Ty.Small, false, true, new Thickness(0, 6, 0, 0)));

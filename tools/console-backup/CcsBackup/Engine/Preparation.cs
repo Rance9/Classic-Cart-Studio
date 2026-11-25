@@ -1,9 +1,12 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
-// First-time console preparation, Classic Cart Studio's own (Classic Cart Studio for Windows only; the Utility has no preparation image and
-// its worker refuses the request): Hakchi2 CE 3.9.3's installation, from its pinned files, as checked steps (ram/ccsprep), with the backup
-// prerequisite first and no separately installed Hakchi PC program.
+// First-time console preparation, Classic Cart Studio's own (in CCS Console Workbench, standalone or opened from Classic Cart Studio):
+// Hakchi2 CE 3.9.3's installation, from its pinned files, as checked steps (ram/ccsprep), with the backup prerequisite first and no
+// separately installed Hakchi PC program.
 //   1 admit     a verified recovery baseline of this console (Admission "prepare", bound to this session)
-//   2 check     the console identified in the preparation session: supported, the same console, its startup software classified
+//   2 check     the console identified in the preparation session: supported (its model from its own board and region: the NES Classic
+//               or a North American or European Super NES Classic, whose installation is the same pinned hakchi's, its kernel getting this
+//               console's own key from the console itself), the same console, its table hakchi's (system on nandb, data on nandc), its
+//               startup software classified against its own model's and region's stock kernels; every backup it relies on of the same model
 //   2b protect  a complete, verified backup of the console as it is now, captured in this same session (CaptureEngine): the exact
 //               pre-preparation snapshot, with every save made since any earlier backup; no capture, no preparation. The plan is bound to
 //               it and to this session (a reconnection is a new session and needs a new plan)
@@ -64,6 +67,10 @@ namespace CcsBackup.Engine
     public static class Preparation
     {
         public static readonly string[] Order = { "files", "uboot", "slot68", "kernel" };
+        /// <summary>a console returned to its original software by Return to Original Software: Nintendo's kernel runs and the spare slot keeps
+        /// a copy of that same kernel (Return leaves it there as a safety copy); prepared, and offered its add-ons, like an original console</summary>
+        public static bool ReturnedToOriginal(ConsoleIdentity id, Classification cls) => cls != null && id != null && cls.ActiveIsStock && id.Slot68Valid
+            && !string.IsNullOrEmpty(id.Slot68Md5) && string.Equals(id.Slot68Md5, id.ActiveMd5, StringComparison.OrdinalIgnoreCase);
         public const string PinnedHakchiVersion = "v1.0.4-126";
         /// <summary>the change record's list of the earlier CCS HOME versions removed (null: none placed), and how to put them back</summary>
         static List<object> EarlierRemoved(PrepPlan plan) => plan.Earlier == null ? null : plan.Earlier.Remove.Cast<object>().ToList();
@@ -88,20 +95,29 @@ namespace CcsBackup.Engine
             ConsoleIdentity id;
             try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId, "preparation"); }
             catch (ConsoleRefusedException ex) { o.State = "refused"; o.Problem = ex.Message; return (null, o); }
+            var model = id.Model;   // never null past CheckForBackup: the console's own board and region
+            var lw = Support.HakchiLayout(id); if (lw != null) { o.State = "refused"; o.Problem = lw; return (null, o); }
             // 2b protect: the console as it is now, in this session (the same capture a backup makes; a new file, never over another)
             ctx.Say("protect", "Backing up the console as it is now, before anything changes...");
             var cap = CaptureEngine.Run(con, ctx);
             if (!cap.Ok || cap.Verification == null || !cap.Verification.Ok) { o.State = "stopped"; o.Problem = "The backup of the console as it is now did not complete (" + (cap.Problem ?? cap.State) + "), so nothing was prepared and nothing was written."; return (null, o); }
             var cur = cap.Verification;
-            if (!ConsoleIdentity.SameConsole(cur.Hwid, id.Hwid) || cur.Simulated != con.Simulated || !cur.RestoreReady) { o.State = "refused"; o.Problem = "The backup made for this preparation is not a complete backup of this console."; return (null, o); }
+            if (!ConsoleIdentity.SameConsole(cur.Hwid, id.Hwid) || cur.Simulated != con.Simulated || !cur.RestoreReady || cur.Model != model) { o.State = "refused"; o.Problem = "The backup made for this preparation is not a complete backup of this console."; return (null, o); }
             var bv = Archive.Verifier.VerifyFile(admission.BaselinePath, null, ctx.Cancelled);
             if (!bv.Ok || !ConsoleIdentity.SameConsole(bv.Hwid, id.Hwid) || bv.Simulated != con.Simulated || !bv.RecoveryBaseline) { o.State = "refused"; o.Problem = "The console's baseline backup no longer passes its check, so nothing was prepared and nothing was written."; return (null, o); }
+            if (bv.Model != model) { o.State = "refused"; o.Problem = "The console's baseline backup is of " + (bv.Model?.Name ?? "a console this version does not support") + ", not of this console's model (" + model.Name + "): one kind of console's backup never stands for another. Nothing was prepared and nothing was written."; return (null, o); }
             var p = new PrepPlan { Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId,
                 CurrentArchive = BoundArchive.From("backup made just now, before preparing", cap.PrimaryPath, cur, con.SessionId), BaselineArchive = BoundArchive.From("baseline backup", admission.BaselinePath, bv) };
             var cls = Support.Classify(id);
             var inv = HakchiFiles(cap.PrimaryPath);
-            if (cls.ActiveIsStock && !id.Slot68Valid && inv == null)
-            { p.State = "original"; p.Text = "Original Nintendo software: Classic Cart Studio prepares it with Hakchi2 CE 3.9.3's kernel and files."; p.Steps.AddRange(Order); }
+            // a console returned to its original software by Return to Original Software: Nintendo's kernel runs and the spare slot keeps a
+            // copy of that same kernel (Return leaves it as a safety copy), no hakchi files: prepared like an original console, the copy kept
+            bool returned = ReturnedToOriginal(id, cls) && inv == null;
+            if (cls.ActiveIsStock && (!id.Slot68Valid || returned) && inv == null)
+            {
+                p.State = "original"; p.Text = "Original Nintendo software: Classic Cart Studio prepares it with Hakchi2 CE 3.9.3's kernel and files."; p.Steps.AddRange(Order);
+                if (returned) p.Notes.Add("The console's spare startup slot already holds a copy of this same original Nintendo kernel, kept there when the console was returned to its original software. It stays as it is: preparing uses it as the way back.");
+            }
             else if (!cls.ActiveIsStock && cls.OriginalSource == "slot68" && inv == PinnedHakchiVersion && id.ActiveHakchiEntries > 0)
             { p.State = "already"; p.Text = "Already prepared with Hakchi2 CE 3.9.3 (hakchi " + inv + "): nothing needs to be installed again."; }
             else
@@ -110,7 +126,7 @@ namespace CcsBackup.Engine
                     ? "This console has leftovers of an earlier modification (" + (id.Slot68Valid ? "a kernel in the spare slot" : "hakchi files") + ") with its original kernel running. Preparing over that is not something this version does."
                     : "This console's startup software was modified by other software (" + (inv ?? "an unknown version") + "). Preparing over it is not something this version does; Workbench can still back it up and restore it.";
             }
-            if (p.State == "original") p.Notes.Add("This changes the console's startup software and bootloader and adds hakchi's files to its data storage, exactly as Hakchi2 CE 3.9.3 does (including its adjustment of the data storage's table). Nintendo's HOME, its 30 games and their saves stay.");
+            if (p.State == "original") p.Notes.Add("This changes the console's startup software and bootloader and adds hakchi's files to its data storage, exactly as Hakchi2 CE 3.9.3 does (including its adjustment of the data storage's table). Nintendo's HOME, its " + model.StockGames + " games and their saves stay.");
             if (addons != null && p.Refusal == null)
             {
                 // the add-ons: the console's hakchi packages and transfer folder as they are now (read only), then each missing package placed
@@ -145,7 +161,7 @@ namespace CcsBackup.Engine
                 if (p.Refusal == null && addons.Mod)
                 {
                     HomeSteps.Decision hd;
-                    try { hd = HomeSteps.Plan(home ?? HomePackage.Embedded(HomePackage.ModLayout), ms, id.Hwid); }
+                    try { hd = HomeSteps.Plan(home ?? HomePackage.Embedded(HomePackage.ModLayout), ms, id.Hwid, id.Model?.Id ?? StorageSpec.NesModel); }
                     catch (HomePackageException ex) { hd = new HomeSteps.Decision { Refusal = "CCS HOME's package cannot be used: " + ex.Message }; }
                     if (hd.Refusal != null) p.Refusal = hd.Refusal;
                     else if (hd.Steps.Count > 0)

@@ -82,7 +82,10 @@ namespace CcsBackup.Compose
         public static readonly string[] EnvironmentKinds = { "nintendo-original", "ccs-home", "hakchi-ce" };
         public static readonly string[] InputRoles = { "console-system", "console-saves", "ccs-component", "hakchi-kernel" };
         public static readonly string[] CcsComponents = { "ccs-mod", "ccs-nucleus" };
-        public static readonly string[] Platforms = { "nes-classic" };
+        /// <summary>the console a plan is for: the NES Classic or the Super NES Classic (a plan's files and add-ons are put only on a console of its
+        /// own kind)</summary>
+        public static readonly string[] Platforms = { "nes-classic", "snes-classic" };
+        public static string PlatformOf(CcsBackup.Device.ConsoleModel m) => m != null && m == CcsBackup.Device.ConsoleModels.Snes ? "snes-classic" : "nes-classic";
         public static readonly string[] KnownCapabilities = { "composition/1" };
         static readonly Regex EnvId = new Regex("^[a-z][a-z0-9-]{0,15}$"), ModName = new Regex("^[a-z0-9][a-z0-9._-]{0,63}$"), Version = new Regex("^[0-9A-Za-z][0-9A-Za-z.+_-]{0,31}$");
 

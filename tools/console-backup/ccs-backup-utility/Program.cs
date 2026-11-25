@@ -5,7 +5,10 @@
 //                                                              its installation (InstalledLaunch.cs: the context is checked; one such window)
 //   ... --backup-worker [--settings FILE]                      the controlled worker the window starts for one console operation
 //   ... --driver-action REQUEST                                the USB driver step, started by the window through Windows with administrator
-//                                                              permission (closed in this version: it exits at once and changes nothing)
+//                                                              permission, for one setup, removal or certificate cleanup it checks again itself
+//   ... --raw-disk REQUESTFILE SHA256                         the whole-drive step, started by the window through Windows with administrator
+//                                                              permission, for one read or write of the one USB drive or SD card the window's
+//                                                              request names (CcsBackup/External/RawDiskHost.cs)
 //   ... --simulated-console FOLDER [--settings FILE]           the window with a simulated console (tests and demonstrations only)
 //   ... --scheduled-check --settings FILE --report FOLDER     the optional scheduled backup check (offline; a window only when it finds a problem)
 //   ... --version
@@ -81,9 +84,10 @@ namespace CcsBackup.Utility
             // worker is started directly without --portable. Only the installed window's workers (--installed, InstalledLaunch.cs) write the
             // lock's note beside the Workbench settings file, as the window inside Classic Cart Studio always did.
             CcsBackup.Engine.ConsoleLock.WriteInfo = args.Contains(CcsBackup.Engine.WorkerHost.Flag) && args.Contains(InstalledLaunch.WorkerFlag);
-            // the elevated USB driver step (this same file started again by Windows with administrator permission): before anything else, no
-            // window; closed in this version by the DriverChanges boundary (CcsBackup/Driver/DriverActionHost.cs)
+            // the elevated USB driver step and the elevated whole-drive step (this same file started again by Windows with administrator
+            // permission): before anything else, no window (CcsBackup/Driver/DriverActionHost.cs, CcsBackup/External/RawDiskHost.cs)
             if (args.Contains(CcsBackup.Driver.DriverActionHost.Flag)) return CcsBackup.Driver.DriverActionHost.Run(args);
+            if (args.Contains(CcsBackup.External.RawDiskHost.Flag)) return CcsBackup.External.RawDiskHost.Run(args);
             if (args.Contains("--version")) { Console.WriteLine(Version); return 0; }
             if (args.Contains("--engine-info")) { Console.Write(CcsBackup.Engine.ComponentReport.Describe(Name, Version, CcsBackup.Engine.ComponentReport.Embedded(typeof(Program).Assembly))); return 0; }
             if (args.Contains(CcsBackup.Engine.WorkerHost.Flag)) return CcsBackup.Engine.WorkerHost.Run(args, "workbench", Name, Version);

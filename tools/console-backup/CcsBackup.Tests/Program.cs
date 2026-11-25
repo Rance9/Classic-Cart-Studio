@@ -32,6 +32,9 @@ namespace CcsBackup.Tests
 
         static int Main(string[] args)
         {
+            // inside Windows Sandbox only (each refuses anywhere else): this program as the whole-drive administrator step, and the whole run
+            if (args.Contains(CcsBackup.External.RawDiskHost.Flag)) return Tests.SandboxStep(args);
+            if (args.Contains("--raw-disk-sandbox")) return Tests.SandboxRun(args);
             Fx = Arg(args, "--fixtures"); Work = Arg(args, "--work"); KernelPath = Arg(args, "--kernel"); SnesKernelPath = Arg(args, "--snes-kernel"); Python = Arg(args, "--python"); Utility = Arg(args, "--utility"); RealDriverStore = args.Contains("--real-driver-store");
             Tests.OwnerSystemDir = Arg(args, "--owner-system"); Tests.OwnerDecrypted = Arg(args, "--owner-decrypted");
             var only = (Arg(args, "--only") ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
@@ -40,7 +43,7 @@ namespace CcsBackup.Tests
             var groups = new List<(string name, Action run)>
             {
                 ("gate", Tests.Gate), ("zip", Tests.Zip), ("ext4", Tests.Ext4), ("capture", Tests.Capture), ("memory", Tests.Memory), ("faults", Tests.Faults),
-                ("verify", Tests.VerifyAndHistory), ("admission", Tests.AdmissionCases), ("restore", Tests.Restore), ("prepare", Tests.Prepare), ("return", Tests.Return), ("method", Tests.Method), ("method-already", Tests.MethodAlready), ("snes", Tests.Snes), ("sega", Tests.Sega), ("home", Tests.Home), ("home-chain", Tests.HomeChain), ("firmware", Tests.Firmware), ("system-image", Tests.SystemImages), ("rescue", Tests.Rescue), ("files", Tests.Files), ("console-browser", Tests.ConsoleBrowserCases), ("schedule", Tests.Schedule), ("composer", Tests.ComposerRuns), ("package", Tests.PackageRuns), ("partial", Tests.PartialRestore), ("developer", Tests.Developer), ("largefiles", Tests.LargeFiles), ("export", Tests.Export), ("browser", Tests.Browser), ("compose", Tests.Compose), ("lifecycle", Tests.Lifecycle),
+                ("verify", Tests.VerifyAndHistory), ("admission", Tests.AdmissionCases), ("restore", Tests.Restore), ("prepare", Tests.Prepare), ("return", Tests.Return), ("method", Tests.Method), ("method-already", Tests.MethodAlready), ("snes", Tests.Snes), ("snes-system", Tests.SnesSystem), ("snes-data", Tests.SnesData), ("sega", Tests.Sega), ("home", Tests.Home), ("home-chain", Tests.HomeChain), ("firmware", Tests.Firmware), ("system-image", Tests.SystemImages), ("rescue", Tests.Rescue), ("files", Tests.Files), ("console-browser", Tests.ConsoleBrowserCases), ("schedule", Tests.Schedule), ("composer", Tests.ComposerRuns), ("package", Tests.PackageRuns), ("partial", Tests.PartialRestore), ("developer", Tests.Developer), ("largefiles", Tests.LargeFiles), ("export", Tests.Export), ("browser", Tests.Browser), ("compose", Tests.Compose), ("lifecycle", Tests.Lifecycle),
                 ("saves", () => { Tests.SavesFormat(); Tests.SavesImport(); }), ("flash-save", Tests.FlashSave), ("data-only", Tests.DataOnly), ("community", Tests.Community), ("platform", Tests.Platform),
                 ("driver", Tests.Driver), ("driver-real", Tests.DriverReal), ("driver-package", Tests.DriverPackageFiles), ("driver-adapter", Tests.DriverAdapter), ("driver-gate", Tests.DriverGate),
                 ("repair", Tests.Repair), ("browser-salvage", Tests.BrowserSalvage), ("browser-nested", Tests.BrowserNested), ("browser-system", Tests.BrowserSystem), ("browser-owner-system", Tests.BrowserOwnerSystem), ("supply", Tests.Supply),
@@ -49,7 +52,8 @@ namespace CcsBackup.Tests
                 ("updates", Tests.Updates),
                 ("storage-format", Tests.StorageFormat), ("storage-fat", Tests.StorageFat), ("storage-files", Tests.StorageFiles), ("storage-image", Tests.StorageImage),
                 ("storage-repair", Tests.StorageRepairs), ("storage-restore", Tests.StorageRestores), ("storage-protect", Tests.StorageProtect), ("storage-large", Tests.StorageLarge),
-                ("storage-spec", Tests.StorageSpecGroup), ("storage-report", Tests.StorageReportGroup),
+                ("storage-spec", Tests.StorageSpecGroup), ("storage-report", Tests.StorageReportGroup), ("storage-raw", Tests.StorageRaw),
+                ("identity-names", Tests.IdentityNames),
             };
             foreach (var g in groups)
             {

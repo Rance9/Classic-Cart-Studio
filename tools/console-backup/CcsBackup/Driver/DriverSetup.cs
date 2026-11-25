@@ -219,7 +219,7 @@ namespace CcsBackup.Driver
                     case Reported.ElevationRefused: res = SetupResult.ElevationRefused; msg = DriverText.SetupRefused + " " + DriverText.NothingChanged; break;
                     case Reported.Canceled: res = SetupResult.Canceled; msg = DriverText.SetupCanceled + " " + DriverText.NothingChanged; break;
                     case Reported.Unavailable: res = SetupResult.Unavailable; msg = DriverActionUnavailableException.Text + " " + DriverText.NothingChanged; break;
-                    case Reported.Failed: res = SetupResult.Failed; msg = string.Format(DriverText.SetupFailedFormat, string.IsNullOrEmpty(rep.Detail) ? "no reason given" : rep.Detail) + " " + DriverText.NothingChanged; break;
+                    case Reported.Failed: res = SetupResult.Failed; msg = string.Format(DriverText.SetupFailedFormat, string.IsNullOrEmpty(rep.Detail) ? "no reason given" : rep.Detail) + (DriverExit.Requirement(rep.ExitCode) is string need ? " " + need : "") + " " + DriverText.NothingChanged; break;
                     default: res = SetupResult.ReportedButMissing; msg = DriverText.SetupReportedButMissing + " " + DriverText.NothingChanged; break;
                 }
             }

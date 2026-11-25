@@ -45,9 +45,10 @@ function rdyExplain(id){ const s=rdyS().st.get(id)||'missing', g=gameOf(id), tit
  $('rdyRm').onclick=()=>{ cvRemove(id); closeColl(); }; $('rdyLoc').onclick=()=>rdyLocate(id); if($('rdyAgain')) $('rdyAgain').onclick=()=>{ closeColl(); rdyChanged(true); }; }
 // ---- Locate ROM File…: the file must be exactly this game and version (its content identity), else nothing is kept ----
 async function rdyLocate(id){ const g=gameOf(id), title=g?g.display_title:id;
- if(cvApp()){ closeColl(); toast('Choose the game file in the window that opened');
+ if(cvApp()){ closeColl();
   const kc=((COLL.missing||{})[id]||{}).content_sha256||((g&&g.personal)||{}).content_sha256||'';   // a game the collection names by its content, with no record here yet (Codex v1p4 F2)
-  const r=/^p_/.test(id)?await hkPost('/api/personal/relink',kc?{id, content_sha256:kc}:{id}):await hkPost('/api/library/locate',{version_id:id});
+  const ask={mode:'open', title:'Locate the game file of '+title, kinds:CCSF_ROMS, purpose:'locate'};
+  const r=/^p_/.test(id)?await hkChoose('/api/personal/relink',kc?{id, content_sha256:kc}:{id}, ask):await hkChoose('/api/library/locate',{version_id:id}, ask);
   if(r&&(r.canceled||r.cancelled)) return; if(!r||!r.ok){ cvSaid('Game File Not Added', `<div class="msgbox bad">${esc((r&&r.error)||'That file does not match this game.')} Nothing was changed.</div>`); return; }
   try{ await refreshPersonal(); await companionStatus(); }catch(e){} rdyChanged(true); toast(`Game file found and verified: ${title}`); return; }
  const files=await cvPick('.nes,.unh,.zip', false); if(!files||!files.length) return;
@@ -62,7 +63,8 @@ function cvSaid(title, html){ openColl(title, '', html+'<div class="acts"><span 
 function cvRemove(id){ if(!sel.has(id)) return; const t=cvTitle(id); sel.delete(id); persist(); render(); rdyChanged(); try{ if($('details').classList.contains('open')&&$('details').dataset.game===id) $('details').classList.remove('open'); }catch(e){}
  toast(`Removed "${t}" from "${COLL.name}". Its saved games and Game Settings are kept.`); }
 // ---- reading ROM files in the browser (the files and ZIP archives a person chose; nothing leaves this browser) ----
-function cvPick(accept, multi){ return new Promise(res=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept=accept; inp.multiple=!!multi; inp.onchange=()=>res([...inp.files]); inp.addEventListener('cancel',()=>res([])); inp.click(); }); }
+// the files the person chose: the app's own dialog in Classic Cart Studio for Windows, the browser's own picker on the website (files.js)
+async function cvPick(accept, multi, title){ const r=await CCSF.open({accept, multiple:!!multi, title, kinds:CCSF.kindsFrom(accept), purpose:'pick-'+accept}); if(!r) return []; return Promise.all(r.map(x=>x.file())); }
 function cvIsNes(u8){ return u8.length>=16&&u8[0]===0x4E&&u8[1]===0x45&&u8[2]===0x53&&u8[3]===0x1A; }
 // a file without the iNES header (.unh): only exact content whose cartridge hardware is already known can be used (F2). Returns
 // {header_hex} (an Included Games or known build, or the located game's recorded header), {catalog:true} (a Game Catalog version: the
@@ -122,8 +124,8 @@ function cvAddSummary(added, already, failed){ const li=a=>`<li>${esc(a.title)}$
 // ---- the Game Catalog lookup: browsing it never changes a collection; a game joins only with its ROM file ----
 function cvCatalog(on){ CV_MODE=on?'catalog':'collection'; document.body.classList.toggle('cvcat', !!on); try{ const q=$('q'); if(q) q.placeholder=on?'Search the Game Catalog':'Search this collection'; }catch(e){} window.scrollTo({top:0, behavior:'instant'}); render(); cvPanel(); }
 async function cvAddForTitle(id){ const g=gameOf(id); const t=g&&TITLES[g.title_id]; if(!g||!t) return; if(CS_STATE!=='ok'){ rdyStoreProblem(); return; }
- if(cvApp()){ if(!csEnsureActive()) return; openColl('Add a Game File', g.display_title, '<div class="msgbox">Choose the game file for this game in the window that opened. Your file is copied, never changed.</div>'); procSet('collm','native');
-  const r=await hkPost('/api/personal/pick',{}); procSet('collm',null); if(r&&(r.canceled||r.cancelled)){ closeColl(); return; }
+ if(cvApp()){ if(!csEnsureActive()) return; openColl('Add a Game File', g.display_title, '<div class="msgbox">Choose the game file for this game. Your file is copied, never changed.</div>'); procSet('collm','native');
+  const r=await hkChoose('/api/personal/pick',{},{mode:'open', title:'Choose the game file for '+g.display_title, kinds:CCSF_ROMS, purpose:'personal'}); procSet('collm',null); if(r&&(r.canceled||r.cancelled)){ closeColl(); return; }
   if(!r||!r.ok){ cvSaid('Game File Not Added', `<div class="msgbox bad">${esc((r&&r.error)||'Could not read the file.')}</div>`); return; }
   const vid=r.known&&r.known.version_id; if(vid&&t.versions.includes(vid)){ if(!sel.has(vid)){ sel.add(vid); persist(); render(); } closeColl(); rdyChanged(true); toast(`Added ${byId[vid]?byId[vid].nointro_name:g.display_title} to "${COLL.name}"`); return; }
   await refreshPersonal(); const oid=vid||(r.entry&&r.entry.id); cvSaid('Not This Game', `<div class="msgbox warn">That file is not a version of <b>${esc(g.display_title)}</b>${oid&&gameOf(oid)?` (it is ${esc(gameOf(oid).display_title)})`:''}. It was not added to this collection.</div><p class="small">To add a different game, use <b>Add Game Files</b>.</p>`); return; }

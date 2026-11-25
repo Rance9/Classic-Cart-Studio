@@ -10,8 +10,8 @@
 //   VerifyCatalogTrust      WinVerifyTrust on the package (CcsCatalog.VerifyTrust; reads only)
 //   NewWorkFolder           %windir%\Temp\ccs-usb-driver-<random>, created new (never an existing one) with access for Administrators and
 //                           SYSTEM only, so nothing without administrator permission can change the package between its check and its install
-// It can be made only through Open, which the closed DriverChanges boundary stops (Gate.cs): with the constant false the compiler leaves out
-// every path that would construct it, and nothing else calls its Windows functions (the driver-gate test reads the compiled code to show it).
+// It can be made only through Open, right after the DriverChanges boundary check (Gate.cs, open in this version), and nothing else calls its
+// Windows functions (the driver-gate test reads the compiled code to show where it is reached).
 using System;
 using System.ComponentModel;
 using System.IO;
@@ -66,9 +66,12 @@ namespace CcsBackup.Driver
             }
         }
 
-        public string NotNative
+        public string NotNative => NativeProblem();
+
+        /// <summary>why this process cannot set up drivers on this PC (a 32-bit or emulated process), or null; reads only (the setup page asks
+        /// it before offering setup)</summary>
+        internal static string NativeProblem()
         {
-            get
             {
                 ushort process, native;
                 try { if (!IsWow64Process2(GetCurrentProcess(), out process, out native)) throw new EntryPointNotFoundException(); }

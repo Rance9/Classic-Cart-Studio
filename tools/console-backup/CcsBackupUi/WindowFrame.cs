@@ -13,6 +13,8 @@
 //                  drawing surface is painted with the window's dark background before anything else: WindowChrome leaves that surface
 //                  transparent (so the frame's 1 pixel of glass shows), and a transparent surface is where Windows' frame color (the
 //                  accent color, when "Show accent color on title bars" is on) would show if the window had nothing drawn there yet.
+//   Dialog edge    Every window but the main one (every dialog, in both launch modes) has a 2-pixel red edge (B.Red) around its whole
+//                  client area, and Windows 11 draws its outer edge in the same red: a dialog never fades into the page behind it.
 //   Opening place  (WB-UX-07) The main window opens centered on the display the program was opened on (the display Windows names when it
 //                  starts the program, as File Explorer does; the main display otherwise), always wholly inside that display's work area.
 //                  WPF's own centering placed it on another display with its title bar above the screen when that display's scale
@@ -81,6 +83,7 @@ namespace CcsBackup.Ui
         /// display, scale or color change (Windows and WindowChrome may set the frame up again then)</summary>
         public static void Prepare(Window w)
         {
+            if (!(w is BackupWorkspace)) DialogFrame(w);   // every Workbench window but the main one is a dialog
             Apply(w);
             var src = HwndSource.FromHwnd(new WindowInteropHelper(w).Handle);
             src?.AddHook((IntPtr hwnd, int msg, IntPtr wp, IntPtr lp, ref bool handled) =>
@@ -89,6 +92,25 @@ namespace CcsBackup.Ui
                 if (msg == 0x02E0 || msg == 0x031A || msg == 0x001A || msg == 0x031E || msg == 0x0320) w.Dispatcher.BeginInvoke(new Action(() => Apply(w)), DispatcherPriority.Loaded);
                 return IntPtr.Zero;
             });
+        }
+
+        // ------------------------------------------------------------------ a dialog's red edge
+        /// <summary>the red edge every Workbench dialog has, so it never fades into the page behind it: 2 pixels at 100% (it scales with the
+        /// display) of the theme's red (B.Red) around the whole client area, all four sides, resized or maximized alike (the window's own
+        /// border, so it stays whatever the window shows); and, where Windows can (Windows 11), the window's outer edge around its title bar
+        /// in the same red. The dark title bar, focus marks and colors inside are unchanged. The main window has none.</summary>
+        internal static readonly Thickness DialogEdge = new Thickness(2);
+        const int DialogEdgeColorRef = 0x000F00E4;   // B.Red #E4000F as Windows' COLORREF (0x00BBGGRR)
+        internal static void DialogFrame(Window w)
+        {
+            try
+            {
+                w.BorderBrush = w.TryFindResource("B.Red") as Brush ?? new SolidColorBrush(Color.FromRgb(0xE4, 0x00, 0x0F));
+                w.BorderThickness = DialogEdge;
+                var h = new WindowInteropHelper(w).Handle;
+                if (h != IntPtr.Zero) { int c = DialogEdgeColorRef; DwmSetWindowAttribute(h, 34, ref c, 4); }   // DWMWA_BORDER_COLOR (Windows 11; ignored before)
+            }
+            catch { }
         }
 
         static void Apply(Window w)

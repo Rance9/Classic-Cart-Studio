@@ -1,9 +1,11 @@
 // Classic Cart Studio console backup and restore window. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The USB driver flow (CcsBackup.Driver; texts in DriverText): before the first real console operation of a window, this PC's driver state
 // is read (reads only). A compatible driver already there is reused and left in place. With none, the setup page names every PC change of
-// Workbench's own driver package and asks first; setup is never silent, and another program's driver is never replaced. The setup is one
-// run of this same program with administrator permission (DriverActionHost), behind the closed DriverChanges boundary (Gate.cs): in this
-// version the page says so and offers no setup. When the window closes, removal is offered only for a driver this window set up and only
+// Workbench's own driver package and what this PC needs for it (DriverPrerequisites: administrator permission, a copy made for this PC's
+// processor, Windows' device installation policy, Windows accepting the setup's own certificate), and asks first; setup is never silent,
+// and another program's driver is never replaced. A need that is not met is named exactly and no setup is offered. The setup is one run
+// of this same program with administrator permission (DriverActionHost), behind the DriverChanges boundary (Gate.cs, open in this
+// version). When the window closes, removal is offered only for a driver this window set up and only
 // when the rules allow it (Eligibility); "No - Keep Driver" is the default. Inside Classic Cart Studio the window never removes it (the app
 // may still use the console connection). Every step is recorded in the backup folder's "USB Driver Records" before it happens; when the
 // window first shows, those records and the PC are read (only) to explain anything an earlier run left unfinished, and a certificate an
@@ -114,8 +116,13 @@ namespace CcsBackup.Ui
         void ShowDriverSetup(SetupContext ctx, Action go)
         {
             // the title and sentence (DriverText), then why, what changes and what Workbench promises, in plain words; the exact list of
-            // PC changes, as the driver audit gives it, is under Technical details
-            var sp = PageHead(DriverText.SetupTitle, DriverText.SetupBodyFor(ctx.Elevation));
+            // PC changes, as the driver audit gives it, is under Technical details; then what this PC needs (read now, reads only)
+            Needs needs = null;
+            try { needs = DriverPrerequisites.ForThisPc(ctx.Elevation); } catch (Exception) { }
+            var blocker = needs?.Blocker;
+            var sp = PageHead(blocker != null ? DriverText.SetupNotPossibleTitle : DriverText.SetupTitle, blocker != null
+                ? "Workbench needs a Windows USB driver to communicate with your " + Con + ", and this PC does not meet one of its requirements, named below. " + DriverText.NothingChanged
+                : DriverText.SetupBodyFor(ctx.Elevation));
             var why = new StackPanel();
             why.Children.Add(T("Why this PC needs it", Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
             why.Children.Add(T(DriverWhy, Ty.Text));
@@ -145,8 +152,22 @@ namespace CcsBackup.Ui
             tech.Add("Each step is recorded before it happens, in " + (ctx.Ledger?.Folder ?? DriverLedger.FolderName) + ".");
             c.Children.Add(Details("Technical details", tech.ToArray()));
             sp.Children.Add(Card(c));
+            if (needs != null)
+            {
+                var nc = new StackPanel();
+                nc.Children.Add(T(DriverText.SetupNeedsHeading, Ty.Heading, true, false, new Thickness(0, 0, 0, 8)));
+                nc.Children.Add(KeyValues(needs.Items.Select(n => (n.Title, DriverPrerequisites.StateWords(n.State) + ". " + n.Text)).ToArray()));
+                sp.Children.Add(Card(nc));
+            }
+            if (blocker != null)
+            {   // a real requirement of this PC is not met: said exactly, and no button that could only fail
+                sp.Children.Add(Note(blocker.Title + ": " + blocker.Text, "bad"));
+                sp.Children.Add(T("Backup files on this PC can still be opened, browsed, checked and repaired: they never need the USB driver.", Ty.Text, false, true, new Thickness(0, 4, 0, 8)));
+                sp.Children.Add(Buttons(B("Back", "Btn.Ghost", BackToSection)));
+                Show(sp, "driver-setup"); return;
+            }
             if (!ctx.Actions.Available)
-            {   // closed in this version (Gate.DriverChanges): the truth, and no button that would only fail
+            {   // were the DriverChanges boundary closed (Gate.cs): the truth, and no button that would only fail
                 sp.Children.Add(Note(DriverText.SetupUnavailableNote, "warn"));
                 sp.Children.Add(Buttons(B("Back", "Btn.Ghost", BackToSection)));
                 Show(sp, "driver-setup"); return;
@@ -229,7 +250,7 @@ namespace CcsBackup.Ui
 
         /// <summary>Classic Cart Studio's own close: the removal question the standalone asks at its close, by the same rules and in the same
         /// words, for a driver a Workbench window inside the app set up in this run (once the app closes it no longer needs the console);
-        /// nothing is asked otherwise. Removal stays behind Gate.DriverChanges. false = keep the app open (Cancel).</summary>
+        /// nothing is asked otherwise. Removal is behind Gate.DriverChanges (open in this version). false = keep the app open (Cancel).</summary>
         public static bool DriverAtAppClose(Window owner, string version)
         {
             var file = appRunDriverFile;
@@ -371,8 +392,8 @@ namespace CcsBackup.Ui
         /// thread) and anything an earlier run left unfinished is explained: an interrupted setup or removal, a removal waiting for a restart, a
         /// setup that stopped part way, a certificate an earlier removal kept, an unreadable record. Nothing is changed, and nothing is shown
         /// when there is nothing to explain. A kept certificate whose removal is now shown safe (TrustCleanup.cs) is then offered, with
-        /// "No - Keep Certificate" the default, through the same administrator step as every driver change (closed in this version by
-        /// Gate.DriverChanges, and said so); inside Classic Cart Studio only when the app closes (DriverAtAppClose).</summary>
+        /// "No - Keep Certificate" the default, through the same administrator step as every driver change (Gate.DriverChanges, open in this
+        /// version); inside Classic Cart Studio only when the app closes (DriverAtAppClose).</summary>
         protected override void OnContentRendered(EventArgs e)
         {
             base.OnContentRendered(e);

@@ -1,4 +1,4 @@
-r"""Export progress, cancel and the Background Helper's inactivity timeout (package_api.py, nes_companion.py). Python only; isolated data
+r"""Export progress, cancel and the Background Helper's inactivity timeout (package_api.py, ccs_backend.py). Python only; isolated data
 folders; synthetic ROMs (random bytes behind an iNES header); the Save As dialog and File Explorer are replaced by recorders.
   jobs       a small export and a large (about 1.2 GB) export run as jobs: verify -> write -> check -> done, progress that only moves forward
              and matches the file, a package that passes full verification, about the speed of the same export without a job

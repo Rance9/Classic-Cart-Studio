@@ -6,7 +6,7 @@ const CO=COMPANION; CO.REQ_PROTOCOL=1; CO.PORT=(()=>{ const q=new URLSearchParam
 const PKEY='studio-companion-v1', REPO='Rance9/Classic-Cart-Studio', RELEASES_API='https://api.github.com/repos/'+REPO+'/releases?per_page=30', RELEASE_PAGE='https://github.com/'+REPO+'/releases', SITE_URL='https://classiccartstudio.com/';
 function loadPair(){ if(CO.desktop){ CO.bearer=window.__CCS_DESKTOP.token; CO.expires=2147483647; return; } CO.bearer=null; CO.expires=0; try{ localStorage.removeItem(PKEY); }catch(e){} }   /* the website never holds a backend token: it hands collections to the desktop app instead */
 function savePair(t,exp){ if(CO.desktop) return; CO.bearer=null; CO.expires=0; }
-function hdrs(extra){ const h=Object.assign({'X-NES-Protocol':String(CO.REQ_PROTOCOL)},extra||{}); if(CO.served) h['X-NES-Token']=CO.token; else if(CO.bearer) h['Authorization']='Bearer '+CO.bearer; return h; }
+function hdrs(extra){ const h=Object.assign({'X-CCS-Protocol':String(CO.REQ_PROTOCOL)},extra||{}); if(CO.served) h['X-CCS-Token']=CO.token; else if(CO.bearer) h['Authorization']='Bearer '+CO.bearer; return h; }
 function artUrl(p){ if(!p) return ''; let b=''; try{ b=CO.base; }catch(e){} return b?b+'/'+p:p; }   // CO is created below: before that (the page's first personal-games pass) the relative path, rebuilt once the helper connects
 /* a secure (https) page may reach http://127.0.0.1 only when it declares the target address space (Chrome/Edge Local Network Access); older browsers ignore the option */
 function lnaInit(init){ if(CO.hosted) init.targetAddressSpace='loopback'; return init; }
@@ -17,9 +17,11 @@ async function capi(path, opts){ opts=opts||{}; const init=lnaInit({method:opts.
  if(r.status===401&&!CO.served&&used===CO.bearer){ if(CO.desktop){ CO.ok=false; CO.state='error'; CO.error='the app could not connect to its own service'; } else { savePair(null,0); CO.ok=false; CO.state='unpaired'; } connPill(); }
  if(r.status===426){ CO.ok=false; CO.state='old'; CO.version=j.version||CO.version; CO.protocol=j.protocol||CO.protocol; connPill(); }
  if(!r.ok&&!j.error) j.error='HTTP '+r.status; j.status=r.status; return j; }
-// these wait for a person in a Windows Open or Save dialog, or do work that grows with the collection (checking, staging or importing a
-// package, preparing an installation), so the usual 12 s answer time is far too short for them (install-hakchi answers once its checks have run and the setup has started)
-const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink|art)|library\/locate|package\/(save|export|open|import-roms|rom-check)|studio\/(backup|contents|restore|restore-recover|saves-export|saves-import)|overrides\/art|home\/(folder-art|native-package)|apply|console\/plan|console\/home\/(plan|preflight)|update\/install|install-hakchi)$/;   // update/install reads the whole downloaded installer again before running it
+// these wait for a person in the app's Open or Save dialog, or do work that grows with the collection (checking, staging or importing a
+// package, checking or preparing an installation), so the usual 12 s answer time is far too short for them (install-hakchi answers once its checks have run and the setup has started;
+// the collection check, preview, grows with the collection and waits for a check already running; a console change's confirmation and its
+// start check that console's backups from scratch first; the page shows its progress meanwhile)
+const HK_WAITS=/^\/api\/(import\/pick|personal\/(pick|relink|art)|library\/locate|package\/(save|export|open|import-roms|rom-check)|studio\/(backup|contents|restore|restore-recover|saves-export|saves-import)|overrides\/art|home\/(folder-art|native-package)|preview|apply|console\/plan|console\/home\/(plan|preflight|confirm|install|update|uninstall|recover)|update\/install|install-hakchi)$/;   // update/install reads the whole downloaded installer again before running it
 async function hkPost(path, body){ return capi(path,{method:'POST',body:body||{}, timeout:HK_WAITS.test(path)?30*60000:undefined}); }
 async function lnaDenied(){ try{ if(navigator.permissions&&navigator.permissions.query){ const p=await navigator.permissions.query({name:'local-network-access'}); return p.state==='denied'; } }catch(e){} return false; }
 let STATUS_P=null;
@@ -117,11 +119,11 @@ async function ccsDownloadLatest(){ if(typeof ccsmTrack==='function') ccsmTrack(
 (function(){ const b=$('dlApp'); if(!b) return; if(window.__CCS_DESKTOP){ b.parentNode.hidden=true; return; }
  b.href=CCS_APP_DOWNLOAD;
  b.addEventListener('click',e=>{ if(e.button||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey){ if(typeof ccsmTrack==='function') ccsmTrack('download_clicked'); return; } e.preventDefault(); ccsDownloadLatest(); }); })();
-// ---- Add Games from Files: bulk import through the companion (native picker on this computer, background job, progress, cancel) ----
+// ---- Add Games from Files: bulk import through the app (its own file dialog, background job, progress, cancel) ----
 // Add ROM Files (addAll): every game the import verified joins the open collection, Game Catalog versions and personal games alike
 async function importGames(mode, addAll){ if(!CO.ok){ await companionStatus(); if(!CO.ok){ if(typeof desktopInvite==='function'&&desktopInvite('Adding game files needs the Windows app, which can read files on this computer.')) return; openConnect('Classic Cart Studio is not responding on this computer.'); return; } }
- openColl('Add Games from Files', mode==='folder'?'Choose a folder in the window that opened':'Choose files in the window that opened', `<div class="msgbox">${mode==='folder'?'Every game file and ZIP in the folder and its subfolders is checked.':'Choose game files (.nes, .unh, .bin, .fds) or ZIP archives; you can select several.'} Known versions are matched exactly; others become personal games. Your files are copied, never changed.</div>`);
- procSet('collm','native'); const r=await hkPost('/api/import/pick',{mode}); procSet('collm',null); if((r.canceled||r.cancelled)){ closeColl(); return; } if(!r.ok){ $('collBody').innerHTML=`<div class="msgbox bad">${esc(r.error||'The import could not start. Try again.')}</div>`; return; }
+ openColl('Add Games from Files', mode==='folder'?'Choose a folder':'Choose game files', `<div class="msgbox">${mode==='folder'?'Every game file and ZIP in the folder and its subfolders is checked.':'Choose game files (.nes, .unh, .bin, .fds) or ZIP archives; you can select several.'} Known versions are matched exactly; others become personal games. Your files are copied, never changed.</div>`);
+ procSet('collm','native'); const r=await hkChoose('/api/import/pick',{mode}, mode==='folder'?{mode:'folder', title:'Add games from a folder (game files and ZIP archives inside it)', purpose:'import', newFolder:false}:{mode:'open', title:'Add games from files (game files or ZIP archives)', kinds:CCSF_ROMS, multiple:true, purpose:'import'}); procSet('collm',null); if((r.canceled||r.cancelled)){ closeColl(); return; } if(!r.ok){ $('collBody').innerHTML=`<div class="msgbox bad">${esc(r.error||'The import could not start. Try again.')}</div>`; return; }
  await watchImport(r.job, addAll); }
 function importRows(j){ return (j.items||[]).slice(-120).reverse().map(it=>`<div>${esc(it.file)}${it.member&&it.member!==it.file?' › '+esc(it.member):''} — <span class="${/^error/.test(it.result)?'bad':/^known/.test(it.result)?'okc':'mut'}">${esc(it.result)}</span></div>`).join(''); }
 function importIds(j){ const ids=Array.isArray(j.ids)&&j.ids.length?j.ids:(j.items||[]).map(it=>it.version_id||it.personal_id).filter(Boolean); return [...new Set(ids)]; }
@@ -138,8 +140,8 @@ async function watchImport(job, addAll){ let j=null, added=null; const body=$('c
  await refreshPersonal(); await companionStatus();
  if(addAll){ const ids=importIds(j).filter(id=>byId[id]); let n=0, had=0; ids.forEach(id=>{ if(sel.has(id)) had++; else { sel.add(id); n++; } }); added={n, had}; persist(); if(typeof csSaveActiveNow==='function') csSaveActiveNow(); if(typeof rdyChanged==='function') rdyChanged(true); }
  render(); if($('collm').classList.contains('open')) draw(); toast(`Import finished: ${j.known} matched, ${j.personal} personal, ${j.errors.length} error${j.errors.length===1?'':'s'}`); }
-async function locateFile(versionId){ const g=byId[versionId]; toast('Choose the game file in the window that opened'); const r=await hkPost('/api/library/locate',{version_id:versionId}); if((r.canceled||r.cancelled)) return;
- if(!r.ok){ alert('That file was not used: '+(r.error||'it could not be checked')+(g?'\n\nOnly a file that exactly matches '+(g.nointro_name||g.display_title)+' is accepted.':'')); return; }
+async function locateFile(versionId){ const g=byId[versionId]; const r=await hkChoose('/api/library/locate',{version_id:versionId},{mode:'open', title:'Locate the game file for '+((g&&(g.nointro_name||g.display_title))||'this version'), kinds:CCSF_ROMS, purpose:'locate'}); if((r.canceled||r.cancelled)) return;
+ if(!r.ok){ await ccsTell('That file was not used: '+(r.error||'it could not be checked')+(g?'\n\nOnly a file that exactly matches '+(g.nointro_name||g.display_title)+' is accepted.':'')); return; }
  toast('Game file found for '+(r.name||versionId)); await companionStatus(); if($('hkpanel').classList.contains('open')&&INST.step==='check') renderInstall(); else render(); }
 document.body.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('[data-locate]'); if(t){ locateFile(t.dataset.locate); } });
 $('connPill').onclick=()=>openConnect();
@@ -149,12 +151,12 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&CO.hoste
 const SDKEY='nes-classic-studio-data/1';
 function studioData(){ return {schema:SDKEY, exported:new Date().toISOString(), origin:location.origin, app:'Classic Cart Studio', favorites:[...fav], view:(typeof view==='string'?view:'list'), extended:localStorage.getItem(EKEY)||'', welcomed:!!localStorage.getItem(WKEY), selection:[...sel], decisions:decisions||{}, collection:COLL, snapshots:JSON.parse(localStorage.getItem(SKEY)||'[]')}; }
 if($('sdExport')) $('sdExport').onclick=()=>{ const d=studioData(); const b=new Blob([JSON.stringify(d,null,1)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='nes-classic-studio-data-'+d.exported.slice(0,10)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); toast(`Studio data backed up: ${d.favorites.length} favorite${d.favorites.length===1?'':'s'}, ${d.snapshots.length} snapshot${d.snapshots.length===1?'':'s'}`); };
-$('sdImport').onclick=()=>$('sdFile').click();
-$('sdFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().then(t=>{ let d; try{ d=JSON.parse(t); }catch(err){ toast('That file is not a Studio data file'); return; } if(!d||d.schema!==SDKEY||!Array.isArray(d.favorites)){ toast('That file is not a Studio data file'); return; }
+$('sdImport').onclick=async()=>{ const fs=await cvPick('application/json,.json', false, 'Load a Studio data file'); if(fs[0]) $('sdFile').onchange({target:{files:fs}}); };
+$('sdFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; f.text().then(async t=>{ let d; try{ d=JSON.parse(t); }catch(err){ toast('That file is not a Studio data file'); return; } if(!d||d.schema!==SDKEY||!Array.isArray(d.favorites)){ toast('That file is not a Studio data file'); return; }
  const before=fav.size; (d.favorites||[]).forEach(id=>{ if(byId[id]) fav.add(id); });
  const snaps=JSON.parse(localStorage.getItem(SKEY)||'[]'); const have=new Set(snaps.map(s=>s.at)); let ns=0; (d.snapshots||[]).forEach(s=>{ if(s&&s.at&&!have.has(s.at)){ snaps.push(s); ns++; } }); snaps.sort((a,b)=>a.at<b.at?1:-1); try{ localStorage.setItem(SKEY,JSON.stringify(snaps.slice(0,30))); }catch(err){}
  if(typeof d.extended==='string'&&d.extended){ try{ localStorage.setItem(EKEY,d.extended); }catch(err){} } if(d.welcomed){ try{ localStorage.setItem(WKEY,'1'); }catch(err){} }
- let coll=false; if(Array.isArray(d.selection)&&d.collection&&confirm(`Also replace the current collection with "${(d.collection.name||'My Collection')}" (${d.selection.length} games) from the file?
+ let coll=false; if(Array.isArray(d.selection)&&d.collection&&await ccsAsk(`Also replace the current collection with "${(d.collection.name||'My Collection')}" (${d.selection.length} games) from the file?
 
 Your current collection is kept as a snapshot first.`)){ snapshotNow('before importing Studio data'); sel=new Set(d.selection.filter(id=>byId[id])); decisions=Object.assign({},d.decisions||{}); Object.assign(COLL,d.collection,{personalCache:COLL.personalCache}); saveColl(); coll=true; }
  persist(); render(); e.target.value=''; toast(`Studio data restored: ${fav.size-before} new favorite${fav.size-before===1?'':'s'}, ${ns} new snapshot${ns===1?'':'s'}${coll?', collection replaced':''}`); }); };

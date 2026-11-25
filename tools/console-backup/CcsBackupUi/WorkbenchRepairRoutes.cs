@@ -88,8 +88,17 @@ namespace CcsBackup.Ui
             else if (r.SameDrive == "unknown") c.Children.Add(Note("Whether the copy is on another physical drive could not be told.", "info"));
             if (r.RestorePoint) c.Children.Add(T("It is a complete backup that passed its full check.", 12.5, false, true));
             var rep = r.Report;
+            // what is known about the new file as a whole: the same bytes as the original file (its recorded checksum matches), a new file
+            // whose every part is proven, or, without a recorded checksum of the original file, not known
+            if (o == "repaired" && rep?.Output != null && rep.Output.Has("identical_to_original"))
+            {
+                var same = rep.Output["identical_to_original"] as bool?;
+                c.Children.Add(T(same == true ? "It is byte-for-byte the original backup file: its checksum equals the one recorded when the backup was made."
+                    : same == false ? "Every part matches its recorded checksum, but the file as a whole is not byte-for-byte the original: it is a new file with its own checksum."
+                    : "Every part matches its recorded checksum. Whether the file as a whole is byte-for-byte the original is not known: no checksum of the original whole file is recorded here.", 12.5, false, true, new Thickness(0, 2, 0, 4)));
+            }
             if (rep != null && rep.Unrecoverable.Count > 0) c.Children.Add(Note(rep.Unrecoverable.Count + (rep.Unrecoverable.Count == 1 ? " part could not be recovered." : " parts could not be recovered.") + " The report below lists each one and why.", "warn"));
-            if (rep != null) foreach (var u in rep.Unknowns.Take(3)) c.Children.Add(Note("Not known: " + u, "warn"));
+            if (rep != null) foreach (var u in rep.Unknowns.Where(u => !u.StartsWith("Whether the new file is byte-for-byte", StringComparison.Ordinal)).Take(3)) c.Children.Add(Note("Not known: " + u, "warn"));
             if (rep != null && r.ReportText != null) { c.Children.Add(T("Its report is saved beside it:", Ty.Small, false, true, new Thickness(0, 6, 0, 2))); c.Children.Add(PathText(r.ReportText, 12)); }
             c.Children.Add(Details("Technical details", rep != null ? rep.ToText() : r.ReportText, rep != null && r.ReportJson != null ? "The same report as JSON: " + r.ReportJson : null));
             sp.Children.Add(Card(c));
@@ -186,8 +195,8 @@ namespace CcsBackup.Ui
                     var box = new TextBox { IsReadOnly = true }; chosen[part.Member] = box;
                     c.Children.Add(Field("File to use (it must have exactly this size and the SHA-256 under Technical details)", box, B("Choose…", "Btn.Ghost", () =>
                     {
-                        var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose the file for " + pt.Name.ToLowerInvariant(), Filter = "All files (*.*)|*.*" };
-                        if (d.ShowDialog(this) == true) box.Text = d.FileName;
+                        var chosenFile = CcsFileDialog.OpenFile(this, "Choose the file for " + pt.Name.ToLowerInvariant(), null, "All files (*.*)|*.*", "repair-part");
+                        if (chosenFile != null) box.Text = chosenFile;
                     })));
                 }
                 c.Children.Add(Details("Technical details", "Part: " + part.Member, "SHA-256: " + part.Sha256, "Size: " + part.Size.ToString("N0", En) + " bytes"));
@@ -205,7 +214,7 @@ namespace CcsBackup.Ui
             Show(sp, "supply");
             // files chosen here are not lost silently when the person opens another page
             LeaveGuard(() => !chosen.Values.Any(b => b.Text.Length > 0) ? null : "The files you chose for a repaired backup, which is not made yet",
-                       "The files you chose have not been used yet. If you leave, the repaired backup is not made.");
+                       "The files you chose have not been used yet. If you leave this setup, they are not kept and the repaired backup is not made.", null, "Leave Setup");
         }
 
         /// <summary>why recovery data cannot be made, checked or used in this copy, in plain words (the exact reason under Technical details)</summary>
@@ -278,9 +287,9 @@ namespace CcsBackup.Ui
             u.Children.Add(T("A one-file copy made here holds a backup and its recovery data in one file, to move or store them. Unpacking writes them into a folder you choose, checks every part, rebuilds the backup from its recovery data when it is damaged, and runs the backup's full check.", 13, false, true));
             u.Children.Add(Buttons(B("Unpack a One-File Copy…", "Btn.Ghost", () =>
             {
-                var d = new Microsoft.Win32.OpenFileDialog { Title = "Open a one-file copy with recovery data", Filter = "One-file copy with recovery data (*.zip)|*.zip" }; if (d.ShowDialog(this) != true) return;
+                var chosenFile = CcsFileDialog.OpenFile(this, "Open a one-file copy with recovery data", null, "One-file copy with recovery data (*.zip)|*.zip", "one-file-copy"); if (chosenFile == null) return;
                 var dest = PickFolder(); if (dest == null) return;
-                RunParity("Unpacking the One-File Copy", (p, ct) => Parity.Unpack(d.FileName, dest, p, ct));
+                RunParity("Unpacking the One-File Copy", (p, ct) => Parity.Unpack(chosenFile, dest, p, ct));
             })));
             u.Children.Add(Details("Technical details", "A one-file copy is an outer ZIP holding backup/<name>.zip, parity/<its .par2 files> and transport.json (each part's SHA-256 and size), all stored without compression. The outer file is not itself protected by that recovery data.", "Unpacking never writes over a file; a part damaged on the way is still unpacked so the recovery data can rebuild the backup into a new file, checked in full."));
             sp.Children.Add(Card(u));

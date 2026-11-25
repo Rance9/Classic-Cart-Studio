@@ -73,6 +73,7 @@ def main() -> int:
         for n in SHARED:
             if (libs.get(n) or {}) != ((wm.get("libraries") or {}).get(n) or {}): problems.append(f"{n}: differs between the bundled program and the managed program")
         if imgs != (wm.get("recovery_images") or {}): problems.append("the console programs differ between the bundled program and the managed program")
+        if (app.get("boundaries"), app.get("operations")) != (wm.get("boundaries"), wm.get("operations")): problems.append("the boundaries or the operations each console allows differ between the bundled program and the managed program")
     out = {"schema": "ccs-shared-engine-check/2", "ok": not problems, "problems": problems, "app": app, "workbench": app, "bundle": bundle, "managed": managed}
     if a.out: json.dump(out, open(a.out, "w", encoding="utf-8"), indent=1)
     for arch in ("x64", "arm64"): print(f"{arch:8} {bundle.get(arch, {}).get('sha256')}  {bundle.get(arch, {}).get('bytes')} B")

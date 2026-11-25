@@ -38,6 +38,8 @@
 //   events    {"event":"progress",…} {"event":"plan","plan":{…}} {"event":"prep-plan","plan":{…}} {"event":"addon-state",…} {"event":"method-plan","plan":{…}} {"event":"firmware-plan","plan":{…}} {"event":"home-design-plan","plan":{…}}
 //             {"event":"kernel-plan",…} {"event":"system-plan",…} {"event":"test-boot-plan","plan":{…}}
 //             {"event":"result",…} {"event":"error","text":…}
+//             {"event":"console",…} (the checked identity, before anything is read) and Back Up Console's {"event":"backup-name",…}:
+//             WorkerHostIdentity.cs
 using CcsBackup.Device;
 using CcsBackup.Library;
 using System;
@@ -79,7 +81,7 @@ namespace CcsBackup.Engine
             readonly Stream inS, outS; readonly string entry, toolName, toolVersion; readonly Func<Settings> loadSettings;
             readonly BlockingCollection<Dictionary<string, object>> queue = new BlockingCollection<Dictionary<string, object>>();
             readonly object outLock = new object();
-            volatile bool cancel, uiGone;
+            volatile bool cancel, uiGone, quitAsked;   // quitAsked: the window asked this session to end (a loop may have taken that request itself)
             public Session(Stream i, Stream o, string entry, string toolName, string toolVersion, Func<Settings> loadSettings) { inS = i; outS = o; this.entry = entry; this.toolName = toolName; this.toolVersion = toolVersion; this.loadSettings = loadSettings; }
 
             void Send(JObj ev) { var b = Encoding.UTF8.GetBytes(Json.Write(ev).Replace("\n", " ").Trim() + "\n"); lock (outLock) { try { outS.Write(b, 0, b.Length); outS.Flush(); } catch { uiGone = true; cancel = true; } } }
@@ -103,6 +105,7 @@ namespace CcsBackup.Engine
                         if (line.Length > 100000) continue;
                         Dictionary<string, object> d; try { d = Json.Parse(line); } catch { continue; }
                         if (d.S("cmd") == "cancel") { cancel = true; continue; }
+                        if (d.S("cmd") == "quit") quitAsked = true;
                         queue.Add(d);
                     }
                 }
@@ -116,7 +119,7 @@ namespace CcsBackup.Engine
                 var ctx = new EngineContext
                 {
                     Settings = loadSettings(), Entry = entry, ToolName = toolName, ToolVersion = toolVersion, RecoveryImageId = id, RecoveryImageSha256 = sha,
-                    Cancelled = () => cancel,
+                    Cancelled = () => cancel, Identified = SendIdentity,   // the console's checked identity to the window at once (WorkerHostIdentity.cs)
                 };
                 long lastSent = 0;
                 ctx.Progress = p =>
@@ -174,6 +177,7 @@ namespace CcsBackup.Engine
                     catch (OperationCanceledException) { Send(new JObj { { "event", "result" }, { "state", "canceled" }, { "problem", "Canceled before the console answered. Nothing was read or written." } }); return 0; }
                     var folder = req.S("console") == "simulated" ? req.S("folder") : null;
                     var ctx = Ctx(con, kind, folder);
+                    if (cmd == "backup" && req.S("name") == "ask") ctx.NameBackup = AskBackupName;   // Back Up Console's backup name (WorkerHostIdentity.cs)
                     if (cmd == "backup") return Backup(con, ctx);
                     if (cmd == "prepare-plan") return Prepare(con, ctx, req, addons);
                     if (cmd == "return-plan") return Return(con, ctx);
@@ -193,7 +197,7 @@ namespace CcsBackup.Engine
             // Console Browser: the check-up, then (when the window asks) bounded reads of the data storage for the live views; reads only
             int Browse(RecoveryConsole con, EngineContext ctx)
             {
-                var c0 = ConsoleBrowser.Checkup(con, ctx.RecoveryImageId, ctx.Cancelled);
+                var c0 = ConsoleBrowser.Checkup(con, ctx.RecoveryImageId, ctx.Cancelled, SendIdentity);
                 Send(new JObj { { "event", "checkup" }, { "state", c0.Problem == null ? "checked" : "partial" }, { "checkup", c0.ToJson() } });
                 if (c0.Problem != null || c0.DataDevice == null || c0.PartBytes == null) { Send(new JObj { { "event", "result" }, { "operation", "browse" }, { "state", "partial" }, { "checkup", c0.ToJson() } }); AfterOperation(con); return 0; }
                 long size = c0.PartBytes.Value; DateTime idle = DateTime.UtcNow.AddHours(2); bool restart = false;
@@ -223,7 +227,7 @@ namespace CcsBackup.Engine
                 {
                     { "event", "result" }, { "operation", "backup" }, { "state", o.State }, { "problem", o.Problem }, { "id", o.Id }, { "primary", o.PrimaryPath }, { "archive", o.ArchivePath },
                     { "partial", o.PartialPath }, { "copy_problem", o.CopyProblem }, { "two_copies", o.TwoCopies }, { "same_disk", o.SameDisk }, { "bytes", o.Bytes }, { "simulated", o.Simulated },
-                    { "console_tag", o.Identity?.ShortTag }, { "state_text", o.Classification?.Text }, { "recovery_baseline", o.Verification?.RecoveryBaseline ?? false },
+                    { "console_tag", o.Identity?.ShortTag }, { "console_key", ConsoleNameBook.KeyOf(o.Identity?.Hwid) }, { "state_text", o.Classification?.Text }, { "recovery_baseline", o.Verification?.RecoveryBaseline ?? false },
                     { "inventory", o.Inventory?.Summary }, { "external", o.Inventory?.ExternalNotes }, { "ui_gone", uiGone },
                 });
                 AfterOperation(con);
@@ -284,7 +288,7 @@ namespace CcsBackup.Engine
                 if (req.B("choose"))
                 {   // read only: hakchi's version and packages on the data storage, and whether the startup software is the original
                     var ms = con.PrepState(); var cls = Support.Classify(id);
-                    var situation = ms.Ok && ms.Hakchi == Preparation.PinnedHakchiVersion ? "hakchi" : ms.Ok && ms.Hakchi == "none" && cls.ActiveIsStock && !id.Slot68Valid ? "original" : "other";
+                    var situation = ms.Ok && ms.Hakchi == Preparation.PinnedHakchiVersion ? "hakchi" : ms.Ok && ms.Hakchi == "none" && cls.ActiveIsStock && (!id.Slot68Valid || Preparation.ReturnedToOriginal(id, cls)) ? "original" : "other";
                     addons = Choose("prepare", situation, id, ms.Ok ? ms : null, out var why);
                     if (addons == null) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", "canceled" }, { "problem", "Nothing was changed." } }); AfterOperation(con); return 0; }
                     if (why != null) { Send(new JObj { { "event", "result" }, { "operation", "prepare" }, { "state", "refused" }, { "problem", why } }); AfterOperation(con); return 1; }
@@ -457,6 +461,8 @@ namespace CcsBackup.Engine
             /// backup per change), until the window ends the session</summary>
             int Files(RecoveryConsole con, EngineContext ctx, string scope)
             {
+                // the console model operation the session's restore point protects (ConsoleModel.Refusal): Developer Mode's or Expert Mode's
+                string Mode(string sc) => sc == "dev" ? "developer" : "files";
                 SessionRestorePoint rp = null; FilePlan plan = null; KernelPlan kplan = null; SystemPlan splan = null; int rc = 0;
                 Send(new JObj { { "event", "files-ready" }, { "scope", scope }, { "notice", SessionRestorePoint.NoticeText } });
                 while (true)
@@ -468,9 +474,9 @@ namespace CcsBackup.Engine
                         switch (c.S("cmd"))
                         {
                             case "restore-point":
-                                { var (p, why) = RestorePoints.Establish(con, c.S("backup"), ctx.Cancelled); if (p != null) rp = p; Send(new JObj { { "event", "restore-point" }, { "ok", p != null }, { "problem", why }, { "point", rp?.ToJson() }, { "banner", rp?.Banner } }); break; }
+                                { var (p, why) = RestorePoints.Establish(con, c.S("backup"), ctx.Cancelled, Mode(scope)); if (p != null) rp = p; Send(new JObj { { "event", "restore-point" }, { "ok", p != null }, { "problem", why }, { "point", rp?.ToJson() }, { "banner", rp?.Banner } }); break; }
                             case "update-restore-point":
-                                { var (p, why) = RestorePoints.Update(con, ctx, rp); rp = p ?? rp; Send(new JObj { { "event", "restore-point" }, { "ok", why == null }, { "problem", why }, { "point", rp?.ToJson() }, { "banner", rp?.Banner } }); break; }
+                                { var (p, why) = RestorePoints.Update(con, ctx, rp, Mode(scope)); rp = p ?? rp; Send(new JObj { { "event", "restore-point" }, { "ok", why == null }, { "problem", why }, { "point", rp?.ToJson() }, { "banner", rp?.Banner } }); break; }
                             case "stat":
                                 { var (st, n) = con.FileStat(scope, c.S("path")); Send(new JObj { { "event", "stat" }, { "path", c.S("path") }, { "state", st }, { "bytes", n } }); break; }
                             case "files-plan":
@@ -562,7 +568,7 @@ namespace CcsBackup.Engine
             /// <summary>the window may ask to restart the console into its normal start; nothing else follows an operation</summary>
             void AfterOperation(RecoveryConsole con)
             {
-                if (uiGone) { con.Disconnect(); return; }
+                if (uiGone || quitAsked) { con.Disconnect(); return; }   // the window has gone, or asked to end the session: it ends now
                 Dictionary<string, object> c;
                 while (queue.TryTake(out c, 600000))
                 {

@@ -1,6 +1,9 @@
-"""Installing Classic Cart Studio's HOME on a console that runs hakchi (K3). Implemented and tested here against disposable stand-ins; a real
-console is closed by Gate G1 in code (open_console refuses every real kind; the installer refuses a console that is not a simulation unless the
-install tier is open, and even then never rolls back by itself: docs/console-install-architecture.md sections 13 and 14).
+"""Installing Classic Cart Studio's HOME on a console that runs hakchi (K3). Tested here against disposable stand-ins; a real console is
+reached only through the console transport worker (worker_console), in a session opened for one tier (inspect or install, Gate G1 in code:
+both open in this version), and the installer never rolls a real console back by itself (docs/console-install-architecture.md sections 13
+and 14). The consoles: the North American NES Classic Edition and the North American and European Super NES Classic Edition, each told
+apart by its own software's board and region (check_device); a change on any model but the NES Classic also needs the shared platform
+registry's capability for that model's add-ons (model_refusal).
 
 Where (all under /var/lib/ccs; nothing else on the console is written except through hakchi's own module commands):
   pkg/<version>.<attempt>/   one immutable copy of a console package per installation attempt (version = the first 16 hex of the SHA-256 of
@@ -98,13 +101,27 @@ CHOOSER_INPUTS: dict | None = None
 LEGACY_NAME = "ccs-home"; LEGACY_FILE = "/etc/init.d/S81clover-mcp"
 OVERLAY = "/var/lib/hakchi/rootfs"; HMOD_DIR = "/var/lib/hakchi/hmod"
 HAKCHI_KERNEL = "3.4.113.29-madmonkey"
-# the one console this program installs on (approved scope): a North American NES Classic running the pinned hakchi (Hakchi2 CE 3.9.3's
-# bundled hakchi.hmod v1.0.4-126 with its kernel) on its own firmware. Anything else, or anything unreadable, is refused before any change
-SUPPORTED = {"system": "nes-usa", "kernel": HAKCHI_KERNEL, "hakchi": "v1.0.4-126"}
+# the consoles this program works with: a North American NES Classic Edition, or a North American or European Super NES Classic Edition,
+# running the pinned hakchi (Hakchi2 CE 3.9.3's bundled hakchi.hmod v1.0.4-126 with its kernel) on its own firmware. The model is the one
+# the console's own software names by its board and REGION (/etc/clover/boardtype and /etc/clover/REGION, read by the worker's identify;
+# the shared platform registry decides which model a board and region are), never a choice made on the PC; hakchi's own system code
+# ($sftype-$sfregion) must say the same, and the data storage must be where that model keeps it. Anything else, or anything unreadable, is
+# refused before any change
+SUPPORTED = {"kernel": HAKCHI_KERNEL, "hakchi": "v1.0.4-126"}
+# per model: its names, the registry's capability prefix (on any model but the NES Classic, a change needs the registry's "<prefix>-addons"
+# capability: CCS Mod, CCS Nucleus and CCS HOME on that model), hakchi's system codes this program installs on, its built-in games, and
+# whether Nintendo's software on it has the NES emulator that ordinary Hakchi games of NES titles launch (clover-kachikachi: the NES Classic
+# only; the Super NES Classic's own software has none, so a collection's NES games reach it only through CCS HOME's own game player)
+MODELS = {
+    "nes-classic-edition": {"name": "NES Classic Edition", "short": "NES Classic", "capability": "nes-classic", "systems": ("nes-usa",), "stock_games": 30, "nes_emulator": True},
+    "snes-classic-edition": {"name": "Super NES Classic Edition", "short": "SNES Classic", "capability": "snes-classic", "systems": ("snes-usa", "snes-eur"), "stock_games": 21, "nes_emulator": False},
+}
+DATA_MOUNT = "/dev/nandc ext4"   # where both models keep their data storage (/var/lib): the console's NAND part nandc, an ext4 file system
+SUPPORTED_TEXT = "the North American NES Classic Edition and the North American and European Super NES Classic Edition"
 HWID_RE = re.compile(r"^[0-9A-Za-z-]{4,64}$")
-PROTECTED =("/usr", "/var/saves", "/etc", "/var/lib/hakchi", "/bin", "/sbin", "/lib", "/boot", "/dev", "/proc", "/sys", "/newroot")
+PROTECTED =("/usr", "/var/saves", "/etc", "/var/lib/hakchi", "/var/lib/clover", "/bin", "/sbin", "/lib", "/boot", "/dev", "/proc", "/sys", "/newroot")
 WRITE_ROOTS = (ROOT_DIR + "/", "/tmp/ccs/")
-PROFILE = "nes-classic-edition"   # the console model this installer supports: its room for saves and the safety margin come from the shared storage specification
+PROFILE = "nes-classic-edition"   # the model whose room for saves and safety margin (the shared storage specification) a plan is measured with before a console is checked; a checked console's own model is used after
 MAX_FILE = 64 * 1000 * 1000; MAX_TOTAL = 400 * 1000 * 1000; MAX_FILES = 4000
 REL_RE = re.compile(r"^[A-Za-z0-9_-][A-Za-z0-9._-]{0,119}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,119}){0,7}$")
 COPY_RE = re.compile(r"^[0-9a-f]{16}\.[0-9a-f]{8}$")
@@ -238,7 +255,7 @@ def addon_package(addon: str) -> dict:
     return _ADDON_CACHE[key]
 
 def staged_package(root: str | None) -> str | None:
-    """the console package the app staged: root/mod (nes_companion.console_package_stage), or root itself when it holds a MANIFEST.json (a
+    """the console package the app staged: root/mod (ccs_backend.console_package_stage), or root itself when it holds a MANIFEST.json (a
     test's package folder); None when there is none"""
     if not root or not os.path.isdir(root): return None
     if os.path.isfile(os.path.join(root, "MANIFEST.json")): return root
@@ -396,20 +413,53 @@ def console_addons(c) -> dict:
 
 def pointer_bytes(copy: str) -> bytes: return (copy + "\n").encode()
 
+def hakchi_system(model: str, region: str) -> str | None:
+    """hakchi's own system code ($sftype-$sfregion) for a model and the REGION its software names (hakchi: EUR is eur, anything else on an NES
+    Classic is usa, as the North American console's EUR_USA; the Super NES Classic's USA and EUR are its two supported regions)"""
+    if model == "nes-classic-edition": return "nes-eur" if region == "EUR" else "nes-usa"
+    if model == "snes-classic-edition" and region in ("USA", "EUR"): return "snes-" + region.lower()
+    return None
+
+def model_refusal(model: str, operation: str = "addons") -> str | None:
+    """None when this program may change a console of this model, else why not: on the NES Classic always; on any other model only when the
+    shared platform registry supports its "<prefix>-<operation>" capability (the same rule as CCS Console Workbench's ConsoleModel.Refusal)"""
+    m = MODELS.get(model)
+    if not m: return "This console's model is not one Classic Cart Studio supports. Nothing was changed."
+    if model == "nes-classic-edition": return None
+    import platform_ids
+    cap = f"{m['capability']}-{operation}"
+    if platform_ids.allowed("capability", cap): return None
+    why = (platform_ids.entry("capability", cap) or {}).get("reason") or ""
+    return f"Installing Classic Cart Studio's add-ons on the {m['name']} is not available in this version" + (f": {why.rstrip('.')}." if why else ".") + " Nothing was changed."
+
+def no_nes_emulator_text(model: str) -> str:
+    return (f"The {MODELS[model]['name']}'s own software has no NES emulator, so this collection's games cannot be added to its menu as Hakchi games. "
+            "Choose CCS Mod to play them in CCS HOME, and leave Also add this collection's games to Original Menu unchecked. Nothing was changed.")
+
 def check_device(ident: dict | None, step: str = "device") -> dict:
-    """the console this session reads now, against the one supported console (SUPPORTED): every value present and exact, hakchi's own
-    CanInteract rule true and its stock firmware in use; a missing, unreadable or different value refuses (fail closed, nothing changed)"""
+    """the console this session reads now, against the supported consoles: its hardware id; hakchi's kernel; its model from the board and
+    REGION its own software names, with hakchi's system code saying the same and its data storage where that model keeps it; hakchi's
+    version, its own CanInteract rule and the console's own firmware in use. A missing, unreadable or different value refuses (fail closed,
+    nothing changed). What a model allows to change is decided by the operation (model_refusal)"""
     i = ident or {}
     hwid = str(i.get("hwid") or "")
     if not HWID_RE.match(hwid): raise Refused(step, "the console's identity could not be read; nothing was changed")
     if i.get("kernel") != SUPPORTED["kernel"]:
         if "madmonkey" in str(i.get("kernel") or ""): raise Refused(step, hakchi_required(i))   # another Hakchi build's kernel
-        raise Refused(step, f"the console runs kernel {i.get('kernel')!r}: hakchi must be installed first (its own, separate step under G1)")
-    if i.get("system") != SUPPORTED["system"]: raise Refused(step, f"this console reports {i.get('system')!r}; Classic Cart Studio installs only on a North American NES Classic ({SUPPORTED['system']}). Nothing was changed")
+        raise Refused(step, f"the console runs kernel {i.get('kernel')!r}: hakchi must be installed first (Prepare Console in CCS Console Workbench); nothing was changed")
     if i.get("hakchi") != SUPPORTED["hakchi"]: raise Refused(step, hakchi_required(i))
+    import platform_ids
+    board, region = str(i.get("board") or ""), str(i.get("region") or "")
+    if not board or not region: raise Refused(step, "the console's model could not be read (its software does not name its board and region); nothing was changed")
+    model = platform_ids.model_for(board, region)
+    if model not in MODELS: raise Refused(step, f"this console (board {board}, region {region}) is not one Classic Cart Studio supports: it works with {SUPPORTED_TEXT}. Nothing was changed")
+    m = MODELS[model]; system = str(i.get("system") or "")
+    if system != hakchi_system(model, region): raise Refused(step, f"this console's software names a {m['name']} (board {board}, region {region}), but hakchi reports {system or 'nothing'}; nothing was changed")
+    if system not in m["systems"]: raise Refused(step, f"this console reports {system}; Classic Cart Studio works with {SUPPORTED_TEXT}. Nothing was changed")
+    if i.get("data_mount") != DATA_MOUNT: raise Refused(step, f"this console's data storage is not where the {m['name']} keeps it (found {i.get('data_mount') or 'nothing readable'}); nothing was changed")
     if i.get("can_interact") is not True: raise Refused(step, "hakchi reports that this console cannot be used as it is (its boot, kernel or scripts are too old); nothing was changed")
     if i.get("custom_firmware") is not False: raise Refused(step, "this console runs a custom firmware (or it could not be read); only its own firmware is supported. Nothing was changed")
-    return {"hwid": hwid, "system": i["system"], "kernel": i["kernel"], "hakchi": i["hakchi"], "simulated": i.get("simulated") is True}
+    return {"hwid": hwid, "system": system, "kernel": i["kernel"], "hakchi": i["hakchi"], "model": model, "model_name": m["name"], "board": board, "region": region, "simulated": i.get("simulated") is True}
 
 def same_console(c, hwid: str, step: str = "device"):
     """the console answering now is still the bound one (read again, not from a cached answer): otherwise stop before the next change"""
@@ -569,9 +619,10 @@ def space_items(plan: dict, add, hakchi: bool, same: bool) -> list:
                                                     "what": "their entries staged and then written, the index twice and a block for each entry"})
     return items
 
-def space_account(plan: dict, add, hakchi: bool, same: bool, storage: dict | None) -> dict:
-    """the shared storage accounting (storage_model.account) for this plan: storage None uses the console model's dated reference"""
-    return SM.account({"profile": PROFILE, "storage": storage, "items": space_items(plan, add, hakchi, same)})
+def space_account(plan: dict, add, hakchi: bool, same: bool, storage: dict | None, profile: str = PROFILE) -> dict:
+    """the shared storage accounting (storage_model.account) for this plan on a console of this model (profile): its room for saves and
+    safety margin from the shared storage specification; storage None uses the model's dated reference"""
+    return SM.account({"profile": profile, "storage": storage, "items": space_items(plan, add, hakchi, same)})
 
 def space_refusal(room: dict) -> str:
     mb = lambda n: f"{n / 1e6:.1f} MB"
@@ -641,7 +692,7 @@ class FakeConsole:
     # reading
     def identity(self, fresh: bool = False) -> dict:
         if fresh: self.info = json.loads(_read(os.path.join(self.root, "console.json")))
-        return {k: self.info.get(k) for k in ("kernel", "hakchi", "system", "hwid", "can_interact", "custom_firmware")} | {"simulated": True}
+        return {k: self.info.get(k) for k in IDENTITY_KEYS} | {"simulated": True}
     def free_bytes(self, path: str) -> int: return int(self.info.get("free_bytes", 0)) - self.written_bytes
     def stat(self, path: str) -> dict:
         t = self._is_link(path)
@@ -892,13 +943,27 @@ class FakeConsole:
         body = f"schema={REGISTRY_SCHEMA}\n" + "".join(f"{k}={v}\n" for k, v in lines); q = self.p(REGISTRY); os.makedirs(os.path.dirname(q), exist_ok=True)
         with open(q + ".new", "w", newline="\n") as f: f.write(body + f"end={_sha(body.encode())}\n")
         os.replace(q + ".new", q)
-    HOME_OPTION = [("opt.ccs-home.kind", "ccs-home"), ("opt.ccs-home.label", "CCS HOME"), ("opt.ccs-home.package", "current"), ("opt.ccs-home.kernel", HAKCHI_KERNEL),
-                   ("opt.ccs-home.drivers", ""), ("opt.ccs-home.requires", "/var/lib/ccs/pkg/current"), ("opt.ccs-home.overlay", "hakchi"), ("opt.ccs-home.saves", "/var/lib/ccs/data"),
-                   ("opt.ccs-home.compat", "nes-usa"), ("opt.ccs-home.fallback", "native"), ("opt.ccs-home.auto", "yes")]
+    def console_type(self) -> str:
+        """ccs-nucleus's ccs_console_type on this stand-in (CCS HOME's option records it): the console's own software type and region by
+        hakchi's softwareCheck rules (nes-usa, nes-eur, snes-usa, snes-eur), read from /var/squashfs/etc/clover, else /etc/clover; else the
+        type the stand-in's console.json records; "unknown" when none of them is there"""
+        for d in ("/var/squashfs/etc/clover", "/etc/clover"):
+            q = self.p(d)
+            if not os.path.isdir(q): continue
+            def cat(n): f = os.path.join(q, n); return _read(f).decode("utf-8", "replace").rstrip("\n") if os.path.isfile(f) else ""
+            kind = "snes" if cat("boardtype") == "dp-shvc" else "nes"
+            issue = os.path.join(os.path.dirname(q), "issue")
+            if os.path.isfile(issue) and b"dp-hvcj" in _read(issue): kind = "hvcj"
+            return kind + "-" + {"JPN": "jpn", "EUR": "eur"}.get(cat("REGION"), "usa")
+        return str(self.info.get("system") or "unknown")   # a stand-in without those files: the type its console.json records
+    def home_option(self) -> list[tuple[str, str]]:
+        return [("opt.ccs-home.kind", "ccs-home"), ("opt.ccs-home.label", "CCS HOME"), ("opt.ccs-home.package", "current"), ("opt.ccs-home.kernel", HAKCHI_KERNEL),
+                ("opt.ccs-home.drivers", ""), ("opt.ccs-home.requires", "/var/lib/ccs/pkg/current"), ("opt.ccs-home.overlay", "hakchi"), ("opt.ccs-home.saves", "/var/lib/ccs/data"),
+                ("opt.ccs-home.compat", self.console_type()), ("opt.ccs-home.fallback", "native"), ("opt.ccs-home.auto", "yes")]
     def _reg_first(self, default: str, selection: str, chooser: str, home: str) -> list[tuple[str, str]]:
         return ([("generation", "1"), ("default", default), ("selection", selection), ("chooser", chooser), ("timeout", "10"), ("options", "native ccs-home" if home == "on" else "native"),
                  ("opt.native.kind", "native"), ("opt.native.label", "Original Menu"), ("opt.native.overlay", "hakchi"), ("opt.native.saves", "/var/lib/clover/profiles/0"), ("opt.native.fallback", "-")]
-                + (self.HOME_OPTION if home == "on" else []))
+                + (self.home_option() if home == "on" else []))
     def _reg_edit(self, edit) -> bool:
         """one edit of the registry in force (generation raised), put in force only when the result is a valid registry"""
         reg = self._registry()
@@ -935,7 +1000,7 @@ class FakeConsole:
                 self.writes.append("ccs-nucleus:start"); return f"result start ok first default={default} chooser={chooser} home={home} selection={selection} timeout={timeout}"
             reg = self._registry()
             if home == "on" and "ccs-home" not in reg["options"]:
-                def add(lines): return [(k, " ".join(["native", "ccs-home"] + [o for o in v.split() if o != "native"]) if k == "options" else v) for k, v in lines] + self.HOME_OPTION
+                def add(lines): return [(k, " ".join(["native", "ccs-home"] + [o for o in v.split() if o != "native"]) if k == "options" else v) for k, v in lines] + self.home_option()
                 if not self._reg_edit(add): refuse("failed adding CCS HOME")
             if home == "off" and "ccs-home" in self._registry()["options"]:
                 if self._registry()["default"] == "ccs-home" and not self._reg_set("default", "native"): refuse("failed default")
@@ -999,9 +1064,10 @@ class FakeConsole:
         return self._change(f"hakchi pack_uninstall {name}", act)
 
 def open_console(kind: str, target=None):
-    """the last boundary: only the disposable stand-in exists here; a real console (ssh, clovershell) goes through the console worker
-    (worker_console.open_worker_console), which the gate refuses before any device is looked for"""
+    """a disposable stand-in ("fake"), or a real console (ssh, clovershell) through the console transport worker
+    (worker_console.open_worker_console), asked for the install tier; the worker connects only through those two transports"""
     if kind == "fake": return FakeConsole(target)
+    if kind not in ("ssh", "clovershell"): raise ValueError(f"unknown console transport {kind!r}: a console is reached through clovershell or SSH")
     gate.require("install", f"open a {kind} console")
     from .worker_console import open_worker_console
     return open_worker_console(kind)
@@ -1334,6 +1400,8 @@ class Installer:
         c = self.c; dev = check_device(c.identity(fresh=True), "preflight")
         if self.device and dev["hwid"] != self.device: raise Refused("device", "this is not the console that was checked and confirmed; nothing was changed")
         self.device = dev["hwid"]; i = c.identity()
+        why = model_refusal(dev["model"])   # a model whose CCS add-ons this version does not install (the registry's capability), before anything else is read
+        if why: raise Refused("device", why)
         for d in (ROOT_DIR, PKG_DIR, INST_DIR, DATA_DIR, GAMES_DIR):
             t = c.stat(d)["type"]
             if t not in ("none", "dir"): raise Refused("preflight", f"{d} is {'a link' if t == 'link' else 'not a folder'}; it is not this program's, so nothing was changed")
@@ -1386,9 +1454,10 @@ class Installer:
         if hkp["publish"] and (hkp["review"]["games"] or published):   # (none of the collection's games can be a Hakchi game, none were: nothing to do)
             up = bool(ref) and hs["program"] and hs["index"] is not None and (hs["index"].get("producer") or {}).get("projection") == projection_id(hkp["projection"], ref)
             hk_action = "none" if up else "publish"
+            if hk_action == "publish" and not MODELS[dev["model"]]["nes_emulator"]: raise Refused("hakchi", no_nes_emulator_text(dev["model"]))
         else: hk_action = "unpublish" if published and not hkp["publish"] else "none"
         free = c.free_bytes(ROOT_DIR)
-        room = space_account(self.plan, add, hk_action == "publish", bool(same), {"source": "simulated" if getattr(c, "simulated", False) is True else "measured", "available_bytes": free})
+        room = space_account(self.plan, add, hk_action == "publish", bool(same), {"source": "simulated" if getattr(c, "simulated", False) is True else "measured", "available_bytes": free}, dev["model"])
         need = room["peak_bytes"]
         if not room["write_ok"]: raise Refused("preflight", space_refusal(room))
         unknown = [f"{PKG_DIR}/{x}" for x in c.listdir(PKG_DIR) if x != "current" and x not in recs["versions"]]
@@ -1935,8 +2004,8 @@ class Installer:
 
     def resume(self) -> dict:
         """recover an interrupted attempt from ITS journal: only on the console that attempt was on (read now, compared with the journal, the
-        console's attempt record and the confirmed console) and only for its plan; a finished attempt is never undone. A real console is refused
-        here by the gate: its recovery is its own approved operation (G3)"""
+        console's attempt record and the confirmed console) and only for its plan; a finished attempt is never undone. On a real console a
+        recovery is its own confirmed operation (G3), in a session opened for the install tier"""
         if getattr(self.c, "simulated", False) is not True: gate.require("install", "recover an attempt on a real console")
         try: es = self.entries(self.journal)
         except JournalCorrupt as e: return {"ok": False, "result": "unknown", "why": f"{e}; nothing was changed. Collect diagnostics"}
@@ -2298,10 +2367,12 @@ def verify_export(out_dir: str) -> dict:
     return {"ok": not bad and not extra, "problems": bad, "extra": extra, "files": len(man["files"]), "status": man.get("status")}
 
 # ---------------------------------------------------------------- stand-in profiles (the worker's home-preflight / home-simulate)
-_READY = {"kernel": HAKCHI_KERNEL, "hakchi": "v1.0.4-126", "system": "nes-usa", "can_interact": True, "custom_firmware": False}
+IDENTITY_KEYS = ("kernel", "hakchi", "system", "hwid", "can_interact", "custom_firmware", "board", "region", "data_mount")   # what a session's identity() answers
+_READY = {"kernel": HAKCHI_KERNEL, "hakchi": "v1.0.4-126", "system": "nes-usa", "can_interact": True, "custom_firmware": False, "board": "dp-nes", "region": "EUR_USA", "data_mount": DATA_MOUNT}
+_SNES = _READY | {"system": "snes-usa", "board": "dp-shvc", "region": "USA", "stock": "snes", "storage": "snes-usa"}
 HOME_PROFILES = {   # what the console would be, never a real one
     "hakchi-ready": _READY | {"hwid": "sim-0001", "free_bytes": 200_000_000},
-    "stock": {"kernel": "3.4.113", "hakchi": None, "system": "nes-usa", "can_interact": None, "custom_firmware": None, "hwid": "sim-0002", "free_bytes": 200_000_000},
+    "stock": {"kernel": "3.4.113", "hakchi": None, "system": "nes-usa", "can_interact": None, "custom_firmware": None, "board": "dp-nes", "region": "EUR_USA", "data_mount": DATA_MOUNT, "hwid": "sim-0002", "free_bytes": 200_000_000},
     "nearly-full": _READY | {"hwid": "sim-0003", "free_bytes": 5_000_000},
     # add-ons already there (another tool added them, such as the CCS Console Workbench), with CCS Nucleus's start set by its own command
     "with-mod": _READY | {"hwid": "sim-0008", "free_bytes": 200_000_000, "addons": "mod"},
@@ -2309,13 +2380,24 @@ HOME_PROFILES = {   # what the console would be, never a real one
     "with-mod-nucleus": _READY | {"hwid": "sim-0009", "free_bytes": 200_000_000, "addons": "mod+nucleus", "start": "ccs-home never on default 10"},   # CCS HOME, started directly
     "with-chooser": _READY | {"hwid": "sim-0010", "free_bytes": 200_000_000, "addons": "nucleus+nucleus-chooser", "start": "native always off default 10"},
     "with-all": _READY | {"hwid": "sim-0011", "free_bytes": 200_000_000, "addons": "mod+nucleus+nucleus-chooser", "start": "ccs-home always on last 10"},
+    "snes-ready": _SNES | {"hwid": "sim-0021", "free_bytes": 200_000_000},   # a North American Super NES Classic with hakchi
 }
 STORAGE_PROFILES = {   # hakchi's game storage (tests; STORAGE_SAMPLE): every other profile has Hakchi2 CE's separate storage per system
     "flat-storage": _READY | {"hwid": "sim-0012", "free_bytes": 200_000_000, "storage": "flat"},
     "no-storage": _READY | {"hwid": "sim-0013", "free_bytes": 200_000_000, "storage": "none"},
 }
-IDENTITY_PROFILES = {   # refusals by identity (tests): another system, an older hakchi, a custom firmware, an identity that cannot be read
-    "snes-eur": _READY | {"system": "snes-eur", "hwid": "sim-0005", "free_bytes": 200_000_000},
+MODEL_PROFILES = {   # a Super NES Classic Edition with hakchi (tests): North American and European, and the same with CCS Mod already there
+    "snes-usa": _SNES | {"hwid": "sim-0014", "free_bytes": 200_000_000},
+    "snes-eur": _SNES | {"system": "snes-eur", "region": "EUR", "storage": "snes-eur", "hwid": "sim-0005", "free_bytes": 200_000_000},
+    "snes-with-mod": _SNES | {"hwid": "sim-0015", "free_bytes": 200_000_000, "addons": "mod"},
+}
+IDENTITY_PROFILES = {   # refusals by identity (tests): another model or region, a model its software and hakchi disagree on, data storage
+                        # elsewhere, an older hakchi, a custom firmware, an identity that cannot be read
+    "sfc-jpn": _SNES | {"system": "shvc-jpn", "region": "JPN", "hwid": "sim-0016", "free_bytes": 200_000_000},
+    "nes-eur": _READY | {"system": "nes-eur", "region": "EUR", "hwid": "sim-0017", "free_bytes": 200_000_000},
+    "model-mismatch": _READY | {"system": "snes-usa", "hwid": "sim-0018", "free_bytes": 200_000_000},
+    "no-model": _READY | {"board": None, "region": None, "hwid": "sim-0019", "free_bytes": 200_000_000},
+    "data-elsewhere": _READY | {"data_mount": "/dev/sda1 vfat", "hwid": "sim-0020", "free_bytes": 200_000_000},
     "old-hakchi": _READY | {"hakchi": "v1.0.0-000", "can_interact": False, "hwid": "sim-0006", "free_bytes": 200_000_000},
     "custom-firmware": _READY | {"custom_firmware": True, "hwid": "sim-0007", "free_bytes": 200_000_000},
     "no-identity": _READY | {"hwid": None, "free_bytes": 200_000_000},
@@ -2327,6 +2409,17 @@ STOCK_SAMPLE = {"usr/share/games/nes/kachikachi/CLV-P-NAAAE/CLV-P-NAAAE.nes": b"
                 "var/squashfs/usr/share/games/nes/kachikachi/CLV-P-NAAAE/CLV-P-NAAAE.desktop": (b"[Desktop Entry]\nType=Application\nExec=/usr/bin/clover-kachikachi "
                     b"/usr/share/games/nes/kachikachi/CLV-P-NAAAE/CLV-P-NAAAE.nes --volume 75\nPath=/var/lib/clover/profiles/0/CLV-P-NAAAE\nName=A built-in game\n"
                     b"Icon=/usr/share/games/nes/kachikachi/CLV-P-NAAAE/CLV-P-NAAAE.png\n\n[X-CLOVER Game]\nCode=CLV-P-NAAAE\n")}
+# a Super NES Classic's built-in game, its save and suspend point, its start script and hakchi's read-only view of its system, in the
+# stock layout (the games directly under /usr/share/games, Nintendo's Super NES launcher; saves under /var/lib/clover/profiles): written
+# for these tests, never a real game
+SNES_STOCK_SAMPLE = {"usr/share/games/CLV-P-SAAAE/CLV-P-SAAAE.sfrom": b"stock game", "var/lib/clover/profiles/0/CLV-P-SAAAE/cartridge.sram": b"a save",
+                     "var/lib/clover/profiles/0/CLV-P-SAAAE/suspendpoint1/state.sstate": b"a suspend point",
+                     "etc/init.d/S81clover-mcp": b"#!/bin/sh\nclover-mcp\n", "var/lib/hakchi/hmod/uninstall-clovercon": b'rm -f "$rootfs/lib/x"\n',
+                     "var/lib/hakchi/rootfs/lib/x": b"clovercon module file", "var/lib/ccs/pkg/someone-elses/keep.txt": b"unknown",
+                     "var/squashfs/usr/share/games/CLV-P-SAAAE/CLV-P-SAAAE.desktop": (b"[Desktop Entry]\nType=Application\nExec=/usr/bin/clover-canoe-shvc-wr "
+                         b"-rom /usr/share/games/CLV-P-SAAAE/CLV-P-SAAAE.sfrom --volume 100\nPath=/var/lib/clover/profiles/0/CLV-P-SAAAE\nName=A built-in game\n"
+                         b"Icon=/usr/share/games/CLV-P-SAAAE/CLV-P-SAAAE.png\n\n[X-CLOVER Game]\nCode=CLV-P-SAAAE\n")}
+STOCK_SAMPLES = {"nes": STOCK_SAMPLE, "snes": SNES_STOCK_SAMPLE}
 # hakchi's game storage as the profile has it (Hakchi2 CE syncs to a folder per system, its first page "000", a folder's games in "001"...;
 # "flat": the storage itself holds the games; "none": no game storage, the console's menu lists its own game folder): another tool's games
 STORAGE_SAMPLE = {
@@ -2334,6 +2427,9 @@ STORAGE_SAMPLE = {
                 "var/lib/hakchi/games/nes-usa/000/CLV-H-AAAAA/CLV-H-AAAAA.nes": b"NES\x1a a game Hakchi added",
                 "var/lib/hakchi/games/nes-usa/000/CLV-S-00001/CLV-S-00001.desktop": b"[Desktop Entry]\nExec=/bin/chmenu 001 /var/games\nName=A Hakchi folder\n",
                 "var/lib/hakchi/games/nes-usa/001/CLV-H-AAAAB/CLV-H-AAAAB.desktop": b"[Desktop Entry]\nName=A game in a Hakchi folder\n"},
+    "snes-usa": {"var/lib/hakchi/games/snes-usa/000/CLV-H-SAAAA/CLV-H-SAAAA.desktop": b"[Desktop Entry]\nName=A game Hakchi added\n",
+                 "var/lib/hakchi/games/snes-usa/000/CLV-H-SAAAA/CLV-H-SAAAA.sfrom": b"a game Hakchi added"},
+    "snes-eur": {"var/lib/hakchi/games/snes-eur/000/CLV-H-SAAAB/CLV-H-SAAAB.desktop": b"[Desktop Entry]\nName=A game Hakchi added\n"},
     "flat": {"var/lib/hakchi/games/CLV-H-AAAAA/CLV-H-AAAAA.desktop": b"[Desktop Entry]\nName=A game Hakchi added\n"},
     "none": {}}
 
@@ -2341,11 +2437,11 @@ def make_stand_in(root: str, profile: str, durable: bool = False) -> FakeConsole
     """a fresh disposable stand-in (a stock game and save, the stock start script, another hakchi module, an unknown folder), with the
     profile's add-ons installed by hakchi's pack_install and CCS Nucleus's start set by its own command (no record of this program's: they
     are another tool's)"""
-    prof = HOME_PROFILES.get(profile) or IDENTITY_PROFILES.get(profile) or STORAGE_PROFILES.get(profile)
+    prof = HOME_PROFILES.get(profile) or MODEL_PROFILES.get(profile) or IDENTITY_PROFILES.get(profile) or STORAGE_PROFILES.get(profile)
     if prof is None: raise KeyError(f"unknown profile {profile!r}")
     os.makedirs(root, exist_ok=True); info = dict(prof)
     with open(os.path.join(root, "console.json"), "w", encoding="utf-8") as f: json.dump(info, f)
-    sample = dict(STOCK_SAMPLE) | STORAGE_SAMPLE[info.get("storage", "nes-usa")]
+    sample = dict(STOCK_SAMPLES[info.get("stock", "nes")]) | STORAGE_SAMPLE[info.get("storage", "nes-usa")]
     if info.get("foreign_s81"): sample["var/lib/hakchi/rootfs/etc/init.d/S81clover-mcp"] = b"#!/bin/sh\n# another module's start script\n"
     for rel, b in sample.items():
         q = os.path.join(root, *rel.split("/")); os.makedirs(os.path.dirname(q), exist_ok=True)
@@ -2362,8 +2458,10 @@ def storage_digest(root: str) -> dict:   # the stand-in's hakchi game storage sa
         q = os.path.join(root, *rel.split("/")); out[rel] = _sha(_read(q)) if os.path.isfile(q) else None
     return out
 
-def stock_digest(root: str) -> dict:   # the stand-in's stock and foreign sample as it is now (compared before and after)
+def stock_digest(root: str) -> dict:   # the stand-in's stock and foreign sample (its own model's) as it is now (compared before and after)
     out = {}
-    for rel in STOCK_SAMPLE:
+    try: stock = json.loads(_read(os.path.join(root, "console.json"))).get("stock") or "nes"
+    except (OSError, ValueError): stock = "nes"
+    for rel in STOCK_SAMPLES.get(stock, STOCK_SAMPLE):
         q = os.path.join(root, *rel.split("/")); out[rel] = _sha(_read(q)) if os.path.isfile(q) else None
     return out

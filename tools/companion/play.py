@@ -325,7 +325,7 @@ def record_save(sha: str, title, version, rec) -> dict:
     except OSError as e: return {"ok": False, "error": f"The game settings could not be saved on this computer ({e.strerror or e}). The earlier settings are unchanged."}
     return {"ok": True, "record": clean}
 
-# ---------------- HTTP routes (desktop principal only; dispatched from nes_companion.py) ----------------
+# ---------------- HTTP routes (desktop principal only; dispatched from ccs_backend.py) ----------------
 def _desktop(h) -> bool:
     b = h._bearer(); return bool(b and b.get("desktop"))
 def handle_get(h, path: str, qs: str):

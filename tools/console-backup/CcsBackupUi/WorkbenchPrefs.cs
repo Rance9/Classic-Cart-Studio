@@ -49,7 +49,7 @@ namespace CcsBackup.Ui
         /// backup location's box is brought into view with the keyboard focus</summary>
         Action settingsBack; bool settingsFocusLocation; string settingsBackLabel;
 
-        static string Sig(Settings s) => (s.PrimaryFolder ?? "") + "\n" + (s.ArchiveFolder ?? "") + "\n" + FamilyKey(s.ConsoleProfile) + "\n" + s.EarlierHomeKeep;
+        static string Sig(Settings s) => (s.PrimaryFolder ?? "") + "\n" + (s.ArchiveFolder ?? "") + "\n" + FamilyKey(s.ConsoleProfile) + "\n" + s.EarlierHomeKeep + "\n" + s.ConsoleNames.Signature();
         /// <summary>freeze 16: no family saved means the first one (the NES Classic Mini), and an alias means its family, so choosing the SNES
         /// Classic Mini and then the NES Classic Mini again leaves nothing unsaved; an id this version does not know stays as written</summary>
         static string FamilyKey(string id) => ConsoleProfile.Find(id)?.Id ?? (string.IsNullOrEmpty(id) ? ConsoleProfile.Supported[0].Id : id);
@@ -130,6 +130,7 @@ namespace CcsBackup.Ui
             if (savedPrefs == null || (settings.ArchiveFolder ?? "") != (savedPrefs.ArchiveFolder ?? "")) l.Add("the additional copy");
             if (savedPrefs == null || FamilyKey(settings.ConsoleProfile) != FamilyKey(savedPrefs.ConsoleProfile)) l.Add("the console chosen at the top of the window");
             if (savedPrefs == null || settings.EarlierHomeKeep != savedPrefs.EarlierHomeKeep) l.Add("the earlier HOME versions to keep");
+            if (savedPrefs == null || settings.ConsoleNames.Signature() != savedPrefs.ConsoleNames.Signature()) l.Add("your consoles' names");
             return l.Count == 0 ? "your settings" : l.Count == 1 ? l[0] : string.Join(", ", l.Take(l.Count - 1)) + " and " + l.Last();
         }
 
@@ -239,11 +240,11 @@ namespace CcsBackup.Ui
                 return null;
             }
             void Use() { var why = Pending(); if (why != null) problem.Content = Note("Not used yet: " + why + ".", "warn"); }
-            Button Change(TextBox box) => B("Change…", "Btn", () => { Pick(box); Use(); });
-            loc.Children.Add(Field("Backup location: new backups are saved here", prim, Change(prim), 760));
+            Button Change(TextBox box, string title) => B("Change…", "Btn", () => { Pick(box, title); Use(); });
+            loc.Children.Add(Field("Backup location: new backups are saved here", prim, Change(prim, "Choose the backup location"), 760));
             loc.Children.Add(LinkRow(("Open the Folder", () => OpenPath(prim.Text)), ("Copy the Path", () => CopyText(prim.Text))));
             loc.Children.Add(two);
-            var archBox = Field("Additional copy location", arch, Change(arch), 760);
+            var archBox = Field("Additional copy location", arch, Change(arch, "Choose the additional copy location"), 760);
             var archButtons = LinkRow(("Open the Folder", () => OpenPath(arch.Text)), ("Copy the Path", () => CopyText(arch.Text)));
             var none = T("Additional copy not configured. Each new backup is saved once, in the backup location.", Ty.Text, false, true, new Thickness(0, 0, 0, 8));
             loc.Children.Add(archBox); loc.Children.Add(archButtons); loc.Children.Add(none);
@@ -300,7 +301,7 @@ namespace CcsBackup.Ui
                 keep.Children.Add(PathText(settings.Path));
                 keep.Children.Add(state);
             }
-            keep.Children.Add(T("Kept with your settings: the backup locations above, the earlier HOME versions to keep and the console chosen at the top of the window (now " + profile.Name + "). A settings file is separate from your console backups.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
+            keep.Children.Add(T("Kept with your settings: the backup locations above, the earlier HOME versions to keep, the console chosen at the top of the window (now " + profile.Name + ") and the names your consoles are shown by on this PC. A settings file is separate from your console backups.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
             sp.Children.Add(Card(keep));
             State();
             Show(sp, "settings");
@@ -308,7 +309,7 @@ namespace CcsBackup.Ui
             leaveCheck = () =>
             {
                 var why = Pending(); if (why == null) return true;
-                return Ask("Leave Settings?", "What you typed is not used: " + why + ".\n\nLeave Settings without using it?", new[] { "Keep Editing", "Leave Without It" }, 0, 0) == 1;
+                return AskToLeave("What you typed in Settings is not used: " + why + ". If you leave, it is not kept.", "Leave Without Saving", null);
             };
             if (focusLocation)   // Edit in Settings: the backup location's box in view, with the keyboard focus and the cursor at its end
                 Dispatcher.BeginInvoke(new Action(() => { if (page.Content != sp) return; prim.BringIntoView(); prim.Focus(); Keyboard.Focus(prim); prim.CaretIndex = prim.Text.Length; }), System.Windows.Threading.DispatcherPriority.Loaded);
@@ -375,8 +376,8 @@ namespace CcsBackup.Ui
         string ChooseFile(bool save, string title, string name)
         {
             if (save ? SaveFileHook != null : OpenFileHook != null) return (save ? SaveFileHook : OpenFileHook)(title, name);
-            if (save) { var d = new Microsoft.Win32.SaveFileDialog { Title = title, FileName = name, Filter = "Workbench settings (*.json)|*.json", OverwritePrompt = true }; return d.ShowDialog(this) == true ? d.FileName : null; }
-            var o = new Microsoft.Win32.OpenFileDialog { Title = title, Filter = "Workbench settings (*.json)|*.json" }; return o.ShowDialog(this) == true ? o.FileName : null;
+            if (save) return CcsFileDialog.SaveFile(this, title, null, name, "Workbench settings (*.json)|*.json", true, "settings-file");
+            return CcsFileDialog.OpenFile(this, title, null, "Workbench settings (*.json)|*.json", "settings-file");
         }
 
         /// <summary>the preferences' lines in the close review (WB-UX-20): what is typed in Settings and valid is used first (as on leaving

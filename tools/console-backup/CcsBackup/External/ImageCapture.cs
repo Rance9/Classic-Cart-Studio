@@ -4,8 +4,10 @@
 //   Regions   the drive read from its first byte to its last in fixed-size regions (ExternalFormat.RegionSizeFor), each one member,
 //             hashed while it streams (and in 1,048,576-byte pieces for the maps). The source is a drive image file the person chose,
 //             opened so that no other program can write to it while it is read; its size and last-write time are compared before and
-//             after (a change makes the backup's scope incomplete). A connected drive read whole needs administrator permission and is
-//             behind the closed StorageRawReads boundary (RawDisk.cs).
+//             after (a change makes the backup's scope incomplete). A connected USB drive or SD card is read whole by Workbench's
+//             administrator step (RawDiskHost.cs), which sends its bytes in order with each region's SHA-256 as it read them; every stored
+//             region is compared with that SHA-256 (a difference stops the backup). When the step could not lock the drive's volumes
+//             (another program had them open), the scope is incomplete: a program could have written to the drive while it was read.
 //   Index     the layout (PartitionTable) and, for each FAT12/16/32 or ext2/3/4 file system, every folder, file and link with its size,
 //             times, attributes or mode and owner, and for each regular file its extents (where its bytes lie in the drive image; a hole in
 //             an ext file is -1, read as zeros) and its SHA-256, read through those extents from the stored regions. exFAT and NTFS file
@@ -50,32 +52,72 @@ namespace CcsBackup.External
         /// <summary>the regions and the index of one image source; true when the source stayed unchanged and every region was read whole</summary>
         internal static bool Write(StorageWriter w, string src, string imagePath, StorageOptions opt, FileCapture.Counters c, JObj summary)
         {
-            bool clean = true; long len; DateTime t0; var regions = new List<ZipEntryInfo>(); long R;
+            bool clean = true; long len; DateTime t0; List<ZipEntryInfo> regions; long R;
             using (var f = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 20, FileOptions.SequentialScan))
             {
                 len = f.Length; t0 = File.GetLastWriteTimeUtc(imagePath); R = ExternalFormat.RegionSizeFor(len);
-                var buf = new byte[Streams.Buffer];
-                for (long at = 0, k = 1; at < len; at += R, k++)
-                {
-                    long n = Math.Min(R, len - at);
-                    var e = w.Add(ExternalFormat.Region(src, (int)k), false, s =>
-                    {
-                        long left = n; f.Position = at;
-                        while (left > 0)
-                        {
-                            if (opt.Cancelled()) throw new OperationCanceledException();
-                            int r = f.Read(buf, 0, (int)Math.Min(buf.Length, left)); if (r <= 0) throw new IOException("the drive image became shorter while it was read");
-                            s.Write(buf, 0, r); left -= r; c.Done += r; opt.Say("read", "Copying the drive image...", c.Done, c.Total);
-                        }
-                    }, opt.Cancelled);
-                    regions.Add(e); w.MaybeMap();
-                    opt.DuringFile?.Invoke("region " + k);
-                }
+                regions = Regions(w, src, f, true, len, R, opt, c, "Copying the drive image...", "the drive image became shorter while it was read");
             }
             var fi = new FileInfo(imagePath);
             if (fi.Length != len || fi.LastWriteTimeUtc != t0) { clean = false; c.Problems.Add("the drive image file changed while it was read"); summary.Set("changed", "The drive image file changed while it was read, so this copy may mix two states of it."); }
             c.Bytes += len;
-            // the index, from the regions as they are now in the file being written
+            Index(w, src, len, R, regions, opt, c, summary);
+            return clean;
+        }
+
+        /// <summary>a connected USB drive or SD card, read whole by the administrator step of an open session (RawDiskClient.OpenRead):
+        /// the regions as the step sends them, each compared with the SHA-256 the step computed from the drive, then the index</summary>
+        internal static bool WriteDisk(StorageWriter w, string src, RawDiskSession session, StorageOptions opt, FileCapture.Counters c, JObj summary)
+        {
+            bool clean = true; long len = session.Identity.Bytes, R = ExternalFormat.RegionSizeFor(len); List<ZipEntryInfo> regions;
+            var reader = RawDiskClient.StartReading(session, opt.Cancelled);
+            regions = Regions(w, src, reader, false, len, R, opt, c, "Copying the drive...", "the drive's data ended early");
+            var res = reader.Finish();
+            if (reader.Regions.Count != regions.Count) throw new IOException("the administrator step sent " + reader.Regions.Count + " region checksums for " + regions.Count + " regions");
+            for (int i = 0; i < regions.Count; i++)
+            {
+                var name = ExternalFormat.Region(src, i + 1);
+                if (reader.Regions[i].k != i + 1 || !w.Expected.TryGetValue(name, out var mine) || mine != reader.Regions[i].sha256)
+                    throw new IOException("region " + (i + 1) + " as stored does not match what the administrator step read from the drive");
+            }
+            if (!session.Consistent || res?.B("consistent") != true)
+            {
+                clean = false;
+                c.Problems.Add("another program had the drive open, so Windows did not let Workbench keep other programs from writing to it while it was read" + (session.NotLocked.Count > 0 ? " (" + string.Join("; ", session.NotLocked) + ")" : ""));
+                summary.Set("changed", "Another program had the drive open while it was read, so if that program wrote to it meanwhile, this copy may mix two states of it.");
+            }
+            summary.Set("read_by", "Workbench's administrator step, with the drive's volumes " + (clean ? "locked" : "not all locked") + " while it was read");
+            c.Bytes += len;
+            Index(w, src, len, R, regions, opt, c, summary);
+            return clean;
+        }
+
+        /// <summary>the image's regions, one member each, from a source read in order (positioned: a file that can be read at each region's start)</summary>
+        static List<ZipEntryInfo> Regions(StorageWriter w, string src, Stream f, bool positioned, long len, long R, StorageOptions opt, FileCapture.Counters c, string say, string shorter)
+        {
+            var regions = new List<ZipEntryInfo>(); var buf = new byte[Streams.Buffer];
+            for (long at = 0, k = 1; at < len; at += R, k++)
+            {
+                long n = Math.Min(R, len - at); long start = at;
+                var e = w.Add(ExternalFormat.Region(src, (int)k), false, s =>
+                {
+                    long left = n; if (positioned) f.Position = start;
+                    while (left > 0)
+                    {
+                        if (opt.Cancelled()) throw new OperationCanceledException();
+                        int r = f.Read(buf, 0, (int)Math.Min(buf.Length, left)); if (r <= 0) throw new IOException(shorter);
+                        s.Write(buf, 0, r); left -= r; c.Done += r; opt.Say("read", say, c.Done, c.Total);
+                    }
+                }, opt.Cancelled);
+                regions.Add(e); w.MaybeMap();
+                opt.DuringFile?.Invoke("region " + k);
+            }
+            return regions;
+        }
+
+        /// <summary>the file system index, from the regions as they are now in the file being written</summary>
+        static void Index(StorageWriter w, string src, long len, long R, List<ZipEntryInfo> regions, StorageOptions opt, FileCapture.Counters c, JObj summary)
+        {
             w.File.Flush();
             using (var rf = new FileStream(w.File.Name, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 16, FileOptions.RandomAccess))
             {
@@ -158,7 +200,6 @@ namespace CcsBackup.External
                 summary.Set("layout", layout.Scheme); summary.Set("partitions", layout.Parts.Select(p => (object)(p.Number + ": " + p.FileSystem + (p.Label != null ? " \"" + p.Label + "\"" : "") + ", " + Units.Gb(p.Length) + (p.Browsable && !notes.ContainsKey(p.Number) ? "" : " (raw only: " + (notes.TryGetValue(p.Number, out var nn) ? nn : p.NotBrowsable) + ")"))).ToList());
                 c.Files += files; c.Folders += folders;
             }
-            return clean;
         }
     }
 }

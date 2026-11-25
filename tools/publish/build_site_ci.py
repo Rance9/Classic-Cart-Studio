@@ -17,7 +17,7 @@ def fold_covers(out: str, sd: str) -> dict:
     keep every version's own cover name (its identity: the one-cover rule, factory precedence, art/index.json's source record);
     art/aliases.json maps each folded name to the kept file, and everything that opens a cover resolves through it: the page
     (build_html.py writes the kept names into the page and carries the map for covers a collection kept), the Windows app's own server
-    (nes_companion.py) and the package builder (common.art_alias). No picture changes. The kept file of a group, the same every build: a
+    (ccs_backend.py) and the package builder (common.art_alias). No picture changes. The kept file of a group, the same every build: a
     built-in game's own cover, else a catalog game's own cover, else the first name."""
     import hashlib
     art = os.path.join(out, "art"); groups: dict = {}

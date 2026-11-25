@@ -11,7 +11,7 @@ data (reports/catalog.json, reports/builtin.json, the payload store), diffs it a
 makes only the changes needed. Running the same manifest twice is a no-op apart from a new audit record.
 """
 from __future__ import annotations
-import os, sys, json, hashlib, time, shutil, re, sqlite3, subprocess, zlib
+import os, sys, json, hashlib, time, shutil, re, sqlite3, subprocess, threading, zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 PIPE = os.path.normpath(os.path.join(HERE, "..", "rom-pipeline"))
 sys.path.insert(0, PIPE)
@@ -76,10 +76,14 @@ def pwsh() -> str:
 
 # ---- timing + caches: status calls must stay cheap (the website shows "Connected" before any of this runs) ----
 LAST_TIMINGS: dict = {}
+_TIMINGS_LOCK = threading.Lock()   # the background check and a request's quick status time their checks at the same moment
 def _timed(name: str, fn):
     t0 = time.time()
     try: return fn()
-    finally: LAST_TIMINGS[name] = round(time.time() - t0, 3)
+    finally:
+        with _TIMINGS_LOCK: LAST_TIMINGS[name] = round(time.time() - t0, 3)
+def _timings() -> dict:
+    with _TIMINGS_LOCK: return dict(LAST_TIMINGS)
 _hash_cache: dict = {}
 def sha256_file_cached(path: str) -> str:
     """SHA-256 keyed by (size, mtime): an unchanged hakchi.exe is hashed once, not on every status request."""
@@ -130,7 +134,7 @@ def env_status(cfg: dict, quick: bool = False) -> dict:
     st = {"hakchi_path": cfg["hakchi_exe"], "hakchi_found": ok, "hakchi_check": why, "hakchi_root": root, "config_exists": os.path.exists(os.path.join(root, "config", "config.json")),
           "exports_dir": cfg["exports_dir"], "staging_dir": cfg["staging_dir"], "install": _timed("install_status", lambda: hakchi_install_status(cfg))}
     if quick: st.update({"hakchi_running": None, "console_connected": None, "console_usb": None, "driver": None, "quick": True}); return st
-    st.update({"hakchi_running": bool(_timed("hakchi_running", hakchi_running)), "console_connected": bool(usb := _timed("console_usb", console_usb)), "console_usb": usb, "driver": _timed("driver_status", lambda: driver_status(cfg)), "quick": False, "timings": dict(LAST_TIMINGS)})
+    st.update({"hakchi_running": bool(_timed("hakchi_running", hakchi_running)), "console_connected": bool(usb := _timed("console_usb", console_usb)), "console_usb": usb, "driver": _timed("driver_status", lambda: driver_status(cfg)), "quick": False, "timings": _timings()})
     return st
 
 def file_version(path: str) -> str:
@@ -172,7 +176,10 @@ def hakchi_install_status(cfg: dict) -> dict:
     st["package_state"] = "ok" if st["package_local_verified"] else ("damaged" if st["package_local"] else "missing")
     if st["package_state"] != "ok": st["package_problem"] = package_problem(st["package_state"])
     if os.path.isfile(exe):
-        st["sha256"] = sha256_file_cached(exe); st["version"] = file_version(exe); st["state"] = "ok" if st["sha256"] == HAKCHI_SHA256 else "different-version"
+        st["sha256"] = sha256_file_cached(exe); st["state"] = "ok" if st["sha256"] == HAKCHI_SHA256 else "different-version"
+        # the pinned build's version is known from its hash; Windows is asked (a PowerShell process, slow when it is first started) only
+        # for another build, whose version the page names
+        st["version"] = HAKCHI_VERSION if st["state"] == "ok" else file_version(exe)
     else:
         st["state"] = "missing"; st["root_nonempty"] = os.path.isdir(root) and bool(os.listdir(root))
     st["config_exists"] = os.path.exists(os.path.join(root, "config", "config.json"))
@@ -397,7 +404,7 @@ def plan(man: dict, approve_alternates: bool = False) -> dict:
     S["install_size"] = fmt_size(S["install_bytes"])
     m30 = sum(1 for r in rows if "needs CCS’s player" in r["statuses"])
     if m30: warnings.append(f"{m30} selected game(s) are Mapper 30 (UNROM 512) cartridges. " + M30_NOTICE + " " + M30_ROUTE)
-    if S["retroarch"]: warnings.append(f"{S['retroarch']} selected game(s) are routed to RetroArch, which is not installed on the console; they can be staged in Hakchi but the deployment stays incomplete until the module is approved and installed (post-G1).")
+    if S["retroarch"]: warnings.append(f"{S['retroarch']} selected game(s) are routed to RetroArch, which is not installed on the console; they can be prepared for Hakchi, but they do not start on the console until RetroArch is installed there.")
     if S["controller_warnings"]: warnings.append(f"{S['controller_warnings']} selected game(s) have a controller note: special input hardware, or support with standard controllers not known (see each game's note).")
     return {"can_apply": not problems, "problems": problems, "warnings": warnings, "summary": S, "games": rows, "visible_codes": sorted(visible), "hidden_codes": hidden, "custom": plan_custom, "factory_ref": factory_ref, "factory": factory}
 

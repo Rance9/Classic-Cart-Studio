@@ -1,7 +1,7 @@
 """Operation sequencing for the console engine, following the pinned Hakchi2 CE 3.9.3 order and preconditions
 (hakchi.cs Shell_OnConnected, SyncTask.UploadGames, ModTasks, MembootTasks) but emitting structured events instead of
-WinForms dialogs. In this build every operation runs against `FakeTransport`; `execute` (physical) is refused by Gate G1
-at two boundaries. States are the truthful set from the directive (section D2)."""
+WinForms dialogs. Every operation here runs against `FakeTransport` (the older plan's simulation; its game sync through hakchi is not
+part of Classic Cart Studio). States are the truthful set from the directive (section D2)."""
 from __future__ import annotations
 import re, time, uuid
 from . import gate, plan as planmod
@@ -100,11 +100,11 @@ class Engine:
         for m in p["modules"]:
             if m["action"] == "install" and not m["cleared"]: blocks.append({"code": "module-not-cleared", "text": f"Emulator module {m['name']} is needed by {m['needed_by']} game{'' if m['needed_by'] == 1 else 's'} but is not included with Classic Cart Studio. You need to provide it yourself."})
         d = p["device"]; sc = d.get("state_code")
-        if d.get("source") == "none": blocks.append({"code": "no-device-state", "text": "The console has not been checked. Choose a simulated console; reading a real console is not available in this version."})
+        if d.get("source") == "none": blocks.append({"code": "no-device-state", "text": "The console has not been checked. Choose a simulated console: this plan is checked only against a simulated console."})
         elif sc in ("wrong-model", "md-partitioning", "fel-wrong-board"): blocks.append({"code": sc, "text": d.get("detail", sc)})
         elif sc in ("driver-missing", "driver-wrong-binding"): blocks.append({"code": sc, "text": d.get("detail", sc)})
         elif sc in ("no-device",): blocks.append({"code": "no-device", "text": "No console is connected."})
-        elif sc in ("fel", "outdated", "no-version"): blocks.append({"code": "first-time-setup-required", "text": "This console needs first-time setup, which is not available in this version."})
+        elif sc in ("fel", "outdated", "no-version"): blocks.append({"code": "first-time-setup-required", "text": "This console needs first-time setup first (Prepare Console in CCS Console Workbench)."})
         elif sc == "clovershell-only": blocks.append({"code": "link-cannot-sync", "text": d.get("detail", sc)})
         if p["backup"]["state"] in ("missing", "invalid"): blocks.append({"code": "backup-" + p["backup"]["state"], "text": "The console's original system backup is " + p["backup"]["state"] + ", so nothing can be written to the console without a verified way back."})
         est = p["budget"].get("estimate") or {}
@@ -164,12 +164,6 @@ class Engine:
         except TransportError as e:
             res.update(state="Potentially recoverable failure / unknown device condition", error={"code": "device-error", "text": str(e), "stage": self.stage, "recovery": self.recovery_advice(self.stage)})
             self.emit("failure", self.stage, text=str(e), level="error", code="device-error"); return res
-
-    def execute(self, p: dict, transport_kind: str = "ssh") -> dict:
-        """The older plan's game sync through hakchi (G2): refused whatever the gate says (it is retired; no transport is opened). Classic
-        Cart Studio's HOME reaches a console only through ccs_install, for an operation the app's dispatcher admitted."""
-        self.emit("refused", "execute", text="syncing games through hakchi is not part of Classic Cart Studio", level="warn", code="physical-disabled")
-        return {"state": "Syncing games through hakchi is not part of Classic Cart Studio.", "code": "physical-disabled", "simulated": False, "plan_hash": p["hash"]}
 
     def cancel_if_safe(self) -> dict:
         self.cancel_requested = True; safe = self.stage in SAFE_CANCEL_STAGES or self.stage == "idle"

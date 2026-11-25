@@ -16,6 +16,9 @@
 //               SHA-256 computed again); the console's registry state read again, unchanged; the record saved before the first write
 //   5 write     each step once; the first failure stops every later step
 //   6 verify    the registry read again: the option is there with the image's SHA-256 and size (or gone)
+// A system image is a second system on the console, which starts only from CCS Nucleus's startup chooser: when the chooser is not installed
+// yet, the same reviewed change adds it first (method:ccs-nucleus-chooser, its package placed in hakchi's transfer folder; nstart, the chooser
+// shown at start, everything else of the start setting kept), then the image; hakchi installs the chooser at the console's next start.
 // The image never goes into hakchi's firmware folders (hakchi starts the first image there by itself, without a choice). In the chooser it
 // starts only when chosen, for one start; the console's own system stays the start without a choice and the way back.
 using CcsBackup.Archive;
@@ -36,13 +39,15 @@ namespace CcsBackup.Engine
     public sealed class FirmwarePlan
     {
         public string Op, Id, Label, Hwid, ConsoleTag, Session, Digest, Nonce, Text, ImagePath, ImageSha256; public long ImageBytes; public DateTime ExpiresUtc, ImageWriteUtc;
+        /// <summary>CCS Nucleus's start setting the change writes when it adds the chooser ("DEFAULT always HOME SELECTION TIMEOUT"), else null</summary>
+        public string StartLine;
         public BoundArchive ProtectiveArchive; public MethodState Before; public SystemImageInfo System;
         public string ProtectivePath => ProtectiveArchive?.Path;
         public List<string> Steps = new List<string>(), Notes = new List<string>();
         public JObj ToJson() => new JObj
         {
             { "operation", Op }, { "id", Id }, { "label", Label }, { "console_tag", ConsoleTag }, { "text", Text }, { "steps", Steps }, { "notes", Notes },
-            { "image", new JObj { { "file", ImagePath }, { "sha256", ImageSha256 }, { "bytes", ImageBytes }, { "size", Compose.Units.Size(ImageBytes) } } }, { "system", System?.ToJson() },
+            { "start", StartLine }, { "image", new JObj { { "file", ImagePath }, { "sha256", ImageSha256 }, { "bytes", ImageBytes }, { "size", Compose.Units.Size(ImageBytes) } } }, { "system", System?.ToJson() },
             { "console_state", Before?.ToJson() }, { "protective_backup", ProtectivePath }, { "evidence", new List<object> { ProtectiveArchive?.ToJson() } },
             { "digest", Digest }, { "nonce", Nonce }, { "expires_utc", ExpiresUtc.ToString("o", CultureInfo.InvariantCulture) },
         };
@@ -52,11 +57,12 @@ namespace CcsBackup.Engine
 
     public static class FirmwareEngine
     {
-        public static readonly string[] Steps = { "rput", "rimport", "rdrop" };
+        public static readonly string[] Steps = { "rput", "rimport", "rdrop", "method:" + Methods.Chooser, "nstart" };
         static readonly Regex IdRe = new Regex("^[a-z0-9][a-z0-9-]{0,30}$"), LabelRe = new Regex("^[A-Za-z0-9 .,'!&()+:-]{1,60}$");
         public static bool IdOk(string id) => id != null && IdRe.IsMatch(id) && id != "native" && id != "ccs-home";
         public static string DefaultId(string sha256) => "owner-" + sha256.Substring(0, 8);
-        public static string StepLabel(string s) => s == "rput" ? "the system image sent to the console and checked there" : s == "rimport" ? "the system image added to CCS Nucleus's choices" : "the choice and its system image removed";
+        public static string StepLabel(string s) => s == "rput" ? "the system image sent to the console and checked there" : s == "rimport" ? "the system image added to CCS Nucleus's choices"
+            : s.StartsWith("method:", StringComparison.Ordinal) || s == "nstart" ? MethodEngine.StepLabel(s) : "the choice and its system image removed";
 
         static (string sha, long bytes, string why) Hash(string file)
         {
@@ -98,6 +104,8 @@ namespace CcsBackup.Engine
             ConsoleIdentity cid;
             try { cid = con.Identify(); Support.CheckForBackup(cid, ctx.RecoveryImageId, "firmware"); }
             catch (ConsoleRefusedException ex) { return (null, Refuse(ex.Message)); }
+            var dw = ConsoleData.Refusal(cid); if (dw != null) return (null, Refuse(dw + " Nothing was changed."));
+            if (p.System != null) p.System.Notes = SystemImage.NotesOn(p.System, cid.Model ?? ConsoleModels.Nes);
             p.Hwid = cid.Hwid; p.ConsoleTag = cid.ShortTag;
             var st = con.PrepState();
             if (!st.Ok) return (null, Refuse("The console's CCS Nucleus could not be read (" + st.Problem + "). Nothing was changed."));
@@ -113,12 +121,23 @@ namespace CcsBackup.Engine
                 // the shared storage accounting: the image in whole blocks, room kept for saves and the safety margin, against df's figure
                 var room = StorageSpec.Account(new Dictionary<string, object>
                 {
-                    ["profile"] = StorageSpec.NesModel, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = st.Free },
+                    ["profile"] = cid.Model?.Id ?? StorageSpec.NesModel, ["storage"] = new Dictionary<string, object> { ["source"] = "measured", ["available_bytes"] = st.Free },
                     ["items"] = new object[] { new Dictionary<string, object> { ["category"] = "image", ["label"] = "the system image", ["files"] = new object[] { new Dictionary<string, object> { ["bytes"] = p.ImageBytes } } } },
                 });
                 if (!(bool)room["write_ok"]) return (null, Refuse(Capacity.Why(room, out _, out _) + " Nothing was changed."));
+                // a second system starts only from the startup chooser: without it, the chooser comes in the same change, first
+                if (!st.Installed(Methods.Chooser))
+                {
+                    var sp = st.StartParts;
+                    if (sp == null || !Hex.IsHex(Methods.Sha256(Methods.Chooser), 64)) return (null, Refuse(sp == null ? "CCS Nucleus's start setting cannot be read on this console. Nothing was changed." : "This build does not carry the startup chooser's package. Nothing was changed."));
+                    p.StartLine = sp[0] + " always " + sp[2] + " " + sp[3] + " " + sp[4];
+                    var wp = MethodEngine.WaitingProblem(st, new Dictionary<string, string> { { Methods.Waiting(Methods.Chooser), Methods.Sha256(Methods.Chooser) } });
+                    if (wp != null) return (null, Refuse("Adding a system image is refused: " + wp + ". Start the console normally once so hakchi applies it, then check again. Nothing was changed."));
+                    p.Steps.Add("method:" + Methods.Chooser); if (st.Start != p.StartLine) p.Steps.Add("nstart");
+                    p.Notes.Add("A system image starts only from CCS Nucleus's startup chooser, which is not on this console yet: it is added in the same change and shows at start. hakchi installs it at the console's next start; what opens when nothing is chosen stays as it is.");
+                }
                 p.Steps.Add("rput"); p.Steps.Add("rimport");
-                p.Text = "Add the " + p.System.Text + " (" + Compose.Units.Size(p.ImageBytes) + ") as the choice \"" + p.Label + "\" in CCS Nucleus's chooser.";
+                p.Text = "Add the " + p.System.Text + " (" + Compose.Units.Size(p.ImageBytes) + ") as the choice \"" + p.Label + "\" in CCS Nucleus's chooser" + (p.StartLine != null ? ", with the chooser itself." : ".");
                 p.Notes.Add("It goes to CCS Nucleus's own folder on the data storage, never to hakchi's firmware folder: it starts only when you choose it, for one start. When you don't choose it, the console starts its own system as before, and that stays the way back.");
                 p.Notes.Add("The console's startup software, bootloader, own system, games and saves are not changed by adding it.");
                 if (p.System.Version != null) p.Notes.Add("The image records its system version as " + p.System.Version + ".");
@@ -147,7 +166,7 @@ namespace CcsBackup.Engine
         {
             using (var h = SHA256.Create())
                 return Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes("ccs-firmware-plan/2\n" + ConsoleIdentity.NormalizeHwid(p.Hwid) + "\n" + p.Session + "\n" + p.Op + " " + p.Id + "\n" + p.Label + "\n" + p.System?.Text + "\n" + p.ImagePath + " " + p.ImageSha256 + " " +
-                    p.ImageBytes.ToString(CultureInfo.InvariantCulture) + "\n" + p.Before?.Digest() + "\n" + p.ProtectiveArchive?.DigestLine() + "\n" + string.Join(",", p.Steps) + "\n" + p.Nonce)));
+                    p.ImageBytes.ToString(CultureInfo.InvariantCulture) + "\n" + p.Before?.Digest() + "\n" + p.ProtectiveArchive?.DigestLine() + "\n" + string.Join(",", p.Steps) + "\n" + p.StartLine + "\n" + p.Nonce)));
         }
 
         public static FirmwareOutcome Execute(RecoveryConsole con, FirmwarePlan plan, string digest, string nonce, EngineContext ctx)
@@ -178,7 +197,7 @@ namespace CcsBackup.Engine
                 catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { return Refuse("The change's record could not be saved in " + ctx.Settings.RecordsFolder + " (" + ex.Message + "), so nothing was written."); }
                 plan.Nonce = null;   // used up only now
                 o.RecordFile = rec.File; var phases = new List<object>();
-                var auth = new WriteAuthority(plan.Digest, plan.Hwid, plan.Steps.ToArray(), () => con.Simulated || Gate.FirmwareWrites, Gate.FirmwareText);
+                var auth = new WriteAuthority(plan.Digest, plan.Hwid, plan.Steps.Select(x => x.StartsWith("method:", StringComparison.Ordinal) ? "method" : x).Distinct().ToArray(), () => con.Simulated || Gate.FirmwareWrites, Gate.FirmwareText);
                 rec.State("writing"); con.Card("writing");
                 foreach (var s in plan.Steps)
                 {
@@ -192,11 +211,14 @@ namespace CcsBackup.Engine
                             using (var f = new FileStream(plan.ImagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                                 r = con.PrepStepStream("rput", auth, new[] { plan.Id, plan.ImageBytes.ToString(CultureInfo.InvariantCulture), plan.ImageSha256 }, f, plan.ImageBytes);
                         else if (s == "rimport") r = con.PrepStep("rimport", auth, new[] { plan.Id, plan.ImageSha256, plan.ImageBytes.ToString(CultureInfo.InvariantCulture), Convert.ToBase64String(Encoding.ASCII.GetBytes(plan.Label)) });
+                        else if (s.StartsWith("method:", StringComparison.Ordinal)) r = con.PrepStep("method", auth, new[] { Methods.Chooser, Methods.Sha256(Methods.Chooser) });
+                        else if (s == "nstart") r = con.PrepStep("nstart", auth, plan.StartLine.Split(' '));
                         else r = con.PrepStep("rdrop", auth, new[] { plan.Id, plan.ImageSha256 });
                     }
                     catch (GateClosedException ex) { rec.State("refused", ex.Message); o.State = "refused"; o.Problem = ex.Message; return o; }
                     want = s == "rput" ? "ok( already)? " + plan.ImageSha256 : s == "rimport" ? "ok " + plan.Id + " " + plan.ImageSha256 : "ok " + plan.Id;
-                    var ok = r.Ok && Regex.IsMatch(r.Line ?? "", "^result " + s + " " + want + "$");
+                    var ok = s.StartsWith("method:", StringComparison.Ordinal) ? MethodEngine.Answer(r, "method", Methods.Sha256(Methods.Chooser))
+                        : s == "nstart" ? MethodEngine.StartAnswer(r, plan.StartLine) : r.Ok && Regex.IsMatch(r.Line ?? "", "^result " + s + " " + want + "$");
                     phases.Add(new JObj { { "step", s }, { "state", ok ? (r.Line.Contains(" ok already ") ? "already-there" : "done-and-read-back") : "failed" }, { "detail", r.Line ?? r.Problem }, { "at", Record.Now() } }); rec.Set("phases", phases).Save();
                     ctx.At("firmware-" + s);
                     if (!ok)
@@ -208,7 +230,8 @@ namespace CcsBackup.Engine
                     o.Done.Add(s);
                 }
                 var after = con.PrepState();
-                bool good = after.Ok && (plan.Op == "add" ? after.Options.TryGetValue(plan.Id, out var a) && a.kind == "owner-root" && a.sha256 == plan.ImageSha256 && a.bytes == plan.ImageBytes : !after.Options.ContainsKey(plan.Id));
+                bool good = after.Ok && (plan.Op == "add" ? after.Options.TryGetValue(plan.Id, out var a) && a.kind == "owner-root" && a.sha256 == plan.ImageSha256 && a.bytes == plan.ImageBytes : !after.Options.ContainsKey(plan.Id))
+                    && (plan.StartLine == null || after.Start == plan.StartLine && after.Waiting.TryGetValue(Methods.Waiting(Methods.Chooser), out var cw) && cw == Methods.Sha256(Methods.Chooser));
                 if (!good) { rec.State("stopped", "CCS Nucleus's registry does not read back as planned"); o.State = "stopped"; o.Problem = "Every step reported success, but CCS Nucleus's list of choices does not read back as planned. Its state is not verified; nothing more was changed."; return o; }
                 rec.Set("after", new JObj { { "console_state", after.ToJson() } });
                 o.State = plan.Op == "add" ? "added" : "removed"; rec.State(o.State); con.Card("done"); return o;

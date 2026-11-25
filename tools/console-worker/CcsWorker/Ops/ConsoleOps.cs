@@ -99,6 +99,16 @@ namespace CcsWorker.Ops
                     custom = Simple("hakchi currentFirmware") != "_nand_";
                 }
             }
+            // the console's model as its own software names it (Classic Cart Studio tells the NES Classic and the Super NES Classic apart by
+            // board and REGION, never by a name on the PC) and where its data storage is mounted (/var/lib: the device and file system)
+            string board = null, region = null, dataMount = null;
+            if (!memboot && versionFile == true)
+            {
+                board = Simple("cat /etc/clover/boardtype"); CheckCancel();
+                region = Simple("cat /etc/clover/REGION"); CheckCancel();
+                dataMount = Simple("while read -r d m t o x; do [ \"$m\" = /var/lib ] && echo \"$d $t\"; done < /proc/mounts"); CheckCancel();
+            }
+            r["board"] = string.IsNullOrEmpty(board) ? null : board; r["region"] = string.IsNullOrEmpty(region) ? null : region; r["data_mount"] = string.IsNullOrEmpty(dataMount) ? null : dataMount;
             r["system"] = system; r["boot_version"] = boot; r["kernel_version"] = kernelVersion; r["hakchi_version"] = script; r["script_version"] = script;
             r["custom_firmware"] = custom; r["can_interact"] = canInteract; r["version_file"] = versionFile;
             return r;

@@ -80,13 +80,16 @@ namespace CcsBackup.Ui
 
         /// <summary>the pages' first suggestion. Console Restore: exactly what the console has. Preparing: the original software from Classic
         /// Cart Studio gets CCS Mod and CCS Nucleus opening CCS HOME straight away; a console already running Hakchi keeps its startup, with
-        /// CCS Mod suggested from Classic Cart Studio; the standalone Workbench suggests nothing new. Never a removal.</summary>
+        /// CCS Mod suggested from Classic Cart Studio; a console with more than one system (an owner's system image among CCS Nucleus's
+        /// choices) gets the startup chooser shown, first offering CCS HOME from Classic Cart Studio and the console's own menu from the
+        /// standalone Workbench; otherwise the standalone Workbench suggests nothing new. Never a removal.</summary>
         static AddonChoice Suggested(AddonSession a, bool studio)
         {
             var c = new AddonChoice { Mod = a.Current.Mod, Nucleus = a.Current.Nucleus, Start = a.Current.Start, Auto = a.Current.Auto };
             if (!a.Prepare) return c;
             if (a.Situation == "original") { if (studio) { c.Mod = true; c.Nucleus = "direct"; c.Start = "ccs-home"; c.Auto = "menu"; } return c; }
             if (studio) c.Mod = true;
+            if (a.OwnImages > 0 && c.Nucleus != "chooser") { c.Nucleus = "chooser"; c.Start = studio ? "ccs-home" : (c.Start ?? "native"); }
             return c;
         }
 
@@ -318,7 +321,7 @@ namespace CcsBackup.Ui
             how.Children.Add(Numbered("You choose a system image file on this PC. Workbench does not supply or download system images.",
                                       "Workbench checks the file and tells you which system it holds, in the review, before anything is written.",
                                       "The image becomes a choice in CCS Nucleus's chooser. It starts only when you pick it, for that one start. When you don't pick it, your console starts its own system as before, and that stays your way back."));
-            how.Children.Add(T("CCS Nucleus must be installed on the console with its startup chooser (Console Restore: Add-ons and Startup).", Ty.Small, false, true, new Thickness(0, 4, 0, 0)));
+            how.Children.Add(T("CCS Nucleus must be installed on the console (Console Restore: Add-ons and Startup). When its startup chooser is not there yet, adding a system image adds the chooser in the same reviewed change.", Ty.Small, false, true, new Thickness(0, 4, 0, 0)));
             how.Children.Add(Details(TechNes, "A system image is a SquashFS file (.hsqs) holding a console system's root file system. It is checked with hakchi's own rules, and a kernel file is refused.",
                 "It goes to CCS Nucleus's own folder on the console's data storage, never to hakchi's firmware folder (hakchi starts the first image there by itself, without a choice). The image, room kept for saves and a small safety margin must fit on the data storage.",
                 "The console must run Hakchi2 CE 3.9.3's hakchi with CCS Nucleus installed; its list of start choices is read before anything is written."));
@@ -330,8 +333,8 @@ namespace CcsBackup.Ui
             c.Children.Add(T("Left empty, the name follows the system the image holds; the review shows which system that is.", Ty.Small, false, true, new Thickness(0, 0, 0, 8)));
             c.Children.Add(Buttons(B("Choose an Image File and Review…", "Btn.Primary", () =>
             {
-                var d = new Microsoft.Win32.OpenFileDialog { Title = "Choose a system image file (.hsqs)", Filter = "System images (*.hsqs)|*.hsqs" }; if (d.ShowDialog(this) != true) return;
-                methodTag = null; var q = ConsoleReq("firmware-plan"); q.Add("op", "add"); q.Add("file", d.FileName); q.Add("label", label.Text.Trim());
+                var chosenFile = CcsFileDialog.OpenFile(this, "Choose a system image file (.hsqs)", null, "System images (*.hsqs)|*.hsqs", "system-image"); if (chosenFile == null) return;
+                methodTag = null; var q = ConsoleReq("firmware-plan"); q.Add("op", "add"); q.Add("file", chosenFile); q.Add("label", label.Text.Trim());
                 StartOp("firmware", "Preparing the Review", "The image file is checked on this PC, then the connected console is identified and backed up. Nothing is written until you confirm. Keep the USB cable connected.", q);
             })));
             var id = new TextBox(); System.Windows.Automation.AutomationProperties.SetName(id, "Image to remove (its id)");
@@ -352,7 +355,7 @@ namespace CcsBackup.Ui
             sp.Children.Add(Buttons(B("Back", "Btn.Ghost", () => { if (LeaveOk()) BackToSection(); })));
             Show(sp, "firmware");
             LeaveGuard(() => label.Text.Trim().Length == 0 && id.Text.Trim().Length == 0 ? null : "What you typed on Your System Images",
-                       "What you typed on this page is not kept if you leave it.");
+                       "The name and id you typed for a system image are not kept if you leave this setup.", null, "Leave Setup");
         }
 
         /// <summary>an add-on step in plain words (the plan's own removal list named)</summary>

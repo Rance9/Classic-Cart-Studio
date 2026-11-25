@@ -1067,6 +1067,23 @@ static void render_notice(home *h, framebuffer *fb) {
 }
 /* .menu (home.css): min-width 360, padding 14 0, h3 Press Start 11 px #ffb3b7 with a rule, items 20 px with 11/22 px padding;
  * Adventure Map: .menu.rpg (double border, Press Start 13 px items, a red triangle before the focused one) */
+/* a color that reads at 4.5:1 on what is drawn in the box (x, y, w, h) of fb: c itself when it does, else c stepped toward white (on a dark
+   background) or black (on a light one) until it does. For the menu pointer that shows a design's highlight color in Adventure Map. */
+static uint32_t readable_over(const framebuffer *fb, int x, int y, int w, int hh, uint32_t c) {
+    uint32_t bg[96]; int nb = 0;
+    for (int j = 0; j < 8; j++) for (int i = 0; i < 12; i++) { int xx = x + (w - 1) * i / 11, yy = y + (hh - 1) * j / 7;
+        if (xx < 0 || yy < 0 || xx >= fb->w || yy >= fb->h) continue; const uint8_t *q = fb->rgb + ((size_t)yy * fb->w + xx) * 3; bg[nb++] = (uint32_t)q[0] << 16 | (uint32_t)q[1] << 8 | q[2]; }
+    if (!nb) return c;
+    uint32_t mid = bg[nb / 2]; int up = ccs_contrast10(0xFFFFFF, mid) >= ccs_contrast10(0x000000, mid);
+    for (int step = 0; step < 64; step++) {
+        int worst = 1000; for (int i = 0; i < nb; i++) { int k = ccs_contrast10(c, bg[i]); if (k < worst) worst = k; }
+        if (worst >= 45) break;
+        int r = (int)(c >> 16 & 255), g = (int)(c >> 8 & 255), b = (int)(c & 255);
+        if (up) { r += (255 - r + 7) / 8; g += (255 - g + 7) / 8; b += (255 - b + 7) / 8; } else { r -= (r + 7) / 8; g -= (g + 7) / 8; b -= (b + 7) / 8; }
+        c = (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b;
+    }
+    return c;
+}
 static void render_menu(home *h, framebuffer *fb, const char *title, const char **items, int n, int focus) {
     int rpg = h->ops->menu_rpg; gfx_fill(fb, FULL, 0, 0, CCS_FB_W, CCS_FB_H, RGBA(0, 140));
     const font *fh = &h->f[design_menu_font(h, 1, rpg ? F_PX10 : F_PX11)], *fi = &h->f[design_menu_font(h, 0, rpg ? F_PX13 : F_S400_20)], *fb2 = &h->f[design_menu_font(h, 0, rpg ? F_PX13 : F_S700_20)];
@@ -1085,7 +1102,8 @@ static void render_menu(home *h, framebuffer *fb, const char *title, const char 
     gfx_fill(fb, FULL, x + (rpg ? 4 : 2), yy, W - (rpg ? 8 : 4), 1, RGBA(0xFFFFFF, 36)); yy += 8;
     for (int i = 0; i < n; i++) {
         int foc = i == focus; const font *f = foc ? fb2 : fi; design_upper_if_needed(f, items[i], ib, sizeof ib);
-        if (rpg) { if (foc) { const font *s = &h->f[F_SYM13]; T(fb, FULL, s, x + 22, baseline_center(s, yy, ih), "\xE2\x96\xB6", h->accent != RED_DEF ? h->accent : RED2, 255, 0); }   /* the chosen row's pointer: a design's highlight color (WB-UX-25), else the theme's own red */
+        if (rpg) { if (foc) { const font *s = &h->f[F_SYM13]; uint32_t pc2 = h->accent != RED_DEF ? readable_over(fb, x + 22, yy, text_w(s, "\xE2\x96\xB6", 3, 0) + 1, ih, h->accent) : RED2;
+                T(fb, FULL, s, x + 22, baseline_center(s, yy, ih), "\xE2\x96\xB6", pc2, 255, 0); }   /* the chosen row's pointer: a design's highlight color (WB-UX-25), made readable on the panel, else the theme's own red */
         T(fb, FULL, f, x + 22 + (foc ? 22 : 0), baseline_center(f, yy, ih), ib, foc ? 0xFFD166 : design_text(h, 0xE9E7E1), 255, 0); }
         else { if (foc) gfx_fill(fb, FULL, x + 2, yy, W - 4, ih, RGBA(RED, 255)); if (foc) Tb(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), ib, 0xFFFFFF, 255, 0); else T(fb, FULL, fi, x + 22, baseline_center(fi, yy, ih), ib, design_text(h, 0xE9E7E1), 255, 0); }
         LR(h, foc ? "menu-focus" : "menu-item", x, yy, x + W, yy + ih); LT(h, HT_MENU, i, x, yy, x + W, yy + ih); yy += ih;

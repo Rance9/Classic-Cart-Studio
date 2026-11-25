@@ -1,8 +1,10 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
 // The Backup Browser's first screen: every backup file in the configured folders (Library.Settings: the first-copy folder and the
 // second-copy folder), one row per file, with an honest status and the date it was last verified:
-//   Complete    a finished backup file (.zip). Its check state says whether it is verified as it is now, changed since its last check,
-//               or not checked yet (a file copied in from elsewhere).
+//   Complete    a finished backup file (.zip). Its check state says whether a full check is recorded for it as it is now (Verified),
+//               whether it changed since its last full check, or that no full check is recorded here (Not checked: a file copied in from
+//               elsewhere, or one whose check was recorded with other backup locations). Reading its small description (its manifest)
+//               is never a check: the words people see (StatusText, CheckText) say Verified only for a full check.
 //   Incomplete  an unfinished file (.zip.partial), or a backup whose record never reached a finished file.
 //   Damaged     a file that failed its check (here, or when it was made), or is not a readable console backup at all.
 //   Salvage     a file that failed its check but whose data storage still has files that can be trusted one by one: either its data
@@ -16,7 +18,7 @@
 //   Missing     a backup whose record says it was finished, but whose file is no longer where it was saved.
 // Listing is read-only: file names, sizes and times, the operation records (Library.History), each finished file's small manifest and the
 // check log. Last verified dates are never invented: they are the time a full check (Verifier) actually passed, either when the backup was
-// made (its record) or later on this PC (the check log, written only by Check and BackupContents.Open). A date belongs to the file as it was
+// made (its record) or later on this PC (the check log, written only by Check, the scheduled check and BackupContents.Open). A date belongs to the file as it was
 // then: a file whose size or time changed since shows "Changed since it was last checked" until it is checked again.
 // The check log, <first-copy folder>\.ccs-records\browser-checks.json, is history, never authority: every use of a backup checks it again.
 using CcsBackup.Archive;
@@ -46,19 +48,40 @@ namespace CcsBackup.Browse
         public bool IndexDamaged; public string FoundBy;
         public bool CanOpen => Status == BrowseStatus.Complete && File.Exists(Path);
         public bool CanOpenSalvage => Status == BrowseStatus.Salvage && File.Exists(Path);
+        /// <summary>the file's state in the words every list uses (the Dashboard, the Backup Browser, Backup Repair): the result of a full
+        /// check, never what its description says about itself. Verified only for a full check recorded for the file as it is now.</summary>
         public string StatusText
         {
             get
             {
                 switch (Status)
                 {
-                    case BrowseStatus.Complete: return Check == CheckState.Verified ? "Complete, verified" : Check == CheckState.ChangedSinceCheck ? "Changed since it was last checked" : "Complete, not checked yet";
+                    case BrowseStatus.Complete: return Check == CheckState.Verified ? "Verified" : Check == CheckState.ChangedSinceCheck ? "Changed since last check" : "Not checked";
                     case BrowseStatus.Incomplete: return "Incomplete"; case BrowseStatus.Damaged: return "Damaged";
-                    case BrowseStatus.Salvage: return "Damaged: some files can still be saved"; default: return "File not found";
+                    case BrowseStatus.Salvage: return "Damaged: some files can still be saved"; default: return "Missing";
                 }
             }
         }
-        public string LastVerifiedText => LastVerifiedUtc == null ? "Never verified" : "Last verified " + LastVerifiedUtc.Value.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm tt", CultureInfo.GetCultureInfo("en-US")) + (LastVerifiedBy == "made" ? " (when it was made)" : "");
+        static string When(DateTime utc) => utc.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm tt", CultureInfo.GetCultureInfo("en-US"));
+        /// <summary>the last full check that passed: when, and whether it ran as the backup was made or later here; a file with none recorded in
+        /// these backup locations' records says so (never "never checked": another settings file may hold its check)</summary>
+        public string LastVerifiedText => LastVerifiedUtc == null ? "No full check recorded here" : "Last full check: " + When(LastVerifiedUtc.Value) + (LastVerifiedBy == "made" ? " (when it was made)" : "");
+        /// <summary>one line under a backup's date in every list: what the last full check found, and when</summary>
+        public string CheckText
+        {
+            get
+            {
+                switch (Status)
+                {
+                    case BrowseStatus.Missing: return "The file is no longer where it was saved.";
+                    case BrowseStatus.Incomplete: return "The backup did not finish; nothing in this file is used.";
+                    case BrowseStatus.Damaged: case BrowseStatus.Salvage: return "Its last full check found damage" + (LastCheckUtc != null ? " (" + When(LastCheckUtc.Value) + ")." : ".");
+                }
+                if (Check == CheckState.Verified) return LastVerifiedText + ".";
+                if (Check == CheckState.ChangedSinceCheck) return LastVerifiedUtc != null ? LastVerifiedText + ". The file has changed since then; check it again before relying on it." : "The file has changed since its last check; check it again before relying on it.";
+                return "No full check of this file is recorded here. Check the File runs one.";
+            }
+        }
         public override string ToString() => Copy + ": " + Path + " (" + StatusText + ")";
     }
 
@@ -122,11 +145,7 @@ namespace CcsBackup.Browse
             try
             {
                 using (var hold = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096))
-                {
-                    var v = Verifier.VerifyFile(path, null, cancelled, progress);
-                    if (v.Ok) CheckLog.Record(s, path, "verified", v, null);
-                    else { var a = SalvageCheck.Assess(path, v, s, cancelled); CheckLog.Record(s, path, a.Salvageable ? "salvage" : "damaged", v, a); }
-                }
+                    Record(s, path, Verifier.VerifyFile(path, null, cancelled, progress), cancelled);
             }
             catch (OperationCanceledException) { canceled = "The check was canceled; nothing was recorded."; }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { canceled = "The file could not be checked: " + ex.Message; }
@@ -134,6 +153,15 @@ namespace CcsBackup.Browse
                       ?? (File.Exists(path) ? FileRow(new HistoryEntry { Id = History.Peek(path)?.S("backup_id") ?? "file:" + path }, path, "File", CheckLog.Load(s), null, -1, null) : new BackupListEntry { Path = path, Copy = "File", Status = BrowseStatus.Missing, Detail = "The file was not found." });
             if (canceled != null) row.Detail = canceled;
             return row;
+        }
+
+        /// <summary>records a full check of a console backup file that just ran (Check the File, or the scheduled check) in the check log, so
+        /// every list shows it as the file's last full check: passed, or what can still be trusted in it (SalvageCheck)</summary>
+        public static void Record(Settings s, string path, Verification v, Func<bool> cancelled = null)
+        {
+            if (v == null) return;
+            if (v.Ok) { CheckLog.Record(s, path, "verified", v, null); return; }
+            var a = SalvageCheck.Assess(path, v, s, cancelled); CheckLog.Record(s, path, a.Salvageable ? "salvage" : "damaged", v, a);
         }
 
         static BackupListEntry FileRow(HistoryEntry h, string path, string copy, CheckLog log, DateTime? recVerified, long recBytes, string recMtime)
@@ -181,8 +209,21 @@ namespace CcsBackup.Browse
             }
             else if (recSame) { r.Status = BrowseStatus.Complete; r.Check = CheckState.Verified; }
             else if (lc != null || recVerified != null) { r.Status = BrowseStatus.Complete; r.Check = CheckState.ChangedSinceCheck; r.Detail = "The file has changed since it was last checked. Check it again before relying on it."; }
-            else { r.Status = BrowseStatus.Complete; r.Check = CheckState.NotChecked; r.Detail = "This file has not been checked on this PC yet."; }
+            else { r.Status = BrowseStatus.Complete; r.Check = CheckState.NotChecked; r.Detail = "No full check of this file is recorded here."; }
             return r;
+        }
+
+        /// <summary>the row for one backup file anywhere on this PC, listed in the backup locations or not (a file opened from another folder):
+        /// the same rules and words as the list, read-only, without running a check and without adding the file to any list or folder</summary>
+        public static BackupListEntry Row(Settings s, string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            try { var listed = List(s).FirstOrDefault(r => string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase)); if (listed != null) return listed; }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { }
+            if (!File.Exists(path)) return new BackupListEntry { Path = path, Copy = "File", Status = BrowseStatus.Missing, Detail = "The file was not found." };
+            if (path.EndsWith(BackupFormat.Partial, StringComparison.OrdinalIgnoreCase))
+                return Unfinished(new HistoryEntry { Id = "partial:" + path, CreatedUtc = File.GetCreationTimeUtc(path) }, path, "Unfinished file", "This file was never finished, so it is not a backup. Nothing in it is used.");
+            return FileRow(new HistoryEntry { Id = "file:" + path }, path, "File", CheckLog.Load(s), null, -1, null);
         }
 
         static BackupListEntry Gone(HistoryEntry h, string path, string copy, string why) => new BackupListEntry { BackupId = h.Id, Copy = copy, Path = path, Status = BrowseStatus.Missing, Check = CheckState.NotChecked, Detail = why, ConsoleTag = h.ConsoleTag, MadeUtc = h.CreatedUtc, Simulated = h.Simulated, StateText = h.Kind };

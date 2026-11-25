@@ -5,7 +5,8 @@
 //   A (this engine, in the preparation image, its own write boundary Gate.ReturnWrites)
 //     1 find      the newest record of a preparation Classic Cart Studio completed on this console: the pre-preparation snapshot it took
 //                 in its own session and the exact state it left (startup software, spare slot, bootloader, storage table)
-//     2 check     the snapshot verified from scratch (this console, restore-ready, the original Nintendo kernel running in it); the console
+//     2 check     the snapshot verified from scratch (this console and its model, restore-ready, the original Nintendo kernel of this console's
+//                 model and region running in it; the bootloader it holds is this console's own, whichever model); the console
 //                 identified afresh and EXACTLY in that recorded state; anything else (another modification since, another kernel or
 //                 bootloader, a storage table changed by something else, another console, an altered or missing backup) is refused
 //     3 protect   a complete, verified backup of the console as it is now, in this session (saves made since preparing are in it)
@@ -84,6 +85,8 @@ namespace CcsBackup.Engine
             ConsoleIdentity id;
             try { id = con.Identify(); Support.CheckForBackup(id, ctx.RecoveryImageId, "return"); }
             catch (ConsoleRefusedException ex) { o.State = "refused"; o.Problem = ex.Message; return (null, o); }
+            var model = id.Model;   // never null past CheckForBackup: the console's own board and region
+            var lw = Support.HakchiLayout(id); if (lw != null) { o.State = "refused"; o.Problem = lw; return (null, o); }
             var (file, rec) = LastPreparation(ctx.Settings, id.ShortTag, con.Simulated);
             if (rec == null) { o.State = "refused"; o.Problem = "No preparation by Classic Cart Studio is recorded for this console (or it was made by an earlier version, which did not keep what the way back needs). Returning it is not something this version does; Workbench can still back it up."; return (null, o); }
             var before = rec.O("before"); var after = rec.O("after");
@@ -97,13 +100,16 @@ namespace CcsBackup.Engine
             if (!v.Ok || v.ArchiveSha256 != snapSha) return (null, Refuse("The backup made before preparing no longer passes its check or was changed since. Returning the console needs it exactly."));
             if (!ConsoleIdentity.SameConsole(v.Hwid, id.Hwid)) return (null, Refuse("The backup made before preparing belongs to a different console."));
             if (v.Simulated != con.Simulated) return (null, Refuse("A simulated console's backup and a real console are never mixed."));
+            if (v.Model != model) return (null, Refuse("The backup made before preparing is of " + (v.Model?.Name ?? "a console this version does not support") + ", not of this console's model (" + model.Name + "): one kind of console's backup or startup software is never put on another kind."));
             if (!v.RestoreReady || !v.Members.TryGetValue("restore/boot2-active.img", out var sk) || !v.Members.TryGetValue("reference/boot1.bin", out var sb)) return (null, Refuse("The backup made before preparing does not hold everything the way back needs."));
             p.SnapshotArchive = BoundArchive.From("backup made before preparing", snapPath, v);
             p.KernelMd5 = sk.md5; p.UbootWantMd5 = sb.md5; p.UbootWantSha256 = sb.sha256; p.UbootWantSize = sb.size; p.TableWant = v.Manifest.O("layout")?.S("partition_table"); p.SnapshotWhen = v.Manifest.S("completed_utc");
             // this console's own bootloader, as the snapshot holds it: the exact bytes the way back writes, known now, before anything
             if (Boot1Of(snapPath, p, out var bWhy) == null) return (null, Refuse("The backup made before preparing does not hold a complete copy of this console's own bootloader (" + bWhy + "). The way back writes only that copy, so it is refused before anything changes; Workbench can still back the console up."));
-            if (!KnownKernels.IsStock(p.KernelMd5) ||   // an NES Classic's: a Super NES Classic's return is not available yet (snes-classic-return)
-                before.S("active_md5") != p.KernelMd5) return (null, Refuse("The backup made before preparing does not show the original Nintendo kernel running. The way back returns only to that."));
+            // the original kernel of THIS console's model and region (the Super NES Classic's North American and European kernels differ), with
+            // its SHA-256 where that has been observed independently
+            if (!KnownKernels.IsStockFor(model, id.Region, p.KernelMd5) || !KnownKernels.ShaAgrees(p.KernelMd5, sk.sha256) ||
+                before.S("active_md5") != p.KernelMd5) return (null, Refuse("The backup made before preparing does not show the original Nintendo kernel of this console's model and region running. The way back returns only to that."));
             if (string.IsNullOrEmpty(p.TableWant)) return (null, Refuse("The backup made before preparing does not record the storage table."));
             // the console now: exactly as the preparation left it
             p.UbootNowMd5 = after.S("boot1_md5"); p.TableNow = after.S("parttable");
@@ -118,11 +124,11 @@ namespace CcsBackup.Engine
             ctx.Say("protect", "Backing up the console as it is now, before anything changes...");
             var prot = CaptureEngine.Run(con, ctx);
             if (!prot.Ok || prot.Verification == null || !prot.Verification.Ok) { o.State = "stopped"; o.Problem = "The backup of the console as it is now did not complete (" + (prot.Problem ?? prot.State) + "), so nothing was written."; return (null, o); }
-            if (!ConsoleIdentity.SameConsole(prot.Verification.Hwid, id.Hwid) || prot.Verification.Simulated != con.Simulated || !prot.Verification.RestoreReady) { o.State = "refused"; o.Problem = "The backup made just now is not a complete backup of this console, so nothing was written."; return (null, o); }
+            if (!ConsoleIdentity.SameConsole(prot.Verification.Hwid, id.Hwid) || prot.Verification.Simulated != con.Simulated || !prot.Verification.RestoreReady || prot.Verification.Model != model) { o.State = "refused"; o.Problem = "The backup made just now is not a complete backup of this console, so nothing was written."; return (null, o); }
             p.ProtectiveArchive = BoundArchive.From("backup made just now, before returning", prot.PrimaryPath, prot.Verification, con.SessionId);
             p.Steps.AddRange(Order);
             p.Notes.Add("This undoes Classic Cart Studio's preparation the way Hakchi2 CE 3.9.3's own uninstall does: Nintendo's kernel, hakchi's files removed, the storage table divided as before. The bootloader written is this console's own, exactly as the backup made before preparing holds it (" + p.UbootWantSize.ToString("N0", CultureInfo.GetCultureInfo("en-US")) + " bytes), not the flash tool's default.");
-            p.Notes.Add("Then the console restarts, and Restore a Backup puts back its storage exactly as in the backup made before preparing (" + When(p.SnapshotWhen) + "): Nintendo's HOME, the 30 games and every save as they were then, and anything other programs had added. Classic Cart Studio's HOME is gone after that.");
+            p.Notes.Add("Then the console restarts, and Restore a Backup puts back its storage exactly as in the backup made before preparing (" + When(p.SnapshotWhen) + "): Nintendo's HOME, the " + model.StockGames + " games and every save as they were then, and anything other programs had added. Classic Cart Studio's HOME is gone after that.");
             p.Notes.Add("Saves made since preparing are in the backup just made, not on the console after the restore.");
             p.Notes.Add("Both backups are checked again when you confirm and stay locked until the return ends; if either one is missing or changed, nothing is written.");
             p.Nonce = Hex.Of(Guid.NewGuid().ToByteArray()); p.ExpiresUtc = DateTime.UtcNow + RestoreEngine.ConfirmWindow;

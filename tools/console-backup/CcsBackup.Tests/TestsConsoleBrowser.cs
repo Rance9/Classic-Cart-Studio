@@ -88,6 +88,33 @@ namespace CcsBackup.Tests
             Check(events.Any(e => e.S("event") == "result" && e.S("operation") == "browse") && fin?.S("event") == "finished" && fin.B("restarting") && !events.Any(e => e.S("event") == "error")
                   && before4.All(kv => Sha(kv.Key) == kv.Value) && logLines.Count == 1 && logLines[0].EndsWith(" finish (restart)", StringComparison.Ordinal),
                   "check-up: Restart the Console ends the live session and restarts the console normally; no error, nothing written (" + string.Join(", ", events.Select(e => e.S("event"))) + ")");
+
+            // the check-up page's Done (quit), as both hosts send it: the live session ends at once, without a second request (the reading loop
+            // takes the quit itself; the worker must not then wait for another one with the console in its memory program)
+            var c5 = Console_("stock"); var before5 = Directory.GetFiles(Path.Combine(c5, "dev")).ToDictionary(f => f, f => Sha(f));
+            var ev5 = new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>(); bool ended5 = false; double secs5 = -1;
+            for (int attempt = 0; attempt < 90; attempt++)
+            {
+                var input = new QueueStream(); var output = new QueueStream(); var enc = new System.Text.UTF8Encoding(false);
+                var th = new System.Threading.Thread(() => { try { WorkerHost.RunOn(input, output, "tests", "CcsBackup.Tests", "test", s.Path); } finally { output.End(); } }) { IsBackground = true }; th.Start();
+                void Line5(JObj j) { var bl = enc.GetBytes(WorkerHost.RequestLine(j) + "\n"); input.Write(bl, 0, bl.Length); }
+                Line5(new JObj { { "cmd", "browse" }, { "console", "simulated" }, { "folder", c5 } });
+                ev5.Clear(); string line; var rd = new StreamReader(output, enc); var quitAt = DateTime.MinValue;
+                while ((line = rd.ReadLine()) != null)
+                {
+                    System.Collections.Generic.Dictionary<string, object> ev; try { ev = Json.Parse(line); } catch (FormatException) { continue; }
+                    ev5.Add(ev);
+                    if (ev.S("event") == "checkup") { quitAt = DateTime.UtcNow; Line5(new JObj { { "cmd", "quit" } }); }
+                    if ((ev.S("event") == "result" && ev.S("operation") == "browse") || ev.S("event") == "error" || ev.S("state") == "busy") break;
+                }
+                ended5 = th.Join(20000); secs5 = quitAt == DateTime.MinValue ? -1 : (DateTime.UtcNow - quitAt).TotalSeconds;   // before the window goes: only the quit can end it
+                input.End(); th.Join(60000);
+                if (ev5.LastOrDefault()?.S("state") != "busy") break;
+                System.Threading.Thread.Sleep(2000);
+            }
+            Check(ended5 && ev5.Any(e => e.S("event") == "result" && e.S("operation") == "browse") && !ev5.Any(e => e.S("event") == "error" || e.S("event") == "finished")
+                  && before5.All(kv => Sha(kv.Key) == kv.Value) && !File.Exists(Path.Combine(c5, "writes.log")),
+                  "check-up: Done ends the live session at once (the worker ended " + secs5.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " s after the request, with the window still there); no restart, no error, nothing written (" + string.Join(", ", ev5.Select(e => e.S("event"))) + ")");
         }
     }
 }

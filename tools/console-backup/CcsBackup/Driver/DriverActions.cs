@@ -1,8 +1,8 @@
 // Classic Cart Studio console backup and restore engine. Copyright (C) 2026 Rance9. GPL-3.0-or-later.
-// Changing the PC's USB driver state: the one place that can, and in this version it cannot. WindowsDriverActions is the real one: each
-// change is one run of this same program with administrator permission in its --driver-action mode (DriverActionAdapter, RunasLauncher,
-// DriverActionHost), and it stands behind the closed DriverChanges boundary (Gate.cs): with the constant false every path to that run is left
-// out by the compiler, Available is false and each change throws DriverActionUnavailableException before anything starts.
+// Changing the PC's USB driver state: the one place that can. WindowsDriverActions is the real one: each change is one run of this same
+// program with administrator permission in its --driver-action mode (DriverActionAdapter, RunasLauncher, DriverActionHost), behind the
+// DriverChanges boundary (Gate.cs, open in this version): were the constant false, every path to that run would be left out by the
+// compiler, Available would be false and each change would throw DriverActionUnavailableException before anything starts.
 // SimulatedDriverActions changes a SimulatedDriverStore only, the way the pinned Hakchi2 CE 3.9.3 driver setup changes a real PC
 //, with every outcome the ledger tests need: refusal, cancel, failure, restart, a crash part way, a misleading report.
 //   DriverSetupPlan   what a setup would do, shown in plain words before consent and kept in the record: Workbench's own package
@@ -126,8 +126,8 @@ namespace CcsBackup.Driver
         ActionReport CleanUp(CleanupPlan plan, ElevationState elevation);
     }
 
-    /// <summary>The real PC, behind the DriverChanges boundary. With the boundary closed (this version) Available is false and each change throws
-    /// before anything starts; the compiler leaves out the elevated run that would follow.</summary>
+    /// <summary>The real PC, behind the DriverChanges boundary (open in this version). Were it closed, Available would be false and each change
+    /// would throw before anything starts.</summary>
     public sealed class WindowsDriverActions : IDriverActions
     {
         public bool Available => Gate.DriverChanges;

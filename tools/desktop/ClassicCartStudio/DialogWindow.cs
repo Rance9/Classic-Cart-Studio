@@ -32,7 +32,18 @@ namespace ClassicCartStudio
             root.Children.Add(bar);
             root.Children.Add(new Border { Height = 1, VerticalAlignment = VerticalAlignment.Bottom, Background = (Brush)Application.Current.FindResource("B.Line") });
             Grid.SetRow(Body, 1); Body.Margin = new Thickness(22, 18, 22, 18); root.Children.Add(Body);
-            Content = root;
+            // the red edge every CCS dialog has (2 pixels at 100%, the theme's B.Red, all four sides, around the title bar too), so a dialog
+            // never fades into the page behind it; maximized, it moves in by what the window reaches past the screen's work area
+            var edge = new Border { BorderBrush = (Brush)Application.Current.FindResource("B.Red"), BorderThickness = new Thickness(2), Child = root };
+            Content = edge;
+            void FitEdge()
+            {
+                if (WindowState != WindowState.Maximized) { edge.Margin = default(Thickness); return; }
+                var h = new WindowInteropHelper(this).Handle; if (h == IntPtr.Zero) return;
+                var o = Native.MaximizedOvershoot(h); var k = VisualTreeHelper.GetDpi(this);
+                edge.Margin = new Thickness(o.left / k.DpiScaleX, o.top / k.DpiScaleY, o.right / k.DpiScaleX, o.bottom / k.DpiScaleY);
+            }
+            StateChanged += (s, e) => FitEdge(); SizeChanged += (s, e) => FitEdge(); DpiChanged += (s, e) => FitEdge();
             SourceInitialized += (s, e) => { Native.ApplyDarkChrome(this, 0x00202024); };
             PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape) { Close(); e.Handled = true; } };
             Loaded += (s, e) => { if (owner != null) { MaxWidth = Math.Max(MinWidth, SystemParameters.WorkArea.Width - 40); MaxHeight = Math.Max(MinHeight, SystemParameters.WorkArea.Height - 40); } };

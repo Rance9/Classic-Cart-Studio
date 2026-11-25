@@ -5,7 +5,6 @@
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>CcsBackupUi</AssemblyName>
     <RootNamespace>CcsBackup.Ui</RootNamespace>
     <LangVersion>latest</LangVersion>

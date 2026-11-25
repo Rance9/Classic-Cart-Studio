@@ -1,6 +1,6 @@
 """K3 install engine (console_engine/ccs_install.py), PC only: every install, update, repair, failure, interruption, recovery, uninstall and data
 export runs against a disposable folder standing in for a console that runs hakchi. No device, socket or shell is opened; a real console is
-refused by Gate G1 in code. The fault cases fail every console change in turn, before it happens and after it happened (a call can change
+reached only through the console transport worker, which the test boundary blocks here. The fault cases fail every console change in turn, before it happens and after it happened (a call can change
 the console and still fail), and require the stand-in to be byte for byte as it was, or the result to say exactly what is not.
   python tools/companion/test_ccs_install.py"""
 from __future__ import annotations
@@ -330,16 +330,26 @@ class Uninstall(Base):
         wr(os.path.join(out, "data/saves/ab/slot1.ccsstate"), b"tampered"); self.assertFalse(CI.verify_export(out)["ok"])
 
 class Gate(Base):
-    def test_50_a_real_console_is_refused_by_the_gate_in_code(self):
-        self.assertFalse(gate.PHYSICAL_WRITE_ENABLED); self.assertFalse(gate.PHYSICAL_INSPECT_ENABLED)
-        for kind in ("ssh", "clovershell", "fel", "usb", "rndis"):
-            with self.assertRaises(gate.GateClosed): CI.open_console(kind, "169.254.13.37")
+    def test_50_a_real_console_goes_only_through_the_transport_worker_and_a_closed_tier_refuses_it(self):
+        self.assertTrue(gate.PHYSICAL_WRITE_ENABLED and gate.PHYSICAL_INSPECT_ENABLED, "both tiers are open in this version")
+        for kind in ("ssh", "clovershell"):   # the shipped opener (the transport worker): blocked here by the test boundary before any worker starts
+            with self.assertRaises(console_test_guard.RealConsoleBlocked): CI.open_console(kind, "169.254.13.37")
+        for kind in ("fel", "usb", "rndis", "", None):
+            with self.assertRaises(ValueError): CI.open_console(kind, "169.254.13.37")   # no other kind of console connection exists
+        try: os.remove(console_test_guard.LOG)
+        except OSError: pass
         class Real(CI.FakeConsole): simulated = False
-        r = Real(self.root)
-        with self.assertRaises(gate.GateClosed): CI.Installer(r, self.plan, self.pkg, self.jnew())
-        with self.assertRaises(gate.GateClosed): CI.uninstall(r)
-        with self.assertRaises(gate.GateClosed): CI.export_data(r, os.path.join(self.t, "x"))
-        with self.assertRaises(gate.GateClosed): CI.Installer.resume(type("I", (), {"c": r})())
+        r = Real(self.root); was = (gate.PHYSICAL_INSPECT_ENABLED, gate.PHYSICAL_WRITE_ENABLED)
+        try:
+            gate.PHYSICAL_INSPECT_ENABLED = gate.PHYSICAL_WRITE_ENABLED = False   # a build whose tiers are closed in code
+            with self.assertRaises(gate.GateClosed): CI.Installer(r, self.plan, self.pkg, self.jnew())
+            with self.assertRaises(gate.GateClosed): CI.uninstall(r)
+            with self.assertRaises(gate.GateClosed): CI.export_data(r, os.path.join(self.t, "x"))
+            with self.assertRaises(gate.GateClosed): CI.Installer.resume(type("I", (), {"c": r})())
+            gate.PHYSICAL_INSPECT_ENABLED = True   # reads open, writes closed: a real console is read, never changed
+            with self.assertRaises(gate.GateClosed): CI.Installer(r, self.plan, self.pkg, self.jnew()).run()
+            with self.assertRaises(gate.GateClosed): CI.uninstall(r)
+        finally: gate.PHYSICAL_INSPECT_ENABLED, gate.PHYSICAL_WRITE_ENABLED = was
 
 class Method(Base):
     """the start-up is the add-ons' own (CCS Mod's tile, CCS Nucleus's start), never the start file hakchi deletes (what the add-ons do on a

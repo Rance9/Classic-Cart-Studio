@@ -147,7 +147,7 @@ async function ccsAddRomSources(files, progress){ let found=0, ignored=0, consol
 // pickers that take Classic Cart Studio's own file types (.ccs, .nes, .unh) set no `accept` filter: it is only a hint, and a system
 // picker may map an unregistered extension to no type and gray every file out (suspected on iPhone, not confirmed). Every chosen file
 // is checked by its content.
-function ccsPickRoms(){ return new Promise(res=>{ const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; inp.onchange=()=>res([...inp.files]); inp.addEventListener('cancel',()=>res([])); inp.click(); }); }
+function ccsPickRoms(){ return cvPick('', true, 'Choose the game files (or .ccs backups that hold them)'); }
 // ---- what a collection's package holds: its file (every game, HOME settings) and thumbnails of its own artwork ----
 async function ccsCollectionParts(r){ if(typeof suEnsure==='function') await suEnsure([CS.items[r.id]||r]);   /* its startup picture read again and checked now: a picture that cannot be read stops the backup */ const file=csFileFor(r, {export:true}); const games=csWithRecord(r, ()=>shGames()); const art={}, artB64={};
  for(const g of games){ if(!g.own_art||!/^[A-Za-z0-9_.-]{1,96}$/.test(g.id)) continue; const t=await shThumb(g.own_art); if(t){ artB64[g.id+'.jpg']=t; const bin=atob(t); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); art[g.id+'.jpg']=u; } }
@@ -214,7 +214,7 @@ async function ccsMake(mode){ mode='export'; const r=CS.items[CCS.cid]; if(!r) r
  const prog=(d,t)=>{ const p=$('ccsProg'); if(p) p.textContent=`Creating the backup… ${d.toLocaleString('en-US')} of ${t.toLocaleString('en-US')} game files`; };
  if(ccsAppPackages()&&ccsAppJobs()){ const req={collection:parts.file, art:parts.artB64, roms:parts.ids.map(id=>({version_id:id, title:parts.titles[id]||id})), summary:parts.summary, job:true, save:true, name};
   $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native');
-  const st=await hkPost('/api/package/export', req);
+  const st=await hkChoose('/api/package/export', req, ccsSaveAsk(name));
   if(st.canceled){ closeColl(); toast('Canceled; nothing was saved'); return; } if(!st.ok){ procSet('collm',null); return ccsJobFail(st.error); }
   const j=await ccsWatch(st.job, 'Creating '+st.name);
   if(j.phase==='canceled'){ closeColl(); toast('Backup canceled; nothing was saved'); return; } if(j.phase!=='done'){ procSet('collm',null); return ccsJobFail(j.error); }
@@ -227,7 +227,8 @@ async function ccsMake(mode){ mode='export'; const r=CS.items[CCS.cid]; if(!r) r
 function ccsMarkSaved(parts){ if(typeof CCSM!=='undefined') CCSM.track('backup_completed');   /* every collection backup that was really saved comes here once */
  if(CCS.cid===CS.active&&!LO){ COLL.savedToFile={at:new Date().toISOString(), fp:collFingerprint()}; saveColl(); if(typeof updateStatusLine==='function') updateStatusLine(); } }
 function ccsDoneMsg(parts, size){ return `<b>${parts.ids.length} game${parts.ids.length===1?'':'s'}</b>, every game file included (${fmt(size)}).`; }
-function ccsNativeWait(name){ return `<div class="msgbox" id="ccsProg"><b>Choose where to save ${esc(name)}.</b> The Windows Save dialog is open in its own window; this continues when you save or cancel there.</div>`; }
+function ccsNativeWait(name){ return `<div class="msgbox" id="ccsProg"><b>Choose where to save ${esc(name)}.</b> This continues when you save or cancel.</div>`; }
+function ccsSaveAsk(name, title){ return {mode:'save', title:title||'Save the collection backup', name, kinds:[{label:'Classic Cart Studio backup', ext:['.ccs']}], purpose:'ccs'}; }
 async function ccsDoneWeb(mode, blob, name, parts){ procSet('collm',null); closeColl(); const res=await ccsSaveFile(name, blob, 'Classic Cart Studio Backup');
  if(!res.ok){ toast(res.canceled?'Canceled; nothing was saved':'The backup was not saved: '+(res.error||'the browser refused it')+'. Try again.'); return; }
  ccsMarkSaved(parts); toast(res.download?`Your browser is saving "${res.name}" (${parts.ids.length} games, ${fmt(blob.size)}) to its downloads. Where that is depends on your browser's settings.`:`Saved "${res.name}" (${parts.ids.length} games, ${fmt(blob.size)})`); }
@@ -257,12 +258,17 @@ function ccsSavedView(j, parts){ if(!ccsShown()){ toast(`Saved "${j.saved_name}"
   <div class="acts"><span class="sp"></span><button class="btn" id="ccsShow">Show in Folder</button><button class="btn hk" id="ccsOk">Done</button></div>`;
  $('ccsOk').onclick=closeColl; $('ccsShow').onclick=async()=>{ const r=await hkPost('/api/package/reveal', {id:j.id}); if(!r.ok) toast(r.error||'File Explorer could not be opened'); }; }
 async function ccsDoneApp(mode, ex, name, parts){ let saved=null;
- const save=async()=>{ $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native'); const s=await hkPost('/api/package/save', ccsAppJobs()?{id:ex.id, name, job:true}:{id:ex.id, name}); if(!s.job) procSet('collm',null);
+ const save=async()=>{ $('collBody').innerHTML=ccsNativeWait(name); procSet('collm','native'); const s=await hkChoose('/api/package/save', ccsAppJobs()?{id:ex.id, name, job:true}:{id:ex.id, name}, ccsSaveAsk(name)); if(!s.job) procSet('collm',null);
   if(s.ok&&s.job){ const j=await ccsWatch(s.job, 'Saving '+s.name); if(j.phase==='done'){ saved={name:j.saved_name, path:j.saved_path}; ccsMarkSaved(parts); return true; } toast(j.phase==='canceled'?'Canceled; nothing was saved':(j.error||'The backup was not saved')); return false; }
   if(s.ok){ saved=s; ccsMarkSaved(parts); return true; } if(!s.canceled) toast(s.error||'The backup was not saved'); return false; };
  closeColl(); if(await save()) toast(`Saved "${saved.name}" (${parts.ids.length} games, ${fmt(ex.size)})`); }
 // ---- Import .ccs Collection ----
-function ccsImportPick(){ const inp=document.createElement('input'); inp.type='file'; inp.onchange=()=>{ const f=inp.files[0]; if(f) ccsOpenFile(f); }; inp.click(); }
+// Restore From a Backup File…: in the app a .ccs is opened where it is (its own check, nothing uploaded); any other file is read by the page
+async function ccsImportPick(){ const kinds=[{label:'Classic Cart Studio backups', ext:['.ccs','.json']},{label:'All files', ext:[]}];
+ if(CCSF.desktop()&&ccsAppPackages()){ const p=await CCSF.openPaths({title:'Restore from a backup file', kinds, purpose:'ccs'}); if(!p) return;
+  if(/\.ccs$/i.test(p[0])){ const nm=p[0].split(/[\\/]/).pop(); openColl('Restore a Backup', nm, '<div class="msgbox">Checking the backup file…</div>'); procSet('collm','running'); const d=await hkPost('/api/package/open', {path:p[0]}); procSet('collm',null); if(!d.ok){ ccsFail(nm, d.error||'The backup file could not be checked.'); return; } return ccsPreview(ccsFromStaged(d), nm); }
+  const fs=await CCSF.read(p); if(fs[0]) ccsOpenFile(fs[0]); return; }
+ const fs=await cvPick('', false, 'Restore from a backup file'); if(fs[0]) ccsOpenFile(fs[0]); }
 // what a chosen file is comes from its content, not its name or type: a JSON object is a collection file or a Studio data backup, a ZIP
 // is checked as a .ccs package, anything else is refused at once (nothing is read further, uploaded or saved)
 // (read in small pieces: JSON may start with any amount of whitespace, and only the first byte that is not whitespace decides)
@@ -336,7 +342,7 @@ function ccsSaveCollection(info){ const d=info.data||{}; const rec0=d.ccs_collec
  CCS.metaMerge=kept.length?csMergePersonal(kept).then(async res=>{ if(res.changed) await refreshPersonal(); else csShowPending(); if(typeof render==='function') render(); return res; }):null; return r; }
 // the website hands a package to Classic Cart Studio on this computer (local only, allow-listed origin), then opens the app on it
 async function ccsToApp(file, fname){ if(!file){ ccsAppFallback(fname); return; }
- const post=()=>fetch(CO.base+'/api/handoff/package', lnaInit({method:'POST', headers:{'Content-Type':'application/octet-stream','X-NES-Protocol':String(CO.REQ_PROTOCOL)}, body:file, cache:'no-store'})).then(r=>r.json()).catch(()=>({ok:false, unreachable:true}));
+ const post=()=>fetch(CO.base+'/api/handoff/package', lnaInit({method:'POST', headers:{'Content-Type':'application/octet-stream','X-CCS-Protocol':String(CO.REQ_PROTOCOL)}, body:file, cache:'no-store'})).then(r=>r.json()).catch(()=>({ok:false, unreachable:true}));
  openColl('Classic Cart Studio for Windows', fname||'', '<div class="msgbox">Looking for Classic Cart Studio on this computer…</div>');
  let r=await post();
  if(r.unreachable){ if(!await appLaunchProbe('classiccartstudio://open')){ appInstallOffer(); return; } $('collBody').innerHTML='<div class="msgbox">Opening Classic Cart Studio… If your browser asks, choose <b>Open</b>. Waiting up to a minute.</div>';

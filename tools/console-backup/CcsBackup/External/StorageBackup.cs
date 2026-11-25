@@ -5,7 +5,10 @@
 // such file is ever offered as a backup):
 //   1. the selection checked: each source exists; the backup location is not inside a selected folder, and a whole drive is never backed up
 //      onto itself; the files and folders sources listed (the actual selected bytes); enough free space for the file, its additional copy
-//      and its recovery data
+//      and its recovery data. A connected drive copied whole (one per backup) is described as Windows reports it, needs to be a USB drive
+//      or SD card, and must hold neither the backup location nor the additional-copy location; then, before anything is written, Windows
+//      is asked once for administrator permission and Workbench's administrator step checks the drive again and locks its volumes
+//      (RawDiskClient.OpenRead). A refused permission prompt or a refused drive ends the backup with nothing written.
 //   2. the operation record (state "reading") and a new, uniquely named "<name>.zip.partial"
 //   3. README, then each source in turn (FileCapture / ImageCapture), maps as the records fill, then every map's copy and the manifest;
 //      the file closed and flushed (record: "checking")
@@ -45,8 +48,10 @@ namespace CcsBackup.External
         public List<string> Folders;
         /// <summary>files mode at a drive's root: include Windows' own folders (System Volume Information, $RECYCLE.BIN)</summary>
         public bool IncludeSystemFolders;
-        /// <summary>image mode of a connected drive by its number (behind Gate.StorageRawReads; -1: Path is an image file)</summary>
+        /// <summary>image mode of a connected drive by its number (-1: Path is an image file)</summary>
         public int DiskNumber = -1;
+        /// <summary>image mode of a connected drive: its identity when it was chosen (the drive must still be exactly that one), or null</summary>
+        public DiskIdentity Disk;
     }
 
     public sealed class StorageOptions
@@ -80,7 +85,7 @@ namespace CcsBackup.External
     {
         /// <summary>complete | complete-one-copy | refused | canceled | failed</summary>
         public string State, Problem, Id, PrimaryPath, ArchivePath, PartialPath, RecordFile, Sha256, CopyProblem, ParityText, ConsistencyText;
-        public long Bytes; public bool ScopeComplete, ParityOk, SameDisk; public string SameDrive;
+        public long Bytes; public bool ScopeComplete, ParityOk, SameDisk, ElevationDeclined; public string SameDrive;
         public readonly List<StorageSourceResult> Sources = new List<StorageSourceResult>();
         public StorageVerification Verification;
         public bool Ok => State == "complete" || State == "complete-one-copy";
@@ -100,6 +105,11 @@ namespace CcsBackup.External
 
     public static class StorageBackup
     {
+        /// <summary>what Windows reports about this PC's drives (tests: stand-in drives)</summary>
+        public static IDiskQueries DiskQueries { get; internal set; } = WindowsDiskQueries.Instance;
+        /// <summary>which drives the window lets through to the administrator step (the step decides again with its own policy); the product's
+        /// is UsbAndSd, and only a test program on a disposable test machine sets another</summary>
+        internal static RawDiskPolicy WindowPolicy = RawDiskPolicy.UsbAndSd;
         public static string Folder(Settings s) => Path.Combine(s.PrimaryFolder, ExternalFormat.FolderName);
         public static string SecondFolder(Settings s) => string.IsNullOrEmpty(s.ArchiveFolder) ? null : Path.Combine(s.ArchiveFolder, ExternalFormat.FolderName);
 
@@ -123,7 +133,22 @@ namespace CcsBackup.External
                 if (r.Mode == "image" && r.DiskNumber >= 0)
                 {
                     if (!Gate.StorageRawReads) throw new StorageRefusedException(Gate.StorageRawText + " Back up its files and folders instead, or choose a drive image file made with another program.");
-                    throw new StorageRefusedException("Reading a connected drive whole needs administrator permission for that one operation, which this version does not ask for.");
+                    if (reqs.Count(x => x.Mode == "image" && x.DiskNumber >= 0) > 1) throw new StorageRefusedException("One backup can copy one connected drive whole. Make a backup for each drive.");
+                    var entry = DiskQueries.Disks().FirstOrDefault(d => d.Number == r.DiskNumber); var did = entry == null ? null : DiskQueries.Describe(entry);
+                    if (did == null) throw new StorageRefusedException("That drive is no longer connected. Connect it and choose it again.");
+                    if (did.Bytes <= 0) throw new StorageRefusedException("That drive reports no size: there may be no card in the reader.");
+                    if (r.Disk != null && r.Disk.Differs(did) != null) throw new StorageRefusedException("The drive connected now is not the one you chose (" + r.Disk.Differs(did) + " is different). Choose it again.");
+                    if (!WindowPolicy.Allows(did.Bus)) throw new StorageRefusedException("That drive is not a USB drive or SD card (Windows reports it as connected by " + did.BusText + "). Only USB drives and SD cards are copied whole.");
+                    if (did.Number == DiskQueries.SystemDisk()) throw new StorageRefusedException("That is the drive Windows runs from. It is never copied whole.");
+                    if (destination != null)
+                    {
+                        var dd = DiskQueries.DisksOf(destination);
+                        if (dd == null) throw new StorageRefusedException("Which drive holds the backup location cannot be determined, so it cannot be shown to be a different drive from the one being copied.");
+                        if (dd.Contains(did.Number)) throw new StorageRefusedException("The backup location is on the drive being copied. A whole drive is never backed up onto itself: choose a backup location on another drive.");
+                    }
+                    r.Disk = did;
+                    var sid = did.ToSource(); e.Sources.Add((r, sid, null)); e.ImageBytes += did.Bytes;
+                    continue;
                 }
                 if (r.Mode == "image")
                 {
@@ -185,6 +210,11 @@ namespace CcsBackup.External
                 if (secondDir != null)
                 {
                     try { Directory.CreateDirectory(secondDir); } catch (Exception ex) { throw new StorageRefusedException("The additional-copy location could not be created (" + ex.Message + "). Choose another, or turn the additional copy off."); }
+                    foreach (var x in est.Sources.Where(x => x.req.Mode == "image" && x.req.DiskNumber >= 0))
+                    {
+                        var dd = DiskQueries.DisksOf(secondDir);
+                        if (dd == null || dd.Contains(x.req.DiskNumber)) throw new StorageRefusedException(dd == null ? "Which drive holds the additional-copy location cannot be determined, so it cannot be shown to be a different drive from the one being copied. Turn the additional copy off, or choose another location." : "The additional-copy location is on the drive being copied. Choose another location, or turn the additional copy off.");
+                    }
                     long f2 = Durable.FreeBytes(secondDir); bool sameVol = Durable.VolumeId(secondDir) == Durable.VolumeId(dest);
                     long need2 = sameVol ? est.TotalBytes + est.CopyBytes : est.CopyBytes + CaptureEngine.Reserve;
                     if (f2 >= 0 && f2 < need2) throw new StorageRefusedException("There is not enough free space for the additional copy: about " + Units.Gb(need2) + " is needed and " + Units.Gb(f2) + " is free. Nothing was copied.");
@@ -193,6 +223,28 @@ namespace CcsBackup.External
             catch (StorageRefusedException ex) { o.State = "refused"; o.Problem = ex.Message; return o; }
             catch (OperationCanceledException) { o.State = "canceled"; o.Problem = "Canceled before anything was copied."; return o; }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.ComponentModel.Win32Exception) { o.State = "refused"; o.Problem = "The source could not be read: " + ex.Message + " Nothing was copied."; return o; }
+            // a connected drive copied whole: Windows' permission asked for once, the drive checked again and its volumes locked by the
+            // administrator step, all before anything is written here
+            RawDiskSession raw = null;
+            var whole = est.Sources.FirstOrDefault(x => x.req.Mode == "image" && x.req.DiskNumber >= 0);
+            if (whole.req != null)
+            {
+                opt.Say("elevate", "Asking Windows for administrator permission to read the drive whole...");
+                var protect = new List<ProtectedPath> { new ProtectedPath(dest, "your backup location"), new ProtectedPath(s.RecordsFolder, "Workbench's records") };
+                if (secondDir != null) protect.Add(new ProtectedPath(secondDir, "your additional-copy location"));
+                raw = RawDiskClient.OpenRead(whole.req.Disk, ExternalFormat.RegionSizeFor(whole.req.Disk.Bytes), protect, opt.Cancelled);
+                if (raw.Refusal != null)
+                {
+                    o.State = raw.Canceled ? "canceled" : "refused"; o.Problem = raw.Refusal + " Nothing was copied."; o.ElevationDeclined = raw.Declined;
+                    raw.Dispose(); return o;
+                }
+            }
+            try { return RunOpened(reqs, opt, o, s, dest, secondDir, est, raw); }
+            finally { raw?.Dispose(); }
+        }
+
+        static StorageOutcome RunOpened(IList<StorageRequest> reqs, StorageOptions opt, StorageOutcome o, Settings s, string dest, string secondDir, StorageEstimate est, RawDiskSession raw)
+        {
 
             var started = DateTime.Now; var startedUtc = DateTime.UtcNow;
             o.Id = startedUtc.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -233,6 +285,7 @@ namespace CcsBackup.External
                             if (after.Key != id.Key) { clean = false; c.Problems.Add("the drive's identity changed while it was read (it was disconnected, replaced or reformatted)"); }
                             sr.Summary.Set("files", plan.Files); sr.Summary.Set("folders", plan.FolderCount); sr.Summary.Set("links", plan.Links); sr.Summary.Set("bytes", plan.Bytes);
                         }
+                        else if (r.DiskNumber >= 0) clean = ImageCapture.WriteDisk(w, src, raw, opt, c, sr.Summary);
                         else clean = ImageCapture.Write(w, src, r.Path, opt, c, sr.Summary);
                         counters.Done = c.Done;
                         sr.FinishedUtc = DateTime.UtcNow; sr.Complete = clean;
@@ -288,7 +341,9 @@ namespace CcsBackup.External
             if (src.Count == 1)
             {
                 var x = src[0];
-                return x.Label + " was read on " + Day(x.StartedUtc) + " from " + W(x.StartedUtc) + " to " + W(x.FinishedUtc) + ". " + (x.Mode == "image"
+                return x.Label + " was read on " + Day(x.StartedUtc) + " from " + W(x.StartedUtc) + " to " + W(x.FinishedUtc) + ". " + (x.Mode == "image" && x.Identity?.Kind == SourceKind.Disk
+                    ? (x.Complete ? "Its volumes were locked while it was read, so no other program could write to it meanwhile." : "Another program had it open, so its volumes could not all be locked while it was read: a program could have written to it meanwhile.")
+                    : x.Mode == "image"
                     ? "No other program could write to the drive image file while it was read."
                     : "Each file was checked for changes before and after it was copied; files are copied one after another, so files that other programs changed during that time are named.");
             }

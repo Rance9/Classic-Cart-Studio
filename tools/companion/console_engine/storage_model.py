@@ -41,7 +41,7 @@ SPEC_TEXT = r'''{
     "default_block_bytes": 4096,
     "saves_allowance_bytes": {
       "nes-classic-edition": 10485760,
-      "snes-classic-edition": null
+      "snes-classic-edition": 10485760
     },
     "saves_allowance_unknown": "No room for this console's saves and suspend points has been established, so whether new files fit cannot be confirmed.",
     "margin_fixed_bytes": 8388608,

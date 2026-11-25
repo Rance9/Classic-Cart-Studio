@@ -519,20 +519,16 @@ namespace CcsBackup.Tests
                 var bad = WorkerTalk(new JObj { { "cmd", "community" }, { "console", "simulated" }, { "folder", c }, { "catalog", Path.Combine(dir, "no-such.json") } }, s);
                 Check(Last(quit)?.S("state") == "checked" && Writes(c).Count == 1 && Last(bad)?.S("state") == "refused" && Last(bad).S("problem").Contains("cannot be used"),
                       "worker: leaving after the reading changes nothing; an unreadable catalog file is refused (" + Last(bad)?.S("problem") + ")");
-                var real = WorkerTalk(new JObj { { "cmd", "community" }, { "console", "real" }, { "catalog", catFile } }, s);
-                Check(Last(real)?.S("state") == "unavailable" && (Last(real)?.S("problem") ?? "").Contains("not available"), "worker: a real console's request stops at its closed boundary before any USB activity (" + Last(real)?.S("problem") + ")");
                 GoneConsole(c); GoneBackups(s);
             });
 
             // ---- the real console stays behind its own closed boundary
-            try { RecoverySessions.OpenReal(ImageKind.Community, null, () => false); Check(false, "a real community session opened"); }
-            catch (GateClosedException ex) { Check(!CcsBackup.Gate.CommunityWrites && ex.Message.Contains("not available"), "a real console's community session: closed in code, before any USB activity (" + ex.Message + ")"); }
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.CommunityWrites && RecoverySessions.Refusal(ImageKind.Community) == null, "a real console: Community Mods' boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
             var real2 = new WriteAuthority("x", HwidA, CommunityEngine.Steps, () => CcsBackup.Gate.CommunityWrites, CcsBackup.Gate.CommunityText);
-            foreach (var step in CommunityEngine.Steps)
-            {
-                try { real2.Require(step, HwidA); Check(false, "a real community write was admitted: " + step); }
-                catch (GateClosedException) { Check(true, "a community write (" + step + ") on a real console is refused by its boundary"); }
-            }
+            foreach (var step in CommunityEngine.Steps) { try { real2.Require(step, HwidA); Check(true, "a community write (" + step + ") on a real console: admitted by its open boundary for the plan's own step and console"); } catch (Exception ex) { Check(false, "a community write (" + step + ") was refused: " + ex.Message); } }
+            try { real2.Require("no-such-step", HwidA); Check(false, "a step outside the plan was admitted"); } catch (InvalidOperationException) { Check(true, "a community write: a step outside the reviewed plan is refused"); }
+            try { real2.Require(CommunityEngine.Steps[0], HwidB); Check(false, "another console was admitted"); } catch (InvalidOperationException) { Check(true, "a community write: another console is refused"); }
+            real2.Revoke("an earlier step failed"); try { real2.Require(CommunityEngine.Steps[0], HwidA); Check(false, "a revoked authority was admitted"); } catch (InvalidOperationException) { Check(true, "a community write: nothing more after an earlier failure"); }
         }
     }
 }

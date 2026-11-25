@@ -82,7 +82,7 @@ class T(unittest.TestCase):
         tree = ast.parse(rd(os.path.join(HERE, "studio_backup.py")))
         names = {a.value for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "data_path" for a in n.args if isinstance(a, ast.Constant)}
         self.assertNotIn(mr.CHOICE_FILE, names, "a restore never writes the choice")
-        dt = rd(os.path.join(HERE, "nes_companion.py"))
+        dt = rd(os.path.join(HERE, "ccs_backend.py"))
         self.assertNotIn(mr.CHOICE_FILE, dt, "the page's synced state (desktop-state.json) never carries it")
 
     def test_11_the_setup_wizards_choice_is_the_choice(self):

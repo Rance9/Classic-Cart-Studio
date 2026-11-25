@@ -176,7 +176,9 @@ otherwise it is a new file with its own identity.
   over another file. A second copy is written, read back in full and compared before it gets its name. A `.partial` file is never used.
 - Each operation keeps a record in `<backup folder>\.ccs-records\` (history, not authority).
 - The Backup Browser (`CcsBackup/Browse`) only reads backups. Beside the records it keeps `browser-checks.json` (when each backup file
-  was last checked on this PC, and the result) and, for a backup whose file list did not record every file's checksum (files above
+  was last checked in full here, and the result: written by Check the File, by the scheduled check and when a backup is opened; the
+  lists say Verified only from it or from the record of the check that ran as the backup was made) and, for a backup whose file list did
+  not record every file's checksum (files above
   64,000,000 bytes), `derived-index-<first 16 hex of the backup's SHA-256>.json`: those checksums worked out from the verified backup,
   bound to its SHA-256 and its data storage's. Neither is ever written into a backup or trusted on its own.
 - It also lists what is inside the parts that hold other files, read in place: a SquashFS system image (gzip or xz) on the data storage

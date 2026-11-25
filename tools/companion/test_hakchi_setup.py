@@ -25,7 +25,7 @@ json.dump({"hakchi_exe": os.path.join(DEST, "one", "hakchi2-ce-3.9.3", "hakchi.e
 os.environ.update(CCS_COMPANION_CONFIG=CFGP, CCS_STUDIO_DATA=os.path.join(TMP, "data"), CCS_PERSONAL_DIR=os.path.join(TMP, "personal"))
 if A.site: os.environ["CCS_STUDIO_SITE"] = A.site
 sys.path[:0] = [HERE, os.path.join(HERE, "..", "rom-pipeline")]
-import hakchi_bridge as hb, nes_companion as nc   # noqa: E402
+import hakchi_bridge as hb, ccs_backend as nc   # noqa: E402
 from console_engine import storage_model as _SM, worker_console as _WC   # noqa: E402,F401  (this source's own, before anything else is on the path)
 
 def free_port():
@@ -35,7 +35,7 @@ PORT = free_port(); SRV = nc.make_server(PORT); threading.Thread(target=SRV.serv
 BASE = f"http://127.0.0.1:{PORT}"
 def call(method, path, body=None, timeout=60):
     req = urllib.request.Request(BASE + path, method=method, data=json.dumps(body or {}).encode() if method == "POST" else None,
-                                 headers={"Content-Type": "application/json", "X-NES-Token": nc.TOKEN, "X-NES-Protocol": str(nc.PROTOCOL), "Host": f"127.0.0.1:{PORT}", "Origin": BASE})
+                                 headers={"Content-Type": "application/json", "X-CCS-Token": nc.TOKEN, "X-CCS-Protocol": str(nc.PROTOCOL), "Host": f"127.0.0.1:{PORT}", "Origin": BASE})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r: return r.status, json.loads(r.read())
     except urllib.error.HTTPError as e: return e.code, json.loads(e.read())

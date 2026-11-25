@@ -25,6 +25,13 @@ namespace CcsBackup.Tests
             var con0 = RecoverySessions.OpenSimulated(c, ImageKind.Rescue); var ctx0 = Ctx(s, ImageKind.Rescue);
             var d0 = RescueEngine.Diagnose(con0);
             Check(d0.Boot0 == Md5(good0) && d0.Boot1 == Md5(good1) && d0.DamagedStages.Count == 0, "diagnosis of a healthy console: both stages read as valid images (read only)");
+            // a prepared console and the backup made before preparing: its bootloader goes with Nintendo's kernel and table, not hakchi's
+            {
+                var sP = SettingsIn(NewDir("rescue-prepared"), false); var (cP, snapP, _) = Prepared(sP);
+                var (pp, pr) = RescueEngine.Prepare(RecoverySessions.OpenSimulated(cP, ImageKind.Rescue), Ctx(sP, ImageKind.Rescue), snapP, new[] { "boot1" }, null);
+                Check(pp == null && pr != null && pr.State == "refused" && pr.Problem.Contains("Return to Original Software") && Writes(cP).Count == 0,
+                    "a prepared console: the bootloader from the backup made before preparing is refused (it goes with the original kernel and table) (" + (pr?.Problem ?? pp?.Refusal) + ")");
+            }
             var (np, nr) = RescueEngine.Prepare(con0, ctx0, src.PrimaryPath, new[] { "boot0", "boot1" }, null);
             Check(nr == null && np != null && np.Refusal != null && np.Refusal.Contains("already match") && Writes(c).Count == 0, "the stages already match the backup: nothing to write (" + (np?.Refusal ?? nr?.Problem) + ")");
             Check(RescueEngine.Execute(con0, np, np.Digest, np.Nonce, ctx0).State == "refused" && Writes(c).Count == 0, "and confirming that plan writes nothing");
@@ -118,8 +125,7 @@ namespace CcsBackup.Tests
             // a rescue session writes no storage part, and the real console stays behind its own closed boundary
             try { con.Write("nandc", new MemoryStream(new byte[4]), 4, Md5(new byte[4]), new WriteAuthority("x", con.Hwid, new[] { "nandc" }, () => true, "t")); Check(false, "a rescue session wrote a storage part"); }
             catch (InvalidOperationException) { Check(true, "a rescue session cannot write a storage part (only its two stage steps)"); }
-            try { RecoverySessions.OpenReal(ImageKind.Rescue, null, () => false); Check(false, "a real rescue session opened"); }
-            catch (GateClosedException ex) { Check(!CcsBackup.Gate.RescueWrites && ex.Message.Contains("not available"), "a real console: closed in code, before any USB activity (" + ex.Message + ")"); }
+            Check(CcsBackup.Gate.ConsoleSessions && CcsBackup.Gate.RescueWrites && RecoverySessions.Refusal(ImageKind.Rescue) == null, "a real console: Console Rescue's boundary is open in this version (asked of the boundary itself: no test opens a real session or lists USB devices)");
         }
     }
 }

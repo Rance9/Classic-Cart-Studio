@@ -118,6 +118,7 @@ namespace CcsBackup.Ui
             WindowFrame.Attach(this, root);   // maximized: the content inside the monitor's work area
             SourceInitialized += (s, e) => WindowFrame.Prepare(this);   // the dark frame, checked, and an opaque surface (WB-UX-07)
             PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape) { if (CloseTerm(true)) e.Handled = true; else OnEscape(e); } else if (e.Key == Key.F1) { OpenPageHelp(); e.Handled = true; } };
+            HookHistoryKeys();   // Alt+Left / Alt+Right and a mouse's back and forward buttons (WorkbenchNav.cs)
             Closing += OnClosing;
             Enter("Dashboard"); ShowDashboard();
         }
@@ -218,11 +219,18 @@ namespace CcsBackup.Ui
             return new Border { BorderBrush = Res<Brush>("B.Warn"), BorderThickness = new Thickness(3, 0, 0, 0), Background = Res<Brush>("B.Surface2"), CornerRadius = new CornerRadius(0, 6, 6, 0), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 8, 0, 0), Child = sp };
         }
         WrapPanel Buttons(params UIElement[] b) { var p = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) }; foreach (var x in b) if (x != null) p.Children.Add(x); return p; }
-        /// <summary>shows a page: its tag names it for Escape and the status strip; a page with unsaved changes sets leaveCheck after this</summary>
+        /// <summary>shows a page: its tag names it for Escape and the status strip; a page with unsaved changes sets leaveCheck after this. A
+        /// page of the console task while another page is in front is kept for Return to Task instead, and the page in front stays
+        /// (WorkbenchNav.cs).</summary>
         void Show(FrameworkElement e, string tag)
         {
-            CloseTerm(false); NewTermScope(e); e.Tag = tag; page.Content = e; scroller?.ScrollToTop(); leaveCheck = null; pageUnsaved = null; settingsPending = null; settingsRefresh = null;
+            e.Tag = tag;
+            if (KeepTaskPage(e)) return;
+            if (page.Content != e) { RememberShown(); NoteLeavingTask(); }
+            CloseTerm(false); NewTermScope(e); page.Content = e; scroller?.ScrollToTop(); leaveCheck = null; pageUnsaved = null; settingsPending = null; settingsRefresh = null;
             if (tag != null && TagSection.TryGetValue(tag, out var own) && own != section) Enter(own);   // the side column follows the page
+            if (ReferenceEquals(e, taskPage)) { taskSection = section; taskUnseen = false; }
+            NoteShown(e, tag);   // its place in Back and Forward, when it is one
             Dispatcher.BeginInvoke(new Action(UpdateChrome), System.Windows.Threading.DispatcherPriority.Background);   // after the caller has started its worker
         }
 
@@ -232,6 +240,7 @@ namespace CcsBackup.Ui
         {
             if (worker != null && worker.Running) { quitting = true; worker.Cancel(); worker.Send(new JObj { { "cmd", "quit" } }); }
             if (browsing?.Live == true) { browsing.Dispose(); browsing = null; }
+            DropLiveStash();
             Go(name ?? section);
         }
         static string Size(long b) => Units.Gb(b);
@@ -264,7 +273,8 @@ namespace CcsBackup.Ui
             {
                 var lb = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), MaxHeight = 380 };
                 ScrollViewer.SetHorizontalScrollBarVisibility(lb, ScrollBarVisibility.Disabled);
-                foreach (var e in list) lb.Items.Add(new ListBoxItem { Content = HistoryRow(e), Tag = e, Padding = new Thickness(0), Margin = new Thickness(0, 0, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Stretch });
+                var rows = ListedRows();
+                foreach (var e in list) lb.Items.Add(new ListBoxItem { Content = HistoryRow(e, rows), Tag = e, Padding = new Thickness(0), Margin = new Thickness(0, 0, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Stretch });
                 var acts = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
                 lb.SelectionChanged += (s, ev) =>
                 {
@@ -290,7 +300,16 @@ namespace CcsBackup.Ui
             var c = Card(g, 20); c.Margin = new Thickness(0); return c;
         }
 
-        UIElement HistoryRow(HistoryEntry e)
+        /// <summary>the backup list's rows by file (the same status words as the Dashboard and the Backup Browser); empty when the list cannot
+        /// be read (each row then says what its record says)</summary>
+        Dictionary<string, CcsBackup.Browse.BackupListEntry> ListedRows()
+        {
+            var d = new Dictionary<string, CcsBackup.Browse.BackupListEntry>(StringComparer.OrdinalIgnoreCase);
+            try { foreach (var r in CcsBackup.Browse.BackupList.List(settings)) if (r.Path != null && !d.ContainsKey(r.Path)) d[r.Path] = r; } catch (Exception) { }
+            return d;
+        }
+
+        UIElement HistoryRow(HistoryEntry e, Dictionary<string, CcsBackup.Browse.BackupListEntry> rows = null)
         {
             var g = new Grid(); g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var left = new StackPanel { Margin = new Thickness(0, 0, 12, 0) };
@@ -298,13 +317,28 @@ namespace CcsBackup.Ui
             // the console and size only: what the console's startup software was is shown when the backup is reviewed or opened
             var bits = new List<string>(); if (e.ConsoleTag != null) bits.Add((e.Simulated ? "Simulated console " : "Console ") + e.ConsoleTag); if (e.Bytes > 0) bits.Add(Size(e.Bytes));
             left.Children.Add(T(string.Join("  ·  ", bits), 12.5, false, true, new Thickness(0)));
+            // the Dashboard's and the Backup Browser's words for the same states (BackupList: Verified only for a full check recorded for the
+            // file as it is now; a file whose description reads as finished, with no such check recorded here, is Not checked)
+            CcsBackup.Browse.BackupListEntry row = null; var file = e.PrimaryPath ?? e.ArchivePath;
+            if (file != null) (rows ?? ListedRows()).TryGetValue(file, out row);
+            string said, kind, line;
+            if (row != null)
+            {
+                (said, kind) = RowState(row); line = row.CheckText;
+                if (row.Status == CcsBackup.Browse.BrowseStatus.Complete && row.Check == CcsBackup.Browse.CheckState.Verified && e.TwoCopies) said += ", with an additional copy";
+            }
+            else
+            {
+                bool verified = e.Status == BackupStatus.Verified || e.Status == BackupStatus.NeedsVerification && e.CheckedWhenMade;
+                kind = verified ? "B.Ok" : e.Status == BackupStatus.NeedsVerification || e.Status == BackupStatus.Changed ? "B.Warn" : "B.Red3";
+                said = verified ? (e.TwoCopies ? "Verified, with an additional copy" : "Verified") : e.Status == BackupStatus.NeedsVerification ? "Not checked" : e.StatusText;
+                line = verified && e.VerifiedUtc != null ? "Full check passed when it was made: " + e.VerifiedUtc.Value.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm tt", En) + "."
+                     : e.Status == BackupStatus.NeedsVerification ? "No full check of this file is recorded here. Check the File runs one." : null;
+            }
+            if (line != null && e.Status != BackupStatus.Damaged && e.Status != BackupStatus.Incomplete) left.Children.Add(T(line, 12, false, true, new Thickness(0, 2, 0, 0)));
             if (e.Status == BackupStatus.Verified && e.TwoCopies && e.SameDisk) left.Children.Add(T("Both copies are on the same drive: that protects against a damaged file, not against losing the drive.", 12, false, true, new Thickness(0, 2, 0, 0)));
             if (e.Problem != null && e.Status != BackupStatus.Verified) left.Children.Add(T(e.Problem.Length > 200 ? e.Problem.Substring(0, 200) + "…" : e.Problem, 12, false, true, new Thickness(0, 2, 0, 0)));
             g.Children.Add(left);
-            var kind = e.Status == BackupStatus.Verified ? "B.Ok" : e.Status == BackupStatus.NeedsVerification ? "B.Warn" : "B.Red3";
-            // the Dashboard's and the Backup Browser's words for the same states
-            var said = e.Status == BackupStatus.Verified ? (e.TwoCopies ? "Complete · checked, with an additional copy" : "Complete · checked") : e.Status == BackupStatus.NeedsVerification ? "Complete · not checked yet"
-                     : e.Status == BackupStatus.Incomplete ? "Incomplete: not a backup" : e.Status == BackupStatus.Damaged ? "Damaged" : e.StatusText;
             var pill = new Border { CornerRadius = new CornerRadius(10), BorderBrush = Res<Brush>(kind), BorderThickness = new Thickness(1), Padding = new Thickness(10, 2, 10, 3), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = said, FontSize = 12, Foreground = Res<Brush>(kind) } };
             Grid.SetColumn(pill, 1); g.Children.Add(pill);
             return new Border { Background = Res<Brush>("B.Surface"), BorderBrush = Res<Brush>("B.Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10, 14, 10), Child = g };
@@ -364,13 +398,14 @@ namespace CcsBackup.Ui
 
         void StartBackup()
         {
-            if (!FamilyHasTasks("backup") || !BoundaryOpen("backup")) return;
+            if (!FamilyHasTasks("backup") || !BoundaryOpen("backup") || !OwnTaskAllows("Back Up Console")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartBackup()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console task is running", "The console is already in use by this window, another CCS Console Workbench window or Classic Cart Studio. Wait for that task to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Backing Up the Console", "Keep the USB cable connected. Cancel stops at once: nothing on the console changes, and the unfinished file is kept and marked Incomplete.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
             Show(progress.Panel, "progress");
             NewSession("backup");
-            worker.Send(ConsoleReq("backup"));
+            var req = ConsoleReq("backup"); req.Add("name", "ask");   // the backup's name, asked once the console is identified (WorkbenchNav.cs)
+            worker.Send(req);
         }
 
         // ------------------------------------------------------------------ worker events
@@ -381,10 +416,12 @@ namespace CcsBackup.Ui
             switch (ev.S("event"))
             {
                 case "progress": progress?.Update(ev.S("text"), ev.L("done", 0), ev.L("total", 0)); if (ev.S("phase") == "write" || ev.S("phase") == "prepare") writing = true; break;
+                case "console": break;   // the console's identity, before anything is read: the console strip shows it (NoteConsole)
+                case "backup-name": ShowBackupName(ev); break;   // Back Up Console's name, asked before anything is read (WorkbenchNav.cs)
                 case "plan": lastPlan = ev.O("plan"); ShowPlan(lastPlan); break;
                 case "prep-plan": ShowPrepPlan(ev.O("plan")); break;
                 case "return-plan": ShowReturnPlan(ev.O("plan")); break;
-                case "result": gotResult = true; writing = false; if (workerOp == "backup") BackupResult(ev); else if (workerOp == "prepare") PrepResult(ev); else if (workerOp == "return") ReturnResult(ev); else if (workerOp == "rescue") RescueResult(ev); else if (workerOp == "browse") { if (browsing?.Live == true) { browsing.Dispose(); browsing = null; } ShowCheckup(ev, ended: true); } else if (workerOp == "compose") ComposeResult(ev); else if (workerOp == "home-design") DesignResult(ev); else if (workerOp == "method" || workerOp == "firmware") MethodOrFirmwareResult(workerOp, ev); else if (workerOp == "test-boot") TestBootResult(ev); else if (workerOp == "community") CommunityResult(ev); else if (workerOp == "sega-pictures") SegaResult(ev); else if (workerOp == "files") { worker?.Send(new JObj { { "cmd", "quit" } }); Go(filesScope == "dev" ? "Developer Mode" : "Console Browser"); } else RestoreResult(ev); break;
+                case "result": gotResult = true; writing = false; if (workerOp == "backup") BackupResult(ev); else if (workerOp == "prepare") PrepResult(ev); else if (workerOp == "return") ReturnResult(ev); else if (workerOp == "rescue") RescueResult(ev); else if (workerOp == "browse") { if (browsing?.Live == true) { browsing.Dispose(); browsing = null; } DropLiveStash(); ShowCheckup(ev, ended: true); } else if (workerOp == "compose") ComposeResult(ev); else if (workerOp == "home-design") DesignResult(ev); else if (workerOp == "method" || workerOp == "firmware") MethodOrFirmwareResult(workerOp, ev); else if (workerOp == "test-boot") TestBootResult(ev); else if (workerOp == "community") CommunityResult(ev); else if (workerOp == "sega-pictures") SegaResult(ev); else if (workerOp == "files") { worker?.Send(new JObj { { "cmd", "quit" } }); Go(filesScope == "dev" ? "Developer Mode" : "Console Browser"); } else RestoreResult(ev); break;
                 case "finished": Show(Message("The console is restarting", "It starts into its normal HOME in a moment. You can unplug the USB cable once the TV shows the HOME.", "ok"), "msg"); worker?.Send(new JObj { { "cmd", "quit" } }); break;
                 case "error": if (workerOp == "files") ShowFilesSession(ev.S("text"), "bad"); else Show(Message("The console task stopped with a problem", ev.S("text") ?? "", "bad", ev.S("code")), "msg"); break;
                 default: OnWorkbenchEvent(ev); break;
@@ -395,10 +432,12 @@ namespace CcsBackup.Ui
         void OnWorkerExit(int code)
         {
             var w = worker; worker = null; var wasWriting = writing; var left = quitting; writing = false; quitting = false; w?.Dispose();
+            if (taskPage != null && progressViews.TryGetValue(taskPage, out var pv)) pv.Stop();   // the task's clock stops with its session
+            DropLiveStash();   // the console's files read live end with the session
             UpdateChrome();
             if (closeWhenDone) { closeWhenDone = false; if (!inClosing) Close(); return; }   // inside a close's own question: that close goes on
             if (left) return;
-            if (!gotResult && (page.Content as FrameworkElement)?.Tag as string == "progress")
+            if (!gotResult && taskPage?.Tag as string == "progress")
                 Show(Message(workerOp == "backup" ? "The backup ended unexpectedly" : "The console operation ended unexpectedly",
                     workerOp == "backup" ? "The program doing the backup stopped before it finished. Nothing on the console was changed. The unfinished file is kept and listed as Incomplete; it is never used as a backup."
                                          : wasWriting ? "The program writing to the console stopped. The console may be partly changed and its state is not verified. Your backups are unchanged. Make a new backup to see the console's state before anything else."
@@ -413,7 +452,7 @@ namespace CcsBackup.Ui
             {
                 sp.Children.Add(PageHead(r.B("two_copies") ? "Backup complete: saved and checked, with an additional copy" : "Backup complete: saved and checked", "Your " + Con + "'s built-in storage is saved on this PC. Nothing on the console was changed."));
                 var c = new StackPanel();
-                c.Children.Add(T("Console " + r.S("console_tag") + "  ·  " + (r.S("state_text") ?? ""), Ty.Body));
+                c.Children.Add(T((seenNow != null && seenNow.Tag == r.S("console_tag") && FriendlyName(seenNow) is string fn ? fn + "  ·  " : "") + "Console " + r.S("console_tag") + "  ·  " + (r.S("state_text") ?? ""), Ty.Body));
                 c.Children.Add(T("Made " + DateTime.Now.ToString("dddd, MMMM d, yyyy 'at' h:mm tt", En) + "  ·  " + Size(r.L("bytes", 0)), Ty.Body));
                 c.Children.Add(T("Saved as:", Ty.Small, false, true, new Thickness(0, 4, 0, 2))); c.Children.Add(PathText(r.S("primary")));
                 if (r.S("archive") != null) { c.Children.Add(T("Additional copy:", Ty.Small, false, true, new Thickness(0, 2, 0, 2))); c.Children.Add(PathText(r.S("archive"))); }
@@ -445,11 +484,12 @@ namespace CcsBackup.Ui
             var sp = PageHead("Restore a Backup", "Choose the backup to put back on your " + Con + ". A backup is restored only to the console it came from, and only if that console's storage is still laid out the same way. Restoring changes the console: you review every change first.");
             var list = History.List(Reload()).Where(e => (e.Status == BackupStatus.Verified || e.Status == BackupStatus.NeedsVerification) && (e.PrimaryPath ?? e.ArchivePath) != null).ToList();
             var lb = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), MaxHeight = 340 }; ScrollViewer.SetHorizontalScrollBarVisibility(lb, ScrollBarVisibility.Disabled);
-            foreach (var e in list) lb.Items.Add(new ListBoxItem { Content = HistoryRow(e), Tag = e.PrimaryPath ?? e.ArchivePath, Margin = new Thickness(0, 0, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Stretch });
+            var rows = ListedRows();
+            foreach (var e in list) lb.Items.Add(new ListBoxItem { Content = HistoryRow(e, rows), Tag = e.PrimaryPath ?? e.ArchivePath, Margin = new Thickness(0, 0, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Stretch });
             if (list.Count == 0) sp.Children.Add(Card(T("No complete backups in your backup locations. Choose Browse for a Backup File to use one saved somewhere else.", Ty.Body, false, true))); else { sp.Children.Add(lb); sp.Children.Add(T(BackupSizeNote, Ty.Fine, false, true, new Thickness(0, 0, 0, 8))); }
             var next = B("Review This Backup", "Btn.Primary", () => { if (lb.SelectedItem is ListBoxItem it) ShowRestoreReview(it.Tag as string); }, false);
             lb.SelectionChanged += (s, e) => next.IsEnabled = lb.SelectedItem != null;
-            sp.Children.Add(Buttons(next, B("Browse for a Backup File…", "Btn", () => { var d = new Microsoft.Win32.OpenFileDialog { Filter = FileKinds.ConsoleBackupFilter, Title = "Choose a console backup" }; if (d.ShowDialog(this) == true) ShowRestoreReview(d.FileName); }), B("Back", "Btn.Ghost", BackToSection)));
+            sp.Children.Add(Buttons(next, B("Browse for a Backup File…", "Btn", () => { var chosenFile = CcsFileDialog.OpenFile(this, "Choose a console backup", null, FileKinds.ConsoleBackupFilter, "console-backup"); if (chosenFile != null) ShowRestoreReview(chosenFile); }), B("Back", "Btn.Ghost", BackToSection)));
             Show(sp, "restore-pick");
         }
 
@@ -494,7 +534,7 @@ namespace CcsBackup.Ui
 
         void StartRestorePrepare(string file, List<string> only = null)
         {
-            if (!FamilyHasTasks("restore") || !BoundaryOpen("restore-prepare")) return;
+            if (!FamilyHasTasks("restore") || !BoundaryOpen("restore-prepare") || !OwnTaskAllows("Restore a Backup")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartRestorePrepare(file, only)); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Preparing the Restore", "Checking the console and backing it up as it is now. Nothing is written to the console in this step. Cancel stops at once.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -565,7 +605,7 @@ namespace CcsBackup.Ui
             Show(sp, "result");
         }
 
-        // ------------------------------------------------------------------ Prepare Console (Classic Cart Studio only)
+        // ------------------------------------------------------------------ Prepare Console
         void ShowPrepare()
         {
             var sp = PageHead("Prepare Console", "Set your " + Con + " up for Classic Cart Studio's HOME. This changes the console's startup software and bootloader and adds files; you review every step before anything is written.");
@@ -587,7 +627,7 @@ namespace CcsBackup.Ui
             Show(sp, "prepare");
         }
 
-        // ------------------------------------------------------------------ Return to Original Software (Classic Cart Studio only)
+        // ------------------------------------------------------------------ Return to Original Software
         void ShowReturn()
         {
             var sp = PageHead("Return to Original Software", "Undo Classic Cart Studio's preparation of your " + Con + ". This changes the console's startup software, bootloader and storage; you review every step first.");
@@ -604,7 +644,7 @@ namespace CcsBackup.Ui
 
         void StartReturn()
         {
-            if (!FamilyHasTasks("return") || !BoundaryOpen("return-plan")) return;
+            if (!FamilyHasTasks("return") || !BoundaryOpen("return-plan") || !OwnTaskAllows("Return to Original Software")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartReturn()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Checking the Console", "Nothing is changed in this step.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -650,7 +690,7 @@ namespace CcsBackup.Ui
 
         void StartPrepare()
         {
-            if (!FamilyHasTasks("preparation") || !BoundaryOpen("prepare-plan")) return;
+            if (!FamilyHasTasks("preparation") || !BoundaryOpen("prepare-plan") || !OwnTaskAllows("Prepare Console")) return;
             if (!driverReady && string.IsNullOrEmpty(opt.SimulatedConsole)) { WithDriver(() => StartPrepare()); return; }
             if (ConsoleLock.IsBusy()) { Show(Message("Another console operation is running", "Wait for it to finish, then try again.", "bad"), "msg"); return; }
             progress = new ProgressView(this, "Checking the Console", "Nothing is changed in this step.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
@@ -743,17 +783,20 @@ namespace CcsBackup.Ui
         }
 
         // ------------------------------------------------------------------ a folder choice and messages
-        void Pick(TextBox box)
+        /// <summary>a folder for a text box (Settings' Change…): the dialog starts at the folder the box names</summary>
+        void Pick(TextBox box, string title = "Choose a folder")
         {
-            using (var d = new System.Windows.Forms.FolderBrowserDialog { SelectedPath = box.Text, ShowNewFolderButton = true })
-                if (d.ShowDialog() == System.Windows.Forms.DialogResult.OK) box.Text = d.SelectedPath;
+            var f = CcsFileDialog.ChooseFolder(this, title, box.Text, "settings-folder");
+            if (f != null) box.Text = f;
         }
 
         FrameworkElement Message(string title, string text, string kind, string details = null)
         {
             var sp = new StackPanel(); sp.Children.Add(PageTitle(title)); sp.Children.Add(Note(text, kind));
             if (!string.IsNullOrEmpty(details)) sp.Children.Add(Details("Technical details", details));
-            sp.Children.Add(Buttons(B("Back", "Btn", () => { if (worker != null && worker.Running) Leave(); else BackToSection(); }))); return sp;
+            // Back on the console task's own message ends its session (as its Cancel does); on any other page it only goes back, and a task
+            // running behind it goes on
+            sp.Children.Add(Buttons(B("Back", "Btn", () => { if (worker != null && worker.Running && page.Content == sp && ReferenceEquals(sp, taskPage)) Leave(); else BackToSection(); }))); return sp;
         }
 
         // ------------------------------------------------------------------ closing: one review of unsaved work, then a task's safe stop, then the USB driver
@@ -771,15 +814,17 @@ namespace CcsBackup.Ui
         /// <summary>a page's work that is not kept if the window leaves it, in words for the close review (null: none); set with LeaveGuard</summary>
         Func<string> pageUnsaved;
 
-        /// <summary>a page whose work is lost if the window leaves it: leaving the page asks first (Stay on This Page / Leave Without It), and
-        /// the close review lists what as not kept. letGo (optional): runs when the window leaves the page (after Leave Without It, or with
-        /// nothing to ask about), for work kept apart from the page itself (HOME Designer's typed text); Stay keeps it.</summary>
-        void LeaveGuard(Func<string> what, string question, Action letGo = null)
+        /// <summary>a page whose work is lost if the window leaves it: leaving the page asks first, naming what (Stay Here and leaveWord:
+        /// "Leave Setup" for a guided setup's choices, otherwise "Leave Without Saving" unless the page has a more exact word; Save and
+        /// Leave first when save is given), and the close review lists what as not kept. letGo (optional): runs when the window leaves the
+        /// page (after leaving without it, or with nothing to ask about), for work kept apart from the page itself (HOME Designer's typed
+        /// text); Stay Here keeps it.</summary>
+        void LeaveGuard(Func<string> what, string question, Action letGo = null, string leaveWord = null, Func<bool> save = null)
         {
             pageUnsaved = what;
             leaveCheck = () =>
             {
-                if (what() != null && Ask("Leave this page?", question, new[] { "Stay on This Page", "Leave Without It" }, 0, 0) != 1) return false;
+                if (what() != null && !AskToLeave(question, leaveWord, save)) return false;
                 letGo?.Invoke(); return true;
             };
         }
@@ -809,7 +854,7 @@ namespace CcsBackup.Ui
         bool CloseReview()
         {
             // a page that has not named its work for this review keeps its own question (never while a task runs: its page is the task's)
-            if (!Busy && pageUnsaved == null && leaveCheck != null && PageTag != "settings" && !LeaveOk()) return false;
+            if (!(Busy && !TaskAway) && pageUnsaved == null && leaveCheck != null && PageTag != "settings" && !LeaveOk()) return false;
             var save = new List<string>(); var lost = new List<string>();
             PrefsForReview(save, lost);
             var design = DesignUnsavedName();
@@ -919,13 +964,19 @@ namespace CcsBackup.Ui
         }
 
         // ------------------------------------------------------------------ the progress panel
+        /// <summary>a task's progress page. Its elapsed time is its own clock (a monotonic Stopwatch), shown once a second while the page is in
+        /// front, whether or not the task has said anything; the clock starts with the task's step, stops when the step ends (a review, a
+        /// result, a failure, a cancel: the task's next page), and is right again when the page comes back in front. The bytes and the bar
+        /// only ever show what the task reported.</summary>
         sealed class ProgressView
         {
-            public readonly StackPanel Panel = new StackPanel();
-            readonly TextBlock text, bytes; readonly ProgressBar bar; readonly DateTime start = DateTime.UtcNow; readonly Button stop;
+            public readonly StackPanel Panel = new StackPanel(); public readonly string Title;
+            readonly TextBlock text, bytes; readonly ProgressBar bar; readonly Button stop;
+            readonly System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew(); readonly System.Windows.Threading.DispatcherTimer tick;
+            long done, total; bool shown;
             public ProgressView(BackupWorkspace w, string title, string note, string stopText, Action onStop)
             {
-                w.progressTitle = title;
+                w.progressTitle = title; Title = title;
                 Panel.Children.Add(w.PageHead(title, note));
                 text = w.T("Starting...", 14, true, false, new Thickness(0, 0, 0, 10));
                 bar = new ProgressBar { Height = 8, Minimum = 0, Maximum = 1000, IsIndeterminate = true, Foreground = w.Res<Brush>("B.Red"), Background = w.Res<Brush>("B.Surface2"), BorderThickness = new Thickness(0) };
@@ -933,14 +984,32 @@ namespace CcsBackup.Ui
                 var box = new StackPanel(); box.Children.Add(text); box.Children.Add(bar); box.Children.Add(bytes);
                 Panel.Children.Add(w.Card(box, 22));
                 if (onStop != null) { stop = w.B(stopText, "Btn", onStop); Panel.Children.Add(w.Buttons(stop)); }
+                tick = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background, w.Dispatcher) { Interval = TimeSpan.FromSeconds(1) };
+                tick.Tick += (s, e) => Render();
+                Panel.Loaded += (s, e) => { shown = true; if (clock.IsRunning) tick.Start(); Render(); };
+                Panel.Unloaded += (s, e) => { shown = false; tick.Stop(); };
+                w.progressViews.Add(Panel, this);
+                Render();
             }
+            /// <summary>whether its step's clock is running</summary>
+            public bool Running => clock.IsRunning;
+            public TimeSpan Elapsed => clock.Elapsed;
             public void Say(string t) { text.Text = t; if (stop != null) stop.IsEnabled = false; }
             public void Update(string t, long done, long total)
             {
                 if (!string.IsNullOrEmpty(t)) text.Text = t;
-                var el = DateTime.UtcNow - start; var e = (int)el.TotalHours > 0 ? el.ToString(@"h\:mm\:ss") : el.ToString(@"m\:ss");
-                if (total > 0) { bar.IsIndeterminate = false; bar.Value = Math.Min(1000, 1000.0 * done / total); bytes.Text = Units.Gb(done) + " of " + Units.Gb(total) + "  ·  " + e + " elapsed"; }
-                else { bar.IsIndeterminate = true; bytes.Text = e + " elapsed"; }
+                this.done = done; this.total = total;
+                if (total > 0) { bar.IsIndeterminate = false; bar.Value = Math.Min(1000, 1000.0 * done / total); } else bar.IsIndeterminate = true;
+                Render();
+            }
+            /// <summary>its step has ended: the clock stops at the time it took</summary>
+            public void Stop() { clock.Stop(); tick.Stop(); Render(); }
+            /// <summary>the same page for the task's next step: a new clock, and nothing reported yet</summary>
+            public void Restart() { clock.Restart(); done = total = 0; bar.IsIndeterminate = true; if (stop != null) stop.IsEnabled = true; if (shown) tick.Start(); Render(); }
+            void Render()
+            {
+                var el = clock.Elapsed; var e = (int)el.TotalHours > 0 ? el.ToString(@"h\:mm\:ss") : el.ToString(@"m\:ss");
+                bytes.Text = total > 0 ? Units.Gb(done) + " of " + Units.Gb(total) + "  ·  " + e + " elapsed" : e + " elapsed";
             }
         }
     }

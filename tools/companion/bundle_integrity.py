@@ -31,7 +31,7 @@ COMPONENTS = {
     "fonts": ("HOME fonts", ["native_home/fonts/"]),
     "scripts": ("Hakchi helper scripts", ["Read-HakchiSelection.ps1", "Get-ProcessWindows.ps1", "Close-Hakchi.ps1"]),
     "notices": ("License notices", ["THIRD_PARTY_NOTICES.md", "notices/"]),
-    "console-worker": ("Console transport worker (its real connections are closed in this version)", ["console-worker/"]),
+    "console-worker": ("Console transport worker", ["console-worker/"]),
 }
 # files that must be in every release build (companion.spec refuses to build without them)
 REQUIRED_FILES = ["packages/hakchi2-ce-3.9.3-portable.zip", "native/ccs-home-armv7", "native/ccs-player-armv7", "startup/startup-images.json", "native/ccs-sim-core.exe", "site/index.html", "site/catalog.json",

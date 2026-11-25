@@ -16,6 +16,10 @@ namespace CcsBackup.Driver
         public const string SetupButton = "Set Up Driver";
         public const string SetupCancelButton = "Cancel";
         public const string SetupDetailsHeading = "What this changes on this PC";
+        public const string SetupNeedsHeading = "What this PC needs";
+        public const string SetupNotPossibleTitle = "The USB driver cannot be set up on this PC";
+        /// <summary>after a setup Windows refused because a requirement of this PC was not met (DriverExit.Requirement)</summary>
+        public const string RequirementFormat = " {0}";
 
         // ---- the close dialog (only when removal is eligible)
         public const string CloseTitle = "Remove the USB driver?";
@@ -158,7 +162,7 @@ namespace CcsBackup.Driver
                 case RetainReason.OtherPc: return "the record was made on another PC";
                 case RetainReason.ElevationRefused: return "Windows did not give administrator permission";
                 case RetainReason.RemovalFailed: return "Windows could not remove it";
-                case RetainReason.ActionUnavailable: return "removing it is not available in this version";
+                case RetainReason.ActionUnavailable: return "this Workbench window cannot make driver changes";
                 case RetainReason.RefusedAtLastCheck: return "a last check found it is no longer exactly as Workbench set it up, or another device now uses it";
                 case RetainReason.CertificatePreExisting: return "it was already on this PC before the setup";
                 case RetainReason.CertificateShared: return "another driver package on this PC is signed with it";
