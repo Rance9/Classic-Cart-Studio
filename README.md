@@ -2,7 +2,7 @@
 
 **Free, open-source tools for the NES Classic and the SNES Classic.** Classic Cart Studio collects, organizes and plays your own NES games, in your web browser, in the installable website app or in Classic Cart Studio for Windows, with the open-source FCEUmm emulator built in, and prepares collections for a Nintendo NES Classic Edition. Its game player is an NES emulator; it does not play SNES games.
 
-**CCS Console Workbench**, part of the same project, is a Windows program for the consoles themselves: backing up, restoring, repairing and composing an NES Classic, with SNES Classic support being built, and browsing, checking and repairing those backups on a PC. Classic Cart Studio for Windows includes it, and it is also available on its own as a single file that runs without installation. Its source is in [`tools/console-backup`](tools/console-backup).
+**CCS Console Workbench**, part of the same project, is a Windows program for the consoles themselves: backing up, restoring, repairing and composing an NES Classic or SNES Classic, and browsing, checking and repairing those backups on a PC. Classic Cart Studio for Windows includes it, and it is also available on its own as a single file that runs without installation. Its source is in [`tools/console-backup`](tools/console-backup).
 
 **Downloads:** Classic Cart Studio for Windows and CCS Console Workbench are both at [ClassicCartStudio.com/app/](https://ClassicCartStudio.com/app/), with their checksums. The website is [ClassicCartStudio.com](https://ClassicCartStudio.com).
 
