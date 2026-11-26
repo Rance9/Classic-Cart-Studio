@@ -12,6 +12,12 @@
 //                 belongs to, how it starts and returns, a companion package, how an update applies and which earlier pins it updates,
 //                 and its settings and favorites (what normal removal keeps). Every field is checked; an unknown field refuses the whole
 //                 catalog. A record never carries the author's permission or any device-check results: those stay private.
+//   Menus         an entry in the Menus section is a community menu. It starts either as a choice in CCS Nucleus's startup chooser
+//                 (launch kind "launcher": its program, one of the files it installs, which the chooser starts with no arguments and
+//                 returns from when it ends) or from its own entry in Original Menu ("menu-entry"). A menu that starts by itself at
+//                 power-on is never listed: what opens at power-on is CCS Nucleus's to decide.
+//   USB and SD    a mod that writes a USB drive or SD card names those places as the console sees them (/media/...), so Workbench can
+//                 tell whether a USB and SD backup covers them before the mod is installed.
 //   Data only     nothing in a record is ever run: there are no commands in it. What runs on a console is the author's unchanged package,
 //                 placed through hakchi's own install route by the reviewed steps of CommunityEngine.
 //   Updates       a catalog fetched later is used only when its ECDSA P-256 (SHA-256) signature checks against the public key pinned in
@@ -45,7 +51,7 @@ namespace CcsBackup.Engine
 
     public sealed class CommunityRecord
     {
-        public string Id, Name, Section, Version, Summary, Applies, Description, Target, LaunchKind, LaunchReturn, UpdateMethod, RemovalText, ExternalText;
+        public string Id, Name, Section, Version, Summary, Applies, Description, Target, LaunchKind, LaunchReturn, LaunchProgram, UpdateMethod, RemovalText, ExternalText;
         public int RecordVersion, Order; public bool Alpha, WritesExternal;
         public string AuthorName, ProjectUrl, SupportUrl, LicenseName, LicenseUrl, SourceUrl, CompanionId, CompanionVersion, Hakchi;
         public List<string> Warnings = new List<string>(), Credits = new List<string>(), Notices = new List<string>(), Consoles = new List<string>(), Regions = new List<string>();
@@ -61,6 +67,10 @@ namespace CcsBackup.Engine
         public CommunityVariant DefaultVariant => Variants.First(v => v.IsDefault);
         public IEnumerable<string> Packages => Variants.Select(v => v.Package);
         public string SectionTitle => CommunityCatalog.SectionTitle(Section);
+        /// <summary>an entry of the Menus section: a community menu</summary>
+        public bool IsMenu => Section == "menus";
+        /// <summary>a community menu CCS Nucleus's startup chooser starts (its program); installing it adds it as a choice there</summary>
+        public bool ChooserMenu => IsMenu && LaunchKind == "launcher" && LaunchProgram != null;
         public JObj ToJson() => (JObj)CommunityCatalog.ToJObj(Raw);
     }
 
@@ -104,6 +114,10 @@ namespace CcsBackup.Engine
         /// <summary>a setting's or favorite's place on the data storage, under hakchi's root overlay or the console's profiles (no spaces: the
         /// console's steps take these as words)</summary>
         public static readonly Regex SettingRe = new Regex(@"^(hakchi/rootfs|clover/profiles)/[A-Za-z0-9_][A-Za-z0-9._+-]*(/[A-Za-z0-9_][A-Za-z0-9._+-]*)*$");
+        /// <summary>a menu's program: one file it installs, a plain relative path without spaces (CCS Nucleus records it as a console path)</summary>
+        public static readonly Regex ProgramRe = new Regex(@"^[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*)*$");
+        /// <summary>a place a mod writes on a USB drive or SD card, as the console sees it: under /media (where hakchi mounts that storage)</summary>
+        public static readonly Regex ExternalRe = new Regex(@"^/media(/[A-Za-z0-9_][A-Za-z0-9._+ -]*)+/?$");
         public static readonly string[] Targets = { "original-menu", "system", "launchers" }, LaunchKinds = { "none", "service", "menu-entry", "launcher" }, UpdateMethods = { "install-over", "uninstall-first" };
         /// <summary>what a record must never hold: an author's permission or device-check results are kept private, never in the catalog</summary>
         public static readonly string[] PrivateFields = { "permission", "permissions", "opt_in", "author_permission", "permission_ledger", "tested", "tested_on", "test_results", "hardware", "hardware_evidence", "qualified", "qualification", "verified_on", "device_tests", "evidence" };
@@ -188,12 +202,24 @@ namespace CcsBackup.Engine
             var ex = Obj(r, "external_storage", who); Only(ex, who + "'s external storage", "writes", "locations", "text");
             x.WritesExternal = Bool(ex, "writes", who); x.ExternalLocations = Strings(ex, "locations", 8, 200, who, false); x.ExternalText = OptText(ex, "text", 400, who);
             if (x.WritesExternal && (x.ExternalLocations.Count == 0 || x.ExternalText == null)) throw new CommunityCatalogException(who + ": it writes external storage but does not say where and why");
+            if (!x.WritesExternal && x.ExternalLocations.Count > 0) throw new CommunityCatalogException(who + ": it names places on external storage but says it does not write there");
+            if (x.ExternalLocations.Any(p => !ExternalRe.IsMatch(p) || p.Split('/').Any(s => s == ".." || s == "."))) throw new CommunityCatalogException(who + ": a place it writes on a USB drive or SD card is not a plain path under /media/");
             var w = Obj(r, "writes", who); Only(w, who + "'s writes", "payload", "scripts");
             x.PayloadPaths = Strings(w, "payload", 64, 200, who, true); x.ScriptWrites = Strings(w, "scripts", 16, 300, who, false);
             if (x.PayloadPaths.Count == 0 || x.PayloadPaths.Any(p => !PayloadRe.IsMatch(p) || p.Split('/').Any(s => s == ".." || s == "."))) throw new CommunityCatalogException(who + ": a place it writes is not a plain relative path");
-            var la = Obj(r, "launch", who); Only(la, who + "'s launch", "kind", "return");
-            x.LaunchKind = Text(la, "kind", 20, who); x.LaunchReturn = OptText(la, "return", 300, who);
+            var la = Obj(r, "launch", who); Only(la, who + "'s launch", "kind", "return", "program");
+            x.LaunchKind = Text(la, "kind", 20, who); x.LaunchReturn = OptText(la, "return", 300, who); x.LaunchProgram = OptText(la, "program", 200, who);
             if (!LaunchKinds.Contains(x.LaunchKind)) throw new CommunityCatalogException(who + ": its launch kind is not none, service, menu-entry or launcher");
+            if (x.LaunchKind == "launcher" && x.LaunchProgram == null) throw new CommunityCatalogException(who + ": it starts as a launcher but does not name its program");
+            if (x.LaunchProgram != null)
+            {
+                if (x.LaunchKind != "launcher") throw new CommunityCatalogException(who + ": only a launcher names its program");
+                if (!ProgramRe.IsMatch(x.LaunchProgram) || x.LaunchProgram.Split('/').Any(s => s == ".." || s == ".")) throw new CommunityCatalogException(who + ": its program is not a plain relative path to a file");
+                if (!CommunityArchive.Covered(x.LaunchProgram, x.PayloadPaths)) throw new CommunityCatalogException(who + ": its program is not among the places it writes");
+            }
+            // a community menu starts from CCS Nucleus's startup chooser or from its own entry in Original Menu, never by itself at power-on
+            if (x.IsMenu && x.LaunchKind != "launcher" && x.LaunchKind != "menu-entry") throw new CommunityCatalogException(who + ": a menu must start as a launcher (a choice in CCS Nucleus's startup chooser) or from its entry in Original Menu, never by itself at power-on");
+            if (x.IsMenu && x.LaunchReturn == null) throw new CommunityCatalogException(who + ": a menu must say how to choose another menu from it (its launch's return)");
             if (r.TryGetValue("companion", out var co) && co != null)
             {
                 var cm = co as Dictionary<string, object> ?? throw new CommunityCatalogException(who + ": its companion is not an object");

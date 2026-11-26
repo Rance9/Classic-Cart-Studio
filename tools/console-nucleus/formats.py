@@ -10,10 +10,13 @@ ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 PATH_RE = re.compile(r"^/[A-Za-z0-9._/-]{1,199}$")
 LABEL_RE = re.compile(r"^[A-Za-z0-9 .,'!&()+:-]{1,60}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
-KINDS = ("native", "ccs-home", "owner-root")
+KINDS = ("native", "ccs-home", "owner-root", "community")
 IMAGE_PLACES = ("/var/lib/ccs/nucleus/roots/", "/var/lib/hakchi/firmware/", "/media/hakchi/firmware/")
-OPTION_FIELDS = ("kind", "label", "image", "sha256", "bytes", "package", "kernel", "drivers", "requires", "overlay", "saves", "compat",
+OPTION_FIELDS = ("kind", "label", "image", "sha256", "bytes", "package", "program", "kernel", "drivers", "requires", "overlay", "saves", "compat",
                  "owner", "fallback", "auto")
+# a community menu's hakchi package name (never Classic Cart Studio's own ccs-..., hakchi itself or a name ending in .hmod) and its program
+PACKAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
+def package_ok(p: str) -> bool: return bool(PACKAGE_RE.match(p or "")) and not p.lower().startswith("ccs-") and p != "hakchi" and not p.endswith(".hmod")
 KERNEL = "3.4.113.29-madmonkey"   # hakchi 3.9.3's kernel (hakchi.hmod var/version), the only one CCS HOME's player is built for
 
 class FormatError(ValueError): pass
@@ -49,7 +52,7 @@ def first(kv: list[tuple[str, str]], key: str, default: str = "") -> str:
 def registry_text(reg: dict) -> bytes:
     """the console's form of a registry given as JSON:
     {"schema": "ccs-boot-registry/1", "generation": 1, "default": "native", "selection": "default"|"last", "chooser": "always"|"never",
-     "timeout": 0..99, "options": [{"id": ..., "kind": "native"|"ccs-home"|"owner-root", "label": ..., <OPTION_FIELDS>}, ...]}
+     "timeout": 0..99, "options": [{"id": ..., "kind": "native"|"ccs-home"|"owner-root"|"community", "label": ..., <OPTION_FIELDS>}, ...]}
     (lists: "drivers" and "requires" as JSON lists, written space-separated)"""
     validate(reg)
     L = ["schema=ccs-boot-registry/1", f"generation={int(reg['generation'])}", f"default={reg['default']}", f"selection={reg['selection']}",
@@ -103,6 +106,11 @@ def validate(reg: dict):
             if not (path_ok(img) and img.endswith(".hsqs") and img.startswith(IMAGE_PLACES)): raise FormatError(f"{i}: image place")
             if not HEX64.match(o.get("sha256") or ""): raise FormatError(f"{i}: sha256")
             if not str(o.get("bytes") or "").isdigit(): raise FormatError(f"{i}: bytes")
+            if o.get("fallback") != "native": raise FormatError(f"{i}: fallback is native")
+        if k == "community":
+            if not package_ok(o.get("package") or ""): raise FormatError(f"{i}: package")
+            prog = o.get("program") or ""
+            if not (path_ok(prog) and prog.startswith("/var/lib/hakchi/rootfs/") and len(prog) > len("/var/lib/hakchi/rootfs/")): raise FormatError(f"{i}: program")
             if o.get("fallback") != "native": raise FormatError(f"{i}: fallback is native")
         for p in (o.get("requires") or []):
             if not path_ok(p): raise FormatError(f"{i}: requires {p!r}")

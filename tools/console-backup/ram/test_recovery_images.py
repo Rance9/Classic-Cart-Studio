@@ -131,8 +131,8 @@ def prep_static(by: dict):
           "ccs-prepare: installBoot2 refuses (the original kernel's copy and the kernel are separate checked steps)")
     body = c[c.index('case "$1" in'):]
     steps = {}
-    for m in re.finditer(r"^  ([\w-]+)\)\n(.*?);;", body, re.M | re.S): steps[m.group(1)] = m.group(2)
-    check(list(steps) == ["files", "uboot", "slot68", "kernel", "ret-stage", "ret-kernel", "ret-uboot", "ret-files", "ret-table", "mstate", "method", "unlist", "nstart", "rput", "rimport", "rdrop", "hput", "huse", "hdrop"], f"ccs-prepare: exactly the four preparation steps in hakchi's order, then the staging of this console's bootloader and the four return steps in mod_uninstall's order, then the four CCS Mod / CCS Nucleus steps, the three for an owner's system image and the three for CCS HOME's package ({', '.join(steps)})")
+    for m in re.finditer(r"^  ([\w|-]+)\)\n(.*?);;\n(?=  [\w|-]+\)\n|  \*\)|  # ---- |esac)", body, re.M | re.S): steps[m.group(1)] = m.group(2)
+    check(list(steps) == ["files", "uboot", "slot68", "kernel", "ret-stage", "ret-kernel", "ret-uboot", "ret-files", "ret-table", "mstate", "method", "unlist", "nstart", "nmadd|nmdrop", "rput", "rimport", "rdrop", "hput", "huse", "hdrop"], f"ccs-prepare: exactly the four preparation steps in hakchi's order, then the staging of this console's bootloader and the four return steps in mod_uninstall's order, then the four CCS Mod / CCS Nucleus steps, the two for a community menu's choice, the three for an owner's system image and the three for CCS HOME's package ({', '.join(steps)})")
     hp, hu = steps.get("hput", ""), steps.get("huse", "")
     check(hp.count("dmount rw") == 1 and hu.count("dmount rw") == 1 and 'head -c "$size" > "$A/in.tar"' in hp and hp.find('[ "$n" = "$size" ] && [ "$got" = "$want" ] ||') < hp.find("dmount rw") and hp.find("$((total + 8000000))") < hp.find('echo "began hput"')
           and hp.find("ramfree") < hp.find('head -c "$size"') and 'mv "$S/pkg" "$P/$copy"' in hp and hp.count("hstage") == 1 and hp.find('echo "began hput"') < hp.find("hstage;") and "hcheck \"$P/$copy\" \"$A/sums\"" in hp and "dmount ro,noload || { hram; r hput" in hp
@@ -146,15 +146,21 @@ def prep_static(by: dict):
           "ccs-prepare: an owner's system image goes only to CCS Nucleus's own folders (never hakchi's firmware folder): received straight to the data storage under a new name and kept only when its size, SHA-256 and SquashFS magic match and it fits beside 8,000,000 bytes; imported and removed only by this image's own pinned CCS Nucleus program, and removed only when it is Nucleus's own unchanged file")
     ms, mt, ul = steps.get("mstate", ""), steps.get("method", ""), steps.get("unlist", "")
     check("dmount ro,noload" in ms and "dmount rw" not in ms and not re.search(r"\bcp\b|\bmv\b|\brm\b|>", ms.replace("2>/dev/null", "")) and all(x.count("dmount rw") == 1 for x in (mt, ul)) and "dmount rw" not in head_of(c)
-          and all(k in ("method", "unlist", "nstart", "rput", "rimport", "rdrop", "hput", "huse", "hdrop") for k, v in steps.items() if "dmount rw" in v),
-          "ccs-prepare: mstate only reads (the data storage mounted read-only without journal replay); only method, unlist, nstart, rput, rimport, rdrop, hput, huse and hdrop mount it read-write, once each")
+          and all(k in ("method", "unlist", "nstart", "nmadd|nmdrop", "rput", "rimport", "rdrop", "hput", "huse", "hdrop") for k, v in steps.items() if "dmount rw" in v),
+          "ccs-prepare: mstate only reads (the data storage mounted read-only without journal replay); only method, unlist, nstart, nmadd and nmdrop, rput, rimport, rdrop, hput, huse and hdrop mount it read-write, once each")
+    nm = steps.get("nmadd|nmdrop", "")
+    check(nm.count("dmount rw") == 1 and "npkg ||" in nm and 'sh "$X/bin/ccs-nucleus" menu-add "$id" "$pkg" "$prog" "$label"' in nm and 'sh "$X/bin/ccs-nucleus" menu-drop "$id" "$pkg"' in nm
+          and nm.find("why=$(tfree) || { dumount; r ") < nm.find("dmount rw") and nm.find('nok || { dumount; r ') < nm.find("dmount rw") and nm.find('r "$step" "refused another kind of choice has this id"') < nm.find("dmount rw")
+          and nm.find('r nmadd "ok already $id"') < nm.find("dmount rw") and "/hakchi/transfer" not in nm and "transfer" not in nm and 'back=$(mline "$id")' in nm and "dmount ro,noload || r \"$step\" \"failed readback mount\"" in nm,
+          "ccs-prepare: nmadd and nmdrop change only a community menu's choice in CCS Nucleus's list, with this image's own pinned CCS Nucleus program; they refuse before the read-write mount when hakchi or CCS Nucleus's list is absent, a link is on the way, the console's CCS Nucleus is an earlier version or another kind of choice has the id; the same choice already there is not written again; read back")
     hd = steps.get("hdrop", "")
     check(hd.count("dmount rw") == 1 and hd.find("hnamed") < hd.find("dmount rw") and hd.find('hcheck "$P/$copy" "$T"') < hd.find("dmount rw") and hd.find('[ "$cur" = "$keep" ]') < hd.find("dmount rw")
           and hd.find("hother") < hd.find("dmount rw") and "pkg/current" not in hd and "> \"$P/current" not in hd and "mv " not in hd and "/hakchi/" not in hd and 'rm -f "$f"' in hd and hd.rfind("dmount ro,noload || r hdrop") > hd.find('echo "began hdrop"'),
           "ccs-prepare: hdrop decides with the data storage read-only (the copy in use is the reviewed one, no installation unfinished, no entry of Original Menu names the copy, every file is its record's) before it mounts it read-write once, checks all of it again then, removes only the files its record lists, never touches the pointer or hakchi's folders, and reads back read-only")
     sn = steps.get("nstart", "")
-    check(sn.rstrip().endswith('r nstart "ok $d $c $h $s $t"') and sn.count("dmount rw") == 1 and "grep -qE '^(native|ccs-home) (always|never) (on|off) (default|last) [0-9]{1,2}$' || r nstart \"refused request\"" in sn and 'sh "$X/bin/ccs-nucleus" start "$d" "$c" "$h" "$s" "$t"' in sn and "npkg ||" in sn
+    check(sn.rstrip().endswith('r nstart "ok $d $c $h $s $t"') and sn.count("dmount rw") == 1 and "rootid \"$d\" && echo \"$c $h $s $t\" | grep -qE '^(always|never) (on|off) (default|last) [0-9]{1,2}$' || r nstart \"refused request\"" in sn and 'sh "$X/bin/ccs-nucleus" start "$d" "$c" "$h" "$s" "$t"' in sn and "npkg ||" in sn
           and sn.find("why=$(tfree) || { dumount; r nstart") < sn.find("dmount rw") and sn.find('[ "$now" = "$d $c $h $s $t" ] && r nstart "ok already') < sn.find("dmount rw")
+          and -1 < sn.find('r nstart "refused the default is not one of CCS Nucleus\'s choices"') < sn.find("dmount rw") and -1 < sn.find('r nstart "refused an owner\'s system image opens first only with the chooser at start"') < sn.find("dmount rw")
           and '[ "$back" = "$d $c $h $s $t" ] || r nstart "failed readback' in sn and "/hakchi/" not in sn and "transfer" not in sn and 'npkg(){ X="$ST/nucleus-pkg";' in head_of(c) and 'tar -xzf "$CCS/prep/methods/ccs-nucleus.hmod"' in head_of(c),
           "ccs-prepare: nstart sets what opens at power-on only with this image's own pinned CCS Nucleus program (its start command, CCS Nucleus's own folder on the data storage; never hakchi's overlay or transfer folder), refuses before the read-write mount when hakchi is absent or a link is on the way, writes nothing when the setting is already the one asked for, and reads it back")
     check(all('mv -f "$t.ccs-new" "$t"' in x and 'why=$(tfree) || { dumount; r ' in x and "dmount ro,noload || r" in x and "ok already $want" in x for x in (mt, ul))
@@ -178,7 +184,7 @@ def prep_static(by: dict):
           and 'mountpoint -q "$mountpoint/var/lib" || { umount_base; r files "failed mount"; }' in steps.get("files", "") and 'mountpoint -q "$mountpoint/var/lib" || { umount_base; r ret-files "failed mount"; }' in steps.get("ret-files", ""),
           "ccs-prepare: only the files and ret-files steps mount the data storage, and each stops when that mount did not happen")
     check(burns == {"files": [], "uboot": ['flashBoot1 "$HMOD/boot/uboot.bin" && r uboot "ok $(readBoot1 '], "slot68": ['flashBoot2 "$temppath/boot.img" 68 '],
-                    "kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-stage": [], "ret-kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-uboot": [], "ret-files": [], "ret-table": [], "mstate": [], "method": [], "unlist": [], "nstart": [], "rput": [], "rimport": [], "rdrop": [], "hput": [], "huse": [], "hdrop": []},
+                    "kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-stage": [], "ret-kernel": ['flashBoot2 "$temppath/boot.img" '], "ret-uboot": [], "ret-files": [], "ret-table": [], "mstate": [], "method": [], "unlist": [], "nstart": [], "nmadd|nmdrop": [], "rput": [], "rimport": [], "rdrop": [], "hput": [], "huse": [], "hdrop": []},
           f"ccs-prepare: one burn per step: hakchi's u-boot, the original kernel to slot 68, hakchi's kernel to its place; on the way back the original kernel to its place ({burns})")
     check(steps.get("slot68", "").find("isOriginalBoot2 ||") < steps.get("slot68", "").find("flashBoot2") and steps.get("kernel", "").lstrip().startswith("haveBackup2 ||"),
           "ccs-prepare: the spare slot receives only the original kernel, and hakchi's kernel is refused while the original is not in the spare slot")
@@ -608,8 +614,10 @@ def method_runs(R: str, step, A: str):
     sh_out(R, f"rm -rf '{T}'")
     # ---- what opens at power-on: CCS Nucleus's start setting, set by this image's own CCS Nucleus program (before hakchi installs it)
     reg = "@R@/newroot/var/lib/ccs/nucleus/registry"
-    r, w, t = step("nstart other never off default 10", A)
+    r, w, t = step("nstart Other never off default 10", A)
     check("result nstart refused request" in r.stdout and not w and not t, f"ccs-prepare: nstart takes only the listed words ({last(r)})")
+    r, w, t = step("nstart other never off default 10", A)
+    check("result nstart refused the default is not one of CCS Nucleus's choices" in r.stdout and not w and not t, f"ccs-prepare: another option as what opens first only when CCS Nucleus's list has it; nothing mounted read-write ({last(r)})")
     r, w, t = step("nstart native never off default 100", A)
     check("result nstart refused request" in r.stdout and not w, f"ccs-prepare: a countdown of at most two digits ({last(r)})")
     r, w, t = step("nstart native never off default 10")
@@ -666,12 +674,57 @@ def method_runs(R: str, step, A: str):
           f"ccs-prepare: rimport runs this image's own CCS Nucleus import: the image in Nucleus's own folder, a registry choice with its SHA-256, read back ({last(r)})")
     r, w, t = step("mstate")
     check(f"option=owner-1 owner-root {ish} 4096" in r.stdout and "registry=ok" in r.stdout and re.search(r"free=[1-9][0-9]*", r.stdout) and not w, f"ccs-prepare: mstate lists the registry's choices and the free space ({last(r)})")
+    # the owner's own settings written back as they are: that image as what opens first (only with the chooser at start), a 20-second countdown
+    r, w, t = step("nstart owner-1 always off default 20", A); rm_, _, _ = step("mstate")
+    check("result nstart ok owner-1 always off default 20" in r.stdout and w == ["WRITE mount nandc rw"] and not t and "start=owner-1 always off default 20" in rm_.stdout
+          and f"start_label={base64.b64encode(b'My Other System').decode()}" in rm_.stdout,
+          f"ccs-prepare: nstart keeps the owner's own system image as what opens first, with its countdown; mstate names it ({last(r)}; {last(rm_)})")
+    r1, w1, _ = step("nstart owner-1 never off default 20", A); r2, w2, _ = step("nstart owner-2 always off default 20", A)
+    check("result nstart refused an owner's system image opens first only with the chooser at start" in r1.stdout and "result nstart refused the default is not one of CCS Nucleus's choices" in r2.stdout and not (w1 or w2),
+          f"ccs-prepare: that image straight away without the chooser, or an option the list does not have, refused before anything is written ({last(r1)}; {last(r2)})")
+    r, w, t = step("nstart native never off last 0", A)
+    check("result nstart ok native never off last 0" in r.stdout, f"ccs-prepare: (set-up) Original Menu first again ({last(r)})")
     r, w, t = step(f"rdrop owner-1 {'0' * 64}", A)
     check("result rdrop refused the image is not CCS Nucleus's own unchanged file" in r.stdout and "opt.owner-1.kind" in sh_out(R, "cat '@R@/newroot/var/lib/ccs/nucleus/registry'"), f"ccs-prepare: rdrop with another SHA-256 changes nothing ({last(r)})")
     r, w, t = step(f"rdrop owner-1 {ish}", A)
     check("result rdrop ok owner-1" in r.stdout and "owner-1" not in sh_out(R, "cat '@R@/newroot/var/lib/ccs/nucleus/registry'") and sh_out(R, "test -e '@R@/newroot/var/lib/ccs/nucleus/roots/owner-1.hsqs' && echo THERE").strip() == ""
           and "roots/owner-1.hsqs" not in sh_out(R, "cat '@R@/newroot/var/lib/ccs/owned/nucleus.own'") and not t,
           f"ccs-prepare: rdrop removes the choice, then Nucleus's own copy of the image and its record ({last(r)})")
+    # ---- a community menu as a choice in CCS Nucleus's startup chooser: this image's own CCS Nucleus program changes its list, nothing else
+    MI = "cm-0123456789ab"; MP = "/var/lib/hakchi/rootfs/bin/fx_menu"; ml = base64.b64encode(b"Fixture Menu").decode()
+    regm = lambda: sh_out(R, "cat '@R@/newroot/var/lib/ccs/nucleus/registry'")
+    r1, w1, _ = step(f"nmadd {MI} ccs-mod {MP} {ml}", A); r2, w2, _ = step(f"nmadd {MI} fx_menu /etc/passwd {ml}", A); r3, w3, _ = step(f"nmadd native fx_menu {MP} {ml}", A)
+    check(all("refused request" in last(x) for x in (r1, r2, r3)) and not (w1 or w2 or w3) and MI not in regm(),
+          f"ccs-prepare: nmadd refuses a Classic Cart Studio package, a program outside hakchi's overlay or the console's own system's id before anything ({last(r1)}; {last(r2)}; {last(r3)})")
+    r, w, t = step(f"nmadd {MI} fx_menu {MP} {ml}")
+    check("failed mount" in last(r) and any("nandc" in x for x in t) and MI not in regm(), f"ccs-prepare: without write permission nmadd writes nothing ({last(r)})")
+    r, w, t = step(f"nmadd {MI} fx_menu {MP} {ml}", A); rg = regm()
+    check(f"result nmadd ok {MI}" in r.stdout and f"opt.{MI}.kind=community" in rg and f"opt.{MI}.package=fx_menu" in rg and f"opt.{MI}.program={MP}" in rg and f"opt.{MI}.label=Fixture Menu" in rg
+          and w == ["WRITE mount nandc rw"] and not t and sh_out(R, "test -e '@R@/newroot/var/lib/hakchi/transfer' && echo THERE").strip() == "",
+          f"ccs-prepare: nmadd adds the menu's choice to CCS Nucleus's list with this image's own CCS Nucleus program, reads it back; nothing in hakchi's transfer folder ({last(r)}; {w})")
+    r, w, t = step("mstate")
+    check(f"menu={MI} fx_menu {MP} {ml}" in r.stdout and f"option={MI} community" in r.stdout and "addon=ccs-nucleus current" in r.stdout and "addon=ccs-mod none" in r.stdout and "addon=ccs-nucleus-chooser none" in r.stdout and not w,
+          f"ccs-prepare: mstate lists the menu's choice (package, program, label) and each add-on against this image's own: CCS Nucleus this image's, CCS Mod and the chooser not installed ({last(r)})")
+    r, w, t = step(f"nmadd {MI} fx_menu {MP} {ml}", A)
+    check(f"result nmadd ok already {MI}" in r.stdout and "began nmadd" not in r.stdout and not w, f"ccs-prepare: the same choice already there is not written again ({last(r)})")
+    r, w, t = step(f"nmdrop {MI} other_pkg", A)
+    check("result nmdrop refused the choice names another package" in r.stdout and not w and f"opt.{MI}.kind=community" in regm(), f"ccs-prepare: nmdrop never removes a choice naming another package ({last(r)})")
+    sh_out(R, f"printf '%s\\n' '# an earlier version' >> '{H}/bin/ccs-nucleus'")
+    rs, _, _ = step("mstate"); r, w, t = step(f"nmdrop {MI} fx_menu", A)
+    check("addon=ccs-nucleus earlier" in rs.stdout and "result nmdrop refused CCS Nucleus on the console is an earlier version" in r.stdout and not w and f"opt.{MI}.kind=community" in regm(),
+          f"ccs-prepare: with an earlier CCS Nucleus program on the console (and this version's not waiting), its list is never changed with this image's ({last(r)})")
+    sh_out(R, f"printf 'version=0\\n' >> '{H}/etc/ccs/nucleus/VERSION'")
+    rs2, _, _ = step("mstate")
+    check("addon=ccs-nucleus earlier" in rs2.stdout, f"ccs-prepare: another package record (VERSION) of CCS Nucleus reads as an earlier version too ({last(rs2)})")
+    # this version's CCS Nucleus waiting to be installed over the earlier one (the update in the same change): its list may be changed
+    r0, w0, _ = step("method ccs-nucleus " + nuc, A)
+    r, w, t = step(f"nmdrop {MI} fx_menu", A); rg = regm()
+    sh_out(R, f"rm -rf '@R@/newroot/var/lib/hakchi/transfer'; cd '{H}' && tar -xzf '@R@/root/ccs/prep/methods/ccs-nucleus.hmod' ./bin/ccs-nucleus ./etc/ccs/nucleus/VERSION")
+    rs3, _, _ = step("mstate")
+    check(f"result method ok {nuc}" in r0.stdout and "addon=ccs-nucleus current" in rs3.stdout, f"ccs-prepare: (set-up) this version's CCS Nucleus placed for the update, then installed ({last(r0)}; {last(rs3)})")
+    r2, w2, _ = step(f"nmdrop {MI} fx_menu", A)
+    check(f"result nmdrop ok {MI}" in r.stdout and MI not in rg and "opt.native.kind=native" in rg and w == ["WRITE mount nandc rw"] and not t and f"result nmdrop ok already {MI}" in r2.stdout and not w2,
+          f"ccs-prepare: nmdrop removes only that menu's choice, reads it back; a choice already gone is ok already ({last(r)}; {last(r2)})")
     sh_out(R, f"cd '{H}' && rm -rf bin/ccs-nucleus etc/ccs etc/preinit.d/p7060_ccsnucleus etc/preinit.d/p7071_ccsnucleus etc/init.d/S81ccs-nucleus; rm -rf '@R@/newroot/var/lib/ccs' '@R@/newroot/var/lib/hakchi/hmod/uninstall-ccs-nucleus' '@R@/newroot/var/lib/hakchi/games/000/CLV-H-CCSNU' '@R@/newroot/var/lib/hakchi/rootfs/usr/share/games/nes/kachikachi/CLV-H-CCSNU'")
 
 def home_archive(tag: str, attempt: str, wrong_record: bool = False, names: dict | None = None) -> tuple[bytes, str, int, str]:

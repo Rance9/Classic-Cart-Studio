@@ -330,7 +330,7 @@ namespace CcsBackup.Ui
             { "plan-checklist", "Console Composer" }, { "firmware", "Console Composer" }, { "designer", "Console Composer" }, { "design-editor", "Console Composer" },
             { "design-share", "Console Composer" }, { "design-console", "Console Composer" }, { "design-check", "Console Composer" }, { "design-plan", "Console Composer" },
             { "prepare", "Console Composer" }, { "prep-plan", "Console Composer" },
-            { "community", "Console Composer" }, { "community-details", "Console Composer" }, { "community-files", "Console Composer" }, { "community-plan", "Console Composer" },
+            { "community", "Console Composer" }, { "community-details", "Console Composer" }, { "community-files", "Console Composer" }, { "community-storage", "Console Composer" }, { "community-plan", "Console Composer" },
             { "community-remove", "Console Composer" }, { "community-rollback", "Console Composer" }, { "community-result", "Console Composer" },
             { "console-browser", "Console Browser" }, { "checkup", "Console Browser" },
             { "backup-browser", "Backup Browser" }, { "browse", "Backup Browser" }, { "browse-damaged", "Backup Browser" }, { "export-result", "Backup Browser" },

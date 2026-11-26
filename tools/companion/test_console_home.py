@@ -205,9 +205,9 @@ class Routes(unittest.TestCase):
         s, j = req("GET", "/api/console/home/status", headers=self.desk); self.assertEqual(j["records"]["operations"][0]["outcome"], "installed"); self.assertTrue(j["records"]["last_plan_current"])
     def test_24_the_addon_choice_through_the_routes(self):
         s, j = req("POST", "/api/console/home/plan", {"nucleus": "chooser", "start": "ccs-home", "auto": "wait", "folder": "C:/elsewhere", "mod_start": "on"}, headers=self.desk); self.assertEqual(s, 200, j)
-        p = j["result"]; self.assertEqual((p["addons"], p["start_line"]), ({"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "wait"}, "ccs-home always on default 0"))
+        p = j["result"]; self.assertEqual((p["addons"], p["start_line"]), ({"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "wait", "countdown": 10, "at_start": True}, "ccs-home always on default 0"))
         self.assertEqual(p["start_text"], "When the console is turned on, the startup chooser appears first. Nothing starts until you choose."); self.assertEqual(list(p["packages"]), ["mod", "nucleus", "nucleus-chooser"])
-        for bad in ({"mod": "true"}, {"nucleus": ["chooser"]}, {"auto": "wait now"}):
+        for bad in ({"mod": "true"}, {"nucleus": ["chooser"]}, {"auto": "wait now"}, {"countdown": "10"}, {"countdown": True}, {"at_start": 1}):
             s, j = req("POST", "/api/console/home/plan", bad, headers=self.desk); self.assertEqual((s, j.get("code")), (400, "bad-choice"), bad)
         s, j = req("POST", "/api/console/home/plan", {"mod": False, "nucleus": "direct", "start": "ccs-home"}, headers=self.desk); self.assertEqual((s, j.get("code"), j.get("error")), (409, "refused", CI.HOME_NEEDS_MOD))
         # without CCS Mod the collection reaches the console only as Hakchi games: neither is refused, and so is a collection none of whose
@@ -218,7 +218,7 @@ class Routes(unittest.TestCase):
         self.assertEqual((pf["add"], pf["start"]["now"], pf["start"]["want"]), (["ccs-mod", "ccs-nucleus-chooser"], "native never off default 10", "ccs-home always on default 0"))
         self.assertEqual(pf["changes_text"], "Adds CCS Mod and CCS Nucleus's startup chooser. Updates CCS Nucleus's start setting: When the console is turned on, the startup chooser appears first. Nothing starts until you choose.")
         s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); s, j = req("POST", "/api/console/home/preflight", {"plan_hash": j["result"]["hash"], "profile": "with-all"}, headers=self.desk)
-        pf = j["result"]; self.assertFalse(pf["ok"]); self.assertEqual((pf["why"], pf["keep_choice"]), (CI.REMOVES_TEXT, {"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "last"}))
+        pf = j["result"]; self.assertFalse(pf["ok"]); self.assertEqual((pf["why"], pf["keep_choice"]), (CI.REMOVES_TEXT, {"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "last", "countdown": 10, "at_start": True}))
     def test_22_physical_operations_need_a_checked_console_and_a_source_checkout_has_no_console_worker(self):
         s, j = req("POST", "/api/console/home/plan", {}, headers=self.desk); h = j["result"]["hash"]
         for op in ("confirm", "install", "update", "uninstall", "recover", "check", "verify", "export"):

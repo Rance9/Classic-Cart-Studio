@@ -325,7 +325,7 @@ namespace CcsBackup.Tests
                 Check(Choice(false).StartLine == null && Choice(true).StartLine == null && Choice(true, "direct", "ccs-home").StartLine == "ccs-home never on default 10" && Choice(false, "direct").StartLine == "native never off default 10"
                       && Choice(true, "chooser", "native", "last").StartLine == "native always on last 10" && Choice(false, "chooser", "native", "wait").StartLine == "native always off default 0",
                       "CCS Nucleus's start setting for each choice: what opens, the chooser always or never, CCS HOME offered with CCS Mod, what the chooser starts by itself and after how long; none without CCS Nucleus");
-                Check(Choice(false, "maybe").Problem() != null && Choice(true, "direct", "elsewhere").Problem() != null && Choice(true, "chooser", "native", "soon").Problem() != null
+                Check(Choice(false, "maybe").Problem() != null && Choice(true, "direct", "Elsewhere!").Problem() != null && Choice(true, "chooser", "native", "soon").Problem() != null
                       && (Choice(false, "direct", "ccs-home").Problem() ?? "").Contains("only with CCS Mod") && Choice(false, "chooser", "ccs-home").Problem() != null && Choice(true, "chooser", "ccs-home", "wait").Problem() == null,
                       "an unknown CCS Nucleus profile, start or chooser selection is refused, and so is CCS HOME at power-on without CCS Mod (" + Choice(false, "direct", "ccs-home").Problem() + ")");
                 string State(string body) => "hakchi=v1.0.4-126\n" + body + "free=1\nregistry=ok\nhome_pointer=absent\nhome_identity=absent\nram=1\nresult mstate ok\n";
@@ -708,6 +708,73 @@ namespace CcsBackup.Tests
                       "the next normal start removes the chooser first, then installs CCS Mod; CCS Nucleus opens CCS HOME (" + Listed(st) + ")");
                 var (n, nr) = MethodEngine.Prepare(OpenMethod(c), mctx, Choice(true, "direct", "ccs-home"), home);
                 Check(n == null && nr.Problem.Contains("Nothing to change"), "the same add-ons again: nothing to change (" + nr?.Problem + ")");
+                GoneConsole(c); GoneBackups(sM);
+            });
+
+            Part("Console Restore: the console's own start setting kept as it is through another change and an update (Last Used with no countdown, another countdown, the chooser not shown at start, its own system image first)", () =>
+            {
+                const string OldNucleusPin = "0074f2ec6bba1f7f329a3eafdfac4beaef3681e87802680e38aa435043eef2b7";   // CCS Nucleus as 0.11.11 published it
+                var c = SmallConsole("modified", true); SetInstalled(c, Methods.Nucleus, Methods.Chooser); SetStart(c, "native always off last 0");
+                var home = HomePackage.Folder(MakeHome("mod", "k1"), "mod");
+                AddonChoice Now(RecoveryConsole k) { var (st0, _, why0) = MethodEngine.Current(k, mctx); return why0 == null ? AddonChoice.FromState(st0) : null; }
+                // read as it is (the pages start from this choice, sent back and forth as JSON)
+                var con = OpenMethod(c); var cur = Now(con); var back = AddonChoice.FromJson(Json.Parse(Json.Write(cur?.ToJson())));
+                Check(cur != null && cur.Auto == "last" && cur.Seconds == 0 && cur.AtStart && cur.StartLine == "native always off last 0" && back?.StartLine == cur.StartLine && back.SameAs(cur)
+                      && cur.StartText.Contains("Nothing starts until you choose; the menu you used last is selected first") && cur.AutoText.StartsWith("Nothing starts until you choose."),
+                      "Last Used with no countdown (set on the console) is read as it is, also through the pages' JSON: " + Flat(cur?.StartText));
+                // another startup change made from it (CCS Mod added: CCS HOME offered): every other part of the start setting written back as it was
+                var t1 = cur.Copy(); t1.Mod = true;
+                var (p, r) = MethodEngine.Prepare(con, mctx, t1, home);
+                Check(r == null && p.StartLine == "native always on last 0" && p.Steps.SequenceEqual(new[] { "method:ccs-mod", "nstart", "hput", "huse" }) && p.Text.Contains("the menu you used last is selected first"),
+                      "CCS Mod added: the start setting changes only in offering CCS HOME; Last Used with no countdown stays (" + (p?.StartLine ?? Flat(r?.Problem)) + ")");
+                var o = MethodEngine.Execute(con, p, p.Digest, p.Nonce, mctx); Gone(p.ProtectivePath); var ns = SimulatedConsole.NormalStart(c);
+                Check(o.State == "scheduled" && Writes(c).Contains("nstart native always on last 0") && StartIn(c) == "native always on last 0" && Sorted(Installed(c)).SequenceEqual(new[] { "ccs-mod", "ccs-nucleus", "ccs-nucleus-chooser" }),
+                      "written, read back and still so after the next start (" + o.Problem + "; " + StartIn(c) + ")");
+                // the update alone (CCS Nucleus from 0.11.11): no start step at all, the setting stays through hakchi's install over it
+                SimulatedConsole.SetAddonInstalled(c, "ccs-nucleus", OldNucleusPin); var n1 = Writes(c).Count;
+                con = OpenMethod(c); var t2 = Now(con); t2.Update = true;
+                (p, r) = MethodEngine.Prepare(con, mctx, t2, home);
+                Check(r == null && p.Updated.SequenceEqual(new[] { "ccs-nucleus" }) && p.StartLine == null && p.Steps.SequenceEqual(new[] { "method:ccs-nucleus" }),
+                      "an update alone: this version's CCS Nucleus placed, CCS Nucleus's start not written (" + (p != null ? Listed(p.Steps) : Flat(r?.Problem)) + ")");
+                o = MethodEngine.Execute(con, p, p.Digest, p.Nonce, mctx); Gone(p.ProtectivePath); ns = SimulatedConsole.NormalStart(c);
+                var after = Now(OpenMethod(c));
+                Check(o.State == "scheduled" && Writes(c).Skip(n1).SequenceEqual(new[] { "method ccs-nucleus" }) && ns.Contains("install ccs-nucleus") && StartIn(c) == "native always on last 0"
+                      && after?.StartLine == "native always on last 0",
+                      "the next start installs this version over the earlier one; Last Used with no countdown is unchanged (" + Listed(ns) + "; " + StartIn(c) + ")");
+                // the same with another change in the same review: a countdown of 20 seconds and the chooser not shown at start (both set on the
+                // console), CCS Mod removed while CCS Nucleus is updated
+                SetStart(c, "native never on default 20"); SimulatedConsole.SetAddonInstalled(c, "ccs-nucleus", OldNucleusPin); n1 = Writes(c).Count;
+                con = OpenMethod(c); var t3 = Now(con);
+                Check(t3 != null && !t3.AtStart && t3.Seconds == 20 && t3.Nucleus == "chooser" && t3.StartLine == "native never on default 20" && t3.StartText.Contains("does not show at start"),
+                      "a 20-second countdown and the chooser not shown at start are read as they are: " + Flat(t3?.StartText));
+                t3.Update = true; t3.Mod = false;
+                (p, r) = MethodEngine.Prepare(con, mctx, t3, home);
+                Check(r == null && p.StartLine == "native never off default 20" && p.Updated.SequenceEqual(new[] { "ccs-nucleus" }) && p.Remove.SequenceEqual(new[] { "ccs-mod" })
+                      && p.Steps.SequenceEqual(new[] { "method:ccs-nucleus", "nstart", "unlist" }),
+                      "CCS Mod removed and CCS Nucleus updated in one review: only CCS HOME's offer changes in the start setting (" + (p?.StartLine ?? Flat(r?.Problem)) + ")");
+                o = MethodEngine.Execute(con, p, p.Digest, p.Nonce, mctx); Gone(p.ProtectivePath); ns = SimulatedConsole.NormalStart(c);
+                Check(o.State == "scheduled" && Writes(c).Skip(n1).SequenceEqual(new[] { "method ccs-nucleus", "nstart native never off default 20", "unlist ccs-mod" }) && StartIn(c) == "native never off default 20",
+                      "written and read back; after the next start the countdown and the chooser's setting are as before (" + o.Problem + "; " + StartIn(c) + ")");
+                // its own system image as what opens first (set on the console): named, kept through another change
+                File.WriteAllText(Path.Combine(c, "nucleus-registry.json"), Json.Write(new JObj { { "options", new JObj {
+                    { "ccs-home", new JObj { { "kind", "ccs-home" } } }, { "my-snes", new JObj { { "kind", "owner-root" }, { "label", "My Other System" }, { "sha256", new string('a', 64) }, { "bytes", 1000L } } }, { "native", new JObj { { "kind", "native" } } } } } }));
+                SetStart(c, "my-snes always off default 10"); n1 = Writes(c).Count;
+                con = OpenMethod(c); var t4 = Now(con);
+                Check(t4 != null && t4.Start == "my-snes" && t4.StartName == "My Other System" && t4.StartText.Contains("If you do nothing, My Other System starts in 10 seconds."),
+                      "its own system image as what opens first is read and named as the console names it: " + Flat(t4?.StartText));
+                var t5 = t4.Copy(); t5.Mod = true;
+                (p, r) = MethodEngine.Prepare(con, mctx, t5, home);
+                Check(r == null && p.StartLine == "my-snes always on default 10", "CCS Mod added: what opens first stays the console's own system image (" + (p?.StartLine ?? Flat(r?.Problem)) + ")");
+                o = MethodEngine.Execute(con, p, p.Digest, p.Nonce, mctx); Gone(p.ProtectivePath);
+                Check(o.State == "scheduled" && Writes(c).Skip(n1).Contains("nstart my-snes always on default 10") && StartIn(c) == "my-snes always on default 10", "written and read back (" + o.Problem + ")");
+                // refused before anything: that image straight away without the chooser, and a menu the console does not have as what opens first
+                int b0 = BackupFiles(sM); n1 = Writes(c).Count;
+                var t6 = t4.Copy(); t6.Mod = true; t6.Nucleus = "direct";
+                var (q, qr) = MethodEngine.Prepare(OpenMethod(c), mctx, t6, home);
+                var t7 = t4.Copy(); t7.Mod = true; t7.Start = "other-image";
+                var (q2, qr2) = MethodEngine.Prepare(OpenMethod(c), mctx, t7, home);
+                Check(q == null && qr.Problem.Contains("opens first only from the startup chooser") && q2 == null && qr2.Problem.Contains("Choose what opens when the console is turned on") && BackupFiles(sM) == b0 && Writes(c).Count == n1,
+                      "refused before any backup or write: its own system image straight away without the chooser (" + Flat(qr?.Problem) + "), a menu the console does not have (" + Flat(qr2?.Problem) + ")");
                 GoneConsole(c); GoneBackups(sM);
             });
 

@@ -1,5 +1,5 @@
 ; Inno Setup script — Classic Cart Studio for Windows (per-user install, no administrator rights).
-; Build: ISCC.exe /DAppVersion=0.11.11 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release /DWorkbenchDir=..\..\build\workbench-host installer.iss
+; Build: ISCC.exe /DAppVersion=0.11.12 /DSourceDir=..\..\build\dist\ClassicCartStudioBackend /DOutDir=..\..\build\release /DWorkbenchDir=..\..\build\workbench-host installer.iss
 ; The frozen backend tree (SourceDir) also carries ClassicCartStudio.exe and the WebView2 assemblies, copied there by the release workflow. The wizard's
 ; pictures (tools/publish/make_installer_art.py) and the setup's icon come from the repository, relative to this script, like the legal files.
 ; Needs Inno Setup 6.7.0 or later (the dark style's hidebevels, WizardBackColor and WizardBackImageFile).
@@ -33,6 +33,8 @@
 #define AppName "Classic Cart Studio"
 #define AppExe "ClassicCartStudio.exe"
 #define BackendExe "ClassicCartStudioBackend.exe"
+; held by every Classic Cart Studio window, whatever its data folder (tools/desktop/ClassicCartStudio/Program.cs MutexName)
+#define StudioMutex "Local\ClassicCartStudio.Main"
 #define AppPublisher "Rance9 LLC"
 #define AppURL "https://classiccartstudio.com/"
 #define RepoURL "https://github.com/Rance9/Classic-Cart-Studio"
@@ -501,6 +503,92 @@ begin
   Exec(ExpandConstant('{localappdata}\Programs\ClassicCartStudio\{#AppExe}'), '', '', SW_SHOWNORMAL, ewNoWait, Code);
 end;
 
+// ---- "Close it for me" (Getting Ready, while Classic Cart Studio is open). Windows' own way of closing programs for Setup cannot close the
+// app's background program, which has no window, so on its own it closed nothing and Setup reported that it could not close the app. Setup
+// therefore closes the app itself, the way the window's close button does: each visible window of a program in this installation's folder
+// (the app's window, a game window it opened) is asked to close. The app ends its background program as it closes, and asks first when a
+// game is open. Setup waits for that, so this works whichever version of the app is open. Nothing is ended by force.
+const
+  WM_CLOSE = $0010; GW_OWNER = 4; PROCESS_QUERY_LIMITED_INFORMATION = $1000;
+  CLOSE_WAIT_MS = 120000;   // time to answer the app's own question when a game is open
+  STILL_OPEN = 'Classic Cart Studio is still open. Close it, then click Next again.';
+var
+  ClosePage: TOutputMarqueeProgressWizardPage; AppPrefix: String; AppWindowsFound: Integer; AskToClose: Boolean;
+
+function EnumWindows(Callback: Longword; Param: Longint): Boolean; external 'EnumWindows@user32.dll stdcall';
+function GetWindowThreadProcessId(Wnd: HWND; var Pid: DWORD): DWORD; external 'GetWindowThreadProcessId@user32.dll stdcall';
+function IsWindowVisible(Wnd: HWND): Boolean; external 'IsWindowVisible@user32.dll stdcall';
+function GetWindow(Wnd: HWND; Cmd: Cardinal): HWND; external 'GetWindow@user32.dll stdcall';
+function OpenProcess(Access: DWORD; Inherit: Boolean; Pid: DWORD): THandle; external 'OpenProcess@kernel32.dll stdcall';
+function QueryFullProcessImageNameW(Process: THandle; Flags: DWORD; Name: String; var Size: DWORD): Boolean; external 'QueryFullProcessImageNameW@kernel32.dll stdcall';
+function CloseHandle(Handle: THandle): Boolean; external 'CloseHandle@kernel32.dll stdcall';
+
+function ProgramOf(Wnd: HWND): String;   // the full path of the program that owns a window ('' when Windows does not say)
+var Pid, N: DWORD; P: THandle; S: String;
+begin
+  Result := ''; Pid := 0;
+  GetWindowThreadProcessId(Wnd, Pid);
+  if Pid = 0 then Exit;
+  P := OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, Pid);
+  if P = 0 then Exit;
+  N := 1024; S := StringOfChar(#0, N);
+  if QueryFullProcessImageNameW(P, 0, S, N) then Result := Copy(S, 1, N);
+  CloseHandle(P);
+end;
+
+function AppWindow(Wnd: HWND; Param: Longint): Boolean;   // each visible window of its own (not a dialog) of a program in this installation
+begin
+  Result := True;
+  if (not IsWindowVisible(Wnd)) or (GetWindow(Wnd, GW_OWNER) <> 0) then Exit;
+  if Pos(AppPrefix, Lowercase(ProgramOf(Wnd))) <> 1 then Exit;
+  AppWindowsFound := AppWindowsFound + 1;
+  if AskToClose then PostMessage(Wnd, WM_CLOSE, 0, 0);
+end;
+
+function AppWindows(Close: Boolean): Integer;   // how many there are; Close: ask each one to close
+begin
+  AppPrefix := Lowercase(AddBackslash(ExpandConstant('{app}'))); AppWindowsFound := 0; AskToClose := Close;
+  if Length(AppPrefix) > 4 then EnumWindows(CreateCallback(@AppWindow), 0);
+  Result := AppWindowsFound;
+end;
+
+function StudioOpen: Boolean;
+begin
+  Result := (AppWindows(False) > 0) or CheckForMutexes('{#StudioMutex}');
+end;
+
+function CloseStudioForUpdate(ShowPage: Boolean): Boolean;   // True once nothing of this installation shows a window and the app has ended
+var Waited: Integer;
+begin
+  Result := not StudioOpen;
+  if Result then Exit;
+  Log('Closing Classic Cart Studio: ' + IntToStr(AppWindows(True)) + ' window(s) asked to close');
+  if ShowPage then ClosePage.Show;
+  try
+    Waited := 0;
+    while (AppWindows(False) > 0) and (Waited < CLOSE_WAIT_MS) do begin
+      if ShowPage then ClosePage.Animate;
+      Sleep(100); Waited := Waited + 100;
+    end;
+    // the app's own end follows its window (its background program has stopped by then); a few seconds more at most
+    while CheckForMutexes('{#StudioMutex}') and (AppWindows(False) = 0) and (Waited < CLOSE_WAIT_MS + 15000) do begin
+      if ShowPage then ClosePage.Animate;
+      Sleep(100); Waited := Waited + 100;
+    end;
+  finally
+    if ShowPage then ClosePage.Hide;
+  end;
+  Result := AppWindows(False) = 0;
+  Log('Classic Cart Studio closed for the update: ' + IntToStr(Ord(Result)) + ' after ' + IntToStr(Waited) + ' ms (another app window still holding the app''s lock: ' + IntToStr(Ord(CheckForMutexes('{#StudioMutex}'))) + ')');
+end;
+
+function NoCloseApplications: Boolean;   // /NOCLOSEAPPLICATIONS: the person asked Setup not to close programs
+var I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do if CompareText(ParamStr(I), '/NOCLOSEAPPLICATIONS') = 0 then Result := True;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var Before, After, Code: Integer; J1, J2, F: String; Shown: Boolean;
 begin
@@ -508,6 +596,10 @@ begin
   if WorkbenchOpen then begin   // started since Setup began: still nothing is changed or ended
     if ExpandConstant('{param:CCSUPDATE|0}') = '1' then StartStudioAgain;
     Result := 'Classic Cart Studio was not changed. CCS Console Workbench is open, or a console task is running. Wait for the task to finish and close CCS Console Workbench, then run this installer again.';
+    Exit;
+  end;
+  if WizardSilent and (ExpandConstant('{param:CCSUPDATE|0}') <> '1') and (not NoCloseApplications) and (not CloseStudioForUpdate(False)) then begin
+    Result := 'Classic Cart Studio was not changed. ' + STILL_OPEN;
     Exit;
   end;
   ExtractTemporaryFile('{#AppExe}'); ExtractTemporaryFile('{#AppExe}.config'); ExtractTemporaryFile('Microsoft.Web.WebView2.Core.dll');
@@ -568,11 +660,77 @@ begin
   Result := UpdateRun and WizardSilent;
 end;
 
+// ---- Microsoft .NET Framework 4.8: Classic Cart Studio needs it (so does the CCS Console Workbench it installs on x64 computers). It is
+// part of Windows 10 version 1903 and later and of Windows 11, but Windows 10 version 1809, which this installer accepts, comes with 4.7.2.
+// Before anything else Setup reads Windows' own record of it (the Release value). When it is missing, Setup says so and offers Microsoft's
+// page for 4.8 in the browser (the Runtime; or the offline Runtime installer, brought from another computer); Continue reads the record
+// again. Setup never downloads or installs it itself; Cancel stops with nothing installed; a silent setup stops and logs why. (Without this
+// check the WebView2 Runtime check below could not run the app, and would report a WebView2 problem instead.)
+// Test hook: CCS_SETUP_SIMULATE_NETFX_RELEASE=<n> takes the LOWER of n and the real value (it can only make the check stricter).
+const
+  NETFX48_RELEASE = 528040;
+  NETFX48_PAGE = 'https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48';
+  NETFX48_TYPED = 'dotnet.microsoft.com/download/dotnet-framework/net48';
+
+function NetFxRelease: Cardinal;
+var R, S: Cardinal; Sim: String;
+begin
+  if not RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', R) then R := 0;
+  Sim := GetEnv('CCS_SETUP_SIMULATE_NETFX_RELEASE');
+  if Sim <> '' then begin S := StrToIntDef(Sim, 0); if S < R then R := S; end;
+  Result := R;
+end;
+
+function NetFxName(R: Cardinal): String;
+begin
+  if R >= 533320 then Result := '4.8.1 or later'
+  else if R >= 528040 then Result := '4.8'
+  else if R >= 461808 then Result := '4.7.2'
+  else if R >= 461308 then Result := '4.7.1'
+  else if R >= 460798 then Result := '4.7'
+  else if R >= 394802 then Result := '4.6.2'
+  else Result := 'an earlier version';
+end;
+
+function NetFxReady(Silent: Boolean): Boolean;   // True once Windows records .NET Framework 4.8 or later; False: the person stopped (or silent)
+var R: Cardinal; Again: Boolean; Have, Instruction, Text: String; Code: Integer; Buttons: TArrayOfString;
+begin
+  Again := False;
+  SetArrayLength(Buttons, 2);   // the two command buttons (their words only: the text above explains them); Cancel stays the dialog's own
+  Buttons[0] := '&Download Installer';
+  Buttons[1] := '&Continue';
+  while True do begin
+    R := NetFxRelease;
+    if R >= NETFX48_RELEASE then begin Result := True; Exit; end;
+    Log('.NET Framework 4.8 or later is needed; Windows records the Release value ' + IntToStr(R));
+    if Silent then begin Result := False; Exit; end;
+    if R = 0 then Have := 'This computer has no .NET Framework 4.' else Have := 'This computer has .NET Framework ' + NetFxName(R) + '.';
+    if Again then Instruction := 'Still missing: .NET Framework 4.8' else Instruction := 'Before Classic Cart Studio can install';
+    Text := 'Classic Cart Studio needs Microsoft .NET Framework 4.8, a Windows component. Download and install it, then choose Continue. ' + Have + #13#10#13#10 +
+      'Download Installer opens Microsoft''s .NET Framework 4.8 page in your web browser. Choose Download .NET Framework 4.8 Runtime there, not the ' +
+      'Developer Pack, and run it; Windows asks for an administrator''s permission. If it asks you to restart, restart the computer and run this installer again.' + #13#10#13#10 +
+      'No internet on this computer? On another computer, open ' + NETFX48_TYPED + ' and, under Advanced downloads, choose Runtime under Offline installer. ' +
+      'Bring that file to this computer, run it, then choose Continue.';
+    case TaskDialogMsgBox(Instruction, Text, mbError, MB_YESNOCANCEL, Buttons, 0) of
+      IDYES:
+        begin
+          if not ShellExecAsOriginalUser('open', NETFX48_PAGE, '', '', SW_SHOWNORMAL, ewNoWait, Code) then
+            MsgBox('Your web browser could not be opened (' + SysErrorMessage(Code) + '). Open this address in a web browser yourself:' + #13#10#13#10 + NETFX48_PAGE, mbError, MB_OK);
+          Again := False;
+        end;
+      IDNO: Again := True;
+    else
+      begin Result := False; Exit; end;
+    end;
+  end;
+end;
+
 function InitializeSetup: Boolean;
 var
   I: Integer;
 begin
   Result := True;
+  if not NetFxReady(WizardSilent) then begin Result := False; Exit; end;   // nothing installed or changed
   if UpdateRun then begin
     I := 0;
     while CheckForMutexes('Local\ClassicCartStudio.Main') and (I < 120) do begin Sleep(500); I := I + 1; end;
@@ -601,6 +759,9 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);   // after the program files, before the app can first start ([Run] comes later)
 var Dir: String;
 begin
+  // (Getting Ready's Next closes the app; this only catches one opened again since then, before Windows' own closing step)
+  if (CurStep = ssInstall) and (not WizardSilent) and WizardForm.PreparingYesRadio.Visible and WizardForm.PreparingYesRadio.Checked and StudioOpen then
+    CloseStudioForUpdate(False);
   if (CurStep = ssPostInstall) and (not WizardSilent) and (UsageStored = '') then begin
     Dir := UsageDataDir;
     if FileExists(Dir + '\usage-reporting.json') then Exit;   // never overwrite a choice made meanwhile
@@ -650,6 +811,8 @@ begin
   TermsShow.TabOrder := 0; TermsSave.TabOrder := 1; TermsText.TabOrder := 2; TermsAgree.TabOrder := 3;
   CreateUsagePage;
   RuntimePage := CreateOutputMarqueeProgressPage('Getting Ready', 'Making sure this computer has what Classic Cart Studio needs.');
+  ClosePage := CreateOutputMarqueeProgressPage('Getting Ready', 'Closing Classic Cart Studio' + #$2026);
+  ClosePage.SetText('Classic Cart Studio closes as it does when you close its window. If a game is open, answer its question.', '');
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
@@ -665,6 +828,14 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
+  if (CurPageID = wpPreparing) and WizardForm.PreparingYesRadio.Visible and WizardForm.PreparingYesRadio.Checked then begin
+    Log('Getting Ready: Close it for me');
+    if not CloseStudioForUpdate(True) then begin
+      MsgBox(STILL_OPEN, mbInformation, MB_OK);
+      Result := False;
+    end;
+    Exit;
+  end;
   if (CurPageID = TermsPage.ID) and not TermsAgree.Checked[0] then begin
     if WizardSilent then Exit;   // silent setup: no page was shown and nothing is recorded as agreed (see above)
     MsgBox('To keep going, check the box that says you agree. You can also go Back or Cancel.', mbInformation, MB_OK);

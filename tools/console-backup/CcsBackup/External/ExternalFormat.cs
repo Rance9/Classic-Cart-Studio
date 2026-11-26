@@ -25,7 +25,8 @@
 //   repair/map-NNNNNN-copy.json         the same bytes again, every map's copy together near the end (a damaged start or end of the file
 //                                       leaves one of the two)
 //   ccs-storage-backup.json             the manifest, last: the backup, its sources and their identities, the scope and time of each
-//                                       source, and every map with its place, size and checksums
+//                                       source (in files mode also the folders chosen, "selected"; backups made before this field
+//                                       was added do not have it), and every map with its place, size and checksums
 // sNN is the source's number (s01 to s16). Every member except the maps and the manifest is in exactly one map; every map is in the
 // manifest. Nothing records a checksum of the whole file inside it (that is in the operation record beside the backups).
 using CcsBackup.Archive;

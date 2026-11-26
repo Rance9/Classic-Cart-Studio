@@ -366,7 +366,7 @@ html.resizing *,html.resizing *::before,html.resizing *::after{animation-play-st
 .hero h1{display:flex;align-items:baseline;flex-wrap:nowrap;gap:0 .25em}   /* .25em = the font's own word space: Studio sits one normal space after Cart */.hero h1 .logo{align-self:center;height:1em;width:auto;margin:0;image-rendering:pixelated;flex:none}
 #guide .ghd h2{word-spacing:.3em}
 #guide .ghd .logo{width:28px;height:28px;image-rendering:pixelated;flex:none}
-/* console steps (Install on NES Classic): simulation marking, progress bar */
+/* console steps (Install on Console): simulation marking, progress bar */
 .simtag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#2a2a31;border:1px solid var(--line2);color:#ffb3b7;font-family:var(--display);font-size:9.5px;letter-spacing:1px;vertical-align:middle}
 #hkpanel .msg.sim{border-color:rgba(255,59,69,.5)}
 #hkpanel .msg.warn{border-color:rgba(255,196,0,.5)}
@@ -634,7 +634,7 @@ details.fsec>summary h3{margin:0!important}details.fsec[open]>summary{margin-bot
 /* ==== Polish pass: a toast with no free space beside an open dialog is for screen readers only ==== */
 .toast.sr{position:fixed!important;width:1px!important;height:1px!important;padding:0!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;opacity:1}
 
-/* ==== Polish pass: Install on NES Classic ==== */
+/* ==== Polish pass: Install on Console ==== */
 .stepnow{display:none}
 #hkPhys.phys{opacity:.6}
 @media (max-width:640px){
@@ -1205,8 +1205,12 @@ body.playv-open{overflow:hidden}
 p.mempty{margin:6px 12px;color:var(--muted)}
 @media (pointer:coarse){.card .cacts .btn,.rdyx,.linkbtn{min-height:44px}.cvcell .btn{min-height:44px}}
 @media (max-width:640px){.actions #restoreBtn .bl,.actions #hkBtn #hkLabel{display:none}.actions #addBtn .bl{display:inline}}
+#addBtn .bls{display:none}
+@media (max-width:640px){#toolbar .row.bar #restoreBtn{flex:0 0 auto;width:44px!important;padding:0;justify-content:center}#toolbar .row.bar #addBtn{flex:0 0 auto;width:auto!important}}   /* the phone's first row: the stacked rows' full-width buttons made Restore a Backup stretch (up to 210 px) and squeezed the collection menu to a sliver without its name; Restore keeps its icon's 44 px, Add Game Files its own width, the collection menu the rest */
+@media (max-width:480px){.actions #addBtn .bl{display:none}.actions #addBtn .bls{display:inline}}   /* a narrow phone: Add Game Files shows Add (the bottom bar's word for it; its name stays Add Game Files), so the collection's name has room */
+@media (max-width:360px){.actions #addBtn .bls{display:none}}   /* the narrowest phones: its + alone, as Restore a Backup shows its icon alone */
 #catBtn .cbs{display:none}
-@media (max-width:640px){#catBtn .cbl{display:none}#catBtn .cbs{display:inline}#catBtn{flex:0 0 auto;white-space:nowrap}}
+@media (max-width:640px){#catBtn .cbl{display:none}#catBtn .cbs{display:inline}#catBtn{flex:0 0 auto;white-space:nowrap;width:auto!important}}   /* its short label at its own width: the stacked row's full-width buttons ran it past the screen's edge
 /* Included Games (hosted Play / Add to Collection, the demo's full-game check) and Game Saves export/import: plain cards, 44 px touch targets */
 .inccard{margin:10px 0;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r2);background:rgba(255,255,255,.03)}.inccard .inchd{font-size:15px}.inccard p{margin:6px 0}
 .incbadge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;border:1px solid var(--line2);font-size:11px;color:var(--ink2);vertical-align:middle}.incbadge.demo{border-color:rgba(240,160,48,.6);color:#ffd59a}

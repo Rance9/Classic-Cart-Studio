@@ -1,4 +1,4 @@
-r"""The collection check (POST /api/preview, Install on NES Classic's Check Collection step) against the app's own backend, PC only: a new
+r"""The collection check (POST /api/preview, Install on Console's Check Collection step) against the app's own backend, PC only: a new
 data folder, a new port, the built site; this computer's USB presence and driver checks answered by the test (console_test_backend.py, here
 made slow: CCS_TEST_SLOW_PROBE), never read.
   prompt     with this computer's own checks slow (25 s, as right after setting up Hakchi2 CE on a slow PC), the check answers at once,
@@ -8,6 +8,8 @@ made slow: CCS_TEST_SLOW_PROBE), never read.
   idle       a kept-alive connection left idle past the backend's idle time is closed quietly: no traceback in the log
   own game   a game added from a file named like a word (an own game of 786,448 bytes: mapper 4, 512 KB + 256 KB, battery) is checked
              like any other, by its recorded title
+  unreadable a game file that was checked before and cannot be read now (held open by another program, its size and time unchanged) is
+             reported as unreadable, never ready to prepare
   python test_preview_check.py --site <built site>      Exit 0 = PASS. (Port: CCS_TEST_PORT, else 8779.)"""
 from __future__ import annotations
 import argparse, hashlib, json, os, secrets, shutil, socket, subprocess, sys, tempfile, threading, time, unittest, urllib.error, urllib.request
@@ -94,6 +96,34 @@ class T(unittest.TestCase):
         self.assertEqual(rest, b"", "the backend closed the idle connection")
         time.sleep(0.5); log = self.logtext()
         self.assertEqual(log.count("Traceback") - before, 0, log[-2000:]); self.assertNotIn("is not iterable", log); self.assertIn("POST /api/preview", log, "the log is the one the backend writes")
+    def test_5_a_game_file_that_cannot_be_read_now_is_reported_unreadable(self):
+        """checked once (its identity remembered), then held open by another program without sharing, its size and time unchanged: the
+        check says the file cannot be read and never "ready to prepare"; once it can be read again the game is ready again"""
+        if os.name != "nt": self.skipTest("Windows file sharing")
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.CreateFileW.restype = wintypes.HANDLE
+        k32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        pid = self.entry["id"]
+        with open(os.path.join(self.t, "personal", "index.json"), encoding="utf-8") as f: e = json.load(f)["entries"][pid]
+        files = [x for x in dict.fromkeys([e.get("managed_copy"), e.get("source_path")]) if x and os.path.isfile(x)]
+        self.assertTrue(files, e)
+        row = lambda j: next(g for g in j["preview"]["games"] if g.get("game_id") == pid)
+        s, j = self.req("POST", "/api/preview", {"manifest": self.manifest()}); self.assertEqual(s, 200, j); self.assertIn("ready to prepare", row(j)["statuses"])
+        before = [(os.stat(x).st_size, os.stat(x).st_mtime_ns) for x in files]
+        held = [k32.CreateFileW(x, 0x80000000, 0, None, 3, 0x80, None) for x in files]   # GENERIC_READ, no sharing, OPEN_EXISTING
+        try:
+            self.assertFalse([h for h in held if h in (None, ctypes.c_void_p(-1).value)], ctypes.get_last_error())
+            s, j = self.req("POST", "/api/preview", {"manifest": self.manifest()}); self.assertEqual(s, 200, j); r = row(j)
+            self.assertNotIn("ready to prepare", r["statuses"]); self.assertIn("missing ROM payload", r["statuses"]); self.assertIn("cannot be read", r["detail"])
+            self.assertFalse(j["preview"]["can_apply"]); self.assertTrue(any("cannot be read" in x for x in j["preview"]["problems"]), j["preview"]["problems"])
+            self.assertEqual([(os.stat(x).st_size, os.stat(x).st_mtime_ns) for x in files], before, "the file's size and time did not change")
+        finally:
+            for h in held:
+                if h not in (None, ctypes.c_void_p(-1).value): k32.CloseHandle(h)
+        s, j = self.req("POST", "/api/preview", {"manifest": self.manifest()}); self.assertEqual(s, 200, j); self.assertIn("ready to prepare", row(j)["statuses"])
 
 if __name__ == "__main__":
     r = unittest.main(exit=False, verbosity=2).result

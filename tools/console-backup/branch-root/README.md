@@ -1,6 +1,6 @@
 # CCS Console Workbench
 
-Current preview: **0.11.11**, aligned with Classic Cart Studio and the shared engine; Classic Cart Studio 0.11.11 installs this same program. Earlier previews (0.11.10, 0.11.9, 0.11.8, 0.11.7, 0.11.6, 0.11.5, 0.11.4, 0.11.3, 0.11.2, 0.11.1 and 0.11.0) are superseded and stay available.
+Current preview: **0.11.12**, aligned with Classic Cart Studio and the shared engine; Classic Cart Studio 0.11.12 installs this same program. Earlier previews (0.11.11, 0.11.10, 0.11.9, 0.11.8, 0.11.7, 0.11.6, 0.11.5, 0.11.4, 0.11.3, 0.11.2, 0.11.1 and 0.11.0) are superseded and stay available.
 
 > **Unsigned development preview:** every console task works with a real console. Each change is backed up first, reviewed and confirmed before anything is written; the tasks that change a console have not all been tried on real consoles yet. PC/offline features are available.
 
@@ -29,7 +29,10 @@ Console sessions use the console's own recovery mode (USB, RESET held at power-o
 ## Downloads and source
 
 CCS Console Workbench and Classic Cart Studio for Windows are both downloaded from [ClassicCartStudio.com/app/](https://ClassicCartStudio.com/app/),
-with their checksums. The x64 file is the default Windows download; the Arm64 file is for Windows 10/11 on Arm PCs.
+with their checksums. The x64 file is the default Windows download; it needs .NET Framework 4.8 or later, part of Windows 10 version 1903
+and later and of Windows 11. The Arm64 file is for Windows 11 on Arm PCs; it needs .NET Framework 4.8.1 or later, whose native Arm64 runtime
+Microsoft makes for Windows 11. On a PC without the version it needs, the program opens a small setup window first, with a link to
+Microsoft's download page; it never downloads or installs anything itself.
 
 ## Building
 

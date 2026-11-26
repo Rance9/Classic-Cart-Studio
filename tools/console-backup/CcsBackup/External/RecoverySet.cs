@@ -24,11 +24,20 @@ namespace CcsBackup.External
         /// <summary>names a verified console backup and a verified, complete USB and SD backup as one recovery set for purpose</summary>
         public static RecoverySetResult Make(Settings s, string consoleBackup, string storageBackup, string purpose, Func<bool> cancelled = null)
         {
-            var r = new RecoverySetResult();
             var cv = Verifier.VerifyFile(consoleBackup, null, cancelled);
-            if (!cv.Ok) { r.Problem = "The console backup did not pass its check: " + cv.Problems[0]; return r; }
+            if (!cv.Ok) return new RecoverySetResult { Problem = "The console backup did not pass its check: " + cv.Problems[0] };
             var sv = StorageVerifier.Verify(storageBackup, null, cancelled);
-            if (!sv.Ok) { r.Problem = "The USB and SD backup did not pass its check: " + sv.Problems[0]; return r; }
+            if (!sv.Ok) return new RecoverySetResult { Problem = "The USB and SD backup did not pass its check: " + sv.Problems[0] };
+            return Make(s, consoleBackup, cv, storageBackup, sv, purpose);
+        }
+
+        /// <summary>the same, for a caller that has just checked both files from scratch itself and holds them so they cannot change (each
+        /// check is the one its own verifier made of exactly that file)</summary>
+        public static RecoverySetResult Make(Settings s, string consoleBackup, Verification cv, string storageBackup, StorageVerification sv, string purpose)
+        {
+            var r = new RecoverySetResult();
+            if (cv == null || !cv.Ok) { r.Problem = "The console backup did not pass its check" + (cv == null ? "." : ": " + cv.Problems[0]); return r; }
+            if (sv == null || !sv.Ok) { r.Problem = "The USB and SD backup did not pass its check" + (sv == null ? "." : ": " + sv.Problems[0]); return r; }
             if (!sv.ScopeComplete) { r.Problem = "The USB and SD backup does not hold everything that was selected, so it is not protection for that storage."; return r; }
             var cm = cv.Manifest; var made = DateTime.Parse(cm.S("created_utc"), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal); var done = DateTime.Parse(cm.S("completed_utc"), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
             string W(DateTime t) => t.ToLocalTime().ToString("MMMM d, yyyy 'at' h:mm:ss tt", CultureInfo.GetCultureInfo("en-US"));

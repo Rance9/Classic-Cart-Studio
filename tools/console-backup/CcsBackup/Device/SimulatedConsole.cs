@@ -733,6 +733,50 @@ namespace CcsBackup.Device
             Res("refused unknown step"); return 2;
         }
 
+        /// <summary>an add-on on a simulated console against this image's package: none (not listed), current or earlier (console.json
+        /// "addon_installed" names another package's SHA-256)</summary>
+        internal static string AddonVersion(string folder, string name)
+        {
+            if (!(Packages(folder).A("packages") ?? new List<object>()).OfType<string>().Contains(name)) return "none";
+            var c = Json.Parse(File.ReadAllText(Path.Combine(folder, "console.json"))); var have = c.O("addon_installed")?.S(name);
+            return have == null || have == RecoveryImages.MethodSha(name) ? "current" : "earlier";
+        }
+        static string WaitingShaOrNull(string file) => File.Exists(file) ? WaitingSha(file) : null;
+        /// <summary>tests only: record which package of an add-on a simulated console has installed (null: this image's)</summary>
+        public static void SetAddonInstalled(string folder, string name, string sha256)
+        {
+            var f = Path.Combine(folder, "console.json"); var c = Json.Parse(File.ReadAllText(f)); var j = new JObj();
+            foreach (var kv in c) if (kv.Key != "addon_installed") j.Add(kv.Key, kv.Value);
+            var a = new JObj(); foreach (var kv in c.O("addon_installed") ?? new Dictionary<string, object>()) if (kv.Key != name) a.Add(kv.Key, kv.Value);
+            if (sha256 != null) a.Add(name, sha256);
+            j.Add("addon_installed", a); File.WriteAllText(f, Json.Write(j));
+        }
+
+        /// <summary>ccsprep nmadd / nmdrop on a simulated console: a community menu as a choice in CCS Nucleus's list (its registry; it needs a
+        /// valid registry: CCS Nucleus installed or its start already written, and an installed CCS Nucleus of this image's own version)</summary>
+        int MenuVerb(string step, string[] a, Stream stdout, bool fail)
+        {
+            void Res(string t) => Out(stdout, "result " + step + " " + t + "\n");
+            if (step == "nmadd" ? a.Length != 4 : a.Length != 2) { Res("refused request"); return 17; }
+            if (!Engine.FirmwareEngine.IdOk(a[0]) || !Engine.CommunityCatalog.PackageOk(a[1])) { Res("refused request"); return 17; }
+            if (HakchiOnData() == "none") { Res("refused hakchi is not installed on the data storage"); return 17; }
+            if (!NucleusInstalled() && StartOf(Folder) == "none") { Res("refused CCS Nucleus's list of choices is not on the console"); return 17; }
+            if (AddonVersion(Folder, "ccs-nucleus") != "current" && WaitingShaOrNull(Path.Combine(TransferDir, "ccs-nucleus.hmod")) != RecoveryImages.MethodSha("ccs-nucleus")) { Res("refused CCS Nucleus on the console is an earlier version, which cannot list a community menu (and this version's is not waiting to be installed)"); return 17; }
+            var reg = Registry(); reg.TryGetValue(a[0], out var hv); var have = hv as Dictionary<string, object>;
+            if (have != null && have.S("kind") != "community") { Res("refused another kind of choice has this id"); return 17; }
+            if (step == "nmadd")
+            {
+                if (have != null && have.S("package") == a[1] && have.S("program") == a[2] && have.S("label64") == a[3]) { Res("ok already " + a[0]); return 0; }
+                Out(stdout, "began nmadd\n"); if (fail) { Res("failed registry (not written again)"); return 17; }
+                reg[a[0]] = new Dictionary<string, object> { { "kind", "community" }, { "package", a[1] }, { "program", a[2] }, { "label64", a[3] } };
+                SaveRegistry(reg); Log("nmadd " + a[0]); Res("ok " + a[0]); return 0;
+            }
+            if (have == null) { Res("ok already " + a[0]); return 0; }
+            if (have.S("package") != a[1]) { Res("refused the choice names another package (nothing was changed)"); return 17; }
+            Out(stdout, "began nmdrop\n"); if (fail) { Res("failed registry (not written again)"); return 17; }
+            reg.Remove(a[0]); SaveRegistry(reg); Log("nmdrop " + a[0]); Res("ok " + a[0]); return 0;
+        }
+
         /// <summary>tests only: the console's next normal start with hakchi running, as hakchi's p7080_hmods applies its transfer folder:
         /// packs_uninstall on the names in transfer/uninstall (CCS's own uninstall takes its method out of charge), then pack_install of every
         /// *.hmod there (CCS's postinstall puts its method in charge when none is), then the folder removed. What it did, in order.</summary>
@@ -758,6 +802,7 @@ namespace CcsBackup.Device
                 if (n == "ccs-nucleus-chooser" && !list.Contains("ccs-nucleus")) { done.Add("install " + n + " refused (CCS Nucleus is not installed)"); continue; }
                 bool installs = true; CommunityInstall(folder, n, h, ref installs); if (!installs) { done.Add("install " + n + " not installed"); continue; }
                 if (!list.Contains(n)) list.Add(n); done.Add("install " + n);
+                if (Engine.Methods.IsPackage(n)) SetAddonInstalled(folder, n, WaitingSha(h) == RecoveryImages.MethodSha(n) ? null : WaitingSha(h));
                 // CCS Nucleus's install keeps a valid registry, or writes the first one (Original Menu directly; CCS HOME offered with CCS Mod)
                 if (n == "ccs-nucleus" && StartOf(folder) == "none") SetStart(folder, "native never " + (list.Contains("ccs-mod") ? "on" : "off") + " default 10");
             }
@@ -780,13 +825,27 @@ namespace CcsBackup.Device
                         var pk = Packages(Folder);
                         foreach (var n in (pk.A("packages") ?? new List<object>()).OfType<string>().OrderBy(x => x, StringComparer.Ordinal)) sb.Append("package=" + n + "\n");
                         sb.Append("start=" + StartOf(Folder) + "\n");
+                        {   // the name of what opens first (its registry option's label), as ccsprep reports it
+                            var w = StartOf(Folder).Split(' ');
+                            if (w.Length == 5)
+                            {
+                                Registry().TryGetValue(w[0], out var dv); var dd = dv as Dictionary<string, object>;
+                                string lab = dd?.S("label"); if (lab == null && dd?.S("label64") != null) try { lab = Encoding.UTF8.GetString(Convert.FromBase64String(dd.S("label64"))); } catch (FormatException) { }
+                                lab = lab ?? (w[0] == "native" ? "Original Menu" : w[0] == "ccs-home" ? "CCS HOME" : "");
+                                sb.Append("start_label=" + Convert.ToBase64String(Encoding.UTF8.GetBytes(lab)) + "\n");
+                            }
+                        }
                         sb.Append("free=" + FreeBytes().ToString(CultureInfo.InvariantCulture) + "\n");
                         if (NucleusInstalled() || StartOf(Folder) != "none")
                         {
                             sb.Append("registry=ok\n");
                             foreach (var kv in Registry().OrderBy(x => x.Key, StringComparer.Ordinal)) { var o = kv.Value as Dictionary<string, object>; sb.Append("option=" + kv.Key + " " + o.S("kind") + " " + (o.S("sha256") ?? "") + " " + (o.ContainsKey("bytes") ? o.L("bytes", 0).ToString(CultureInfo.InvariantCulture) : "") + "\n"); }
+                            foreach (var kv in Registry().Where(x => (x.Value as Dictionary<string, object>)?.S("kind") == "community").OrderBy(x => x.Key, StringComparer.Ordinal)) { var o = kv.Value as Dictionary<string, object>; sb.Append("menu=" + kv.Key + " " + o.S("package") + " " + o.S("program") + " " + o.S("label64") + "\n"); }
                         }
                         else sb.Append("registry=none\n");
+                        // each add-on installed against this image's own package (console.json "addon_installed": {NAME: SHA-256 of the package
+                        // installed}; none recorded: this image's)
+                        foreach (var n in Engine.Methods.Packages) sb.Append("addon=" + n + " " + AddonVersion(Folder, n) + "\n");
                         if (Directory.Exists(TransferDir)) foreach (var w in Directory.GetFiles(TransferDir).OrderBy(x => x, StringComparer.Ordinal)) sb.Append("waiting=" + Path.GetFileName(w) + " " + WaitingSha(w) + "\n");
                         var thm = Path.Combine(TransferDir, "hmod");
                         if (Directory.Exists(thm)) foreach (var w in Directory.GetFiles(thm).OrderBy(x => x, StringComparer.Ordinal)) sb.Append("waiting=hmod/" + Path.GetFileName(w) + " " + WaitingSha(w) + "\n");
@@ -795,13 +854,22 @@ namespace CcsBackup.Device
                     }
                 case "rput": case "rimport": case "rdrop":
                     return RootVerb(step, args, stdin, stdout, fail);
+                case "nmadd": case "nmdrop":
+                    return MenuVerb(step, args, stdout, fail);
                 case "nstart":
                     {
-                        if (args.Length != 5 || args[0] != "native" && args[0] != "ccs-home" || args[1] != "always" && args[1] != "never" || args[2] != "on" && args[2] != "off"
+                        if (args.Length != 5 || !Regex.IsMatch(args[0], "^[a-z0-9][a-z0-9-]{0,30}$") || args[1] != "always" && args[1] != "never" || args[2] != "on" && args[2] != "off"
                             || args[3] != "default" && args[3] != "last" || !Regex.IsMatch(args[4], "^[0-9]{1,2}$")) { Res("refused request"); return 17; }
                         if (HakchiOnData() == "none") { Res("refused hakchi is not installed on the data storage"); return 17; }
                         var line = string.Join(" ", args);
                         if (StartOf(Folder) == line) { Res("ok already " + line); return 0; }
+                        // another option as what opens first: only one the registry lists, an owner's system image only with the chooser at start
+                        // (refused before anything is written, as ccsprep does)
+                        if (args[0] != "native" && args[0] != "ccs-home")
+                        {
+                            if (StartOf(Folder).Split(' ').Length != 5 || !Registry().TryGetValue(args[0], out var dopt)) { Res("refused the default is not one of CCS Nucleus's choices"); return 17; }
+                            if ((dopt as Dictionary<string, object>)?.S("kind") == "owner-root" && args[1] != "always") { Res("refused an owner's system image opens first only with the chooser at start"); return 17; }
+                        }
                         Out(stdout, "began nstart\n"); if (fail) { Res("failed registry (not written again)"); return 17; }
                         if (args[0] == "ccs-home" && args[2] == "off") { Res("failed CCS HOME is not offered (not written again)"); return 17; }
                         SetStart(Folder, line); Log("nstart " + line);

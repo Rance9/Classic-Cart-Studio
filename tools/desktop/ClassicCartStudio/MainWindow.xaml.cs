@@ -45,6 +45,7 @@ namespace ClassicCartStudio
             foreach (var a in startupArgs) { var m = Regex.Match(a, @"^--devtools-port=(\d{4,5})$"); if (m.Success) devtoolsPort = int.Parse(m.Groups[1].Value); }
             InitializeComponent();
             Title = titleText.Text = App.WindowTitle;   // the running version and channel, in the title bar and the taskbar alike
+            StatusBarInit();   // the status bar along the bottom (StatusBar.cs): the same running version, no collection until the page reports one
             ApplyIcons();
             ApplyPlacement();
             // the title bar is drawn by the window itself and WndProc removes the system caption (no WindowChrome: see WndProc)
@@ -267,7 +268,9 @@ namespace ClassicCartStudio
                     if (!ok) ShowBackendProblem();
                     else if (waitingForOwnBackend) LoadInterface("its own backend started", false);   // its own backend at last: its own page
                     else if (coreReady && web.CoreWebView2 != null) { _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsBackendReady && window.__ccsBackendReady()"); DeliverPendingLink(); }
-                    if (ok) _ = Task.Run(async () => { await Task.Delay(1500); try { Dispatcher.BeginInvoke(new Action(() => { if (web.CoreWebView2 != null) _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsBackendReady && window.__ccsBackendReady()"); })); } catch { } });
+                    // a second ready signal a moment later; the queued action is deliberately not awaited: a problem inside it goes to the app's
+                    // unhandled-problem handler (logged), and only queuing it is guarded here
+                    if (ok) _ = Task.Run(async () => { await Task.Delay(1500); try { _ = Dispatcher.BeginInvoke(new Action(() => { if (web.CoreWebView2 != null) _ = web.CoreWebView2.ExecuteScriptAsync("window.__ccsBackendReady && window.__ccsBackendReady()"); })); } catch { } });
                 }));
             }
             finally { backendStarting = false; }
@@ -318,13 +321,13 @@ namespace ClassicCartStudio
         void OnNavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
         {
             var url = e.Uri ?? ""; var origin = App.OriginOf(url);
-            if (url.StartsWith("about:") || url.StartsWith("data:")) return;
+            if (url.StartsWith("about:") || url.StartsWith("data:")) { StatusReset(); return; }   // the loading or recovery screen: no collection open
             if (IsBackendOrigin(origin) && !OwnBackendRunning)   // a reload, a key, a link or the page itself: never a page this window's own backend does not serve
             {
                 e.Cancel = true; lastBlocked = DateTime.Now; App.Log("refused a page from " + origin + ": this window's own backend is not running there");
                 Dispatcher.BeginInvoke(new Action(() => LoadInterface("navigation", false))); return;
             }
-            if (App.IsApprovedOrigin(origin) && !IsShortLink(url)) return;
+            if (App.IsApprovedOrigin(origin) && !IsShortLink(url)) { StatusReset(); return; }   // a new page: it reports its collection once it runs
             e.Cancel = true; lastBlocked = DateTime.Now; App.Log("blocked navigation to " + (App.IsApprovedOrigin(origin) ? url : origin) + " (opened externally)"); App.OpenExternal(url);
         }
 
@@ -372,8 +375,9 @@ namespace ClassicCartStudio
         static string JsonStr(string s) { return "\"" + (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "") + "\""; }
 
         // Messages come from the bundled recovery page (about:blank origin) and, for the Preview's game player only, from the bundled
-        // Studio (this window's own backend origin): "embed-open", "embed-cmd <one checked command>", "embed-dispose", and "app-update-exit" (close the
-        // window, asking first if a game is open, after the backend started a checked update installer). Nothing else.
+        // Studio (this window's own backend origin): "embed-open", "embed-cmd <one checked command>", "embed-dispose", "app-update-exit" (close the
+        // window, asking first if a game is open, after the backend started a checked update installer), "console-backup-open" and
+        // "status-bar <json>" (what the status bar shows: StatusBar.cs checks every part). Nothing else.
         void OnWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
             var source = e.Source ?? "";
@@ -386,6 +390,7 @@ namespace ClassicCartStudio
                 else if (m == "embed-dispose") { openGen++; if (bridge != null && !bridge.Active) { bridge.Dispose(); bridge = null; } }
                 else if (m == "app-update-exit") { App.Log("update: closing for the installer"); Close(); }   // the installer waits for this window to close (installer.iss)
                 else if (m == "console-backup-open") OpenConsoleBackup();   // Console Backup & Restore (the first screen's button and the Studio menu)
+                else if (m.StartsWith("status-bar ")) StatusFromPage(m.Substring(11));
                 return;
             }
             if (!source.StartsWith("about:")) return;

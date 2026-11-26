@@ -170,9 +170,11 @@ class T(unittest.TestCase):
     def test_console_identity_is_the_model_its_board_and_region_name(self):
         from console_engine import ccs_install as CI
         base = {"hwid": "sim-0005", "kernel": CI.SUPPORTED["kernel"], "hakchi": CI.SUPPORTED["hakchi"], "can_interact": True, "custom_firmware": False, "data_mount": CI.DATA_MOUNT}
-        for system, board, region, model in (("nes-usa", "dp-nes", "EUR_USA", "nes-classic-edition"), ("snes-usa", "dp-shvc", "USA", "snes-classic-edition"), ("snes-eur", "dp-shvc", "EUR", "snes-classic-edition")):
+        # hakchi's system code is $sftype-$sfregion (its softwareCheck: REGION EUR is eur, anything else on an NES Classic is usa)
+        for system, board, region, model in (("nes-usa", "dp-nes", "EUR_USA", "nes-classic-edition"), ("nes-eur", "dp-nes", "EUR", "nes-classic-edition"), ("snes-usa", "dp-shvc", "USA", "snes-classic-edition"), ("snes-eur", "dp-shvc", "EUR", "snes-classic-edition")):
             self.assertEqual(CI.check_device(base | {"system": system, "board": board, "region": region})["model"], model)
-        for system, board, region in (("snes-usa", None, None), ("snes-usa", "dp-nes", "USA"), ("shvc-jpn", "dp-shvc", "JPN"), ("nes-usa", "dp-shvc", "USA"), ("hvcj-jpn", "dp-hvcj", "JPN"), ("nes-eur", "dp-nes", "EUR")):
+        for system, board, region in (("snes-usa", None, None), ("snes-usa", "dp-nes", "USA"), ("shvc-jpn", "dp-shvc", "JPN"), ("nes-usa", "dp-shvc", "USA"), ("hvcj-jpn", "dp-hvcj", "JPN"),
+                                      ("nes-usa", "dp-nes", "EUR"), ("nes-eur", "dp-nes", "EUR_USA"), ("nes-jpn", "dp-nes", "JPN")):
             with self.assertRaises(CI.Refused, msg=(system, board, region)): CI.check_device(base | {"system": system, "board": board, "region": region})   # no model, another model, or not a supported one
         # a change on a Super NES Classic needs the registry's own capability for its add-ons; reserved here, so it is refused with its reason
         why = CI.model_refusal("snes-classic-edition")
@@ -226,10 +228,31 @@ class T(unittest.TestCase):
         for n in core["notices"]: self.assertTrue(os.path.isfile(os.path.join(REPO, n)), n)
         self.assertIn("FCEUmm", open(os.path.join(REPO, "THIRD_PARTY_NOTICES.md"), encoding="utf-8").read())
         self.assertEqual(sorted(os.listdir(third)), ["fceumm", "minimp3", "sdl_gamecontrollerdb", "zig-runtime"], "a new third-party folder needs its registry entry (and review) first")
-        # minimp3 (HOME Music as MP3, built but not shipped): its pinned commit, license and notice, as reviewed when it was added
-        mp3 = open(os.path.join(third, "minimp3", "VENDORED.md"), encoding="utf-8").read(); pin = re.search(r"commit `([0-9a-f]{40})`", mp3).group(1)
-        self.assertTrue(os.path.isfile(os.path.join(third, "minimp3", "LICENSE")))
-        self.assertIn(f"minimp3, commit `{pin}`", open(os.path.join(REPO, "THIRD_PARTY_NOTICES.md"), encoding="utf-8").read())
+        # FCEUmm is the only emulator core: the registry's bundled cores are exactly it (the reserved SNES placeholder bundles nothing)
+        self.assertEqual([e["id"] for e in P.entries() if e["kind"] == "core" and e.get("bundled")], ["fceumm"])
+        # minimp3 is not a core: the MP3 decoder vendored for the console player's optional HOME Music as MP3 build (built for its proof,
+        # not shipped). As reviewed when it was added: its pinned commit, its files unchanged (each SHA-256 VENDORED.md records), its
+        # CC0 license and its notice; compiled only by core/gp_mp3.c and only in a build made with -DGP_HOME_MP3
+        import hashlib
+        mp3d = os.path.join(third, "minimp3"); mp3 = open(os.path.join(mp3d, "VENDORED.md"), encoding="utf-8").read(); pin = re.search(r"commit `([0-9a-f]{40})`", mp3).group(1)
+        self.assertNotIn("minimp3", [e["id"] for e in P.entries() if e["kind"] == "core"])
+        recorded = dict(re.findall(r"`([A-Za-z0-9_.]+)`[^`\n]*SHA-256 `([0-9a-f]{64})`", mp3))
+        self.assertEqual(sorted(recorded), ["LICENSE", "minimp3.h", "minimp3_ex.h"], recorded)
+        self.assertEqual(sorted(os.listdir(mp3d)), ["LICENSE", "VENDORED.md", "minimp3.h", "minimp3_ex.h"])
+        for n, h in recorded.items():
+            with open(os.path.join(mp3d, n), "rb") as f: self.assertEqual(hashlib.sha256(f.read()).hexdigest(), h, n)
+        with open(os.path.join(mp3d, "LICENSE"), encoding="utf-8") as f: self.assertIn("CC0 1.0 Universal", f.read())
+        with open(os.path.join(REPO, "THIRD_PARTY_NOTICES.md"), encoding="utf-8") as f: self.assertIn(f"minimp3, commit `{pin}`", f.read())
+        users = []
+        for r, ds, fs in os.walk(os.path.join(REPO, "tools", "player")):
+            if os.path.basename(r) in ("third_party",): ds[:] = [d for d in ds if d != "minimp3"]
+            for f in fs:
+                if f.endswith((".c", ".h", ".zig", ".cpp")):
+                    with open(os.path.join(r, f), encoding="utf-8", errors="replace") as fh:
+                        if re.search(r"#\s*include\s*[<\"][^>\"]*minimp3", fh.read()): users.append(os.path.relpath(os.path.join(r, f), REPO).replace(os.sep, "/"))
+        self.assertEqual(users, ["tools/player/core/gp_mp3.c"], "only the MP3 player source includes minimp3")
+        with open(os.path.join(REPO, "tools", "player", "core", "gp_mp3.c"), encoding="utf-8") as f: src = f.read()
+        self.assertLess(src.index("#ifdef GP_HOME_MP3"), src.index("minimp3_ex.h"), "minimp3 is compiled only in a build made with -DGP_HOME_MP3")
         snes = P.entry("core", "snes-unselected"); self.assertEqual((snes["bundled"], snes["license"], snes["pin"], snes["source"]), (False, None, None, None))
         hits = [os.path.join(r, f) for r, ds, fs in os.walk(os.path.join(REPO, "tools")) for f in fs + ds if re.search(r"snes9x|bsnes|higan|canoe|\.sfrom$", f, re.I)]
         self.assertEqual(hits, [], "no SNES core, firmware or game file is in the source tree")

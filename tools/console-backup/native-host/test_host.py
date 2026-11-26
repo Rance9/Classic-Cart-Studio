@@ -8,9 +8,14 @@
 3. static checks of both executables (machine, GUI subsystem, imported DLLs, the ccs_host_get_abi export, the payload resource) and of the
    vtable slot numbers in src/clr_hosting.h against this PC's mscorlib.tlb (tools/dump_vtables.ps1)
 4. runs the x64 host from a NEW folder holding only the executable: --host-info, --version, --engine-info (compared with the managed
-   executable's own output), the controlled worker (--backup-worker, two requests that need no console), --parity-selftest (the PAR2 round
+   executable's own output), the controlled worker (--backup-worker, one request it refuses before any console code runs; no console
+   request is ever sent), --parity-selftest (the PAR2 round
    trip through the managed wrapper and the host's ABI), and the WPF window (--simulated-console with test settings; found by its process,
-   captured, closed with WM_CLOSE). Peak working set of every run is read from its process handle after it ends.
+   captured, closed with WM_CLOSE; --no-window leaves it out). Peak working set of every run is read from its process handle after it ends.
+   What the host needs from the PC (prerequisite_checks): missing, absent, not-found, unusable and unsupported-Windows cases for both
+   editions' rules, a restart waiting, a start failure and a damaged copy, through host_main.c's stricter-only test hooks, every run with
+   its output redirected (so none can show a window); the hooks are shown unable to loosen anything. The setup window itself is checked
+   inside Windows Sandbox only.
 5. while those run, ReadDirectoryChangesW watches %TEMP%, %APPDATA% and %LOCALAPPDATA% (whole trees) and the executable's folder; every
    change is recorded with its time. Windows cannot say which process made a change without administrator tracing, so the method is:
    any change at all beside the executable fails; any change under the watched trees whose path names this product (CCS, Workbench,
@@ -272,6 +277,155 @@ def _burn(stop_at: float) -> None:
         x = (x * 1103515245 + 12345) & 0xFFFFFFFF
 
 
+# ---------------------------------------------------------------- what the host needs from the PC (simulated; host_main.c's test hooks)
+
+URL48 = "https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48"
+URL481 = "https://dotnet.microsoft.com/en-us/download/dotnet-framework/net481"
+NONINTERACTIVE = ["--host-info", "--backup-worker", "--driver-action", "--raw-disk", "--scheduled-check", "--version", "--engine-info",
+                  "--design-compile", "--home-render-selftest", "--parity-selftest"]
+
+
+def prerequisite_checks(exe: Path, work: Path, runs: dict, info: dict) -> None:
+    """The host's own requirement checks, every one with standard output and error redirected to pipes: a redirected start never shows a
+    window or waits, so nothing appears on this PC's screen even if a case went wrong (the setup window itself is exercised only inside
+    Windows Sandbox). The hooks can only make a check stricter or simulate a failure; the first two checks show that."""
+    check("host-info-prerequisite-ready", info.get("prerequisite") == "ready" and info.get("netfx_download") == URL48 and info.get("simulated") == ""
+          and info.get("clr_step") == 0, "prerequisite %s, page %s, simulated %r" % (info.get("prerequisite"), info.get("netfx_download"), info.get("simulated")))
+    check("host-info-noninteractive-commands", info.get("noninteractive_commands") == NONINTERACTIVE, json.dumps(info.get("noninteractive_commands")))
+    sim = work / "simulate.txt"
+    os.environ["CCS_HOST_SIMULATE_FILE"] = str(sim)
+    try:
+        def case(name, lines, args, stdin=None):
+            sim.write_text("\n".join(lines) + "\n", encoding="ascii")
+            r = runs["prereq-" + name] = run([exe] + args, stdin=stdin, timeout=60)
+            return r
+
+        # the hooks cannot loosen anything: a higher Release value or a newer Windows than the real one changes nothing
+        os.environ["CCS_HOST_SIMULATE_NETFX_RELEASE"] = "999999999"
+        try:
+            r = case("higher-release-ignored", ["netfx_release=999999999", "os=99.0.99999"], ["--host-info"])
+        finally:
+            del os.environ["CCS_HOST_SIMULATE_NETFX_RELEASE"]
+        hi = json.loads(r["out"]) if r["code"] == 0 else {}
+        check("hook-cannot-raise-release-or-windows", hi.get("netfx_release") == info.get("netfx_release") and hi.get("os") == info.get("os")
+              and hi.get("prerequisite") == "ready", "real %s / %s, with the hooks %s / %s" % (info.get("netfx_release"), info.get("os"), hi.get("netfx_release"), hi.get("os")))
+
+        # this PC's own newer runtime is accepted (the x64 edition needs 4.8; host-info above says what this PC has)
+        check("newer-runtime-accepted", info.get("netfx_ok") and info.get("netfx_release", 0) >= 528040, "Release %s (%s)" % (info.get("netfx_release"), info.get("netfx")))
+
+        # missing on a Windows that Microsoft makes 4.8 for (Windows 10 version 1809 with 4.7.2): the download words and page
+        r = case("missing-x64", ["netfx_release=461814", "os=10.0.17763"], ["--version"])
+        check("missing-x64", r["code"] == 90 and "needs Microsoft .NET Framework 4.8 or later" in r["err"] and URL48 in r["err"] and "Runtime" in r["err"]
+              and "This PC has: 4.7.2" in r["err"] and "Nothing was installed or changed" in r["err"] and r["out"] == "", r["err"].strip()[:400])
+        r = case("absent-x64", ["netfx_release=0", "os=10.0.17763"], ["--version"])
+        check("absent-x64", r["code"] == 90 and "This PC has: none" in r["err"] and URL48 in r["err"], r["err"].strip()[:300])
+        # the Arm64 edition's rule (4.8.1; its native runtime is for Windows 11), applied by an x64 file through the hook: rule and words only,
+        # not an Arm64 run
+        r = case("missing-arm64-rule", ["rules=arm64", "netfx_release=528449", "os=10.0.22000"], ["--version"])
+        check("missing-arm64-rule", r["code"] == 90 and "This Arm64 edition of CCS Console Workbench needs Microsoft .NET Framework 4.8.1" in r["err"]
+              and URL481 in r["err"], r["err"].strip()[:400])
+        # part of this Windows, yet not found (this PC's own Windows includes 4.8): no download, Windows Update and a restart instead
+        r = case("not-found", ["netfx_release=461814"], ["--version"])
+        check("not-found-part-of-windows", r["code"] == 90 and "part of this version of Windows" in r["err"] and "Windows updates" in r["err"]
+              and URL48 not in r["err"], r["err"].strip()[:400])
+        # unsupported Windows: no installer offered
+        r = case("windows-x64-1511", ["os=10.0.10586", "netfx_release=394254"], ["--version"])   # 4.6.1, as Windows 10 version 1511 has
+        check("unsupported-windows-x64", r["code"] == 90 and "Windows 10 version 1607" in r["err"] and "Windows 10 version 1511 (build 10586)" in r["err"]
+              and URL48 not in r["err"], r["err"].strip()[:400])
+        r = case("windows-81", ["os=6.3.9600"], ["--version"])
+        check("unsupported-windows-81", r["code"] == 90 and "needs Windows 10 or Windows 11" in r["err"] and "Windows 8.1" in r["err"], r["err"].strip()[:300])
+        r = case("windows-arm64-on-10", ["rules=arm64", "os=10.0.19045", "netfx_release=528372"], ["--version"])   # 4.8, as Windows 10 has
+        check("unsupported-windows-arm64-rule", r["code"] == 90 and "Arm-based PCs with Windows 11" in r["err"] and URL481 not in r["err"], r["err"].strip()[:400])
+        # present but unusable runtime, told apart from an absent one
+        r = case("clr-unusable", ["clr=unusable"], ["--version"])
+        check("runtime-unusable", r["code"] == 90 and "cannot start this PC's Microsoft .NET Framework" in r["err"] and "missing or turned off" in r["err"]
+              and "Restart this PC" in r["err"] and URL48 not in r["err"], r["err"].strip()[:400])
+        r = case("clr-missing", ["clr=missing"], ["--version"])
+        check("runtime-mscoree-missing", r["code"] == 90 and "mscoree.dll" in r["err"], r["err"].strip()[:300])
+        # a restart Windows is waiting for is said, not done
+        r = case("restart", ["netfx_release=461814", "os=10.0.17763", "restart_pending=1"], ["--version"])
+        check("restart-waiting-said", r["code"] == 90 and "restart waiting" in r["err"], r["err"].strip()[:400])
+        # every simulated value is named in the output
+        check("simulated-values-named", "[simulated for testing: netfx_release=461814; os=10.0.17763; restart_pending=1]" in r["err"], r["err"].strip()[-200:])
+
+        # noninteractive commands: the documented exit code at once, no window, no waiting (the window's own process for a worker gets JSON)
+        lines = ["netfx_release=461814", "os=10.0.17763"]
+        for args in (["--version"], ["--engine-info"], ["--scheduled-check", "--settings", str(work / "none.json"), "--report", str(work / "none")],
+                     ["--design-compile"], ["--home-render-selftest", str(work / "none"), "--work", str(work / "none")], ["--parity-selftest", str(work / "none")]):
+            r = case("nonint" + args[0], lines, args)
+            check("noninteractive" + args[0], r["code"] == 90 and r["seconds"] < 20 and "needs Microsoft .NET Framework 4.8" in r["err"], "exit %s in %s s" % (r["code"], r["seconds"]))
+        r = case("worker", lines, ["--backup-worker"], stdin=b"")
+        ev = json.loads(r["out"].strip() or "{}")
+        check("noninteractive-worker-json", r["code"] == 90 and ev.get("event") == "error" and URL48 in ev.get("text", ""), r["out"].strip()[:300])
+        # a window start whose output is redirected (automation) gets the same words and never a window; run only once --host-info has
+        # shown the simulation in effect (otherwise this start would open the Workbench window on this PC's screen)
+        r = case("redirected-window-start-precheck", lines, ["--host-info"])
+        pre = json.loads(r["out"]) if r["out"].strip().startswith("{") else {}
+        if pre.get("prerequisite") == "netfx-missing":
+            r = case("redirected-window-start", lines, ["--simulated-console", str(work / "none")])
+            check("redirected-window-start-no-window", r["code"] == 90 and r["seconds"] < 20 and URL48 in r["err"], "exit %s in %s s" % (r["code"], r["seconds"]))
+        else:
+            check("redirected-window-start-no-window", False, "not run: the simulation was not in effect (%s)" % pre.get("prerequisite"))
+
+        # a start failure after the checks (simulated before the runtime is bound): its own code and words
+        r = case("start-fail", ["start=fail"], ["--version"])
+        check("start-failure-exit-92", r["code"] == 92 and "could not start .NET Framework" in r["err"] and "simulated" in r["err"], r["err"].strip()[:300])
+        # no simulation file: everything as before
+        sim.unlink()
+        r = run([exe, "--version"])
+        check("no-simulation-file-is-real", r["code"] == 0 and r["out"].strip() != "", r["out"].strip())
+    finally:
+        os.environ.pop("CCS_HOST_SIMULATE_FILE", None)
+        if sim.exists():
+            sim.unlink()
+
+    # a damaged copy is not a missing part of Windows: one byte of the carried program changed (a copy in its own folder)
+    damaged_dir = work / "damaged"; damaged_dir.mkdir()
+    damaged = damaged_dir / exe.name
+    data = bytearray(exe.read_bytes())
+    pe = pe_facts(exe)
+    off = payload_offset(bytes(data))
+    data[off + 4096] ^= 0x5A
+    damaged.write_bytes(bytes(data))
+    r = runs["damaged-version"] = run([damaged, "--version"])
+    check("damaged-payload-words", r["code"] == 91 and "damaged" in r["err"] and "download it again" in r["err"] and ".NET Framework" not in r["err"],
+          r["err"].strip()[:300])
+    r = runs["damaged-host-info"] = run([damaged, "--host-info"])
+    hi = json.loads(r["out"]) if r["out"].strip().startswith("{") else {}
+    check("damaged-payload-host-info", r["code"] == 91 and hi.get("payload_ok") is False and hi.get("prerequisite") == "ready", "exit %s payload_ok %s" % (r["code"], hi.get("payload_ok")))
+    RESULTS["damaged_payload"] = {"byte_changed_at": off + 4096, "resource_bytes": pe["resources"].get((10, 101))}
+    shutil.rmtree(damaged_dir, ignore_errors=True)
+
+
+def payload_offset(d: bytes) -> int:
+    """the file offset of the carried program (RCDATA 101)"""
+    pe = struct.unpack_from("<I", d, 0x3C)[0]
+    nsec, soh = struct.unpack_from("<H", d, pe + 6)[0], struct.unpack_from("<H", d, pe + 20)[0]
+    opt = pe + 24
+    ddo = opt + (96 if struct.unpack_from("<H", d, opt)[0] == 0x10B else 112)
+    secs = [struct.unpack_from("<8sIIII", d, opt + soh + i * 40)[1:] for i in range(nsec)]
+
+    def off(rva):
+        for vs, va, rs, ra in secs:
+            if va <= rva < va + max(vs, rs):
+                return rva - va + ra
+        raise ValueError(rva)
+
+    base = off(struct.unpack_from("<I", d, ddo + 16)[0])
+
+    def entries(o):
+        named, ids = struct.unpack_from("<HH", d, o + 12)
+        for i in range(named + ids):
+            yield struct.unpack_from("<II", d, o + 16 + 8 * i)
+
+    for tid, tptr in entries(base):
+        for rid, rptr in entries(base + (tptr & 0x7FFFFFFF)):
+            for _, lptr in entries(base + (rptr & 0x7FFFFFFF)):
+                if (tid, rid) == (10, 101):
+                    return off(struct.unpack_from("<I", d, base + lptr)[0])
+    raise ValueError("no RCDATA 101")
+
+
 # ---------------------------------------------------------------- main
 
 def main() -> int:
@@ -322,7 +476,7 @@ def main() -> int:
     check("build-record-payload", record["payload"]["sha256"] == RESULTS["managed"]["sha256"], "the host carries exactly the managed executable tested here")
 
     # 3. static checks
-    allowed = {"kernel32.dll", "user32.dll", "advapi32.dll", "shell32.dll", "ole32.dll", "oleaut32.dll", "bcrypt.dll"}
+    allowed = {"kernel32.dll", "user32.dll", "gdi32.dll", "advapi32.dll", "shell32.dll", "ole32.dll", "oleaut32.dll", "bcrypt.dll"}   # gdi32: the setup window
     exes = {}
     for o in record["outputs"]:
         exe = out / o["exe"]
@@ -411,6 +565,7 @@ def main() -> int:
         check("netfx-missing-worker-event", r["code"] == 90 and ev.get("event") == "error" and "4.8" in ev.get("text", ""), r["out"].strip()[:300])
     finally:
         del os.environ["CCS_HOST_SIMULATE_NETFX_RELEASE"]
+    prerequisite_checks(exe, work, runs, info)
 
     r = runs["version"] = run([exe, "--version"])
     direct = run([managed, "--version"])
@@ -427,10 +582,10 @@ def main() -> int:
     check("engine-info", r["code"] == 0 and same, "identical to the managed executable's own report" if same else json.dumps(hosted_report)[:500])
     RESULTS["engine_info"] = hosted_report
 
+    # the worker is sent only a request it refuses before any console code runs. No console request is ever sent from here: with the
+    # console tasks available, a request such as prepare-plan without "console":"simulated" looks for a real console on this PC's USB.
     r = runs["worker-unknown"] = run([exe, "--backup-worker"], stdin=b'{"cmd":"no-such-request"}\n')
     check("worker-unknown-request", r["code"] == 2 and '"unknown request"' in r["out"], "exit %s: %s" % (r["code"], r["out"].strip()[:300]))
-    r = runs["worker-prepare-plan"] = run([exe, "--backup-worker"], stdin=b'{"cmd":"prepare-plan"}\n')
-    check("worker-capability-profile", r["code"] == 4 and '"unavailable"' in r["out"], "exit %s: %s" % (r["code"], r["out"].strip()[:300]))
 
     st_dir = work / "parity-selftest-üé-テスト"   # non-ASCII on purpose: paths go UTF-16 -> UTF-8 -> UTF-16 through libpar2
     r = runs["parity-selftest"] = run([exe, "--parity-selftest", st_dir], timeout=900)

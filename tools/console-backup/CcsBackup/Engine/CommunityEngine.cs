@@ -7,14 +7,25 @@
 //               in its transfer folder and the free space (ccsprep mstate) and each mod's state (ccscomm cstate); the change resolved in one
 //               plan (CommunityResolver: dependencies, variant, conflicts, bases kept under what needs them, the author's own automatic
 //               removals); each package file admitted by its exact pin and checked as an archive (CommunityAdmission)
-//   2 protect   a complete, verified backup of the console as it is now, in this session; a mod that writes a USB drive or SD card is
-//               refused until those can be backed up too (ExternalBackup)
-//   3 plan      ckeep (a mod's settings and favorites copied to Classic Cart Studio's own folder before its own removal deletes them, unless
-//               the person chose to remove them too), cforget (that copy removed, only when chosen), cunlist (one removal list, a package
-//               that needs another before it), cput (each package, its dependencies first: a package whose dependency arrives in the same
-//               change waits in hmod/), crestore (kept settings put back where nothing is). A one-time confirmation for exactly this plan
-//   4 recheck   at the confirmation: the protective backup and every package file held open and checked again, the console's state read
-//               again and unchanged, the record saved before the first write
+//   2 protect   a mod that writes a USB drive or SD card: the USB and SD backup of that storage the person chose, verified from scratch,
+//               holding every place the mod's record names, bound (CommunityStorage.cs); then a complete, verified backup of the console as
+//               it is now, in this session
+//   3 plan      a community menu CCS Nucleus's startup chooser starts (CommunityRecord.ChooserMenu) is a choice there: when the chooser is
+//               not on the console, the same change adds it first (method:ccs-nucleus when CCS Nucleus is not there either, then
+//               method:ccs-nucleus-chooser, their packages placed in hakchi's transfer folder; nstart, the chooser shown at start with
+//               everything else of the start setting kept, or Original Menu when nothing is chosen where CCS Nucleus arrives now). A CCS
+//               Nucleus (or chooser) installed in an earlier version is updated in the same change (this build's package placed over it,
+//               installed by hakchi before CCS Nucleus starts anything; its settings and choices kept), named in the review.
+//               ckeep (a mod's settings and favorites copied to Classic Cart Studio's own folder before its own removal deletes them, unless
+//               the person chose to remove them too), cforget (that copy removed, only when chosen), nmdrop (a removed menu's choice taken
+//               out of CCS Nucleus's list), cunlist (one removal list, a package that needs another before it), nmadd (a menu's choice
+//               added to CCS Nucleus's list, or changed to its new package or program), cput (each package, its dependencies first: a
+//               package whose dependency arrives in the same change waits in hmod/), crestore (kept settings put back where nothing is).
+//               The review names every piece added. A one-time confirmation for exactly this plan
+//   4 recheck   at the confirmation: the protective backup, the USB and SD backup and every package file held open and checked again
+//               (the person must also confirm the USB and SD backup is of the storage the console uses: Workbench cannot read that storage
+//               through the console), the console's state read again and unchanged, the recovery set of both backups and the record
+//               saved before the first write
 //   5 write     each step once; each is read back; the first failure stops every later step; nothing is retried or undone automatically
 //   6 verify    what waits for the next start is exactly this plan's files; kept copies read back
 // The PC keeps a ledger of what Workbench installed on each console (the record as it was listed, the pin, the payload's files, the backup
@@ -23,6 +34,7 @@
 // the approved one, it does not make the author's code safe or limit what it does.
 using CcsBackup.Archive;
 using CcsBackup.Device;
+using CcsBackup.External;
 using CcsBackup.Library;
 using System;
 using System.Collections.Generic;
@@ -43,8 +55,37 @@ namespace CcsBackup.Engine
         /// <summary>with Remove: also remove the mod's settings and favorites (normal removal keeps them)</summary>
         public bool RemoveSettings;
         public Dictionary<string, string> Files = new Dictionary<string, string>(StringComparer.Ordinal);
+        /// <summary>a mod that writes a USB drive or SD card: the USB and SD backup of that storage the person chose on this PC</summary>
+        public string StorageBackup;
         public bool Empty => Install.Count + Update.Count + Remove.Count + RestoreSettings.Count == 0;
-        public JObj ToJson() => new JObj { { "install", Install.Cast<object>().ToList() }, { "update", Update.Cast<object>().ToList() }, { "remove", Remove.Cast<object>().ToList() }, { "restore_settings", RestoreSettings.Cast<object>().ToList() }, { "remove_settings", RemoveSettings } };
+        public JObj ToJson() => new JObj { { "install", Install.Cast<object>().ToList() }, { "update", Update.Cast<object>().ToList() }, { "remove", Remove.Cast<object>().ToList() }, { "restore_settings", RestoreSettings.Cast<object>().ToList() }, { "remove_settings", RemoveSettings }, { "storage_backup", StorageBackup } };
+    }
+
+    /// <summary>a community menu as a choice in CCS Nucleus's startup chooser (its registry option of kind "community"): the menu's hakchi
+    /// package, its program as a console path and the label the chooser shows</summary>
+    public sealed class CommunityMenuChoice
+    {
+        public string Id, RecordId, Name, Package, Program, Label;
+        public string Label64 => Convert.ToBase64String(Encoding.ASCII.GetBytes(Label ?? ""));
+        public JObj ToJson() => new JObj { { "id", Id }, { "entry", RecordId }, { "name", Name }, { "package", Package }, { "program", Program }, { "label", Label } };
+    }
+
+    public static class CommunityMenus
+    {
+        /// <summary>the ccsprep steps that add (or change) and remove a menu's choice in CCS Nucleus's list</summary>
+        public static readonly string[] Steps = { "nmadd", "nmdrop" };
+        /// <summary>the choice's id in CCS Nucleus's list, from the entry's stable id</summary>
+        public static string ChoiceId(string recordId) { using (var h = SHA256.Create()) return "cm-" + Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes(recordId ?? ""))).Substring(0, 12); }
+        /// <summary>the label the chooser shows: the entry's name in the characters the chooser draws (others become spaces), at most 60</summary>
+        public static string LabelOf(string name)
+        {
+            var t = new string((name ?? "").Select(ch => ch < 128 && (char.IsLetterOrDigit(ch) || " .,'!&()+:-".IndexOf(ch) >= 0) ? ch : ' ').ToArray());
+            t = Regex.Replace(t, " {2,}", " ").Trim(); if (t.Length > 60) t = t.Substring(0, 60).TrimEnd();
+            return t.Length == 0 ? "Community Menu" : t;
+        }
+        public static string ProgramOf(string relative) => "/var/lib/hakchi/rootfs/" + relative;
+        public static CommunityMenuChoice For(CommunityRecord r, CommunityVariant v) => new CommunityMenuChoice { Id = ChoiceId(r.Id), RecordId = r.Id, Name = r.Name, Package = v.Package, Program = ProgramOf(r.LaunchProgram), Label = LabelOf(r.Name) };
+        public static string Label64Text(string b64) { try { return b64 == null ? null : Encoding.ASCII.GetString(Convert.FromBase64String(b64)); } catch (FormatException) { return null; } }
     }
 
     /// <summary>one entry's part in a change. op: install, update, switch (to the variant the new combination needs), remove, restore-settings</summary>
@@ -76,16 +117,23 @@ namespace CcsBackup.Engine
         public Dictionary<string, object> Record;   // the record as it was listed
         public Dictionary<string, string> Payload = new Dictionary<string, string>(StringComparer.Ordinal);   // path -> SHA-256
         public string BackupPath, BackupSha256, BackupCompletedUtc;
+        /// <summary>a mod that writes a USB drive or SD card: the USB and SD backup of that storage bound to the change, and the recovery set
+        /// that names it with the console's backup</summary>
+        public string StorageBackupPath, StorageBackupSha256, StorageBackupMade, StorageName, RecoverySetRecord;
+        /// <summary>its choice in CCS Nucleus's startup chooser (a community menu), or null</summary>
+        public string ChoiceId;
         public JObj ToJson() => new JObj { { "id", Id }, { "name", Name }, { "version", Version }, { "variant", Variant }, { "package", Package }, { "sha256", Sha256 }, { "state", State }, { "check", Check },
-            { "plan_record", PlanRecord }, { "changed_utc", ChangedUtc }, { "record", CommunityCatalog.ToJObj(Record) },
+            { "plan_record", PlanRecord }, { "changed_utc", ChangedUtc }, { "record", CommunityCatalog.ToJObj(Record) }, { "chooser_choice", ChoiceId },
             { "payload", Payload.Select(kv => (object)new JObj { { "path", kv.Key }, { "sha256", kv.Value } }).ToList() },
-            { "pre_install_backup", BackupPath == null ? null : new JObj { { "path", BackupPath }, { "sha256", BackupSha256 }, { "completed_utc", BackupCompletedUtc } } } };
+            { "pre_install_backup", BackupPath == null ? null : new JObj { { "path", BackupPath }, { "sha256", BackupSha256 }, { "completed_utc", BackupCompletedUtc } } },
+            { "pre_install_storage_backup", StorageBackupPath == null ? null : new JObj { { "path", StorageBackupPath }, { "sha256", StorageBackupSha256 }, { "made", StorageBackupMade }, { "storage", StorageName }, { "recovery_set", RecoverySetRecord } } } };
         public static CommunityInstalled From(Dictionary<string, object> d)
         {
             var c = new CommunityInstalled { Id = d.S("id"), Name = d.S("name"), Version = d.S("version"), Variant = d.S("variant"), Package = d.S("package"), Sha256 = d.S("sha256"), State = d.S("state"), Check = d.S("check"),
-                PlanRecord = d.S("plan_record"), ChangedUtc = d.S("changed_utc"), Record = d.O("record") };
+                PlanRecord = d.S("plan_record"), ChangedUtc = d.S("changed_utc"), Record = d.O("record"), ChoiceId = d.S("chooser_choice") };
             foreach (var p in (d.A("payload") ?? new List<object>()).OfType<Dictionary<string, object>>()) if (p.S("path") != null) c.Payload[p.S("path")] = p.S("sha256");
             var b = d.O("pre_install_backup"); if (b != null) { c.BackupPath = b.S("path"); c.BackupSha256 = b.S("sha256"); c.BackupCompletedUtc = b.S("completed_utc"); }
+            var sb = d.O("pre_install_storage_backup"); if (sb != null) { c.StorageBackupPath = sb.S("path"); c.StorageBackupSha256 = sb.S("sha256"); c.StorageBackupMade = sb.S("made"); c.StorageName = sb.S("storage"); c.RecoverySetRecord = sb.S("recovery_set"); }
             return c;
         }
         /// <summary>the record it was installed from (kept after delisting)</summary>
@@ -265,37 +313,50 @@ namespace CcsBackup.Engine
         }
     }
 
-    /// <summary>the backup of external storage a change needs before it is written (a mod that writes a USB drive or SD card): set by the
-    /// external backup feature; while it is not set, such a change is refused</summary>
-    public sealed class CommunityStorageRequest { public RecoveryConsole Console; public EngineContext Context; public List<string> Locations = new List<string>(); }
-    public sealed class CommunityStorageResult { public string Problem; public BoundArchive Archive; public JObj Evidence; }
-
     public sealed class CommunityPlan
     {
         public string Hwid, ConsoleTag, Session, Digest, Nonce, Text, CatalogSha; public int CatalogGeneration; public DateTime ExpiresUtc;
         public CommunityChange Change; public CommunityResolution Resolution;
         public List<AdmittedPackage> Packages = new List<AdmittedPackage>();
         public MethodState Before; public Dictionary<string, CommunityPackageState> BeforeMods; public string BeforeModsDigest;
-        public BoundArchive ProtectiveArchive; public CommunityStorageResult External;
+        public BoundArchive ProtectiveArchive;
+        /// <summary>a mod that writes a USB drive or SD card: the USB and SD backup of that storage, bound</summary>
+        public CommunityStorageBinding Storage;
         public string ProtectivePath => ProtectiveArchive?.Path;
         public string UnlistSha;
-        /// <summary>the steps in order: "ckeep:PKG", "cforget:PKG", "cunlist", "cput:PKG", "crestore:PKG"</summary>
+        /// <summary>Classic Cart Studio's add-ons this change places because a community menu needs the startup chooser (ccs-nucleus,
+        /// ccs-nucleus-chooser), CCS Nucleus's start setting it writes ("DEFAULT always HOME SELECTION TIMEOUT") or null, and the menus' choices
+        /// added (or changed) and removed in CCS Nucleus's list</summary>
+        public List<string> Addons = new List<string>(); public string StartLine;
+        /// <summary>CCS Nucleus or its chooser installed in an earlier version, which this build's packages are placed over (an earlier CCS Nucleus
+        /// cannot read a community menu's choice)</summary>
+        public List<string> Updated = new List<string>();
+        public List<CommunityMenuChoice> MenusAdded = new List<CommunityMenuChoice>(), MenusDropped = new List<CommunityMenuChoice>();
+        /// <summary>the heading and words of the review's notice when the change turns on the startup chooser (null otherwise)</summary>
+        public string ChooserTitle, ChooserText;
+        /// <summary>the steps in order: "method:PKG", "nstart", "ckeep:PKG", "cforget:PKG", "nmdrop:ID", "cunlist", "nmadd:ID", "cput:PKG", "crestore:PKG"</summary>
         public List<string> Steps = new List<string>(), Notes = new List<string>();
         public AdmittedPackage PackageFor(string pkg) => Packages.FirstOrDefault(p => p.Variant.Package == pkg);
         /// <summary>the item a step's package names: the package it places, or else the one it removes or replaces</summary>
         public CommunityItem ItemFor(string pkg) => Resolution.Items.FirstOrDefault(i => i.Variant?.Package == pkg) ?? Resolution.Items.FirstOrDefault(i => i.OldPackage == pkg);
+        public CommunityMenuChoice MenuFor(string id) => MenusAdded.FirstOrDefault(m => m.Id == id) ?? MenusDropped.FirstOrDefault(m => m.Id == id);
         public JObj ToJson() => new JObj
         {
             { "operation", "community" }, { "console_tag", ConsoleTag }, { "text", Text }, { "change", Change?.ToJson() }, { "items", Resolution.Items.Select(i => (object)i.ToJson()).ToList() },
             { "feedback", Resolution.Feedback.Cast<object>().ToList() }, { "upstream_removals", Resolution.UpstreamRemovals.Cast<object>().ToList() }, { "steps", Steps }, { "notes", Notes },
             { "packages", Packages.Select(p => (object)p.ToJson()).ToList() }, { "removal_list", Resolution.Unlist.Count == 0 ? null : new JObj { { "names", string.Join(" ", Resolution.Unlist) }, { "sha256", UnlistSha } } },
+            { "addons", Addons.Select(a => (object)new JObj { { "name", a }, { "label", Methods.Label(a) }, { "sha256", Methods.Sha256(a) } }).ToList() }, { "start", StartLine },
+            { "updates", Updated.Select(a => (object)new JObj { { "name", a }, { "label", Methods.Label(a) }, { "sha256", Methods.Sha256(a) } }).ToList() },
+            { "chooser", ChooserTitle == null ? null : new JObj { { "title", ChooserTitle }, { "text", ChooserText } } },
+            { "menus_added", MenusAdded.Select(m => (object)m.ToJson()).ToList() }, { "menus_removed", MenusDropped.Select(m => (object)m.ToJson()).ToList() },
+            { "storage", Storage?.ToJson() }, { "storage_confirm", Storage == null ? null : CommunityStorage.ConfirmText },
             { "catalog", new JObj { { "generation", CatalogGeneration }, { "sha256", CatalogSha } } }, { "console_state", Before?.ToJson() },
-            { "mods_state", BeforeMods?.Values.Select(m => (object)m.Line).ToList() }, { "protective_backup", ProtectivePath }, { "evidence", new List<object> { ProtectiveArchive?.ToJson(), External?.Evidence } },
+            { "mods_state", BeforeMods?.Values.Select(m => (object)m.Line).ToList() }, { "protective_backup", ProtectivePath }, { "evidence", new List<object> { ProtectiveArchive?.ToJson(), Storage?.ToJson() } },
             { "digest", Digest }, { "nonce", Nonce }, { "expires_utc", ExpiresUtc.ToString("o", CultureInfo.InvariantCulture) },
         };
     }
 
-    public sealed class CommunityOutcome { public string State, Problem, RecordFile; public List<string> Done = new List<string>(); public CommunityPlan Plan; public bool Ok => State == "scheduled"; }
+    public sealed class CommunityOutcome { public string State, Problem, RecordFile, RecoverySetRecord; public List<string> Done = new List<string>(); public CommunityPlan Plan; public bool Ok => State == "scheduled"; }
 
     /// <summary>what Workbench read from a console about its community mods (nothing written): the reconciled ledger and the catalog's
     /// entries with each one's state</summary>
@@ -313,10 +374,7 @@ namespace CcsBackup.Engine
 
     public static class CommunityEngine
     {
-        public static readonly string[] Steps = { "ckeep", "cforget", "cunlist", "cput", "crestore" };
-        /// <summary>backs up the external storage a change touches (the external backup feature sets it); null: such changes are refused</summary>
-        public static Func<CommunityStorageRequest, CommunityStorageResult> ExternalBackup;
-        public const string ExternalRefusal = "This mod also changes a USB drive or SD card connected to the console. Workbench cannot back up that storage yet, so it does not install, update or remove this mod. Nothing was changed.";
+        public static readonly string[] Steps = { "ckeep", "cforget", "cunlist", "cput", "crestore", "method", "nstart", "nmadd", "nmdrop" };
         public const string PrivilegeNote = "A mod's own scripts run on the console with full control of it. Workbench checks that each file is exactly the approved one (its size and SHA-256 fingerprint); that proves it is the file that was reviewed, not that it is safe, and it does not limit what the mod does.";
 
         /// <summary>the console's family as the records name it (from its board)</summary>
@@ -330,6 +388,12 @@ namespace CcsBackup.Engine
         public static string StepLabel(string s, CommunityPlan p = null)
         {
             var i = s.IndexOf(':'); var k = i < 0 ? s : s.Substring(0, i); var pkg = i < 0 ? null : s.Substring(i + 1);
+            if (k == "method" || k == "nstart") return MethodEngine.StepLabel(s);
+            if (k == "nmadd" || k == "nmdrop")
+            {
+                var m = p?.MenuFor(pkg); var mn = m?.Name ?? pkg;
+                return k == "nmadd" ? mn + " added to CCS Nucleus's startup chooser as a choice" : mn + "'s choice removed from CCS Nucleus's startup chooser";
+            }
             var name = pkg == null || p == null ? pkg : p.ItemFor(pkg)?.Record.Name ?? pkg;
             switch (k)
             {
@@ -428,6 +492,7 @@ namespace CcsBackup.Engine
                 change.Files.TryGetValue(r.Id, out var file);
                 var (pkg, why) = CommunityAdmission.Admit(r, it.Variant, file);
                 if (pkg == null) return (null, Refuse(file == null ? r.Name + " " + r.Version + ": " + CommunityAdmission.NoFileText : why));
+                if (r.ChooserMenu && !pkg.Inventory.Payload.Any(m => m.Type == "file" && m.Path == r.LaunchProgram)) return (null, Refuse("The approved " + r.Name + " file does not hold the program its record names (" + r.LaunchProgram + "), so the startup chooser could not start it. Nothing was installed."));
                 p.Packages.Add(pkg); need += it.Variant.Bytes + pkg.Inventory.UnpackedBytes;
             }
             if (p.Packages.Count > 0)
@@ -448,32 +513,87 @@ namespace CcsBackup.Engine
                 if (it.Op == "restore-settings" && (ms == null || !ms.Kept)) return (null, Refuse("No settings kept for " + it.Record.Name + " are on the console. Nothing was changed."));
                 if (it.KeepSettings && ms != null && ms.Kept) p.Notes.Add("Settings Workbench kept earlier for " + it.Record.Name + " are on the console. If they differ from its settings now, the change stops at that step and writes nothing more, so nothing kept is lost.");
             }
-            // the steps: keep, forget, one removal list, place (dependencies first), put back
+            // a community menu the startup chooser starts is a choice there: its choice added (or changed to the new package or program)
+            // with its package; a removed menu's choice taken out. The chooser itself comes in the same change when it is not on the console
+            var menusIn = res.Items.Where(i => i.Places && i.Record.ChooserMenu).ToList();
+            foreach (var it in menusIn)
+            {
+                var mc = CommunityMenus.For(it.Record, it.Variant);
+                if (st.Options.TryGetValue(mc.Id, out var have) && have.kind != "community") return (null, Refuse("Another choice in CCS Nucleus already has the id " + mc.Id + ", so " + it.Record.Name + " cannot be added to its startup chooser. Nothing was changed."));
+                bool same = have.kind == "community" && st.Menus.TryGetValue(mc.Id, out var m0) && m0.package == mc.Package && m0.program == mc.Program && m0.label64 == mc.Label64;
+                if (!same) p.MenusAdded.Add(mc);
+            }
+            foreach (var it in res.Items.Where(i => i.Op == "remove" && i.Record.IsMenu))
+            {
+                var cid = CommunityMenus.ChoiceId(it.Record.Id);
+                if (st.Menus.TryGetValue(cid, out var m1)) p.MenusDropped.Add(new CommunityMenuChoice { Id = cid, RecordId = it.Record.Id, Name = it.Record.Name, Package = m1.package, Program = m1.program, Label = CommunityMenus.Label64Text(m1.label64) });
+            }
+            if (menusIn.Count > 0)
+            {
+                bool nucleus = st.Installed(Methods.Nucleus), chooser = st.Installed(Methods.Chooser);
+                if (st.Registry == "invalid" || st.Start == "invalid") return (null, Refuse("CCS Nucleus's list of choices on this console cannot be read, so a menu cannot be added to its startup chooser. Nothing was changed."));
+                if (nucleus && st.NucleusProgram == null || chooser && st.AddonVersion(Methods.Chooser) == null) return (null, Refuse("Workbench cannot tell which version of CCS Nucleus this console has, so it does not add a menu to its startup chooser. Nothing was changed."));
+                if (!nucleus) p.Addons.Add(Methods.Nucleus); else if (st.NucleusProgram == "earlier") p.Updated.Add(Methods.Nucleus);
+                if (!chooser) p.Addons.Add(Methods.Chooser); else if (st.AddonVersion(Methods.Chooser) == "earlier") p.Updated.Add(Methods.Chooser);
+                foreach (var a in p.Addons.Concat(p.Updated)) if (!Hex.IsHex(Methods.Sha256(a), 64)) return (null, Refuse("This build does not carry " + Methods.Label(a) + "'s package. Nothing was changed."));
+                var names = string.Join(" and ", menusIn.Select(i => i.Record.Name));
+                if (!chooser)
+                {
+                    // the chooser shown at start; what opens when nothing is chosen stays as it is (the console's own menu where CCS Nucleus arrives now)
+                    var sp = st.StartParts;
+                    if (sp == null && st.Start != "none") return (null, Refuse("CCS Nucleus's start setting cannot be read on this console. Nothing was changed."));
+                    var line = sp == null ? "native always " + (st.Installed(Methods.Mod) ? "on" : "off") + " default " + AddonChoice.Countdown.ToString(CultureInfo.InvariantCulture) : sp[0] + " always " + sp[2] + " " + sp[3] + " " + sp[4];
+                    if (st.Start != line) p.StartLine = line;
+                    var after = line.Split(' ');
+                    // what opens first and the countdown stay exactly as the console has them (also a setting its own screen made)
+                    var dflt = after[0] == "ccs-home" ? "CCS HOME" : after[0] == "native" ? "Original Menu" : st.OptionName(after[0]) ?? "the menu set on the console";
+                    var secs = AddonChoice.SecondsText(int.Parse(after[4], CultureInfo.InvariantCulture));
+                    p.ChooserTitle = "This addition uses the startup chooser";
+                    p.ChooserText = "Adding " + names + " will turn on CCS Nucleus's startup chooser and add the parts it needs. Your games, saves and other mods stay.";
+                    p.Notes.Add("Added in this change so that " + names + " can be chosen: " + string.Join(" and ", p.Addons.Select(Methods.Label)) + ". hakchi installs " + (p.Addons.Count == 1 ? "it" : "them") + " at the console's next start, with the mod.");
+                    p.Notes.Add("At power-on the startup chooser appears first. " + (after[4] == "0" ? (after[3] == "last" ? "Nothing starts until you choose; the menu you used last is selected first." : "Nothing starts until you choose.")
+                        : after[3] == "last" ? "If you do nothing, the menu you used last starts in " + secs + "." : "If you do nothing, " + dflt + " starts in " + secs + ", as it opens now.")
+                        + " You can change this in the chooser's Recovery and Settings, or in Console Restore: Add-ons and Startup.");
+                }
+                else if (st.StartParts != null && st.StartParts[1] == "never")
+                    p.Notes.Add("The startup chooser is set not to appear at power-on (your choice, kept). " + names + (menusIn.Count == 1 ? " is" : " are") + " in it: open it from CCS Nucleus in Original Menu, or with Choose Another Menu in CCS HOME.");
+                if (p.Updated.Count > 0)
+                    p.Notes.Add(string.Join(" and ", p.Updated.Select(Methods.Label)) + " on this console " + (p.Updated.Count == 1 ? "is" : "are") + " an earlier version, which cannot list a community menu, so this change updates " + (p.Updated.Count == 1 ? "it" : "them") + ". " + MethodEngine.UpdateText(p.Updated));
+                p.Notes.Add(names + (menusIn.Count == 1 ? " becomes a choice" : " become choices") + " in the startup chooser. " + string.Join(" ", menusIn.Select(i => i.Record.Name + ": " + i.Record.LaunchReturn)) + " Leaving it opens the startup chooser again, to choose another menu.");
+            }
+            if (p.MenusDropped.Count > 0)
+                p.Notes.Add("Removing " + string.Join(" and ", p.MenusDropped.Select(m => m.Name)) + " also removes " + (p.MenusDropped.Count == 1 ? "its choice" : "their choices") + " from the startup chooser. The startup chooser itself stays; removing it is in Console Restore: Add-ons and Startup.");
+            // the steps: the add-ons the chooser needs and its start, keep, forget, the removed menus' choices, one removal list, the added
+            // menus' choices, place (dependencies first), put back
+            foreach (var a in Methods.Packages.Where(x => p.Addons.Contains(x) || p.Updated.Contains(x))) p.Steps.Add("method:" + a);
+            if (p.StartLine != null) p.Steps.Add("nstart");
             foreach (var it in res.Items.Where(i => i.KeepSettings)) p.Steps.Add("ckeep:" + (it.OldPackage ?? it.Variant.Package));
             if (change.RemoveSettings) foreach (var it in res.Items.Where(i => i.Op == "remove")) if (rd.Mods.TryGetValue(it.OldPackage, out var ms) && ms.Kept) p.Steps.Add("cforget:" + it.OldPackage);
+            foreach (var m in p.MenusDropped) p.Steps.Add("nmdrop:" + m.Id);
             if (res.Unlist.Count > 0) { p.UnlistSha = ListSha(res.Unlist); p.Steps.Add("cunlist"); }
+            foreach (var m in p.MenusAdded) p.Steps.Add("nmadd:" + m.Id);
             foreach (var it in res.Placed) p.Steps.Add("cput:" + it.Variant.Package);
             foreach (var it in res.Items.Where(i => i.Op == "restore-settings")) p.Steps.Add("crestore:" + it.Variant.Package);
             // what already waits for the next start may be only this plan's own files (an interrupted earlier run is finished, never written twice)
-            var mine = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var it in res.Placed) mine[(it.Tier == 1 ? "hmod/" : "") + it.Variant.Package + ".hmod"] = it.Variant.Sha256;
-            if (p.UnlistSha != null) mine["uninstall"] = p.UnlistSha;
-            var wp = MethodEngine.WaitingProblem(st, mine);
+            var wp = MethodEngine.WaitingProblem(st, Mine(p));
             if (wp != null) return (null, Refuse("Changing the community mods is refused: " + wp + ". Start the console normally once so hakchi applies it, then check again. Nothing was changed."));
             p.Text = string.Join(" ", new[] {
+                p.Addons.Count > 0 ? "Add " + string.Join(" and ", p.Addons.Select(Methods.Label)) + ", so the startup chooser can start " + string.Join(" and ", menusIn.Select(i => i.Record.Name)) + "." : null,
+                p.Updated.Count > 0 ? "Update " + string.Join(" and ", p.Updated.Select(Methods.Label)) + " to this version, so the startup chooser can start " + string.Join(" and ", menusIn.Select(i => i.Record.Name)) + "." : null,
                 res.Items.Any(i => i.Op == "install") ? "Install " + string.Join(", ", res.Items.Where(i => i.Op == "install").Select(i => i.Record.Name + " " + i.Record.Version)) + "." : null,
                 res.Items.Any(i => i.Op == "update") ? "Update " + string.Join(", ", res.Items.Where(i => i.Op == "update").Select(i => i.Record.Name + " to " + i.Record.Version)) + "." : null,
                 res.Items.Any(i => i.Op == "switch") ? "Change " + string.Join(", ", res.Items.Where(i => i.Op == "switch").Select(i => i.Record.Name + " to its " + i.Variant.Variant + " version")) + "." : null,
                 res.Items.Any(i => i.Op == "remove") ? "Remove " + string.Join(", ", res.Items.Where(i => i.Op == "remove").Select(i => i.Record.Name)) + (change.RemoveSettings ? ", with their settings and favorites." : ". Their settings and favorites are kept.") : null,
                 res.Items.Any(i => i.Op == "restore-settings") ? "Put back the kept settings and favorites of " + string.Join(", ", res.Items.Where(i => i.Op == "restore-settings").Select(i => i.Record.Name)) + "." : null,
-                res.Items.Any(i => i.Places || i.Unlists) ? "hakchi applies this at the console's next normal start." : null }.Where(x => x != null));
-            // phase 2: a mod that writes external storage waits for the external backup; then the console backed up in this session
+                res.Items.Any(i => i.Places || i.Unlists) || p.Addons.Count + p.Updated.Count > 0 ? "hakchi applies this at the console's next normal start." : null }.Where(x => x != null));
+            // phase 2: a mod that writes a USB drive or SD card: the USB and SD backup of that storage the person chose, checked and bound;
+            // then the console backed up in this session
             if (res.External.Count > 0)
             {
-                if (ExternalBackup == null) return (null, Refuse(ExternalRefusal));
-                var ex = ExternalBackup(new CommunityStorageRequest { Console = con, Context = ctx, Locations = res.External.ToList() });
-                if (ex == null || ex.Problem != null) return (null, Refuse("The USB drive or SD card this mod changes could not be backed up (" + (ex?.Problem ?? "no answer") + "). Nothing was changed."));
-                p.External = ex;
+                ctx.Say("protect", "Checking the USB and SD backup you chose...");
+                var (sb, why) = CommunityStorage.Bind(change.StorageBackup, res.External, ctx.Cancelled);
+                if (sb == null) return (null, Refuse(why));
+                p.Storage = sb;
             }
             ctx.Say("protect", "Backing up the console as it is now, before anything changes...");
             var prot = CaptureEngine.Run(con, ctx);
@@ -485,27 +605,47 @@ namespace CcsBackup.Engine
             foreach (var it in res.Items.Where(i => i.Places && i.Record.Alpha)) p.Notes.Add(it.Record.Name + " is an Alpha release." + (it.Record.Warnings.Count > 0 ? " Its author says: " + string.Join(" ", it.Record.Warnings) : ""));
             foreach (var it in res.Items.Where(i => i.Op == "remove" && !i.KeepSettings && i.Record.Settings.Count > 0)) p.Notes.Add(it.Record.Name + "'s settings and favorites are removed with it (you chose that). They are also in the backup made just now.");
             foreach (var it in res.Items.Where(i => i.KeepSettings)) p.Notes.Add(it.Record.Name + "'s own removal deletes its settings and favorites, so Workbench first copies them to its own folder on the console. They can be put back once " + it.Record.Name + " is installed again.");
-            p.Notes.Add("Only files on the console's data storage are written: hakchi's transfer folder" + (p.Steps.Any(s => s.StartsWith("ckeep") || s.StartsWith("cforget") || s.StartsWith("crestore")) ? " and Classic Cart Studio's own folder" : "") + (p.Steps.Any(s => s.StartsWith("crestore")) ? ", and the kept settings' own places" : "") + ". No kernel, bootloader or system is changed by Workbench.");
-            p.Notes.Add("Games, saves, other mods and CCS Mod and CCS Nucleus are kept. A mod's own install or removal can change files of its own; its record lists them.");
+            if (p.Storage != null)
+                p.Notes.Add(string.Join(" ", res.Items.Where(i => i.Op != "restore-settings" && i.Record.WritesExternal).Select(i => i.Record.Name + ": " + i.Record.ExternalText).Distinct())
+                    + " Workbench does not write that storage; the mod does, on the console. Its USB and SD backup and the backup of the console made just now are kept together as this change's recovery set: Console Restore puts the console back, and USB and SD Backup's Restore puts the USB drive or SD card back.");
+            p.Notes.Add("Only files on the console's data storage are written: hakchi's transfer folder" + (p.Steps.Any(s => s.StartsWith("ckeep") || s.StartsWith("cforget") || s.StartsWith("crestore")) ? " and Classic Cart Studio's own folder" : "")
+                + (p.Steps.Any(s => s.StartsWith("crestore")) ? ", and the kept settings' own places" : "") + (p.StartLine != null || p.MenusAdded.Count + p.MenusDropped.Count > 0 ? ", and CCS Nucleus's list of choices" : "") + ". No kernel, bootloader or system is changed by Workbench.");
+            p.Notes.Add("Games, saves, other mods, system images and CCS Mod and CCS Nucleus are kept" + (p.Addons.Count + p.Updated.Count > 0 ? " (the parts of CCS Nucleus named above are added or updated)" : "") + ". A mod's own install or removal can change files of its own; its record lists them.");
             p.Notes.Add(PrivilegeNote);
-            p.Notes.Add("The backup just made and the package files are checked again when you confirm and stay locked until the change ends; if anything is missing or changed, nothing is written.");
+            p.Notes.Add("The backup just made" + (p.Storage != null ? ", the USB and SD backup" : "") + " and the package files are checked again when you confirm and stay locked until the change ends; if anything is missing or changed, nothing is written.");
             p.Nonce = Hex.Of(Guid.NewGuid().ToByteArray()); p.ExpiresUtc = DateTime.UtcNow + RestoreEngine.ConfirmWindow;
             p.Digest = DigestOf(p);
             return (p, null);
         }
 
+        /// <summary>what this plan puts in hakchi's transfer folder: transfer-folder name -> SHA-256</summary>
+        static Dictionary<string, string> Mine(CommunityPlan p)
+        {
+            var mine = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var a in p.Addons.Concat(p.Updated)) mine[Methods.Waiting(a)] = Methods.Sha256(a);
+            foreach (var it in p.Resolution.Placed) mine[(it.Tier == 1 ? "hmod/" : "") + it.Variant.Package + ".hmod"] = it.Variant.Sha256;
+            if (p.UnlistSha != null) mine["uninstall"] = p.UnlistSha;
+            return mine;
+        }
+
         static string DigestOf(CommunityPlan p)
         {
             using (var h = SHA256.Create())
-                return Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes("ccs-community-plan/1\n" + ConsoleIdentity.NormalizeHwid(p.Hwid) + "\n" + p.Session + "\n" + Json.Write(p.Change.ToJson())
+                return Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes("ccs-community-plan/2\n" + ConsoleIdentity.NormalizeHwid(p.Hwid) + "\n" + p.Session + "\n" + Json.Write(p.Change.ToJson())
                     + string.Join(",", p.Resolution.Items.Select(i => i.Op + " " + i.Record.Id + " " + i.Variant?.Package + " " + i.Variant?.Sha256 + " " + i.OldPackage + " " + i.Tier + " " + i.KeepSettings)) + "\n"
                     + string.Join(",", p.Packages.Select(x => x.Variant.Package + " " + x.Variant.Sha256 + " " + x.File + " " + x.Inventory.PayloadDigest())) + "\n" + string.Join(" ", p.Resolution.Unlist) + " " + p.UnlistSha + "\n"
-                    + p.Before?.Digest() + "\n" + p.BeforeModsDigest + "\n" + p.CatalogSha + "\n" + p.ProtectiveArchive?.DigestLine() + "\n" + p.External?.Archive?.DigestLine() + "\n" + string.Join(",", p.Steps) + "\n" + p.Nonce + "\n" + p.ExpiresUtc.Ticks)));
+                    + string.Join(",", p.Addons.Select(a => a + " " + Methods.Sha256(a))) + "|" + string.Join(",", p.Updated.Select(a => a + " " + Methods.Sha256(a))) + "\n" + p.StartLine + "\n"
+                    + string.Join(",", p.MenusAdded.Select(m => "+" + m.Id + " " + m.Package + " " + m.Program + " " + m.Label64)) + string.Join(",", p.MenusDropped.Select(m => "-" + m.Id + " " + m.Package)) + "\n"
+                    + p.Before?.Digest() + "\n" + p.BeforeModsDigest + "\n" + p.CatalogSha + "\n" + p.ProtectiveArchive?.DigestLine() + "\n" + p.Storage?.DigestLine() + "\n" + string.Join(",", p.Steps) + "\n" + p.Nonce + "\n" + p.ExpiresUtc.Ticks)));
         }
 
         /// <summary>Phases 4 to 6: only with the plan's own digest and nonce, in its session, before it expires, once. Every check that can
         /// refuse runs before the confirmation is used up and before the first write.</summary>
-        public static CommunityOutcome Execute(RecoveryConsole con, CommunityPlan plan, string digest, string nonce, EngineContext ctx)
+        public static CommunityOutcome Execute(RecoveryConsole con, CommunityPlan plan, string digest, string nonce, EngineContext ctx) => Execute(con, plan, digest, nonce, ctx, false);
+
+        /// <summary>storageConfirmed: the person confirmed that the USB and SD backup in the plan is of the storage the console uses (required
+        /// when the plan has one: Workbench cannot check it through the console)</summary>
+        public static CommunityOutcome Execute(RecoveryConsole con, CommunityPlan plan, string digest, string nonce, EngineContext ctx, bool storageConfirmed)
         {
             var o = new CommunityOutcome { Plan = plan };
             CommunityOutcome Refuse(string why) { o.State = "refused"; o.Problem = why; return o; }
@@ -513,25 +653,42 @@ namespace CcsBackup.Engine
             if (digest != plan.Digest || nonce != plan.Nonce || plan.Nonce == null || DigestOf(plan) != plan.Digest) return Refuse("The confirmation does not match the reviewed change.");
             if (DateTime.UtcNow > plan.ExpiresUtc) return Refuse("The confirmation is more than 10 minutes old. Review the change again.");
             if (con.SessionId != plan.Session || plan.ProtectiveArchive?.Session != plan.Session) return Refuse("The console was connected again after the review. Review the change again. Nothing was changed.");
+            if (plan.Storage != null && !storageConfirmed) return Refuse(CommunityStorage.NeedConfirm);
             var id = con.Identify();
             if (!ConsoleIdentity.SameConsole(id.Hwid, plan.Hwid)) return Refuse("A different console is connected now. Nothing was changed.");
-            using (var hold = Evidence.Hold.Open(new[] { plan.ProtectivePath, plan.External?.Archive?.Path }.Concat(plan.Packages.Select(x => x.File)).ToArray()))
+            using (var hold = Evidence.Hold.Open(new[] { plan.ProtectivePath, plan.Storage?.Path }.Concat(plan.Packages.Select(x => x.File)).ToArray()))
             {
                 if (hold.Problem != null) return Refuse("A file the change relies on cannot be used (" + hold.Problem + "). Nothing was changed; review the change again.");
-                ctx.Say("validate", "Checking the backup and the package files again...");
-                var why = Evidence.Recheck(plan.ProtectiveArchive, plan.Hwid, con.Simulated, con.SessionId, ctx.Cancelled);
+                ctx.Say("validate", "Checking the backup" + (plan.Storage != null ? ", the USB and SD backup" : "") + " and the package files again...");
+                var why = Evidence.Recheck(plan.ProtectiveArchive, plan.Hwid, con.Simulated, con.SessionId, ctx.Cancelled, out var cv);
                 if (why != null) return Refuse(why + " Nothing was changed; review the change again.");
+                StorageVerification sv = null;
+                if (plan.Storage != null)
+                {
+                    var sw = CommunityStorage.Recheck(plan.Storage, ctx.Cancelled, out sv);
+                    if (sw != null) return Refuse(sw + " Nothing was changed; review the change again.");
+                }
                 foreach (var pk in plan.Packages) { var bad = CommunityAdmission.Recheck(pk); if (bad != null) return Refuse(pk.Record.Name + ": " + bad + " Nothing was changed; review the change again."); }
                 var now = con.PrepState();
-                if (!now.Ok || now.Digest() != plan.Before.Digest()) return Refuse("The console's hakchi packages or its transfer folder changed since the review. Nothing was changed; review the change again.");
+                if (!now.Ok || now.Digest() != plan.Before.Digest()) return Refuse("The console's hakchi packages, CCS Nucleus's settings or its transfer folder changed since the review. Nothing was changed; review the change again.");
                 var mods = con.CommunityState(plan.BeforeMods.Keys);
                 if (mods == null || ModsDigest(mods) != plan.BeforeModsDigest) return Refuse("The console's community mods changed since the review. Nothing was changed; review the change again.");
+                // the console's backup and the USB and SD backup named together as this change's recovery set, before the first write
+                RecoverySetResult set = null;
+                if (plan.Storage != null)
+                {
+                    set = RecoverySet.Make(ctx.Settings, plan.ProtectivePath, cv, plan.Storage.Path, sv, "before changing the community mods on console " + plan.ConsoleTag + " (" + string.Join(", ", plan.Resolution.Items.Where(i => i.Record.WritesExternal).Select(i => i.Record.Name).Distinct()) + ")");
+                    if (!set.Ok) return Refuse("The recovery set of the two backups could not be made (" + set.Problem + "), so nothing was written. Nothing was changed; review the change again.");
+                    o.RecoverySetRecord = set.RecordFile;
+                }
                 Record rec;
-                try { rec = Record.Start(ctx.Settings.RecordsFolder, Guid.NewGuid().ToString("N").Substring(0, 12), "community", new JObj { { "plan", plan.ToJson() }, { "console_tag", plan.ConsoleTag }, { "simulated", con.Simulated } }); }
+                try { rec = Record.Start(ctx.Settings.RecordsFolder, Guid.NewGuid().ToString("N").Substring(0, 12), "community", new JObj { { "plan", plan.ToJson() }, { "console_tag", plan.ConsoleTag }, { "simulated", con.Simulated },
+                    { "storage_confirmed", plan.Storage == null ? null : (object)CommunityStorage.ConfirmText }, { "recovery_set", set?.RecordFile }, { "recovery_set_text", set?.ConsistencyText } }); }
                 catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { return Refuse("The change's record could not be saved in " + ctx.Settings.RecordsFolder + " (" + ex.Message + "), so nothing was written."); }
                 plan.Nonce = null;   // used up only now
                 o.RecordFile = rec.File; var phases = new List<object>();
-                var auth = new WriteAuthority(plan.Digest, plan.Hwid, plan.Steps.Select(s => s.Split(':')[0]).Distinct().ToArray(), () => con.Simulated || Gate.CommunityWrites, Gate.CommunityText);
+                bool addons = plan.Addons.Count + plan.Updated.Count > 0 || plan.StartLine != null;
+                var auth = new WriteAuthority(plan.Digest, plan.Hwid, plan.Steps.Select(s => s.Split(':')[0]).Distinct().ToArray(), () => con.Simulated || Gate.CommunityWrites && (!addons || Gate.MethodWrites), Gate.CommunityText);
                 rec.State("writing"); con.Card("writing");
                 var kept = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (var s in plan.Steps)
@@ -558,6 +715,10 @@ namespace CcsBackup.Engine
                             var m = Regex.Match(r.Line ?? "", "^result ckeep ok(?: already)? (none|[0-9a-f]{64}) ([0-9]{1,4})$"); ok = r.Ok && m.Success;
                             if (ok) kept[pkgName] = m.Groups[1].Value;
                         }
+                        else if (k == "method") { r = con.PrepStep("method", auth, new[] { pkgName, Methods.Sha256(pkgName) }); ok = MethodEngine.Answer(r, "method", Methods.Sha256(pkgName)); }
+                        else if (k == "nstart") { r = con.PrepStep("nstart", auth, plan.StartLine.Split(' ')); ok = MethodEngine.StartAnswer(r, plan.StartLine); }
+                        else if (k == "nmadd") { var m = plan.MenuFor(pkgName); r = con.PrepStep("nmadd", auth, new[] { m.Id, m.Package, m.Program, m.Label64 }); ok = r.Ok && Regex.IsMatch(r.Line ?? "", "^result nmadd ok( already)? " + Regex.Escape(m.Id) + "$"); }
+                        else if (k == "nmdrop") { var m = plan.MenuFor(pkgName); r = con.PrepStep("nmdrop", auth, new[] { m.Id, m.Package }); ok = r.Ok && Regex.IsMatch(r.Line ?? "", "^result nmdrop ok( already)? " + Regex.Escape(m.Id) + "$"); }
                         else { r = con.CommunityStep(k, auth, new[] { pkgName }); ok = r.Ok; }
                     }
                     catch (GateClosedException ex) { rec.State("refused", ex.Message); o.State = "refused"; o.Problem = ex.Message; return o; }
@@ -572,23 +733,25 @@ namespace CcsBackup.Engine
                     }
                     o.Done.Add(s);
                 }
-                // verify: what waits is exactly this plan's own; kept copies read back
+                // verify: what waits is exactly this plan's own; CCS Nucleus's start and the menus' choices read back; kept copies read back
                 var after = con.PrepState();
-                var want = plan.Resolution.Placed.ToDictionary(i => (i.Tier == 1 ? "hmod/" : "") + i.Variant.Package + ".hmod", i => i.Variant.Sha256, StringComparer.Ordinal);
-                if (plan.UnlistSha != null) want["uninstall"] = plan.UnlistSha;
+                var want = Mine(plan);
                 bool waits = after.Ok && want.All(w => after.Waiting.TryGetValue(w.Key, out var sha) && sha == w.Value) && MethodEngine.WaitingProblem(after, want) == null;
+                bool chooserOk = after.Ok && (plan.StartLine == null || after.Start == plan.StartLine)
+                    && plan.MenusAdded.All(m => after.Options.TryGetValue(m.Id, out var x) && x.kind == "community" && after.Menus.TryGetValue(m.Id, out var y) && y.package == m.Package && y.program == m.Program && y.label64 == m.Label64)
+                    && plan.MenusDropped.All(m => !after.Options.ContainsKey(m.Id));
                 var modsAfter = con.CommunityState(plan.BeforeMods.Keys);
                 bool keptOk = modsAfter != null && kept.All(kv => kv.Value == "none" ? !modsAfter[kv.Key].Kept : modsAfter[kv.Key].KeptSha == kv.Value)
                               && plan.Steps.Where(x => x.StartsWith("cforget:")).All(x => !modsAfter[x.Substring(8)].Kept);
-                if (!waits || !keptOk)
+                if (!waits || !chooserOk || !keptOk)
                 {
                     rec.State("stopped", "the console does not read back as planned"); o.State = "stopped";
-                    o.Problem = Failure(plan, "Every step reported success, but the console does not read back as planned" + (!waits ? " (hakchi's transfer folder)" : " (the kept settings)") + ". It was not changed again.", "Check the console again before its next start, or restore the backup made just now.");
+                    o.Problem = Failure(plan, "Every step reported success, but the console does not read back as planned" + (!waits ? " (hakchi's transfer folder)" : !chooserOk ? " (CCS Nucleus's startup chooser)" : " (the kept settings)") + ". It was not changed again.", "Check the console again before its next start, or restore the backup made just now.");
                     return o;
                 }
                 rec.Set("after", new JObj { { "console_state", after.ToJson() }, { "mods_state", modsAfter.Values.Select(m => (object)m.Line).ToList() }, { "applies", "at the console's next normal start (hakchi's p7080_hmods)" } });
                 rec.State("scheduled"); con.Card("done"); o.State = "scheduled";
-                WriteLedger(ctx.Settings, plan, rec.File);
+                WriteLedger(ctx.Settings, plan, rec.File, set?.RecordFile);
                 return o;
             }
         }
@@ -604,7 +767,7 @@ namespace CcsBackup.Engine
 
         /// <summary>the ledger after a scheduled change: placed packages wait for the next start (with their payload's files and the backup
         /// made before); removed ones wait for their removal</summary>
-        static void WriteLedger(Settings s, CommunityPlan p, string recordFile)
+        static void WriteLedger(Settings s, CommunityPlan p, string recordFile, string recoverySet)
         {
             var mods = CommunityLedger.Load(s, p.ConsoleTag);
             foreach (var it in p.Resolution.Items)
@@ -615,6 +778,7 @@ namespace CcsBackup.Engine
                     var m = mods.FirstOrDefault(x => x.Id == it.Record.Id);
                     if (m == null) { m = new CommunityInstalled { Id = it.Record.Id, Name = it.Record.Name, Version = it.Record.Version, Variant = it.Variant?.Variant, Package = it.OldPackage, Record = it.Record.Raw }; mods.Add(m); }
                     m.State = CommunityLedger.Removing; m.Check = "Waits for the console's next normal start, when hakchi removes it."; m.PlanRecord = recordFile; m.ChangedUtc = Record.Now();
+                    if (p.Storage != null && it.Record.WritesExternal) { m.StorageBackupPath = p.Storage.Path; m.StorageBackupSha256 = p.Storage.Sha256; m.StorageBackupMade = p.Storage.When; m.StorageName = p.Storage.Display; m.RecoverySetRecord = recoverySet; }
                     continue;
                 }
                 var pk = p.PackageFor(it.Variant.Package);
@@ -624,7 +788,9 @@ namespace CcsBackup.Engine
                     Id = it.Record.Id, Name = it.Record.Name, Version = it.Record.Version, Variant = it.Variant.Variant, Package = it.Variant.Package, Sha256 = it.Variant.Sha256, Record = it.Record.Raw,
                     State = CommunityLedger.Waiting, Check = "Waits for the console's next normal start, when hakchi installs it.", PlanRecord = recordFile, ChangedUtc = Record.Now(),
                     BackupPath = p.ProtectiveArchive.Path, BackupSha256 = p.ProtectiveArchive.Sha256, BackupCompletedUtc = p.ProtectiveArchive.CompletedUtc,
+                    ChoiceId = it.Record.ChooserMenu ? CommunityMenus.ChoiceId(it.Record.Id) : null,
                 };
+                if (p.Storage != null && it.Record.WritesExternal) { n.StorageBackupPath = p.Storage.Path; n.StorageBackupSha256 = p.Storage.Sha256; n.StorageBackupMade = p.Storage.When; n.StorageName = p.Storage.Display; n.RecoverySetRecord = recoverySet; }
                 foreach (var m in pk.Inventory.Payload.Where(x => x.Type == "file")) n.Payload[m.Path] = m.Sha256;
                 mods.Add(n);
             }

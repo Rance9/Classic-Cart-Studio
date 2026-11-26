@@ -36,7 +36,10 @@
 # removes the folder and restarts. These steps only place files there (the PC's Preparation and MethodEngine, their own boundaries); the
 # data storage is mounted only inside them, read-only without journal replay to read, read-write to write, and always unmounted again:
 #   mstate           read-only: hakchi's version, the hakchi packages installed (its uninstall lists), CCS Nucleus's start setting
-#                    (its registry: default, chooser, generation) and what already waits in the transfer folder (name and SHA-256)
+#                    (its registry: default, chooser, generation; each community menu's choice: menu=ID PACKAGE PROGRAM LABEL64), each
+#                    add-on installed against this image's own package (addon=NAME none|current|earlier: its package record, and for CCS
+#                    Nucleus its program, are this image's or another version's; hakchi's own install of this image's package over an
+#                    earlier one updates it) and what already waits in the transfer folder (name and SHA-256)
 #   method NAME SHA  this image's own copy of NAME.hmod (ccs-mod, ccs-nucleus or ccs-nucleus-chooser, refused unless its SHA-256 is
 #                    SHA) written to the transfer folder through a new name and a rename, then read back from the storage (read-only)
 #   unlist NAME...   a removal list naming one or more of those packages, in the order given (the chooser before CCS Nucleus), written
@@ -44,10 +47,20 @@
 #   Both refuse when hakchi's files are not on the data storage, when a link is on the way, or when something else already waits under
 #   that name; the same bytes already there are "ok already" (an interrupted operation is finished, never written twice).
 #   nstart DEFAULT CHOOSER HOME SELECTION TIMEOUT   what opens at power-on: this image's own pinned CCS Nucleus program runs
-#                    "ccs-nucleus start" on the data storage (DEFAULT native|ccs-home, CHOOSER always|never, HOME on|off: CCS HOME
+#                    "ccs-nucleus start" on the data storage (DEFAULT native|ccs-home, or another option its registry lists, kept
+#                    as the owner set it; CHOOSER always|never, HOME on|off: CCS HOME
 #                    offered, SELECTION default|last, TIMEOUT 0-99 seconds, 0: wait for a choice): the first registry, or
 #                    the one in force changed in place (the owner's own system images stay listed). Works before hakchi installs CCS
 #                    Nucleus, whose install keeps a valid registry. Read back; the same setting already in force is "ok already"
+# A community menu as a choice in CCS Nucleus's startup chooser (the PC's CommunityEngine): its registry option of kind community, written by
+# this image's own pinned CCS Nucleus program on the data storage. A registry must be there (CCS Nucleus installed, or its start written
+# by nstart in the same change), and an installed CCS Nucleus must be this image's own version (an earlier one cannot read such an option)
+# or this image's CCS Nucleus package must wait in the transfer folder (hakchi installs it over the earlier one at the next start, before
+# CCS Nucleus starts anything):
+#   nmadd ID PACKAGE PROGRAM LABEL64   "ccs-nucleus menu-add": the choice added, or the same community menu's choice changed in place (a new
+#                         version or variant); never an option of another kind. Read back; the same choice already there is "ok already"
+#   nmdrop ID PACKAGE     "ccs-nucleus menu-drop": that community menu's choice removed (only one naming that package); read back; a choice
+#                         that is not there is "ok already"
 # An owner's own system image as a CCS Nucleus choice (the PC's FirmwareEngine, Console Composer's Browse for Firmware; CCS Nucleus must
 # be installed). The image goes to Nucleus's own folder, never to hakchi's firmware folders (hakchi starts the first image there by itself):
 #   rput ID SIZE SHA      exactly SIZE bytes from the PC written to /var/lib/ccs/nucleus/staging/ID.hsqs through a new name (straight to
@@ -129,6 +142,28 @@ nfree(){ [ -f "$D/hakchi/hmod/uninstall-ccs-nucleus" ] && [ -f "$D/ccs/nucleus/r
   for x in ccs ccs/nucleus ccs/nucleus/staging ccs/nucleus/roots; do [ -L "$D/$x" ] && { echo "a link is on the way"; return 1; }; done; return 0; }
 # the image's own pinned CCS Nucleus program and library, unpacked in RAM (never the copy on the console's storage)
 npkg(){ X="$ST/nucleus-pkg"; rm -rf "$X"; mkdir -p "$X" && ( cd "$X" && tar -xzf "$CCS/prep/methods/ccs-nucleus.hmod" ) && [ -f "$X/bin/ccs-nucleus" ]; }
+# an add-on on the data storage against this image's own package: none (hakchi does not list it), current (its package record VERSION is
+# this image's, and for CCS Nucleus its program too) or earlier (another version, or a record that cannot be read)
+hsum(){ [ -f "$1" ] && [ ! -L "$1" ] && sha256sum < "$1" | cut -d' ' -f1; }
+asum(){ tar -xzOf "$CCS/prep/methods/$1.hmod" "$2" 2>/dev/null | sha256sum | cut -d' ' -f1; }
+aver(){ local n="$1" m="${1#ccs-}" have
+  [ -f "$D/hakchi/hmod/uninstall-$n" ] || { echo none; return; }
+  have=$(hsum "$D/hakchi/rootfs/etc/ccs/$m/VERSION")
+  [ -n "$have" ] && [ "$have" = "$(asum "$n" "./etc/ccs/$m/VERSION")" ] || { echo earlier; return; }
+  if [ "$n" = ccs-nucleus ]; then have=$(hsum "$D/hakchi/rootfs/bin/ccs-nucleus"); [ "$have" = "$(asum "$n" ./bin/ccs-nucleus)" ] || { echo earlier; return; }; fi
+  echo current; }
+# CCS Nucleus can read a community menu's choice at the next start: its installed program is this image's, or this image's package waits in
+# the transfer folder (hakchi installs it, over an earlier one, before CCS Nucleus starts anything)
+nok(){ local t="$D/hakchi/transfer/ccs-nucleus.hmod"
+  [ "$(aver ccs-nucleus)" = current ] && return 0
+  [ -n "$(hsum "$t")" ] && [ "$(hsum "$t")" = "$(hsum "$CCS/prep/methods/ccs-nucleus.hmod")" ]; }
+# a community menu's choice: its id (never the console's own system's or CCS HOME's), hakchi package name and program under hakchi's overlay
+menuargs(){ rootid "$1" && [ "$1" != native ] && [ "$1" != ccs-home ] && echo "$2" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$' && ! echo "$2" | grep -qiE '^ccs-|^hakchi$|\.hmod$'; }
+mprog(){ echo "$1" | grep -qE '^/var/lib/hakchi/rootfs/[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*)*$' && ! echo "/$1/" | grep -qE '/\.\.?/' && [ ${#1} -le 200 ]; }
+# a community menu's choice as the registry keeps it: "PACKAGE PROGRAM LABEL64", or nothing
+mline(){ local f="$D/ccs/nucleus/registry"
+  [ "$(sed -n "s/^opt\.$1\.kind=//p" "$f")" = community ] || return 0
+  echo "$(sed -n "s/^opt\.$1\.package=//p" "$f") $(sed -n "s/^opt\.$1\.program=//p" "$f") $(sed -n "s/^opt\.$1\.label=//p" "$f" | tr -d '\n' | base64 | tr -d '\n')"; }
 # CCS Nucleus's start setting as its registry keeps it: "DEFAULT CHOOSER HOME SELECTION TIMEOUT" (HOME on when CCS HOME is listed),
 # none or invalid
 rstart(){ local f="$D/ccs/nucleus/registry" e o
@@ -306,10 +341,14 @@ case "$1" in
         echo "registry=ok"
         for o in $(sed -n 's/^options=//p' "$f"); do
           echo "option=$o $(sed -n "s/^opt\.$o\.kind=//p" "$f") $(sed -n "s/^opt\.$o\.sha256=//p" "$f") $(sed -n "s/^opt\.$o\.bytes=//p" "$f")"
+          m=$(mline "$o"); [ -n "$m" ] && echo "menu=$o $m"
         done
       else echo "registry=invalid"; fi
     else echo "registry=none"; fi
-    echo "start=$(rstart)"   # none, invalid or the five words: always reported
+    w=$(rstart); echo "start=$w"   # none, invalid or the five words: always reported
+    # with a valid registry, the name of what opens first (its default option's label), so the PC shows the owner's own setting as it is
+    case "$w" in none|invalid) ;; *) w=${w%% *}; rootid "$w" && echo "start_label=$(sed -n "s/^opt\.$w\.label=//p" "$f" | head -n 1 | tr -d '\n' | base64 | tr -d '\n')" ;; esac
+    for n in ccs-mod ccs-nucleus ccs-nucleus-chooser; do echo "addon=$n $(aver "$n")"; done
     if [ -L "$D/hakchi/transfer" ]; then echo "transfer=link"
     elif [ -d "$D/hakchi/transfer" ]; then
       for f in "$D"/hakchi/transfer/* "$D"/hakchi/transfer/.[!.]* "$D"/hakchi/transfer/hmod/* "$D"/hakchi/transfer/hmod/.[!.]*; do
@@ -388,11 +427,18 @@ case "$1" in
     r unlist "ok $want" ;;
   nstart)
     d=$2; c=$3; h=$4; s=$5; t=$6
-    [ $# -eq 6 ] && echo "$d $c $h $s $t" | grep -qE '^(native|ccs-home) (always|never) (on|off) (default|last) [0-9]{1,2}$' || r nstart "refused request"
+    [ $# -eq 6 ] && rootid "$d" && echo "$c $h $s $t" | grep -qE '^(always|never) (on|off) (default|last) [0-9]{1,2}$' || r nstart "refused request"
     npkg || r nstart "failed this image's CCS Nucleus program"
     dmount ro,noload || r nstart "failed mount"
     why=$(tfree) || { dumount; r nstart "refused $why"; }
     for x in ccs ccs/nucleus ccs/nucleus/registry; do [ -L "$D/$x" ] && { dumount; r nstart "refused a link is on the way ($x)"; }; done
+    # another option as what opens first (the owner's own setting, kept): one the registry in force lists, an owner's system image only
+    # with the chooser at start (CCS Nucleus's own start command checks the same); refused before anything is mounted read-write
+    case "$d" in native|ccs-home) ;; *)
+      f="$D/ccs/nucleus/registry"; [ "$(rstart)" != none ] && [ "$(rstart)" != invalid ] && case " $(sed -n 's/^options=//p' "$f") " in *" $d "*) true ;; *) false ;; esac \
+        || { dumount; r nstart "refused the default is not one of CCS Nucleus's choices"; }
+      [ "$(sed -n "s/^opt\.$d\.kind=//p" "$f")" != owner-root ] || [ "$c" = always ] || { dumount; r nstart "refused an owner's system image opens first only with the chooser at start"; } ;;
+    esac
     now=$(rstart); dumount
     [ "$now" = "$d $c $h $s $t" ] && r nstart "ok already $d $c $h $s $t"
     dmount rw || r nstart "failed mount"
@@ -405,6 +451,32 @@ case "$1" in
     back=$(rstart); dumount
     [ "$back" = "$d $c $h $s $t" ] || r nstart "failed readback $back"
     r nstart "ok $d $c $h $s $t" ;;
+  nmadd|nmdrop)
+    step=$1; id=$2; pkg=$3
+    if [ "$step" = nmadd ]; then prog=$4; label=$(echo "$5" | base64 -d 2>/dev/null); want="$pkg $prog $(printf '%s' "$label" | base64 | tr -d '\n')"
+      [ $# -eq 5 ] && menuargs "$id" "$pkg" && mprog "$prog" && [ -n "$label" ] || r nmadd "refused request"
+    else [ $# -eq 3 ] && menuargs "$id" "$pkg" || r nmdrop "refused request"; fi
+    npkg || r "$step" "failed this image's CCS Nucleus program"
+    dmount ro,noload || r "$step" "failed mount"
+    why=$(tfree) || { dumount; r "$step" "refused $why"; }
+    for x in ccs ccs/nucleus ccs/nucleus/registry; do [ -L "$D/$x" ] && { dumount; r "$step" "refused a link is on the way ($x)"; }; done
+    case "$(rstart)" in none|invalid) dumount; r "$step" "refused CCS Nucleus's list of choices is not on the console" ;; esac
+    nok || { dumount; r "$step" "refused CCS Nucleus on the console is an earlier version, which cannot list a community menu (and this version's is not waiting to be installed)"; }
+    have=$(mline "$id"); kind=$(sed -n "s/^opt\.$id\.kind=//p" "$D/ccs/nucleus/registry"); dumount
+    [ -z "$kind" ] || [ "$kind" = community ] || r "$step" "refused another kind of choice has this id"
+    if [ "$step" = nmadd ]; then [ "$have" = "$want" ] && r nmadd "ok already $id"
+    else [ -z "$have" ] && r nmdrop "ok already $id"; [ "${have%% *}" = "$pkg" ] || r nmdrop "refused the choice names another package (nothing was changed)"; fi
+    dmount rw || r "$step" "failed mount"
+    echo "began $step"
+    if [ "$step" = nmadd ]; then out=$(CCS_ROOT="$NEWROOT" sh "$X/bin/ccs-nucleus" menu-add "$id" "$pkg" "$prog" "$label" 2>&1 | tail -n 1)
+    else out=$(CCS_ROOT="$NEWROOT" sh "$X/bin/ccs-nucleus" menu-drop "$id" "$pkg" 2>&1 | tail -n 1); fi
+    sync; dumount || r "$step" "failed unmount"
+    c=menu-add; [ "$step" = nmdrop ] && c=menu-drop
+    case "$out" in "result $c ok"*) ;; *) r "$step" "failed ${out#result $c } (not written again)" ;; esac
+    dmount ro,noload || r "$step" "failed readback mount"
+    back=$(mline "$id"); dumount
+    if [ "$step" = nmadd ]; then [ "$back" = "$want" ] || r nmadd "failed readback"; else [ -z "$back" ] || r nmdrop "failed readback"; fi
+    r "$step" "ok $id" ;;
   rput)
     id=$2; size=$3; want=$4
     rootid "$id" && echo "$size" | grep -qE '^[1-9][0-9]{0,8}$' && echo "$want" | grep -qE '^[0-9a-f]{64}$' || r rput "refused request"

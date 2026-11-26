@@ -48,7 +48,7 @@ CLOSED = {"inspect": "Reading a real console is turned off in this build.", "ins
 BUSY = {"ok": False, "code": "busy", "error": "Another console operation is still running; wait for it to finish."}
 STUCK = {"ok": False, "code": "busy", "error": "The last console operation did not stop. Close Classic Cart Studio and open it again before the next console operation."}
 SCENARIOS = ("first-install", "update", "repeat", "repair", "interrupted")
-CHOICE = {"mod": bool, "nucleus": str, "start": str, "auto": str, "hakchi_games": bool}   # a new plan's add-on choice (console_engine.ccs_install.addon_choice) and its Hakchi games
+CHOICE = {"mod": bool, "nucleus": str, "start": str, "auto": str, "countdown": int, "at_start": bool, "hakchi_games": bool}   # a new plan's add-on choice (console_engine.ccs_install.addon_choice) and its Hakchi games
 
 def _hex(v, n: int) -> str: s = re.sub(r"[^0-9a-f]", "", str(v or ""))[:n]; return s if len(s) == n else ""
 
@@ -94,7 +94,7 @@ class Dispatcher:
         hsh = _hex(body.get("plan_hash"), 64); prof = re.sub(r"[^a-z0-9-]", "", str(body.get("profile") or ""))[:40]
         if op == "plan":   # the add-on choice: only its fields, each of its own kind (the worker checks the values and says why one cannot be made)
             choice = {k: body[k] for k in CHOICE if body.get(k) is not None}
-            if any(not isinstance(v, CHOICE[k]) or (isinstance(v, str) and not re.fullmatch(r"[a-z-]{1,16}", v)) for k, v in choice.items()):
+            if any(type(v) is not CHOICE[k] or (isinstance(v, str) and not re.fullmatch(r"[a-z0-9-]{1,31}", v)) for k, v in choice.items()):
                 return 400, {"ok": False, "code": "bad-choice", "error": "Choose the add-ons again, then make the plan again."}
             return self._res(self.runs.call("home-plan", choice, timeout=300, spawn=self.spawn))
         if op == "preflight":

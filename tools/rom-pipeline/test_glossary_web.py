@@ -1,6 +1,6 @@
 r"""Explained words on the built website (the Windows app shows the same page), headless Edge, real pointer and key events through the
 browser's input layer.
-  words     Help's Install on NES Classic chapter and the Website App comparison show the shared glossary's words (studio/glossary.json, the
+  words     Help's Installing Your Collection chapter and the Website App comparison show the shared glossary's words (studio/glossary.json, the
             same file CCS Console Workbench carries) as dotted-underlined words in their own sentences; legal text, the Installation Terms,
             Credits and About the Developer have none; Classic Cart Studio itself is never explained on its own site
   click     a click opens the word's explanation just under it, inside the window, with focus on its Close; Escape closes it, the focus is
@@ -44,7 +44,7 @@ def main() -> int:
             ed.wait_for("typeof glApply==='function'", timeout=30); time.sleep(0.5)
             ed.js("openGuide('install')"); time.sleep(1.2)
             inst = {w["g"] for w in ed.js(TERMS + "(" + json.dumps("#guideArt section[data-ch=\"install\"]") + ")") or []}
-            ok("words: Install on NES Classic explains Hakchi2 CE where it appears", "hakchi" in inst, inst)
+            ok("words: Installing Your Collection explains Hakchi2 CE where it appears", "hakchi" in inst, inst)
             ed.js("openGuide('backup')"); time.sleep(1.2)
             words = ed.js(TERMS + "(" + json.dumps("#guideArt section[data-ch=\"backup\"]") + ")")
             keys = {w["g"] for w in words or []}
@@ -124,12 +124,15 @@ def main() -> int:
             mv(hb["x"], hb["y"]); wait_pop(2.0); key(ed, "Escape", "Escape", 27)
             ok("Escape closes a hover-opened explanation and leaves the focus where it was", ed.js(POP) is None and ed.js("document.activeElement.dataset.g") == "mod")
             mv(*away); time.sleep(0.3)
-            # two words of one list item, both measured after one scroll (the item with CCS Mod for Hakchi and CCS Nucleus)
-            LI = "[...document.querySelectorAll('#guideArt section[data-ch=\"backup\"] li')].find(li=>li.querySelector('.gterm[data-g=\"mod\"]')&&li.querySelector('.gterm[data-g=\"nucleus\"]'))"
+            # two words of one list, both measured after one scroll (the list whose neighboring items name CCS Mod and CCS Nucleus; Help gives
+            # each add-on its own item)
+            LI = "[...document.querySelectorAll('#guideArt section[data-ch=\"backup\"] ul, #guideArt section[data-ch=\"backup\"] ol')].find(l=>l.querySelector('.gterm[data-g=\"mod\"]')&&l.querySelector('.gterm[data-g=\"nucleus\"]'))"
             hm = at(ed, LI + ".querySelector('.gterm[data-g=\"mod\"]')")
             hn = ed.js("(()=>{ const r=" + LI + ".querySelector('.gterm[data-g=\"nucleus\"]').getBoundingClientRect(); return {x:Math.round(r.left+Math.min(8,r.width/2)), y:Math.round(r.top+r.height/2)}; })()")
-            mv(*away); time.sleep(0.3); mv(hm["x"], hm["y"]); time.sleep(0.4); mv(hn["x"], hn["y"]); time.sleep(0.4); waits = ed.js(POP) is None; got = wait_pop(1.5)
-            ok("hover: another word starts its own full wait, then opens", waits and got is not None and ed.js(POP)["title"] == "CCS Nucleus", (waits, got, ed.js(POP), hm, hn))
+            # a point on no word now (Help has scrolled since "away" was measured: that point can sit on CCS Mod itself)
+            away2 = next((pt for pt in ((hm["x"] - 30, hm["y"]), (hm["x"] - 30, hn["y"]), (20, 20)) if ed.js(f"(()=>{{const e=document.elementFromPoint({pt[0]},{pt[1]}); return !!e&&!e.closest('.gterm')&&!e.closest('#gpop')}})()")), None)
+            mv(*(away2 or away)); time.sleep(0.3); mv(hm["x"], hm["y"]); time.sleep(0.4); mv(hn["x"], hn["y"]); time.sleep(0.4); waits = ed.js(POP) is None; got = wait_pop(1.5)
+            ok("hover: another word starts its own full wait, then opens", waits and got is not None and ed.js(POP)["title"] == "CCS Nucleus" and away2 is not None and 0 <= hn["y"] < 950, (waits, got, hm, hn, away2, ed.js(POP)))
             hb = at(ed, "document.querySelector('#guideArt section[data-ch=\"backup\"] .gterm[data-g=\"storage\"]')")
             mv(*away); time.sleep(0.5)
             ed.call("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": hb["x"], "y": hb["y"]}]}); ed.call("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []}); time.sleep(0.35)

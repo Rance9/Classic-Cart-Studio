@@ -75,6 +75,8 @@ namespace CcsBackup.External
     public sealed class StorageSourceResult
     {
         public string Id, Mode, Label; public SourceIdentity Identity; public bool Complete;
+        /// <summary>files mode: the folders chosen (relative to the source, "/" for everything); null in image mode</summary>
+        public List<string> Selected;
         public long Files, Folders, Links, Bytes, Unreadable, Changed;
         public readonly List<(string path, string why)> Omitted = new List<(string, string)>();
         public readonly List<string> Problems = new List<string>();
@@ -191,6 +193,9 @@ namespace CcsBackup.External
 
         /// <summary>"back up these volumes now, verified": one new storage backup of exactly these sources in the backup location (additional
         /// copy as the settings say, no recovery data unless asked); check Protected before changing any of that storage</summary>
+        /// <summary>tests only: false writes files backups as versions before the "selected" field did (without the folders chosen)</summary>
+        internal static bool RecordSelected = true;
+
         public static StorageOutcome BackUpVolumesNow(IList<StorageRequest> volumes, Settings settings, string purpose, Func<bool> cancelled = null, Action<EngineProgress> progress = null)
             => Run(volumes, new StorageOptions { Settings = settings, Purpose = purpose, Cancelled = cancelled ?? (() => false), Progress = progress ?? (_ => { }) });
 
@@ -280,6 +285,7 @@ namespace CcsBackup.External
                         if (r.Mode == "files")
                         {
                             foreach (var om in plan.Omitted) sr.Omitted.Add(om);
+                            sr.Selected = RecordSelected ? plan.Folders.ToList() : null;
                             clean = FileCapture.Write(w, src, plan, opt, c);
                             var after = Devices.ForFolder(r.Path);
                             if (after.Key != id.Key) { clean = false; c.Problems.Add("the drive's identity changed while it was read (it was disconnected, replaced or reformatted)"); }
@@ -377,6 +383,7 @@ namespace CcsBackup.External
                 { "sources", o.Sources.Select(x => (object)new JObj
                     {
                         { "id", x.Id }, { "mode", x.Mode }, { "label", x.Label }, { "identity", x.Identity.ToJson() }, { "complete", x.Complete },
+                        { "selected", x.Selected == null ? null : x.Selected.Cast<object>().ToList() },
                         { "started_utc", Words.Utc(x.StartedUtc) }, { "finished_utc", Words.Utc(x.FinishedUtc) },
                         { "omitted", x.Omitted.Select(om => (object)new JObj { { "path", om.path }, { "why", om.why } }).ToList() },
                         { "problems", x.Problems.Take(500).Cast<object>().ToList() }, { "problem_count", (long)x.Problems.Count },

@@ -50,6 +50,27 @@ def main():
             o = h.obj or {}; st = {k: [x["version_id"] for x in o.get(k, [])] for k in ("available", "missing", "mismatched")}
             ok("rom_check_classifies_exactly", h.code == 200 and st == {"available": [L1, P5], "missing": [L3, "x_unknown", "../evil"], "mismatched": [L2, P6]}, st)
             ok("rom_check_reasons", [x["reason"] for x in o["missing"]] == ["not_found", "no_identity", "no_identity"] and all(x["reason"] == "different_version" for x in o["mismatched"]) and o["available"][0]["content_sha256"] == c1)
+            # ---- a file checked once, then not readable now with its size and time unchanged (held open by another program without sharing):
+            # the remembered identity never vouches for it; once it can be read again it is available again
+            if os.name == "nt":
+                import ctypes
+                from ctypes import wintypes
+                k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+                k32.CreateFileW.restype = wintypes.HANDLE
+                k32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+                k32.CloseHandle.argtypes = [wintypes.HANDLE]
+                one = lambda: post("/api/package/rom-check", {"games": [{"version_id": L1, "title": "Game One"}]})
+                st1 = os.stat(f1); ok("identity_remembered_after_a_check", f1 in pk._IDENT and pk._IDENT[f1][:2] == (st1.st_size, st1.st_mtime_ns))
+                held = k32.CreateFileW(f1, 0x80000000, 0, None, 3, 0x80, None)   # GENERIC_READ, no sharing, OPEN_EXISTING
+                ok("file_held_without_sharing", held not in (None, ctypes.c_void_p(-1).value), ctypes.get_last_error())
+                try:
+                    h = one(); o = h.obj or {}; st2 = os.stat(f1)
+                    ok("a_file_that_cannot_be_read_now_is_unreadable_not_available", h.code == 200 and o["available"] == [] and [x["version_id"] for x in o["unreadable"]] == [L1]
+                       and (st2.st_size, st2.st_mtime_ns) == (st1.st_size, st1.st_mtime_ns) and pk._IDENT[f1][:2] == (st1.st_size, st1.st_mtime_ns), o)
+                    state, rec, path, _ = pk.classify(L1, "Game One", {}); ok("classify_says_unreadable_with_the_reason", state == "missing" and rec["reason"] == "unreadable" and rec["error"] and path is None, rec)
+                finally: k32.CloseHandle(held)
+                h = one(); o = h.obj or {}; ok("readable_again_is_available_again", h.code == 200 and [x["version_id"] for x in o["available"]] == [L1] and o["unreadable"] == [], o)
+            else: print("SKIP held_file: Windows file sharing only")
             # ---- export: complete only ----
             before = staged(); h = post("/api/package/export", {"collection": collection([L1, L2, L3, P5], titles, "Mixed"), "include_roms": True, "roms": [{"version_id": i, "title": titles[i]} for i in (L1, L2, L3, P5)]})
             ok("export_incomplete_is_409_with_lists", h.code == 409 and h.obj["ok"] is False and [x["version_id"] for x in h.obj["missing"]] == [L3] and [x["version_id"] for x in h.obj["mismatched"]] == [L2] and "Nothing was saved" in h.obj["error"], h.obj)

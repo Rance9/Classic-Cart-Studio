@@ -10,6 +10,27 @@
    "year": "2011",
    "players": "1 or 2 (cooperative)",
    "genre": "Shooter",
+   "input": {
+    "primary": "standard-controller",
+    "modes": [
+     "standard-controller",
+     "other"
+    ],
+    "min_controllers": 1,
+    "special_accessory": "Super NES Mouse (through an adapter)",
+    "accessory_requirement": "optional",
+    "standard_controller_playable": "true",
+    "nes_classic_support": "supported",
+    "level": "optional",
+    "notes": "Plays with the NES controller; a Super NES Mouse through an adapter can be used instead. A 2-player game needs two controllers.",
+    "evidence": [
+     {
+      "source": "Thwaite's README by Damian Yerrick (Controls, Title screen)",
+      "url": "https://pineight.com/nes/",
+      "note": "included/source/thwaite/README.html: the Control Pad moves the aiming cursor, the B and A Buttons fire, Start pauses, Select ends a practice game; Thwaite supports a Super NES Mouse connected to port 1 or 2 through an adapter; a 2-player game requires two controllers"
+     }
+    ]
+   },
    "kind": "complete",
    "creator": "Damian Yerrick",
    "author_page": "https://pineight.com/nes/",
@@ -65,6 +86,26 @@
    "year": "2010",
    "players": "1 or 2",
    "genre": "Puzzle",
+   "input": {
+    "primary": "standard-controller",
+    "modes": [
+     "standard-controller"
+    ],
+    "min_controllers": 1,
+    "special_accessory": "",
+    "accessory_requirement": "none",
+    "standard_controller_playable": "true",
+    "nes_classic_support": "supported",
+    "level": "none",
+    "notes": "",
+    "evidence": [
+     {
+      "source": "Concentration Room's README by Damian Yerrick (Modes)",
+      "url": "https://pineight.com/croom/",
+      "note": "included/source/concentration-room/README.html: in 2 Players, two players pass one controller back and forth or use one controller each, and turns are taken with the A and B Buttons; designed for the Nintendo Entertainment System"
+     }
+    ]
+   },
    "kind": "complete",
    "creator": "Damian Yerrick",
    "author_page": "https://pineight.com/croom/",

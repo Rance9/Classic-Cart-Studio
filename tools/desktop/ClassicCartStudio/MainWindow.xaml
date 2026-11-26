@@ -2,15 +2,63 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        xmlns:local="clr-namespace:ClassicCartStudio"
         Title="Classic Cart Studio" MinWidth="720" MinHeight="480" Width="1440" Height="920"
         Background="{StaticResource B.Bg}" UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Ideal" Icon="pack://application:,,,/app.ico">
   <!-- custom chrome (36 px caption, native resize borders, Snap Layouts) is attached in code so that this window's message hook
        is registered before WindowChrome's own hook (see MainWindow.xaml.cs) -->
+  <Window.Resources>
+    <!-- the status bar's look (the approved design): charcoal a little lighter than the page, a thin gray line above, muted labels, light
+         collection name, a red text link; keyboard focus shows the app's red focus ring (only for the keyboard: FocusVisualStyle) -->
+    <SolidColorBrush x:Key="SB.Back" Color="#FF1C1C22"/>
+    <SolidColorBrush x:Key="SB.Line" Color="#FF34343C"/>
+    <SolidColorBrush x:Key="SB.Muted" Color="#FFB8B8C2"/>
+    <SolidColorBrush x:Key="SB.Name" Color="#FFEEEEF2"/>
+    <SolidColorBrush x:Key="SB.Link" Color="#FFFF5D6C"/>
+    <SolidColorBrush x:Key="SB.LinkPressed" Color="#FFE24A58"/>
+    <Style x:Key="SB.Focus">
+      <Setter Property="Control.Template">
+        <Setter.Value>
+          <ControlTemplate>
+            <Border Margin="-3,-1" BorderBrush="{StaticResource B.FocusRing}" BorderThickness="2" CornerRadius="5" SnapsToDevicePixels="True"/>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SB.Text" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+      <Setter Property="Foreground" Value="{StaticResource SB.Muted}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="SB.LinkButton" TargetType="Button">
+      <Setter Property="Foreground" Value="{StaticResource SB.Link}"/>
+      <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Padding" Value="5,4"/>
+      <Setter Property="FocusVisualStyle" Value="{StaticResource SB.Focus}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <!-- the whole padded area takes the click (a comfortable target around the words) -->
+            <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+              <TextBlock x:Name="t" Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" TextOptions.TextFormattingMode="Ideal"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="t" Property="TextDecorations" Value="Underline"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="t" Property="Foreground" Value="{StaticResource SB.LinkPressed}"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
   <Grid x:Name="root">
     <Grid.RowDefinitions>
       <RowDefinition Height="36"/>
       <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
     <!-- title bar: charcoal, icon, title, a restrained red accent; menu + caption buttons on the right -->
@@ -55,6 +103,24 @@
         <TextBlock x:Name="loadingText" Text="Starting…" HorizontalAlignment="Center" Style="{StaticResource T.Muted}"/>
       </StackPanel>
     </Grid>
+
+    <!-- the status bar (StatusBar.cs): a row of its own below the page, so the page, its dialogs and a wizard's buttons always end above
+         it. Left: the open collection and its game count (the page reports them); the middle stays empty; right: this program's running
+         version and Check for Updates. One row while it fits; then only the collection name is shortened; then two centered rows. -->
+    <local:StatusBarPanel Grid.Row="2" x:Name="statusBar" Background="{StaticResource SB.Back}" LineBrush="{StaticResource SB.Line}" AutomationProperties.Name="Status bar">
+      <local:StatusItem x:Name="sbCollection" FocusVisualStyle="{StaticResource SB.Focus}" Background="Transparent">
+        <DockPanel LastChildFill="True">
+          <TextBlock DockPanel.Dock="Left" Style="{StaticResource SB.Text}" Text="Collection:" Margin="0,0,5,0"/>
+          <TextBlock DockPanel.Dock="Right" Style="{StaticResource SB.Text}" x:Name="sbGames" Text="· Games: —" Margin="5,0,0,0"/>
+          <TextBlock x:Name="sbName" Style="{StaticResource SB.Text}" Text="None" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+        </DockPanel>
+      </local:StatusItem>
+      <StackPanel Orientation="Horizontal" x:Name="sbApp">
+        <TextBlock x:Name="sbVersion" Style="{StaticResource SB.Text}"/>
+        <TextBlock Style="{StaticResource SB.Text}" Text="·" Margin="5,0,0,0"/>
+        <Button x:Name="sbUpdate" Style="{StaticResource SB.LinkButton}" Content="Check for Updates" VerticalAlignment="Center" Click="StatusUpdate_Click"/>
+      </StackPanel>
+    </local:StatusBarPanel>
 
     <!-- App tools (popup under the title-bar button): the Windows app's own commands, grouped like the website's menus (head, labeled
          groups, 30 px icon boxes, Exit set apart). The page's Studio menu is a different menu: help, backup and legal for the Studio. -->

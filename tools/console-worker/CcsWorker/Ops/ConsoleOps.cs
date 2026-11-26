@@ -482,8 +482,9 @@ namespace CcsWorker.Ops
         /// pinned package's, unchanged, before it asks). Its one result line; anything but its success is an error</summary>
         public Dictionary<string, object> NucleusStart(string def, string chooser, string home, string selection = "default", string timeout = "10")
         {
-            if (def != "native" && def != "ccs-home" || chooser != "always" && chooser != "never" || home != "on" && home != "off" || selection != "default" && selection != "last"
-                || timeout == null || !Regex.IsMatch(timeout, "^([0-9]|[1-9][0-9])$")) throw new OpException("bad-args", "default: native or ccs-home; chooser: always or never; home: on or off; selection: default or last; timeout: 0 to 99");
+            // default: native, ccs-home, or another option CCS Nucleus's registry lists (the owner's own default kept; its own command checks it)
+            if (def == null || !Regex.IsMatch(def, "^[a-z0-9][a-z0-9-]{0,30}$") || chooser != "always" && chooser != "never" || home != "on" && home != "off" || selection != "default" && selection != "last"
+                || timeout == null || !Regex.IsMatch(timeout, "^([0-9]|[1-9][0-9])$")) throw new OpException("bad-args", "default: native, ccs-home or another listed option; chooser: always or never; home: on or off; selection: default or last; timeout: 0 to 99");
             if (!UninstallList("ccs-nucleus").Item1) throw new OpException("not-installed", "CCS Nucleus is not installed (hakchi does not list it)");
             CheckCancel();
             // CCS_ROOT is empty on a console (the program's own place, less its path): the same text runs in the tests' stand-in folder

@@ -29,11 +29,17 @@ namespace CcsBackup.Ui
         {
             public string Op, Situation, Tag, StartNow; public int OwnImages, OtherPackages;
             public HashSet<string> Installed = new HashSet<string>();
+            /// <summary>the add-ons the console has in an earlier version than this Workbench's</summary>
+            public List<string> Earlier = new List<string>();
             public AddonChoice Current, Choice;
             /// <summary>Original Menu took CCS HOME's place as what opens first, because CCS HOME is not chosen (said once on the page)</summary>
             public bool StartReplaced;
             /// <summary>the person turned CCS Nucleus on here (its first suggestion was applied then)</summary>
             public bool NucleusTouched;
+            /// <summary>the kind of what opens first now when it is neither Original Menu nor CCS HOME (owner-root or community; null otherwise)</summary>
+            public string StartKind;
+            /// <summary>Original Menu took the place of the console's own system image as what opens first, because the chooser is not chosen</summary>
+            public bool KeptReplaced;
             public bool Prepare => Op == "prepare";
             public bool Has(string package) => Installed.Contains(package);
         }
@@ -53,9 +59,10 @@ namespace CcsBackup.Ui
             {
                 Op = ev.S("operation"), Situation = ev.S("situation"), Tag = ev.S("console_tag"), StartNow = ev.S("start_text"),
                 OwnImages = (int)ev.L("own_images", 0), OtherPackages = (int)ev.L("other_packages", 0),
-                Current = new AddonChoice { Mod = cur.B("mod"), Nucleus = cur.S("nucleus") ?? "none", Start = cur.S("start") ?? "native", Auto = cur.S("auto") ?? "menu" },
+                Current = AddonChoice.FromJson(cur), StartKind = ev.S("start_kind"),
             };
             foreach (var p in (ev.A("installed") ?? new List<object>()).OfType<string>()) a.Installed.Add(p);
+            foreach (var e in (ev.A("earlier") ?? new List<object>()).OfType<Dictionary<string, object>>()) if (e.S("name") != null) a.Earlier.Add(e.S("name"));
             a.Choice = Suggested(a, !Standalone);
             addons = a;
             // a console this version does not prepare: no pages; the review says why
@@ -85,7 +92,7 @@ namespace CcsBackup.Ui
         /// standalone Workbench; otherwise the standalone Workbench suggests nothing new. Never a removal.</summary>
         static AddonChoice Suggested(AddonSession a, bool studio)
         {
-            var c = new AddonChoice { Mod = a.Current.Mod, Nucleus = a.Current.Nucleus, Start = a.Current.Start, Auto = a.Current.Auto };
+            var c = a.Current.Copy(); c.Update = false;   // every part of the console's own start setting, as it is
             if (!a.Prepare) return c;
             if (a.Situation == "original") { if (studio) { c.Mod = true; c.Nucleus = "direct"; c.Start = "ccs-home"; c.Auto = "menu"; } return c; }
             if (studio) c.Mod = true;
@@ -98,7 +105,7 @@ namespace CcsBackup.Ui
             var op = addons?.Op ?? "method";
             progress = new ProgressView(this, "Backing Up the Console", "The console is backed up as it is now, then the change is shown for you to review. Nothing is written until you confirm. Keep the USB cable connected.", "Cancel", () => { worker?.Cancel(); progress.Say("Canceling..."); });
             Show(progress.Panel, "progress");
-            worker?.Send(new JObj { { "cmd", op + "-target" }, { "mod", c.Mod }, { "nucleus", c.Nucleus }, { "start", c.Start }, { "auto", c.Auto } });
+            var q = c.ToJson(); q["cmd"] = op + "-target"; worker?.Send(q);
         }
 
         void CancelAddons()
@@ -209,23 +216,47 @@ namespace CcsBackup.Ui
             var chooser = new RadioButton { GroupName = "nucleus-start", Content = "Show the startup chooser", IsChecked = c.Nucleus == "chooser", Margin = new Thickness(0, 10, 0, 4) };
             System.Windows.Automation.AutomationProperties.SetName(direct, "Open a menu straight away"); System.Windows.Automation.AutomationProperties.SetName(chooser, "Show the startup chooser");
             var menus = new List<string> { "native" }; if (c.Mod) menus.Add("ccs-home");
+            // what opens first on the console now when it is another of its choices (set on the console): shown as it is, kept unless changed
+            string kept = a.Current.Nucleus != "none" && !AddonChoice.Standard(a.Current.Start) ? a.Current.Start : null;
             ComboBox MenuList(bool withChooser)
             {
                 var list = new ComboBox();
                 foreach (var m in menus) list.Items.Add(new ComboBoxItem { Content = MenuName(m), Tag = m });
-                if (withChooser) { list.Items.Add(new ComboBoxItem { Content = "Last menu used", Tag = "last" }); list.Items.Add(new ComboBoxItem { Content = "Wait for me to choose", Tag = "wait" }); }
+                if (kept != null && (withChooser || a.StartKind != "owner-root")) list.Items.Add(new ComboBoxItem { Content = a.Current.StartMenuName + " (as set now)", Tag = kept });
+                list.Items.Add(new ComboBoxItem { Content = "Last menu used", Tag = "last" });
+                if (withChooser) list.Items.Add(new ComboBoxItem { Content = "Wait for me to choose", Tag = "wait" });
                 return list;
             }
-            void Select(ComboBox list, string tag) { foreach (ComboBoxItem it in list.Items) if ((string)it.Tag == tag) { list.SelectedItem = it; return; } list.SelectedIndex = 0; }
-            var firstList = MenuList(false); Select(firstList, c.Start);
+            // a list shown to match the choice (never a choice by itself: its handler ignores it)
+            bool syncing = false;
+            void Select(ComboBox list, string tag)
+            {
+                syncing = true;
+                try { foreach (ComboBoxItem it in list.Items) if ((string)it.Tag == tag) { list.SelectedItem = it; return; } list.SelectedIndex = 0; }
+                finally { syncing = false; }
+            }
+            var firstList = MenuList(false); Select(firstList, c.Auto == "last" ? "last" : c.Start);
             var autoList = MenuList(true); Select(autoList, c.Auto == "menu" ? c.Start : c.Auto);
             var directBox = new StackPanel { Margin = new Thickness(26, 0, 0, 0) };
             directBox.Children.Add(Field("Open first:", firstList, null, 320));
-            directBox.Children.Add(T("This menu opens immediately. The startup chooser is off.", Ty.Small, false, true));
+            var directText = T("", Ty.Small, false, true); directBox.Children.Add(directText);
+            var keptNote = Note((a.Current.StartMenuName) + " opens first only from the startup chooser, so Original Menu opens first instead. To keep it, show the startup chooser.", "info");
+            keptNote.Visibility = Visibility.Collapsed; directBox.Children.Add(keptNote);
             if (lockChooser) directBox.Children.Add(T("The startup chooser is installed on this console and stays. Turning it off is in Console Restore: Add-ons and Startup.", Ty.Small, false, true));
             var chooserBox = new StackPanel { Margin = new Thickness(26, 0, 0, 0) };
             chooserBox.Children.Add(Field("Start automatically with:", autoList, null, 320));
             var autoText = T("", Ty.Small, false, true); chooserBox.Children.Add(autoText);
+            // the console's own countdown (set on its startup chooser) is kept: said, never rewritten unless the person changes what starts
+            var countdownText = T("", Ty.Small, false, true); chooserBox.Children.Add(countdownText);
+            // the startup chooser set on the console not to show at start: shown as it is, kept unless the person changes it here
+            CheckBox atStart = null;
+            if (a.Has(Methods.Chooser) && !a.Current.AtStart)
+            {
+                atStart = new CheckBox { IsChecked = c.AtStart, Margin = new Thickness(0, 8, 0, 2), Foreground = Res<Brush>("B.Ink"), Content = new TextBlock { Text = "Show the startup chooser at every start", TextWrapping = TextWrapping.Wrap } };
+                System.Windows.Automation.AutomationProperties.SetName(atStart, "Show the startup chooser at every start");
+                chooserBox.Children.Add(atStart);
+                chooserBox.Children.Add(T("Set on the console now: the startup chooser does not show at start. This stays unless you tick it.", Ty.Small, false, true));
+            }
             if (a.OwnImages > 0) chooserBox.Children.Add(T("Your own system images are choices in the startup chooser too.", Ty.Small, false, true));
             onPanel.Children.Add(direct); onPanel.Children.Add(directBox); onPanel.Children.Add(chooser); onPanel.Children.Add(chooserBox);
 
@@ -234,10 +265,16 @@ namespace CcsBackup.Ui
                 bool isOn = c.Nucleus != "none";
                 off.Visibility = isOn ? Visibility.Collapsed : Visibility.Visible; onPanel.Visibility = isOn ? Visibility.Visible : Visibility.Collapsed;
                 directBox.IsEnabled = c.Nucleus != "chooser"; chooserBox.IsEnabled = c.Nucleus == "chooser";
-                var fallback = MenuName(c.Start);
-                autoText.Text = c.Auto == "wait" ? "Nothing starts until you choose."
-                    : c.Auto == "last" ? "If you do nothing, the menu you used last starts in " + AddonChoice.Countdown + " seconds. Until you have used one, that is " + fallback + "."
-                    : "If you do nothing, " + fallback + " starts in " + AddonChoice.Countdown + " seconds.";
+                // the console's own system image opens first only from the chooser: Original Menu takes its place without it, visibly
+                if (c.Nucleus == "direct" && kept != null && a.StartKind == "owner-root" && c.Start == kept) { c.Start = "native"; a.KeptReplaced = true; Select(firstList, c.Auto == "last" ? "last" : "native"); if (c.Auto == "menu") Select(autoList, "native"); }
+                else if (c.Nucleus == "chooser" && a.KeptReplaced) { c.Start = kept; a.KeptReplaced = false; if (c.Auto == "menu") Select(autoList, kept); }
+                keptNote.Visibility = a.KeptReplaced && c.Nucleus == "direct" ? Visibility.Visible : Visibility.Collapsed;
+                directText.Text = (c.Auto == "last" ? "The menu you used last opens immediately. Until you have used one, that is " + c.StartMenuName + "." : "This menu opens immediately.") + " The startup chooser is off.";
+                autoText.Text = c.AutoText;
+                countdownText.Text = c.Auto == "wait" || c.Seconds != a.Current.Seconds || a.Current.Nucleus == "none" ? ""
+                    : c.Seconds == 0 ? "The countdown is off, as set on the console's startup chooser (Recovery and Settings). It stays."
+                    : c.Seconds != AddonChoice.Countdown ? "The countdown of " + AddonChoice.SecondsText(c.Seconds) + " is the one set on the console's startup chooser (Recovery and Settings). It stays." : "";
+                countdownText.Visibility = countdownText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             }
             on.Checked += (s, e) =>
             {
@@ -249,18 +286,40 @@ namespace CcsBackup.Ui
             on.Unchecked += (s, e) => { c.Nucleus = "none"; a.NucleusTouched = true; Refresh(); };
             direct.Checked += (s, e) => { if (c.Nucleus != "none") c.Nucleus = "direct"; Refresh(); };
             chooser.Checked += (s, e) => { if (c.Nucleus != "none") c.Nucleus = "chooser"; Refresh(); };
-            firstList.SelectionChanged += (s, e) => { if ((firstList.SelectedItem as ComboBoxItem)?.Tag is string t) { c.Start = t; a.StartReplaced = false; if (c.Auto == "menu") Select(autoList, t); Refresh(); } };
-            autoList.SelectionChanged += (s, e) =>
+            firstList.SelectionChanged += (s, e) =>
             {
-                if (!((autoList.SelectedItem as ComboBoxItem)?.Tag is string t)) return;
-                if (t == "last" || t == "wait") c.Auto = t; else { c.Auto = "menu"; c.Start = t; a.StartReplaced = false; Select(firstList, t); }
+                if (syncing || !((firstList.SelectedItem as ComboBoxItem)?.Tag is string t)) return;
+                if (t == "last") { c.Auto = "last"; Select(autoList, "last"); }
+                else { c.Start = t; a.StartReplaced = false; a.KeptReplaced = false; if (c.Auto == "last") c.Auto = c.Seconds == 0 ? "wait" : "menu"; Select(autoList, c.Auto == "menu" ? t : c.Auto); }
                 Refresh();
             };
+            autoList.SelectionChanged += (s, e) =>
+            {
+                if (syncing || !((autoList.SelectedItem as ComboBoxItem)?.Tag is string t)) return;
+                if (t == "last" || t == "wait") { c.Auto = t; Select(firstList, t == "last" ? "last" : c.Start); }
+                else { c.Auto = "menu"; c.Start = t; if (c.Seconds == 0) c.Seconds = AddonChoice.Countdown; a.StartReplaced = false; a.KeptReplaced = false; Select(firstList, t); }
+                Refresh();
+            };
+            if (atStart != null) { atStart.Checked += (s, e) => { c.AtStart = true; Refresh(); }; atStart.Unchecked += (s, e) => { c.AtStart = false; Refresh(); }; }
             card.Children.Add(off); card.Children.Add(onPanel);
             card.Children.Add(Details(TechNes, "CCS Nucleus is the hakchi package ccs-nucleus; its startup chooser is ccs-nucleus-chooser, installed after it. CCS Mod is ccs-mod. Each is placed in hakchi's own transfer folder and installed by hakchi at the console's next normal start.",
-                "What opens first is CCS Nucleus's own setting on the console's data storage (default menu, chooser shown or not, the " + AddonChoice.Countdown + "-second countdown, last used or waiting). CCS Mod adds nothing that runs at power-on.",
+                "What opens first is CCS Nucleus's own setting on the console's data storage (default menu, chooser shown or not, the countdown, last used or waiting). A part you do not change here stays exactly as the console has it. CCS Mod adds nothing that runs at power-on.",
                 a.StartNow != null ? "Now: " + a.StartNow : null));
             sp.Children.Add(Card(card));
+            // an add-on in an earlier version: updating it to this version is offered, never done unasked
+            CheckBox update = null;
+            if (!a.Prepare && a.Earlier.Count > 0)
+            {
+                var names = string.Join(" and ", a.Earlier.Select(Methods.Label)); var u = new StackPanel();
+                u.Children.Add(Note(names + " on this console " + (a.Earlier.Count == 1 ? "is" : "are") + " an earlier version than this Workbench's. A community menu needs this version of CCS Nucleus.", "warn"));
+                update = new CheckBox { IsChecked = c.Update, Margin = new Thickness(0, 8, 0, 4), Foreground = Res<Brush>("B.Ink"),
+                    Content = new TextBlock { Text = "Update " + names + " to this version", FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap } };
+                System.Windows.Automation.AutomationProperties.SetName(update, "Update " + names + " to this version");
+                u.Children.Add(update);
+                u.Children.Add(T("hakchi installs this version over the earlier one at the console's next start. What opens at power-on, the last-used and countdown settings, your system images and community menus in CCS Nucleus's list, games and saves are kept.", Ty.Text, false, true));
+                update.Checked += (s, e) => c.Update = true; update.Unchecked += (s, e) => c.Update = false;
+                sp.Children.Add(Card(u));
+            }
             Refresh();
             var review = B("Review Changes", "Btn.Primary", () =>
             {
@@ -270,9 +329,11 @@ namespace CcsBackup.Ui
             var nothing = T("This is what the console has now. Change something to review it.", Ty.Small, false, true);
             if (!a.Prepare)
             {   // Console Restore: a review needs a change
-                void Same() { bool same = c.SameAs(a.Current); review.IsEnabled = !same; nothing.Visibility = same ? Visibility.Visible : Visibility.Collapsed; }
+                void Same() { bool same = c.SameAs(a.Current) && !(c.Update && a.Earlier.Count > 0); review.IsEnabled = !same; nothing.Visibility = same ? Visibility.Visible : Visibility.Collapsed; }
                 on.Checked += (s, e) => Same(); on.Unchecked += (s, e) => Same(); direct.Checked += (s, e) => Same(); chooser.Checked += (s, e) => Same();
+                if (update != null) { update.Checked += (s, e) => Same(); update.Unchecked += (s, e) => Same(); }
                 firstList.SelectionChanged += (s, e) => Same(); autoList.SelectionChanged += (s, e) => Same();
+                if (atStart != null) { atStart.Checked += (s, e) => Same(); atStart.Unchecked += (s, e) => Same(); }
                 Same();
             }
             else nothing.Visibility = Visibility.Collapsed;
@@ -366,6 +427,8 @@ namespace CcsBackup.Ui
                 var names = (p.O("removal_list")?.S("names") ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(Methods.Label);
                 return "Removal list placed for hakchi (" + string.Join(", ", names) + ")";
             }
+            if (s.StartsWith("method:", StringComparison.Ordinal) && (p.A("update") ?? new List<object>()).OfType<Dictionary<string, object>>().Any(x => x.S("name") == s.Substring(7)))
+                return Methods.Label(s.Substring(7)) + "'s package of this version placed for hakchi to install over the earlier one at the next start";
             return MethodEngine.StepLabel(s);
         }
 
@@ -380,17 +443,18 @@ namespace CcsBackup.Ui
             if (target.Nucleus == "none") rows.Add(("Startup", current.Nucleus != "none" ? "Remove CCS Nucleus: Original Menu opens" : "Keep current startup"));
             else
             {
-                var menu = MenuName(target.Start);
-                rows.Add(("Startup", "CCS Nucleus — " + (target.Nucleus == "direct" ? "open " + menu + " immediately" : "show the startup chooser")));
+                var menu = target.StartMenuName; var first = target.Auto == "last" ? "the menu used last (" + menu + " until you have used one)" : menu;
+                rows.Add(("Startup", "CCS Nucleus — " + (target.Shown ? "show the startup chooser" : "open " + first + " immediately")));
                 if (target.Nucleus == "direct") rows.Add(("Startup chooser", current.Nucleus == "chooser" ? "Off (removed)" : "Off"));
-                else rows.Add(("If you do nothing", target.Auto == "wait" ? "Nothing starts until you choose"
-                    : target.Auto == "last" ? "The menu used last starts after " + AddonChoice.Countdown + " seconds (" + menu + " until you have used one)"
-                    : menu + " starts after " + AddonChoice.Countdown + " seconds"));
+                else if (!target.AtStart) rows.Add(("Startup chooser", "Does not show at start; it opens from CCS Nucleus in Original Menu or Choose Another Menu in CCS HOME"));
+                else rows.Add(("If you do nothing", target.Timeout == 0 ? (target.Auto == "last" ? "Nothing starts until you choose (the menu used last is selected first)" : "Nothing starts until you choose")
+                    : target.Auto == "last" ? "The menu used last starts after " + AddonChoice.SecondsText(target.Seconds) + " (" + menu + " until you have used one)"
+                    : menu + " starts after " + AddonChoice.SecondsText(target.Seconds)));
             }
             return KeyValues(rows.ToArray());
         }
 
-        static AddonChoice ChoiceOf(Dictionary<string, object> j) => j == null ? null : new AddonChoice { Mod = j.B("mod"), Nucleus = j.S("nucleus") ?? "none", Start = j.S("start") ?? "native", Auto = j.S("auto") ?? "menu" };
+        static AddonChoice ChoiceOf(Dictionary<string, object> j) => AddonChoice.FromJson(j);
 
         // the plans and results of both (worker events method-plan / firmware-plan; result operation method / firmware)
         void ShowMethodOrFirmwarePlan(string kind, Dictionary<string, object> p)
@@ -398,6 +462,7 @@ namespace CcsBackup.Ui
             bool fw = kind == "firmware"; string op = p.S("operation"); methodTag = p.S("console_tag");
             var target = fw ? null : ChoiceOf(p.O("target"));
             var adds = fw ? new List<string>() : (p.A("add") ?? new List<object>()).OfType<Dictionary<string, object>>().Select(x => x.S("name")).ToList();
+            var updates = fw ? new List<string>() : (p.A("update") ?? new List<object>()).OfType<Dictionary<string, object>>().Select(x => x.S("name")).ToList();
             var removes = fw ? new List<string>() : (p.O("removal_list")?.S("names") ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
             var title = fw ? (op == "remove" ? "Review: Remove a System Image" : "Review: Add a System Image") : "Review: Add-ons and Startup";
             var sp = SectionHead(title, "What this would change on your " + Con + ", console " + methodTag + ", the console connected to this PC now. Nothing has been written yet.");
@@ -410,6 +475,7 @@ namespace CcsBackup.Ui
                                      ("Image file", fw && op != "remove" && img != null ? Path.GetFileName(img.S("file") ?? "") + ", " + (img.S("size") ?? Size(img.L("bytes"))) : null),
                                      ("System in the file", fw && sys != null ? sys.S("text") : null),
                                      ("Adds", fw || adds.Count == 0 ? null : string.Join(", ", adds.Select(Methods.Label))),
+                                     ("Updates to this version", fw || updates.Count == 0 ? null : string.Join(", ", updates.Select(Methods.Label)) + " (settings and choices kept)"),
                                      ("Removes", fw || removes.Count == 0 ? null : string.Join(", ", removes.Select(Methods.Label))),
                                      ("Takes effect", fw ? null : "The next time the console starts normally; it then restarts once"),
                                      ("Backed up first", p.S("protective_backup") != null ? Path.GetFileName(p.S("protective_backup")) + ", made in this session" : null)));
@@ -425,7 +491,7 @@ namespace CcsBackup.Ui
             if (p.S("refusal") != null) c.Children.Add(Note(p.S("refusal"), "bad"));
             var tech = new List<object> { "Steps: " + string.Join(", ", steps) };
             if (p.O("package") is Dictionary<string, object> pk) tech.Add("Package: " + pk.S("name") + ".hmod, SHA-256 " + pk.S("sha256"));
-            foreach (var a in (p.A("add") ?? new List<object>()).OfType<Dictionary<string, object>>()) tech.Add("Package: " + a.S("name") + ".hmod, SHA-256 " + a.S("sha256"));
+            foreach (var a in (p.A("add") ?? new List<object>()).OfType<Dictionary<string, object>>().Concat((p.A("update") ?? new List<object>()).OfType<Dictionary<string, object>>())) tech.Add("Package: " + a.S("name") + ".hmod, SHA-256 " + a.S("sha256"));
             if (p.O("removal_list") is Dictionary<string, object> rl) tech.Add("Removal list for: " + rl.S("names") + ", SHA-256 " + rl.S("sha256"));
             if (p.S("start") != null) tech.Add("CCS Nucleus's start setting (default, chooser, CCS HOME offered, selection, countdown): " + p.S("start"));
             if (p.O("home") is Dictionary<string, object> hm) tech.Add("CCS HOME's package: copy " + hm.S("copy") + (hm.S("size") != null ? ", " + hm.S("size") : "") + (hm.S("replaces") != null ? ", replaces " + hm.S("replaces") : ""));

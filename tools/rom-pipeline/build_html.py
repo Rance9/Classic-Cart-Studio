@@ -273,9 +273,9 @@ __STUDIO_CSS__
  <div class="menuwrap" id="collWrap"><button id="collBtn" class="btn collbtn" aria-haspopup="menu" title="Your collections: switch, create, rename, duplicate or remove"><img class="px ico" src="brand/ccs/icon-cartridge.png" alt="" onerror="this.remove()"><span class="cl"><span id="collName">My Collection</span><span class="clo" id="collLoName" hidden></span></span><svg class="ico chev" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg></button>
 __M_COLL__</div>
  <div class="actions">
- <button id="addBtn" class="btn hk" type="button" title="Add your own game files (.nes, .unh or ZIP) to this collection"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg><span class="bl">Add Game Files</span></button>
+ <button id="addBtn" class="btn hk" type="button" aria-label="Add Game Files" title="Add your own game files (.nes, .unh or ZIP) to this collection"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg><span class="bl">Add Game Files</span><span class="bls">Add</span></button>
  <button id="restoreBtn" class="btn" type="button" aria-label="Restore a Backup" title="Restore a Classic Cart Studio backup (.ccs): its collections arrive with their game files"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9"/><path d="M2.5 2.8v2.6h2.6"/></svg><span class="bl">Restore a Backup</span></button>
- <button class="btn" id="hkBtn" type="button" aria-label="Install on NES Classic" title="Check and prepare this collection for your NES Classic"><img class="px ico" src="brand/ccs/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">NES Classic</span></button>
+ <button class="btn" id="hkBtn" type="button" aria-label="Install on Console" title="Check and prepare this collection for your NES Classic or Super NES Classic"><img class="px ico" src="brand/ccs/icon-a.png" alt="" onerror="this.remove()"><span id="hkLabel">Install on Console</span></button>
  <span class="barhidden" hidden><button id="trayBtn" class="btn tray" type="button">Games in This Collection<span class="badge" id="trayBadge">0</span></button><button class="btn" id="homeBtn" type="button" hidden>HOME Settings</button></span>
  <div class="menuwrap right"><button id="appBtn" class="btn appbtn" aria-haspopup="menu" aria-label="Studio menu" title="Help, backup, settings and legal"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg><span class="fl">Studio</span></button>
 __M_APP__</div>
@@ -314,7 +314,7 @@ __M_SELECT__</div>
 <footer><div class="in"><div class="credits"><p class="small cap">The Classic Cart Studio cast</p><div class="castwrap"><div class="cast" aria-label="Character credits">__FOOTER_CAST__</div></div></div>
 <p class="support"><a href="#" data-guide="legal" class="legallink">Legal &amp; Privacy</a><span class="dotsep"> · </span><a href="https://classic-cart-studio.printful.me/" target="_blank" rel="noopener" class="merchlink" title="Classic Cart Studio merch on Printful (opens in a new tab)"><span aria-hidden="true">👕</span>Merch</a><span class="dotsep"> · </span><a href="https://github.com/sponsors/Rance9" rel="noopener" title="Optional support through GitHub Sponsors"><svg class="heart" viewBox="0 0 9 8" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path fill="#e4000f" d="M1 0h2v1h1v1h1V1h1V0h2v1h1v3H8v1H7v1H6v1H5v1H4V7H3V6H2V5H1V4H0V1h1z"/><path fill="#ff6b73" d="M1 1h1v1H1z"/></svg>Support this project</a><span class="small"> · Classic Cart Studio is free and open source. If you've found it useful, optional contributions through GitHub Sponsors are always appreciated and help support continued independent development.</span></p>
 <p class="legal">Console-side technology by <a href="https://github.com/TeamShinkansen/Hakchi2-CE" rel="noopener">Hakchi2 CE</a> (GPL v3; see hakchi/LICENSE) — this Studio prepares collections for it and does not reimplement it. An independent, free and open-source project. Not affiliated with, sponsored or endorsed by Nintendo. Nintendo, Nintendo Entertainment System, NES and NES Classic Edition are trademarks of Nintendo; game names and box art belong to their respective owners. The characters, icons and walkway are Classic Cart Studio's own pixel art; the box art is cached locally from community scans. Catalog <span id="gen"></span>.</p></div></footer>
-<div id="hkpanel" class="modal" role="dialog" aria-modal="true" aria-labelledby="hkTitle"><div class="mbox"><div class="mhd"><h2 id="hkTitle">Install on NES Classic</h2><span class="small" id="hkSub"></span><button type="button" class="mclose" id="hkClose" aria-label="Close" title="Close">✕</button></div><div id="hkBody" data-terms></div></div></div>
+<div id="hkpanel" class="modal" role="dialog" aria-modal="true" aria-labelledby="hkTitle"><div class="mbox"><div class="mhd"><h2 id="hkTitle">Install on Console</h2><span class="small" id="hkSub"></span><button type="button" class="mclose" id="hkClose" aria-label="Close" title="Close">✕</button></div><div id="hkBody" data-terms></div></div></div>
 <div id="filters" class="modal" role="dialog" aria-modal="true" aria-labelledby="filtersTitle"><div class="mbox">
 <div class="mhd"><h2 id="filtersTitle">Filter &amp; Sort</h2><span class="deco" aria-hidden="true">__FILTERS_CAST__</span><span class="small" id="filtersCount"></span></div>
 <div class="fsec"><h3>Sort games</h3><div class="fgrid">
@@ -344,7 +344,7 @@ __M_SELECT__</div>
 </div></div>
 <aside id="tray" aria-label="Selection tray"><div class="hd"><span class="ttl"><img class="px" src="brand/ccs/icon-cartridge.png" alt="" width="24" height="24" onerror="this.remove()"> Games in This Collection</span><span id="trayCount" class="small"></span><button id="trayClose" class="btn sm">Close</button></div>
 <button class="notice" id="storage" type="button" title="NES Classic storage: how this estimate is made"></button>
-<div class="sub" id="traySub"></div><ul id="trayList"></ul><div class="ft"><span class="sp"></span><button class="btn secondary sm" id="trayExport">Back Up…</button> <button class="btn hk sm" id="trayHk">Install on NES Classic</button></div></aside>
+<div class="sub" id="traySub"></div><ul id="trayList"></ul><div class="ft"><span class="sp"></span><button class="btn secondary sm" id="trayExport">Back Up…</button> <button class="btn hk sm" id="trayHk">Install on Console</button></div></aside>
 <nav class="mbar" id="mbar" aria-label="Actions"><button type="button" id="mbGoHome" aria-label="Home: the game library, from the top"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 7.5L8 2.5l6 5V14H10v-4H6v4H2z"/></svg><span>Home</span></button><button type="button" id="mbColl" aria-label="My Collections"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 8h8M6 11h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Collections</span><b class="mbadge" id="mbTrayN">0</b></button><button type="button" id="mbAdd" aria-label="Add Game Files"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg><span>Add</span></button><button type="button" id="mbHome" aria-label="Open HOME"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="2.5" y="4" width="15" height="10" rx="1.5"/><path d="M7 17h6M10 14v3"/></svg><span>HOME</span></button><button type="button" id="mbMenu" aria-label="Studio menu"><svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"/></svg><span>Studio</span></button></nav>
 <div id="details" role="dialog" aria-modal="true"><div class="dframe" id="detailsFrame"><span class="close" id="dClose" role="button" tabindex="0" aria-label="Close">✕</span><div class="box" id="detailsBox"></div></div></div>
 __STUDIO_HTML__
@@ -425,8 +425,8 @@ function exportWarnings(){ const chosen=window.selectedGames?selectedGames():gam
  return {empty:!chosen.length, req:hw.filter(g=>g.input_level==='required'), unk:hw.filter(g=>g.input_level!=='required')}; }   /* "needs" only when it is known; otherwise it is not known */
 function exportWarningsHtml(w){ const li=a=>`<ul>${a.map(x=>`<li>${x}</li>`).join('')}</ul>`; const out=[];
  if(w.empty) out.push(`<div class="msg warn"><b>This collection has no games.</b> Installing it would hide every built-in game in the console's menu (they stay on the console).</div>`);
- if(w.req.length) out.push(`<div class="msg warn"><b>${w.req.length===1?'1 game needs':w.req.length+' games need'} a special controller</b>${li(w.req.map(g=>`<span data-no-terms>${esc(gameLabel(g))}</span>: ${esc(g.input_special_accessory||'a special controller')}`))}The NES Classic cannot connect ${w.req.length===1?'it':'them'}, so ${w.req.length===1?'this game':'these games'} may not be playable there.</div>`);
- if(w.unk.length) out.push(`<div class="msg warn"><b>Controller needs not known for ${w.unk.length===1?'1 game':w.unk.length+' games'}</b>${li(w.unk.map(g=>`<span data-no-terms>${esc(gameLabel(g))}</span>`))}Classic Cart Studio does not know whether ${w.unk.length===1?'this game':'these games'} can be played with ordinary NES controllers, like the NES Classic's own. Most games can. If one needs a special controller, such as a light gun or a play mat, it may not be playable on the NES Classic.</div>`);
+ if(w.req.length) out.push(`<div class="msg warn"><b>${w.req.length===1?'1 game needs':w.req.length+' games need'} a special controller</b>${li(w.req.map(g=>`<span data-no-terms>${esc(gameLabel(g))}</span>: ${esc(g.input_special_accessory||'a special controller')}`))}The console cannot connect ${w.req.length===1?'it':'them'}, so ${w.req.length===1?'this game':'these games'} may not be playable there.</div>`);
+ if(w.unk.length) out.push(`<div class="msg warn"><b>Controller needs not known for ${w.unk.length===1?'1 game':w.unk.length+' games'}</b>${li(w.unk.map(g=>`<span data-no-terms>${esc(gameLabel(g))}</span>`))}Classic Cart Studio does not know whether ${w.unk.length===1?'this game':'these games'} can be played with an ordinary controller, like the console's own. Most games can. If one needs a special controller, such as a light gun or a play mat, it may not be playable on the console.</div>`);
  return out.join(''); }
 function exportWarningsAny(w){ return w.empty||w.req.length>0||w.unk.length>0; }
 // a question with a title and formatted text in Classic Cart Studio's own dialog (never the browser's): resolves true for the go-ahead
@@ -482,7 +482,7 @@ const HOME_CSS_TEXT=__HOME_CSS__;
 const STORAGE_MODEL=__STORAGE_MODEL__;
 const HOME_ART=__HOME_ART__;
 const HOME_SCENES=__HOME_SCENES__;   // the five shared scenes and their genre rule (site-data/art/scenes/index.json, also read by native_home/scenes.py)
-const INCL_COVERS=__INCL_COVERS__;   // the Included Games' covers by exact content identity: {sha: {src, kind}} (site-data/included/index.json cover; studio.js perRow)
+const INCL_COVERS=__INCL_COVERS__;   // the Included Games' covers, genres and controller needs by exact content identity: {sha: {src, kind, genre, input}} (site-data/included/index.json; studio.js perRow)
 const HOME_HD=__HOME_HD__;
 // the rows listed: the open collection's games (every one of them, kept entries included), or the Game Catalog's titles while it is looked up
 function listRows(){ if(CV_MODE==='catalog') return games; const out=[]; sel.forEach(id=>{ const g=byId[id]||(window.keptRow&&keptRow(id)); if(g) out.push(g); }); return out; }
@@ -762,13 +762,13 @@ document.addEventListener('click',e=>{ const b=e.target&&e.target.closest&&e.tar
  b.setAttribute('aria-expanded',String(open)); if(g) g.hidden=!open; });
 function hkEnvLine(env){ const i=env.install||{}, d=env.driver||{}; const wait=!env.rehearsal&&!!env.diag&&env.diag.state!=='ok'&&!env.driver;   /* this computer's checks have not answered yet: never shown as "no" */
  const drv=wait?'checking…':d.installed?'installed':d.state==='installer-unavailable'?'<b>not installed</b> (set up Hakchi2 CE first)':'<b>not installed</b>';
- return `<div class="msg envl">Hakchi2 CE: ${i.state==='ok'?`<b>${esc(i.version||'3.9.3')}</b> (verified)`:i.state==='different-version'?`<b>different version</b> (${esc(i.version||'unknown')})`:'<b>not set up</b>'} · NES Classic USB driver: ${drv}${d.simulated?' <span class="small">(simulated)</span>':''} · Hakchi2 CE open: ${wait?'checking…':env.hakchi_running?'<b>yes</b>':'no'} · NES Classic connected: ${wait?'checking…':env.console_connected?'<b>yes</b>':'no'}${(!wait&&!d.installed&&d.state==='missing')?` <button class="btn secondary" id="hkDrvBtn" style="margin-left:8px">Install USB Driver…</button>`:''}</div>`; }
-function hkWireDriver(){ const b=$('hkDrvBtn'); if(!b) return; b.onclick=async()=>{ if(!(await ccsAskHtml('Install the NES Classic USB Driver?', '<p>Windows will ask for administrator permission. Nothing is sent to the console, and it does not need to be connected.</p>', 'Install the Driver'))) return;
+ return `<div class="msg envl">Hakchi2 CE: ${i.state==='ok'?`<b>${esc(i.version||'3.9.3')}</b> (verified)`:i.state==='different-version'?`<b>different version</b> (${esc(i.version||'unknown')})`:'<b>not set up</b>'} · Console USB driver: ${drv}${d.simulated?' <span class="small">(simulated)</span>':''} · Hakchi2 CE open: ${wait?'checking…':env.hakchi_running?'<b>yes</b>':'no'} · Console connected: ${wait?'checking…':env.console_connected?'<b>yes</b>':'no'}${(!wait&&!d.installed&&d.state==='missing')?` <button class="btn secondary" id="hkDrvBtn" style="margin-left:8px">Install USB Driver…</button>`:''}</div>`; }
+function hkWireDriver(){ const b=$('hkDrvBtn'); if(!b) return; b.onclick=async()=>{ if(!(await ccsAskHtml('Install the Console USB Driver?', '<p>Windows will ask for administrator permission. Nothing is sent to the console, and it does not need to be connected.</p>', 'Install the Driver'))) return;
   b.disabled=true; b.textContent='Installing… (answer the Windows prompt)'; const r=await hkPost('/api/install-driver',{}); const res=r.result||{}; const sp=document.createElement('span'); sp.className='small'; sp.innerHTML=(r.ok?'✓ ':'✗ ')+esc(res.message||r.error||''); b.replaceWith(sp); await companionStatus(); hkLabelUpdate(); }; }
 function hkInstallPanel(inst, env){
- if(inst.state==='different-version'){ hkOpenPanel('Install on NES Classic','A different Hakchi2 CE is set up', `<div class="msg bad">Classic Cart Studio works with Hakchi2 CE 3.9.3. The copy in <code>${esc(inst.root||inst.path||'')}</code> is version <b>${esc(inst.version||'unknown')}</b>.</div>
-  <p class="small">Move that folder somewhere else (nothing is deleted), then choose Install on NES Classic again: Classic Cart Studio sets up version 3.9.3.</p>`+hkEnvLine(env)); hkWireDriver(); return; }
- hkOpenPanel('Install on NES Classic','Hakchi2 CE is not set up', `<div class="msg">Classic Cart Studio uses Hakchi2 CE 3.9.3 to prepare games for the NES Classic. ${inst.package_state==='ok'?'A verified copy comes with Classic Cart Studio: setting it up downloads nothing and changes nothing in Windows.':'<b>'+esc(inst.package_problem||'The Hakchi2 CE package is not available.')+'</b>'}</div>${inst.root_nonempty?`<div class="msg bad">The folder <code>${esc(inst.root||'')}</code> is not empty. Move its contents somewhere else first (nothing is deleted).</div>`:''}
+ if(inst.state==='different-version'){ hkOpenPanel('Install on Console','A different Hakchi2 CE is set up', `<div class="msg bad">Classic Cart Studio works with Hakchi2 CE 3.9.3. The copy in <code>${esc(inst.root||inst.path||'')}</code> is version <b>${esc(inst.version||'unknown')}</b>.</div>
+  <p class="small">Move that folder somewhere else (nothing is deleted), then choose Install on Console again: Classic Cart Studio sets up version 3.9.3.</p>`+hkEnvLine(env)); hkWireDriver(); return; }
+ hkOpenPanel('Install on Console','Hakchi2 CE is not set up', `<div class="msg">Classic Cart Studio uses Hakchi2 CE 3.9.3 to prepare games for the NES Classic. ${inst.package_state==='ok'?'A verified copy comes with Classic Cart Studio: setting it up downloads nothing and changes nothing in Windows.':'<b>'+esc(inst.package_problem||'The Hakchi2 CE package is not available.')+'</b>'}</div>${inst.root_nonempty?`<div class="msg bad">The folder <code>${esc(inst.root||'')}</code> is not empty. Move its contents somewhere else first (nothing is deleted).</div>`:''}
   ${hkEnvLine(env)}
   <div class="acts"><span class="small">Nothing here changes the console.</span><span class="sp"></span><button class="btn secondary" id="hkCancel">Cancel</button><button class="btn hk" id="hkInstall" ${inst.root_nonempty||(inst.package_state&&inst.package_state!=='ok')?'disabled':''}>Set Up Hakchi2 CE</button></div>`);
  hkWireDriver(); $('hkCancel').onclick=()=>$('hkpanel').classList.remove('open');
@@ -793,8 +793,8 @@ function hkSetupShow(s){ const j=s&&s.job, res=(j&&j.result)||{}, now=(s&&s.inst
  if(set){ kind='ok'; head='Hakchi2 CE 3.9.3 is set up.'; }
  else if(!s){ kind='warn'; head='Classic Cart Studio could not confirm whether the setup finished.'; text='Check again in a moment. Nothing is started again until the result is known.'; }
  else if(j&&j.state==='failed'){ kind='bad'; head=j.changed===false?'Nothing was changed.':'Hakchi2 CE was not set up.'; text=res.message||j.error||''; }
- else { kind='warn'; head='Hakchi2 CE is not set up.'; text='The setup did not finish (it stops when Classic Cart Studio closes). Choose Install on NES Classic again to set it up.'; }
- $('hkTitle').textContent='Install on NES Classic'; $('hkSub').textContent=set?'Hakchi2 CE is ready':(!s?'Setup result not confirmed':'Hakchi2 CE was not set up');
+ else { kind='warn'; head='Hakchi2 CE is not set up.'; text='The setup did not finish (it stops when Classic Cart Studio closes). Choose Install on Console again to set it up.'; }
+ $('hkTitle').textContent='Install on Console'; $('hkSub').textContent=set?'Hakchi2 CE is ready':(!s?'Setup result not confirmed':'Hakchi2 CE was not set up');
  $('hkBody').innerHTML=`<div class="msg ${kind}"><b>${esc(head)}</b> ${esc(text)}</div>`+(res.env?hkEnvLine(res.env):'')+`<div class="acts"><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button>${!s?'<button class="btn hk" id="hkRecheck">Check Again</button>':''}${set?'<button class="btn hk" id="hkAgain">Continue</button>':''}</div>`;
  hkWireDriver(); $('hkDone').onclick=()=>$('hkpanel').classList.remove('open');
  if($('hkRecheck')) $('hkRecheck').onclick=()=>{ $('hkBody').innerHTML='<div class="msg" id="hkSetupMsg">Checking…</div>'; hkSetupWatch(false); };
@@ -848,8 +848,12 @@ function foldBadge(n){ const b=$('foldBadge'); if(!b) return; b.textContent=n; b
 // unwrapped (invisibly when the section is collapsed) and compared with the space it has. If it would need a second line the section
 // is "cramped": it collapses at once, and when opened it uses the stacked grid (search / three controls / stats + connection) so
 // nothing is ever left scattered across two half-filled lines.
+// The row's own items count, not an open menu's: a menu that opens out of the row is not something the row has to make room for (measured by
+// its scroll width, an open View menu made the row "not fit" and the row moved under the menu).
 function foldFits(){ const f=$('toolsFold'), r=f.querySelector('.row.tools'); const was=f.className; f.className='toolsfold measuring';
-  const fits=r.scrollWidth<=r.clientWidth+1; const split=!chipsFit(); f.className=was; $('subRow').classList.toggle('split',split); return fits; }
+  const box=r.getBoundingClientRect(), cs=getComputedStyle(r), end=box.right-(parseFloat(cs.paddingRight)||0)-(parseFloat(cs.borderRightWidth)||0);
+  const right=[...r.children].filter(e=>e.offsetParent!==null&&!/^(absolute|fixed)$/.test(getComputedStyle(e).position)).reduce((m,e)=>Math.max(m,e.getBoundingClientRect().right),box.left);
+  const fits=right<=end+1; const split=!chipsFit(); f.className=was; $('subRow').classList.toggle('split',split); return fits; }
 // Active-filter chips and the letter strip share one line only when both fit at their natural widths (measured in the same invisible pass).
 function chipsFit(){ const sub=$('subRow'), L=$('letters'), C=$('chips'); if(!C||C.hidden) return true; const nat=el=>{ const g=parseFloat(getComputedStyle(el).columnGap)||0; const k=[...el.children]; return k.reduce((a,c)=>a+c.offsetWidth,0)+g*Math.max(0,k.length-1); };
   const gap=parseFloat(getComputedStyle(sub).columnGap)||0; return nat(L)+gap+nat(C)<=sub.clientWidth-1; }
@@ -864,15 +868,17 @@ function barMeasure(){ const bar=$('toolbar').querySelector('.row.bar'); const i
 // toolbar: search and its controls on the left, Preview · My Collections · Studio on the right, on one line when both fit at their natural
 // widths; otherwise the buttons take the first line and the search line the second, both from the left (measured, not guessed). On two
 // lines both have one width (--tbspan): the buttons' natural width, or the search line's when that needs more (its search box at least
-// 200 px), never more than the toolbar; the search box takes what its line has left, so both lines end at the same right edge
+// 200 px), never more than the toolbar; the search box takes what its line has left, so both lines end at the same right edge. Widths are
+// measured to the fraction of a pixel and the shared width rounded up: rounded-down whole pixels left the buttons' line a fraction too
+// narrow, and its last buttons moved to a second row
 function tbLayout(){ const t=$('toolbar'); if(matchMedia('(max-width:640px)').matches){ t.classList.remove('tb-two'); return; }
   const inn=t.querySelector('.in'), bar=t.querySelector('.row.bar'), tools=$('toolsFold').querySelector('.row.tools'), cs=getComputedStyle(inn);
-  const nat=(row,extra)=>{ const k=[...row.children].filter(e=>e.offsetParent&&!(e.type==='search')); const g=parseFloat(getComputedStyle(row).columnGap)||8; return k.reduce((a,e)=>a+e.offsetWidth,0)+g*Math.max(0,k.length-1+(extra?1:0))+(extra||0); };
+  const nat=(row,extra)=>{ const k=[...row.children].filter(e=>e.offsetParent&&!(e.type==='search')); const g=parseFloat(getComputedStyle(row).columnGap)||8; return k.reduce((a,e)=>a+e.getBoundingClientRect().width,0)+g*Math.max(0,k.length-1+(extra?1:0))+(extra||0); };
   const barW=nat(bar,0), toolsW=nat(tools,260), pl=parseFloat(cs.paddingLeft)||0, pr=parseFloat(cs.paddingRight)||0;   /* 260: the search box's comfortable width */
   const two=toolsW+barW+24>inn.clientWidth-pl-pr; t.classList.toggle('tb-two',two);
   const avail=inn.clientWidth-pl-pr, span=Math.min(avail, Math.max(barW, nat(tools,200))); t.classList.toggle('tb-span',two);   /* both lines share one width (buttons that need more wrap within it) */
-  inn.style.setProperty('--tbspan',Math.floor(span)+'px');
-  inn.style.setProperty('--barw',(two?0:barW+16)+'px'); inn.style.setProperty('--tbpt',(parseFloat(cs.paddingTop)||0)+'px'); inn.style.setProperty('--tbpr',pr+'px'); }
+  inn.style.setProperty('--tbspan',Math.ceil(span)+'px');
+  inn.style.setProperty('--barw',(two?0:Math.ceil(barW)+16)+'px'); inn.style.setProperty('--tbpt',(parseFloat(cs.paddingTop)||0)+'px'); inn.style.setProperty('--tbpr',pr+'px'); }
 // the header's walkers: their lane runs from the wordmark to the download button (measured); the whole width when the header stacks
 function heroLane(){ const p=document.querySelector('.hero .parade'), lk=document.querySelector('.hero .lockup'), dl=$('dlApp'); if(!p||!lk) return;
   const r=p.getBoundingClientRect(), stacked=matchMedia('(max-width:640px)').matches, d=dl&&dl.offsetParent?dl.getBoundingClientRect():null;
@@ -888,7 +894,9 @@ function heroLane(){ const p=document.querySelector('.hero .parade'), lk=documen
   for(let i=sets.length-1;i>=need;i--) sets[i].remove();
   cast.style.setProperty('--from',(-w).toFixed(2)+'px'); cast.style.setProperty('--dur',Math.max(8,w/34).toFixed(1)+'s'); }   /* about 34 px a second at every width */
 window.heroLane=heroLane; if(document.fonts&&document.fonts.ready) document.fonts.ready.then(heroLane); addEventListener('load',heroLane);
-let foldRaf=0; const foldOnResize=()=>{ if(foldRaf) return; foldRaf=requestAnimationFrame(()=>{ foldRaf=0; tbLayout(); heroLane(); barMeasure(); foldMeasure(); foldAuto(); setTb(); }); }; window.foldKick=foldOnResize;
+// after the toolbar is laid out again (a new width, new words), a menu that is open is fitted into the window again (studio.js menuFit)
+let foldRaf=0; const foldOnResize=()=>{ if(foldRaf) return; foldRaf=requestAnimationFrame(()=>{ foldRaf=0; tbLayout(); heroLane(); barMeasure(); foldMeasure(); foldAuto(); setTb();
+  if(typeof menuFit==='function') document.querySelectorAll('#toolbar .menu').forEach(m=>{ if(!m.hidden) menuFit(m); }); }); }; window.foldKick=foldOnResize;
 addEventListener('resize',foldOnResize); if(window.ResizeObserver) new ResizeObserver(foldOnResize).observe($('toolbar'));
 // window resize: pause the decorative animations and transitions while the edge is being dragged; re-lay the list out once the size settles
 let rzT=0, rzPin=null; addEventListener('resize',()=>{ if(!rzT) rzPin=scrollY<1?null:VL.pin;   /* the first game on screen before this resize (a rotation): later paints must not replace it */
@@ -896,6 +904,9 @@ let rzT=0, rzPin=null; addEventListener('resize',()=>{ if(!rzT) rzPin=scrollY<1?
 $('foldHide').onclick=()=>{ FOLD.auto=false; FOLD.pinned=false; setFold(false); $('foldBtn').focus({preventScroll:true}); };
 if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('toolsFold').querySelector('.row.tools'),{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
 if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('chips'),{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
+// the buttons' own words change their width (the open collection's name, a button's label): measured again then, and once the fonts are in
+if(window.MutationObserver) new MutationObserver(foldOnResize).observe($('toolbar').querySelector('.row.bar'),{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['hidden']});
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(foldOnResize);
 tbLayout(); heroLane(); requestAnimationFrame(heroLane); barMeasure(); FOLD.cramped=!foldFits(); $('toolsFold').classList.toggle('stack',FOLD.cramped); foldAuto();
 __STUDIO_JS__
 render();
@@ -1041,10 +1052,32 @@ def _included_data() -> str:
     out = {"schema": d.get("schema"), "games": [keep(g) for g in d.get("games") or []], "known_builds": [keep(g) for g in d.get("known_builds") or []]}
     return json.dumps(out, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")
 
-def _included_covers() -> str:
-    """the Included Games' covers (their authors' own screens on a black card, tools/publish/make_included_covers.py) and genres (which choose
-    their HOME scene, as for every catalog game) by content identity"""
-    p = os.path.join(SRC, "included", "index.json")
+# an Included Game's controller needs ("input" in site-data/included/index.json): taken only from its author's own published information,
+# each fact cited (evidence: a public http(s) source), in the catalog's own terms (input_requirements.py); a game without a record stays
+# "not known" (never assumed playable)
+INCLUDED_INPUT = {"primary": str, "modes": list, "min_controllers": int, "special_accessory": str, "accessory_requirement": ("none", "optional", "mode-specific", "required"),
+                  "standard_controller_playable": ("true", "partial", "false"), "nes_classic_support": ("supported", "partial", "unverified", "unsupported"),
+                  "level": ("none", "info", "optional", "partial", "required"), "notes": str, "evidence": list}
+
+def _included_input(g: dict) -> dict:
+    """one Included Game's "input" record as the page's input_* fields ({} when it has none); a record that is incomplete, uses other
+    terms or cites nothing stops the build"""
+    i = g.get("input")
+    if i is None: return {}
+    from input_requirements import curated_evidence
+    if not isinstance(i, dict) or set(i) != set(INCLUDED_INPUT): raise SystemExit(f"included/index.json: {g.get('key')}: its input record needs exactly {sorted(INCLUDED_INPUT)}")
+    for k, t in INCLUDED_INPUT.items():
+        v = i[k]
+        if isinstance(t, tuple) and v not in t: raise SystemExit(f"included/index.json: {g.get('key')}: input {k} is {v!r}, not one of {t}")
+        if isinstance(t, type) and (not isinstance(v, t) or isinstance(v, bool)): raise SystemExit(f"included/index.json: {g.get('key')}: input {k} is not a {t.__name__}")
+    if not i["evidence"] or not all(isinstance(e, dict) and e.get("source") for e in i["evidence"]): raise SystemExit(f"included/index.json: {g.get('key')}: its controller needs cite no source")
+    if not all(isinstance(m, str) and m for m in i["modes"]) or not 1 <= i["min_controllers"] <= 4: raise SystemExit(f"included/index.json: {g.get('key')}: input modes or controllers are not valid")
+    return {"input_" + k: (curated_evidence(v) if k == "evidence" else v) for k, v in i.items()}
+
+def _included_covers(p: str = None) -> str:
+    """the Included Games' covers (their authors' own screens on a black card, tools/publish/make_included_covers.py), genres (which choose
+    their HOME scene, as for every catalog game) and controller needs (their authors' own published controls) by content identity"""
+    p = p or os.path.join(SRC, "included", "index.json")
     if not os.path.exists(p): return "{}"
     d = json.load(open(p, encoding="utf-8")); out = {}
     for g in list(d.get("games") or []) + list(d.get("known_builds") or []):
@@ -1052,8 +1085,10 @@ def _included_covers() -> str:
         if not g.get("content_sha256"): continue
         e = {"genre": g["genre"]} if isinstance(g.get("genre"), str) and g["genre"] else {}
         if c.get("file"): e.update(src="included/" + c["file"], kind=c.get("kind") or "game screen")
+        inp = _included_input(g)
+        if inp: e["input"] = inp
         if e: out[g["content_sha256"]] = e
-    return json.dumps(out, separators=(",", ":"))
+    return json.dumps(out, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")
 
 def main():
     data = json.load(open(os.path.join(SRC, "catalog.json"), encoding="utf-8"))
@@ -1106,7 +1141,7 @@ def main():
     except Exception as _e: print("generated covers skipped:", _e)
     html = (TEMPLATE.replace("__DATA__", json.dumps(data).replace("</", "<\\/")).replace("__HERO_CAST__", hero).replace("__WRENCH__", _wrench()).replace("__FOOTER_CAST__", foot)
             .replace("__EMPTY_CAST__", empty).replace("__HOWTO_CAST__", howto).replace("__FILTERS_CAST__", filt)
-            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css") + "\n" + part("customize.css")).replace("__SEARCH_JS__", part("search.js")).replace("__INCL_COVERS__", _included_covers()).replace("__STORAGE_MODEL__", json.dumps(_storage_model())).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<\/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__HOME_SCENES__", _home_scenes()).replace("__HOME_STARTUP_IMAGES__", _startup_images()).replace("__HOME_ART__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-art.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__HOME_HD__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-hd.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
+            .replace("__STUDIO_CSS__", part("studio.css") + "\n" + part("tv.css") + "\n" + part("customize.css")).replace("__SEARCH_JS__", part("search.js")).replace("__INCL_COVERS__", _included_covers()).replace("__STORAGE_MODEL__", json.dumps(_storage_model())).replace("__HOME_CSS__", json.dumps(part("home.css")).replace("</", "<"+chr(92)+"/")).replace("__HOME_JS__", part("home-model.js") + "\n" + part("home-state.js") + "\n" + part("home-themes.js")).replace("__HOME_SCENES__", _home_scenes()).replace("__HOME_STARTUP_IMAGES__", _startup_images()).replace("__HOME_ART__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-art.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__HOME_HD__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "publish", "assets", "home", "home-hd.json"), encoding="utf-8").read().replace("</", "<"+chr(92)+"/")).replace("__STUDIO_HTML__", studio_html).replace("__STUDIO_JS__", studio_js))
     css0, css1 = html.find("<style>") + 7, html.find("</style>"); html = html[:css1] + dock_twins(html[css0:css1]) + html[css1:]   # docked My Collection twins of every width rule
     if PUBLIC:
         html = (html.replace("<title>NES Classic Collection — Game Selection Catalog</title>", f"<title>{APP_NAME}</title><meta name=\"description\" content=\"{TAGLINE}\"><meta name=\"robots\" content=\"index,follow\"><meta property=\"og:title\" content=\"{APP_NAME}\"><meta property=\"og:description\" content=\"{TAGLINE}\">")

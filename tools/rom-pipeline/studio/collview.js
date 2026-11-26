@@ -157,22 +157,22 @@ async function cvPlayWebGame(g){ const id=g.id; if(CCSPLAY.running()){ toast('A 
  if(res&&res.error){ if(res.code==='no_rom'){ rdyChanged(true); rdyExplain(id); return; } cvSaid(`${g.title} did not start`, `<div class="msgbox bad">${esc(res.error)}</div>`); }
  else if(res&&res.writes_failed) cvSaid('A save was not written', `<div class="msgbox warn">${esc(res.writes_failed)}</div>`); }
 // ---- every way into HOME (Open HOME, a game's "Show in HOME", HOME Settings' Open HOME, a pop-out) and preparing a collection for an
-//      NES Classic go through one check: every game of the collection must have its usable ROM file here. Otherwise nothing opens and the
+//      console go through one check: every game of the collection must have its usable ROM file here. Otherwise nothing opens and the
 //      games that need attention are named, with what to do. A storage problem says so (never "missing") ----
-async function rdyGate(what){ if(CS_STATE!=='ok'){ rdyStoreProblem(); return false; } if(!csActive()){ cvSaid(what==='console'?'Prepare for NES Classic':'HOME', '<div class="msgbox">Open or create a collection first. HOME shows the open collection.</div>'); return false; }
+async function rdyGate(what){ if(CS_STATE!=='ok'){ rdyStoreProblem(); return false; } if(!csActive()){ cvSaid(what==='console'?'Install on Console':'HOME', '<div class="msgbox">Open or create a collection first. HOME shows the open collection.</div>'); return false; }
  if(!sel.size) return true;   // an empty collection: HOME shows the built-in sample, as before
  await rdyCheck(); try{ render(); }catch(e){} const p=rdyProblems(); if(!p.missing.length&&!p.wrong.length&&!p.unknown.length) return true;
  const list=(ids,cls,t)=>ids.length?`<div class="msgbox ${cls}"><b>${t} (${ids.length}):</b><ul class="rdylist">${ids.slice(0,30).map(id=>`<li><button type="button" class="linkbtn" data-rdyfix="${esc(id)}">${esc(cvTitle(id))}</button></li>`).join('')}${ids.length>30?`<li>…and ${ids.length-30} more</li>`:''}</ul></div>`:'';
- const head=what==='console'?`"${esc(COLL.name)}" cannot be prepared for an NES Classic yet.`:`HOME cannot open "${esc(COLL.name)}" yet.`;
+ const head=what==='console'?`"${esc(COLL.name)}" cannot be installed on your console yet.`:`HOME cannot open "${esc(COLL.name)}" yet.`;
  const only=p.unknown.length&&!p.missing.length&&!p.wrong.length;
- openColl(what==='console'?'Prepare for NES Classic':'HOME', COLL.name, `<p><b>${head}</b> ${only?`Classic Cart Studio could not check ${p.unknown.length===1?'one game\'s game file':'the game files of some games'}${rdyS().why?`: ${esc(rdyS().why)}`:'.'} Nothing was changed. Try again in a moment.`:'Every game of a collection needs its game file. Choose a game below to locate its game file or remove it from this collection.'}</p>
+ openColl(what==='console'?'Install on Console':'HOME', COLL.name, `<p><b>${head}</b> ${only?`Classic Cart Studio could not check ${p.unknown.length===1?'one game\'s game file':'the game files of some games'}${rdyS().why?`: ${esc(rdyS().why)}`:'.'} Nothing was changed. Try again in a moment.`:'Every game of a collection needs its game file. Choose a game below to locate its game file or remove it from this collection.'}</p>
   ${list(p.missing,'bad','Game file missing')}${list(p.wrong,'bad','Wrong game version')}${list(p.unknown,'warn','Could not be checked')}
   <div class="acts"><span class="sp"></span><button class="btn" id="rdyClose">Close</button>${p.unknown.length?'<button class="btn hk" id="rdyAgain">Check Again</button>':''}</div>`);
  $('rdyClose').onclick=closeColl; if($('rdyAgain')) $('rdyAgain').onclick=async()=>{ closeColl(); if(await rdyGate(what)) cvToast(what); };
  $('collBody').querySelectorAll('[data-rdyfix]').forEach(b=>b.onclick=()=>rdyExplain(b.dataset.rdyfix));
  if(typeof CCSM!=='undefined'){ try{ CCSM.fail(what==='console'?'install':'play', 'missing_rom'); }catch(e){} }
  return false; }
-function cvToast(what){ toast(what==='console'?'Every game has its game file. Choose Prepare for NES Classic again.':'Every game has its game file. Choose Open HOME again.'); }
+function cvToast(what){ toast(what==='console'?'Every game has its game file. Choose Install on Console again.':'Every game has its game file. Choose Open HOME again.'); }
 // the collections themselves could not be read: said plainly, nothing is changed (Try Again reloads; a backup can still be restored)
 function rdyStoreProblem(){ openColl('Collections Could Not Be Read', '', `<div class="msgbox bad" role="alert"><b>Classic Cart Studio could not read your collections ${cvApp()||(typeof CO!=='undefined'&&CO.desktop)?'on this computer':'in this browser'}.</b> Nothing was changed or deleted, and nothing new was set up in their place.</div>
   <p class="small">Close other Classic Cart Studio tabs or windows, then choose Try Again. If it keeps happening, your browser's storage for this site may be damaged or blocked; a backup (.ccs) can be restored in another browser or in Classic Cart Studio for Windows.</p>

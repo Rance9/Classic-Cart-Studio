@@ -92,10 +92,10 @@ def main() -> int:
             refused("a game's Show in HOME", "document.querySelector('#details [data-tvfocus]').click(); 1"); ed.js("$('details').classList.remove('open'); 1")
             ed.js("openFolders(); 1"); time.sleep(0.6)
             refused("HOME Settings' Open HOME", "$('hfPreview').click(); 1")
-            # the toolbar's Install on NES Classic as the Windows app has it (the website shows its invitation instead): the button itself,
+            # the toolbar's Install on Console as the Windows app has it (the website shows its invitation instead): the button itself,
             # not only openInstall() (build4's Sandbox run found the button bound to the function before the gate wrapped it)
             ed.js("TV.open&&closeTv(); window.__h=COMPANION.hosted; COMPANION.hosted=false; 1"); close(ed); ed.js("$('hkBtn').click(); 1"); time.sleep(1.4); d = dlg(ed) or {}
-            ok("console: the Install on NES Classic button refuses and names the games", d.get("title") == "Prepare for NES Classic" and "Test Catalog Game" in d.get("text", "") and ed.js("$('hkpanel').classList.contains('open')") is False, d)
+            ok("console: the Install on Console button refuses and names the games", d.get("title") == "Install on Console" and "Test Catalog Game" in d.get("text", "") and ed.js("$('hkpanel').classList.contains('open')") is False, d)
             ed.js("COMPANION.hosted=window.__h; $('hkpanel').classList.remove('open'); 1"); close(ed)
             shot(ed, "home-refused-1440.png"); close(ed)
             # ---- locate ----

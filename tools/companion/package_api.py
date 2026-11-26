@@ -21,13 +21,14 @@ The website (allow-listed origin only, like the collection offer) may only ADD a
 There is no package size limit; a package is refused (HTTP 507) only when the drive lacks the free space for it. Staged packages expire
 after a day."""
 from __future__ import annotations
-import base64, json, os, re, secrets, shutil, sqlite3, subprocess, sys, threading, time, zipfile
+import base64, errno, json, os, re, secrets, shutil, sqlite3, subprocess, sys, threading, time, zipfile
 import ccs_package as cp
 
 STAGE_TTL = 24 * 3600; SPACE_MARGIN = 64 * 1024 ** 2
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{16,40}$"); GAME_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,96}$")
 SAVED: dict = {}          # staged id -> the path the save route wrote (the only paths reveal opens)
-_IDENT: dict = {}         # path -> (size, mtime_ns, identity): content hashes of local ROM files, recomputed when a file changes
+_IDENT: dict = {}         # path -> (size, mtime_ns, identity): content hashes of local ROM files, recomputed when a file changes; the file
+                          # itself is read again on every use (_identity)
 _DESC: dict = {}          # staged path -> (size, mtime_ns, description)
 _LOCK = threading.Lock()
 
@@ -154,12 +155,27 @@ def _rom_candidates(vid: str, ctx: dict | None = None) -> list[str]:
     return res
 
 def _identity(p: str, cancel=lambda: False, progress=None) -> dict:
-    st = os.stat(p); key = (st.st_size, st.st_mtime_ns)
-    with _LOCK: hit = _IDENT.get(p)
-    if hit and hit[:2] == key:
-        if progress: progress(hit[2]["size"])
-        return hit[2]
-    ident = cp.identify_file(p, cancel, progress)
+    """the content identity of one local game file. The file is opened and read through now on every call: the cache (its size and
+    modification time, taken from the open file) only spares recomputing the hashes of a file that can still be read. It never vouches for
+    a file that cannot be read now: opening or reading it raises OSError, which the caller reports as unreadable, and so does a file whose
+    length read now differs from its recorded size (it changed while being read)."""
+    with open(p, "rb") as f:
+        st = os.fstat(f.fileno()); key = (st.st_size, st.st_mtime_ns)
+        with _LOCK: hit = _IDENT.get(p)
+        known = hit[2] if hit and hit[:2] == key else None
+        h = None if known else cp.IdentityHasher(); n = 0
+        while True:
+            if cancel(): raise cp.PackageError("Export canceled. No file was saved.")
+            b = f.read(cp.CHUNK)
+            if not b: break
+            n += len(b)
+            if h: h.update(b)
+            if progress: progress(len(b))
+    if n != key[0]:
+        with _LOCK: _IDENT.pop(p, None)
+        raise OSError(errno.EIO, "the file changed while it was being read", p)
+    if known: return known
+    ident = h.finish()
     with _LOCK: _IDENT[p] = (key[0], key[1], ident)
     return ident
 
