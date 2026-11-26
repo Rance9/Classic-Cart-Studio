@@ -702,6 +702,91 @@ def nucleus_tests():
           "nucleus: choosing the console's own system leaves hakchi's own firmware choice in force ('auto': hakchi starts the first image in its folder, as without Nucleus)")
     check(not [t for t in trips() if "foreign" not in t], f"nucleus: no tripwire in any start ({trips()})")
 
+def community_menus():
+    """a community menu as a choice in the startup chooser (registry kind community): added and changed only as a community menu, listed
+    with its state, started with no arguments when chosen, the chooser again when it ends, a failure recorded and never repeated by itself,
+    removed only as that menu (the PC's nmadd and nmdrop run these commands with the preparation image's own copy of this program)"""
+    fresh(foreign=True)
+    for h in ("ccs-mod", "ccs-nucleus", "ccs-nucleus-chooser"): hakchi(f"pack_install @R@/hmods/{h}.hmod")
+    nuc("set chooser always")
+    P = "/var/lib/hakchi/rootfs/bin/fx_menu"; I = "cm-0123456789ab"
+    out = nuc(f"menu-add {I} fx_menu {P} 'Fixture Menu'"); st = nuc("status")
+    check(result(out) == f"result menu-add ok {I}" and f"option {I} kind=community unavailable menu-not-installed" in st and "registry generation=" in st,
+          f"menus: a community menu becomes a choice (kind community) in a valid registry; before hakchi installs its package it is listed as not available ({result(out)})")
+    again = result(nuc(f"menu-add {I} fx_menu {P} 'Fixture Menu'"))
+    bad = [result(nuc(a)) for a in (f"menu-add native fx_menu {P} X", f"menu-add ccs-home fx_menu {P} X", f"menu-add cm-x ccs-mod {P} X", "menu-add cm-x fx_menu /etc/passwd X", f"menu-add cm-x fx_menu {P} 'X;Y'")]
+    check(again == f"result menu-add ok already {I}" and all(b.startswith("result menu-add refused") for b in bad) and "cm-x" not in nuc("status"),
+          f"menus: the same choice again is ok already; the console's own system or CCS HOME's id, a Classic Cart Studio package, a program outside hakchi's overlay or a label the chooser cannot show are refused ({bad})")
+    # installed as hakchi's pack_install leaves a package: its uninstall list and its program (a stand-in that records it ran)
+    sh(f"echo '# auto-generated' > '@R@/newroot/var/lib/hakchi/hmod/uninstall-fx_menu' && mkdir -p '{HKR}/bin' && printf '#!/bin/sh\\necho \"MENU [$*]\" >> @R@/log\\nexit 0\\n' > '{HKR}/bin/fx_menu' && chmod 755 '{HKR}/bin/fx_menu'")
+    check(f"option {I} kind=community ok" in nuc("status"), "menus: once hakchi lists its package and its program is there, the menu can start")
+    def pick(*ids): sh("printf '%s\\n' " + " ".join("'" + i + "'" for i in ids) + " > '@R@/picks'" if ids else "rm -f '@R@/picks'")
+    clear_log(); mark(); pick(I, "native"); boot(); L = since_mark(); ch = sh("cat '@R@/last-choices'")
+    seq = [l.split(" ")[0] if l.startswith(("CHOOSER", "MENU")) else l for l in L.splitlines() if l.startswith(("CHOOSER", "MENU", "HOME", "S81clover"))]
+    check(seq[:4] == ["CHOOSER", "MENU", "CHOOSER", "S81clover-mcp the console menu"] and "MENU []" in L and f"choice={I}|ccs-home|same|ok|Fixture Menu|" in ch and "HOME" not in L,
+          f"menus: chosen at start, the menu's program runs (no arguments, nothing of CCS HOME under it); when it ends the chooser appears again, to choose another menu ({seq})")
+    # a menu that ends with a problem: the chooser says so, and the next start never starts it by itself
+    sh(f"printf '#!/bin/sh\\necho MENU-FAIL >> @R@/log\\nexit 3\\n' > '{HKR}/bin/fx_menu'")
+    nuc(f"set default {I}"); clear_log(); mark(); pick(I, "native"); boot(); L = since_mark(); ch = sh("cat '@R@/last-choices'"); st = nuc("status")
+    check("MENU-FAIL" in L and "notice=Fixture Menu ended with a problem." in ch and f"choice={I}|ccs-home|same|unavailable|Fixture Menu|" in ch and "failed-before:ended-3" in st,
+          "menus: a menu that ends with a problem: the chooser says so and lists it as not available for now; the failure is recorded")
+    clear_log(); mark(); pick(); boot(); L = since_mark()
+    check("MENU" not in L and "S81clover-mcp the console menu" in L, "menus: a menu that failed is never started by the countdown at the next start: the console's own system starts")
+    # its program gone: listed as not available with the reason, never started
+    sh(f"rm -f '@R@/newroot/var/lib/ccs/nucleus/state/failed-{I}' '{HKR}/bin/fx_menu'"); nuc("set default native")
+    clear_log(); mark(); pick(I, "native"); boot(); L = since_mark(); ch = sh("cat '@R@/last-choices'")
+    check("MENU" not in L and f"choice={I}|ccs-home|same|unavailable|Fixture Menu|Its program is not on the console." in ch and "S81clover-mcp the console menu" in L,
+          "menus: a menu whose program is gone is listed with the reason and never started")
+    # changed in place (a new version), then removed only as that community menu
+    ch2 = result(nuc(f"menu-add {I} fx_menu2 /var/lib/hakchi/rootfs/bin/fx_menu2 'Fixture Menu Two'")); st = nuc("status")
+    r1 = result(nuc(f"menu-drop {I} fx_menu")); r2 = result(nuc("menu-drop native fx_menu")); r3 = result(nuc(f"menu-drop {I} fx_menu2")); r4 = result(nuc(f"menu-drop {I} fx_menu2"))
+    reg = sh("cat '@R@/newroot/var/lib/ccs/nucleus/registry'")
+    check(ch2 == f"result menu-add ok {I}" and f"option {I} kind=community" in st and r1.startswith("result menu-drop refused") and r2.startswith("result menu-drop refused")
+          and r3 == f"result menu-drop ok {I}" and r4 == f"result menu-drop ok already {I}" and I not in reg and "opt.native.kind=native" in reg and "chooser=always" in reg,
+          f"menus: a new version changes the choice in place; only that community menu's choice is removed, never another kind or one naming another package; the chooser stays ({r1}; {r2}; {r3})")
+    # an owner's image id is never replaced by a menu
+    sh("mkdir -p '@R@/newroot/var/lib/ccs/nucleus/staging' && { printf hsqs; head -c 4092 /dev/urandom; } > '@R@/newroot/var/lib/ccs/nucleus/staging/upm'")
+    sm = fsha("@R@/newroot/var/lib/ccs/nucleus/staging/upm"); nuc(f"import /var/lib/ccs/nucleus/staging/upm owner-m {sm} 4096 'Owner Image'")
+    r5 = result(nuc(f"menu-add owner-m fx_menu {P} 'Fixture Menu'")); r6 = result(nuc("menu-drop owner-m fx_menu"))
+    check(r5.startswith("result menu-add refused") and r6.startswith("result menu-drop refused") and "option owner-m kind=owner-root" in nuc("status"), f"menus: an owner's system image is never replaced or removed as a menu ({r5}; {r6})")
+
+EARLIER = [None]   # --earlier-nucleus: an earlier release's ccs-nucleus.hmod
+def update_from_earlier():
+    """CCS Nucleus installed from an earlier release, the owner's settings and system image under it; then this version's package installed
+    over it by hakchi's own pack_install, as the PC's update places it in the transfer folder: the start setting (default, last used, no
+    countdown, chooser at start), the owner's system image and its record stay, and the new program lists a community menu"""
+    if not EARLIER[0]: check(False, "update: --earlier-nucleus (an earlier release's ccs-nucleus.hmod) was not given"); return
+    fresh(foreign=True)
+    sh(f"mkdir -p '@R@/old' && cp '{wpath(EARLIER[0])}' '@R@/old/ccs-nucleus.hmod'")
+    hakchi("pack_install @R@/hmods/ccs-mod.hmod"); out = hakchi("pack_install @R@/old/ccs-nucleus.hmod"); hakchi("pack_install @R@/hmods/ccs-nucleus-chooser.hmod")
+    old_version = sh(f"cat {HKR}/etc/ccs/nucleus/VERSION")
+    for a in ("chooser always", "selection last", "timeout 0", "default ccs-home"): nuc("set " + a)
+    sh("mkdir -p '@R@/newroot/var/lib/ccs/nucleus/staging' && { printf hsqs; head -c 65532 /dev/urandom; } > '@R@/newroot/var/lib/ccs/nucleus/staging/up1'")
+    imp = nuc(f"import /var/lib/ccs/nucleus/staging/up1 owner-1 {fsha('@R@/newroot/var/lib/ccs/nucleus/staging/up1')} 65536 'My Other System'")
+    reg = "@R@/newroot/var/lib/ccs/nucleus/registry"; reg_before = sh(f"cat '{reg}'"); st_before = nuc("status")
+    P = "/var/lib/hakchi/rootfs/bin/fx_menu"; I = "cm-0123456789ab"
+    r0 = result(nuc(f"menu-add {I} fx_menu {P} 'Fixture Menu'"))
+    check(result(out) == "result postinstall ok installed" and result(imp) == "result import ok owner-1" and "default=ccs-home selection=last chooser=always timeout=0" in st_before
+          and "option owner-1 kind=owner-root ok" in st_before and r0.startswith("result menu-add refused") and sh(f"cat '{reg}'") == reg_before,
+          f"update: (set-up) the earlier release's CCS Nucleus installed by hakchi's pack_install, the owner's settings and system image set with it; it cannot list a community menu ({r0})")
+    clear_log()
+    out2 = hakchi("pack_install @R@/hmods/ccs-nucleus.hmod")
+    st_after = nuc("status"); reg_after = sh(f"cat '{reg}'"); new_version = sh(f"cat {HKR}/etc/ccs/nucleus/VERSION")
+    j = F.journal_read(sh("cat '@R@/newroot/var/lib/ccs/owned/nucleus.own'").encode())
+    check(result(out2) == "result postinstall ok installed" and new_version != old_version and reg_after == reg_before
+          and "default=ccs-home selection=last chooser=always timeout=0" in st_after and "option owner-1 kind=owner-root ok" in st_after and "chooser=installed" in st_after
+          and "/var/lib/ccs/nucleus/roots/owner-1.hsqs" in j["data"] and exists("@R@/newroot/var/lib/ccs/nucleus/roots/owner-1.hsqs") and not trips(),
+          f"update: this version installed over the earlier one by hakchi's own pack_install: its registry byte for byte (CCS HOME first, Last Used, no countdown, the chooser at start, the owner's system image), the image and its record kept ({result(out2)})")
+    rv = sh(f"grep -c 'auto-generated' '@R@/newroot/var/lib/hakchi/hmod/uninstall-ccs-nucleus'").strip()
+    check(rv == "1" and "nucleus" in sh(f"cat {HKR}/etc/ccs/nucleus/VERSION"), "update: hakchi's removal list for CCS Nucleus is this version's (written again by its pack_install)")
+    # the new program lists a community menu, and the chooser at start starts it
+    r1 = result(nuc(f"menu-add {I} fx_menu {P} 'Fixture Menu'"))
+    sh(f"echo '# auto-generated' > '@R@/newroot/var/lib/hakchi/hmod/uninstall-fx_menu' && mkdir -p '{HKR}/bin' && printf '#!/bin/sh\\necho \"MENU [$*]\" >> @R@/log\\nexit 0\\n' > '{HKR}/bin/fx_menu' && chmod 755 '{HKR}/bin/fx_menu'")
+    sh("printf '%s\\n' '" + I + "' native > '@R@/picks'"); clear_log(); mark(); boot(); L = since_mark()
+    seq = [l.split(" ")[0] if l.startswith(("CHOOSER", "MENU")) else l for l in L.splitlines() if l.startswith(("CHOOSER", "MENU", "HOME", "S81clover"))]
+    check(r1 == f"result menu-add ok {I}" and seq[:4] == ["CHOOSER", "MENU", "CHOOSER", "S81clover-mcp the console menu"],
+          f"update: the updated CCS Nucleus lists a community menu and starts it from the chooser; leaving it shows the chooser again ({r1}; {seq})")
+
 def transitions():
     """CCS Mod and CCS Nucleus are independent add-ons: each is added or removed without the other, and CCS Nucleus's chooser is added
     or removed on its own; games, saves, settings and other packages stay as they were"""
@@ -784,6 +869,20 @@ def transitions():
     out = nuc("start ccs-home never on default 10")
     check(result(out) == "result start ok default=ccs-home chooser=never home=on selection=default timeout=10" and "options=native ccs-home" in sh(f"cat '{reg}'"),
           f"start: CCS HOME offered again and opened first ({result(out)})")
+    # the owner's own settings, as its settings screen makes them, written back as they are: another listed option as what opens first (an
+    # owner's system image only with the chooser at start), any countdown, the menu used last with no countdown
+    sh("mkdir -p '@R@/newroot/var/lib/ccs/nucleus/staging' && { printf hsqs; head -c 65532 /dev/urandom; } > '@R@/newroot/var/lib/ccs/nucleus/staging/kp1'")
+    imp = nuc(f"import /var/lib/ccs/nucleus/staging/kp1 owner-k {fsha('@R@/newroot/var/lib/ccs/nucleus/staging/kp1')} 65536 'My Other System'")
+    out = nuc("start owner-k always on default 20"); r1 = sh(f"cat '{reg}'")
+    check(result(imp) == "result import ok owner-k" and result(out) == "result start ok default=owner-k chooser=always home=on selection=default timeout=20" and "default=owner-k" in r1 and "timeout=20" in r1,
+          f"start: the owner's own system image kept as what opens first, with a 20-second countdown ({result(imp)}; {result(out)})")
+    for bad in ("owner-k never on default 20", "elsewhere always on default 20"):
+        out = nuc("start " + bad)
+        check(result(out) == "result start refused default" and sh(f"cat '{reg}'") == r1, f"start: {bad.split()[0]} with the chooser {bad.split()[1]} is refused, the registry unchanged ({result(out)})")
+    out = nuc("start native always on last 0")
+    check(result(out) == "result start ok default=native chooser=always home=on selection=last timeout=0" and "option owner-k kind=owner-root ok" in nuc("status"),
+          f"start: the menu used last with no countdown; the owner's system image stays listed ({result(out)})")
+    nuc("forget owner-k"); nuc("start ccs-home never on default 10")
     sh(f"echo broken >> '{reg}'")
     out = nuc("start native never off default 10")
     check(result(out) == "result start refused the registry on the console is not valid (it is kept as it is)" and sh(f"tail -n 1 '{reg}'").strip() == "broken",
@@ -1041,6 +1140,19 @@ def chooser_real():
           and "choice=ccs-home|ccs-home|same|unavailable|CCS HOME|CCS HOME is not completely installed." in ch,
           f"chooser (real): without a CCS HOME package the chooser still shows (its own program), lists CCS HOME as unavailable with its reason, and its countdown starts the console's own system ({[x for x in L.splitlines() if x.startswith(('CHOOSER-EXIT', 'HOME', 'S81'))]})")
     sh("mv '@R@/pkg-current.keep' '@R@/newroot/var/lib/ccs/pkg/current'")
+    # 9. a community menu as a choice: the real chooser program shows it (as a menu of the console's own system), its countdown starts it;
+    #    when it ends with a problem the next round says so and counts down to the console's own system (nothing waits on the TV)
+    I = "cm-0123456789ab"
+    sh(f"echo '# auto-generated' > '@R@/newroot/var/lib/hakchi/hmod/uninstall-fx_menu' && mkdir -p '{HKR}/bin' && printf '#!/bin/sh\\necho MENU-FAIL >> @R@/log\\nexit 3\\n' > '{HKR}/bin/fx_menu' && chmod 755 '{HKR}/bin/fx_menu'")
+    ra = result(nuc(f"menu-add {I} fx_menu /var/lib/hakchi/rootfs/bin/fx_menu 'Fixture Menu'")); nuc(f"set default {I}"); nuc("set timeout 2")
+    sh("rm -f '@R@'/newroot/var/lib/ccs/nucleus/state/failed-* '@R@'/choices-*"); clear_log(); mark(); keys("", "")
+    boot(); L = since_mark(); t = trace(); ch = sorted(sh("ls '@R@'/choices-* 2>/dev/null").split()); c1, c2 = (sh(f"cat '{ch[0]}'"), sh(f"cat '{ch[-1]}'")) if len(ch) >= 2 else ("", "")
+    seq = [x for x in L.splitlines() if x.startswith(("CHOOSER-EXIT", "MENU", "HOME", "S81clover"))]
+    check(ra == f"result menu-add ok {I}" and seq == ["CHOOSER-EXIT 0", "MENU-FAIL", "CHOOSER-EXIT 0", "S81clover-mcp the console menu"]
+          and [x["answer"] for x in t if x["ev"] == "answer"] == [f"choice {I} timeout", "choice native timeout"] and f"choice={I}|ccs-home|same|ok|Fixture Menu|" in c1
+          and "notice=Fixture Menu ended with a problem.\n" in c2 and f"choice={I}|ccs-home|same|unavailable|Fixture Menu|It ended with a problem just now." in c2,
+          f"chooser (real): a community menu is a choice the real chooser program shows and starts; when it ends with a problem the chooser says so and counts down to the console's own system ({seq})")
+    nuc(f"set default ccs-home"); nuc(f"menu-drop {I} fx_menu"); sh(f"rm -f '@R@/newroot/var/lib/hakchi/hmod/uninstall-fx_menu' '{HKR}/bin/fx_menu' '@R@'/newroot/var/lib/ccs/nucleus/state/failed-*")
     check(not [x for x in trips() if "foreign" not in x], f"chooser (real): no tripwire ({trips()})")
 
 # ---------------------------------------------------------------- the installation chain with the package's own console player
@@ -1314,10 +1426,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--hakchi-release", required=True); ap.add_argument("--keep", action="store_true")
     ap.add_argument("--chooser", help="the console build of the native HOME program (ccs-home-armv7: scripts/wsl_build.sh arm-musl-device) for the chooser part")
     ap.add_argument("--fonts", help="the player's menu fonts (silk17, sans600_22, sans400_17 .ccsf) for the chooser part (optional)")
+    ap.add_argument("--earlier-nucleus", help="for the update part: an earlier release's ccs-nucleus.hmod (installed first, then this version's over it)")
     ap.add_argument("--chain-data", help="for --only chain: the data storage tar test_recovery_images.py --home-archive --export-data wrote")
-    ap.add_argument("--only", help="comma-separated: syntax,insertion,mod,third-party,nucleus,transitions,transfer,chooser,collections,snes,chain (default: all but chain)"); a = ap.parse_args()
+    ap.add_argument("--only", help="comma-separated: syntax,insertion,mod,third-party,nucleus,menus,update,transitions,transfer,chooser,collections,snes,chain (default: all but chain)"); a = ap.parse_args()
     CHOOSER_BIN = os.path.abspath(a.chooser) if a.chooser else None; FONTS_DIR = os.path.abspath(a.fonts) if a.fonts else None
     CHAIN[0] = os.path.abspath(a.chain_data) if a.chain_data else None
+    EARLIER[0] = os.path.abspath(a.earlier_nucleus) if a.earlier_nucleus else None
     WORK = tempfile.mkdtemp(prefix="ccs-nu-")
     inp = B.read_inputs(a.hakchi_release); ents = rd_entries(inp)
     BP.CHOOSER_INPUTS = chooser_standin_inputs("__R__")
@@ -1332,9 +1446,9 @@ def main() -> int:
     bad = setup(inp, ents, pk1)
     check(not bad, f"stand-in: the test copies of hakchi's preinit, b0000_defines, b0010_functions, b0030_package, rcS and hakchi command differ from the pinned files only in RAM-root paths ({bad or 'mapped back exactly'})")
     try:
-        parts = {"syntax": syntax, "insertion": insertion_point, "mod": mod_tests, "third-party": foreign_semantics, "nucleus": nucleus_tests, "transitions": transitions, "transfer": transfer_route,
+        parts = {"syntax": syntax, "insertion": insertion_point, "mod": mod_tests, "third-party": foreign_semantics, "nucleus": nucleus_tests, "menus": community_menus, "update": update_from_earlier, "transitions": transitions, "transfer": transfer_route,
                  "chooser": chooser_real, "collections": collections_tests, "snes": snes_tests, "chain": chain}
-        for k in (a.only.split(",") if a.only else [x for x in parts if x != "chain"]): parts[k]()
+        for k in (a.only.split(",") if a.only else [x for x in parts if x != "chain" and (x != "update" or EARLIER[0])]): parts[k]()
     finally:
         if not a.keep:
             if R: sh("rm -rf '@R@'")

@@ -12,7 +12,7 @@
 //             {"cmd":"restore-confirm","digest":…,"nonce":…}   {"cmd":"cancel"}   {"cmd":"finish"} (restart the console)   {"cmd":"quit"}
 //             {"cmd":"prepare-plan","mod":true|false,"nucleus":"none"|"direct"|"chooser","start":"native"|"ccs-home",…} then "prepare-confirm";
 //             with "choose":true instead of the add-ons, the worker first reports the console's own ({"event":"addon-state",…}: what it has and
-//             starts now) and waits for {"cmd":"prepare-target"|"method-target","mod":…,"nucleus":…,"start":…,"auto":…} (the add-on pages)
+//             starts now) and waits for {"cmd":"prepare-target"|"method-target","mod":…,"nucleus":…,"start":…,"auto":…,"countdown":…,"at_start":…,"update":…} (the add-on pages)
 //             {"cmd":"return-plan",…} then "return-confirm"
 //             (CCS Console Workbench: the same functions in the standalone and in Classic Cart Studio, from the same engine and console programs)
 //             {"cmd":"method-plan","mod":…,"nucleus":…,"start":…} then {"cmd":"method-confirm","digest":…,"nonce":…}: the add-ons the console
@@ -146,10 +146,9 @@ namespace CcsBackup.Engine
                 return RecoverySessions.OpenReal(kind, t => Send(new JObj { { "event", "progress" }, { "phase", "connect" }, { "text", t } }), () => cancel);
             }
 
-            // the add-ons a request names: mod (true/false), nucleus (none, direct, chooser), start (native, ccs-home), auto (with the chooser:
-            // menu, last or wait); null: none named
-            static AddonChoice AddonsOf(Dictionary<string, object> req) => req.S("nucleus") == null && !req.B("mod") ? null
-                : new AddonChoice { Mod = req.B("mod"), Nucleus = req.S("nucleus") ?? "none", Start = req.S("start") ?? "native", Auto = req.S("auto") ?? "menu" };
+            // the add-ons a request names: mod (true/false), nucleus (none, direct, chooser), start (native, ccs-home, or the console's own
+            // default kept), auto (menu, last or wait), countdown (seconds), at_start (the chooser shows at start); null: none named
+            static AddonChoice AddonsOf(Dictionary<string, object> req) => req.S("nucleus") == null && !req.B("mod") ? null : AddonChoice.FromJson(req);
 
             int Dispatch(Dictionary<string, object> req)
             {
@@ -275,7 +274,7 @@ namespace CcsBackup.Engine
                 Send(MethodEngine.StateEvent(operation, situation, id, st));
                 var c = Next(DateTime.UtcNow + RestoreEngine.ConfirmWindow, operation + "-target");
                 if (c == null || c.S("cmd") != operation + "-target") return null;
-                var a = new AddonChoice { Mod = c.B("mod"), Nucleus = c.S("nucleus") ?? "none", Start = c.S("start") ?? "native", Auto = c.S("auto") ?? "menu" };
+                var a = AddonChoice.FromJson(c);
                 problem = a.Problem(); return a;
             }
 

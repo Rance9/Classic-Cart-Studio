@@ -543,7 +543,8 @@ PROGRAM_PINS = {"ccs-collections": "9f17bc6420635f0055ddb431f617e6cf613fbbe0b7ed
 # ---------------------------------------------------------------- the console program on a disposable stand-in (ccs_install.FakeConsole)
 # The same rules as tools/console-nucleus/console/collections/ccs-collections (tools/console-nucleus/test_nucleus.py runs that program itself
 # under qemu-arm with hakchi's own findGameStorage and compares the result with this emulation): the stand-in's hakchi game storage is found
-# as hakchi's findGameStorage finds it for a North American NES Classic (sftype nes, sfregion usa).
+# as hakchi's findGameStorage finds it (games/$sftype-$sfregion, games/$sftype, games) for the stand-in's own software type and region
+# (nes-usa for a North American NES Classic, nes-eur for one whose software names REGION EUR).
 GAMEPATH = "/usr/share/games/nes/kachikachi"; SQUASHFS = "/var/squashfs"; OVERLAY_ROOT = "/var/lib/hakchi/rootfs"
 
 def _sealed_lines(b: bytes | None, schema: str) -> list[str] | None:
@@ -574,8 +575,9 @@ def emulate(fc, command: str, stage: str | None = None) -> str:
     def contains(d): return isdir(d) and any(n.startswith("CLV-") for n in fc.listdir(d))
     def where():
         gs = None
+        t = fc.console_type() if hasattr(fc, "console_type") else "nes-usa"; t = t if t.startswith("nes-") else "nes-usa"
         for base in ("/media/hakchi/games", "/var/lib/hakchi/games"):
-            for sub in ("/nes-usa", "/nes", ""):
+            for sub in ("/" + t, "/nes", ""):
                 if contains(base + sub) or contains(base + sub + "/000"): gs = base + sub; break
             if gs: break
         if gs: return {"mode": "storage", "store": gs, "menu": gs + "/000" if isdir(gs + "/000") else gs, "system": SQUASHFS + GAMEPATH}

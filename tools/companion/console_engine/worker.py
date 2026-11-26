@@ -202,7 +202,7 @@ class Worker:
             except OSError: pass
 
     def cmd_home_plan(self, rid, a):
-        if set(a) - set(ccs_install.STUDIO_CHOICE) - {"hakchi_games"}: raise ValueError("home-plan takes only the add-on choice (mod, nucleus, start, auto) and hakchi_games: the package is the one the app staged")
+        if set(a) - set(ccs_install.STUDIO_CHOICE) - {"hakchi_games"}: raise ValueError("home-plan takes only the add-on choice (mod, nucleus, start, auto, countdown, at_start) and hakchi_games: the package is the one the app staged")
         choice = ccs_install.addon_choice({k: v for k, v in a.items() if k != "hakchi_games"})   # Refused (its reason in plain words) when the choice cannot be made
         d = ccs_install.staged_package(self.console_package)
         if not d: raise KeyError("no console package has been staged by the app")

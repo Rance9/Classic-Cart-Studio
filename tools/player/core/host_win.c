@@ -38,7 +38,7 @@ struct host {
     char theme_cmd[48], select_cmd[200], reload_cmd[1100]; HANDLE studio_proc; uint64_t studio_check;   /* embedded: see the comment at the top */
     HWND hwnd; HANDLE mutex; int fs; WINDOWPLACEMENT wp; int cw, ch; FILE *trace; char display_path[1024], pads_path[1100]; int studio_pid;
     const gp_settings *s; int tv_aspect, integer_scale, swap; uint8_t keys[256], tapped[256]; int vk[GP_PLAYERS][GA_COUNT][2];
-    int close_req, menu_key, lost, gained, focused;
+    int close_req, menu_key, lost, gained, focused, polled;
     uint32_t *last; int lw, lh, lstride, last_kind; uint32_t nes32[256 * 240]; uint32_t *canvas32; int cvw, cvh;
     uint32_t *down32; int dnw, dnh, dn_gen, cv_gen;   /* the canvas reduced to the window (dnw x dnh) for canvas generation dn_gen */
     HWAVEOUT wo; WAVEHDR hdr[NBUF]; int16_t *pcm[NBUF]; int16_t stage[BUF_FRAMES * 2]; size_t staged; int audio_on, audio_paused;
@@ -515,7 +515,11 @@ void host_poll(host *H, gp_pad *pad, host_events *ev) {
     if (H->ntext) { memcpy(ev->text, H->text, sizeof ev->text); ev->ntext = H->ntext; H->ntext = 0; H->text[0] = 0; }
     ev->studio_exit = H->studio_exit; H->studio_exit = 0; ev->preview_close = H->preview_close; H->preview_close = 0; ev->music = H->music_cmd; H->music_cmd = -1;
     snprintf(ev->theme, sizeof ev->theme, "%s", H->theme_cmd); H->theme_cmd[0] = 0; snprintf(ev->select, sizeof ev->select, "%s", H->select_cmd); H->select_cmd[0] = 0; snprintf(ev->reload, sizeof ev->reload, "%s", H->reload_cmd); H->reload_cmd[0] = 0;
-    H->close_req = H->menu_key = H->lost = H->gained = 0; }
+    H->close_req = H->menu_key = H->lost = H->gained = 0;
+    if (!H->polled++) {   /* the first poll is the session's settle poll (gp_open), whose events are not acted on: a close of the window, the
+                             Studio's end or the Preview's Close that came while the window was still starting is kept for the next poll */
+        H->close_req = ev->close_requested; H->studio_exit = ev->studio_exit; H->preview_close = ev->preview_close;
+        ev->close_requested = ev->studio_exit = ev->preview_close = 0; } }
 void host_text_input(host *H, int on) { H->text_on = on; H->ntext = 0; host_trace(H, "{\"ev\":\"text_input\",\"on\":%d}", on); }
 void host_set_title(host *H, const char *t) { wchar_t *w = wide(t); SetWindowTextW(H->hwnd, w); free(w); }
 void host_set_picture(host *H, int tv_aspect, int integer_scale) { if (!H) return; H->tv_aspect = tv_aspect; H->integer_scale = integer_scale; InvalidateRect(H->hwnd, NULL, FALSE); }

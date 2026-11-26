@@ -48,7 +48,7 @@ function pwaDialog(){ const app=pwaStandalone(), apple=pwaApple(), st=PWA.status
   ['Collections and HOME',yes(),yes()],
   ['Play games',yes('Once this browser keeps the game file'),yes('Also in its own game window')],
   ['Add Your Own Game and Find Game Files',no,yes()],
-  ['Install on NES Classic',no,yes('With Hakchi2 CE, included')],
+  ['Install on Console',no,yes('With Hakchi2 CE, included')],
   ['Your collections are kept','<span>In this browser, on this device</span>','<span>On this computer</span>'],
   ['Get it',getWeb,getWin]];
  openColl('Install the Website App', '', `<div class="pwacall" role="note" data-terms><span class="pwaci" aria-hidden="true">!</span><div><b>This is not the Windows app.</b> The website app is this website, added to this device by your browser: it opens in its own window like an app, even without the internet. Classic Cart Studio for Windows is a separate program you download and install.</div></div>

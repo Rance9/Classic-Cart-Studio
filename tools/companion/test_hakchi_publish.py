@@ -404,6 +404,20 @@ class Console(unittest.TestCase):
         idx = self.index(root); self.assertEqual(idx["games"][by["g6"]["id"]]["reason"], "already in Original Menu"); self.assertNotIn("folders", idx["capabilities"])
         self.assertFalse(os.path.exists(os.path.join(root, "var/lib/hakchi/games")), "no game storage is made (that would hide the console's own games)")
 
+    def test_08b_a_european_nes_classic_gets_them_in_its_own_game_storage(self):
+        # its software names REGION EUR: hakchi's findGameStorage finds games/nes-eur (games/$sftype-$sfregion), and that is where the console
+        # program puts the collection's games; another tool's game there is kept, nothing goes into another region's folder
+        root = self.console("nes-eur", "eur"); fb = self.foreign(root); stock = CI.stock_digest(root) | CI.storage_digest(root)
+        p = CI.build_plan(self.pkg, {"mod": False}); r = self.run_plan(root, p); self.assertTrue(r["ok"], r)
+        hk = r["hakchi"]; self.assertTrue(hk["ok"], hk); self.assertEqual((hk["mode"], hk["published"]), ("storage", 5))
+        col = HP.spec(self.pkg)["collection"]
+        self.assertTrue(os.path.isfile(os.path.join(root, "var/lib/hakchi/games/nes-eur/000", col["code"], col["code"] + ".desktop")), "the collection's folder entry in its first page")
+        self.assertFalse(os.path.exists(os.path.join(root, "var/lib/hakchi/games/nes-usa")))
+        self.assertEqual({k: v for k, v in self.foreign(root).items() if k in fb}, fb); self.assertEqual(CI.stock_digest(root) | CI.storage_digest(root), stock)
+        self.assertTrue(CI.verify_installed(CI.FakeConsole(root), p)["verified"])
+        up = CI.uninstall_plan(CI.FakeConsole(root)); self.assertTrue(up["ok"], up); u = CI.uninstall(CI.FakeConsole(root), expect=up["hash"]); self.assertTrue(u["ok"], u)
+        self.assertFalse([k for k in tree(root) if "/hakchi/games/" in k and "ccs-" in k]); self.assertEqual(CI.stock_digest(root) | CI.storage_digest(root), stock)
+
     def test_09_uninstall_removes_entries_first(self):
         root = self.console(); p = CI.build_plan(self.pkg, {"mod": False}); r = self.run_plan(root, p); self.assertTrue(r["hakchi"]["ok"])
         stock = CI.stock_digest(root) | CI.storage_digest(root); up = CI.uninstall_plan(CI.FakeConsole(root)); self.assertTrue(up["ok"], up)

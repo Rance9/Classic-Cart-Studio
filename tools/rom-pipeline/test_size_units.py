@@ -2,7 +2,7 @@ r"""Sizes shown to people are decimal (1 KB = 1,000 B, 1 MB = 1,000,000 B, 1 GB 
 and no binary unit (KiB, MiB, GiB, TiB) reaches a user-facing surface. No browser; Node.js runs the page's own fmt().
   formatter   the page's fmt() (website and Windows app) and the backend's ccs_package.fmt_size() give the same, expected text for known
               byte counts (999 B ... 4,697,642,234 B), never "0" for a non-zero size, never "1,000 KB"
-  install     the Install on NES Classic size display (install.js fmtB) uses the same decimal formatter
+  install     the Install on Console size display (install.js fmtB) uses the same decimal formatter
   storage     the NES Classic capacity estimate converts the documented MiB figure to decimal MB (300 MiB = 314.6 MB)
   leakage     no KiB/MiB/GiB/TiB in the built page (all of its markup, text and scripts), the Help guide, the desktop host's strings, the
               backend's user-facing strings (Python string literals, not comments) or the public documents

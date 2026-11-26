@@ -27,12 +27,18 @@
 #   register-foreign PATH ID LABEL   an image the owner already keeps in hakchi's firmware folder, added as an option by reference
 #                        (hash and size recorded; not moved, not claimed, never removed by Nucleus)
 #   forget ID            an option removed from the registry (its image file is kept)
+#   menu-add ID PACKAGE PROGRAM LABEL   a community menu as a choice (kind community): its hakchi package and its program under hakchi's
+#                        overlay, which the chooser starts with no arguments and comes back from when it ends; an option of this id
+#                        that is already a community menu is changed in place (a new version or variant), never another kind
+#   menu-drop ID PACKAGE that choice removed (only a community menu naming that package)
 #   registry-install FILE   a sealed registry made by the PC (ccs-boot-registry/1), checked, then put in force with one rename
 #   set default|selection|chooser|timeout VALUE
 #   preinstall FILES | postinstall FILES | remove [keep|remove-data]          the ccs-nucleus package
 #   chooser-preinstall FILES | chooser-postinstall FILES | chooser-remove     the ccs-nucleus-chooser package
 #   entry add|remove | status
 # Every management command ends with one line "result <command> ok ..." or "result <command> failed|refused <why>".
+# A community menu (kind community) runs in the console's own system, as CCS HOME does: the chooser starts its program and waits; when it
+# ends (the menu's own way out), the chooser appears again, so another menu can be chosen. Nothing of the author's package is changed.
 ME="$0"
 L="${ME%/bin/ccs-nucleus}/etc/ccs/nucleus/lib.sh"
 . "$L" || { echo "result $1 failed library"; exit 90; }
@@ -53,6 +59,13 @@ image_place_ok(){
   ccs_path_ok "$1"
 }
 fw_value_ok(){ case "$1" in auto|_nand_) return 0 ;; esac; ccs_path_ok "$1"; }
+# a community menu's hakchi package name: plain characters, never Classic Cart Studio's own (ccs-...), hakchi itself or a name ending in .hmod
+pkg_ok(){
+  case "$1" in ""|[Cc][Cc][Ss]-*|hakchi|*.hmod|[!A-Za-z0-9]*|*[!A-Za-z0-9._+-]*) return 1 ;; esac
+  [ ${#1} -le 64 ]
+}
+# a community menu's program: a plain path under hakchi's overlay
+prog_ok(){ case "$1" in /var/lib/hakchi/rootfs/?*) ccs_path_ok "$1" ;; *) return 1 ;; esac; }
 # reg_ok [FILE]: sealed, complete and consistent (one native option "native"; every listed option has a kind, a label and what its
 # kind needs; the default is listed; a start without the chooser can only begin in the console's own system)
 reg_ok(){
@@ -70,11 +83,14 @@ reg_ok(){
   for id in $o; do
     ccs_id_ok "$id" || return 1
     k="$(opt "$id" kind)"
-    case "$k" in native) [ "$id" = native ] || return 1 ;; ccs-home|owner-root) [ "$id" != native ] || return 1 ;; *) return 1 ;; esac
+    case "$k" in native) [ "$id" = native ] || return 1 ;; ccs-home|owner-root|community) [ "$id" != native ] || return 1 ;; *) return 1 ;; esac
     ccs_label_ok "$(opt "$id" label)" || return 1
     if [ "$k" = owner-root ]; then
       image_place_ok "$(opt "$id" image)" && ccs_hex64_ok "$(opt "$id" sha256)" && ccs_num_ok "$(opt "$id" bytes)" || return 1
       [ "$(opt "$id" fallback)" = native ] || return 1
+    fi
+    if [ "$k" = community ]; then
+      pkg_ok "$(opt "$id" package)" && prog_ok "$(opt "$id" program)" && [ "$(opt "$id" fallback)" = native ] || return 1
     fi
   done
   d="$(reg default)"; listed "$d" || return 1
@@ -190,6 +206,17 @@ check_root(){
   return 0
 }
 
+# check_menu ID: a community menu can start now: hakchi lists its package (installed) and its program is there, a file (not a link).
+# Sets WHY (one word) when not.
+check_menu(){
+  local pkg p
+  WHY=""
+  pkg="$(opt "$1" package)"; p="$(opt "$1" program)"
+  pkg_ok "$pkg" && [ -f "$HKI/hmod/uninstall-$pkg" ] || { WHY=menu-not-installed; return 1; }
+  prog_ok "$p" && [ -f "$R0$p" ] && [ ! -L "$R0$p" ] || { WHY=menu-program; return 1; }
+  return 0
+}
+
 # ---------------------------------------------------------------- the start stage (preinit)
 early(){
   local orig="$1" restore="-" id="" kind src a_id a_stage a_orig
@@ -266,6 +293,8 @@ why_text(){
     not-loaded) echo "Its system image could not be opened last time." ;;
     did-not-start) echo "It did not finish starting last time." ;;
     ended-20|not-installed) echo "CCS HOME is not completely installed. Install it again from your computer." ;;
+    menu-not-installed) echo "It is not installed on this console." ;;
+    menu-program) echo "Its program is not on the console. Install it again from your computer." ;;
     ended-*) echo "It ended with a problem last time." ;;
     state-write|owner-setting) echo "The console could not prepare the restart." ;;
     *) echo "It cannot start now." ;;
@@ -285,7 +314,7 @@ settings_rows(){
 # option is checked again now (an owner's image: place, size, SHA-256, kernel, drivers, USB storage): what cannot start is listed with its
 # reason, never left out and never started; what failed before is listed but never started by the countdown.
 choices(){
-  local cur id k root state why
+  local cur id k ck root state why
   cur="$(current_root)"
   printf 'schema=ccs-choices/1\nmode=%s\ntitle=Choose a System\nhighlight=%s\nauto=%s\ntimeout=%s\nnotice=%s\npanel=%s\n' "$1" "$2" "$3" "$4" "$5" "$6"
   for id in $(reg options); do
@@ -299,8 +328,14 @@ choices(){
       ccs-home) if ! ccs_home_dir; then state=unavailable; why="$(why_text not-installed)"
                 elif [ "$FAILED_NOW" = ccs-home ]; then state=unavailable; why="It ended with a problem just now. Turn the console off and on to try it again."
                 elif failed ccs-home; then state=retry; why="$(why_text "$(st failed-ccs-home why)")"; fi ;;
+      community) if ! check_menu "$id"; then state=unavailable; why="$(why_text "$WHY")"
+                 elif [ "$FAILED_NOW" = "$id" ]; then state=unavailable; why="It ended with a problem just now. Turn the console off and on to try it again."
+                 elif failed "$id"; then state=retry; why="$(why_text "$(st "failed-$id" why)")"; fi ;;
     esac
-    echo "choice=$id|$k|$root|$state|$(opt "$id" label)|$why"
+    # the chooser program knows three kinds; a community menu is a menu in the console's own system, as CCS HOME is, and is shown the
+    # same way (what starts is decided here, from the registry's own kind)
+    ck="$k"; [ "$k" = community ] && ck=ccs-home
+    echo "choice=$id|$ck|$root|$state|$(opt "$id" label)|$why"
   done
   echo "settings=Recovery and Settings"
   echo "help=If your console does not start the way it should: turn it off, connect it to a computer with its USB cable, hold RESET, switch POWER on and keep holding RESET for about 5 seconds. Then open Console Rescue in the CCS Console Workbench."
@@ -335,6 +370,32 @@ chooser_stop(){   # the console is shutting down: nothing more starts (the flag,
   case "$pid" in ""|*[!0-9]*) return 0 ;; esac
   kill -TERM "$pid" 2>/dev/null || return 0
   while kill -0 "$pid" 2>/dev/null && [ $n -lt 20 ]; do usleep 100000; n=$((n + 1)); done
+}
+# run_menu ID MODE: a community menu's program on the TV until it ends; its exit code. MODE boot (the console has just started) or menu
+# (from the console's own menu: hakchi's game-hang watch is fed while it runs, as for a game). Nothing is passed to it; its pid is kept so
+# the console's shutdown (ui-stop) can ask it to end. Everything is synced before the chooser gets the screen back.
+run_menu(){
+  local p pid hb="" rc
+  p="$(opt "$1" program)"
+  mkdir -p "$TMPC/run" "$TMPC/logs" || return 21
+  "$R0$p" > "$TMPC/logs/menu.txt" 2>&1 &
+  pid=$!
+  echo "$pid" > "$TMPC/run/menu.pid"
+  if [ "$2" = menu ]; then ( while kill -0 "$pid" 2>/dev/null; do touch "$R0/tmp/.heartbeat" 2>/dev/null; sleep 1; done ) & hb=$!; fi
+  wait "$pid"; rc=$?
+  [ -n "$hb" ] && kill "$hb" 2>/dev/null
+  rm -f "$TMPC/run/menu.pid"
+  sync
+  return $rc
+}
+menu_stop(){   # the console is shutting down while a community menu runs: it is asked to end; never killed by force
+  local pid n=0
+  [ -f "$TMPC/run/menu.pid" ] || return 0
+  read -r pid < "$TMPC/run/menu.pid"
+  case "$pid" in ""|*[!0-9]*) return 0 ;; esac
+  kill -TERM "$pid" 2>/dev/null || return 0
+  while kill -0 "$pid" 2>/dev/null && [ $n -lt 50 ]; do usleep 100000; n=$((n + 1)); done
+  sync
 }
 # act KEY: one row of Recovery and Settings, carried out (the registry through "set": a new sealed registry checked before its one rename;
 # or Nucleus's own state). Prints the line the chooser shows next.
@@ -407,6 +468,8 @@ chooser(){
         if [ -n "$au" ] && [ "$(opt "$au" kind)" = owner-root ] && ! check_root "$au"; then notice="$(opt "$au" label) cannot start now. $(why_text "$WHY" "$(opt "$au" image)")"; au=native; hl=native; fi
         # (CCS HOME without its package, for example after CCS Mod was removed: the same)
         if [ -n "$au" ] && [ "$(opt "$au" kind)" = ccs-home ] && ! ccs_home_dir; then notice="$(opt "$au" label) cannot start now. $(why_text not-installed)"; au=native; hl=native; fi
+        # (a community menu that is not installed or whose program is gone: the same)
+        if [ -n "$au" ] && [ "$(opt "$au" kind)" = community ] && ! check_menu "$au"; then notice="$(opt "$au" label) cannot start now. $(why_text "$WHY")"; au=native; hl=native; fi
         [ "$panel" = settings ] && hl="$SETKEY"
         show_chooser "$mode" "$hl" "$au" "$t" "$notice" "$panel"; rc=$?
         notice=""; panel=main; [ -n "$ANS" ] && shown=1   # once it has been on the TV it stays the way back, whatever its setting
@@ -443,6 +506,13 @@ chooser(){
       owner-root)
         if check_root "$choice"; then restart_into "$choice" && return 0; notice="The console could not prepare the restart into $(opt "$choice" label)."
         else mark_failed "$choice" "$WHY"; FAILED_NOW="$choice"; notice="$(opt "$choice" label) cannot start now. $(why_text "$WHY" "$(opt "$choice" image)")"; fi ;;
+      community)
+        # the menu on the TV until it ends; then the chooser again (its way to choose another menu)
+        if check_menu "$choice"; then
+          run_menu "$choice" "$mode"; rc=$?
+          if [ $rc -eq 0 ]; then clear_failed "$choice"; [ "$(reg selection)" = last ] && remember "$choice"
+          else mark_failed "$choice" "ended-$rc"; FAILED_NOW="$choice"; notice="$(opt "$choice" label) ended with a problem."; [ "$mode" = boot ] && fallback=1; fi
+        else mark_failed "$choice" "$WHY"; FAILED_NOW="$choice"; notice="$(opt "$choice" label) cannot start now. $(why_text "$WHY")"; fi ;;
       *) return 0 ;;
     esac
     choice=""; how=""
@@ -533,6 +603,43 @@ forget(){
   r forget "ok $id (its image file, if any, is kept)"
 }
 
+# menu-add ID PACKAGE PROGRAM LABEL: a community menu's choice added after the others, or (an option of this id that is already a community
+# menu) its package, program and label changed in place
+menu_add(){
+  local id="$1" pkg="$2" p="$3" label="$4"
+  reg_ok || r menu-add "refused the registry is not valid"
+  ccs_id_ok "$id" && [ "$id" != native ] && [ "$id" != ccs-home ] || r menu-add "refused id"
+  pkg_ok "$pkg" && prog_ok "$p" && ccs_label_ok "$label" || r menu-add "refused details"
+  if listed "$id"; then
+    [ "$(opt "$id" kind)" = community ] || r menu-add "refused an option of another kind has this id"
+    [ "$(opt "$id" package)" = "$pkg" ] && [ "$(opt "$id" program)" = "$p" ] && [ "$(opt "$id" label)" = "$label" ] && r menu-add "ok already $id"
+    reg_edit '
+      index($0, "opt.'"$id"'.") == 1 { if (!done) { done = 1
+        print "opt.'"$id"'.kind=community"; print "opt.'"$id"'.label='"$label"'"; print "opt.'"$id"'.package='"$pkg"'"; print "opt.'"$id"'.program='"$p"'"
+        print "opt.'"$id"'.overlay=hakchi"; print "opt.'"$id"'.fallback=native"; print "opt.'"$id"'.auto=yes" } next }' || r menu-add "failed registry"
+    rm -f "$ST/failed-$id"
+    r menu-add "ok $id"
+  fi
+  reg_edit '
+    index($0, "options=") == 1 { print $0 " '"$id"'"; next }
+    index($0, "opt.") == 1 && !done { done = 1
+      print "opt.'"$id"'.kind=community"; print "opt.'"$id"'.label='"$label"'"; print "opt.'"$id"'.package='"$pkg"'"; print "opt.'"$id"'.program='"$p"'"
+      print "opt.'"$id"'.overlay=hakchi"; print "opt.'"$id"'.fallback=native"; print "opt.'"$id"'.auto=yes" }' || r menu-add "failed registry"
+  r menu-add "ok $id"
+}
+
+# menu-drop ID PACKAGE: a community menu's choice removed (never another kind of option, never one naming another package)
+menu_drop(){
+  local id="$1" pkg="$2" out
+  reg_ok || r menu-drop "refused the registry is not valid"
+  ccs_id_ok "$id" && pkg_ok "$pkg" || r menu-drop "refused details"
+  listed "$id" || r menu-drop "ok already $id"
+  [ "$(opt "$id" kind)" = community ] && [ "$(opt "$id" package)" = "$pkg" ] || r menu-drop "refused the option is not that community menu"
+  out="$(sh "$ME" forget "$id" 2>&1 | tail -n 1)"
+  case "$out" in "result forget ok"*) r menu-drop "ok $id" ;; esac
+  r menu-drop "failed ${out#result forget }"
+}
+
 set_value(){
   local k="$1" v="$2"
   reg_ok || r set "refused the registry is not valid"
@@ -562,11 +669,13 @@ case "$1" in
   early) early "$2" ;;
   loaded) loaded "$2" ;;
   ui-start) ui_start; exit 0 ;;
-  ui-stop) chooser_stop; ccs_home_stop; exit 0 ;;
+  ui-stop) chooser_stop; menu_stop; ccs_home_stop; exit 0 ;;
   choose) ccs_own_valid "$M" && ccs_chooser_installed && reg_ok && chooser menu; exit 0 ;;
   import) import "$2" "$3" "$4" "$5" "$6" "$7" ;;
   register-foreign) register_foreign "$2" "$3" "$4" ;;
   forget) forget "$2" ;;
+  menu-add) menu_add "$2" "$3" "$4" "$5" ;;
+  menu-drop) menu_drop "$2" "$3" ;;
   set) set_value "$2" "$3" ;;
   registry-install)
     [ -f "$2" ] || r registry-install "failed no file"
@@ -619,9 +728,10 @@ case "$1" in
     # at every start; never: the default directly), HOME (on: CCS HOME is offered, as CCS Mod is or will be installed; off: it is not),
     # SELECTION (default: the countdown starts DEFAULT; last: the menu used last) and TIMEOUT (the countdown's seconds; 0: wait for a
     # choice). No registry yet: the first one. Otherwise the registry in force changed in place: CCS HOME's option added or removed, then
-    # the rest; the owner's own system images stay listed.
+    # the rest; the owner's own system images stay listed. DEFAULT may also be another option the registry lists (the PC keeps the
+    # owner's own default as it is): an owner's system image only with the chooser at start, as the settings screen allows.
     d="$2"; c="$3"; h="$4"; s="${5:-default}"; t="${6:-10}"
-    case "$d" in native|ccs-home) ;; *) r start "refused default" ;; esac
+    case "$d" in native|ccs-home) ;; *) ccs_id_ok "$d" && reg_ok && listed "$d" && okdefault "$d" "$c" || r start "refused default" ;; esac
     case "$c" in always|never) ;; *) r start "refused chooser" ;; esac
     case "$h" in on|off) ;; *) r start "refused home" ;; esac
     case "$s" in default|last) ;; *) r start "refused selection" ;; esac
@@ -645,6 +755,9 @@ case "$1" in
       if [ "$(reg default)" = ccs-home ]; then sh "$ME" set default native >/dev/null 2>&1 || r start "failed default"; fi
       reg_edit 'index($0, "options=") == 1 { sub(/ ccs-home( |$)/, " "); sub(/ $/, ""); print; next } index($0, "opt.ccs-home.") == 1 { next }' || r start "failed removing CCS HOME"
     fi
+    # the chooser at start is set before an owner's system image becomes what opens first (and after it stops being that), so every
+    # registry in between is valid
+    if [ "$c" = always ]; then [ "$(reg chooser)" = "$c" ] || sh "$ME" set chooser "$c" >/dev/null 2>&1 || r start "failed chooser"; fi
     [ "$(reg default)" = "$d" ] || sh "$ME" set default "$d" >/dev/null 2>&1 || r start "failed default"
     [ "$(reg selection)" = "$s" ] || sh "$ME" set selection "$s" >/dev/null 2>&1 || r start "failed selection"
     [ "$(reg timeout)" = "$t" ] || sh "$ME" set timeout "$t" >/dev/null 2>&1 || r start "failed timeout"
@@ -665,6 +778,7 @@ case "$1" in
       for id in $(reg options); do
         k="$(opt "$id" kind)"; s=ok
         [ "$k" = owner-root ] && { check_root "$id" || s="unavailable $WHY"; }
+        [ "$k" = community ] && { check_menu "$id" || s="unavailable $WHY"; }
         failed "$id" && s="$s failed-before:$(st "failed-$id" why)"
         echo "option $id kind=$k $s"
       done

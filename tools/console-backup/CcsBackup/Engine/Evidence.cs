@@ -73,12 +73,16 @@ namespace CcsBackup.Engine
         }
 
         /// <summary>null when the file under the hold is still exactly the bound archive; otherwise the reason, in plain words</summary>
-        public static string Recheck(BoundArchive b, string hwid, bool simulated, string session, Func<bool> cancelled)
+        public static string Recheck(BoundArchive b, string hwid, bool simulated, string session, Func<bool> cancelled) => Recheck(b, hwid, simulated, session, cancelled, out _);
+
+        /// <summary>the same; verification: the new check of the file (null when it was not read)</summary>
+        public static string Recheck(BoundArchive b, string hwid, bool simulated, string session, Func<bool> cancelled, out Verification verification)
         {
+            verification = null;
             var name = b?.Role ?? "backup";
             if (b == null || string.IsNullOrEmpty(b.Path) || !Hex.IsHex(b.Sha256, 64)) return "The plan does not name its " + name + " completely.";
             if (!File.Exists(b.Path)) return "The " + name + " is missing (" + b.Path + ").";
-            var v = Verifier.VerifyFile(b.Path, null, cancelled);
+            var v = Verifier.VerifyFile(b.Path, null, cancelled); verification = v;
             if (!v.Ok) return "The " + name + " no longer passes its check (" + v.Problems[0] + ").";
             if (v.ArchiveSha256 != b.Sha256 || v.Bytes != b.Bytes) return "The " + name + " changed after the review.";
             if (v.Manifest?.S("completed_utc") != b.CompletedUtc || BoundArchive.CoverageOf(v) != b.Coverage || v.RestoreReady != b.RestoreReady) return "The " + name + " does not match what the review saw.";

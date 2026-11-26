@@ -43,7 +43,7 @@ The Windows application starts a small backend that listens only on your own com
 
 ## Installation (Windows 10/11)
 
-1. On the website, choose **Continue in Desktop App** (My Collection menu or Install on NES Classic) or go to the download page, [ClassicCartStudio.com/app/](https://ClassicCartStudio.com/app/).
+1. On the website, choose **Continue in Desktop App** (My Collection menu or Install on Console) or go to the download page, [ClassicCartStudio.com/app/](https://ClassicCartStudio.com/app/).
 2. Download `ClassicCartStudio-Setup-<version>.exe`.
 3. **Check it** (recommended): in PowerShell run
    `Get-FileHash -Algorithm SHA256 "$env:USERPROFILE\Downloads\ClassicCartStudio-Setup-<version>.exe"`

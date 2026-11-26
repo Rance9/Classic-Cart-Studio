@@ -47,7 +47,7 @@ CCSBOOT_SHA = "6c67045275ba7c19857540149b23f70419f23109825c032db88955a7f62ab5b4"
 # CCS Mod, CCS Nucleus and its chooser (tools/console-nucleus): built here (reproducible), pinned like ccsboot: a changed package
 # fails here until the pins are deliberately updated (and the C# engine reads them back from this image's MANIFEST.json "methods")
 METHOD_SHAS = {"ccs-mod": "5c5318b62efc712a4fb5b36f123ecd8b17953d770233a2674dbe6cb41668530c",
-               "ccs-nucleus": "0074f2ec6bba1f7f329a3eafdfac4beaef3681e87802680e38aa435043eef2b7",
+               "ccs-nucleus": "1568ec5bb1663934e00d80559ad49caad46497046c846f976c45c027515f7cbd",
                "ccs-nucleus-chooser": "1c6abd0f646332ccd59300d85cb427333aa39e72792d68cf895c3756ed6d3a27"}
 FEL_MAX = 0x2000000; FEL_SECTOR = 0x20000
 MTIME = 1763078400                       # 2025-11-14 00:00 UTC: fixed, so the same sources give the same image

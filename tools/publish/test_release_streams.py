@@ -202,6 +202,80 @@ if node:
 else:
     check(False, "Node was not found to run update.js")
 
+# ---- the window's status bar (Classic Cart Studio for Windows): what update.js tells the window, and the bar's Check for Updates
+bar_harness = r"""
+const DOM={}, TOASTS=[], SENT=[]; let LAST=null, NEXT=null, POSTS=0, OPEN=false, TITLE='';
+const $=id=>DOM[id]||null; const esc=s=>String(s); const fmt=n=>n+' bytes'; const toast=t=>TOASTS.push(t);
+function openColl(title, sub, html){ LAST={title, html}; OPEN=true; TITLE=title; }
+DOM.collm={classList:{contains:c=>c==='open'&&OPEN}}; Object.defineProperty(DOM, 'collTitle', {get:()=>({textContent:TITLE})});
+DOM.updNo={}; DOM.updGo={addEventListener(){}};
+function closeColl(){ OPEN=false; } function procSet(){} async function capi(){ return {running:false}; }
+async function hkPost(path, body){ if(path==='/api/update/check') POSTS++; await new Promise(z=>setTimeout(z, 5)); return NEXT; }
+const CO={desktop:%(desktop)s, ok:true}; const CCS_APP_DOWNLOAD='https://classiccartstudio.com/app/';
+const document={addEventListener(){}};
+const window={chrome:%(chrome)s};
+let ACTIVE={id:'c1', name:'Stored name'}; let COLL={name:'Tom & Jerry\'s <b>"Best"</b> — <script>x</script>'}; let sel=new Set(['a','b','c']);
+function csActive(){ return ACTIVE; }
+['persist','render','updateStatusLine','csMenuRefresh'].forEach(n=>{ window[n]=function(){}; });
+""" + upd + r"""
+const tick=()=>new Promise(z=>setTimeout(z, 20));
+(async()=>{ const out={}; const snap=k=>{ out[k]={sent:SENT.slice(), toasts:TOASTS.slice(), dialog:LAST, posts:POSTS}; };
+ await tick(); snap('start');
+ window.render(); window.render(); await tick(); snap('unchanged');
+ sel.add('d'); window.persist(); await tick(); snap('count');
+ COLL.name='Renamed'; window.updateStatusLine(); await tick(); snap('rename');
+ ACTIVE=null; window.csMenuRefresh(); await tick(); snap('none');
+ ACTIVE={id:'c2', name:'Second'}; COLL={name:'Second'}; sel=new Set(); window.csMenuRefresh(); await tick(); snap('switch');
+ // the bar's link: no update known -> the same manual check (feedback through the page's own toasts)
+ NEXT={ok:true, available:false, current:'0.11.11', channel:'preview'}; TOASTS.length=0; window.__ccsAppUpdate(); await new Promise(z=>setTimeout(z, 700)); snap('uptodate');
+ NEXT={ok:false, error:'Classic Cart Studio could not check for updates. Check the internet connection and try again.'}; TOASTS.length=0; window.__ccsAppUpdate(); await new Promise(z=>setTimeout(z, 700)); snap('couldnot');
+ // two clicks while the first check runs: one check
+ NEXT={ok:true, available:false, current:'0.11.11', channel:'preview'}; TOASTS.length=0; const before=POSTS; updCheck(true); updCheck(true); await new Promise(z=>setTimeout(z, 100)); out.twice=POSTS-before;
+ // an update found while another dialog is open: not offered over it, a note says what to do, the bar reads Update Available
+ openColl('Install on NES Classic', '', 'wizard'); LAST=null; NEXT={ok:true, available:true, version:'0.11.12', current:'0.11.11', channel:'preview', manual:true, size:5}; TOASTS.length=0;
+ await updCheck(true); await tick(); snap('busydialog'); out.busytitle=TITLE;
+ // the link with the update known: the Update Available dialog, without another check
+ closeColl(); const p0=POSTS; LAST=null; TOASTS.length=0; window.__ccsAppUpdate(); await tick(); snap('known'); out.knownposts=POSTS-p0;
+ // while the update itself is under way: nothing opens over its progress
+ LAST=null; TOASTS.length=0; UPD.busy=true; window.__ccsAppUpdate(); await tick(); snap('underway'); UPD.busy=false;
+ console.log(JSON.stringify(out)); process.exit(0); })();
+"""
+def run_bar(desktop, chrome):
+    js = bar_harness.replace("%(desktop)s", desktop).replace("%(chrome)s", chrome)
+    r = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=60, encoding="utf-8")
+    try: return json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception: print(r.stdout[-400:], r.stderr[-800:]); return {}
+if node:
+    import json as _j
+    o = run_bar("true", "{webview:{postMessage:m=>SENT.push(m)}}")
+    msgs = lambda k: (o.get(k) or {}).get("sent") or []
+    last = lambda k: _j.loads(msgs(k)[-1][len("status-bar "):]) if msgs(k) and msgs(k)[-1].startswith("status-bar ") else None
+    nm = "Tom & Jerry's <b>\"Best\"</b> \u2014 <script>x</script>"
+    check(len(msgs("start")) == 1 and last("start") == {"collection": {"name": nm, "games": 3}, "update": None},
+          "status bar: the app's page reports the open collection's name as text (markup and punctuation unchanged) and its game count")
+    check(len(msgs("unchanged")) == 1, "status bar: nothing is sent again while nothing changed")
+    check(last("count") == {"collection": {"name": nm, "games": 4}, "update": None}, "status bar: a game added changes the count at once")
+    check((last("rename") or {}).get("collection") == {"name": "Renamed", "games": 4}, "status bar: a renamed collection is shown by its new name")
+    check(last("none") == {"collection": None, "update": None}, "status bar: no collection open is reported as none, never another collection")
+    check((last("switch") or {}).get("collection") == {"name": "Second", "games": 0}, "status bar: a switched collection is shown with its own count")
+    ut = " | ".join((o.get("uptodate") or {}).get("toasts") or [])
+    check(ut.startswith("Checking for updates") and "Classic Cart Studio is up to date (0.11.11 (Preview))." in ut, "status bar link: no update known, the same check says checking, then up to date")
+    cn = " | ".join((o.get("couldnot") or {}).get("toasts") or [])
+    check("could not check" in cn and "up to date" not in cn.lower(), "status bar link: a failed check says it could not check, never up to date")
+    check(o.get("twice") == 1, "status bar link: a second click while the check runs does not check twice")
+    bd = o.get("busydialog") or {}
+    check(not bd.get("dialog") and o.get("busytitle") == "Install on NES Classic" and any("0.11.12 (Preview)" in t and "Close what is open first" in t for t in bd.get("toasts") or [])
+          and (last("busydialog") or {}).get("update") == {"version": "0.11.12"}, "status bar link: an update found while another dialog is open is not offered over it; a note says so and the bar reads Update Available")
+    kn = o.get("known") or {}
+    check((kn.get("dialog") or {}).get("title") == "Classic Cart Studio Update Available" and "0.11.12 (Preview)" in (kn.get("dialog") or {}).get("html", "") and o.get("knownposts") == 0,
+          "status bar link: with an update known it opens the same Update Available dialog, without checking again")
+    uw = o.get("underway") or {}
+    check(not uw.get("dialog") and any("under way" in t for t in uw.get("toasts") or []), "status bar link: nothing opens over an update already under way")
+    w = run_bar("false", "{webview:{postMessage:m=>SENT.push(m)}}")
+    n = run_bar("true", "undefined")
+    check(o and w and n and not any((w.get(k) or {}).get("sent") for k in w if isinstance(w.get(k), dict)) and not any((n.get(k) or {}).get("sent") for k in n if isinstance(n.get(k), dict)),
+          "status bar: the website (not the app) and a page without the app's message channel send nothing")
+
 fails =[n for ok, n in results if not ok]
 print("RESULT %d/%d" % (len(results) - len(fails), len(results)))
 sys.exit(1 if fails else 0)

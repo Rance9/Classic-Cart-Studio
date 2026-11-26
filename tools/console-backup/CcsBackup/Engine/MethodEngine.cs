@@ -22,6 +22,11 @@
 //   5 write     each step once; each is read back from the storage; the first failure stops every later step
 //   6 verify    the console's state read again: exactly the plan's files wait for the next start, and the start reads back as planned
 // Nothing is retried or undone automatically. hakchi applies the add-ons at the console's next normal start (then restarts once).
+// Update: an add-on installed in an earlier version (ccsprep mstate addon=NAME earlier) is brought to this build's package only when the
+// person chooses it (AddonChoice.Update) and names it in the review: the same method step places this build's package, and hakchi's own
+// pack_install installs it over the earlier one at the next start. Each package's install accepts only its own unchanged files, removes the
+// files the new version no longer carries while unchanged, and keeps a valid registry: what opens at power-on, the last-used and countdown
+// settings, the owner's system images and community menus in CCS Nucleus's list, games and saves stay as they are.
 using CcsBackup.Archive;
 using CcsBackup.Device;
 using CcsBackup.Library;
@@ -49,45 +54,110 @@ namespace CcsBackup.Engine
         public static string ListSha256(IEnumerable<string> packages) { using (var h = SHA256.Create()) return Hex.Of(h.ComputeHash(Encoding.ASCII.GetBytes(string.Join(" ", packages) + "\n"))); }
         /// <summary>where a package waits in hakchi's transfer folder (the chooser in hmod/, installed after CCS Nucleus)</summary>
         public static string Waiting(string package) => (package == Chooser ? "hmod/" : "") + package + ".hmod";
+        /// <summary>the add-ons the console has in an earlier version than this build's (ccsprep mstate addon=NAME earlier), in install order</summary>
+        public static List<string> Earlier(MethodState st) => Packages.Where(p => st.Installed(p) && st.AddonVersion(p) == "earlier").ToList();
     }
 
     /// <summary>the add-ons a console has, or should have: CCS Mod (the CCS HOME tile), CCS Nucleus (none, direct, or with its chooser) and
     /// what opens at power-on while CCS Nucleus is there (native: Original Menu; ccs-home: CCS HOME, which needs CCS Mod)</summary>
     public sealed class AddonChoice
     {
-        public bool Mod; public string Nucleus = "none"; public string Start = "native";
-        /// <summary>with the chooser: what starts by itself after its countdown: "menu" (Start), "last" (the menu used last) or "wait" (no
-        /// countdown: nothing starts until a choice)</summary>
+        public bool Mod; public string Nucleus = "none";
+        /// <summary>with CCS Nucleus: what opens first (its registry's default): native (Original Menu), ccs-home (CCS HOME), or another option
+        /// the console already has as its default (an owner's system image or a community menu, set on the console), which is kept as it is</summary>
+        public string Start = "native";
+        /// <summary>with CCS Nucleus: what starts by itself: "menu" (Start, after the countdown), "last" (the menu used last; with no countdown it is
+        /// only selected first) or "wait" (no countdown: nothing starts until a choice)</summary>
         public string Auto = "menu";
+        /// <summary>the countdown's seconds (CCS Nucleus's timeout, 1 to 99; 0 only with "last"). New choices count 10; a console's own value,
+        /// as its startup chooser's settings set it, is kept unless the person changes that setting</summary>
+        public int Seconds = Countdown;
+        /// <summary>with its chooser: whether the chooser shows at every start (the chooser's own setting Show This Screen at Start); off, what
+        /// opens first opens straight away and the chooser opens from CCS Nucleus in Original Menu or Choose Another Menu in CCS HOME</summary>
+        public bool AtStart = true;
+        /// <summary>the name of a kept default other than Original Menu and CCS HOME, as the console names it (shown, never written)</summary>
+        public string StartName;
+        /// <summary>bring the add-ons that stay, installed in an earlier version, to this build's packages (named in the review)</summary>
+        public bool Update;
         public const int Countdown = 10;
         public static readonly string[] NucleusProfiles = { "none", "direct", "chooser" };
-        public static AddonChoice FromState(MethodState st) => new AddonChoice
+        static readonly Regex IdRe = new Regex("^[a-z0-9][a-z0-9-]{0,30}$");
+        /// <summary>Original Menu or CCS HOME (the menus every page offers); anything else is a kept default</summary>
+        public static bool Standard(string start) => start == "native" || start == "ccs-home";
+        public string Selection => Auto == "last" ? "last" : "default";
+        public int Timeout => Auto == "wait" ? 0 : Seconds;
+        /// <summary>the startup chooser shows at power-on</summary>
+        public bool Shown => Nucleus == "chooser" && AtStart;
+        public AddonChoice Copy() => (AddonChoice)MemberwiseClone();
+        public static AddonChoice FromState(MethodState st)
         {
-            Mod = st.Installed(Methods.Mod),
-            Nucleus = !st.Installed(Methods.Nucleus) ? "none" : st.Installed(Methods.Chooser) ? "chooser" : "direct",
-            Start = st.StartDefault == "ccs-home" ? "ccs-home" : "native",
-            Auto = st.StartParts == null ? "menu" : st.StartParts[3] == "last" ? "last" : st.StartParts[4] == "0" ? "wait" : "menu",
+            var sp = st.StartParts; bool nucleus = st.Installed(Methods.Nucleus);
+            int t = sp == null ? Countdown : int.Parse(sp[4], CultureInfo.InvariantCulture);
+            var c = new AddonChoice
+            {
+                Mod = st.Installed(Methods.Mod),
+                Nucleus = !nucleus ? "none" : st.Installed(Methods.Chooser) ? "chooser" : "direct",
+                Start = sp == null ? "native" : nucleus || Standard(sp[0]) ? sp[0] : "native",
+                Auto = sp == null ? "menu" : sp[3] == "last" ? "last" : t == 0 ? "wait" : "menu",
+                AtStart = sp == null || sp[1] == "always",
+            };
+            c.Seconds = sp == null || c.Auto == "wait" ? Countdown : t;
+            if (!Standard(c.Start)) c.StartName = st.OptionName(c.Start);
+            return c;
+        }
+        public static AddonChoice FromJson(Dictionary<string, object> j) => j == null ? null : new AddonChoice
+        {
+            Mod = j.B("mod"), Nucleus = j.S("nucleus") ?? "none", Start = j.S("start") ?? "native", Auto = j.S("auto") ?? "menu",
+            Seconds = (int)Math.Max(-1, Math.Min(100, j.L("countdown", Countdown))), AtStart = !j.ContainsKey("at_start") || j.B("at_start"),
+            StartName = j.S("start_name"), Update = j.B("update"),
         };
         /// <summary>null, or why this choice cannot be made</summary>
         public string Problem()
         {
             if (Array.IndexOf(NucleusProfiles, Nucleus) < 0) return "Choose whether CCS Nucleus is added, and how it starts.";
-            if (Start != "native" && Start != "ccs-home") return "Choose what opens when the console is turned on.";
+            if (Start == null || !IdRe.IsMatch(Start)) return "Choose what opens when the console is turned on.";
             if (Auto != "menu" && Auto != "last" && Auto != "wait") return "Choose what the startup chooser starts by itself.";
+            if (Seconds < 0 || Seconds > 99 || Seconds == 0 && Auto == "menu") return "Choose how long the startup chooser counts down.";
             if (Nucleus != "none" && Start == "ccs-home" && !Mod) return "CCS HOME opens at power-on only with CCS Mod, which provides CCS HOME. Add CCS Mod, or choose Original Menu.";
             return null;
         }
-        /// <summary>the start setting CCS Nucleus keeps for this choice: "DEFAULT CHOOSER HOME" (ccsprep nstart), null without CCS Nucleus</summary>
-        public string StartLine => Nucleus == "none" ? null : Start + " " + (Nucleus == "chooser" ? "always" : "never") + " " + (Mod ? "on" : "off")
-            + " " + (Nucleus == "chooser" && Auto == "last" ? "last" : "default") + " " + (Nucleus == "chooser" && Auto == "wait" ? "0" : Countdown.ToString(CultureInfo.InvariantCulture));
-        string StartName => Start == "ccs-home" ? "CCS HOME" : "Original Menu";
-        public string StartText => Nucleus == "none" ? "When the console is turned on, Original Menu opens, as it does now." + (Mod ? " CCS HOME opens from its tile there." : "")
-            : Nucleus == "chooser" ? "When the console is turned on, the startup chooser appears first. " + (Auto == "wait" ? "Nothing starts until you choose."
-                : Auto == "last" ? "If you do nothing, the menu you used last starts in " + Countdown + " seconds (" + StartName + " the first time)."
-                : "If you do nothing, " + StartName + " starts in " + Countdown + " seconds.")
-            : "When the console is turned on, " + StartName + " opens straight away. The startup chooser is off.";
-        public JObj ToJson() => new JObj { { "mod", Mod }, { "nucleus", Nucleus }, { "start", Start }, { "auto", Auto } };
-        public bool SameAs(AddonChoice o) => o != null && o.Mod == Mod && o.Nucleus == Nucleus && (Nucleus == "none" || o.Start == Start && (Nucleus != "chooser" || o.Auto == Auto));
+        /// <summary>the start setting CCS Nucleus keeps for this choice: "DEFAULT CHOOSER HOME SELECTION TIMEOUT" (ccsprep nstart), null without
+        /// CCS Nucleus. Every part comes from the choice, which starts from the console's own setting, so a part the person did not change is
+        /// written exactly as the console has it</summary>
+        public string StartLine => Nucleus == "none" ? null : Start + " " + (Shown ? "always" : "never") + " " + (Mod ? "on" : "off") + " " + Selection + " " + Timeout.ToString(CultureInfo.InvariantCulture);
+        /// <summary>what opens first, by name</summary>
+        public string StartMenuName => Start == "ccs-home" ? "CCS HOME" : Start == "native" ? "Original Menu" : StartName ?? "the menu set on the console";
+        public static string SecondsText(int n) => n.ToString(CultureInfo.InvariantCulture) + (n == 1 ? " second" : " seconds");
+        /// <summary>with CCS Nucleus: what happens at power-on after the chooser appears, or what opens straight away (the pages' words)</summary>
+        public string AutoText
+        {
+            get
+            {
+                var name = StartMenuName;
+                if (!Shown) return (Auto == "last" ? "The menu you used last opens straight away. Until you have used one, that is " + name + "." : name + " opens straight away.")
+                    + (Nucleus == "chooser" ? " The startup chooser does not show at start; it opens from CCS Nucleus in Original Menu, or with Choose Another Menu in CCS HOME." : "");
+                if (Timeout == 0) return Auto == "last" ? "Nothing starts until you choose. The menu you used last is selected first; until you have used one, that is " + name + "." : "Nothing starts until you choose.";
+                return Auto == "last" ? "If you do nothing, the menu you used last starts in " + SecondsText(Seconds) + ". Until you have used one, that is " + name + "."
+                    : "If you do nothing, " + name + " starts in " + SecondsText(Seconds) + ".";
+            }
+        }
+        public string StartText
+        {
+            get
+            {
+                if (Nucleus == "none") return "When the console is turned on, Original Menu opens, as it does now." + (Mod ? " CCS HOME opens from its tile there." : "");
+                var name = StartMenuName;
+                if (!Shown) return "When the console is turned on, " + (Auto == "last" ? "the menu you used last opens straight away (" + name + " the first time)." : name + " opens straight away.")
+                    + (Nucleus == "chooser" ? " The startup chooser does not show at start; it opens from CCS Nucleus in Original Menu, or with Choose Another Menu in CCS HOME." : " The startup chooser is off.");
+                return "When the console is turned on, the startup chooser appears first. " + (Timeout == 0 ? (Auto == "last" ? "Nothing starts until you choose; the menu you used last is selected first (" + name + " the first time)." : "Nothing starts until you choose.")
+                    : Auto == "last" ? "If you do nothing, the menu you used last starts in " + SecondsText(Seconds) + " (" + name + " the first time)." : "If you do nothing, " + name + " starts in " + SecondsText(Seconds) + ".");
+            }
+        }
+        public JObj ToJson() => new JObj { { "mod", Mod }, { "nucleus", Nucleus }, { "start", Start }, { "auto", Auto }, { "countdown", Seconds }, { "at_start", AtStart }, { "start_name", StartName }, { "update", Update } };
+        /// <summary>the add-on packages this choice keeps on the console</summary>
+        public bool Keeps(string package) => package == Methods.Mod ? Mod : package == Methods.Nucleus ? Nucleus != "none" : package == Methods.Chooser && Nucleus == "chooser";
+        /// <summary>the same add-ons and, with CCS Nucleus, exactly the same start setting</summary>
+        public bool SameAs(AddonChoice o) => o != null && o.Mod == Mod && o.Nucleus == Nucleus && (Nucleus == "none" || o.StartLine == StartLine);
     }
 
     /// <summary>ccsprep mstate: hakchi's version, the hakchi packages installed, CCS Nucleus's start setting and what waits in hakchi's
@@ -99,6 +169,16 @@ namespace CcsBackup.Engine
         public string Start;
         public string[] StartParts => Start != null && Start.Split(' ').Length == 5 ? Start.Split(' ') : null;
         public string StartDefault => StartParts?[0];
+        /// <summary>the registry's default option's label (ccsprep mstate start_label, base64; null when not reported)</summary>
+        public string StartLabel64;
+        /// <summary>an option's name as the console shows it: a community menu's label, or the default's label; null when unknown</summary>
+        public string OptionName(string id)
+        {
+            if (Menus.TryGetValue(id, out var m)) return CommunityMenus.Label64Text(m.label64);
+            if (id == StartDefault && !string.IsNullOrEmpty(StartLabel64))
+                try { var l = Encoding.UTF8.GetString(Convert.FromBase64String(StartLabel64)).Trim(); return l.Length == 0 ? null : l; } catch (FormatException) { }
+            return null;
+        }
         /// <summary>CCS HOME's package on the console (ccsprep mstate home_*): the copy in use ("absent", "other" or a copy name), each recorded
         /// copy (its MANIFEST.json's SHA-256, whether its folder is there), each installation in progress (attempt -> copy), the saves'
         /// identity file, a link on the way (nothing is written through it), and the RAM free for a transfer (-1: not reported)</summary>
@@ -114,11 +194,22 @@ namespace CcsBackup.Engine
         public bool HomeInUse(string manifestSha) => HomePointer != null && HomeCopies.TryGetValue(HomePointer, out var c) && c.manifest == manifestSha && c.dir;
         /// <summary>CCS Nucleus's registry options as the console reads them: id -> (kind, sha256, bytes)</summary>
         public SortedDictionary<string, (string kind, string sha256, long bytes)> Options = new SortedDictionary<string, (string, string, long)>(StringComparer.Ordinal);
+        /// <summary>each community menu choice in CCS Nucleus's registry (ccsprep mstate menu=): id -> (its hakchi package, its program on the
+        /// console, its label as base64)</summary>
+        public SortedDictionary<string, (string package, string program, string label64)> Menus = new SortedDictionary<string, (string, string, string)>(StringComparer.Ordinal);
+        /// <summary>each add-on on the console against this build's own package (ccsprep mstate addon=NAME STATE): "current" (its package record,
+        /// and CCS Nucleus's program, are this build's), "earlier" (another version), "none" (hakchi does not list it)</summary>
+        public SortedDictionary<string, string> AddonVersions = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        /// <summary>an add-on's state (null when the console did not say)</summary>
+        public string AddonVersion(string package) => AddonVersions.TryGetValue(package, out var v) ? v : null;
+        /// <summary>CCS Nucleus's: whether its installed program can read a community menu's choice ("current")</summary>
+        public string NucleusProgram => AddonVersion(Methods.Nucleus);
         public List<string> Packages = new List<string>(); public SortedDictionary<string, string> Waiting = new SortedDictionary<string, string>(StringComparer.Ordinal);
         public bool Installed(string package) => Packages.Contains(package);
         public string Canonical() => "hakchi=" + Hakchi + "\n" + string.Join("", Packages.OrderBy(x => x, StringComparer.Ordinal).Select(p => "package=" + p + "\n")) + "start=" + Start + "\n"
             + string.Join("", Waiting.Select(w => "waiting=" + w.Key + " " + w.Value + "\n")) + (TransferLink ? "transfer=link\n" : "")
-            + "registry=" + Registry + "\n" + string.Join("", Options.Select(o => "option=" + o.Key + " " + o.Value.kind + " " + o.Value.sha256 + " " + o.Value.bytes.ToString(CultureInfo.InvariantCulture) + "\n"))
+            + (StartLabel64 != null ? "start_label=" + StartLabel64 + "\n" : "") + "registry=" + Registry + "\n" + string.Join("", Options.Select(o => "option=" + o.Key + " " + o.Value.kind + " " + o.Value.sha256 + " " + o.Value.bytes.ToString(CultureInfo.InvariantCulture) + "\n"))
+            + string.Join("", Menus.Select(m => "menu=" + m.Key + " " + m.Value.package + " " + m.Value.program + " " + m.Value.label64 + "\n")) + string.Join("", AddonVersions.Select(a => "addon=" + a.Key + " " + a.Value + "\n"))
             + (HomeLink ? "home=link\n" : "home_pointer=" + HomePointer + "\n" + string.Join("", HomeCopies.Select(c => "home_copy=" + c.Key + " " + c.Value.manifest + " " + (c.Value.dir ? "dir" : "nodir") + "\n"))
                + string.Join("", HomeInfo.Select(c => "home_copy_info=" + c.Key + " " + (c.Value.previous ?? "-") + " " + c.Value.state + " " + c.Value.bytes + " " + c.Value.kb + " " + (c.Value.label ?? "-") + " " + c.Value.games + " " + (c.Value.installed ?? "-") + " " + c.Value.named + "\n"))
                + string.Join("", HomeAttempts.Select(a => "home_attempt=" + a.Key + " " + a.Value + "\n")) + "home_identity=" + (HomeIdentity == null ? "absent" : Convert.ToBase64String(HomeIdentity)) + "\n");
@@ -126,6 +217,7 @@ namespace CcsBackup.Engine
         public JObj ToJson() => new JObj { { "hakchi", Hakchi }, { "packages", Packages.ToList() }, { "addons", Ok ? AddonChoice.FromState(this).ToJson() : null }, { "start", Start },
             { "waiting", Waiting.Select(w => (object)new JObj { { "name", w.Key }, { "sha256", w.Value } }).ToList() },
             { "free_bytes", Free }, { "registry", Registry }, { "options", Options.Select(o => (object)new JObj { { "id", o.Key }, { "kind", o.Value.kind }, { "sha256", o.Value.sha256 }, { "bytes", o.Value.bytes } }).ToList() },
+            { "menus", Menus.Select(x => (object)new JObj { { "id", x.Key }, { "package", x.Value.package }, { "program", x.Value.program }, { "label", CommunityMenus.Label64Text(x.Value.label64) } }).ToList() }, { "addon_versions", AddonVersions.Select(a => (object)new JObj { { "name", a.Key }, { "state", a.Value } }).ToList() },
             { "home", new JObj { { "in_use", HomeLink ? "link" : HomePointer }, { "copies", HomeCopies.Select(c => (object)new JObj { { "copy", c.Key }, { "manifest_sha256", c.Value.manifest }, { "folder", c.Value.dir } }).ToList() },
                 { "unfinished", HomeAttempts.Select(a => (object)new JObj { { "attempt", a.Key }, { "copy", a.Value } }).ToList() }, { "saves_identity", HomeIdentity != null }, { "ram_free_bytes", Ram } } },
             { "digest", Digest() } };
@@ -140,6 +232,7 @@ namespace CcsBackup.Engine
                 if (k == "hakchi") m.Hakchi = v;
                 else if (k == "package") { if (!Name.IsMatch(v) || v.Contains("/")) { m.Problem = "an unexpected package name"; return m; } m.Packages.Add(v); }
                 else if (k == "start") { if (!Regex.IsMatch(v, "^((native|ccs-home|[a-z0-9][a-z0-9-]{0,31}) (always|never) (on|off) (default|last) ([0-9]{1,2})|none|invalid)$")) { m.Problem = "an unexpected start setting"; return m; } m.Start = v; }
+                else if (k == "start_label") { if (!Regex.IsMatch(v, "^[A-Za-z0-9+/]{0,160}={0,2}$")) { m.Problem = "an unexpected start setting name"; return m; } m.StartLabel64 = v; }
                 else if (k == "transfer" && v == "link") m.TransferLink = true;
                 else if (k == "free") { if (!long.TryParse(v, NumberStyles.None, CultureInfo.InvariantCulture, out m.Free)) m.Free = -1; }
                 else if (k == "registry") m.Registry = v;
@@ -151,6 +244,14 @@ namespace CcsBackup.Engine
                     m.Options[o[0]] = (o[1], o.Length > 2 && Hex.IsHex(o[2], 64) ? o[2] : null, n);
                 }
                 else if (k == "waiting") { var s = v.Split(' '); if (s.Length != 2 || !Name.IsMatch(s[0]) || !(Hex.IsHex(s[1], 64) || s[1] == "other")) { m.Problem = "an unexpected file in hakchi's transfer folder"; return m; } m.Waiting[s[0]] = s[1]; }
+                else if (k == "menu")
+                {
+                    var s = v.Split(' ');
+                    if (s.Length != 4 || !Regex.IsMatch(s[0], "^[a-z0-9][a-z0-9-]{0,31}$") || !CommunityCatalog.PackageRe.IsMatch(s[1]) || !Regex.IsMatch(s[2], "^/var/lib/hakchi/rootfs/[A-Za-z0-9._/-]{1,170}$") || !Regex.IsMatch(s[3], "^[A-Za-z0-9+/]{4,120}={0,2}$"))
+                    { m.Problem = "an unexpected community menu choice"; return m; }
+                    m.Menus[s[0]] = (s[1], s[2], s[3]);
+                }
+                else if (k == "addon") { var s2 = v.Split(' '); if (s2.Length != 2 || !Methods.IsPackage(s2[0]) || s2[1] != "current" && s2[1] != "earlier" && s2[1] != "none") { m.Problem = "an unexpected add-on version"; return m; } m.AddonVersions[s2[0]] = s2[1]; }
                 else if (k == "home" && v == "link") m.HomeLink = true;
                 else if (k == "home_pointer") { if (!(v == "absent" || v == "other" || HomePackage.CopyRe.IsMatch(v))) { m.Problem = "an unexpected HOME pointer"; return m; } m.HomePointer = v; }
                 else if (k == "home_copy") { var s = v.Split(' '); if (s.Length != 3 || !HomePackage.CopyRe.IsMatch(s[0]) || !(Hex.IsHex(s[1], 64) || s[1] == "-") || s[2] != "dir" && s[2] != "nodir") { m.Problem = "an unexpected HOME copy record"; return m; } m.HomeCopies[s[0]] = (s[1] == "-" ? null : s[1], s[2] == "dir"); }
@@ -180,6 +281,8 @@ namespace CcsBackup.Engine
         /// <summary>the packages placed for hakchi to install (in this order), the removal list (in this order) and its SHA-256, and CCS Nucleus's
         /// start ("DEFAULT CHOOSER HOME") when it is set</summary>
         public List<string> Add = new List<string>(), Remove = new List<string>(); public string ListSha256, StartLine;
+        /// <summary>the add-ons installed in an earlier version that this build's packages are placed over (hakchi installs them over the earlier ones)</summary>
+        public List<string> Updated = new List<string>();
         public BoundArchive ProtectiveArchive; public MethodState Before;
         /// <summary>CCS HOME's package when CCS Mod is added, sent after the add-ons' files; null when that exact package is already in use</summary>
         public HomeArchive Home; public string HomePrior;
@@ -192,6 +295,7 @@ namespace CcsBackup.Engine
         {
             { "operation", "addons" }, { "current", Current?.ToJson() }, { "target", Target?.ToJson() }, { "console_tag", ConsoleTag }, { "text", Text }, { "steps", Steps }, { "notes", Notes }, { "refusal", Refusal },
             { "add", Add.Select(p => (object)new JObj { { "name", p }, { "sha256", Methods.Sha256(p) } }).ToList() },
+            { "update", Updated.Select(p => (object)new JObj { { "name", p }, { "label", Methods.Label(p) }, { "sha256", Methods.Sha256(p) } }).ToList() },
             { "removal_list", Remove.Count == 0 ? null : new JObj { { "names", string.Join(" ", Remove) }, { "sha256", ListSha256 } } }, { "start", StartLine },
             { "home", Home == null ? null : Home.ToJson().Set("replaces", HomePrior) }, { "earlier_home", Earlier?.ToJson() },
             { "console_state", Before?.ToJson() }, { "protective_backup", ProtectivePath }, { "evidence", new List<object> { ProtectiveArchive?.ToJson() } },
@@ -235,7 +339,7 @@ namespace CcsBackup.Engine
         }
         static Dictionary<string, string> Mine(MethodPlan p)
         {
-            var mine = p.Add.ToDictionary(Methods.Waiting, Methods.Sha256, StringComparer.Ordinal);
+            var mine = p.Add.Concat(p.Updated).ToDictionary(Methods.Waiting, Methods.Sha256, StringComparer.Ordinal);
             if (p.Remove.Count > 0) mine["uninstall"] = p.ListSha256;
             return mine;
         }
@@ -266,8 +370,11 @@ namespace CcsBackup.Engine
             {
                 { "event", "addon-state" }, { "operation", operation }, { "situation", situation }, { "console_tag", id?.ShortTag },
                 { "current", cur.ToJson() }, { "start", st?.Start }, { "start_text", cur.Nucleus == "none" ? null : cur.StartText },
+                { "start_kind", st != null && cur.Nucleus != "none" && !AddonChoice.Standard(cur.Start) && st.Options.TryGetValue(cur.Start, out var so) ? so.kind : null },
                 { "installed", (st?.Packages ?? new List<string>()).Where(Methods.IsPackage).Cast<object>().ToList() }, { "other_packages", others.Count },
                 { "own_images", st == null ? 0 : st.Options.Values.Count(x => x.kind == "owner-root") },
+                { "community_menus", st == null ? 0 : st.Options.Values.Count(x => x.kind == "community") },
+                { "earlier", (st == null ? new List<string>() : Methods.Earlier(st)).Select(x => (object)new JObj { { "name", x }, { "label", Methods.Label(x) } }).ToList() },
             };
         }
 
@@ -282,23 +389,42 @@ namespace CcsBackup.Engine
             var (st, id, why0) = Current(con, ctx);
             if (why0 != null) return (null, Refuse(why0));
             var cur = AddonChoice.FromState(st);
-            if (cur.SameAs(target) && (target.StartLine == null || st.Start == target.StartLine)) return (null, Refuse("This console already has exactly these add-ons. Nothing to change."));
+            // what opens first other than Original Menu and CCS HOME: only the console's own default, kept as it is (the pages never offer another)
+            if (target.Nucleus != "none" && !AddonChoice.Standard(target.Start))
+            {
+                if (cur.Nucleus == "none" || target.Start != cur.Start || !st.Options.TryGetValue(target.Start, out var ko)) return (null, Refuse("Choose what opens when the console is turned on: Original Menu or CCS HOME."));
+                target.StartName = cur.StartName;
+                if (ko.kind == "owner-root" && !target.Shown)
+                    return (null, Refuse(target.StartMenuName + " opens first only from the startup chooser at start. Choose Original Menu or CCS HOME to open first, or keep the startup chooser showing at start."));
+            }
+            var earlier = Methods.Earlier(st).Where(target.Keeps).ToList();
+            if (cur.SameAs(target) && (target.StartLine == null || st.Start == target.StartLine) && !(target.Update && earlier.Count > 0))
+                return (null, Refuse("This console already has exactly these add-ons" + (earlier.Count > 0 ? ", but " + string.Join(" and ", earlier.Select(Methods.Label)) + (earlier.Count == 1 ? " is" : " are") + " an earlier version. Choose Update to this version to bring " + (earlier.Count == 1 ? "it" : "them") + " up to date." : ". Nothing to change.")));
             var p = new MethodPlan { Hwid = id.Hwid, ConsoleTag = id.ShortTag, Session = con.SessionId, Before = st, Current = cur, Target = target };
             // the add-ons to place, in the order hakchi installs them (CCS Nucleus before its chooser)
             if (target.Mod && !cur.Mod) p.Add.Add(Methods.Mod);
             if (target.Nucleus != "none" && cur.Nucleus == "none") p.Add.Add(Methods.Nucleus);
             if (target.Nucleus == "chooser" && cur.Nucleus != "chooser") p.Add.Add(Methods.Chooser);
-            foreach (var a in p.Add) if (!Hex.IsHex(Methods.Sha256(a), 64)) return (null, Refuse("This build does not carry " + Methods.Label(a) + "'s package."));
+            // an update: this build's packages placed over the earlier ones the person chose to update (hakchi installs them over)
+            if (target.Update) foreach (var a in earlier) if (!p.Add.Contains(a)) p.Updated.Add(a);
+            foreach (var a in p.Add.Concat(p.Updated)) if (!Hex.IsHex(Methods.Sha256(a), 64)) return (null, Refuse("This build does not carry " + Methods.Label(a) + "'s package."));
             // the removal list, in the order hakchi runs each package's own removal (the chooser before CCS Nucleus)
             if (cur.Nucleus == "chooser" && target.Nucleus != "chooser") p.Remove.Add(Methods.Chooser);
             if (cur.Nucleus != "none" && target.Nucleus == "none") p.Remove.Add(Methods.Nucleus);
             if (cur.Mod && !target.Mod) p.Remove.Add(Methods.Mod);
-            foreach (var a in p.Add) p.Steps.Add("method:" + a);
+            foreach (var a in Methods.Packages.Where(x => p.Add.Contains(x) || p.Updated.Contains(x))) p.Steps.Add("method:" + a);
+            if (!target.Update && earlier.Count > 0)
+                p.Notes.Add(string.Join(" and ", earlier.Select(Methods.Label)) + " on this console " + (earlier.Count == 1 ? "is" : "are") + " an earlier version than this Workbench's and " + (earlier.Count == 1 ? "stays" : "stay") + " as " + (earlier.Count == 1 ? "it is" : "they are") + ". Choose Update to this version to bring " + (earlier.Count == 1 ? "it" : "them") + " up to date (a community menu needs this version of CCS Nucleus).");
             // what opens at power-on, set now in CCS Nucleus's registry (its install keeps it); not when CCS Nucleus is removed
-            if (target.Nucleus != "none" && st.Start != target.StartLine) { p.StartLine = target.StartLine; p.Steps.Add("nstart"); }
+            // (an update alone keeps the start setting exactly as it is: the page's choice cannot express every setting, such as Last Used with no countdown)
+            if (target.Nucleus != "none" && st.Start != target.StartLine && !(target.Update && cur.SameAs(target))) { p.StartLine = target.StartLine; p.Steps.Add("nstart"); }
             if (p.Remove.Count > 0) { p.ListSha256 = Methods.ListSha256(p.Remove); p.Steps.Add("unlist"); }
             if (target.Nucleus != "chooser" && cur.Nucleus == "chooser" && st.Options.Values.Any(x => x.kind == "owner-root"))
                 p.Notes.Add("Your own system images stay on the console as they are; without CCS Nucleus's chooser they do not start (only a choice on the TV starts one).");
+            if (target.Nucleus == "direct" && cur.Nucleus == "chooser" && st.Menus.Count > 0)
+                p.Notes.Add("Your community menus stay installed and stay listed in CCS Nucleus. Without its chooser, a menu starts only when it is what opens at power-on; leaving it opens Original Menu.");
+            if (target.Nucleus == "none" && cur.Nucleus != "none" && st.Menus.Count > 0)
+                p.Notes.Add("Your community menus stay installed, but without CCS Nucleus nothing starts them. Remove them in Community Mods, or keep CCS Nucleus.");
             // CCS HOME's package when CCS Mod arrives, after the add-ons' files (an interruption before it leaves CCS HOME as it was)
             if (target.Mod && !cur.Mod)
             {
@@ -313,6 +439,7 @@ namespace CcsBackup.Engine
             if (wp != null) return (null, Refuse("Changing the add-ons is refused: " + wp + ". Start the console normally once so hakchi applies it, then check again."));
             p.Text = string.Join(" ", new[] {
                 p.Add.Count == 0 ? null : "Add " + string.Join(" and ", p.Add.Select(Methods.Label)) + ": hakchi installs " + (p.Add.Count == 1 ? "it" : "them") + " at the console's next start.",
+                p.Updated.Count == 0 ? null : UpdateText(p.Updated),
                 p.Remove.Count == 0 ? null : "Remove " + string.Join(" and ", p.Remove.Select(Methods.Label)) + ": hakchi runs " + (p.Remove.Count == 1 ? "its" : "each one's") + " own removal at that start, which removes only " + (p.Remove.Count == 1 ? "its" : "their") + " own unchanged files.",
                 target.StartText }.Where(x => x != null));
             ctx.Say("protect", "Backing up the console as it is now, before anything changes...");
@@ -335,11 +462,15 @@ namespace CcsBackup.Engine
             return (p, null);
         }
 
+        /// <summary>the review's words for an update of earlier add-ons to this build's packages</summary>
+        public static string UpdateText(IList<string> updated) => "Update " + string.Join(" and ", updated.Select(Methods.Label)) + " to this version: hakchi installs " + (updated.Count == 1 ? "it" : "them") + " over the earlier one at the console's next start. "
+            + "What opens at power-on, the last-used and countdown settings, your system images and community menus in CCS Nucleus's list, games and saves are kept.";
+
         static string DigestOf(MethodPlan p)
         {
             using (var h = SHA256.Create())
-                return Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes("ccs-addon-plan/1\n" + ConsoleIdentity.NormalizeHwid(p.Hwid) + "\n" + p.Session + "\n" + Json.Write(p.Target.ToJson())
-                    + string.Join(",", p.Add.Select(a => a + " " + Methods.Sha256(a))) + "\n" + string.Join(" ", p.Remove) + " " + p.ListSha256 + "\n" + p.StartLine + "\n" + p.Before?.Digest() + "\n"
+                return Hex.Of(h.ComputeHash(Encoding.UTF8.GetBytes("ccs-addon-plan/2\n" + ConsoleIdentity.NormalizeHwid(p.Hwid) + "\n" + p.Session + "\n" + Json.Write(p.Target.ToJson())
+                    + string.Join(",", p.Add.Select(a => a + " " + Methods.Sha256(a))) + "\n" + string.Join(",", p.Updated.Select(a => a + " " + Methods.Sha256(a))) + "\n" + string.Join(" ", p.Remove) + " " + p.ListSha256 + "\n" + p.StartLine + "\n" + p.Before?.Digest() + "\n"
                     + p.ProtectiveArchive?.DigestLine() + "\n" + string.Join(",", p.Steps) + "\n" + (p.Home?.DigestLine() ?? "-") + " " + (p.HomePrior ?? "-") + "\n" + p.Nonce + "\n" + p.ExpiresUtc.Ticks)));
         }
 
@@ -396,7 +527,7 @@ namespace CcsBackup.Engine
                     o.Done.Add(s);
                 }
                 var after = con.PrepState();
-                bool waits = after.Ok && plan.Add.All(a => after.Waiting.TryGetValue(Methods.Waiting(a), out var sha) && sha == Methods.Sha256(a))
+                bool waits = after.Ok && plan.Add.Concat(plan.Updated).All(a => after.Waiting.TryGetValue(Methods.Waiting(a), out var sha) && sha == Methods.Sha256(a))
                              && (plan.Remove.Count == 0 || after.Waiting.TryGetValue("uninstall", out var ls) && ls == plan.ListSha256) && WaitingProblem(after, Mine(plan)) == null;
                 if (!waits) { rec.State("stopped", "the transfer folder does not read back as planned"); o.State = "stopped"; o.Problem = "Every step reported success, but hakchi's transfer folder does not read back as planned. It was not changed again; check the console before its next start."; return o; }
                 if (plan.StartLine != null && after.Start != plan.StartLine) { rec.State("stopped", "CCS Nucleus's start does not read back"); o.State = "stopped"; o.Problem = "Every step reported success, but CCS Nucleus's start setting does not read back as planned (" + after.Start + "). It was not changed again."; return o; }

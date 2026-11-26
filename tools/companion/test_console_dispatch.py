@@ -121,12 +121,20 @@ class Binding(Base):
         self.assertEqual(boot_state(self.root), "nintendo")
 
     def test_12_an_unsupported_model_is_never_a_checked_console(self):
-        for prof in ("sfc-jpn", "nes-eur", "model-mismatch", "no-model", "data-elsewhere"):
+        for prof in ("sfc-jpn", "region-mismatch", "model-mismatch", "no-model", "data-elsewhere"):
             with self.subTest(prof):
                 CI.make_stand_in(os.path.join(self.t, prof), prof); self.root = os.path.join(self.t, prof); before = tree(self.root)
                 ins, _ = self.run_op("inspect"); self.assertFalse(ins["ok"], ins); self.assertIsNone(self.d.public_console())
                 code, r = self.d.post("confirm", {"operation": "install", "plan_hash": self.plan()}); self.assertEqual(code, 409)
                 self.assertEqual(changes(before, tree(self.root)), [])
+
+    def test_12b_a_european_nes_classic_is_checked_and_installed_on_as_an_nes_classic(self):
+        # an NES Classic whose software names REGION EUR (hakchi's nes-eur): the same model, the same checks and the same change as a North
+        # American one
+        prof = "nes-eur"; CI.make_stand_in(os.path.join(self.t, prof), prof); self.root = os.path.join(self.t, prof)
+        ins, _ = self.run_op("inspect"); self.assertTrue(ins["ok"], ins); s = self.d.public_console()
+        self.assertEqual((s["identity"]["model"], s["identity"]["system"], s["identity"]["region"]), ("nes-classic-edition", "nes-eur", "EUR")); self.assertTrue(s["label"].startswith("NES Classic Edition ("), s["label"])
+        h = self.plan(); res, _ = self.run_op("install", plan_hash=h, confirmation=self.confirm("install", plan_hash=h)); self.assertEqual(res["result"], "installed", res)
 
     def test_13_a_super_nes_classic_is_checked_as_one_and_its_change_follows_its_models_capability(self):
         # a North American Super NES Classic with hakchi: checked as that model (its own software's board and region); installing CCS HOME

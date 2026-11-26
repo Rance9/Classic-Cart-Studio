@@ -45,7 +45,7 @@ for p in list(files(studio, ".js")) + [os.path.join(ROOT, "tools", "rom-pipeline
             if re.search(r"\$\(['\"]" + m.group(1) + r"['\"]\)\.click\(\)", open(q, encoding="utf-8").read()): bad.append(f"{m.group(1)} opened in {rel(q)}")
 ok("page: the static hidden file inputs are never opened by a click", not bad, bad)
 # the browser's own confirm/alert/prompt (they show the page's address and the browser's look): the page's own ccsAsk/ccsTell/ccsPrompt
-# instead, in every page script: the Install on NES Classic flow (install.js) and build_html.py's page script included.
+# instead, in every page script: the Install on Console flow (install.js) and build_html.py's page script included.
 NATIVE = re.compile(r"(^|[^.\w$])(window\.)?(confirm|alert|prompt)\s*\(")
 bad = []
 for p in list(files(studio, ".js")) + [os.path.join(ROOT, "tools", "rom-pipeline", "build_html.py")]:

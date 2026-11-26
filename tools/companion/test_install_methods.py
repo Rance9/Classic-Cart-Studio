@@ -20,7 +20,7 @@ an in-process worker; no device, socket to a console or shell). Nothing here is 
             add-ons in plain words, the confirmation and the installation are for exactly the reviewed plan; another tool added an add-on
             after the check: refused, nothing changed; a lost connection stops and its recovery is its own confirmed operation; the worker
             ends during the installation and a new app session recovers it from this computer's records
-  page      the Install on NES Classic page (install.js): the two add-on pages, the review's summary and a rehearsal; the review's Hakchi games
+  page      the Install on Console page (install.js): the two add-on pages, the review's summary and a rehearsal; the review's Hakchi games
             choice (its default from the plan, a choice with neither CCS Mod nor Hakchi games refused with the choice still there), and a
             collection without CCS Mod reviewed and rehearsed as its game files only, a game the console's own emulator cannot run named
   python tools/companion/test_install_methods.py      Exit 0 = PASS."""
@@ -113,9 +113,10 @@ class Staging(Base):
 
 class Choice(Base):
     def test_05_the_default_every_combination_and_the_refusals(self):
-        self.assertEqual(CI.addon_choice(), {"mod": True, "nucleus": "none", "start": "native", "auto": "menu"}, "Studio's default")
+        self.assertEqual(CI.addon_choice(), {"mod": True, "nucleus": "none", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}, "Studio's default")
         self.assertEqual(CI.addon_choice({"nucleus": "none", "start": "ccs-home", "auto": "wait"}), CI.STUDIO_CHOICE, "start and auto count only with CCS Nucleus")
-        self.assertEqual(CI.addon_choice({"nucleus": "direct", "auto": "last"})["auto"], "menu", "auto counts only with the chooser")
+        self.assertEqual(CI.addon_choice({"nucleus": "direct", "auto": "last"})["auto"], "last", "with CCS Nucleus straight away, the menu used last opens (the console's own setting is kept, never rewritten)")
+        self.assertEqual(CI.start_line(ch(nucleus="direct", auto="last")), "native never on last 10")
         seen = {}
         for mod in (True, False):
             for nuc in CI.NUCLEUS_PROFILES:
@@ -125,8 +126,8 @@ class Choice(Base):
                             with self.assertRaises(CI.Refused) as e: CI.addon_choice({"mod": mod, "nucleus": nuc, "start": start, "auto": auto})
                             self.assertEqual(e.exception.why, CI.HOME_NEEDS_MOD); continue
                         c = CI.addon_choice({"mod": mod, "nucleus": nuc, "start": start, "auto": auto}); seen[json.dumps(c, sort_keys=True)] = (CI.start_line(c), CI.start_text(c))
-        self.assertEqual(len(seen), 14, "every distinct choice: without CCS Nucleus 2, direct 3 (CCS HOME needs CCS Mod), with the chooser 9")
-        self.assertEqual(len({l for l, _ in seen.values()}), 13, "each choice with CCS Nucleus has its own start line (both without it have none)")
+        self.assertEqual(len(seen), 20, "every distinct choice: without CCS Nucleus 2, straight away 9 and with the chooser 9 (CCS HOME needs CCS Mod)")
+        self.assertEqual(len({l for l, _ in seen.values()}), 19, "each choice with CCS Nucleus has its own start line (both without it have none)")
         self.assertEqual(CI.start_text(ch()), "When the console is turned on, Original Menu opens, as it does now. CCS HOME opens from its tile there.")
         self.assertIsNone(CI.start_line(ch(mod=False)))
         self.assertEqual(CI.start_line(ch(nucleus="direct")), "native never on default 10"); self.assertEqual(CI.start_line(ch(mod=False, nucleus="direct")), "native never off default 10")
@@ -137,7 +138,8 @@ class Choice(Base):
         self.assertEqual(CI.start_text(ch(nucleus="chooser", auto="wait")), "When the console is turned on, the startup chooser appears first. Nothing starts until you choose.")
         self.assertEqual(CI.start_text(ch(nucleus="chooser", auto="last", start="ccs-home")), "When the console is turned on, the startup chooser appears first. If you do nothing, the menu you used last starts in 10 seconds (CCS HOME the first time).")
         self.assertEqual(CI.start_text(ch(nucleus="chooser")), "When the console is turned on, the startup chooser appears first. If you do nothing, Original Menu starts in 10 seconds.")
-        for bad, words in (({"mod": "yes"}, "CCS Mod"), ({"nucleus": "maybe"}, "CCS Nucleus"), ({"nucleus": "direct", "start": "snes"}, "what opens"), ({"nucleus": "chooser", "auto": "soon"}, "starts by itself")):
+        for bad, words in (({"mod": "yes"}, "CCS Mod"), ({"nucleus": "maybe"}, "CCS Nucleus"), ({"nucleus": "direct", "start": "Snes!"}, "what opens"), ({"nucleus": "chooser", "auto": "soon"}, "starts by itself"),
+                           ({"nucleus": "chooser", "countdown": 100}, "counts down"), ({"nucleus": "chooser", "countdown": 0}, "counts down"), ({"nucleus": "chooser", "at_start": "no"}, "shows at start")):
             with self.assertRaises(CI.Refused, msg=bad) as e: CI.build_plan(self.pkg(), bad)
             self.assertIn(words, e.exception.why)
         with self.assertRaises(CI.Refused) as e: CI.build_plan(self.pkg(), {"mod": False, "nucleus": "direct", "start": "ccs-home"})
@@ -155,12 +157,12 @@ class Choice(Base):
 
 class Addons(Base):
     def test_10_the_consoles_addons_are_read_from_it(self):
-        exp = {"hakchi-ready": ({"mod": False, "nucleus": "none", "start": "native", "auto": "menu"}, None, "This console has no CCS add-ons. When the console is turned on, Original Menu opens."),
-               "with-mod": ({"mod": True, "nucleus": "none", "start": "native", "auto": "menu"}, None, "This console has CCS Mod. When the console is turned on, Original Menu opens. CCS HOME opens from its tile there."),
-               "with-nucleus": ({"mod": False, "nucleus": "direct", "start": "native", "auto": "menu"}, "native never off default 10", "This console has CCS Nucleus. When the console is turned on, Original Menu opens straight away. The startup chooser is off."),
-               "with-mod-nucleus": ({"mod": True, "nucleus": "direct", "start": "ccs-home", "auto": "menu"}, "ccs-home never on default 10", "This console has CCS Mod and CCS Nucleus. When the console is turned on, CCS HOME opens straight away. The startup chooser is off."),
-               "with-chooser": ({"mod": False, "nucleus": "chooser", "start": "native", "auto": "menu"}, "native always off default 10", "This console has CCS Nucleus with its startup chooser. When the console is turned on, the startup chooser appears first. If you do nothing, Original Menu starts in 10 seconds."),
-               "with-all": ({"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "last"}, "ccs-home always on last 10", "This console has CCS Mod and CCS Nucleus with its startup chooser. When the console is turned on, the startup chooser appears first. If you do nothing, the menu you used last starts in 10 seconds (CCS HOME the first time).")}
+        exp = {"hakchi-ready": ({"mod": False, "nucleus": "none", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}, None, "This console has no CCS add-ons. When the console is turned on, Original Menu opens."),
+               "with-mod": ({"mod": True, "nucleus": "none", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}, None, "This console has CCS Mod. When the console is turned on, Original Menu opens. CCS HOME opens from its tile there."),
+               "with-nucleus": ({"mod": False, "nucleus": "direct", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}, "native never off default 10", "This console has CCS Nucleus. When the console is turned on, Original Menu opens straight away. The startup chooser is off."),
+               "with-mod-nucleus": ({"mod": True, "nucleus": "direct", "start": "ccs-home", "auto": "menu", "countdown": 10, "at_start": True}, "ccs-home never on default 10", "This console has CCS Mod and CCS Nucleus. When the console is turned on, CCS HOME opens straight away. The startup chooser is off."),
+               "with-chooser": ({"mod": False, "nucleus": "chooser", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}, "native always off default 10", "This console has CCS Nucleus with its startup chooser. When the console is turned on, the startup chooser appears first. If you do nothing, Original Menu starts in 10 seconds."),
+               "with-all": ({"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "last", "countdown": 10, "at_start": True}, "ccs-home always on last 10", "This console has CCS Mod and CCS Nucleus with its startup chooser. When the console is turned on, the startup chooser appears first. If you do nothing, the menu you used last starts in 10 seconds (CCS HOME the first time).")}
         for prof, (choice, line, text) in exp.items():
             with self.subTest(profile=prof):
                 a = CI.console_addons(CI.FakeConsole(self.console(prof))); self.assertEqual((a["choice"], a["start"]["line"], a["text"]), (choice, line, text))
@@ -168,8 +170,39 @@ class Addons(Base):
         root = self.console("with-chooser", "wait"); CI.FakeConsole(root).nucleus_start("native", "always", "off", "default", "0")
         self.assertEqual(CI.console_addons(CI.FakeConsole(root))["choice"]["auto"], "wait")
         root = self.console("with-chooser", "owner"); add_owner_image(root)
-        a = CI.console_addons(CI.FakeConsole(root)); self.assertEqual((a["start"]["line"], a["choice"]["start"]), ("snes always off default 10", "native"))
-        self.assertIn("If you do nothing, one of your own system images starts in 10 seconds.", a["text"])
+        a = CI.console_addons(CI.FakeConsole(root)); self.assertEqual((a["start"]["line"], a["choice"]["start"]), ("snes always off default 10", "snes"), "the console's own default, kept as it is")
+        self.assertIn("If you do nothing, SNES starts in 10 seconds.", a["text"])
+
+    def test_10b_the_consoles_own_start_setting_is_kept_through_another_change_and_an_update(self):
+        """settings made on the console's own startup chooser (Last Used with no countdown, another countdown, not shown at start, its own system
+        image first) are read as they are; a choice made from them (as the startup page starts from them) writes every part not changed back
+        exactly, also when CCS Nucleus is updated in the same installation"""
+        root = self.console("with-chooser", "keep"); CI.FakeConsole(root).nucleus_start("native", "always", "off", "last", "0")
+        a = CI.console_addons(CI.FakeConsole(root)); have = a["choice"]
+        self.assertEqual((have["auto"], have["countdown"], have["at_start"]), ("last", 0, True)); self.assertEqual(CI.start_line(have), "native always off last 0")
+        self.assertIn("Nothing starts until you choose; the menu you used last is selected first (Original Menu the first time).", a["text"])
+        want = dict(have, mod=True)   # another startup change: CCS Mod added, CCS HOME offered
+        p = self.plan(want); self.assertEqual(p["start_line"], "native always on last 0", "only CCS HOME's offer changes")
+        r = self.run_inst(root, p); self.assertTrue(r["ok"], r)
+        self.assertEqual(CI.nucleus_start_state(CI.FakeConsole(root))["line"], "native always on last 0", "Last Used with no countdown kept after the change")
+        # the console's CCS Nucleus from an earlier version: this installation's update keeps it too
+        f = os.path.join(root, "var/lib/hakchi/rootfs/etc/ccs/nucleus/VERSION"); nuc = CI.addon_package("nucleus"); wr(f, rd(f).replace(nuc["package_id"].encode(), b"0" * 64))
+        b = CI.console_addons(CI.FakeConsole(root)); self.assertEqual(b["packages"]["nucleus"]["state"], "older"); self.assertEqual(CI.start_line(b["choice"]), "native always on last 0")
+        r = self.run_inst(root, self.plan(b["choice"])); self.assertTrue(r["ok"], r)
+        c = CI.console_addons(CI.FakeConsole(root)); self.assertEqual(c["packages"]["nucleus"]["state"], "current"); self.assertEqual(c["start"]["line"], "native always on last 0", "kept through the update")
+        # a 20-second countdown and the chooser not shown at start, then its own system image first: each read and written back as it was
+        CI.FakeConsole(root).nucleus_start("native", "never", "on", "default", "20")
+        d = CI.console_addons(CI.FakeConsole(root))["choice"]; self.assertEqual((d["at_start"], d["countdown"], CI.start_line(d)), (False, 20, "native never on default 20"))
+        self.assertIn("The startup chooser does not show at start", CI.start_text(d))
+        add_owner_image(root, default=False); CI.FakeConsole(root).nucleus_start("snes", "always", "on", "default", "10")
+        e = CI.console_addons(CI.FakeConsole(root)); self.assertEqual((e["choice"]["start"], CI.start_line(e["choice"])), ("snes", "snes always on default 10"))
+        self.assertIn("If you do nothing, SNES starts in 10 seconds.", e["text"])
+        with self.assertRaises(OSError) as x: CI.FakeConsole(root).nucleus_start("snes", "never", "on")
+        self.assertIn("refused default", str(x.exception), "its own system image opens first only with the chooser at start")
+        with self.assertRaises(OSError) as x: CI.FakeConsole(root).nucleus_start("other", "always", "on")
+        self.assertIn("refused default", str(x.exception), "only an option the registry lists")
+        r = self.run_inst(root, self.plan(dict(e["choice"], start="other"))); self.assertEqual(r["result"], "refused"); self.assertIn("Choose what opens when the console is turned on", r["why"])
+        r = self.run_inst(root, self.plan(dict(e["choice"], nucleus="chooser", at_start=False))); self.assertEqual(r["result"], "refused"); self.assertIn("opens first only from the startup chooser", r["why"])
 
     def test_11_what_cannot_be_read_is_refused_and_nothing_changes(self):
         nuc, cho = CI.addon_package("nucleus"), CI.addon_package("nucleus-chooser")
@@ -407,6 +440,61 @@ class SuperNes(Base):
             root = self.console(prof); before = tree(root); r = self.run_inst(root, self.plan())
             self.assertEqual(r["result"], "refused", (prof, r)); self.assertIn(words, r["why"]); self.assertEqual(changes(before, tree(root)), [], prof)
 
+class EuropeanNes(Base):
+    """an NES Classic whose software names REGION EUR: hakchi's system nes-eur (its softwareCheck), its game storage games/nes-eur (its
+    findGameStorage). The same model as a North American one: the same checks, the same add-ons, its 30 built-in games and their saves never
+    touched; the collection's games go into its own game storage as Hakchi games. Software and hakchi that disagree on the region is never one."""
+    def test_28_ccs_home_and_the_hakchi_games_install_and_are_removed(self):
+        root = self.console("nes-eur"); before = tree(root); stock = CI.stock_digest(root); store = CI.storage_digest(root)
+        ins = CI.inspect_console(CI.FakeConsole(root)); self.assertTrue(ins["ok"], ins); self.assertEqual((ins["device"]["model"], ins["device"]["system"]), ("nes-classic-edition", "nes-eur"))
+        p = self.plan({"mod": True, "nucleus": "direct", "start": "ccs-home"}); r = self.run_inst(root, p); self.assertEqual(r["result"], "installed", r)
+        self.assertEqual(listed(root), ["ccs-mod", "ccs-nucleus"]); self.assertTrue(CI.verify_installed(CI.FakeConsole(root), p)["verified"])
+        self.assertEqual(CI.stock_digest(root), stock, "the built-in games and their saves as they were")
+        hk = CI.build_plan(self.pkg(), {"mod": True, "nucleus": "direct", "start": "ccs-home"}, True); x = self.run_inst(root, hk); self.assertEqual(x["result"], "installed", x)
+        made = [k for k in changes(before, tree(root)) if "/hakchi/games/" in "/" + k]
+        self.assertTrue(made and all(k.startswith("var/lib/hakchi/games/nes-eur/") for k in made), made)
+        self.assertEqual(CI.storage_digest(root), store, "another tool's games in its storage unchanged")
+        self.assertFalse(os.path.exists(os.path.join(root, "var/lib/hakchi/games/nes-usa")), "nothing in another region's storage")
+        rv = CI.uninstall_plan(CI.FakeConsole(root)); self.assertTrue(rv["ok"], rv); u = CI.uninstall(CI.FakeConsole(root), expect=rv["hash"]); self.assertTrue(u["ok"], u)
+        # nothing of Classic Cart Studio's own is left but the console's saves folder (kept by default): not even the console programs' empty
+        # journal folder
+        self.assertEqual([k for k in self.rest(before, root) if not k.startswith("var/lib/ccs/data")], [])
+        self.assertFalse(os.path.exists(os.path.join(root, "var/lib/ccs/owned")))
+        self.assertEqual(CI.stock_digest(root), stock); self.assertEqual(CI.storage_digest(root), store)
+    def test_29_software_and_hakchi_disagreeing_on_the_region_is_refused(self):
+        root = self.console("region-mismatch"); before = tree(root); r = self.run_inst(root, self.plan())
+        self.assertEqual(r["result"], "refused", r); self.assertIn("but hakchi reports nes-usa", r["why"]); self.assertEqual(changes(before, tree(root)), [])
+
+class RemovalLeavesNothing(Base):
+    """a removal leaves nothing of Classic Cart Studio's own behind: the console programs' journal folder (/var/lib/ccs/owned) goes once their
+    own removal has emptied it, and stays while it holds the record of an add-on that stays (another tool's)"""
+    def remove_all(self, root, keep_data=True):
+        rv = CI.uninstall_plan(CI.FakeConsole(root), keep_data); self.assertTrue(rv["ok"], rv)
+        u = CI.uninstall(CI.FakeConsole(root), keep_data, expect=rv["hash"]); self.assertTrue(u["ok"], u); return rv
+    def test_31_everything_this_program_added_goes_and_the_empty_journal_folder_with_it(self):
+        for keep in (True, False):
+            with self.subTest(keep_data=keep):
+                root = self.console("hakchi-ready", f"all-{keep}"); before = tree(root)
+                p = self.plan({"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "menu"}); self.assertEqual(self.run_inst(root, p)["result"], "installed")
+                hk = CI.build_plan(self.pkg(), {"mod": True, "nucleus": "chooser", "start": "ccs-home", "auto": "menu"}, True); self.assertEqual(self.run_inst(root, hk)["result"], "installed")
+                self.assertTrue(os.listdir(os.path.join(root, "var/lib/ccs/owned")), "the console programs keep their journals there while installed")
+                rv = self.remove_all(root, keep)
+                self.assertIn({"op": "rmdir-if-empty", "path": CI.OWNED_DIR}, rv["actions"]); self.assertTrue(any(k.startswith(CI.OWNED_DIR + " (") for k in rv["keep"]), rv["keep"])
+                self.assertFalse(os.path.exists(os.path.join(root, "var/lib/ccs/owned")))
+                left = [k for k in self.rest(before, root) if not (keep and k.startswith("var/lib/ccs/data"))]
+                self.assertEqual(left, [], "nothing of this program's own is left")
+    def test_32_the_journal_folder_stays_while_it_holds_another_programs_journal(self):
+        root = self.console("hakchi-ready", "other-journal"); own = os.path.join(root, "var/lib/ccs/owned"); os.makedirs(own)
+        other = os.path.join(own, "ccs-mod.own")
+        with open(other, "w", encoding="utf-8", newline="\n") as f: f.write("schema=ccs-ownership/1\nanother tool's journal\n")
+        opts = {"mod": True, "nucleus": "direct", "start": "ccs-home"}
+        self.assertEqual(self.run_inst(root, self.plan(opts))["result"], "installed")
+        self.assertEqual(self.run_inst(root, CI.build_plan(self.pkg(), opts, True))["result"], "installed")
+        self.assertIn("published.own", os.listdir(own))
+        self.remove_all(root)
+        self.assertEqual(os.listdir(own), ["ccs-mod.own"], "this program's console program's journal goes; another program's stays, with its folder")
+        with open(other, encoding="utf-8") as f: self.assertEqual(f.read(), "schema=ccs-ownership/1\nanother tool's journal\n")
+
 class WorkerAddons(Base):
     def setUp(self):
         super().setUp(); self.w = Worker(os.path.join(self.t, "root"), console_package=self.st)
@@ -430,7 +518,7 @@ class WorkerAddons(Base):
         self.assertEqual(pf["addons_now_text"], "This console has no CCS add-ons. When the console is turned on, Original Menu opens."); self.assertEqual(pf["changes_text"], "Adds CCS Mod.")
         pf = self.pre("with-mod"); self.assertTrue(pf["ok"]); self.assertEqual(pf["add"], []); self.assertEqual(pf["changes_text"], "The add-ons and what opens at power-on stay as they are.")
         pf = self.pre("with-nucleus"); self.assertFalse(pf["ok"]); self.assertEqual((pf["at"], pf["why"]), ("addons", CI.REMOVES_TEXT))
-        self.assertEqual(pf["addons_now"], {"mod": False, "nucleus": "direct", "start": "native", "auto": "menu"}); self.assertEqual(pf["keep_choice"], ch(nucleus="direct")); self.assertEqual(pf["would_remove"], ["ccs-nucleus"])
+        self.assertEqual(pf["addons_now"], {"mod": False, "nucleus": "direct", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}); self.assertEqual(pf["keep_choice"], ch(nucleus="direct")); self.assertEqual(pf["would_remove"], ["ccs-nucleus"])
         k = self.planh(**pf["keep_choice"]); pf = self.pre("with-nucleus", k["hash"]); self.assertTrue(pf["ok"], pf)
         self.assertEqual((pf["add"], pf["start"]["now"], pf["start"]["want"], pf["start"]["change"]), (["ccs-mod"], "native never off default 10", "native never on default 10", True))
         self.assertEqual(pf["changes_text"], "Adds CCS Mod. Updates CCS Nucleus's start setting: When the console is turned on, Original Menu opens straight away. The startup chooser is off.")
@@ -513,7 +601,7 @@ class Dispatch(Base):
         for bad in ({"mod": "yes"}, {"nucleus": 3}, {"start": "ccs home; rm"}):
             code, r = self.d.post("plan", bad); self.assertEqual((code, r["code"]), (400, "bad-choice"), bad)
         code, r = self.d.post("plan", {"nucleus": "maybe"}); self.assertEqual((code, r["code"]), (409, "refused")); self.assertIn("CCS Nucleus", r["error"])
-        ins = self.run_op("inspect"); self.assertEqual(ins["addons"], {"mod": False, "nucleus": "direct", "start": "native", "auto": "menu"}); self.assertEqual(ins["start"], "native never off default 10")
+        ins = self.run_op("inspect"); self.assertEqual(ins["addons"], {"mod": False, "nucleus": "direct", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}); self.assertEqual(ins["start"], "native never off default 10")
         st = self.d.public_console()["state"]; self.assertEqual(st["addons"]["nucleus"], "direct"); self.assertIn("This console has CCS Nucleus.", st["addons_text"])
         chk = self.run_op("check", plan_hash=d["hash"]); self.assertFalse(chk["ok"]); self.assertEqual(chk["why"], CI.REMOVES_TEXT); k = chk["keep_choice"]
         p = self.dplan(**k); chk = self.run_op("check", plan_hash=p["hash"]); self.assertTrue(chk["ok"], chk); self.assertEqual((chk["plan_hash"], chk["add"]), (p["hash"], ["ccs-mod"]))
@@ -610,13 +698,25 @@ const has=t=>html().includes(t);
   const y=R("CONSOLE.result&&CONSOLE.result.result"); out.games_rehearse={result:y&&y.install?y.install.result:null, delivery:y&&y.install?y.install.delivery:null, published:y&&y.install&&y.install.hakchi?y.install.hakchi.published:null, added:y&&y.install?y.install.added:null};
   R("INST.step='verify'"); await R('renderConsoleStep()'); out.games_verify={files:els.hkBody.innerHTML.includes('Game files on the console'), menu:els.hkBody.innerHTML.includes('<dt>Original Menu</dt>')};
   R("INST.step='ready'"); await R('renderConsoleStep()'); out.games_ready={said:els.hkBody.innerHTML.includes('as Hakchi games beside its own games and saves. CCS HOME is not installed.')};
+  // the console's own start setting (set on its startup chooser) shown as it is and sent back unchanged with another change
+  R("CONSOLE.addonsNow={mod:false,nucleus:'chooser',start:'native',auto:'last',countdown:0,at_start:true}; CONSOLE.addons=Object.assign({},CONSOLE.addonsNow,{mod:true}); CONSOLE.startNowName=null; CONSOLE.startNowKind=null; CONSOLE.keptReplaced=false; CONSOLE.hakchi=null;");
+  let sp=R('startupPageHtml()');
+  out.kept={last:sp.includes('<option value="last" selected>Last menu used</option>'), text:sp.includes('Nothing starts until you choose. The menu you used last is selected first; until you have used one, that is Original Menu.'),
+    said:sp.includes('The countdown is off, as set on the console’s startup chooser (Recovery and Settings). It stays.'), sent:R('JSON.stringify(planBody())')};
+  R("CONSOLE.addonsNow={mod:true,nucleus:'chooser',start:'snes',auto:'menu',countdown:20,at_start:false}; CONSOLE.addons=Object.assign({},CONSOLE.addonsNow); CONSOLE.startNowName='SNES'; CONSOLE.startNowKind='owner-root';");
+  sp=R('startupPageHtml()');
+  out.own={listed:sp.includes('<option value="snes" selected>SNES (as set now)</option>'), box:sp.includes('id="cAtStart"')&&!sp.includes('id="cAtStart" checked'),
+    said:sp.includes('The countdown of 20 seconds is the one set on the console’s startup chooser (Recovery and Settings). It stays.'), text:sp.includes('SNES opens straight away. The startup chooser does not show at start')};
+  R("CONSOLE.addons.nucleus='direct'"); sp=R('startupPageHtml()');
+  out.own.direct={start:R('CONSOLE.addons.start'), said:sp.includes('SNES opens first only from the startup chooser, so Original Menu opens first instead.')};
+  R("CONSOLE.addons.nucleus='chooser'"); R('startupPageHtml()'); out.own.back=R('CONSOLE.addons.start');
   console.log(JSON.stringify(out)); })().catch(e=>{ console.log(JSON.stringify({error:String(e&&e.stack||e)})); process.exit(1); });
 """
 
 PORT = int(os.environ.get("CCS_TEST_PORT") or 8774); B = f"http://127.0.0.1:{PORT}"
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class Page(unittest.TestCase):
-    """the Install on NES Classic page (tools/rom-pipeline/studio/install.js) through the app's own backend: the two add-on pages, what they
+    """the Install on Console page (tools/rom-pipeline/studio/install.js) through the app's own backend: the two add-on pages, what they
     start from, the review's summary and a rehearsal of the chosen add-ons"""
     @classmethod
     def setUpClass(cls):
@@ -645,23 +745,27 @@ class Page(unittest.TestCase):
         self.assertEqual(out["page1"], {"title": True, "mod": True, "locked": False, "author": True, "next": True}, out)
         self.assertEqual(out["see_home"], 1, out)
         self.assertEqual(out["page2"], {"nucleus": False, "keep": True, "review": True, "back": True}, out)
-        self.assertEqual(json.loads(out["on"]["addons"]), {"mod": True, "nucleus": "direct", "start": "ccs-home", "auto": "menu"}, out)
+        self.assertEqual(json.loads(out["on"]["addons"]), {"mod": True, "nucleus": "direct", "start": "ccs-home", "auto": "menu", "countdown": 10, "at_start": True}, out)
         self.assertTrue(out["on"]["immediate"] and out["on"]["home_listed"], out)
         self.assertEqual(out["chooser"], {"auto": "wait", "countdown": True}, out)
         self.assertEqual(out["no_mod"], {"start": "native", "said": True, "home_listed": False}, out)
         self.assertEqual(out["mod_again"], {"start": "ccs-home"}, out)
-        rv = out["review"]; self.assertEqual(json.loads(rv.pop("plan")), {"mod": True, "nucleus": "direct", "start": "ccs-home", "auto": "menu"}, out)
+        rv = out["review"]; self.assertEqual(json.loads(rv.pop("plan")), {"mod": True, "nucleus": "direct", "start": "ccs-home", "auto": "menu", "countdown": 10, "at_start": True}, out)
         self.assertEqual(rv, {"home": True, "menu": True, "startup": True, "chooser": True, "ready": True, "change": True, "hakchi_off": True, "delivery": "home"}, out)
         self.assertEqual(out["rehearse"], {"installed": True, "added": ["ccs-mod", "ccs-nucleus"]}, out)
         self.assertEqual(out["ready"], {"tile": True}, out)
         wn = out["with_nucleus"]; a = json.loads(wn.pop("addons")); self.assertTrue(a["mod"] and a["nucleus"] != "none", out)
         self.assertEqual(wn, {"locked": True, "stays": True, "ready": True, "kept": True}, out)
-        g = out["games"]; self.assertEqual(json.loads(g.pop("sent")), {"mod": False, "nucleus": "none", "start": "native", "auto": "menu"}, "the plan's own default: Hakchi games without CCS Mod")
+        g = out["games"]; self.assertEqual(json.loads(g.pop("sent")), {"mod": False, "nucleus": "none", "start": "native", "auto": "menu", "countdown": 10, "at_start": True}, "the plan's own default: Hakchi games without CCS Mod")
         self.assertEqual(g, {"delivery": "games", "box": True, "text": True, "where": True, "added": True, "home": True, "left": True, "why": True, "sum": True, "ready": True}, out)
         n = out["neither"]; self.assertEqual(json.loads(n.pop("sent"))["hakchi_games"], False); self.assertEqual(n, {"said": True, "box": True, "change": True}, out)
         self.assertIn("Nothing from this collection would go to the console", CI.NOTHING_TEXT)
         self.assertEqual(out["games_rehearse"], {"result": "installed", "delivery": "games", "published": 1, "added": []}, out)
         self.assertEqual(out["games_verify"], {"files": True, "menu": True}, out); self.assertEqual(out["games_ready"], {"said": True}, out)
+        k = out["kept"]; sent = json.loads(k.pop("sent")); self.assertEqual({x: sent[x] for x in ("mod", "auto", "countdown", "at_start")}, {"mod": True, "auto": "last", "countdown": 0, "at_start": True}, out)
+        self.assertEqual(k, {"last": True, "text": True, "said": True}, "Last Used with no countdown is shown as it is and sent back unchanged with CCS Mod added")
+        self.assertEqual(out["own"], {"listed": True, "box": True, "said": True, "text": True, "direct": {"start": "native", "said": True}, "back": "snes"},
+                         "its own system image first, a 20-second countdown and the chooser not shown at start, as set on the console; that image opens first only from the chooser")
 
 PAGE_PHYS = r"""
 const vm=require('vm'), fs=require('fs');
@@ -728,7 +832,7 @@ const click=async id=>{ if(!els[id]||!els[id].onclick) throw new Error('no '+id+
 
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class PagePhysical(unittest.TestCase):
-    """the physical steps on the Install on NES Classic page (install.js) through the app's own backend, routes, dispatcher, confirmations,
+    """the physical steps on the Install on Console page (install.js) through the app's own backend, routes, dispatcher, confirmations,
     worker protocol and installation engine (console_test_backend.py: the worker runs in the backend's process and its console sessions open
     a disposable stand-in; the backup prerequisite is answered by the test): check the console, check the plan, confirm, install, verify;
     review and remove; an installation stopped by a lost connection and its separately confirmed recovery;

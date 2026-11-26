@@ -8,7 +8,7 @@ no console. The setup runs in the background, one at a time, and its outcome is 
   lost reply  the answer to the request never reaches the caller (it stops listening at once): the setup still finishes, the status reads
               it as set up, and asking again changes nothing (already set up)
   windows     the backend's own command-line helpers run without a console window of their own (CREATE_NO_WINDOW)
-  page        (with a built site and headless Edge: --site, --edge-module) the Install on NES Classic panel in the page shows the progress and
+  page        (with a built site and headless Edge: --site, --edge-module) the Install on Console panel in the page shows the progress and
               then the actual outcome for each case above; after a lost reply it reads the outcome instead of starting again, and says
               "Nothing was changed" only when the backend established it
   python test_hakchi_setup.py --package-dir <folder with the pinned package> [--site <built site>] [--edge-module <folder of cdp_edge.py>]
@@ -113,7 +113,7 @@ class Setup(unittest.TestCase):
         self.assertIn("creationflags=hb.NO_WINDOW", inspect.getsource(nc.ui_verify))
 
 class Page(unittest.TestCase):
-    """the Install on NES Classic panel in the page the backend serves (headless Edge)"""
+    """the Install on Console panel in the page the backend serves (headless Edge)"""
     @classmethod
     def setUpClass(cls):
         if not (A.site and A.edge_module and os.path.isfile(os.path.join(A.edge_module, "cdp_edge.py"))): raise unittest.SkipTest("SKIPPED: no built site or browser driver given (not a pass)")

@@ -3,17 +3,17 @@
   "name": "toolbar",
   "size": [
    1400,
-   62
+   81
   ],
-  "bytes": 17737
+  "bytes": 23334
  },
  {
   "name": "tools-row",
   "size": [
    1400,
-   91
+   119
   ],
-  "bytes": 15797
+  "bytes": 21628
  },
  {
   "name": "selected-rows",
@@ -165,7 +165,7 @@
    1400,
    366
   ],
-  "bytes": 54074
+  "bytes": 56103
  },
  {
   "name": "install-check",
@@ -173,15 +173,15 @@
    1400,
    979
   ],
-  "bytes": 139327
+  "bytes": 137864
  },
  {
   "name": "install-connect",
   "size": [
    1400,
-   769
+   794
   ],
-  "bytes": 110445
+  "bytes": 117532
  },
  {
   "name": "install-console-state",
@@ -189,7 +189,7 @@
    1400,
    979
   ],
-  "bytes": 206541
+  "bytes": 205887
  },
  {
   "name": "install-review",
@@ -197,7 +197,7 @@
    1400,
    768
   ],
-  "bytes": 142802
+  "bytes": 141600
  },
  {
   "name": "install-rehearse",
@@ -205,7 +205,7 @@
    1400,
    751
   ],
-  "bytes": 146541
+  "bytes": 144048
  },
  {
   "name": "install-verify",
@@ -213,7 +213,7 @@
    1400,
    580
   ],
-  "bytes": 85173
+  "bytes": 84100
  },
  {
   "name": "tv-sample",
@@ -229,7 +229,7 @@
    560,
    1212
   ],
-  "bytes": 173346
+  "bytes": 175297
  },
  {
   "name": "rance9-avatar",
@@ -262,5 +262,21 @@
    753
   ],
   "bytes": 101694
+ },
+ {
+  "name": "install-warnings",
+  "size": [
+   1400,
+   549
+  ],
+  "bytes": 85732
+ },
+ {
+  "name": "install-driver",
+  "size": [
+   1400,
+   319
+  ],
+  "bytes": 38701
  }
 ]

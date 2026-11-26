@@ -1,4 +1,4 @@
-// Install on NES Classic: the console steps, one flow for Classic Cart Studio's own HOME on the console (K3; docs/console-install-
+// Install on Console: the console steps, one flow for Classic Cart Studio's own HOME on the console (the NES Classic or the Super NES Classic) (K3; docs/console-install-
 // architecture.md sections 13 and 14). Prepare the exact console package of this collection and its HOME Settings; review the
 // immutable plan (what would be added, changed and kept, and the room it needs) against a simulated console; rehearse every operation on a
 // disposable stand-in through the same plan, worker and installation engine a console would use; see each real-console operation and what it
@@ -9,10 +9,18 @@ const CONSOLE={tok:0, status:null, profile:'hakchi-ready', plan:null, planErr:nu
 // the add-ons (CCS Mod: CCS HOME and its tile in Original Menu; CCS Nucleus: what opens at power-on, straight away or with its startup
 // chooser) are chosen on two pages before the review. They start from what the console has (the check's addons_now) and this app never
 // removes an add-on: removing one is in CCS Console Workbench's Console Restore. The choice is part of the plan, so the confirmation covers it
-const ADDON_DEFAULT={mod:true, nucleus:'none', start:'native', auto:'menu'};
+const ADDON_DEFAULT={mod:true, nucleus:'none', start:'native', auto:'menu', countdown:10, at_start:true};
 const MENU_NAME={native:'Original Menu', 'ccs-home':'CCS HOME'};
+// what opens first by name: Original Menu, CCS HOME, or the console's own other choice as it names it (kept as set on the console)
+function startName(v){ return MENU_NAME[v]||CONSOLE.startNowName||'the menu set on the console'; }
+function secsText(n){ return n+(n===1?' second':' seconds'); }
+// with CCS Nucleus: what happens at power-on after the chooser appears, or what opens straight away (the Workbench's AddonChoice.AutoText)
+function autoText(a){ const m=startName(a.start), shown=a.nucleus==='chooser'&&a.at_start!==false, t=a.auto==='wait'?0:a.countdown;
+ if(!shown) return (a.auto==='last'?`The menu you used last opens straight away. Until you have used one, that is ${m}.`:`${m} opens straight away.`)+(a.nucleus==='chooser'?' The startup chooser does not show at start; it opens from CCS Nucleus in Original Menu, or with Choose Another Menu in CCS HOME.':'');
+ if(t===0) return a.auto==='last'?`Nothing starts until you choose. The menu you used last is selected first; until you have used one, that is ${m}.`:'Nothing starts until you choose.';
+ return a.auto==='last'?`If you do nothing, the menu you used last starts in ${secsText(t)}. Until you have used one, that is ${m}.`:`If you do nothing, ${m} starts in ${secsText(t)}.`; }
 const ADDON_LABEL={'ccs-mod':'CCS Mod', 'ccs-nucleus':'CCS Nucleus', 'ccs-nucleus-chooser':'CCS Nucleus’s startup chooser'};
-function addonReset(){ Object.assign(CONSOLE,{addons:Object.assign({},ADDON_DEFAULT), cfg:1, prefilled:false, addonsNow:null, nowText:'', keepNote:null, startReplaced:false, nucTouched:false, hakchi:null, plan:null, preflight:null}); }
+function addonReset(){ Object.assign(CONSOLE,{addons:Object.assign({},ADDON_DEFAULT), cfg:1, prefilled:false, addonsNow:null, nowText:'', startNowName:null, startNowKind:null, keptReplaced:false, keepNote:null, startReplaced:false, nucTouched:false, hakchi:null, plan:null, preflight:null}); }
 // the collection's games as ordinary Hakchi games in Original Menu: not an add-on but how this collection is delivered. null follows the plan's
 // default (on without CCS Mod); a choice made on the review stays. Without CCS Mod they are the only way the collection reaches the console:
 // only the game files they need are copied, never CCS HOME (the plan refuses a choice with neither)
@@ -51,8 +59,10 @@ addonReset();
 function addonSummary(a,n){ n=n||{}; const rows=[['CCS HOME', a.mod?(n.mod?'Keep, with CCS Mod':'Add with CCS Mod'):'Not selected']];
  if(a.mod) rows.push(['Original Menu','Keep, with the CCS HOME tile']);
  if(a.nucleus==='none') rows.push(['Startup','Keep current startup']);
- else { const m=MENU_NAME[a.start]||a.start; rows.push(['Startup','CCS Nucleus — '+(a.nucleus==='direct'?'open '+m+' immediately':'show the startup chooser')]);
-  rows.push(a.nucleus==='direct'?['Startup chooser','Off']:['If you do nothing', a.auto==='wait'?'Nothing starts until you choose':a.auto==='last'?'The menu used last starts after 10 seconds ('+m+' until you have used one)':m+' starts after 10 seconds']); }
+ else { const m=startName(a.start), shown=a.nucleus==='chooser'&&a.at_start!==false, t=a.auto==='wait'?0:a.countdown, first=a.auto==='last'?'the menu used last ('+m+' until you have used one)':m;
+  rows.push(['Startup','CCS Nucleus — '+(shown?'show the startup chooser':'open '+first+' immediately')]);
+  rows.push(a.nucleus==='direct'?['Startup chooser','Off']:!shown?['Startup chooser','Does not show at start; it opens from CCS Nucleus in Original Menu or Choose Another Menu in CCS HOME']
+   :['If you do nothing', t===0?(a.auto==='last'?'Nothing starts until you choose (the menu used last is selected first)':'Nothing starts until you choose'):a.auto==='last'?'The menu used last starts after '+secsText(t)+' ('+m+' until you have used one)':m+' starts after '+secsText(t)]); }
  return `<dl class="tvkv">${rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join('')}</dl>`; }
 function addonsPageHtml(){ const a=CONSOLE.addons, inst=!!(CONSOLE.addonsNow||{}).mod;
  return `<h3 style="margin:8px 0 2px">Choose your add-ons</h3><div class="small">Choose what you want to add. Your console's startup is on the next page.</div>
@@ -64,9 +74,16 @@ function addonsPageHtml(){ const a=CONSOLE.addons, inst=!!(CONSOLE.addonsNow||{}
   <div class="acts"><span class="sp"></span><button class="btn hk" id="cNextStart">Next: Startup</button></div>`; }
 function startupPageHtml(){ const a=CONSOLE.addons, n=CONSOLE.addonsNow||{}; const nucInst=!!n.nucleus&&n.nucleus!=='none', choInst=n.nucleus==='chooser';
  if(!a.mod&&a.start==='ccs-home'){ a.start='native'; CONSOLE.startReplaced=true; } else if(a.mod&&CONSOLE.startReplaced){ a.start='ccs-home'; CONSOLE.startReplaced=false; }
- const menus=['native'].concat(a.mod?['ccs-home']:[]); const opt=(v,sel)=>`<option value="${v}" ${v===sel?'selected':''}>${esc(MENU_NAME[v]||v)}</option>`;
- const on=a.nucleus!=='none', m=MENU_NAME[a.start]||a.start;
- const autoText=a.auto==='wait'?'Nothing starts until you choose.':a.auto==='last'?`If you do nothing, the menu you used last starts in 10 seconds. Until you have used one, that is ${m}.`:`If you do nothing, ${m} starts in 10 seconds.`;
+ // the console's own other choice as what opens first (set on the console): shown as it is and kept; an owner's system image only with the chooser
+ const kept=n.nucleus&&n.nucleus!=='none'&&n.start&&!MENU_NAME[n.start]?n.start:null, keptOwner=kept&&CONSOLE.startNowKind==='owner-root';
+ if(kept&&keptOwner&&a.nucleus==='direct'&&a.start===kept){ a.start='native'; CONSOLE.keptReplaced=true; } else if(kept&&a.nucleus==='chooser'&&CONSOLE.keptReplaced){ a.start=kept; CONSOLE.keptReplaced=false; }
+ const menus=['native'].concat(a.mod?['ccs-home']:[]); const opt=(v,sel,label)=>`<option value="${v}" ${v===sel?'selected':''}>${esc(label||MENU_NAME[v]||v)}</option>`;
+ const keptOpt=(chooser,sel)=>kept&&(chooser||!keptOwner)?opt(kept,sel,startName(kept)+' (as set now)'):'';
+ const on=a.nucleus!=='none';
+ const first=a.auto==='last'?'last':a.start, auto=a.auto==='menu'?a.start:a.auto;
+ const directText=(a.auto==='last'?`The menu you used last opens immediately. Until you have used one, that is ${startName(a.start)}.`:'This menu opens immediately.')+' The startup chooser is off.';
+ const atStartNow=n.nucleus==='chooser'&&n.at_start===false;
+ const countText=!on||a.auto==='wait'||n.nucleus==='none'||!n.nucleus||a.countdown!==n.countdown?'':a.countdown===0?'The countdown is off, as set on the console’s startup chooser (Recovery and Settings). It stays.':a.countdown!==10?`The countdown of ${secsText(a.countdown)} is the one set on the console’s startup chooser (Recovery and Settings). It stays.`:'';
  return `<h3 style="margin:8px 0 2px">What should open when you turn on the console?</h3>
   <div class="msg"><label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="cNuc" ${on?'checked':''} ${nucInst?'disabled':''}> <b>Choose what opens first with CCS Nucleus</b></label>
    <div class="small">CCS Nucleus can open a menu straight away or show a startup chooser. It can be used with or without CCS HOME.</div>
@@ -74,9 +91,10 @@ function startupPageHtml(){ const a=CONSOLE.addons, n=CONSOLE.addonsNow||{}; con
    ${CONSOLE.startReplaced?'<div class="msg">CCS HOME is not chosen, so Original Menu opens first instead. To open CCS HOME, go back and choose CCS Mod.</div>':''}
    ${on?`<div style="margin-top:6px"><b>When the console turns on</b></div>
     <div><label><input type="radio" name="cNucMode" value="direct" ${a.nucleus==='direct'?'checked':''} ${choInst?'disabled':''}> Open a menu straight away</label></div>
-    <div style="margin-left:24px">Open first: <select id="cFirst" ${a.nucleus!=='direct'?'disabled':''}>${menus.map(v=>opt(v,a.start)).join('')}</select><div class="small">This menu opens immediately. The startup chooser is off.</div>${choInst?'<div class="small">The startup chooser is installed on this console and stays: turning it off is in CCS Console Workbench’s Console Restore.</div>':''}</div>
+    <div style="margin-left:24px">Open first: <select id="cFirst" ${a.nucleus!=='direct'?'disabled':''}>${menus.map(v=>opt(v,first)).join('')}${keptOpt(false,first)}<option value="last" ${first==='last'?'selected':''}>Last menu used</option></select><div class="small">${esc(directText)}</div>${CONSOLE.keptReplaced&&a.nucleus==='direct'?`<div class="msg">${esc(startName(kept))} opens first only from the startup chooser, so Original Menu opens first instead. To keep it, show the startup chooser.</div>`:''}${choInst?'<div class="small">The startup chooser is installed on this console and stays: turning it off is in CCS Console Workbench’s Console Restore.</div>':''}</div>
     <div><label><input type="radio" name="cNucMode" value="chooser" ${a.nucleus==='chooser'?'checked':''}> Show the startup chooser</label></div>
-    <div style="margin-left:24px">Start automatically with: <select id="cAuto" ${a.nucleus!=='chooser'?'disabled':''}>${menus.map(v=>opt(v,a.auto==='menu'?a.start:'')).join('')}<option value="last" ${a.auto==='last'?'selected':''}>Last menu used</option><option value="wait" ${a.auto==='wait'?'selected':''}>Wait for me to choose</option></select><div class="small">${esc(autoText)}</div></div>`
+    <div style="margin-left:24px">Start automatically with: <select id="cAuto" ${a.nucleus!=='chooser'?'disabled':''}>${menus.map(v=>opt(v,auto)).join('')}${keptOpt(true,auto)}<option value="last" ${a.auto==='last'?'selected':''}>Last menu used</option><option value="wait" ${a.auto==='wait'?'selected':''}>Wait for me to choose</option></select><div class="small">${esc(autoText(a))}</div>${countText?`<div class="small">${esc(countText)}</div>`:''}
+     ${atStartNow?`<div style="margin-top:6px"><label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="cAtStart" ${a.at_start!==false?'checked':''} ${a.nucleus!=='chooser'?'disabled':''}> Show the startup chooser at every start</label><div class="small">Set on the console now: the startup chooser does not show at start. This stays unless you tick it.</div></div>`:''}</div>`
    :`<div style="margin-top:6px"><b>Keep the console's current startup.</b></div>${CONSOLE.nowText?`<div class="small">${esc(CONSOLE.nowText)}</div>`:''}`}</div>
   <div class="acts"><button class="btn secondary" id="cBackAddons">Back: Add-ons</button><span class="sp"></span><button class="btn hk" id="cReview">Review Changes</button></div>`; }
 function wireAddonPages(draw){ const a=CONSOLE.addons;
@@ -85,8 +103,9 @@ function wireAddonPages(draw){ const a=CONSOLE.addons;
  const nx=$('cNextStart'); if(nx) nx.onclick=()=>{ CONSOLE.cfg=2; draw(); };
  const nu=$('cNuc'); if(nu) nu.onchange=()=>{ if(nu.checked){ a.nucleus='direct'; if(!CONSOLE.nucTouched) a.start=a.mod?'ccs-home':'native'; } else a.nucleus='none'; CONSOLE.nucTouched=true; draw(); };
  document.querySelectorAll('input[name="cNucMode"]').forEach(r=>{ r.onchange=()=>{ a.nucleus=r.value; draw(); }; });
- const fi=$('cFirst'); if(fi) fi.onchange=()=>{ a.start=fi.value; CONSOLE.startReplaced=false; draw(); };
- const au=$('cAuto'); if(au) au.onchange=()=>{ const v=au.value; if(v==='last'||v==='wait') a.auto=v; else { a.auto='menu'; a.start=v; CONSOLE.startReplaced=false; } draw(); };
+ const fi=$('cFirst'); if(fi) fi.onchange=()=>{ const v=fi.value; if(v==='last') a.auto='last'; else { a.start=v; CONSOLE.startReplaced=false; CONSOLE.keptReplaced=false; if(a.auto==='last') a.auto=a.countdown===0?'wait':'menu'; } draw(); };
+ const au=$('cAuto'); if(au) au.onchange=()=>{ const v=au.value; if(v==='last'||v==='wait') a.auto=v; else { a.auto='menu'; a.start=v; if(a.countdown===0) a.countdown=10; CONSOLE.startReplaced=false; CONSOLE.keptReplaced=false; } draw(); };
+ const as=$('cAtStart'); if(as) as.onchange=()=>{ a.at_start=!!as.checked; draw(); };
  const bk=$('cBackAddons'); if(bk) bk.onclick=()=>{ CONSOLE.cfg=1; draw(); };
  const rv=$('cReview'); if(rv) rv.onclick=()=>{ CONSOLE.cfg=0; CONSOLE.plan=null; CONSOLE.preflight=null; draw(); }; }
 // a console whose Hakchi setup is not Hakchi2 CE 3.9.3 (ccs_install.hakchi_required): the notice, the official release page in a new tab
@@ -154,6 +173,9 @@ async function ensurePreflight(){ if(!CONSOLE.plan) return null; if(CONSOLE.pref
 const PHYS={busy:false, op:null, run:null, cursor:0, events:[], result:null, check:null, confirm:null, review:null, recovery:null, keepData:true, err:null, written:null};
 function physAvail(id){ return !!(((CONSOLE.status&&CONSOLE.status.operations)||[]).find(o=>o.id===id)||{}).available; }
 function physConsole(){ return ((CONSOLE.status||{}).console||{}).checked||null; }
+// the console steps' title: the model of the console checked under On your console, once a check has identified it (its own software's board
+// and region); before that, the flow's own name, which covers the NES Classic and the Super NES Classic
+function physTitle(){ const c=physConsole(); const n=c&&c.identity&&c.identity.model_name; $('hkTitle').textContent=typeof n==='string'&&n?'Install on '+n:'Install on Console'; }
 function pbtn(id,label,op,on,cls){ const av=physAvail(op); return `<button class="btn sm ${av&&cls||'secondary'}" id="${id}" ${on&&av&&!PHYS.busy?'':'disabled'} ${av?'':`title="${esc(GATE_TEXT)}"`}>${esc(label)}</button>`; }   // an unavailable step never looks like the next one
 const PHYS_OUT={installed:'Installed and checked', 'cleanup-stopped':'Installed and checked; the clean-up stopped', 'no-change':'Nothing needed to change', refused:'Refused before any change', cancelled:'Canceled before the switch', stopped:'Stopped',
  'rolled-back':'Recovered: undone and checked', 'rollback-incomplete':'Recovery not complete', unknown:'Not known: nothing was changed', uninstalled:'Removed and checked', incomplete:'Removal not complete',
@@ -193,7 +215,7 @@ async function physRun(op,body,after){ PHYS.busy=true; PHYS.op=op; PHYS.events=[
    if(q.done){ clearInterval(t); PHYS.busy=false; procSet('hkpanel',null); PHYS.result=q.result; if(['install','update','uninstall','recover'].includes(op)) PHYS.written={op, plan:(body||{}).plan_hash||(CONSOLE.plan||{}).hash, result:q.result, console:(physConsole()||{}).label};
     await consoleStatus(); if(after) after(q.result); physDraw(); if(['install','update'].includes(op)&&$('hkNext')) $('hkNext').disabled=false; res(q.result); } else physDraw(); },400); }); }
 async function physConfirm(operation,subject){ PHYS.busy=true; PHYS.waitText='Checking this console’s backups on this computer…'; physDraw(); let r; try{ r=await hkPost('/api/console/home/confirm',{operation,...subject}); } finally{ PHYS.busy=false; PHYS.waitText=''; } if(!r.ok){ PHYS.result={event:'error',code:r.code,text:r.error}; physDraw(); return; } PHYS.confirm={...r,subject}; physDraw(); }
-function physDraw(){ const el=$('cPhys'); if(!el) return; el.innerHTML=physHtml(); const on=(id,f)=>{ const b=$(id); if(b) b.onclick=f; }; const p=CONSOLE.plan;
+function physDraw(){ const el=$('cPhys'); if(!el) return; physTitle(); el.innerHTML=physHtml(); const on=(id,f)=>{ const b=$(id); if(b) b.onclick=f; }; const p=CONSOLE.plan;
  on('pInspect',()=>physRun('inspect',{},()=>{ PHYS.check=null; PHYS.review=null; PHYS.recovery=null; }));
  on('pCheck',()=>physRun('check',{plan_hash:p.hash},q=>{ PHYS.check=q&&q.event==='result'?q.result:{ok:false,why:(q||{}).text}; if(PHYS.check.ok&&PHYS.check.plan) CONSOLE.plan=PHYS.check.plan; }));
  on('hkPhys',()=>{ const s=(physConsole()||{}).state||{}; physConfirm(p&&(s.in_use||(s.games_copies||[]).length)?'update':'install',{plan_hash:p.hash}); });
@@ -287,7 +309,7 @@ async function nhStart(){ const b=$('nhBuild'); if(b) b.disabled=true; NHP.resul
   NHP.progress=q.progress; if(q.state==='done'){ clearInterval(NHP.timer); NHP.timer=null; NHP.result=q.result; NHP.job=null; procSet('hkpanel',null); nhDraw(); if(NHP.onDone) NHP.onDone(); return; } nhDraw(); }catch(e){} },300); }
 // each render owns a token: a render that waited (the console status, the plan, the check) stops when a newer one started or the person
 // moved to another step, so a slower earlier render never draws over the step on screen
-async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step; const tok=++CONSOLE.tok; const live=()=>tok===CONSOLE.tok&&INST.step===step; $('hkTitle').textContent='Install on NES Classic';
+async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step; const tok=++CONSOLE.tok; const live=()=>tok===CONSOLE.tok&&INST.step===step; physTitle();
  if(!consoleCapable()){ $('hkSub').textContent=CSTEP[step]||''; body.innerHTML=stepperHtml()+`<div class="msg warn"><b>These steps need the latest Classic Cart Studio for Windows.</b> ${COMPANION.desktop?'This version does not include them: install the latest version from <a href="https://ClassicCartStudio.com/app">ClassicCartStudio.com/app</a>.':'Use <b>Open or Install the Windows App</b>.'}</div><div class="acts"><button class="btn secondary" id="hkBack">Back</button><span class="sp"></span><button class="btn secondary" id="hkDone">Close</button></div>`;
   $('hkDone').onclick=()=>$('hkpanel').classList.remove('open'); $('hkBack').onclick=()=>{ INST.step='connect'; renderInstall(); }; return; }
  if(!CONSOLE.status&&['inspect','review','install'].includes(step)){ await consoleStatus(); if(!live()) return; }   // Verify and Complete draw at once
@@ -302,7 +324,7 @@ async function renderConsoleStep(){ const body=$('hkBody'); const step=INST.step
    if(staged&&staged.layout==='mod'&&!(CONSOLE.prefilled&&CONSOLE.cfg)){ const sm=(CONSOLE.status.records||{}).staged_manifest_sha256; p=await ensurePlan(!CONSOLE.plan||(sm&&CONSOLE.plan.manifest_sha256&&CONSOLE.plan.manifest_sha256!==sm)); if(!ok()) return; }
    const pf=p?await ensurePreflight():null; if(!ok()||!$('cPlan')) return; if(p) p=CONSOLE.plan||p;
    // the pages start from what the console has; a choice that would remove an add-on is made again with what the console keeps
-   if(pf&&!CONSOLE.prefilled){ CONSOLE.prefilled=true; const n=pf.addons_now||null; CONSOLE.addonsNow=n; CONSOLE.nowText=pf.addons_now_text||''; if(n){ const a=CONSOLE.addons; a.mod=a.mod||!!n.mod; if(n.nucleus&&n.nucleus!=='none'){ a.nucleus=n.nucleus; a.start=n.start||'native'; a.auto=n.auto||'menu'; } }
+   if(pf&&!CONSOLE.prefilled){ CONSOLE.prefilled=true; const n=pf.addons_now||null; CONSOLE.addonsNow=n; CONSOLE.nowText=pf.addons_now_text||''; CONSOLE.startNowName=pf.start_now_name||null; CONSOLE.startNowKind=pf.start_now_kind||null; if(n){ const a=CONSOLE.addons; a.mod=a.mod||!!n.mod; if(n.nucleus&&n.nucleus!=='none'){ a.nucleus=n.nucleus; a.start=n.start||'native'; a.auto=n.auto||'menu'; a.countdown=typeof n.countdown==='number'?n.countdown:10; a.at_start=n.at_start!==false; } }
     if(pf.ok&&CONSOLE.hakchi===null&&pf.hakchi&&(pf.hakchi.journal||pf.hakchi.index_sha256)) CONSOLE.hakchi=true; }
    if(pf&&!pf.ok&&pf.at==='addons'&&pf.keep_choice&&!CONSOLE.cfg&&!CONSOLE.keepNote){ CONSOLE.addons=Object.assign({},ADDON_DEFAULT,pf.keep_choice); CONSOLE.keepNote=pf.why||''; CONSOLE.plan=null; CONSOLE.preflight=null; await draw(); return; }
    if(staged&&CONSOLE.cfg){ $('cPlan').innerHTML=CONSOLE.cfg===1?addonsPageHtml():startupPageHtml(); wireAddonPages(draw); return; }

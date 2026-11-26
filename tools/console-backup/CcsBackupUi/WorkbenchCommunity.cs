@@ -7,10 +7,13 @@
 //              settings and favorites, or also removing them), Put Back Kept Settings, Restore the Pre-install Backup (a full restore)
 //   Updates    an update only when a newer version is approved; never automatic
 // A change: the console's mods read (nothing written) → the approved file for each mod to install, downloaded only into a folder the person
-// chooses or chosen on this PC → the review after a fresh backup → the one-time confirmation → the result. The add-ons page shows the
+// chooses or chosen on this PC → for a mod that changes a USB drive or SD card, the USB and SD backup of that storage chosen with the CCS
+// file dialog and checked → the review after a fresh backup (the startup chooser a community menu adds, named; the USB and SD backup's own
+// identity, which the person confirms) → the one-time confirmation → the result. The add-ons page shows the
 // catalog's cards under CCS Mod's (CommunityCards). With a simulated console only, CCS_COMMUNITY_CATALOG names a private fixture catalog
 // for tests and demonstrations; a real console always uses the catalog this build carries.
 using CcsBackup.Engine;
+using CcsBackup.External;
 using CcsBackup.Library;
 using System;
 using System.Collections.Generic;
@@ -33,6 +36,8 @@ namespace CcsBackup.Ui
         /// <summary>each admitted package file on this PC, by its SHA-256 (the approved pin)</summary>
         readonly Dictionary<string, string> commFiles = new Dictionary<string, string>(StringComparer.Ordinal);
         CommunityChange commPending; Dictionary<string, object> commState; CommunityResolution commRes;
+        /// <summary>the USB and SD backup chosen for a mod that changes a USB drive or SD card, once it passed its check here</summary>
+        string commStorage; CommunityStorageBinding commStorageBound;
 
         string CommFixture => string.IsNullOrEmpty(opt.SimulatedConsole) ? null : Environment.GetEnvironmentVariable("CCS_COMMUNITY_CATALOG");
         CommunityCatalog CommCatalog()
@@ -126,7 +131,9 @@ namespace CcsBackup.Ui
             c.Children.Add(KeyValues(("Version", r.Version + (r.Alpha ? " (Alpha)" : "")), ("Where it applies", r.Applies), ("Author", r.AuthorName + (r.Credits.Count > 0 ? "; also credited: " + string.Join(", ", r.Credits) : "")),
                 ("License", r.LicenseName), ("Needs", r.Depends.Count == 0 ? "Nothing else" : Names(r.Depends)), ("Cannot be used with", r.Conflicts.Count == 0 ? "Nothing listed" : Names(r.Conflicts.Select(x => x.id))),
                 ("Its install also removes", r.RemovesOnInstall.Count == 0 ? "Nothing" : string.Join(", ", r.RemovesOnInstall.Select(x => x.name)) + " (if installed)"),
-                ("USB drive or SD card", r.WritesExternal ? r.ExternalText : "Not used"), ("Removing it", (r.RemovalText ?? "Hakchi runs its own removal.") + (r.Settings.Count > 0 ? " Workbench keeps its settings and favorites unless you choose to remove them." : "")),
+                ("USB drive or SD card", r.WritesExternal ? r.ExternalText + " Before it is installed or removed, you choose a USB and SD backup of that storage." : "Not used"),
+                ("How it starts", r.ChooserMenu ? "From CCS Nucleus's startup chooser (added with it if your console does not have it). " + r.LaunchReturn : r.IsMenu ? "From its entry in Original Menu. " + r.LaunchReturn : r.LaunchReturn ?? "It runs by itself."),
+                ("Removing it", (r.RemovalText ?? "Hakchi runs its own removal.") + (r.Settings.Count > 0 ? " Workbench keeps its settings and favorites unless you choose to remove them." : "") + (r.ChooserMenu ? " Its choice in the startup chooser goes with it; the chooser stays." : "")),
                 ("Download", Units.Gb(r.DefaultVariant.Bytes) + ", about " + Units.Gb(r.DefaultVariant.UnpackedBytes) + " on the console")));
             if (r.Description != null) c.Children.Add(T(r.Description, Ty.Text, false, false, new Thickness(0, 8, 0, 0)));
             foreach (var w in r.Warnings) c.Children.Add(Note("Its author says: " + w, "warn"));
@@ -190,6 +197,8 @@ namespace CcsBackup.Ui
                     c.Children.Add(T("Version " + m.Version + (m.Variant != null && m.Variant != "standard" ? " (" + m.Variant + ")" : ""), Ty.Small, false, true));
                     c.Children.Add(Pill(m.State == CommunityLedger.Installed ? "Installed" : m.State == CommunityLedger.Waiting ? "Waits for the next start" : m.State == CommunityLedger.Removing ? "Removal waits for the next start" : "Not as planned", m.State == CommunityLedger.Installed ? "B.Ok" : m.State == CommunityLedger.Incomplete ? "B.Bad" : "B.Warn"));
                     if (m.Check != null) c.Children.Add(T(m.Check, Ty.Text, false, false, new Thickness(0, 6, 0, 0)));
+                    if (m.ChoiceId != null && m.State != CommunityLedger.Removing) c.Children.Add(T("A choice in CCS Nucleus's startup chooser.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
+                    if (m.StorageBackupPath != null) c.Children.Add(T("Its USB and SD backup, made before: " + (m.StorageName ?? "USB drive or SD card") + (m.StorageBackupMade != null ? ", " + m.StorageBackupMade : "") + ". USB and SD Backup's Restore puts that storage back.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
                     if (cat?.Find(m.Id) == null) c.Children.Add(T("No longer listed. You can still remove it.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
                     if (CommunityResolver.UpdateAvailable(cat, m)) c.Children.Add(T("An approved update is available: see Updates.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
                     var mm = m; var tag = kv.Key;
@@ -252,7 +261,12 @@ namespace CcsBackup.Ui
                 {
                     var sp = SectionHead("Restore the Pre-install Backup", null);
                     if (why != null) sp.Children.Add(Note(why, "bad"));
-                    else { sp.Children.Add(Note(warn, "warn")); sp.Children.Add(Details("Technical details", "Backup: " + file, "SHA-256: " + m.BackupSha256)); }
+                    else
+                    {
+                        sp.Children.Add(Note(warn, "warn"));
+                        if (m.StorageBackupPath != null) sp.Children.Add(Note(m.Name + " also changes a USB drive or SD card. This restore puts back only the console. To put that storage back too, restore its USB and SD backup with USB and SD Backup's Restore.", "info"));
+                        sp.Children.Add(Details("Technical details", "Backup: " + file, "SHA-256: " + m.BackupSha256, m.StorageBackupPath != null ? "USB and SD backup: " + m.StorageBackupPath + " (SHA-256 " + m.StorageBackupSha256 + ")" : null, m.RecoverySetRecord != null ? "Recovery set: " + m.RecoverySetRecord : null));
+                    }
                     sp.Children.Add(Buttons(why == null ? B("Continue to Restore…", "Btn.Primary", () => { Enter("Console Restore"); ShowRestoreReview(file); }) : null, B("Back", "Btn.Ghost", () => ShowCommunity("installed"))));
                     Show(sp, "community-rollback");
                 });
@@ -262,7 +276,7 @@ namespace CcsBackup.Ui
         // ------------------------------------------------------------------ one change: read, files, review, confirm, result
         void StartComm(CommunityChange ch)
         {
-            commPending = ch; commRes = null;
+            commPending = ch; commRes = null; commStorage = null; commStorageBound = null;
             var req = ConsoleReq("community");
             if (CommFixture != null) req.Add("catalog", CommFixture);
             StartOp("community", "Checking the Console", "Workbench reads which mods the console has. Nothing is written until you confirm a change.", req);
@@ -281,7 +295,7 @@ namespace CcsBackup.Ui
                     var ledger = (ev.A("ledger") ?? new List<object>()).OfType<Dictionary<string, object>>().Select(CommunityInstalled.From).ToList();
                     commRes = CommunityResolver.Resolve(cat, ledger, pk, commPending);
                     if (!commRes.Ok) { CommRefused(commRes.Refusal); return true; }
-                    if (commRes.Items.Any(i => i.Places)) ShowCommFiles(); else CommSendChange();
+                    if (commRes.Items.Any(i => i.Places)) ShowCommFiles(); else CommNext();
                     return true;
                 case "community-plan": ShowCommPlan(ev.O("plan")); return true;
             }
@@ -328,8 +342,60 @@ namespace CcsBackup.Ui
                 sp.Children.Add(Card(c));
             }
             if (message != null) sp.Children.Add(Note(message, kind));
-            sp.Children.Add(Buttons(B("Review the Change", "Btn.Primary", CommSendChange, all), B("Cancel", "Btn.Ghost", () => CommLeave())));
+            sp.Children.Add(Buttons(B(commRes.External.Count > 0 ? "Next" : "Review the Change", "Btn.Primary", CommNext, all), B("Cancel", "Btn.Ghost", () => CommLeave())));
             Show(sp, "community-files");
+        }
+
+        /// <summary>after the files: the USB drive or SD card page when a mod changes one, otherwise the review</summary>
+        void CommNext() { if (commRes != null && commRes.External.Count > 0) ShowCommStorage(); else CommSendChange(); }
+
+        /// <summary>a mod that changes a USB drive or SD card: the USB and SD backup of that storage, chosen with the CCS file dialog and checked
+        /// here (the engine checks it again from scratch before the review and when you confirm)</summary>
+        void ShowCommStorage(string message = null, string kind = "info")
+        {
+            var res = commRes; if (res == null) return;
+            var sp = SectionHead("The USB Drive or SD Card", "Workbench never writes a USB drive or SD card. The mod does, on the console, once it is installed. So before it is installed, updated or removed, choose a backup of that storage made with USB and SD Backup on this PC.");
+            var c = new StackPanel();
+            var mods = res.Items.Where(i => i.Op != "restore-settings" && i.Record.WritesExternal).Select(i => i.Record).Distinct().ToList();
+            foreach (var r in mods) c.Children.Add(T(r.Name + ": " + r.ExternalText, Ty.Text, false, false, new Thickness(0, 0, 0, 6)));
+            c.Children.Add(T("The backup must hold these places on the drive:", Ty.Body, true));
+            foreach (var l in res.External) c.Children.Add(T("• " + (CommunityStorage.OnDrive(l) ?? l) + " (" + l + " on the console)", Ty.Text));
+            c.Children.Add(T("Back up the whole drive, or at least the folders that hold these places. The backup's own check must pass and nothing chosen for it may be missing.", Ty.Small, false, true, new Thickness(0, 6, 0, 0)));
+            sp.Children.Add(Card(c));
+            var b = commStorageBound;
+            if (b != null)
+            {
+                var k = new StackPanel();
+                k.Children.Add(T("Chosen backup", Ty.CardTitle, true, false, new Thickness(0, 0, 0, 6)));
+                k.Children.Add(T(b.IdentityText, Ty.Text));
+                foreach (var cv in b.Cover) k.Children.Add(T("• " + cv.location + ": in " + cv.how, Ty.Small, false, true));
+                k.Children.Add(Note(CommunityStorage.CheckedText, "ok"));
+                k.Children.Add(Details("Technical details", "File: " + b.Path, "SHA-256: " + b.Sha256, "Backup ID: " + b.BackupId));
+                sp.Children.Add(Card(k));
+            }
+            if (message != null) sp.Children.Add(Note(message, kind));
+            sp.Children.Add(Buttons(B(b == null ? "Choose the Backup…" : "Choose Another Backup…", b == null ? "Btn" : "Btn.Ghost", CommChooseStorage), B("Make a USB and SD Backup", "Btn.Ghost", () => { CommLeave(); Go("USB and SD Backup"); })));
+            sp.Children.Add(Buttons(B("Review the Change", "Btn.Primary", CommSendChange, b != null), B("Cancel", "Btn.Ghost", () => CommLeave())));
+            Show(sp, "community-storage");
+        }
+
+        void CommChooseStorage()
+        {
+            var folder = StorageBackup.Folder(settings);
+            var chosenFile = CcsFileDialog.OpenFile(this, "Choose the USB and SD backup of that storage", Directory.Exists(folder) ? folder : null, "USB and SD backups (*.zip)|*.zip", "storage-backup");
+            if (chosenFile == null) return;
+            var places = commRes?.External.ToList() ?? new List<string>();
+            var pv = new ProgressView(this, "Checking the USB and SD Backup", "The whole file is read and checked. Nothing is written.", null, null);
+            Show(pv.Panel, "progress");
+            Task.Run(() =>
+            {
+                var (bound, why) = CommunityStorage.Bind(chosenFile, places);
+                Dispatcher.Invoke(() =>
+                {
+                    if (bound != null) { commStorage = chosenFile; commStorageBound = bound; ShowCommStorage(); }
+                    else { commStorage = null; commStorageBound = null; ShowCommStorage(why, "bad"); }
+                });
+            });
         }
 
         void CommChoose(CommunityRecord r, CommunityVariant v)
@@ -365,6 +431,7 @@ namespace CcsBackup.Ui
             var files = new JObj();
             foreach (var it in commRes?.Placed ?? Enumerable.Empty<CommunityItem>()) if (commFiles.TryGetValue(it.Variant.Sha256, out var f)) files.Add(it.Record.Id, f);
             j.Add("files", files);
+            if (commStorage != null) j.Add("storage_backup", commStorage);
             progress.Update("Backing up the console as it is now, before anything changes...", 0, 0); Show(progress.Panel, "progress");
             worker?.Send(j);
         }
@@ -372,7 +439,22 @@ namespace CcsBackup.Ui
         void ShowCommPlan(Dictionary<string, object> p)
         {
             var sp = SectionHead("Review the Change", "What would change on your " + Con + ". Nothing has been written yet.");
+            var chs = p.O("chooser");
+            if (chs != null)
+            {
+                var nc = new StackPanel();
+                nc.Children.Add(T(chs.S("title"), Ty.CardTitle, true, false, new Thickness(0, 0, 0, 6)));
+                nc.Children.Add(T(chs.S("text"), Ty.Text));
+                sp.Children.Add(Card(nc));
+            }
             var c = new StackPanel();
+            foreach (var a in (p.A("addons") ?? new List<object>()).OfType<Dictionary<string, object>>())
+                c.Children.Add(T("• Add " + a.S("label") + (a.S("name") == "ccs-nucleus-chooser" ? " (the startup chooser)" : " (what opens at power-on)"), Ty.Body, true, false, new Thickness(0, 0, 0, 4)));
+            foreach (var a in (p.A("updates") ?? new List<object>()).OfType<Dictionary<string, object>>())
+                c.Children.Add(T("• Update " + a.S("label") + " to this version (its settings and choices are kept)", Ty.Body, true, false, new Thickness(0, 0, 0, 4)));
+            if (p.S("start") != null) c.Children.Add(T("• The startup chooser appears at power-on", Ty.Body, true, false, new Thickness(0, 0, 0, 4)));
+            foreach (var m in (p.A("menus_added") ?? new List<object>()).OfType<Dictionary<string, object>>()) c.Children.Add(T("• Add " + m.S("name") + " to the startup chooser, shown as \"" + m.S("label") + "\"", Ty.Body, true, false, new Thickness(0, 0, 0, 4)));
+            foreach (var m in (p.A("menus_removed") ?? new List<object>()).OfType<Dictionary<string, object>>()) c.Children.Add(T("• Remove " + m.S("name") + " from the startup chooser", Ty.Body, true, false, new Thickness(0, 0, 0, 4)));
             foreach (var it in (p.A("items") ?? new List<object>()).OfType<Dictionary<string, object>>())
             {
                 var n = it.S("name"); var op = it.S("op");
@@ -390,8 +472,24 @@ namespace CcsBackup.Ui
                 .Concat((p.A("packages") ?? new List<object>()).OfType<Dictionary<string, object>>().Select(x => (object)(x.S("name") + ": " + x.S("file") + " · SHA-256 " + x.S("sha256") + " · hakchi package " + x.S("package") + " · its own scripts: " + string.Join(", ", (x.A("scripts") ?? new List<object>()).OfType<string>()))))
                 .Concat(new object[] { p.O("removal_list") == null ? null : "Removal list: " + p.O("removal_list").S("names") + " (SHA-256 " + p.O("removal_list").S("sha256") + ")", "Catalog generation " + p.O("catalog")?.L("generation", 0) + ", SHA-256 " + p.O("catalog")?.S("sha256"), "Plan " + p.S("digest") }).ToArray()));
             sp.Children.Add(Card(c));
-            sp.Children.Add(Buttons(B("Make This Change", "Btn.Primary", () => { progress.Update("Checking the backup and the files again...", 0, 0); Show(progress.Panel, "progress"); worker?.Send(new JObj { { "cmd", "community-confirm" }, { "digest", p.S("digest") }, { "nonce", p.S("nonce") } }); }),
-                                    B("Cancel", "Btn.Ghost", () => CommLeave())));
+            var stg = p.O("storage"); CheckBox sure = null;
+            if (stg != null)
+            {
+                var k = new StackPanel();
+                k.Children.Add(T("The USB Drive or SD Card", Ty.CardTitle, true, false, new Thickness(0, 0, 0, 6)));
+                k.Children.Add(T("Its backup: " + stg.S("identity_text"), Ty.Text));
+                foreach (var cv in (stg.A("cover") ?? new List<object>()).OfType<Dictionary<string, object>>()) k.Children.Add(T("• " + cv.S("location") + ": in " + cv.S("how"), Ty.Small, false, true));
+                k.Children.Add(Note(stg.S("checked"), "ok"));
+                k.Children.Add(Note(stg.S("not_checked"), "warn"));
+                sure = new CheckBox { Content = new TextBlock { Text = p.S("storage_confirm"), TextWrapping = TextWrapping.Wrap }, Margin = new Thickness(0, 8, 0, 0), Foreground = Res<Brush>("B.Ink") };
+                System.Windows.Automation.AutomationProperties.SetName(sure, p.S("storage_confirm"));
+                k.Children.Add(sure);
+                k.Children.Add(Details("Technical details", "File: " + stg.S("path"), "SHA-256: " + stg.S("sha256"), "Backup ID: " + stg.S("backup_id")));
+                sp.Children.Add(Card(k));
+            }
+            var go = B("Make This Change", "Btn.Primary", () => { progress.Update("Checking the backups and the files again...", 0, 0); Show(progress.Panel, "progress"); worker?.Send(new JObj { { "cmd", "community-confirm" }, { "digest", p.S("digest") }, { "nonce", p.S("nonce") }, { "storage_confirmed", sure?.IsChecked == true } }); }, sure == null);
+            if (sure != null) { sure.Checked += (s, e) => go.IsEnabled = true; sure.Unchecked += (s, e) => go.IsEnabled = false; }
+            sp.Children.Add(Buttons(go, B("Cancel", "Btn.Ghost", () => CommLeave())));
             Show(sp, "community-plan");
         }
 
@@ -411,7 +509,9 @@ namespace CcsBackup.Ui
                 sp.Children.Add(Note(r.S("problem") ?? "", st == "canceled" ? "info" : st == "stopped" ? "bad" : "warn"));
                 if (st == "stopped") sp.Children.Add(T("If the console does not start as before, Console Restore can put back the backup made just now. A problem in a mod itself is for its author: its Details page links to their support page.", Ty.Text, false, true));
             }
+            if (st == "scheduled" && r.S("recovery_set") != null) sp.Children.Add(T("The backup of the console made just now and the USB and SD backup you chose are kept together as this change's recovery set. Console Restore puts the console back; USB and SD Backup's Restore puts the USB drive or SD card back.", Ty.Text, false, true));
             sp.Children.Add(Details("Technical details", r.S("record") != null ? "Record: " + r.S("record") : null, r.S("protective") != null ? "Backup made just now: " + r.S("protective") : null,
+                r.S("storage_backup") != null ? "USB and SD backup: " + r.S("storage_backup") : null, r.S("recovery_set") != null ? "Recovery set: " + r.S("recovery_set") : null,
                 (r.A("done") ?? new List<object>()).Count > 0 ? "Steps done: " + string.Join(", ", (r.A("done") ?? new List<object>()).OfType<string>()) : null));
             sp.Children.Add(Buttons(st == "scheduled" ? B("Restart the Console", "Btn.Primary", () => worker?.Send(new JObj { { "cmd", "finish" } })) : null,
                 B("Done", st == "scheduled" ? "Btn.Ghost" : "Btn", () => { worker?.Send(new JObj { { "cmd", "quit" } }); ShowCommunity(st == "scheduled" ? "installed" : null); })));

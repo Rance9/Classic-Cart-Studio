@@ -156,7 +156,7 @@ CFLAGS_HOST=(-O2 -std=c11 -DNDEBUG -DUNICODE -D_UNICODE -ffunction-sections -fda
 CORE_SOURCES="json_min fb gfx font home persist theme_arcade theme_boxart theme_shelf theme_map gfx3d input model design design_check"
 CFLAGS_CORE=(-std=c11 -O2 -Wall -Wextra -Wno-unused-parameter -Wno-misleading-indentation -ffp-contract=off)
 LDFLAGS=(-municode -Wl,--subsystem,windows -Wl,--gc-sections -s
-  -lole32 -loleaut32 -lshell32 -ladvapi32 -lbcrypt -luser32)
+  -lole32 -loleaut32 -lshell32 -ladvapi32 -lbcrypt -luser32 -lgdi32)
 
 # reproducible output: the PE header's link time is the only difference between two links of the same inputs; it is replaced by the
 # first four bytes of the SHA-256 of the file with that field zeroed (the idea of MSVC's /Brepro). The PE checksum field is 0 (unused).
@@ -192,18 +192,19 @@ for A in $ARCHES; do
   fi
   if [ "$EXE_ON" = 0 ]; then RECORD_ARCH="$RECORD_ARCH{\"arch\":\"$D\",\"target\":\"$T\"$DLL_JSON},"; continue; fi
   "$ZIG" cc -target "$T" "${CFLAGS_HOST[@]}" -c "$HERE/src/host_main.c" -o "$OBJ/host_main.o"
+  "$ZIG" cc -target "$T" "${CFLAGS_HOST[@]}" -c "$HERE/src/host_setup.c" -o "$OBJ/host_setup.o"   # the setup window (before .NET loads)
   echo "== $D: HOME renderer"
   for s in $CORE_SOURCES; do "$ZIG" cc -target "$T" "${CFLAGS_CORE[@]}" "-DCCS_BUILD_TARGET=\"windows-$D-host\"" -c "$CORE/$s.c" -o "$OBJ/core-$s.o"; done
   "$ZIG" c++ -target "$T" "${CXXFLAGS_HOST[@]}" -DCCS_WITH_HOME -c "$HERE/src/par2_abi.cpp" -o "$OBJ/par2_abi_home.o"
   EXE="$OUT/$D/$NAME.exe"; rm -f "$EXE"
-  (cd "$GEN" && "$ZIG" c++ -target "$T" "$OBJ/host_main.o" "$OBJ/par2_abi_home.o" "$OBJ"/par2-*.o "$OBJ"/core-*.o host.rc "${LDFLAGS[@]}" -o "$EXE")
+  (cd "$GEN" && "$ZIG" c++ -target "$T" "$OBJ/host_main.o" "$OBJ/host_setup.o" "$OBJ/par2_abi_home.o" "$OBJ"/par2-*.o "$OBJ"/core-*.o host.rc "${LDFLAGS[@]}" -o "$EXE")
   rm -f "$OUT/$D/"*.lib "$OUT/$D/"*.pdb   # the import library lld writes for the exported ccs_host_get_abi is not needed
   normalize_pe "$EXE"
   SIZE="$(stat -c %s "$EXE")"; SHA="$(sha256sum "$EXE" | cut -d' ' -f1)"
   STUB_SIZE=0
   if [ "$MEASURE" = 1 ]; then
     "$ZIG" cc -target "$T" "${CFLAGS_HOST[@]}" -c "$HERE/src/par2_stub.c" -o "$OBJ/par2_stub.o"
-    (cd "$GEN" && "$ZIG" cc -target "$T" "$OBJ/host_main.o" "$OBJ/par2_stub.o" host.rc "${LDFLAGS[@]}" -o "$OBJ/$NAME-without-par2.exe")
+    (cd "$GEN" && "$ZIG" cc -target "$T" "$OBJ/host_main.o" "$OBJ/host_setup.o" "$OBJ/par2_stub.o" host.rc "${LDFLAGS[@]}" -o "$OBJ/$NAME-without-par2.exe")
     STUB_SIZE="$(stat -c %s "$OBJ/$NAME-without-par2.exe")"
   fi
   echo "   $EXE  $SIZE bytes  sha256 $SHA"

@@ -71,7 +71,7 @@ function connSummary(){ switch(CO.state){
  case 'file': return 'This page was opened as a file and cannot reach Classic Cart Studio. Open the website or the Windows app instead.';
  case 'error': return 'Classic Cart Studio reported a problem: '+esc(CO.error||'unknown')+'. Restart it, then check again.';
  default: return 'Checking the connection…'; } }
-function connectInline(){ if(CO.hosted&&!CO.desktop) return `<div class="msgbox"><b>Installing on your NES Classic needs Classic Cart Studio for Windows.</b> Your collection comes with you.<div class="acts" style="margin-top:8px"><button class="btn hk" id="hkDesktop">Open or Install the Windows App</button></div></div>`;
+function connectInline(){ if(CO.hosted&&!CO.desktop) return `<div class="msgbox"><b>Installing on your NES Classic or Super NES Classic needs Classic Cart Studio for Windows.</b> Your collection comes with you.<div class="acts" style="margin-top:8px"><button class="btn hk" id="hkDesktop">Open or Install the Windows App</button></div></div>`;
  return `<div class="msg">${connSummary()}</div><div class="acts"><span class="sp"></span><button class="btn" id="hkConn">Check Again</button></div>`; }
 function wireConnectInline(){ const b=$('hkConn'); if(b) b.onclick=()=>{ $('hkpanel').classList.remove('open'); openConnect(); }; }
 // Status of the backend on this computer (desktop app). On the website this opens the desktop invitation instead: the website never connects.

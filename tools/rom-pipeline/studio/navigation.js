@@ -79,7 +79,7 @@ toast=(function(orig){ return function(m){ const t=$('toast'); orig(m); const d=
  else t.classList.add('sr'); }; })(toast);
 (function(){ let wasOpen=false; const mo=new MutationObserver(()=>{ const open=!!document.querySelector(TOAST_DLG); if(open&&!wasOpen){ const t=$('toast'); if(t&&t.classList.contains('show')){ t.classList.remove('show'); clearTimeout(t._h); } } wasOpen=open; });
  mo.observe(document.body,{subtree:true, attributes:true, attributeFilter:['class','hidden']}); })();
-// Install on NES Classic: the compact step header's "All Steps" shows or hides the eight-step list (phones)
+// Install on Console: the compact step header's "All Steps" shows or hides the eight-step list (phones)
 document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('.stepall'); if(!b) return; INST.showSteps=!INST.showSteps; const w=b.closest('.stepwrap'); if(w) w.classList.toggle('all', !!INST.showSteps); b.setAttribute('aria-expanded', INST.showSteps?'true':'false'); });
 // ---- Help & User Guide on narrow screens: one header row with a chapter selector and Previous/Next; every screenshot opens enlarged ----
 (function(){ const hd=document.querySelector('#guide .ghd'); if(!hd||!$('guideClose')) return;
@@ -143,7 +143,7 @@ document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closes
 })();
 updateStatusLine(); csMenuRefresh();
 })();
-// ---- ordinary dialogs (the generic dialog #collm, Install on NES Classic, Filter & Sort, Game Details, the welcome screen, the browser
+// ---- ordinary dialogs (the generic dialog #collm, Install on Console, Filter & Sort, Game Details, the welcome screen, the browser
 //      save-name dialog): one keyboard model for all of them. Only the TOP open surface takes part. Focus enters it; Tab and Shift+Tab stay
 //      inside it (native ⋯ summaries and links included); Escape closes only it; closing returns focus to what opened it (a menu row
 //      counts as its menu's button; a control that was redrawn is found again, a removed one is not used). Surfaces that manage their own

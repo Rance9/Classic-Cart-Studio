@@ -3,8 +3,10 @@
 //   {"cmd":"community","console":"real"|"simulated","folder":…}   the console's mods read and the PC's ledger reconciled (nothing written):
 //        event {"event":"community-state",…}; then the window sends
 //   {"cmd":"community-change","install":[ID…],"update":[ID…],"remove":[ID…],"restore_settings":[ID…],"remove_settings":true|false,
-//        "files":{ID: LOCAL APPROVED FILE…}}   → event {"event":"community-plan","plan":{…}} (after the protective backup), then
-//   {"cmd":"community-confirm","digest":…,"nonce":…}   → {"event":"result","operation":"community",…}; or "quit"/"end" at any point.
+//        "files":{ID: LOCAL APPROVED FILE…},"storage_backup":USB AND SD BACKUP FILE (a mod that writes a USB drive or SD card)}
+//        → event {"event":"community-plan","plan":{…}} (after the protective backup), then
+//   {"cmd":"community-confirm","digest":…,"nonce":…,"storage_confirmed":true|false}   → {"event":"result","operation":"community",…}; or
+//        "quit"/"end" at any point. storage_confirmed: the person confirmed the USB and SD backup is of the storage the console uses.
 // The catalog is the one this build carries. A simulated console may name its own catalog file ("catalog": the tests' and the private
 // development fixtures); a real console never does.
 using CcsBackup.Device;
@@ -42,14 +44,16 @@ namespace CcsBackup.Engine
                 if (c == null || c.S("cmd") != "community-change") { Send(Result("checked", null).Set("ledger", rd.ToJson(cat)["ledger"])); AfterOperation(con); return 0; }
                 var ch = new CommunityChange { Install = Ids(c, "install"), Update = Ids(c, "update"), Remove = Ids(c, "remove"), RestoreSettings = Ids(c, "restore_settings"), RemoveSettings = c.B("remove_settings") };
                 foreach (var kv in c.O("files") ?? new Dictionary<string, object>()) if (kv.Value is string f && f.Length < 1000) ch.Files[kv.Key] = f;
+                var sb = c.S("storage_backup"); if (sb != null && sb.Length < 1000) ch.StorageBackup = sb;
                 var (plan, refused) = CommunityEngine.Prepare(con, ctx, cat, ch);
                 if (refused != null) { Send(Result(refused.State, refused.Problem)); AfterOperation(con); return 1; }
                 Send(new JObj { { "event", "community-plan" }, { "plan", plan.ToJson() } });
                 Dictionary<string, object> k = null;
                 while (!cancel && DateTime.UtcNow < plan.ExpiresUtc) { if (queue.TryTake(out k, 500)) { if (k == null || k.S("cmd") == "community-confirm" || k.S("cmd") == "quit") break; } }
                 if (k == null || k.S("cmd") != "community-confirm") { Send(Result("canceled", "Nothing was changed.").Set("protective", plan.ProtectivePath)); AfterOperation(con); return 0; }
-                var o = CommunityEngine.Execute(con, plan, k.S("digest"), k.S("nonce"), ctx);
-                Send(Result(o.State, o.Problem).Set("done", o.Done).Set("record", o.RecordFile).Set("protective", plan.ProtectivePath).Set("applies", o.Ok ? "at the console's next normal start" : null).Set("ui_gone", uiGone));
+                var o = CommunityEngine.Execute(con, plan, k.S("digest"), k.S("nonce"), ctx, k.B("storage_confirmed"));
+                Send(Result(o.State, o.Problem).Set("done", o.Done).Set("record", o.RecordFile).Set("protective", plan.ProtectivePath).Set("storage_backup", plan.Storage?.Path).Set("recovery_set", o.RecoverySetRecord)
+                    .Set("applies", o.Ok ? "at the console's next normal start" : null).Set("ui_gone", uiGone));
                 AfterOperation(con); return o.Ok ? 0 : 1;
             }
         }

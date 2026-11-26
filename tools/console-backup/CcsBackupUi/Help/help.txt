@@ -67,6 +67,26 @@ Workbench comes two ways, with the same pages and the same steps:
 
 For the parts of the window, see [The Workbench Window](#window). Words you may not know have a dotted underline where they appear: choose one to see what it means, or see the [Glossary](#glossary). For how Help works, see [Using Help](#using-help).
 
+## What this PC needs
+
+| Workbench download | What this PC needs |
+| The usual download (x64) | Windows 10 or Windows 11, with Microsoft .NET Framework 4.8 or later. It is part of Windows 10 version 1903 and later, and of Windows 11. |
+| Workbench for Windows on Arm (Arm64) | Windows 11, with Microsoft .NET Framework 4.8.1 or later. It is part of Windows 11 version 22H2 and later. |
+
+Classic Cart Studio installs the download made for this PC.
+
+If this PC does not have the .NET Framework Workbench needs, a small window, **Before Workbench can open**, appears instead of Workbench:
+
+1. **Download Installer** opens Microsoft's page for the needed version in your web browser. Choose the Runtime download there, not the Developer Pack, and install it. Windows asks for an administrator's permission.
+2. Choose **Continue**. Workbench checks again and, when everything is there, opens as you started it. If something is still missing, the window stays open and says what.
+3. If Windows asks you to restart after installing, restart this PC, then open Workbench again.
+
+No internet on this PC? The window says how to get Microsoft's offline installer on another PC and bring it here. **Cancel** closes the window; nothing is changed. Workbench never downloads or installs anything itself.
+
+If the window says this copy of Workbench is damaged, installing .NET Framework does not help: download Workbench again from ClassicCartStudio.com/app/, or run the Classic Cart Studio installer again for the copy it installed.
+
+A USB driver is needed only for console tasks. Workbench offers to set one up when a task needs it, and opening, browsing, checking and repairing backup files never need it. See [Connect Your Console](#connect).
+
 @end
 
 @topic dashboard
@@ -368,7 +388,7 @@ The line at the bottom of the window says what Workbench is doing now: **No task
 
 ## The title bar
 
-The title bar names Workbench and the version you are running, for example **CCS Console Workbench — v0.11.11 (Preview)**. **(Preview)** marks a preview version. Workbench shows its own version in the title bar however it was opened, also from Classic Cart Studio.
+The title bar names Workbench and the version you are running, for example **CCS Console Workbench — v0.11.12 (Preview)**. **(Preview)** marks a preview version. Workbench shows its own version in the title bar however it was opened, also from Classic Cart Studio.
 
 ## The window buttons
 
@@ -867,10 +887,18 @@ When you prepare a console from Classic Cart Studio for Windows, CCS Mod is sele
 
 | Choice | What it does |
 | Choose what opens first with CCS Nucleus | Off: the console keeps its current startup; the page says what that is. On: CCS Nucleus decides what opens first. It works with or without CCS HOME. |
-| Open a menu straight away | **Open first** opens immediately at every start. The startup chooser is off. |
-| Show the startup chooser | A screen to choose a menu at every start. **Start automatically with** sets what starts if you do nothing for 10 seconds: a menu, **Last menu used** (until you have used one, the menu chosen before), or **Wait for me to choose**. Your own system images are choices there too. |
+| Open a menu straight away | **Open first** opens immediately at every start: a menu, or **Last menu used** (until you have used one, the menu chosen before). The startup chooser is off. |
+| Show the startup chooser | A screen to choose a menu at every start. **Start automatically with** sets what starts if you do nothing until its countdown ends (10 seconds, or the countdown set on the console): a menu, **Last menu used** (until you have used one, the menu chosen before), or **Wait for me to choose**. Your own system images are choices there too. |
 
 CCS HOME is in these lists only when CCS Mod is chosen or installed. If CCS HOME was chosen to open first and you then clear CCS Mod, Original Menu takes its place, and the page says so.
+
+Settings made on the console itself, in the startup chooser's **Recovery and Settings**, are shown as they are and kept:
+
+- Another menu chosen there to open first, such as one of your own system images or a community menu, is in the lists as its name with **(as set now)**. One of your own system images opens first only from the startup chooser; if you choose to open a menu straight away, Original Menu takes its place and the page says so.
+- A countdown other than 10 seconds, or **Last menu used** with the countdown off, stays as it is; the page says so under the list. Choosing a menu to start automatically after the countdown was off starts it after 10 seconds.
+- When the startup chooser is set not to show at start, **Show the startup chooser at every start** appears unticked. It stays that way unless you tick it.
+
+A part of the startup you do not change on this page is written back exactly as the console has it, also when you change another part or update CCS Nucleus.
 
 When you prepare an original console from Classic Cart Studio for Windows, CCS Nucleus is on at first, opening CCS HOME straight away. In every other case it starts as the console has it now.
 
@@ -932,6 +960,15 @@ Each action first reads which add-ons the console has. Nothing is written then.
 
 If the console does not have the add-on you chose to remove, Workbench says so and changes nothing.
 
+## Update to this version
+
+When the console has CCS Mod, CCS Nucleus or its startup chooser from an earlier version of Workbench, the startup page says so and offers **Update … to this version**. Nothing is updated unless you choose it, and the review names it under **Updates to this version**.
+
+- hakchi installs this version over the earlier one at the console's next normal start, as it installs any package. Only the add-on's own unchanged files are replaced; a file someone changed stops the update and is kept.
+- What opens at power-on, Last Used, the countdown or Wait for a Choice, your system images and community menus in CCS Nucleus's list, games and saves are kept. An update on its own does not touch the start setting.
+- A community menu needs this version of CCS Nucleus. Installing one on a console with an earlier CCS Nucleus updates it in the same review. See [Community Mods](#community).
+- If the update cannot be written, it stops there: nothing more is written and the console keeps its earlier version. Review it again to finish it.
+
 ## Make a change
 
 1. Start the console in recovery mode, as the **Connect the console** steps show. See [Connect Your Console](#connect).
@@ -943,7 +980,7 @@ If the console does not have the add-on you chose to remove, Workbench says so a
 
 ## The review
 
-The review starts with a plain summary: **CCS HOME** (added with CCS Mod, kept, removed or not selected), **Original Menu** (kept, with or without the CCS HOME tile), **Startup** (CCS Nucleus opening a menu straight away or showing the startup chooser, or the current startup kept), and either **Startup chooser: Off** or **If you do nothing** (what starts after 10 seconds). Then it shows the console, the add-ons added and removed, when the change takes effect, the backup made first, and what is written, in order. Only files on the console's data storage are written: hakchi's transfer folder, CCS Nucleus's setting and CCS HOME's folder. No kernel, bootloader or system is changed.
+The review starts with a plain summary: **CCS HOME** (added with CCS Mod, kept, removed or not selected), **Original Menu** (kept, with or without the CCS HOME tile), **Startup** (CCS Nucleus opening a menu straight away or showing the startup chooser, or the current startup kept), and either **Startup chooser** (off, or not shown at start) or **If you do nothing** (what starts after the countdown). Then it shows the console, the add-ons added and removed, when the change takes effect, the backup made first, and what is written, in order. Only files on the console's data storage are written: hakchi's transfer folder, CCS Nucleus's setting and CCS HOME's folder. No kernel, bootloader or system is changed.
 
 The backup made just now is checked again when you confirm and stays locked until the change ends. If it is missing or has changed, nothing is written. A review can be confirmed once, until the time shown under **Technical details**.
 
@@ -1474,7 +1511,7 @@ Other results: **Nothing needed to change**, **Canceled: nothing was changed**, 
 
 @topic community
 @title Community Mods
-@pages community, community-details, community-files, community-plan, community-remove, community-rollback, community-result
+@pages community, community-details, community-files, community-storage, community-plan, community-remove, community-rollback, community-result
 @summary Browse mods other authors make for your console, and install, update or remove them through Hakchi's own route. Each change is reviewed, and the console is backed up first.
 
 Community Mods lists mods other authors make for your console: extra controls, theme tools, emulators and other menus. Open **Console Composer**, then **Community Mods**. A mod is listed only after its author agrees to have it listed and its exact version has been reviewed.
@@ -1498,7 +1535,7 @@ When the list has mods, their cards also appear under CCS Mod's on the first add
 
 ## Details
 
-Details shows the mod's version, where it applies, its author and the others credited, its license, what it needs, what it cannot be used with, what its own install removes, whether it uses a USB drive or SD card, and what removing it does. **Project Page**, **Support**, **License** and **Source** open the author's own pages in your browser. **Show Pictures** shows the pictures its author allows, only when each one is exactly the approved picture.
+Details shows the mod's version, where it applies, its author and the others credited, its license, what it needs, what it cannot be used with, what its own install removes, whether it uses a USB drive or SD card, how it starts, and what removing it does. **Project Page**, **Support**, **License** and **Source** open the author's own pages in your browser. **Show Pictures** shows the pictures its author allows, only when each one is exactly the approved picture.
 
 A mod marked **Alpha** is an early release. Its author's own warnings are shown with it.
 
@@ -1507,16 +1544,50 @@ A mod marked **Alpha** is an early release. Its author's own warnings are shown 
 1. Choose **Install…** on the mod's card or its Details. Workbench connects to the console and reads which mods it has. Nothing is written.
 2. Workbench works out the whole change at once: a mod that needs another selects it too and says why, and two mods that cannot be used together are refused with the reason.
 3. For each mod, choose where its file comes from: **Download…** saves it from the author's own release into a folder you choose, or **Choose the File…** uses the approved file already on this PC. Either way, the file must be exactly the approved one. A different file is never accepted in its place.
-4. **Review the Change** backs the console up as it is now, then shows exactly what would change. Nothing has been written yet.
-5. **Make This Change** writes it. The mods are installed at the console's next normal start: switch the console off, disconnect the USB cable and switch it on. The console restarts once.
-6. Connect again later: Workbench checks each mod's files on the console and shows what it found in **Installed**.
+4. A mod that uses a USB drive or SD card asks for a backup of that storage next: see **A mod that uses a USB drive or SD card**, below.
+5. **Review the Change** backs the console up as it is now, then shows exactly what would change, including anything of CCS Nucleus a menu needs. Nothing has been written yet.
+6. **Make This Change** writes it. The mods are installed at the console's next normal start: switch the console off, disconnect the USB cable and switch it on. The console restarts once.
+7. Connect again later: Workbench checks each mod's files on the console and shows what it found in **Installed**.
 
 | Situation | What it means |
 | Connect to download this mod, or choose the approved file already on your PC. | Workbench has no copy of the mod's file yet. |
 | Two RetroArch packages | These two RetroArch packages use the same program files. Choose one for this system. Replacing one with the other is one reviewed change. |
 | Its install also removes … | The author's own install removes those packages if they are installed. They are listed before you confirm, and they are in the backup made first. |
 | Needs a mod that is not listed | The change is refused: Workbench installs only listed mods. |
-| Uses a USB drive or SD card | Workbench cannot back that storage up yet, so it does not install, update or remove that mod. |
+| Uses a USB drive or SD card | Choose a USB and SD backup of that storage before the change. Without one that holds the places the mod changes, the change is not made. |
+| CCS Nucleus on this console is an earlier version | That version cannot list a community menu, so the same review updates it to this version (and its startup chooser when that is earlier too), keeping its settings and choices. |
+
+## Menus and the startup chooser
+
+A mod in the **Menus** section is another menu for your console. Most start from CCS Nucleus's startup chooser, the screen at power-on where you choose a menu:
+
+- Installing such a menu adds it to the startup chooser as one of its choices. If your console does not have the startup chooser yet, the same change adds it, and CCS Nucleus too when it is not there. The review says so under **This addition uses the startup chooser** and names every part it adds; nothing is added without being shown. A CCS Nucleus from an earlier version of Workbench is updated in the same review.
+- An approved update of the menu, or a change to another of its versions (when another mod needs that), changes its choice in the startup chooser in the same review.
+- When the startup chooser is added, it appears at every power-on. If you do nothing, the menu that opens now still opens after the countdown (10 seconds, or the one already set in CCS Nucleus): Original Menu, or CCS HOME when CCS Nucleus already opens it. You can change this in the chooser's **Recovery and Settings**, or in **Add-ons and Startup**.
+- If the startup chooser is already there but set not to appear at power-on, that setting is kept. The menu is in the chooser, which opens from **CCS Nucleus** in Original Menu, or with **Choose Another Menu** in CCS HOME.
+- Leaving the menu opens the startup chooser again, so you can choose another menu. Each menu's card says how to leave it.
+- Removing the menu removes its choice from the startup chooser. The startup chooser itself stays; removing it is in **Add-ons and Startup**, with its own review.
+
+A menu that starts from its own entry in Original Menu does not need the startup chooser. Games in your collections stay standard Hakchi games, so a menu is listed only once they work inside it.
+
+## A mod that uses a USB drive or SD card
+
+Some mods keep their files on a USB drive or SD card used with the console. Workbench never writes that storage; the mod does, on the console, once it is installed. So before such a mod is installed, updated or removed, Workbench asks for a backup of that storage:
+
+1. Make a backup of the drive with **USB and SD Backup** on this PC: the whole drive, or at least the folders the mod uses. The page lists them.
+2. On **The USB Drive or SD Card**, choose that backup with **Choose the Backup…**. Workbench reads the whole file and checks it: it must pass its own check, hold everything that was chosen for it, and hold every place the mod changes, all on one USB drive or SD card. It then shows the drive's name, size and when it was backed up.
+3. The review shows that backup again. Tick **This backup is of the USB drive or SD card I use with this console.** before **Make This Change**: Workbench cannot check that itself, because the console's USB port is the one connected to this computer and Workbench never reads that storage through the console.
+4. When you confirm, both backups are checked again: the console's backup made just now and the USB and SD backup. If either changed, nothing is written. They are then kept together as the change's recovery set, and the record of the change names both.
+
+To undo the change completely, **Console Restore** puts the console back from its backup, and **USB and SD Backup**'s **Restore** puts the USB drive or SD card back from its backup. **Installed** shows which USB and SD backup was made before each such mod.
+
+| Situation | What it means |
+| No backup chosen | Choose a USB and SD backup of that storage first. Nothing was changed. |
+| It did not pass its check | The backup is damaged. Repair it with USB and SD Backup, or choose another. |
+| It does not hold everything that was chosen for it | Some files could not be read or changed while they were copied. Make a new backup. |
+| It does not hold a place the mod changes | Back up that folder, or the whole drive. |
+| It is not a USB drive or SD card | The backup is of a folder or drive of this computer. Choose a backup of the drive you use with the console. |
+| It does not record which folders were chosen | It was made with an earlier version of Workbench. Make a new USB and SD backup. |
 
 ## Remove a mod
 
@@ -1532,7 +1603,7 @@ A mod that another installed mod needs cannot be removed alone: remove both, or 
 
 ## Restore the pre-install backup
 
-**Restore the Pre-install Backup…** is not the same as Remove: it puts the whole console back to how it was when the mod was installed. Workbench first checks that backup, then says plainly the date and what returns: games, saves, settings and other mods changed after that are replaced by what the backup holds. **Continue to Restore…** opens Restore a Backup's own review, which backs up the console as it is now, so later progress can be kept from that backup.
+**Restore the Pre-install Backup…** is not the same as Remove: it puts the whole console back to how it was when the mod was installed. For a mod that uses a USB drive or SD card, put that storage back too with **USB and SD Backup**'s **Restore**, from the USB and SD backup chosen for the change. Workbench first checks that backup, then says plainly the date and what returns: games, saves, settings and other mods changed after that are replaced by what the backup holds. **Continue to Restore…** opens Restore a Backup's own review, which backs up the console as it is now, so later progress can be kept from that backup.
 
 ## If something goes wrong
 
@@ -1545,6 +1616,8 @@ A change that stops says so in three parts: **The mod could not be installed.**,
 - A mod's own scripts run on the console with full control of it. The fingerprint check proves the file is the one that was reviewed; it does not make the author's code safe or limit what it does.
 - The PC keeps a record of the mods Workbench installed on each console, beside your backups. Hakchi listing a package is not taken as proof: its files are read back and compared.
 - The catalog is carried inside Workbench. A newer catalog would be used only when signed with the publisher's key; this version has none, so it uses the one it carries.
+- A menu's choice is kept in CCS Nucleus's own list of choices on the console's data storage, written by Workbench's own copy of CCS Nucleus and read back. The chooser starts the menu's program, one of the files its package installs, and shows the chooser again when it ends.
+- A USB and SD backup records which folders were chosen for it, so Workbench can tell which places it holds. A whole drive image holds everything on the drive.
 
 @end
 

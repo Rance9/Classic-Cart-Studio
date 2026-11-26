@@ -7,6 +7,7 @@ a real game, at a path with spaces and letters outside ASCII); a new data folder
               file is unchanged, nothing is added to the library or a collection, and the run's folders are gone
   rebuilt     the same file name with new bytes: the next run plays the new bytes
   busy        a second --play while a game is open ends with 4 at once and leaves the open game as it is
+  close early a close of the player's window the moment it shows (while the player is still starting) is never lost: it ends with 0
   studio open with a Classic Cart Studio open (its single-instance lock taken): a real one is never touched and its window is not brought
               forward; otherwise a stand-in holds the lock with its link pipe listening, and --play neither waits for it nor sends it anything
   refusals    no such file: 3; --play without a file: 2; a file without a header whose content no record knows: 3; no game player: 5 (a
@@ -48,6 +49,13 @@ def players():
     r = subprocess.run(["tasklist", "/FI", "IMAGENAME eq " + os.path.basename(A.player), "/FO", "CSV", "/NH"], capture_output=True, text=True)
     return [int(l.split('","')[1]) for l in r.stdout.splitlines() if l.startswith('"')]
 def launch(*args): return subprocess.Popen([A.launcher] + list(args), env=ENV)
+def shown_player_window():   # the game player's window, the moment it is visible (its window class; no other player runs during this test)
+    found = []; name = ctypes.create_unicode_buffer(64)
+    @ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
+    def cb(h, l):
+        if U.IsWindowVisible(h) and U.GetClassNameW(h, name, 64) and name.value == "ClassicCartStudioPlayer": found.append(h); return False
+        return True
+    U.EnumWindows(cb, 0); return found[0] if found else None
 def wait_player(timeout=60):
     t0 = time.time()
     while time.time() - t0 < timeout:
@@ -93,6 +101,16 @@ try:
     ss = [s for s in sessions() if s.startswith("session-")]; g2 = (json.load(open(os.path.join(DATA, "play", ss[0], "session.json"), encoding="utf-8")).get("games") or [{}])[0] if ss else {}
     ok("rebuilt_file_plays_its_new_bytes", g2.get("content_sha256") == sha(rom2[16:]) and open(g2["rom"], "rb").read() == rom2)
     close_player(pid); ok("rebuilt_close_ends_with_0", p.wait(60) == 0)
+    # ---- the window's close the moment the window shows, while the player is still starting: one close, never lost
+    p = launch("--play", ROM); t0 = time.time(); hw = None
+    while hw is None and p.poll() is None and time.time() - t0 < 60: hw = shown_player_window()
+    if hw: U.PostMessageW(hw, 0x0010, 0, 0)
+    try: rc = p.wait(30)
+    except subprocess.TimeoutExpired: rc = None
+    ok("close_as_the_window_shows_ends_with_0", hw is not None and rc == 0, (hw is not None, rc))
+    if rc is None:
+        for pid in players(): close_player(pid)
+        p.wait(60)
     # ---- a running Classic Cart Studio (its single-instance lock and link pipe): --play neither uses nor contacts it
     K = ctypes.windll.kernel32; K.CreateMutexW.restype = wt.HANDLE; K.CreateNamedPipeW.restype = wt.HANDLE
     mx = K.CreateMutexW(None, True, "Local\\ClassicCartStudio.Main"); real = K.GetLastError() == 183   # ERROR_ALREADY_EXISTS: a real Classic Cart Studio is open

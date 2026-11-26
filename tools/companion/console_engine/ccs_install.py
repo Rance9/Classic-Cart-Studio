@@ -1,8 +1,8 @@
 """Installing Classic Cart Studio's HOME on a console that runs hakchi (K3). Tested here against disposable stand-ins; a real console is
 reached only through the console transport worker (worker_console), in a session opened for one tier (inspect or install, Gate G1 in code:
 both open in this version), and the installer never rolls a real console back by itself (docs/console-install-architecture.md sections 13
-and 14). The consoles: the North American NES Classic Edition and the North American and European Super NES Classic Edition, each told
-apart by its own software's board and region (check_device); a change on any model but the NES Classic also needs the shared platform
+and 14). The consoles: the NES Classic Edition and the Super NES Classic Edition, of North America and of Europe, each told apart by its
+own software's board and region (check_device); a change on any model but the NES Classic also needs the shared platform
 registry's capability for that model's add-ons (model_refusal).
 
 Where (all under /var/lib/ccs; nothing else on the console is written except through hakchi's own module commands):
@@ -68,17 +68,21 @@ ADDON_LABELS = {"mod": "CCS Mod", "nucleus": "CCS Nucleus", "nucleus-chooser": "
 # each add-on's program in hakchi's overlay: there without its package listed by hakchi, it is not this program's (refused, nothing changed)
 ADDON_PROGRAMS = {"mod": "/bin/ccs-mod", "nucleus": "/bin/ccs-nucleus", "nucleus-chooser": "/etc/ccs/nucleus/chooser/bin/ccs-home-armv7"}
 ADDON_RECORDS = ("owned", "nucleus")   # what the add-on packages' own scripts keep in /var/lib/ccs (read, never written here)
+OWNED_DIR = ROOT_DIR + "/owned"   # the console programs' own journals (lib.sh OWNED): their files are theirs; a removal takes the folder once it is empty
 KNOWN_ROOT = ("pkg", "data", "install", "integration", "games") + ADDON_RECORDS   # the folders of /var/lib/ccs this program knows (anything else: kept, reported)
 GAMES_DIR = GO.GAMES_DIR   # without CCS Mod: the game files the Hakchi entries need, one copy per attempt (games_only.py); never a HOME
 COLLECTIONS_RECORD = "ccs-owned-collections/1"   # install/collections-<sha16>.json: the Hakchi-games console program's files this program put there
 # the add-on choice (the CCS Console Workbench's AddonChoice, CcsBackup/Engine/MethodEngine.cs): CCS Mod or not; CCS Nucleus none, direct
 # (what opens at power-on starts straight away) or chooser (the startup chooser first); start: what CCS Nucleus opens (native: Original
-# Menu; ccs-home: CCS HOME, which needs CCS Mod); auto, with the chooser: what it starts by itself after its countdown (menu: start; last: the
-# menu used last; wait: no countdown)
+# Menu; ccs-home: CCS HOME, which needs CCS Mod; or the console's own default, another of its choices set on the console, kept as it is);
+# auto: what it starts by itself (menu: start after the countdown; last: the menu used last, after the countdown, or only selected first with
+# none; wait: no countdown); countdown: its seconds (the console's own value kept unless the person changes it; 10 for a new choice);
+# at_start: with the chooser installed, whether it shows at every start (the console's own setting kept)
 NUCLEUS_PROFILES = ("none", "direct", "chooser"); STARTS = ("native", "ccs-home"); AUTOS = ("menu", "last", "wait"); COUNTDOWN = 10
 NUCLEUS_RANK = {"none": 0, "direct": 1, "chooser": 2}
+START_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,30}$")   # another registry option as what opens first (CCS Nucleus checks it is listed)
 # Studio's own default: CCS Mod (CCS HOME's tile) is added; CCS Nucleus only when it is asked for
-STUDIO_CHOICE = {"mod": True, "nucleus": "none", "start": "native", "auto": "menu"}
+STUDIO_CHOICE = {"mod": True, "nucleus": "none", "start": "native", "auto": "menu", "countdown": COUNTDOWN, "at_start": True}
 MADE_MARK = "# stand-in: folders this install made: "   # (FakeConsole only: its note in hakchi's list for a CCS package)
 HOME_LAYOUT = "mod"   # the one CCS HOME package layout (native_home/console_package.py LAYOUTS): CCS Mod provides CCS HOME
 PC_DIR = "native-covers"   # a console package's files for this computer only (native_home/console_package.py PC_DIR): never sent
@@ -101,8 +105,8 @@ CHOOSER_INPUTS: dict | None = None
 LEGACY_NAME = "ccs-home"; LEGACY_FILE = "/etc/init.d/S81clover-mcp"
 OVERLAY = "/var/lib/hakchi/rootfs"; HMOD_DIR = "/var/lib/hakchi/hmod"
 HAKCHI_KERNEL = "3.4.113.29-madmonkey"
-# the consoles this program works with: a North American NES Classic Edition, or a North American or European Super NES Classic Edition,
-# running the pinned hakchi (Hakchi2 CE 3.9.3's bundled hakchi.hmod v1.0.4-126 with its kernel) on its own firmware. The model is the one
+# the consoles this program works with: an NES Classic Edition or a Super NES Classic Edition, of North America or of Europe, running the
+# pinned hakchi (Hakchi2 CE 3.9.3's bundled hakchi.hmod v1.0.4-126 with its kernel) on its own firmware. The model is the one
 # the console's own software names by its board and REGION (/etc/clover/boardtype and /etc/clover/REGION, read by the worker's identify;
 # the shared platform registry decides which model a board and region are), never a choice made on the PC; hakchi's own system code
 # ($sftype-$sfregion) must say the same, and the data storage must be where that model keeps it. Anything else, or anything unreadable, is
@@ -111,13 +115,17 @@ SUPPORTED = {"kernel": HAKCHI_KERNEL, "hakchi": "v1.0.4-126"}
 # per model: its names, the registry's capability prefix (on any model but the NES Classic, a change needs the registry's "<prefix>-addons"
 # capability: CCS Mod, CCS Nucleus and CCS HOME on that model), hakchi's system codes this program installs on, its built-in games, and
 # whether Nintendo's software on it has the NES emulator that ordinary Hakchi games of NES titles launch (clover-kachikachi: the NES Classic
-# only; the Super NES Classic's own software has none, so a collection's NES games reach it only through CCS HOME's own game player)
+# only; the Super NES Classic's own software has none, so a collection's NES games reach it only through CCS HOME's own game player).
+# hakchi's system codes are $sftype-$sfregion as the pinned hakchi's softwareCheck sets them (hakchi.hmod v1.0.4-126,
+# etc/preinit.d/b0010_functions: a REGION of EUR is eur, JPN is jpn, anything else usa), so a European console is nes-eur or snes-eur when its
+# software names REGION EUR. Hakchi2 CE 3.9.3's own program knows one NES Classic for both regions ("NES (USA/Europe)", the 30 built-in
+# games of its nes-usa list) and keeps the North American and European Super NES Classic apart (21 built-in games each)
 MODELS = {
-    "nes-classic-edition": {"name": "NES Classic Edition", "short": "NES Classic", "capability": "nes-classic", "systems": ("nes-usa",), "stock_games": 30, "nes_emulator": True},
+    "nes-classic-edition": {"name": "NES Classic Edition", "short": "NES Classic", "capability": "nes-classic", "systems": ("nes-usa", "nes-eur"), "stock_games": 30, "nes_emulator": True},
     "snes-classic-edition": {"name": "Super NES Classic Edition", "short": "SNES Classic", "capability": "snes-classic", "systems": ("snes-usa", "snes-eur"), "stock_games": 21, "nes_emulator": False},
 }
 DATA_MOUNT = "/dev/nandc ext4"   # where both models keep their data storage (/var/lib): the console's NAND part nandc, an ext4 file system
-SUPPORTED_TEXT = "the North American NES Classic Edition and the North American and European Super NES Classic Edition"
+SUPPORTED_TEXT = "the NES Classic Edition and the Super NES Classic Edition, of North America or Europe"
 HWID_RE = re.compile(r"^[0-9A-Za-z-]{4,64}$")
 PROTECTED =("/usr", "/var/saves", "/etc", "/var/lib/hakchi", "/var/lib/clover", "/bin", "/sbin", "/lib", "/boot", "/dev", "/proc", "/sys", "/newroot")
 WRITE_ROOTS = (ROOT_DIR + "/", "/tmp/ccs/")
@@ -264,20 +272,23 @@ def staged_package(root: str | None) -> str | None:
 
 # ---------------------------------------------------------------- the add-on choice
 def addon_choice(d: dict | None = None) -> dict:
-    """a requested add-on choice, complete and checked: {"mod": bool, "nucleus": "none"|"direct"|"chooser", "start": "native"|"ccs-home",
-    "auto": "menu"|"last"|"wait"}. What is not given is Studio's default (STUDIO_CHOICE). start counts only with CCS Nucleus and auto only with
-    its chooser; otherwise they are their defaults, so one choice always gives one plan. A choice that cannot be made raises Refused with its
-    reason in plain words"""
+    """a requested add-on choice, complete and checked: {"mod": bool, "nucleus": "none"|"direct"|"chooser", "start": "native"|"ccs-home"|the
+    console's own default, "auto": "menu"|"last"|"wait", "countdown": 0-99, "at_start": bool}. What is not given is Studio's default
+    (STUDIO_CHOICE). start, auto, countdown and at_start count only with CCS Nucleus; otherwise they are their defaults, so one choice always
+    gives one plan (with CCS Nucleus they carry the console's own start setting as it is, so a part not changed is written as it was). A
+    choice that cannot be made raises Refused with its reason in plain words"""
     ch = dict(STUDIO_CHOICE)
     for k in ch:
         if isinstance(d, dict) and d.get(k) is not None: ch[k] = d[k]
     if not isinstance(ch["mod"], bool): raise Refused("addons", "Choose whether CCS Mod is added.")
     if ch["nucleus"] not in NUCLEUS_PROFILES: raise Refused("addons", "Choose whether CCS Nucleus is added, and how it starts.")
-    if ch["start"] not in STARTS: raise Refused("addons", "Choose what opens when the console is turned on.")
+    if not isinstance(ch["start"], str) or not START_ID_RE.match(ch["start"]): raise Refused("addons", "Choose what opens when the console is turned on.")
     if ch["auto"] not in AUTOS: raise Refused("addons", "Choose what the startup chooser starts by itself.")
+    if isinstance(ch["countdown"], bool) or not isinstance(ch["countdown"], int) or not 0 <= ch["countdown"] <= 99 or (ch["countdown"] == 0 and ch["auto"] == "menu"):
+        raise Refused("addons", "Choose how long the startup chooser counts down.")
+    if not isinstance(ch["at_start"], bool): raise Refused("addons", "Choose whether the startup chooser shows at start.")
     if ch["nucleus"] != "none" and ch["start"] == "ccs-home" and not ch["mod"]: raise Refused("addons", HOME_NEEDS_MOD)
-    if ch["nucleus"] == "none": ch["start"], ch["auto"] = "native", "menu"
-    elif ch["nucleus"] == "direct": ch["auto"] = "menu"
+    if ch["nucleus"] == "none": ch.update(start="native", auto="menu", countdown=COUNTDOWN, at_start=True)
     return ch
 
 def choice_addons(ch: dict) -> list[str]:
@@ -285,26 +296,31 @@ def choice_addons(ch: dict) -> list[str]:
     return (["mod"] if ch["mod"] else []) + (["nucleus"] if ch["nucleus"] != "none" else []) + (["nucleus-chooser"] if ch["nucleus"] == "chooser" else [])
 
 def start_line(ch: dict) -> str | None:
-    """CCS Nucleus's start for a choice, as its own command takes it: "DEFAULT CHOOSER HOME SELECTION TIMEOUT"; None without CCS Nucleus"""
+    """CCS Nucleus's start for a choice, as its own command takes it: "DEFAULT CHOOSER HOME SELECTION TIMEOUT"; None without CCS Nucleus.
+    Every part comes from the choice, which starts from the console's own setting (console_addons), so what was not changed stays as it is"""
     if ch["nucleus"] == "none": return None
-    chooser = ch["nucleus"] == "chooser"
-    return " ".join([ch["start"], "always" if chooser else "never", "on" if ch["mod"] else "off", "last" if chooser and ch["auto"] == "last" else "default",
-                     "0" if chooser and ch["auto"] == "wait" else str(COUNTDOWN)])
+    shown = ch["nucleus"] == "chooser" and ch.get("at_start", True)
+    return " ".join([ch["start"], "always" if shown else "never", "on" if ch["mod"] else "off", "last" if ch["auto"] == "last" else "default",
+                     "0" if ch["auto"] == "wait" else str(ch.get("countdown", COUNTDOWN))])
 
-def _menu_name(default: str) -> str: return {"native": "Original Menu", "ccs-home": "CCS HOME"}.get(default, "one of your own system images")
-def start_words(default: str, chooser_on: bool, selection: str, timeout: int) -> str:
-    """what opens at power-on, in plain words"""
-    name = _menu_name(default)
-    if not chooser_on: return f"When the console is turned on, {name} opens straight away. The startup chooser is off."
+def _menu_name(default: str, name: str | None = None) -> str: return {"native": "Original Menu", "ccs-home": "CCS HOME"}.get(default) or name or "one of your own system images"
+def start_words(default: str, chooser_on: bool, selection: str, timeout: int, name: str | None = None, chooser_installed: bool = False) -> str:
+    """what opens at power-on, in plain words (name: what the console calls its default when it is another of its choices)"""
+    nm = _menu_name(default, name)
+    if not chooser_on:
+        first = f"the menu you used last opens straight away ({nm} the first time)" if selection == "last" else f"{nm} opens straight away"
+        return f"When the console is turned on, {first}. " + ("The startup chooser does not show at start; it opens from CCS Nucleus in Original Menu, or with Choose Another Menu in CCS HOME."
+                                                             if chooser_installed else "The startup chooser is off.")
     secs = f"{timeout} second{'' if timeout == 1 else 's'}"
-    return "When the console is turned on, the startup chooser appears first. " + ("Nothing starts until you choose." if timeout == 0
-            else f"If you do nothing, the menu you used last starts in {secs} ({name} the first time)." if selection == "last" else f"If you do nothing, {name} starts in {secs}.")
+    return "When the console is turned on, the startup chooser appears first. " + (
+        (f"Nothing starts until you choose; the menu you used last is selected first ({nm} the first time)." if selection == "last" else "Nothing starts until you choose.") if timeout == 0
+        else f"If you do nothing, the menu you used last starts in {secs} ({nm} the first time)." if selection == "last" else f"If you do nothing, {nm} starts in {secs}.")
 
-def start_text(ch: dict) -> str:
+def start_text(ch: dict, name: str | None = None) -> str:
     """what opens at power-on with a choice, in plain words (the CCS Console Workbench's AddonChoice.StartText)"""
     if ch["nucleus"] == "none": return "When the console is turned on, Original Menu opens, as it does now." + (" CCS HOME opens from its tile there." if ch["mod"] else "")
     p = start_line(ch).split(" ")
-    return start_words(p[0], p[1] == "always", p[3], int(p[4]))
+    return start_words(p[0], p[1] == "always", p[3], int(p[4]), name, ch["nucleus"] == "chooser")
 
 def addons_words(ch: dict) -> str:
     """which add-ons a choice names, in plain words ("CCS Mod and CCS Nucleus with its startup chooser"; "no CCS add-ons")"""
@@ -323,7 +339,7 @@ def keep_choice(want: dict, now: dict) -> dict:
     k = dict(want, mod=bool(want["mod"] or now["mod"]))
     if NUCLEUS_RANK[now["nucleus"]] > NUCLEUS_RANK[want["nucleus"]]:
         k["nucleus"] = now["nucleus"]
-        if want["nucleus"] == "none": k["start"], k["auto"] = now["start"], now["auto"]
+        if want["nucleus"] == "none": k.update({x: now[x] for x in ("start", "auto", "countdown", "at_start") if x in now})
     try: return addon_choice(k)
     except Refused: return addon_choice(dict(k, start="native"))
 
@@ -354,7 +370,11 @@ def parse_registry(b: bytes | None) -> dict | None:
     for i in opts_ids:
         kind = g.get(f"opt.{i}.kind")
         if not ID_RE.match(i) or not g.get(f"opt.{i}.label"): return None
-        if (kind == "native") != (i == "native") or kind not in ("native", "ccs-home", "owner-root"): return None
+        if (kind == "native") != (i == "native") or kind not in ("native", "ccs-home", "owner-root", "community"): return None
+        if kind == "community":   # a community menu Workbench added to the startup chooser: its hakchi package and its program
+            pkg, prog = g.get(f"opt.{i}.package") or "", g.get(f"opt.{i}.program") or ""
+            if not re.match(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$", pkg) or pkg.lower().startswith("ccs-") or pkg == "hakchi" or pkg.endswith(".hmod"): return None
+            if not re.match(r"^/var/lib/hakchi/rootfs/[A-Za-z0-9._/-]{1,177}$", prog) or "//" in prog or "/../" in prog + "/" or prog.endswith("/") or g.get(f"opt.{i}.fallback") != "native": return None
         opts[i] = kind
     if g.get("default") not in opts or (g["chooser"] == "never" and opts[g["default"]] == "owner-root"): return None
     return {"lines": kv, "generation": int(g["generation"]), "default": g["default"], "selection": g["selection"], "chooser": g["chooser"],
@@ -369,8 +389,9 @@ def nucleus_start_state(c) -> dict:
     reg = parse_registry(c.read(REGISTRY, 65536)) if t == "file" else None
     if reg is None: return {"state": "invalid", "line": None}
     home = "on" if "ccs-home" in reg["options"] else "off"
+    label = next((v for k, v in reg["lines"] if k == f"opt.{reg['default']}.label"), None)
     return {"state": "ok", "line": f"{reg['default']} {reg['chooser']} {home} {reg['selection']} {reg['timeout']}", "default": reg["default"], "chooser": reg["chooser"],
-            "home": home, "selection": reg["selection"], "timeout": reg["timeout"], "default_kind": reg["kinds"][reg["default"]]}
+            "home": home, "selection": reg["selection"], "timeout": reg["timeout"], "default_kind": reg["kinds"][reg["default"]], "default_label": label}
 
 # ---------------------------------------------------------------- the console's add-ons (read only)
 def console_addons(c) -> dict:
@@ -402,20 +423,23 @@ def console_addons(c) -> dict:
     except (ConnectionError, OSError, ValueError) as e: raise Refused("preflight", f"the add-ons on this console could not be read ({e}); nothing was changed") from None
     if "nucleus" in pk and start["state"] == "invalid": raise Refused("preflight", "CCS Nucleus's settings on this console cannot be read (its registry is not one it would use); they are kept as they are, and nothing was changed. CCS Console Workbench's Console Restore can repair them")
     nuc = "none" if "nucleus" not in pk else ("chooser" if "nucleus-chooser" in pk else "direct")
-    p = (start.get("line") or "").split(" ")
-    ch = {"mod": "mod" in pk, "nucleus": nuc, "start": "ccs-home" if p[0] == "ccs-home" else "native",
-          "auto": "menu" if len(p) != 5 else ("last" if p[3] == "last" else "wait" if p[4] == "0" else "menu")}
-    if nuc == "none": ch["start"], ch["auto"] = "native", "menu"
-    elif nuc == "direct": ch["auto"] = "menu"
-    text = f"This console has {addons_words(ch)}. " + (start_words(start["default"], start["chooser"] == "always" and nuc == "chooser", start["selection"], start["timeout"]) if start.get("line")
+    # the start setting exactly as the console has it (also a setting its own startup chooser made: another default, any countdown, the
+    # menu used last with no countdown, the chooser not shown at start), so a choice made from it writes back what was not changed
+    p = (start.get("line") or "").split(" "); ok5 = len(p) == 5
+    auto = "menu" if not ok5 else ("last" if p[3] == "last" else "wait" if p[4] == "0" else "menu")
+    ch = {"mod": "mod" in pk, "nucleus": nuc, "start": p[0] if ok5 and START_ID_RE.match(p[0]) else "native", "auto": auto,
+          "countdown": int(p[4]) if ok5 and auto != "wait" else COUNTDOWN, "at_start": not (ok5 and "nucleus-chooser" in pk and p[1] == "never")}
+    if nuc == "none": ch.update(start="native", auto="menu", countdown=COUNTDOWN, at_start=True)
+    text = f"This console has {addons_words(ch)}. " + (start_words(start["default"], start["chooser"] == "always" and nuc == "chooser", start["selection"], start["timeout"], start.get("default_label"), nuc == "chooser") if start.get("line")
             else "When the console is turned on, Original Menu opens." + (" CCS HOME opens from its tile there." if ch["mod"] else ""))
     return {"packages": pk, "choice": ch, "start": start, "text": text}
 
 def pointer_bytes(copy: str) -> bytes: return (copy + "\n").encode()
 
 def hakchi_system(model: str, region: str) -> str | None:
-    """hakchi's own system code ($sftype-$sfregion) for a model and the REGION its software names (hakchi: EUR is eur, anything else on an NES
-    Classic is usa, as the North American console's EUR_USA; the Super NES Classic's USA and EUR are its two supported regions)"""
+    """hakchi's own system code ($sftype-$sfregion) for a model and the REGION its software names (hakchi's softwareCheck: EUR is eur,
+    anything else on an NES Classic is usa, as the North American console's EUR_USA; the Super NES Classic's USA and EUR are its two
+    supported regions)"""
     if model == "nes-classic-edition": return "nes-eur" if region == "EUR" else "nes-usa"
     if model == "snes-classic-edition" and region in ("USA", "EUR"): return "snes-" + region.lower()
     return None
@@ -986,12 +1010,15 @@ class FakeConsole:
         chooser at start), or its first registry when there is none; the console owner's own system images stay listed. Its one result line; like the
         worker, anything but its success raises"""
         timeout = str(timeout)
-        if default not in STARTS or chooser not in ("always", "never") or home not in ("on", "off") or selection not in ("default", "last") or not re.match(r"^([0-9]|[1-9][0-9])$", timeout):
-            raise OSError("bad-args: default: native or ccs-home; chooser: always or never; home: on or off; selection: default or last; timeout: 0 to 99")
+        if not START_ID_RE.match(str(default)) or chooser not in ("always", "never") or home not in ("on", "off") or selection not in ("default", "last") or not re.match(r"^([0-9]|[1-9][0-9])$", timeout):
+            raise OSError("bad-args: default: native, ccs-home or another listed option; chooser: always or never; home: on or off; selection: default or last; timeout: 0 to 99")
         if self.method_files(ADDONS["nucleus"]) is None: raise OSError("not-installed: CCS Nucleus is not installed (hakchi does not list it)")
         if not os.path.isfile(self._ov(ADDON_PROGRAMS["nucleus"])): raise OSError("not-a-file: CCS Nucleus's program is not a plain file")
         def refuse(why: str): raise OSError(f"module-failed: CCS Nucleus's own command answered: result start {why}")
         if default == "ccs-home" and home == "off": refuse("refused CCS HOME is not offered")
+        if default not in STARTS:   # another option as what opens first: one the registry lists, an owner's system image only with the chooser at start
+            reg0 = self._registry()
+            if reg0 is None or default not in reg0["options"] or (reg0["kinds"][default] == "owner-root" and chooser != "always"): refuse("refused default")
         def act():
             if self._registry() is None:
                 if os.path.lexists(self.p(REGISTRY)): refuse("refused the registry on the console is not valid (it is kept as it is)")
@@ -1006,7 +1033,8 @@ class FakeConsole:
                 if self._registry()["default"] == "ccs-home" and not self._reg_set("default", "native"): refuse("failed default")
                 def drop(lines): return [(k, " ".join(o for o in v.split() if o != "ccs-home") if k == "options" else v) for k, v in lines if not k.startswith("opt.ccs-home.")]
                 if not self._reg_edit(drop): refuse("failed removing CCS HOME")
-            for k, v in (("default", default), ("selection", selection), ("timeout", timeout), ("chooser", chooser)):
+            # the chooser at start before an owner's system image becomes what opens first (and after it stops being that): each registry valid
+            for k, v in ((("chooser", chooser),) if chooser == "always" else ()) + (("default", default), ("selection", selection), ("timeout", timeout), ("chooser", chooser)):
                 if str(self._registry()[k]) != v and not self._reg_set(k, v): refuse(f"failed {k}")
             self.writes.append("ccs-nucleus:start"); return f"result start ok default={default} chooser={chooser} home={home} selection={selection} timeout={timeout}"
         return self._change("ccs-nucleus start", act)
@@ -1422,13 +1450,19 @@ class Installer:
             except ChooserUnavailable: ok = False
             if not ok: raise Refused("preflight", f"this installation's {ADDON_LABELS[a]} package is not the one the plan names: prepare the HOME menu and review the plan again. Nothing was changed")
         now = console_addons(c); have = now["choice"]
+        if want["nucleus"] != "none" and want["start"] not in STARTS:   # another choice as what opens first: only the console's own, kept as it is
+            if have["nucleus"] == "none" or want["start"] != now["start"].get("default"): raise Refused("addons", "Choose what opens when the console is turned on: Original Menu or CCS HOME. Nothing was changed")
+            if now["start"].get("default_kind") == "owner-root" and not (want["nucleus"] == "chooser" and want["at_start"]):
+                raise Refused("addons", "Your own system image opens first only from the startup chooser at start. Choose Original Menu or CCS HOME to open first, or keep the startup chooser showing at start. Nothing was changed")
         gone = removes(have, want)
-        if gone: raise Refused("addons", REMOVES_TEXT, addons_now=have, addons_now_text=now["text"], would_remove=[ADDONS[a] for a in gone], keep_choice=keep_choice(want, have))
+        if gone: raise Refused("addons", REMOVES_TEXT, addons_now=have, addons_now_text=now["text"], would_remove=[ADDONS[a] for a in gone], keep_choice=keep_choice(want, have),
+                               start_now_name=now["start"].get("default_label"), start_now_kind=now["start"].get("default_kind"))
         add = [a for a in choice_addons(want) if (now["packages"].get(a) or {}).get("state") in (None, "older")]
         start = None
         if self.plan["start_line"]:   # CCS Nucleus's start as the plan chose it (its own command changes it only when it differs; read again after the add-ons)
             line = now["start"].get("line") if "nucleus" in now["packages"] else None
-            start = {"now": line, "want": self.plan["start_line"], "change": line != self.plan["start_line"], "text": self.plan["start_text"]}
+            start = {"now": line, "want": self.plan["start_line"], "change": line != self.plan["start_line"],
+                     "text": start_text(want, now["start"].get("default_label")) if want["start"] not in STARTS else self.plan["start_text"]}
         legacy = legacy_state(c, recs)
         if legacy == "foreign": raise Refused("preflight", f"a {LEGACY_NAME} module is installed that this program did not make (or that was changed); nothing was changed")
         ident = c.read(f"{DATA_DIR}/IDENTITY.json", 65536) if not self.games else None; data = {"state": "new"}   # (CCS HOME's saves: a games copy has none)
@@ -1480,6 +1514,7 @@ class Installer:
                 "already": bool(same and not add and legacy == "absent" and not (start and start["change"]) and hk_action == "none"), "same_copy": bool(same),
                 "games_copy": same if self.games else None, "home_kept": cur if self.games else None,
                 "addons": want, "addons_now": have, "addons_now_text": now["text"], "packages_now": now["packages"], "start_now": now["start"].get("line"),
+                "start_now_name": now["start"].get("default_label"), "start_now_kind": now["start"].get("default_kind"),
                 "add": [ADDONS[a] for a in add if now["packages"].get(a) is None], "update": [ADDONS[a] for a in add if now["packages"].get(a) is not None], "add_addons": add,
                 "start": start, "changes_text": " ".join(words) or "The add-ons and what opens at power-on stay as they are.",
                 "legacy": legacy, "data": data, "kept_unknown": unknown, "earlier_copies": older, "records": len(recs["files"]),
@@ -2205,7 +2240,8 @@ def uninstall_plan(c, keep_data: bool = True, device: str | None = None) -> dict
     keep += [f"{PKG_DIR}/{x} (not this program's)" for x in c.listdir(PKG_DIR) if x != "current" and x not in recs["versions"]]
     keep += [f"{GAMES_DIR}/{x} (not this program's)" for x in c.listdir(GAMES_DIR) if x not in recs["games"]]
     keep += [f"{ROOT_DIR}/{x} (not this program's)" for x in c.listdir(ROOT_DIR) if x not in KNOWN_ROOT]
-    keep += [f"{ROOT_DIR}/{x} (the add-ons' own records and settings: kept)" for x in c.listdir(ROOT_DIR) if x in ADDON_RECORDS]
+    keep += [f"{ROOT_DIR}/{x} (the add-ons' own records and settings: kept)" if x != "owned" else f"{OWNED_DIR} (the records of what stays: kept; the folder goes once it is empty)"
+             for x in c.listdir(ROOT_DIR) if x in ADDON_RECORDS]
     if keep_data: keep.append(f"{DATA_DIR} (the console's saves, slots and settings: kept)")
     elif c.stat(DATA_DIR)["type"] == "dir":
         dfiles, ddirs = [], []
@@ -2219,7 +2255,9 @@ def uninstall_plan(c, keep_data: bool = True, device: str | None = None) -> dict
         actions += [{"op": "remove", "path": q, "sha256": c.sha256(q)} for q in sorted(dfiles)]
         actions += [{"op": "rmdir-if-empty", "path": q} for q in sorted(ddirs, key=lambda d: (-d.count("/"), d)) + [DATA_DIR]]
         remove.append(f"{DATA_DIR}: {len(dfiles)} file(s) (the console's saves, slots and settings, as asked)")
-    actions += [{"op": "rmdir-if-empty", "path": d} for d in (PKG_DIR, GAMES_DIR, INST_DIR, HP.STAGE_ROOT, HP.INTEGRATION, ROOT_DIR)]
+    # this program's folders when empty, and the console programs' journal folder once their own removal has left it empty: nothing of Classic
+    # Cart Studio's own stays behind (a folder that holds anything, or is a link, stays)
+    actions += [{"op": "rmdir-if-empty", "path": d} for d in (PKG_DIR, GAMES_DIR, INST_DIR, HP.STAGE_ROOT, HP.INTEGRATION, OWNED_DIR, ROOT_DIR)]
     body = {"schema": "ccs-uninstall-review/1", "device": dev["hwid"], "keep_data": keep_data, "actions": actions, "keep": keep, "pointer_sha256": _sha(pb) if pb is not None else None}
     return {"ok": True, "remove": remove, "keep": keep, "module": bool([a for a in actions if a["op"] in ("addon-uninstall", "legacy-uninstall")]), "addons_removed": [ADDONS[a] for a in going],
             "addons_kept": [listed[a]["name"] for a in listed if a not in going], "copies": sorted(recs["versions"]), "games_copies": sorted(recs["games"]), "pointer": {"owned": owned_ptr, "value": pv if owned_ptr else None},
@@ -2386,15 +2424,18 @@ STORAGE_PROFILES = {   # hakchi's game storage (tests; STORAGE_SAMPLE): every ot
     "flat-storage": _READY | {"hwid": "sim-0012", "free_bytes": 200_000_000, "storage": "flat"},
     "no-storage": _READY | {"hwid": "sim-0013", "free_bytes": 200_000_000, "storage": "none"},
 }
-MODEL_PROFILES = {   # a Super NES Classic Edition with hakchi (tests): North American and European, and the same with CCS Mod already there
+MODEL_PROFILES = {   # a Super NES Classic Edition with hakchi (tests): North American and European, and the same with CCS Mod already there;
+                     # a European NES Classic
     "snes-usa": _SNES | {"hwid": "sim-0014", "free_bytes": 200_000_000},
     "snes-eur": _SNES | {"system": "snes-eur", "region": "EUR", "storage": "snes-eur", "hwid": "sim-0005", "free_bytes": 200_000_000},
     "snes-with-mod": _SNES | {"hwid": "sim-0015", "free_bytes": 200_000_000, "addons": "mod"},
+    # an NES Classic whose software names REGION EUR: hakchi's nes-eur, its game storage games/nes-eur
+    "nes-eur": _READY | {"system": "nes-eur", "region": "EUR", "storage": "nes-eur", "hwid": "sim-0017", "free_bytes": 200_000_000},
 }
-IDENTITY_PROFILES = {   # refusals by identity (tests): another model or region, a model its software and hakchi disagree on, data storage
-                        # elsewhere, an older hakchi, a custom firmware, an identity that cannot be read
+IDENTITY_PROFILES = {   # refusals by identity (tests): another model or region, a model or region its software and hakchi disagree on, data
+                        # storage elsewhere, an older hakchi, a custom firmware, an identity that cannot be read
     "sfc-jpn": _SNES | {"system": "shvc-jpn", "region": "JPN", "hwid": "sim-0016", "free_bytes": 200_000_000},
-    "nes-eur": _READY | {"system": "nes-eur", "region": "EUR", "hwid": "sim-0017", "free_bytes": 200_000_000},
+    "region-mismatch": _READY | {"system": "nes-usa", "region": "EUR", "hwid": "sim-0022", "free_bytes": 200_000_000},
     "model-mismatch": _READY | {"system": "snes-usa", "hwid": "sim-0018", "free_bytes": 200_000_000},
     "no-model": _READY | {"board": None, "region": None, "hwid": "sim-0019", "free_bytes": 200_000_000},
     "data-elsewhere": _READY | {"data_mount": "/dev/sda1 vfat", "hwid": "sim-0020", "free_bytes": 200_000_000},
@@ -2430,6 +2471,8 @@ STORAGE_SAMPLE = {
     "snes-usa": {"var/lib/hakchi/games/snes-usa/000/CLV-H-SAAAA/CLV-H-SAAAA.desktop": b"[Desktop Entry]\nName=A game Hakchi added\n",
                  "var/lib/hakchi/games/snes-usa/000/CLV-H-SAAAA/CLV-H-SAAAA.sfrom": b"a game Hakchi added"},
     "snes-eur": {"var/lib/hakchi/games/snes-eur/000/CLV-H-SAAAB/CLV-H-SAAAB.desktop": b"[Desktop Entry]\nName=A game Hakchi added\n"},
+    "nes-eur": {"var/lib/hakchi/games/nes-eur/000/CLV-H-AAAAC/CLV-H-AAAAC.desktop": b"[Desktop Entry]\nName=A game Hakchi added\n",
+                "var/lib/hakchi/games/nes-eur/000/CLV-H-AAAAC/CLV-H-AAAAC.nes": b"NES\x1a a game Hakchi added"},
     "flat": {"var/lib/hakchi/games/CLV-H-AAAAA/CLV-H-AAAAA.desktop": b"[Desktop Entry]\nName=A game Hakchi added\n"},
     "none": {}}
 

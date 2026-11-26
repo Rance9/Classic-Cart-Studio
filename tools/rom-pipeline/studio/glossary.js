@@ -3,7 +3,7 @@
 // elsewhere shuts it (Escape and Close put the focus back on the word). Resting a mouse pointer on a word opens it too, after GL_HOVER_OPEN_MS,
 // without moving the focus. One open at a time. The words and explanations are the
 // shared glossary (tools/rom-pipeline/studio/glossary.json), the same as in CCS Console Workbench. Explained only inside [data-terms] areas (Help,
-// Install on NES Classic, and the authored text of the dialogs that use these words); never inside links, buttons, labels, form fields, code,
+// Install on Console, and the authored text of the dialogs that use these words); never inside links, buttons, labels, form fields, code,
 // headings, game lists or [data-no-terms] (legal text, Credits, the Installation Terms, a collection's own name). Classic Cart Studio itself is
 // not explained here: this is it.
 const GLOSSARY=__GLOSSARY__;
